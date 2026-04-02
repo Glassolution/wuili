@@ -2,16 +2,18 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const CTASection = () => (
-  <section className="py-24 bg-dark relative overflow-hidden">
+  <div style={{ background: "#0a2540", borderTop: "1px solid #e3e8ef", position: "relative", overflow: "hidden" }}>
     {/* Glow */}
     <div
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] opacity-30"
       style={{
+        position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+        width: "600px", height: "400px", opacity: 0.3,
         background: "radial-gradient(ellipse, hsl(243 100% 68% / 0.5), hsl(167 100% 42% / 0.2), transparent 70%)",
       }}
     />
-
-    <div className="max-w-3xl mx-auto px-6 text-center relative z-10">
+    <div style={{ position: "relative", maxWidth: "1280px", margin: "0 auto", padding: "88px 80px", textAlign: "center", zIndex: 1 }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "1px", background: "rgba(255,255,255,0.08)" }} />
+      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: "1px", background: "rgba(255,255,255,0.08)" }} />
       <h2 className="text-3xl lg:text-4xl font-black text-primary-foreground mb-4" style={{ letterSpacing: "-1.5px" }}>
         Comece a vender ainda hoje
       </h2>
@@ -27,7 +29,7 @@ const CTASection = () => (
         </Button>
       </div>
     </div>
-  </section>
+  </div>
 );
 
 export default CTASection;

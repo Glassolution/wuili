@@ -1,150 +1,262 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import HeroCard from "./HeroCard";
 
 const HeroSection = () => {
-  const [salesCount, setSalesCount] = useState(1247);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [count, setCount] = useState(1247);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setSalesCount((prev) => prev + (Math.random() > 0.5 ? 2 : 1));
-    }, 2000);
+      setCount((c) => c + Math.floor(Math.random() * 3) + 1);
+    }, 1800);
     return () => clearInterval(interval);
   }, []);
 
+  // PROBLEMA 3 — Efeito de tinta fluida (aquarela)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    let animId: number;
+    let T = 0;
+
+    const resize = () => {
+      canvas.width = canvas.offsetWidth * devicePixelRatio;
+      canvas.height = canvas.offsetHeight * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const inks = [
+      { r: 255, g: 140, b: 45,  baseX: 0.88, flowY: 0.0,  width: 0.18, height: 0.55, sp: 0.008, ph: 0   },
+      { r: 240, g: 60,  b: 160, baseX: 0.95, flowY: 0.1,  width: 0.14, height: 0.60, sp: 0.010, ph: 1.4 },
+      { r: 110, g: 65,  b: 255, baseX: 1.02, flowY: 0.05, width: 0.12, height: 0.70, sp: 0.007, ph: 2.8 },
+      { r: 60,  g: 180, b: 255, baseX: 0.82, flowY: 0.15, width: 0.10, height: 0.50, sp: 0.012, ph: 4.2 },
+      { r: 40,  g: 210, b: 190, baseX: 1.05, flowY: 0.2,  width: 0.09, height: 0.45, sp: 0.009, ph: 5.6 },
+      { r: 255, g: 200, b: 80,  baseX: 0.78, flowY: 0.0,  width: 0.08, height: 0.40, sp: 0.011, ph: 3.5 },
+    ];
+
+    function drawInk(ink: typeof inks[0], W: number, H: number) {
+      const t = T * ink.sp + ink.ph;
+      const x  = W * ink.baseX + Math.sin(t * 0.8) * W * 0.025;
+      const y  = H * ink.flowY;
+      const hw = W * ink.width * 0.5;
+      const h  = H * ink.height;
+      const bulge = 1 + Math.sin(t * 1.2) * 0.08;
+      const lean  = Math.cos(t * 0.6) * W * 0.02;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, y - H * 0.12);
+      ctx.bezierCurveTo(
+        x + hw * 0.6 + lean,  y + h * 0.2,
+        x + hw * bulge + lean, y + h * 0.65,
+        x + lean * 0.5,        y + h * 1.05
+      );
+      ctx.bezierCurveTo(
+        x - hw * bulge + lean, y + h * 0.65,
+        x - hw * 0.6 + lean,   y + h * 0.2,
+        x,                      y - H * 0.12
+      );
+      ctx.closePath();
+
+      const cx2    = x + lean * 0.3;
+      const cy2    = y + h * 0.35;
+      const radius = Math.max(hw * 1.8, h * 0.6);
+      const grad   = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, radius);
+      grad.addColorStop(0,    `rgba(${ink.r},${ink.g},${ink.b},0.92)`);
+      grad.addColorStop(0.35, `rgba(${ink.r},${ink.g},${ink.b},0.75)`);
+      grad.addColorStop(0.65, `rgba(${ink.r},${ink.g},${ink.b},0.45)`);
+      grad.addColorStop(0.85, `rgba(${ink.r},${ink.g},${ink.b},0.18)`);
+      grad.addColorStop(1,    `rgba(${ink.r},${ink.g},${ink.b},0)`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function draw() {
+      T += 1;
+      const W = canvas.offsetWidth;
+      const H = canvas.offsetHeight;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.globalCompositeOperation = "multiply";
+      inks.forEach((ink) => drawInk(ink, W, H));
+      ctx.globalCompositeOperation = "source-over";
+
+      // Véu branco orgânico — protege a legibilidade do texto
+      const veil = ctx.createRadialGradient(W * 0.28, H * 0.45, 0, W * 0.28, H * 0.45, W * 0.52);
+      veil.addColorStop(0,    "rgba(255,255,255,1.0)");
+      veil.addColorStop(0.40, "rgba(255,255,255,0.98)");
+      veil.addColorStop(0.60, "rgba(255,255,255,0.82)");
+      veil.addColorStop(0.78, "rgba(255,255,255,0.45)");
+      veil.addColorStop(1,    "rgba(255,255,255,0.0)");
+      ctx.fillStyle = veil;
+      ctx.fillRect(0, 0, W, H);
+
+      // Brilho central suave — profundidade dentro da tinta
+      const shine = ctx.createRadialGradient(W * 0.82, H * 0.25, 0, W * 0.82, H * 0.25, W * 0.28);
+      shine.addColorStop(0, "rgba(255,255,255,0.55)");
+      shine.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = shine;
+      ctx.fillRect(0, 0, W, H);
+
+      animId = requestAnimationFrame(draw);
+    }
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
   return (
-    <section className="relative pt-32 pb-20 overflow-hidden">
-      {/* Animated gradient background - right half */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute top-0 right-0 w-[60%] h-full animate-gradient opacity-30"
+    // PROBLEMA 1 — sem min-height, altura definida pelo conteúdo
+    <section
+      className="relative overflow-hidden bg-white"
+      style={{ paddingTop: "60px", paddingBottom: "0" }}
+    >
+      {/* Canvas — cobre 60% da largura, toda a altura */}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          width: "60%",
+          height: "100%",
+          zIndex: 0,
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Conteúdo — z-index 2, acima do canvas */}
+      {/* PROBLEMA 1 — padding ajustado, padding esquerdo 260px */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 2,
+          maxWidth: "1280px",
+          margin: "0 auto",
+          padding: "80px 80px 72px 260px",
+        }}
+      >
+        {/* Linha do counter */}
+        <p
           style={{
-            background:
-              "radial-gradient(ellipse at 70% 30%, hsl(243 100% 68% / 0.4), transparent 50%), radial-gradient(ellipse at 90% 60%, hsl(180 80% 60% / 0.3), transparent 50%), radial-gradient(ellipse at 60% 80%, hsl(330 80% 60% / 0.2), transparent 50%), radial-gradient(ellipse at 80% 10%, hsl(30 90% 60% / 0.2), transparent 50%)",
-            backgroundSize: "200% 200%",
+            fontSize: "14px",
+            fontWeight: 400,
+            color: "#697386",
+            marginBottom: "28px",
+            letterSpacing: 0,
+            lineHeight: 1.5,
           }}
-        />
-        <div className="absolute top-0 right-0 w-[60%] h-full bg-gradient-to-l from-transparent via-transparent to-background" />
-      </div>
+        >
+          Vendas hoje na plataforma:{" "}
+          <span style={{ color: "#0a2540", fontWeight: 600 }}>
+            {count.toLocaleString("pt-BR")}
+          </span>
+        </p>
 
-      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center relative z-10">
-        {/* Left column */}
-        <div className="space-y-8">
-          <div className="inline-flex items-center gap-2 bg-accent rounded-full px-4 py-1.5">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-sm font-medium text-accent-foreground">
-              Vendas hoje na plataforma: <span className="font-bold">{salesCount.toLocaleString("pt-BR")}</span>
-            </span>
-          </div>
-
-          <h1 className="text-5xl lg:text-[56px] font-black leading-[1.05]" style={{ letterSpacing: "-2.5px" }}>
-            Plataforma de vendas online para{" "}
-            <span className="text-primary">qualquer</span> pessoa.
-          </h1>
-
-          <p className="text-lg text-muted-foreground leading-relaxed max-w-lg">
-            Crie sua loja, encontre produtos de fornecedores reais e publique automaticamente no Mercado Livre, Shopee e
+        <h1
+          style={{
+            fontSize: "36px",
+            fontWeight: 500,
+            lineHeight: 1.1,
+            letterSpacing: "-0.5px",
+            color: "#0a2540",
+            maxWidth: "600px",
+            margin: 0,
+          }}
+        >
+          Infraestrutura de vendas para aumentar as suas receitas.{" "}
+          <span style={{ color: "#425466", fontWeight: 500 }}>
+            Crie sua loja, automatize publicações no Mercado Livre, Shopee e
             mais. Sem estoque, desde a primeira venda até a milionésima.
-          </p>
+          </span>
+        </h1>
 
-          <div className="flex flex-wrap gap-3">
-            <Button size="lg" className="bg-primary text-primary-foreground shadow-wuili-primary hover:opacity-90 transition-all text-base px-8" asChild>
-              <Link to="/dashboard">Comece já ›</Link>
-            </Button>
-            <Button size="lg" variant="outline" className="text-base px-6 gap-2">
-              <svg width="18" height="18" viewBox="0 0 24 24">
-                <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                  fill="#EA4335"
-                />
-              </svg>
-              Registre-se com o Google
-            </Button>
-          </div>
-        </div>
+        {/* CTAs */}
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            alignItems: "center",
+            marginTop: "32px",
+            flexWrap: "wrap",
+          }}
+        >
+          <Link
+            to="/dashboard"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "#635bff",
+              color: "#fff",
+              fontSize: "15px",
+              fontWeight: 700,
+              padding: "13px 24px",
+              borderRadius: "8px",
+              textDecoration: "none",
+              boxShadow: "0 4px 20px rgba(99,91,255,0.40)",
+              transition: "background .15s, transform .1s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.background = "#4f46e5";
+              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.background = "#635bff";
+              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
+            }}
+          >
+            Comece já &nbsp;›
+          </Link>
 
-        {/* Right column - floating cards */}
-        <div className="relative h-[520px] hidden lg:block">
-          {/* Satellite card 1 - top left */}
-          <div className="absolute -left-4 top-0 z-20 animate-float-alt" style={{ transform: "rotate(2deg)" }}>
-            <div className="card-wuili p-4 w-52">
-              <p className="text-xs text-muted-foreground font-medium">Lucro esta semana</p>
-              <p className="text-2xl font-black text-primary mt-1">R$ 284</p>
-              <p className="text-xs font-bold text-success mt-1">↑ +24%</p>
-              <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full animate-progress-fill" />
-              </div>
-            </div>
-          </div>
-
-          {/* Satellite card 2 - top right */}
-          <div className="absolute right-0 top-4 z-20 animate-float" style={{ transform: "rotate(1.5deg)" }}>
-            <div className="card-wuili p-4 w-56">
-              <p className="text-xs text-muted-foreground font-medium mb-2">Plataformas conectadas</p>
-              <div className="flex flex-wrap gap-1.5">
-                <span className="text-xs px-2 py-1 rounded-full bg-accent text-accent-foreground font-medium">🛒 Mercado Livre ✓</span>
-                <span className="text-xs px-2 py-1 rounded-full bg-accent text-accent-foreground font-medium">🧡 Shopee ✓</span>
-                <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground font-medium">📦 AliExpress</span>
-                <span className="text-xs px-2 py-1 rounded-full bg-accent text-accent-foreground font-medium">🏪 Minha loja ✓</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Main hero card */}
-          <div className="absolute left-8 top-16 z-10 animate-float" style={{ transform: "rotate(-1deg)" }}>
-            <HeroCard />
-          </div>
-
-          {/* Satellite card 3 - bottom right */}
-          <SaleNotification />
+          <a
+            href="#"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "#fff",
+              color: "#0a2540",
+              fontSize: "15px",
+              fontWeight: 500,
+              padding: "12px 20px",
+              borderRadius: "8px",
+              textDecoration: "none",
+              border: "1px solid rgba(0,0,0,0.13)",
+              transition: "border-color .15s, box-shadow .15s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(0,0,0,0.22)";
+              (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 2px 10px rgba(0,0,0,0.06)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(0,0,0,0.13)";
+              (e.currentTarget as HTMLAnchorElement).style.boxShadow = "none";
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <g>
+                <path d="M15.5 8.19c0-.57-.05-1.11-.14-1.64H8v3.1h4.18a3.57 3.57 0 0 1-1.55 2.35v1.95h2.51C15.61 12.7 15.5 10.6 15.5 8.19z" fill="#4285F4"/>
+                <path d="M8 16c2.16 0 3.97-.72 5.3-1.95l-2.51-1.95c-.72.48-1.64.76-2.79.76-2.14 0-3.96-1.45-4.61-3.4H.8v2.02A7.999 7.999 0 0 0 8 16z" fill="#34A853"/>
+                <path d="M3.39 9.46A4.8 4.8 0 0 1 3.14 8c0-.51.09-1.01.25-1.46V4.52H.8A7.999 7.999 0 0 0 0 8c0 1.29.31 2.51.8 3.62l2.59-2.16z" fill="#FBBC05"/>
+                <path d="M8 3.18c1.21 0 2.3.42 3.15 1.23l2.36-2.36C12.07.79 10.16 0 8 0A8 8 0 0 0 .8 4.52L3.39 6.54C4.04 4.59 5.86 3.18 8 3.18z" fill="#EA4335"/>
+              </g>
+            </svg>
+            Registre-se com o Google
+          </a>
         </div>
       </div>
     </section>
-  );
-};
-
-const SaleNotification = () => {
-  const sales = [
-    { emoji: "💰", title: "Venda realizada!", desc: "Fone TWS vendido no Mercado Livre", time: "agora mesmo" },
-    { emoji: "🎉", title: "Nova venda!", desc: "Tênis Casual vendido na Shopee", time: "há 2 min" },
-    { emoji: "🚀", title: "Pedido confirmado!", desc: "Kit Skincare na Minha Loja", time: "há 5 min" },
-    { emoji: "💸", title: "Lucro recebido!", desc: "R$63 de comissão depositados", time: "há 8 min" },
-  ];
-  const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => setIdx((p) => (p + 1) % sales.length), 3500);
-    return () => clearInterval(interval);
-  }, []);
-
-  const sale = sales[idx];
-
-  return (
-    <div className="absolute right-4 bottom-8 z-20 animate-float-alt" style={{ transform: "rotate(-2deg)" }}>
-      <div className="card-wuili p-4 w-56 transition-all duration-300">
-        <div className="flex items-start gap-2">
-          <span className="text-2xl">{sale.emoji}</span>
-          <div>
-            <p className="text-sm font-bold text-foreground">{sale.title}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{sale.desc}</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">{sale.time}</p>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 };
 

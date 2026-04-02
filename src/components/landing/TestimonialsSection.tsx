@@ -22,8 +22,10 @@ const testimonials = [
 ];
 
 const TestimonialsSection = () => (
-  <section className="py-24 bg-muted">
-    <div className="max-w-7xl mx-auto px-6">
+  <div style={{ background: "#fff", borderTop: "1px solid #e3e8ef" }}>
+    <div style={{ position: "relative", maxWidth: "1280px", margin: "0 auto", padding: "88px 80px" }}>
+      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "1px", background: "#e3e8ef" }} />
+      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: "1px", background: "#e3e8ef" }} />
       <p className="label-upper mb-3">Depoimentos</p>
       <h2 className="text-3xl lg:text-4xl font-black mb-12" style={{ letterSpacing: "-1.5px" }}>
         Quem já usa a Wuili
@@ -51,7 +53,7 @@ const TestimonialsSection = () => (
         ))}
       </div>
     </div>
-  </section>
+  </div>
 );
 
 export default TestimonialsSection;
