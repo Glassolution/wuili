@@ -2,25 +2,34 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 
 const products = [
-  { emoji: "🎧", name: "Fone Bluetooth TWS", supplier: "TechImport BR", profit: 63, price: 89, cat: "Eletrônicos" },
-  { emoji: "👟", name: "Tênis Casual Masculino", supplier: "ModaFlex SP", profit: 47, price: 127, cat: "Moda" },
-  { emoji: "💄", name: "Kit Skincare Coreano", supplier: "BeautyAsia", profit: 38, price: 89, cat: "Beleza" },
-  { emoji: "⌚", name: "Relógio Smartwatch", supplier: "TechImport BR", profit: 82, price: 234, cat: "Eletrônicos" },
-  { emoji: "🎒", name: "Mochila Urbana", supplier: "UrbanBags", profit: 55, price: 156, cat: "Moda" },
-  { emoji: "🕶️", name: "Óculos de Sol Retrô", supplier: "StyleVision", profit: 34, price: 78, cat: "Moda" },
-  { emoji: "🖱️", name: "Mouse Sem Fio", supplier: "TechImport BR", profit: 28, price: 67, cat: "Eletrônicos" },
-  { emoji: "📱", name: "Capa iPhone 15", supplier: "CaseBR", profit: 22, price: 39, cat: "Eletrônicos" },
-  { emoji: "🌸", name: "Perfume Importado", supplier: "BeautyAsia", profit: 71, price: 189, cat: "Beleza" },
-  { emoji: "👠", name: "Tênis Feminino", supplier: "ModaFlex SP", profit: 52, price: 144, cat: "Moda" },
-  { emoji: "📷", name: "Câmera de Segurança", supplier: "TechImport BR", profit: 94, price: 278, cat: "Eletrônicos" },
-  { emoji: "💻", name: "Suporte Notebook", supplier: "OfficeGear", profit: 31, price: 89, cat: "Casa" },
-  { emoji: "💅", name: "Kit Maquiagem", supplier: "BeautyAsia", profit: 45, price: 119, cat: "Beleza" },
-  { emoji: "💡", name: "Luminária LED", supplier: "HomeDeco", profit: 38, price: 97, cat: "Casa" },
-  { emoji: "🔊", name: "Caixa de Som BT", supplier: "TechImport BR", profit: 57, price: 167, cat: "Eletrônicos" },
-  { emoji: "👜", name: "Carteira Couro", supplier: "LeatherBR", profit: 44, price: 134, cat: "Moda" },
+  { name: "Fone Bluetooth TWS", supplier: "TechImport BR", profit: 63, price: 89, cat: "Eletrônicos" },
+  { name: "Tênis Casual Masculino", supplier: "ModaFlex SP", profit: 47, price: 127, cat: "Moda" },
+  { name: "Kit Skincare Coreano", supplier: "BeautyAsia", profit: 38, price: 89, cat: "Beleza" },
+  { name: "Relógio Smartwatch", supplier: "TechImport BR", profit: 82, price: 234, cat: "Eletrônicos" },
+  { name: "Mochila Urbana", supplier: "UrbanBags", profit: 55, price: 156, cat: "Moda" },
+  { name: "Óculos de Sol Retrô", supplier: "StyleVision", profit: 34, price: 78, cat: "Moda" },
+  { name: "Mouse Sem Fio", supplier: "TechImport BR", profit: 28, price: 67, cat: "Eletrônicos" },
+  { name: "Capa iPhone 15", supplier: "CaseBR", profit: 22, price: 39, cat: "Eletrônicos" },
+  { name: "Perfume Importado", supplier: "BeautyAsia", profit: 71, price: 189, cat: "Beleza" },
+  { name: "Tênis Feminino", supplier: "ModaFlex SP", profit: 52, price: 144, cat: "Moda" },
+  { name: "Câmera de Segurança", supplier: "TechImport BR", profit: 94, price: 278, cat: "Eletrônicos" },
+  { name: "Suporte Notebook", supplier: "OfficeGear", profit: 31, price: 89, cat: "Casa" },
+  { name: "Kit Maquiagem", supplier: "BeautyAsia", profit: 45, price: 119, cat: "Beleza" },
+  { name: "Luminária LED", supplier: "HomeDeco", profit: 38, price: 97, cat: "Casa" },
+  { name: "Caixa de Som BT", supplier: "TechImport BR", profit: 57, price: 167, cat: "Eletrônicos" },
+  { name: "Carteira Couro", supplier: "LeatherBR", profit: 44, price: 134, cat: "Moda" },
 ];
 
 const tabs = ["Todos", "Eletrônicos", "Moda", "Beleza", "Casa"];
+
+const getProductInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 
 const CatalogPage = () => {
   const [search, setSearch] = useState("");
@@ -46,7 +55,7 @@ const CatalogPage = () => {
           />
         </div>
         <button className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all">
-          Importar do AliExpress +
+          Importar produtos
         </button>
       </div>
 
@@ -69,8 +78,13 @@ const CatalogPage = () => {
           const isAdded = added.includes(i);
           return (
             <div key={i} className="card-wuili overflow-hidden group">
-              <div className="h-32 bg-muted flex items-center justify-center text-5xl group-hover:scale-105 transition-transform">
-                {p.emoji}
+              <div className="flex h-32 flex-col justify-between bg-muted/70 p-4 transition-colors group-hover:bg-muted">
+                <span className="w-fit rounded-full bg-background px-2.5 py-1 text-[11px] font-semibold text-muted-foreground shadow-sm">
+                  {p.cat}
+                </span>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-background text-sm font-bold tracking-[0.16em] text-foreground shadow-sm">
+                  {getProductInitials(p.name)}
+                </div>
               </div>
               <div className="p-4">
                 <p className="text-sm font-bold truncate">{p.name}</p>
@@ -89,7 +103,7 @@ const CatalogPage = () => {
                       : "bg-primary text-primary-foreground hover:opacity-90"
                   }`}
                 >
-                  {isAdded ? "✓ Adicionado" : "+ Adicionar à minha loja"}
+                  {isAdded ? "Adicionado" : "Adicionar à loja"}
                 </button>
               </div>
             </div>

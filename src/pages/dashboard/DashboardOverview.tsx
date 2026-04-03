@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ArrowUpRight, Boxes, Package, ShoppingCart, Users, Wallet } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const chartData = [
@@ -38,10 +39,10 @@ const DashboardOverview = () => {
   const periods = ["Últimas 24h", "Semanal", "Mensal", "Anual"];
 
   const stats = [
-    { emoji: "💰", label: "Lucro", value: "R$ 6.961,19", change: "+24%" },
-    { emoji: "🛒", label: "Pedidos", value: "47", change: "+18%" },
-    { emoji: "📦", label: "Produtos vendidos", value: "12", change: "+12%" },
-    { emoji: "👤", label: "Clientes", value: "8", change: "+11%" },
+    { icon: Wallet, label: "Lucro", value: "R$ 6.961,19", change: "+24%" },
+    { icon: ShoppingCart, label: "Pedidos", value: "47", change: "+18%" },
+    { icon: Package, label: "Produtos vendidos", value: "12", change: "+12%" },
+    { icon: Users, label: "Clientes", value: "8", change: "+11%" },
   ];
 
   return (
@@ -65,12 +66,17 @@ const DashboardOverview = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => (
           <div key={s.label} className="card-wuili p-5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-2xl">{s.emoji}</span>
-              <span className="text-xs font-bold text-success">{s.change}</span>
+            <div className="mb-4 flex items-start justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <s.icon size={18} />
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-2.5 py-1 text-[11px] font-semibold text-success">
+                <ArrowUpRight size={12} />
+                {s.change}
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground font-medium">{s.label}</p>
-            <p className="text-2xl font-black mt-1">{s.value}</p>
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">{s.label}</p>
+            <p className="mt-2 text-2xl font-black">{s.value}</p>
           </div>
         ))}
       </div>
@@ -104,16 +110,27 @@ const DashboardOverview = () => {
         </div>
 
         <div className="lg:col-span-2 card-wuili p-6">
-          <h3 className="text-sm font-bold mb-4">Plataformas Conectadas</h3>
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+              <Boxes size={18} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold">Plataformas conectadas</h3>
+              <p className="text-xs text-muted-foreground">Integrações ativas e prontas para sincronizar</p>
+            </div>
+          </div>
           <div className="space-y-3">
             {platforms.map((p) => (
               <div key={p.name} className="flex items-center justify-between p-3 rounded-xl border border-border">
-                <span className="text-sm font-medium">{p.name}</span>
+                <div className="flex items-center gap-3">
+                  <span className={`h-2.5 w-2.5 rounded-full ${p.connected ? "bg-success" : "bg-muted-foreground/40"}`} />
+                  <span className="text-sm font-medium">{p.name}</span>
+                </div>
                 {p.connected ? (
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-success-light text-success font-semibold">✓ Conectado</span>
+                  <span className="rounded-full bg-success-light px-2.5 py-1 text-xs font-semibold text-success">Conectado</span>
                 ) : (
-                  <button className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground font-semibold hover:bg-primary hover:text-primary-foreground transition-all">
-                    Conectar +
+                  <button className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-all hover:bg-primary hover:text-primary-foreground">
+                    Conectar
                   </button>
                 )}
               </div>

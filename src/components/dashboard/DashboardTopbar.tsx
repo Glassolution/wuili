@@ -1,30 +1,84 @@
 import { Bell, Menu } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Package, ShoppingCart, Rocket, BarChart3, Settings, X } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BarChart3,
+  BookOpen,
+  CreditCard,
+  FileText,
+  LayoutGrid,
+  MoreHorizontal,
+  Settings,
+  ShoppingCart,
+  Star,
+  Users,
+  Wallet,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+
+type MobileMenuItem = {
+  icon: LucideIcon;
+  label: string;
+  path: string;
+};
+
+type MobileMenuSection = {
+  title?: string;
+  items: MobileMenuItem[];
+};
 
 const pageTitles: Record<string, string> = {
-  "/dashboard": "Visão Geral",
+  "/dashboard": "Página inicial",
+  "/dashboard/saldos": "Saldos",
+  "/dashboard/transacoes": "Transações",
+  "/dashboard/clientes": "Clientes",
   "/dashboard/catalogo": "Catálogo de Fornecedores",
-  "/dashboard/pedidos": "Pedidos Recebidos",
+  "/dashboard/pedidos": "Pedidos",
   "/dashboard/publicacoes": "Publicações",
+  "/dashboard/payments": "Payments",
+  "/dashboard/billing": "Billing",
   "/dashboard/relatorios": "Relatórios",
+  "/dashboard/mais": "Mais",
   "/dashboard/configuracoes": "Configurações",
 };
 
-const mobileMenu = [
-  { icon: Home, label: "Visão Geral", path: "/dashboard" },
-  { icon: Package, label: "Catálogo", path: "/dashboard/catalogo" },
-  { icon: ShoppingCart, label: "Pedidos", path: "/dashboard/pedidos" },
-  { icon: Rocket, label: "Publicações", path: "/dashboard/publicacoes" },
-  { icon: BarChart3, label: "Relatórios", path: "/dashboard/relatorios" },
-  { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
+const mobileSections: MobileMenuSection[] = [
+  {
+    items: [
+      { icon: LayoutGrid, label: "Página inicial", path: "/dashboard" },
+      { icon: Wallet, label: "Saldos", path: "/dashboard/saldos" },
+      { icon: ArrowLeftRight, label: "Transações", path: "/dashboard/transacoes" },
+      { icon: Users, label: "Clientes", path: "/dashboard/clientes" },
+      { icon: BookOpen, label: "Catálogo", path: "/dashboard/catalogo" },
+      { icon: ShoppingCart, label: "Pedidos", path: "/dashboard/pedidos" },
+      { icon: Star, label: "Publicações", path: "/dashboard/publicacoes" },
+    ],
+  },
+  {
+    title: "Produtos",
+    items: [
+      { icon: CreditCard, label: "Payments", path: "/dashboard/payments" },
+      { icon: FileText, label: "Billing", path: "/dashboard/billing" },
+      { icon: BarChart3, label: "Relatórios", path: "/dashboard/relatorios" },
+      { icon: MoreHorizontal, label: "Mais", path: "/dashboard/mais" },
+      { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
+    ],
+  },
 ];
 
 const DashboardTopbar = () => {
   const location = useLocation();
   const title = pageTitles[location.pathname] || "Dashboard";
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const getMobileItemClassName = (active: boolean) =>
+    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+      active
+        ? "bg-accent text-accent-foreground"
+        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+    }`;
 
   return (
     <>
@@ -50,29 +104,35 @@ const DashboardTopbar = () => {
         </div>
       </header>
 
-      {/* Mobile drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-foreground/30" onClick={() => setMobileOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-64 bg-background p-4 space-y-1">
-            <div className="flex items-center justify-between mb-6">
-              <span className="text-xl font-black">Wuili</span>
+          <div className="absolute bottom-0 left-0 top-0 w-64 border-r border-border bg-background px-3 pb-4 pt-5">
+            <div className="mb-5 flex items-center justify-between px-2">
+              <span className="text-lg font-black tracking-tight">Wuili</span>
               <button onClick={() => setMobileOpen(false)}><X size={20} /></button>
             </div>
-            {mobileMenu.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  location.pathname === item.path
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                <item.icon size={18} />
-                {item.label}
-              </Link>
+            {mobileSections.map((section) => (
+              <div key={section.title || "principal"} className="mb-5 last:mb-0">
+                {section.title && (
+                  <p className="px-3 pb-2 pt-3 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
+                    {section.title}
+                  </p>
+                )}
+                <div className="space-y-1">
+                  {section.items.map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileOpen(false)}
+                      className={getMobileItemClassName(location.pathname === item.path)}
+                    >
+                      <item.icon size={17} className="shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>

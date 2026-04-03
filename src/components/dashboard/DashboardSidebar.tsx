@@ -1,61 +1,111 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Package, ShoppingCart, Rocket, BarChart3, Settings } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BarChart3,
+  BookOpen,
+  CreditCard,
+  FileText,
+  LayoutGrid,
+  MoreHorizontal,
+  Settings,
+  ShoppingCart,
+  Star,
+  Users,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 
-const menuItems = [
-  { icon: Home, label: "Visão Geral", path: "/dashboard" },
-  { icon: Package, label: "Catálogo", path: "/dashboard/catalogo" },
-  { icon: ShoppingCart, label: "Pedidos", path: "/dashboard/pedidos" },
-  { icon: Rocket, label: "Publicações", path: "/dashboard/publicacoes" },
-  { icon: BarChart3, label: "Relatórios", path: "/dashboard/relatorios" },
+type SidebarItem = {
+  icon: LucideIcon;
+  label: string;
+  path: string;
+};
+
+type SidebarSection = {
+  title?: string;
+  items: SidebarItem[];
+};
+
+const sections: SidebarSection[] = [
+  {
+    items: [
+      { icon: LayoutGrid, label: "Página inicial", path: "/dashboard" },
+      { icon: Wallet, label: "Saldos", path: "/dashboard/saldos" },
+      { icon: ArrowLeftRight, label: "Transações", path: "/dashboard/transacoes" },
+      { icon: Users, label: "Clientes", path: "/dashboard/clientes" },
+      { icon: BookOpen, label: "Catálogo", path: "/dashboard/catalogo" },
+      { icon: ShoppingCart, label: "Pedidos", path: "/dashboard/pedidos" },
+      { icon: Star, label: "Publicações", path: "/dashboard/publicacoes" },
+    ],
+  },
+  {
+    title: "Produtos",
+    items: [
+      { icon: CreditCard, label: "Payments", path: "/dashboard/payments" },
+      { icon: FileText, label: "Billing", path: "/dashboard/billing" },
+      { icon: BarChart3, label: "Relatórios", path: "/dashboard/relatorios" },
+      { icon: MoreHorizontal, label: "Mais", path: "/dashboard/mais" },
+    ],
+  },
 ];
 
 const DashboardSidebar = () => {
   const location = useLocation();
 
+  const getItemClassName = (active: boolean) =>
+    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition-colors ${
+      active
+        ? "bg-accent text-accent-foreground"
+        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+    }`;
+
   return (
-    <aside className="hidden md:flex flex-col w-56 border-r border-border bg-background fixed top-0 left-0 h-full z-40">
-      <div className="p-6">
-        <Link to="/" className="text-xl font-black text-foreground">Wuili</Link>
+    <aside className="fixed left-0 top-0 z-40 hidden h-full w-56 flex-col border-r border-border bg-background md:flex">
+      <div className="px-5 pb-4 pt-6">
+        <Link to="/" className="text-lg font-black tracking-tight text-foreground">Wuili</Link>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1">
-        {menuItems.map((item) => {
-          const active = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                active
-                  ? "bg-accent text-accent-foreground font-semibold"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <item.icon size={18} />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 px-3 pb-4">
+        {sections.map((section) => (
+          <div key={section.title || "principal"} className="mb-5 last:mb-0">
+            {section.title && (
+              <p className="px-3 pb-2 pt-3 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
+                {section.title}
+              </p>
+            )}
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const active = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={getItemClassName(active)}
+                  >
+                    <item.icon size={17} className="shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      <div className="p-3 border-t border-border">
+      <div className="border-t border-border p-3">
         <Link
           to="/dashboard/configuracoes"
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-            location.pathname === "/dashboard/configuracoes"
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:bg-muted"
-          }`}
+          className={getItemClassName(location.pathname === "/dashboard/configuracoes")}
         >
-          <Settings size={18} />
+          <Settings size={17} className="shrink-0" />
           Configurações
         </Link>
-        <div className="flex items-center gap-3 px-3 py-3 mt-2">
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
+        <div className="mt-3 flex items-center gap-3 rounded-lg px-3 py-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
             TD
           </div>
           <div>
-            <p className="text-sm font-medium">TrendStore</p>
+            <p className="text-sm font-semibold text-foreground">TrendStore</p>
             <p className="text-xs text-muted-foreground">Plano Pro</p>
           </div>
         </div>
