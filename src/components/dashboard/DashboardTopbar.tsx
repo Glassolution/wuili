@@ -1,4 +1,4 @@
-import { Menu } from "lucide-react";
+import { Home, Menu } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";import {
@@ -97,9 +97,6 @@ const DashboardTopbar = () => {
             Online
           </span>
           <NotificacoesPopover />
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
-            TD
-          </div>
         </div>
       </header>
 

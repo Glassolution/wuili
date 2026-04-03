@@ -7,13 +7,13 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import DashboardOverview from "./pages/dashboard/DashboardOverview";
+import AIChatPage from "./pages/dashboard/GitChatPage";
 import CatalogPage from "./pages/dashboard/CatalogPage";
 import OrdersPage from "./pages/dashboard/OrdersPage";
 import PublicationsPage from "./pages/dashboard/PublicationsPage";
 import ReportsPage from "./pages/dashboard/ReportsPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
 import DashboardInfoPage from "./pages/dashboard/DashboardInfoPage";
-import AIChatPage from "./pages/dashboard/AIChatPage";
 import SaldosPage from "./pages/dashboard/SaldosPage";
 import TransacoesPage from "./pages/dashboard/TransacoesPage";
 import PagamentosPage from "./pages/dashboard/PagamentosPage";
@@ -32,6 +32,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<DashboardOverview />} />
+            <Route path="ia" element={<AIChatPage />} />
             <Route path="saldos" element={<SaldosPage />} />
             <Route path="transacoes" element={<TransacoesPage />} />
             <Route path="pagamentos" element={<PagamentosPage />} />
@@ -92,7 +93,6 @@ const App = () => (
               }
             />
             <Route path="configuracoes" element={<SettingsPage />} />
-            <Route path="ia" element={<AIChatPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -1,85 +1,42 @@
+import { Star, FileText, Clock, Monitor, RefreshCw, TrendingUp } from "lucide-react";
+
+const features = [
+  { icon: Star, title: "Análise de tendências em tempo real", desc: "A IA monitora o Mercado Livre e a Shopee continuamente, identificando produtos com demanda crescente antes da concorrência." },
+  { icon: FileText, title: "Criação automática de anúncios", desc: "Título com SEO, descrição persuasiva, fotos do fornecedor e preço calculado. Do zero ao anúncio completo sem você digitar nada." },
+  { icon: Clock, title: "Monitoramento 24h de preços", desc: "Seus preços se ajustam automaticamente conforme os concorrentes mudam. Você nunca perde uma venda por estar mais caro." },
+  { icon: Monitor, title: "Publicação simultânea", desc: "Um produto, múltiplas plataformas. Mercado Livre e Shopee ao mesmo tempo, com formatação adequada para cada uma." },
+  { icon: RefreshCw, title: "Resposta automática a clientes", desc: "A IA responde perguntas dos compradores com respostas precisas e no tom certo. Disponível no plano Pro." },
+  { icon: TrendingUp, title: "Relatórios de lucro detalhados", desc: "Veja o desempenho por produto, por plataforma e por período. Saiba exatamente de onde vem o seu dinheiro." },
+];
+
 const FeaturesSection = () => (
-  <div id="solucoes" style={{ background: "#f6f9fc", borderTop: "1px solid #e3e8ef" }}>
-    <div style={{ position: "relative", maxWidth: "1280px", margin: "0 auto", padding: "88px 80px" }}>
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "1px", background: "#e3e8ef" }} />
-      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: "1px", background: "#e3e8ef" }} />
-      <p className="label-upper mb-3">Funcionalidades</p>
-      <h2 className="text-3xl lg:text-4xl font-black mb-12" style={{ letterSpacing: "-1.5px" }}>
-        Tudo que você precisa num só lugar
-      </h2>
+  <section id="funcionalidades" className="relative z-[1] py-[120px] bg-white">
+    <div className="max-w-[1100px] mx-auto px-6 md:px-10">
+      <div className="text-center mb-16">
+        <div className="inline-flex items-center justify-center gap-[6px] text-[0.75rem] font-medium text-[#7C3AED] tracking-[0.08em] uppercase mb-[18px] before:content-[''] before:w-5 before:h-px before:bg-[#7C3AED]">
+          Funcionalidades
+        </div>
+        <h2 className="font-['Sora'] text-[clamp(1.9rem,3.5vw,2.8rem)] font-bold tracking-[-0.035em] leading-[1.12] text-[#0A0A0A] max-w-[580px] mx-auto mb-4">
+          Tudo que você precisaria aprender, a IA já sabe
+        </h2>
+        <p className="text-base font-light text-[#6B6B6B] max-w-[480px] mx-auto leading-[1.65]">
+          Cada parte do dropshipping que assusta iniciantes, automatizada.
+        </p>
+      </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Wide card */}
-        <div className="md:col-span-2 card-wuili p-8 flex flex-col lg:flex-row gap-8">
-          <div className="flex-1 space-y-4">
-            <h3 className="text-xl font-bold">Publique em qualquer plataforma com 1 clique</h3>
-            <p className="text-muted-foreground">Selecione seus produtos e publique simultaneamente no Mercado Livre, Shopee e sua loja própria.</p>
-            <div className="flex flex-wrap gap-2">
-              {["🛒 Mercado Livre", "🧡 Shopee", "🏪 Minha Loja"].map((p) => (
-                <span key={p} className="text-xs px-3 py-1.5 rounded-full bg-accent text-accent-foreground font-medium">{p}</span>
-              ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[2px] bg-[rgba(0,0,0,0.07)] rounded-[20px] overflow-hidden">
+        {features.map((f) => (
+          <div key={f.title} className="bg-white p-8 md:p-9 hover:bg-[#FAFAFA] transition-colors">
+            <div className="w-11 h-11 rounded-xl bg-[rgba(124,58,237,0.1)] flex items-center justify-center mb-5">
+              <f.icon size={20} className="text-[#7C3AED]" />
             </div>
+            <div className="font-['Sora'] text-base font-semibold text-[#0A0A0A] tracking-[-0.025em] mb-[10px]">{f.title}</div>
+            <div className="text-[0.875rem] font-light text-[#6B6B6B] leading-[1.65]">{f.desc}</div>
           </div>
-          <div className="flex-1 space-y-2">
-            {[
-              { emoji: "🎧", name: "Fone TWS", price: "R$89", status: true },
-              { emoji: "👟", name: "Tênis Casual", price: "R$127", status: true },
-              { emoji: "💄", name: "Kit Skincare", price: "R$89", status: false },
-            ].map((p) => (
-              <div key={p.name} className="flex items-center justify-between p-3 rounded-xl border border-border">
-                <div className="flex items-center gap-2">
-                  <span>{p.emoji}</span>
-                  <span className="text-sm font-medium">{p.name}</span>
-                  <span className="text-xs text-muted-foreground">{p.price}</span>
-                </div>
-                {p.status ? (
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-success-light text-success font-semibold">Publicado agora</span>
-                ) : (
-                  <button className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all">
-                    Publicar
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Medium card 1 */}
-        <div className="card-wuili p-8">
-          <h3 className="text-xl font-bold mb-2">Loja pronta, identidade sua</h3>
-          <p className="text-muted-foreground text-sm mb-6">Escolha entre templates profissionais e personalize com sua marca.</p>
-          <div className="flex gap-3">
-            {["Minimalista", "Moderno", "Dark Bold"].map((t, i) => (
-              <div key={t} className={`flex-1 h-24 rounded-xl border ${i === 1 ? "border-primary bg-accent" : "border-border bg-muted"} flex items-end p-2`}>
-                <span className="text-xs font-medium">{t}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Medium card 2 */}
-        <div className="card-wuili p-8">
-          <h3 className="text-xl font-bold mb-2">Dashboard real</h3>
-          <p className="text-muted-foreground text-sm mb-6">Métricas em tempo real para acompanhar seu negócio.</p>
-          <div className="space-y-3">
-            {[
-              { label: "Lucro hoje", value: "R$ 284,00", change: "+24%" },
-              { label: "Pedidos", value: "12", change: "+3 hoje" },
-              { label: "Produto + vendido", value: "Fone TWS", change: "8 vendas" },
-            ].map((m) => (
-              <div key={m.label} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
-                <div>
-                  <p className="text-xs text-muted-foreground">{m.label}</p>
-                  <p className="text-sm font-bold">{m.value}</p>
-                </div>
-                <span className="text-xs font-semibold text-success">{m.change}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
     </div>
-  </div>
+  </section>
 );
 
 export default FeaturesSection;

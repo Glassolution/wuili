@@ -1,35 +1,35 @@
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
-const CTASection = () => (
-  <div style={{ background: "#0a2540", borderTop: "1px solid #e3e8ef", position: "relative", overflow: "hidden" }}>
-    {/* Glow */}
-    <div
-      style={{
-        position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-        width: "600px", height: "400px", opacity: 0.3,
-        background: "radial-gradient(ellipse, hsl(243 100% 68% / 0.5), hsl(167 100% 42% / 0.2), transparent 70%)",
-      }}
-    />
-    <div style={{ position: "relative", maxWidth: "1280px", margin: "0 auto", padding: "88px 80px", textAlign: "center", zIndex: 1 }}>
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "1px", background: "rgba(255,255,255,0.08)" }} />
-      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: "1px", background: "rgba(255,255,255,0.08)" }} />
-      <h2 className="text-3xl lg:text-4xl font-black text-primary-foreground mb-4" style={{ letterSpacing: "-1.5px" }}>
-        Comece a vender ainda hoje
-      </h2>
-      <p className="text-primary-foreground/60 text-lg mb-8">
-        Sem estoque, sem risco, sem complicação.
-      </p>
-      <div className="flex flex-wrap justify-center gap-4">
-        <Button size="lg" className="bg-primary-foreground text-dark hover:bg-primary-foreground/90 text-base px-8" asChild>
-          <Link to="/dashboard">Criar minha loja grátis ›</Link>
-        </Button>
-        <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 text-base px-8">
-          Fale com a equipe ›
-        </Button>
+const CTASection = () => {
+  const navigate = useNavigate();
+  return (
+  <section className="relative z-[1] py-[120px] text-center">
+    <div className="max-w-[1100px] mx-auto px-10">
+      <div className="max-w-[700px] mx-auto bg-[#0A0A0A] rounded-[28px] px-[60px] py-[72px] relative overflow-hidden">
+        <div className="absolute -top-[200px] -right-[100px] w-[400px] h-[400px] rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(124,58,237,0.4) 0%, transparent 70%)", filter: "blur(60px)" }} />
+        <div className="absolute -bottom-[150px] -left-[80px] w-[300px] h-[300px] rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(159,103,255,0.25) 0%, transparent 70%)", filter: "blur(60px)" }} />
+
+        <h2 className="font-['Sora'] text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.04em] leading-[1.1] text-white mb-5 relative z-[1]">
+          Seu primeiro anúncio<br />no ar em <em className="not-italic text-[#9F67FF]">30 segundos</em>
+        </h2>
+        <p className="text-base font-light text-white/50 leading-[1.65] mb-10 relative z-[1]">
+          Sem experiência. Sem cartão de crédito. Sem enrolação.<br />Escolha um nicho e deixa a IA trabalhar.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 relative z-[1]">
+          <button onClick={() => navigate("/dashboard")} className="flex items-center gap-2 text-[0.9375rem] font-medium text-[#0A0A0A] bg-white border-none cursor-pointer px-7 py-[14px] rounded-full hover:bg-[#F0F0F0] hover:-translate-y-[2px] hover:shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition-all">
+            Começar agora
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button className="text-[0.9375rem] font-normal text-white/50 bg-transparent border border-white/15 cursor-pointer px-7 py-[14px] rounded-full hover:border-white/35 hover:text-white transition-all">
+            Ver planos
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  </section>
+  );
+};
 
 export default CTASection;
