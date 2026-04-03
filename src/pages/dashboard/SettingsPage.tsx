@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Camera } from "lucide-react";
+import { useProfile } from "@/lib/profileContext";
 
 const tabs = ["Perfil", "Minhas Lojas", "Integrações", "Plano", "Notificações", "Segurança"];
 
@@ -33,34 +35,98 @@ const SettingsPage = () => {
   );
 };
 
-const ProfileTab = () => (
-  <div className="max-w-md space-y-6">
-    <div className="flex items-center gap-4">
-      <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-xl font-bold text-primary-foreground">TD</div>
-      <div>
-        <p className="font-bold">TrendStore BR</p>
-        <p className="text-sm text-muted-foreground">Plano Pro</p>
+const ProfileTab = () => {
+  const { nome, foto, setNome, setFoto } = useProfile();
+  const [nomeEditado, setNomeEditado] = useState(nome);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(foto);
+  const [fotoFile, setFotoFile] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const iniciais = nomeEditado
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+
+  const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setFotoPreview(url);
+    setFotoFile(url);
+  };
+
+  const handleSalvar = () => {
+    setNome(nomeEditado);
+    if (fotoFile) setFoto(fotoFile);
+  };
+
+  const avatarSrc = fotoPreview ?? foto;
+
+  return (
+    <div className="max-w-md space-y-6">
+      {/* Avatar */}
+      <div className="flex items-center gap-5">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-xl font-bold text-primary-foreground overflow-hidden">
+            {avatarSrc ? (
+              <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" />
+            ) : (
+              iniciais
+            )}
+          </div>
+          <button
+            onClick={() => inputRef.current?.click()}
+            className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:opacity-90 transition-opacity"
+          >
+            <Camera size={12} />
+          </button>
+          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFoto} />
+        </div>
+        <div>
+          <p className="font-bold">{nome}</p>
+          <p className="text-sm text-muted-foreground">Plano Pro</p>
+          <button onClick={() => inputRef.current?.click()} className="text-xs text-primary hover:underline mt-0.5">
+            Trocar foto
+          </button>
+        </div>
       </div>
-    </div>
-    {[
-      { label: "Nome", value: "TrendStore BR" },
-      { label: "Email", value: "contato@trendstore.com.br" },
-      { label: "Telefone", value: "(11) 98765-4321" },
-      { label: "CPF/CNPJ", value: "12.345.678/0001-90" },
-    ].map((f) => (
-      <div key={f.label}>
-        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{f.label}</label>
+
+      {/* Nome */}
+      <div>
+        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nome</label>
         <input
           className="w-full mt-1 px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-          defaultValue={f.value}
+          value={nomeEditado}
+          onChange={(e) => setNomeEditado(e.target.value)}
         />
       </div>
-    ))}
-    <button className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all">
-      Salvar alterações
-    </button>
-  </div>
-);
+
+      {[
+        { label: "Email", value: "contato@trendstore.com.br" },
+        { label: "Telefone", value: "(11) 98765-4321" },
+        { label: "CPF/CNPJ", value: "12.345.678/0001-90" },
+      ].map((f) => (
+        <div key={f.label}>
+          <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{f.label}</label>
+          <input
+            className="w-full mt-1 px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            defaultValue={f.value}
+          />
+        </div>
+      ))}
+
+      <button
+        onClick={handleSalvar}
+        className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all"
+      >
+        Salvar alterações
+      </button>
+    </div>
+  );
+};
 
 const StoresTab = () => (
   <div className="space-y-4">

@@ -1,16 +1,16 @@
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import {
+import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";import {
   ArrowLeftRight,
   BarChart3,
   BookOpen,
   CreditCard,
-  FileText,
   LayoutGrid,
   MoreHorizontal,
   Settings,
   ShoppingCart,
+  Sparkles,
   Star,
   Users,
   Wallet,
@@ -38,9 +38,11 @@ const pageTitles: Record<string, string> = {
   "/dashboard/pedidos": "Pedidos",
   "/dashboard/publicacoes": "Publicações",
   "/dashboard/payments": "Payments",
-  "/dashboard/billing": "Billing",
+  "/dashboard/pagamentos": "Pagamentos",
   "/dashboard/relatorios": "Relatórios",
   "/dashboard/mais": "Mais",
+  "/dashboard/ia": "IA de Produtos",
+  "/dashboard/notificacoes": "Notificações",
   "/dashboard/configuracoes": "Configurações",
 };
 
@@ -59,10 +61,10 @@ const mobileSections: MobileMenuSection[] = [
   {
     title: "Produtos",
     items: [
-      { icon: CreditCard, label: "Payments", path: "/dashboard/payments" },
-      { icon: FileText, label: "Billing", path: "/dashboard/billing" },
+      { icon: CreditCard, label: "Pagamentos", path: "/dashboard/pagamentos" },
       { icon: BarChart3, label: "Relatórios", path: "/dashboard/relatorios" },
       { icon: MoreHorizontal, label: "Mais", path: "/dashboard/mais" },
+      { icon: Sparkles, label: "IA de Produtos", path: "/dashboard/ia" },
       { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
     ],
   },
@@ -94,10 +96,7 @@ const DashboardTopbar = () => {
             <span className="w-2 h-2 rounded-full bg-success" />
             Online
           </span>
-          <button className="relative">
-            <Bell size={18} className="text-muted-foreground" />
-            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-primary-foreground text-[9px] font-bold flex items-center justify-center">3</span>
-          </button>
+          <NotificacoesPopover />
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
             TD
           </div>
