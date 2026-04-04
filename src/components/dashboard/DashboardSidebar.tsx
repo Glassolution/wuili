@@ -41,8 +41,15 @@ const railLinks: RailLink[] = [
 
 const DashboardSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { nome, foto } = useProfile();
+  const { signOut } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   const iniciais = nome
     .split(" ")
