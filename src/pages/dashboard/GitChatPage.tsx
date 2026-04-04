@@ -64,8 +64,10 @@ const quickActions = [
 /* ══ Component ════════════════════════════════════════════════ */
 const GitChatPage = () => {
   const { nome, foto } = useProfile();
-  const iniciais    = nome.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase();
-  const primeiroNome = nome.split(" ")[0] || nome;
+  const { user } = useAuth();
+  const [profileName, setProfileName] = useState(nome);
+  const iniciais    = profileName.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase();
+  const primeiroNome = profileName.split(" ")[0] || profileName;
   const hora        = new Date().getHours();
   const saudacao    = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
 
@@ -74,7 +76,16 @@ const GitChatPage = () => {
   const [thinking, setThinking] = useState(false);
 
   const bottomRef  = useRef<HTMLDivElement>(null);
-  const apiHistory = useRef<GMsg[]>([]);
+  const apiHistory = useRef<{ role: string; content: string }[]>([]);
+
+  // Load profile name from DB
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("display_name").eq("user_id", user.id).single()
+      .then(({ data }) => {
+        if (data?.display_name) setProfileName(data.display_name);
+      });
+  }, [user]);
 
   /* Derived */
   const hasStarted = messages.length > 0;
