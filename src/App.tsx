@@ -3,8 +3,13 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProfileProvider } from "./lib/profileContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import LoginPage from "./pages/LoginPage";
+import CadastroPage from "./pages/CadastroPage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import DashboardOverview from "./pages/dashboard/DashboardOverview";
 import AIChatPage from "./pages/dashboard/GitChatPage";
@@ -17,12 +22,12 @@ import DashboardInfoPage from "./pages/dashboard/DashboardInfoPage";
 import SaldosPage from "./pages/dashboard/SaldosPage";
 import TransacoesPage from "./pages/dashboard/TransacoesPage";
 import PagamentosPage from "./pages/dashboard/PagamentosPage";
-import { ProfileProvider } from "./lib/profileContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <AuthProvider>
     <ProfileProvider>
     <TooltipProvider>
       <Toaster />
@@ -30,7 +35,13 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/cadastro" element={<CadastroPage />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }>
             <Route index element={<DashboardOverview />} />
             <Route path="ia" element={<AIChatPage />} />
             <Route path="saldos" element={<SaldosPage />} />
@@ -64,8 +75,6 @@ const App = () => (
             <Route path="catalogo" element={<CatalogPage />} />
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="publicacoes" element={<PublicationsPage />} />
-
-
             <Route path="relatorios" element={<ReportsPage />} />
             <Route
               path="mais"
@@ -99,6 +108,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
     </ProfileProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
