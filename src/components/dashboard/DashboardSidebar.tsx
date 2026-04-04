@@ -137,7 +137,10 @@ const DashboardSidebar = () => {
               >
                 Perfil
               </Link>
-              <button className="w-full flex items-center px-4 py-2.5 text-sm text-destructive hover:bg-muted transition-colors">
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center px-4 py-2.5 text-sm text-destructive hover:bg-muted transition-colors"
+              >
                 Sair
               </button>
             </div>
