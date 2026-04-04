@@ -183,15 +183,13 @@ const CadastroPage = () => {
   return (
     <div className="relative flex min-h-screen flex-col bg-white overflow-hidden">
 
-      {/* ── Logo top-left ──────────────────────────────── */}
-      <div className="absolute top-6 left-6 z-10 opacity-60">
-        <svg width="32" height="32" viewBox="0 0 30 30" fill="none">
-          <rect width="30" height="30" rx="8" fill="#7C3AED" />
-          <path d="M15 7.5L21 11.25V18.75L15 22.5L9 18.75V11.25L15 7.5Z" fill="white" />
-        </svg>
-      </div>
-
       {/* ── Progress bar ───────────────────────────────── */}
+      <div className="absolute top-0 left-0 right-0 z-10 h-1 bg-gray-100">
+        <div
+          className="h-full bg-[#7C3AED] transition-all duration-700 ease-out"
+          style={{ width: `${step === "criando" ? 100 : progressPct}%` }}
+        />
+      </div>
       <div className="absolute top-0 left-0 right-0 z-10 h-1 bg-gray-100">
         <div
           className="h-full bg-[#7C3AED] transition-all duration-700 ease-out"
