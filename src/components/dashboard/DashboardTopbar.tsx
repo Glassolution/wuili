@@ -84,12 +84,11 @@ const DashboardTopbar = () => {
 
   return (
     <>
-      <header className="h-14 bg-background border-b border-border flex items-center justify-between px-6 sticky top-0 z-30">
+      <header className="h-14 bg-background flex items-center justify-between px-6 sticky top-0 z-30">
         <div className="flex items-center gap-3">
           <button className="md:hidden" onClick={() => setMobileOpen(true)}>
             <Menu size={20} />
           </button>
-          <h1 className="text-lg font-bold">{title}</h1>
         </div>
         <div className="flex items-center gap-4">
           <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-success">

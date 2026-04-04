@@ -1,409 +1,433 @@
-import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState, useRef } from "react";
 import {
-  Send,
-  Paperclip,
-  Mic,
-  Sparkles,
-  ShoppingCart,
-  BarChart3,
-  Megaphone,
-  ChevronDown,
-  ListChecks,
-  ArrowUpRight,
-  ShoppingBag,
+  Send, Paperclip, Mic, Sparkles, ShoppingCart, BarChart3,
+  Megaphone, ChevronDown, ListChecks, ArrowUpRight, Search,
+  MoreHorizontal, Plus, Settings, Package,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/lib/profileContext";
 
-/* ─── TYPES ─── */
-interface Product {
-  nome: string;
-  preco: string;
-  margem: string;
-  vendas: string;
-  score: "Alta" | "Média";
-}
+/* ══ Types ═══════════════════════════════════════════════════ */
+type Product = { nome: string; preco: string; margem: string; vendas: string; score: string };
+type Ad      = { titulo: string; descricao: string; preco: string; plataforma: string };
+type MsgKind = "text" | "products" | "ad";
+type Message = { role: "user" | "ai"; text: string; kind: MsgKind; products?: Product[]; ad?: Ad };
+type GMsg    = { role: "user" | "model"; text: string };
 
-interface AdPreview {
-  titulo: string;
-  descricao: string;
-  preco: string;
-  plataforma: string;
-}
-
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-  products?: Product[];
-  adPreview?: AdPreview;
-}
-
-/* ─── CONSTS ─── */
-const tasks = [
-  "Analisar produtos em alta no Mercado Livre",
-  "Criar anúncio otimizado para fone TWS",
-  "Responder perguntas de compradores",
-];
-
-const suggestedPrompt = "Quais são os produtos com melhor margem no meu catálogo que eu deveria priorizar?";
-
-const quickActions = [
-  { icon: ShoppingCart, label: "Ver Catálogo", color: "text-[#16A34A]", bg: "bg-[#DCFCE7]", to: "/dashboard/catalogo" },
-  { icon: ListChecks, label: "Meus Pedidos", color: "text-[#7C3AED]", bg: "bg-[#EDE9FE]", to: "/dashboard/pedidos" },
-  { icon: Megaphone, label: "Publicações", color: "text-[#EA580C]", bg: "bg-[#FFF7ED]", to: "/dashboard/publicacoes" },
-  { icon: BarChart3, label: "Relatórios", color: "text-[#0284C7]", bg: "bg-[#E0F2FE]", to: "/dashboard/relatorios" },
-];
-
-/* ─── HELPERS ─── */
-const useTypewriter = (text: string, speed = 40, delay = 0) => {
-  const [displayed, setDisplayed] = useState("");
-  const [started, setStarted] = useState(false);
-  const [done, setDone] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setStarted(true), delay);
-    return () => clearTimeout(t);
-  }, [delay]);
-
-  useEffect(() => {
-    if (!started) return;
-    if (displayed.length >= text.length) { setDone(true); return; }
-    const t = setTimeout(() => setDisplayed(text.slice(0, displayed.length + 1)), speed);
-    return () => clearTimeout(t);
-  }, [displayed, started, text, speed]);
-
-  return { displayed, done };
-};
-
-const Reveal = ({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) => (
-  <div className={`opacity-0 ${className}`} style={{ animation: `dashReveal 1.2s cubic-bezier(0.16,1,0.3,1) ${delay}ms both` }}>
-    {children}
-  </div>
+/* ══ Wuilli Logo ══════════════════════════════════════════════ */
+const WuilliHex = ({ size = 48 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 30 30" fill="none">
+    <rect width="30" height="30" rx="8" fill="#7C3AED" />
+    <path d="M15 7.5L21 11.25V18.75L15 22.5L9 18.75V11.25L15 7.5Z" fill="white" />
+  </svg>
 );
 
-function tryParseJSON(text: string): { products?: Product[]; adPreview?: AdPreview; cleanText: string } {
-  const jsonRegex = /\{[\s\S]*?\}/g;
-  let products: Product[] | undefined;
-  let adPreview: AdPreview | undefined;
-  let cleanText = text;
+/* ══ System prompt ════════════════════════════════════════════ */
+const SYSTEM = `Você é a IA da Wuilli, plataforma de dropshipping para iniciantes brasileiros. Guie o usuário neste fluxo obrigatório em ordem:
+1. Pergunte o nicho (moda, eletrônicos, beleza, casa, pets, esportes)
+2. Sugira 3 produtos com dados reais do mercado brasileiro (margem mínima 40%) retornando EXATAMENTE este JSON sem texto adicional: {"tipo":"produtos","lista":[{"nome":"","preco":"","margem":"","vendas":"","score":"Alta"}]}
+3. Após o usuário escolher, crie o anúncio retornando EXATAMENTE: {"tipo":"anuncio","titulo":"","descricao":"","preco":"","plataforma":"Mercado Livre"}
+4. Exiba botão de publicação e confirme que está pronto para publicar no Mercado Livre.
+Seja direto, animado, linguagem simples. Nunca pule etapas.`;
 
-  const matches = text.match(jsonRegex);
-  if (matches) {
-    for (const match of matches) {
-      try {
-        const parsed = JSON.parse(match);
-        if (parsed.tipo === "produtos" && Array.isArray(parsed.lista)) {
-          products = parsed.lista;
-          cleanText = cleanText.replace(match, "").trim();
-        } else if (parsed.tipo === "anuncio" && parsed.titulo) {
-          adPreview = parsed;
-          cleanText = cleanText.replace(match, "").trim();
-        }
-      } catch {
-        // not valid JSON, ignore
-      }
-    }
+/* ══ Gemini API ═══════════════════════════════════════════════ */
+async function callGeminiOnce(history: GMsg[]): Promise<string> {
+  const key = import.meta.env.VITE_GEMINI_API_KEY;
+  console.log("[Wuilli IA] API Key loaded:", key ? `${key.slice(0, 8)}...` : "UNDEFINED ⚠️");
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM }] },
+      contents: history.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+      generationConfig: { temperature: 0.8, maxOutputTokens: 1024 },
+    }),
+  });
+  if (!res.ok) {
+    const err = new Error(`HTTP ${res.status}`);
+    (err as Error & { status: number }).status = res.status;
+    throw err;
   }
-
-  return { products, adPreview, cleanText };
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Erro ao processar.";
 }
 
-/* ─── PRODUCT CARD ─── */
-const ProductCard = ({ p }: { p: Product }) => (
-  <div className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold tracking-wide text-foreground">
-      {p.nome.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()}
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-sm font-semibold truncate">{p.nome}</p>
-      <p className="text-xs text-muted-foreground">Margem {p.margem} · {p.vendas} vendas</p>
-      <p className="text-xs text-primary font-semibold mt-0.5">R$ {p.preco} · Score {p.score}</p>
-    </div>
-    <div className="shrink-0 flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold bg-primary text-primary-foreground">
-      <ShoppingBag size={11} />
-      Adicionar
-    </div>
-  </div>
-);
-
-/* ─── AD PREVIEW ─── */
-const AdCard = ({ ad }: { ad: AdPreview }) => (
-  <div className="rounded-xl border border-border bg-background p-4 space-y-2">
-    <div className="flex items-center gap-2">
-      <Megaphone size={14} className="text-primary" />
-      <span className="text-xs font-semibold text-primary">{ad.plataforma}</span>
-    </div>
-    <h4 className="text-sm font-bold text-foreground">{ad.titulo}</h4>
-    <p className="text-xs text-muted-foreground leading-relaxed">{ad.descricao}</p>
-    <p className="text-sm font-bold text-primary">R$ {ad.preco}</p>
-  </div>
-);
-
-/* ─── MAIN COMPONENT ─── */
-const GitChatPage = () => {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [chatStarted, setChatStarted] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  const { displayed: title, done: titleDone } = useTypewriter("Olá, bem-vindo 👋", 65, 800);
-  const { displayed: subtitle, done: subtitleDone } = useTypewriter("Diga o que você precisa, e a IA cuida do resto.", 35, 2200);
-
-  useEffect(() => {
-    if (chatStarted) {
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+async function callGemini(history: GMsg[]): Promise<string> {
+  try {
+    return await callGeminiOnce(history);
+  } catch (err) {
+    const status = (err as Error & { status?: number }).status;
+    if (status === 429) {
+      // Retry once after 3 seconds
+      console.warn("[Wuilli IA] Rate limit (429). Retrying in 3s...");
+      await new Promise(r => setTimeout(r, 3000));
+      return await callGeminiOnce(history);
     }
-  }, [messages, chatStarted]);
+    throw err;
+  }
+}
 
-  const sendMessage = async (text?: string) => {
-    const msg = (text ?? message).trim();
-    if (!msg || loading) return;
-    setMessage("");
-    setChatStarted(true);
+function geminiErrorMessage(err: unknown): string {
+  const status = (err as Error & { status?: number }).status;
+  if (status === 429) return "Limite de requisições atingido. Aguarde alguns segundos e tente novamente.";
+  if (status === 400) return "Chave de API inválida. Verifique nas Configurações.";
+  if (status === 403) return "Acesso negado. Verifique se a API Key do Gemini está ativa.";
+  return "Erro de conexão. Tente novamente.";
+}
 
-    const userMsg: ChatMessage = { role: "user", content: msg };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setLoading(true);
+/* ══ Parse AI response ════════════════════════════════════════ */
+function parse(text: string): Pick<Message, "kind" | "products" | "ad"> {
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) {
+    try {
+      const p = JSON.parse(m[0]);
+      if (p.tipo === "produtos" && Array.isArray(p.lista)) return { kind: "products", products: p.lista };
+      if (p.tipo === "anuncio")                              return { kind: "ad", ad: p };
+    } catch { /**/ }
+  }
+  return { kind: "text" };
+}
+
+/* ══ Static data ══════════════════════════════════════════════ */
+const savedChats = [
+  { id: 1, label: "Análise de Vendas", cls: "bg-sky-500",    l: "A" },
+  { id: 2, label: "Catálogo IA",       cls: "bg-orange-500", l: "C" },
+  { id: 3, label: "Gestão de Pedidos", cls: "bg-violet-500", l: "G" },
+];
+const todayChats     = ["Como aumentar minhas vendas no Mercado...", "Qual a melhor estratégia para a Shopee...", "Como otimizar anúncios de eletrônicos..."];
+const yesterdayChats = ["Quais produtos têm maior margem de luc...", "Como configurar envio grátis na minha l..."];
+const tasks          = ["Analisar produtos em alta no Mercado Livre", "Criar anúncio otimizado para fone TWS", "Responder perguntas de compradores"];
+const suggestedPrompt = "Quais são os produtos com melhor margem no meu catálogo que eu deveria priorizar?";
+const quickActions = [
+  { icon: ShoppingCart, label: "Ver Catálogo", color: "text-[#16A34A]", bg: "bg-[#DCFCE7]", msg: "Mostre meu catálogo de produtos ativos" },
+  { icon: ListChecks,   label: "Meus Pedidos", color: "text-[#7C3AED]", bg: "bg-[#EDE9FE]", msg: "Quais são meus pedidos recentes?" },
+  { icon: Megaphone,    label: "Publicações",  color: "text-[#EA580C]", bg: "bg-[#FFF7ED]", msg: "Como estão minhas publicações no Mercado Livre?" },
+  { icon: BarChart3,    label: "Relatórios",   color: "text-[#0284C7]", bg: "bg-[#E0F2FE]", msg: "Me dê um resumo do meu desempenho de vendas" },
+];
+
+/* ══ Component ════════════════════════════════════════════════ */
+const GitChatPage = () => {
+  const { nome, foto } = useProfile();
+  const iniciais    = nome.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase();
+  const primeiroNome = nome.split(" ")[0] || nome;
+  const hora        = new Date().getHours();
+  const saudacao    = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input,    setInput]    = useState("");
+  const [thinking, setThinking] = useState(false);
+
+  const bottomRef  = useRef<HTMLDivElement>(null);
+  const apiHistory = useRef<GMsg[]>([]);
+
+  /* Derived */
+  const hasStarted = messages.length > 0;
+
+  /* ── Send ────────────────────────────────────────────── */
+  const send = async (text?: string) => {
+    const msg = (text ?? input).trim();
+    if (!msg || thinking) return;
+    setInput("");
+
+    const userMsg: Message = { role: "user", text: msg, kind: "text" };
+    setMessages(prev => [...prev, userMsg]);
+
+    const nextHistory: GMsg[] = [...apiHistory.current, { role: "user", text: msg }];
+    setThinking(true);
 
     try {
-      const history = newMessages.map(m => ({ role: m.role, content: m.content }));
-      const { data, error } = await supabase.functions.invoke("chat", {
-        body: { messages: history },
-      });
-
-      if (error) throw error;
-
-      const aiText = data?.response || "Desculpe, não consegui processar.";
-      const { products, adPreview, cleanText } = tryParseJSON(aiText);
-
-      setMessages(prev => [
-        ...prev,
-        { role: "assistant", content: cleanText, products, adPreview },
-      ]);
+      const response = await callGemini(nextHistory);
+      apiHistory.current = [...nextHistory, { role: "model", text: response }];
+      const parsed = parse(response);
+      setMessages(prev => [...prev, { role: "ai", text: response, ...parsed }]);
     } catch (err) {
-      console.error("Chat error:", err);
-      setMessages(prev => [
-        ...prev,
-        { role: "assistant", content: "Ops, ocorreu um erro. Tente novamente." },
-      ]);
+      console.error("[Wuilli IA] Error:", err);
+      setMessages(prev => [...prev, { role: "ai", text: geminiErrorMessage(err), kind: "text" }]);
     } finally {
-      setLoading(false);
+      setThinking(false);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
     }
   };
 
-  /* ─── WELCOME SCREEN ─── */
-  if (!chatStarted) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
-        <style>{`
-          @keyframes dashReveal {
-            from { opacity: 0; transform: translateY(36px) scale(0.96); filter: blur(8px); }
-            to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-          }
-        `}</style>
+  /* ── New chat ────────────────────────────────────────── */
+  const newChat = () => {
+    setMessages([]);
+    setInput("");
+    setThinking(false);
+    apiHistory.current = [];
+  };
 
-        <div className="flex flex-col items-center justify-center px-4 pb-6">
-          <div className="flex-1 flex flex-col items-center justify-center w-full py-8">
-            <Reveal delay={300}>
-              <div className="relative mb-5 w-16 h-16">
-                <div className="absolute inset-0 w-16 h-16 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#a78bfa] opacity-95" />
-              </div>
-            </Reveal>
-
-            <Reveal delay={600} className="text-center">
-              <h1 className="font-['Sora'] text-2xl font-bold text-foreground tracking-[-0.02em] mb-1 min-h-[2rem]">
-                {title}
-                {!titleDone && <span className="inline-block w-[2px] h-5 bg-[#7C3AED] ml-0.5 align-middle animate-pulse" />}
-              </h1>
-            </Reveal>
-
-            <Reveal delay={1000} className="text-center">
-              <p className="text-sm text-muted-foreground mb-10 min-h-[1.25rem]">
-                {subtitle}
-                {!subtitleDone && subtitle.length > 0 && <span className="inline-block w-[2px] h-4 bg-muted-foreground/40 ml-0.5 align-middle animate-pulse" />}
-              </p>
-            </Reveal>
-
-            <Reveal delay={3800} className="w-full flex justify-center">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mb-8 max-w-[680px]">
-                <div className="bg-[#1A1A2E] text-white rounded-2xl p-4 flex flex-col justify-between min-h-[140px]">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-[#16A34A] flex items-center justify-center text-[9px] font-bold">S</div>
-                    <span className="text-xs font-medium">Sam AI</span>
-                    <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#7C3AED] text-white ml-auto">Sales Assistant</span>
-                  </div>
-                  <p className="text-[11px] text-white/60 leading-relaxed">
-                    Projetado para ajudar a gerenciar vendas e maximizar o engajamento dos clientes.
-                  </p>
-                </div>
-
-                <div className="bg-background border border-border rounded-2xl p-4 flex flex-col min-h-[140px]">
-                  <ul className="space-y-2 flex-1">
-                    {tasks.map((task, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[12px] text-muted-foreground leading-snug">
-                        <div className="w-1 h-1 rounded-full bg-muted-foreground/40 mt-1.5 shrink-0" />
-                        {task}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-border">
-                    <span className="text-[10px] text-muted-foreground/60">Tarefas</span>
-                    <span className="text-[10px] text-[#7C3AED] font-medium cursor-pointer hover:underline">Ver Tudo</span>
-                  </div>
-                </div>
-
-                <div
-                  className="bg-background border border-border rounded-2xl p-4 flex flex-col justify-between min-h-[140px] cursor-pointer hover:border-primary/40 transition-colors"
-                  onClick={() => sendMessage(suggestedPrompt)}
-                >
-                  <p className="text-[12px] text-foreground leading-snug font-medium">{suggestedPrompt}</p>
-                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-border">
-                    <span className="text-[10px] text-muted-foreground/60">Sugestão</span>
-                    <button className="text-muted-foreground/40 hover:text-foreground transition-colors">
-                      <ArrowUpRight size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </Reveal>
-
-            <Reveal delay={4400} className="w-full flex justify-center">
-              <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
-                {quickActions.map(({ icon: Icon, label, color, bg, to }) => (
-                  <Link key={label} to={to} className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-background text-sm font-medium text-foreground hover:bg-muted transition-all">
-                    <div className={`w-6 h-6 rounded-lg ${bg} flex items-center justify-center`}>
-                      <Icon size={13} className={color} />
-                    </div>
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </Reveal>
-          </div>
-
-          <Reveal delay={5000} className="w-full flex justify-center">
-            <div className="w-full max-w-[680px]">
-              <div className="border border-border rounded-2xl bg-background p-4 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles size={15} className="text-muted-foreground/50" />
-                  <input
-                    type="text"
-                    placeholder="Pergunte qualquer coisa..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted transition-colors">
-                    Selecionar fonte <ChevronDown size={12} />
-                  </button>
-                  <div className="flex items-center gap-1.5">
-                    <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
-                      <Paperclip size={14} /> Anexar
-                    </button>
-                    <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
-                      <Mic size={14} /> Voz
-                    </button>
-                    <button
-                      onClick={() => sendMessage()}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#7C3AED] rounded-lg px-4 py-1.5 hover:bg-[#6D28D9] transition-colors"
-                    >
-                      <Send size={13} /> Enviar
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <p className="text-center text-[10px] text-muted-foreground/50 mt-3">
-                Wuilli pode exibir informações imprecisas, por favor verifique as respostas.
-              </p>
+  /* ── Product cards ───────────────────────────────────── */
+  const renderProducts = (products: Product[]) => (
+    <div className="flex flex-col gap-2 w-full max-w-[560px]">
+      {products.map((p, i) => (
+        <div key={i} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <p className="text-sm font-semibold text-foreground leading-snug">{p.nome}</p>
+            <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
+              <span className="rounded-full bg-[#7C3AED]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C3AED] whitespace-nowrap">{p.margem}</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 whitespace-nowrap">{p.vendas}/mês</span>
             </div>
-          </Reveal>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-base font-bold text-foreground">{p.preco}</p>
+              <p className="text-[11px] text-muted-foreground">Demanda: <span className="font-semibold text-amber-600">{p.score}</span></p>
+            </div>
+            <button onClick={() => send(`Quero o produto: ${p.nome}`)} className="rounded-xl bg-[#7C3AED] px-3 py-2 text-xs font-semibold text-white hover:bg-[#6D28D9] transition-colors whitespace-nowrap">
+              Quero este produto
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  /* ── Ad card ─────────────────────────────────────────── */
+  const renderAd = (ad: Ad) => (
+    <div className="rounded-2xl border border-border bg-background overflow-hidden shadow-sm w-full max-w-[560px]">
+      <div className="bg-[#7C3AED] px-4 py-3">
+        <p className="text-xs font-bold text-white uppercase tracking-wide">✨ Anúncio criado pela IA</p>
+      </div>
+      <div className="p-4">
+        <p className="text-sm font-bold text-foreground mb-2">{ad.titulo}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed mb-4">{ad.descricao}</p>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[10px] text-muted-foreground mb-0.5">Preço sugerido</p>
+            <p className="text-xl font-bold text-[#7C3AED]">{ad.preco}</p>
+          </div>
+          <button onClick={() => send("Publicar no Mercado Livre")} className="rounded-xl bg-[#7C3AED] px-4 py-2 text-xs font-semibold text-white hover:bg-[#6D28D9] transition-colors flex items-center gap-1.5 whitespace-nowrap">
+            <Package size={13} /> Publicar no ML
+          </button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  /* ─── CHAT VIEW ─── */
-  return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-2xl mx-auto">
-      <style>{`
-        @keyframes dashReveal {
-          from { opacity: 0; transform: translateY(36px) scale(0.96); filter: blur(8px); }
-          to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-        }
-      `}</style>
-
-      <div className="flex-1 overflow-y-auto py-4 space-y-4 px-4" style={{ scrollbarWidth: "none" }}>
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex flex-col gap-2 ${msg.role === "user" ? "items-end" : "items-start"}`}>
-            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-              msg.role === "user"
-                ? "bg-primary text-primary-foreground rounded-br-sm"
-                : "bg-muted text-foreground rounded-bl-sm"
-            }`}>
-              {msg.content}
-            </div>
-
-            {msg.products && msg.products.length > 0 && (
-              <div className="w-full max-w-lg space-y-2">
-                {msg.products.map((p, j) => (
-                  <ProductCard key={j} p={p} />
-                ))}
-              </div>
-            )}
-
-            {msg.adPreview && <AdCard ad={msg.adPreview} />}
-          </div>
-        ))}
-
-        {loading && (
-          <div className="flex items-start">
-            <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-muted-foreground animate-pulse">
-              Pensando...
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
+  /* ── Input bar ───────────────────────────────────────── */
+  const InputBar = () => (
+    <div className="border border-border rounded-2xl bg-background p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles size={15} className="text-muted-foreground/40 shrink-0" />
+        <input
+          type="text"
+          placeholder={thinking ? "Wuilli está pensando..." : "Como posso ajudar você hoje?"}
+          value={input}
+          disabled={thinking}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && !thinking && send()}
+          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 outline-none disabled:cursor-not-allowed"
+        />
       </div>
+      <div className="flex items-center justify-between">
+        <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted transition-colors">
+          Selecionar fonte <ChevronDown size={12} />
+        </button>
+        <div className="flex items-center gap-1.5">
+          <button className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
+            <Paperclip size={14} /> Anexar
+          </button>
+          <button className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
+            <Mic size={14} /> Voz
+          </button>
+          <button onClick={() => send()} disabled={thinking || !input.trim()} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#7C3AED] rounded-lg px-4 py-1.5 hover:bg-[#6D28D9] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            <Send size={13} /> Enviar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-      {/* input bar */}
-      <div className="shrink-0 px-4 pb-4 pt-2">
-        <div className="border border-border rounded-2xl bg-background p-4 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={15} className="text-muted-foreground/50" />
-            <input
-              type="text"
-              placeholder="Pergunte qualquer coisa..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
-            />
+  /* ══ Render ══════════════════════════════════════════════ */
+  return (
+    <div className="flex overflow-hidden" style={{ height: "100vh" }}>
+
+      {/* ── Sidebar 260px ──────────────────────────────── */}
+      <aside className="hidden md:flex w-[260px] shrink-0 border-r border-border bg-[#F8FAFC] flex-col">
+        <div className="flex items-center gap-2 px-4 pt-4 pb-3">
+          <span className="flex-1 text-sm font-semibold text-foreground">Chat</span>
+          <button className="text-muted-foreground hover:text-foreground transition-colors"><Search size={15} /></button>
+        </div>
+        <div className="px-4 mb-4">
+          <button onClick={newChat} className="flex w-full items-center gap-2 rounded-xl bg-foreground px-3 py-2.5 text-sm font-semibold text-background hover:opacity-90 transition-opacity">
+            <Plus size={14} /><span className="flex-1 text-left">New Chat</span><Sparkles size={13} className="opacity-60" />
+          </button>
+        </div>
+        <div className="px-4 mb-3">
+          <p className="px-1 pb-2 text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-widest">Saved</p>
+          <div className="space-y-0.5">
+            {savedChats.map(c => (
+              <div key={c.id} className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-muted cursor-pointer transition-colors">
+                <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${c.cls} text-white text-[9px] font-bold`}>{c.l}</div>
+                <span className="flex-1 text-xs text-foreground truncate">{c.label}</span>
+                <MoreHorizontal size={13} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            ))}
           </div>
-          <div className="flex items-center justify-between">
-            <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted transition-colors">
-              Selecionar fonte <ChevronDown size={12} />
+        </div>
+        <div className="px-4 mb-3">
+          <div className="flex items-center justify-between px-1 pb-1.5">
+            <p className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-widest">Today</p>
+            <ChevronDown size={12} className="text-muted-foreground/40" />
+          </div>
+          <div className="space-y-0.5">
+            {todayChats.map((c, i) => <div key={i} className="rounded-lg px-2 py-1.5 hover:bg-muted cursor-pointer transition-colors"><p className="text-xs text-muted-foreground truncate">{c}</p></div>)}
+          </div>
+        </div>
+        <div className="px-4 mb-3">
+          <div className="flex items-center justify-between px-1 pb-1.5">
+            <p className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-widest">Yesterday</p>
+            <ChevronDown size={12} className="text-muted-foreground/40" />
+          </div>
+          <div className="space-y-0.5">
+            {yesterdayChats.map((c, i) => <div key={i} className="rounded-lg px-2 py-1.5 hover:bg-muted cursor-pointer transition-colors"><p className="text-xs text-muted-foreground truncate">{c}</p></div>)}
+          </div>
+        </div>
+        <div className="flex-1" />
+        <div className="border-t border-border px-4 py-3">
+          <button className="flex w-full items-center justify-center rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors">
+            Upgrade to Pro
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main area ──────────────────────────────────── */}
+      <div className="flex flex-1 flex-col min-w-0 bg-background">
+
+        {/* Top bar */}
+        <div className="flex shrink-0 items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-foreground">Wuilli IA</span>
+            <span className="rounded-full bg-[#7C3AED]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C3AED] uppercase tracking-wide">Pro</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="hidden sm:flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
+              <Settings size={12} /> Configuração
             </button>
-            <div className="flex items-center gap-1.5">
-              <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
-                <Paperclip size={14} /> Anexar
-              </button>
-              <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
-                <Mic size={14} /> Voz
-              </button>
-              <button
-                onClick={() => sendMessage()}
-                disabled={loading}
-                className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#7C3AED] rounded-lg px-4 py-1.5 hover:bg-[#6D28D9] transition-colors disabled:opacity-50"
-              >
-                <Send size={13} /> Enviar
-              </button>
+            <button className="hidden sm:flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
+              Compartilhar
+            </button>
+            <button onClick={newChat} className="flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-1.5 text-xs font-semibold text-background hover:opacity-90 transition-opacity">
+              <Plus size={12} /> Novo Chat <Sparkles size={11} className="opacity-60" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Content area ───────────────────────────── */}
+        <div className="relative flex-1 min-h-0 overflow-hidden">
+
+          {/* ══ WELCOME SCREEN (messages.length === 0) ══ */}
+          <div
+            className="absolute inset-0 overflow-y-auto"
+            style={{
+              transition: "opacity 0.4s ease, transform 0.4s ease",
+              opacity:    hasStarted ? 0 : 1,
+              transform:  hasStarted ? "translateY(-20px) scale(0.98)" : "translateY(0) scale(1)",
+              pointerEvents: hasStarted ? "none" : "auto",
+            }}
+          >
+            <div className="flex flex-col items-center justify-center min-h-full px-6 py-10">
+              <div className="w-full max-w-[720px] flex flex-col items-center">
+
+                {/* Logo */}
+                <div className="mb-6">
+                  <WuilliHex size={52} />
+                </div>
+
+                {/* Greeting */}
+                <h1 className="font-['Sora'] text-3xl font-bold text-foreground tracking-[-0.03em] mb-2 text-center">
+                  {saudacao}, {primeiroNome} 👋
+                </h1>
+                <p className="text-sm text-muted-foreground mb-8 text-center">
+                  Diga o que você precisa, e a IA cuida do resto.
+                </p>
+
+                {/* Big input */}
+                <div className="w-full mb-4">
+                  <InputBar />
+                </div>
+
+                {/* Quick action chips */}
+                <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
+                  {quickActions.map(({ icon: Icon, label, color, bg, msg }) => (
+                    <button key={label} onClick={() => send(msg)} className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-background text-sm font-medium text-foreground hover:bg-muted transition-all">
+                      <div className={`w-6 h-6 rounded-lg ${bg} flex items-center justify-center`}><Icon size={13} className={color} /></div>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+
+              </div>
             </div>
           </div>
+
+          {/* ══ CHAT SCREEN (messages.length > 0) ══ */}
+          <div
+            className="absolute inset-0 flex flex-col"
+            style={{
+              transition: "opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s",
+              opacity:    hasStarted ? 1 : 0,
+              transform:  hasStarted ? "translateY(0)" : "translateY(20px)",
+              pointerEvents: hasStarted ? "auto" : "none",
+            }}
+          >
+            {/* Messages — scrollable, centered at 720px */}
+            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+              <div className="max-w-[720px] mx-auto px-4 py-6 space-y-4">
+                {messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    {msg.role === "ai" && (
+                      <div className="shrink-0 mr-2 mt-0.5">
+                        <WuilliHex size={26} />
+                      </div>
+                    )}
+                    {msg.kind === "products" && msg.products
+                      ? renderProducts(msg.products)
+                      : msg.kind === "ad" && msg.ad
+                      ? renderAd(msg.ad)
+                      : (
+                        <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                          msg.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : "bg-muted text-foreground rounded-bl-sm"
+                        }`}>
+                          {msg.text}
+                        </div>
+                      )
+                    }
+                  </div>
+                ))}
+
+                {/* 3 dots typing indicator */}
+                {thinking && (
+                  <div className="flex justify-start items-start gap-2">
+                    <div className="shrink-0 mt-0.5">
+                      <WuilliHex size={26} />
+                    </div>
+                    <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                )}
+                <div ref={bottomRef} />
+              </div>
+            </div>
+
+            {/* Input — fixed at bottom, centered at 720px */}
+            <div className="shrink-0 pb-4 px-4">
+              <div className="max-w-[720px] mx-auto">
+                <InputBar />
+                <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
+                  Wuilli pode exibir informações imprecisas, por favor verifique as respostas.
+                </p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
