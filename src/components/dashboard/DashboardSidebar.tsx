@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Bell,
   LayoutGrid,
@@ -40,8 +41,15 @@ const railLinks: RailLink[] = [
 
 const DashboardSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { nome, foto } = useProfile();
+  const { signOut } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   const iniciais = nome
     .split(" ")
@@ -129,7 +137,10 @@ const DashboardSidebar = () => {
               >
                 Perfil
               </Link>
-              <button className="w-full flex items-center px-4 py-2.5 text-sm text-destructive hover:bg-muted transition-colors">
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center px-4 py-2.5 text-sm text-destructive hover:bg-muted transition-colors"
+              >
                 Sair
               </button>
             </div>

@@ -1,17 +1,18 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Send, Paperclip, Mic, Sparkles, ShoppingCart, BarChart3,
   Megaphone, ChevronDown, ListChecks, ArrowUpRight, Search,
   MoreHorizontal, Plus, Settings, Package,
 } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ══ Types ═══════════════════════════════════════════════════ */
 type Product = { nome: string; preco: string; margem: string; vendas: string; score: string };
 type Ad      = { titulo: string; descricao: string; preco: string; plataforma: string };
 type MsgKind = "text" | "products" | "ad";
 type Message = { role: "user" | "ai"; text: string; kind: MsgKind; products?: Product[]; ad?: Ad };
-type GMsg    = { role: "user" | "model"; text: string };
 
 /* ══ Wuilli Logo ══════════════════════════════════════════════ */
 const WuilliHex = ({ size = 48 }: { size?: number }) => (
@@ -21,58 +22,13 @@ const WuilliHex = ({ size = 48 }: { size?: number }) => (
   </svg>
 );
 
-/* ══ System prompt ════════════════════════════════════════════ */
-const SYSTEM = `Você é a IA da Wuilli, plataforma de dropshipping para iniciantes brasileiros. Guie o usuário neste fluxo obrigatório em ordem:
-1. Pergunte o nicho (moda, eletrônicos, beleza, casa, pets, esportes)
-2. Sugira 3 produtos com dados reais do mercado brasileiro (margem mínima 40%) retornando EXATAMENTE este JSON sem texto adicional: {"tipo":"produtos","lista":[{"nome":"","preco":"","margem":"","vendas":"","score":"Alta"}]}
-3. Após o usuário escolher, crie o anúncio retornando EXATAMENTE: {"tipo":"anuncio","titulo":"","descricao":"","preco":"","plataforma":"Mercado Livre"}
-4. Exiba botão de publicação e confirme que está pronto para publicar no Mercado Livre.
-Seja direto, animado, linguagem simples. Nunca pule etapas.`;
-
-/* ══ Gemini API ═══════════════════════════════════════════════ */
-async function callGeminiOnce(history: GMsg[]): Promise<string> {
-  const key = import.meta.env.VITE_GEMINI_API_KEY;
-  console.log("[Wuilli IA] API Key loaded:", key ? `${key.slice(0, 8)}...` : "UNDEFINED ⚠️");
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM }] },
-      contents: history.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
-      generationConfig: { temperature: 0.8, maxOutputTokens: 1024 },
-    }),
+/* ══ Edge Function call ═══════════════════════════════════════ */
+async function callAI(history: { role: string; content: string }[]): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("chat", {
+    body: { messages: history },
   });
-  if (!res.ok) {
-    const err = new Error(`HTTP ${res.status}`);
-    (err as Error & { status: number }).status = res.status;
-    throw err;
-  }
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Erro ao processar.";
-}
-
-async function callGemini(history: GMsg[]): Promise<string> {
-  try {
-    return await callGeminiOnce(history);
-  } catch (err) {
-    const status = (err as Error & { status?: number }).status;
-    if (status === 429) {
-      // Retry once after 3 seconds
-      console.warn("[Wuilli IA] Rate limit (429). Retrying in 3s...");
-      await new Promise(r => setTimeout(r, 3000));
-      return await callGeminiOnce(history);
-    }
-    throw err;
-  }
-}
-
-function geminiErrorMessage(err: unknown): string {
-  const status = (err as Error & { status?: number }).status;
-  if (status === 429) return "Limite de requisições atingido. Aguarde alguns segundos e tente novamente.";
-  if (status === 400) return "Chave de API inválida. Verifique nas Configurações.";
-  if (status === 403) return "Acesso negado. Verifique se a API Key do Gemini está ativa.";
-  return "Erro de conexão. Tente novamente.";
+  if (error) throw new Error(error.message || "Erro ao conectar com a IA");
+  return data?.response || data?.choices?.[0]?.message?.content || "Erro ao processar resposta.";
 }
 
 /* ══ Parse AI response ════════════════════════════════════════ */
@@ -108,8 +64,10 @@ const quickActions = [
 /* ══ Component ════════════════════════════════════════════════ */
 const GitChatPage = () => {
   const { nome, foto } = useProfile();
-  const iniciais    = nome.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase();
-  const primeiroNome = nome.split(" ")[0] || nome;
+  const { user } = useAuth();
+  const [profileName, setProfileName] = useState(nome);
+  const iniciais    = profileName.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase();
+  const primeiroNome = profileName.split(" ")[0] || profileName;
   const hora        = new Date().getHours();
   const saudacao    = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
 
@@ -118,7 +76,16 @@ const GitChatPage = () => {
   const [thinking, setThinking] = useState(false);
 
   const bottomRef  = useRef<HTMLDivElement>(null);
-  const apiHistory = useRef<GMsg[]>([]);
+  const apiHistory = useRef<{ role: string; content: string }[]>([]);
+
+  // Load profile name from DB
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("display_name").eq("user_id", user.id).single()
+      .then(({ data }) => {
+        if (data?.display_name) setProfileName(data.display_name);
+      });
+  }, [user]);
 
   /* Derived */
   const hasStarted = messages.length > 0;
@@ -132,17 +99,17 @@ const GitChatPage = () => {
     const userMsg: Message = { role: "user", text: msg, kind: "text" };
     setMessages(prev => [...prev, userMsg]);
 
-    const nextHistory: GMsg[] = [...apiHistory.current, { role: "user", text: msg }];
+    const nextHistory = [...apiHistory.current, { role: "user", content: msg }];
     setThinking(true);
 
     try {
-      const response = await callGemini(nextHistory);
-      apiHistory.current = [...nextHistory, { role: "model", text: response }];
+      const response = await callAI(nextHistory);
+      apiHistory.current = [...nextHistory, { role: "assistant", content: response }];
       const parsed = parse(response);
       setMessages(prev => [...prev, { role: "ai", text: response, ...parsed }]);
     } catch (err) {
       console.error("[Wuilli IA] Error:", err);
-      setMessages(prev => [...prev, { role: "ai", text: geminiErrorMessage(err), kind: "text" }]);
+      setMessages(prev => [...prev, { role: "ai", text: "Erro de conexão. Tente novamente.", kind: "text" }]);
     } finally {
       setThinking(false);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
