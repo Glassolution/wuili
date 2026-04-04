@@ -99,17 +99,17 @@ const GitChatPage = () => {
     const userMsg: Message = { role: "user", text: msg, kind: "text" };
     setMessages(prev => [...prev, userMsg]);
 
-    const nextHistory: GMsg[] = [...apiHistory.current, { role: "user", text: msg }];
+    const nextHistory = [...apiHistory.current, { role: "user", content: msg }];
     setThinking(true);
 
     try {
-      const response = await callGemini(nextHistory);
-      apiHistory.current = [...nextHistory, { role: "model", text: response }];
+      const response = await callAI(nextHistory);
+      apiHistory.current = [...nextHistory, { role: "assistant", content: response }];
       const parsed = parse(response);
       setMessages(prev => [...prev, { role: "ai", text: response, ...parsed }]);
     } catch (err) {
       console.error("[Wuilli IA] Error:", err);
-      setMessages(prev => [...prev, { role: "ai", text: geminiErrorMessage(err), kind: "text" }]);
+      setMessages(prev => [...prev, { role: "ai", text: "Erro de conexão. Tente novamente.", kind: "text" }]);
     } finally {
       setThinking(false);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
