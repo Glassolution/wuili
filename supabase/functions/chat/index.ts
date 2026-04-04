@@ -27,11 +27,16 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            ...messages,
+            ...(messages || []).map((m: { role: string; content: string }) => ({
+              role: m.role === "ai" ? "assistant" : m.role,
+              content: m.content,
+            })),
           ],
+          temperature: 0.8,
+          max_tokens: 1024,
         }),
       }
     );
