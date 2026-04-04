@@ -208,6 +208,14 @@ const CadastroPage = () => {
       <div className="flex flex-1 items-center justify-center px-6">
         <div className="w-full max-w-[560px] flex flex-col items-center">
 
+          {/* Logo centered above question */}
+          <div className="mb-6 animate-fade-in">
+            <svg width="48" height="48" viewBox="0 0 30 30" fill="none">
+              <rect width="30" height="30" rx="8" fill="#7C3AED" />
+              <path d="M15 7.5L21 11.25V18.75L15 22.5L9 18.75V11.25L15 7.5Z" fill="white" />
+            </svg>
+          </div>
+
           {/* Question text */}
           <div className="relative w-full mb-10 min-h-[80px] flex flex-col items-center justify-center">
             <h1
