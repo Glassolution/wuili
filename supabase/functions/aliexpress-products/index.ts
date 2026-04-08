@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -8,17 +10,14 @@ const corsHeaders = {
 const APP_KEY = "531606";
 
 /** MD5 sign: appSecret + sorted(key+value) + appSecret → uppercase hex */
-async function generateSign(params: Record<string, string>, appSecret: string): Promise<string> {
+function generateSign(params: Record<string, string>, appSecret: string): string {
   const sorted = Object.keys(params)
     .sort()
     .map((k) => `${k}${params[k]}`)
     .join("");
-  const data = new TextEncoder().encode(appSecret + sorted + appSecret);
-  const hash = await crypto.subtle.digest("MD5", data);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase();
+  const hash = createHash("md5");
+  hash.update(appSecret + sorted + appSecret);
+  return hash.toString("hex").toUpperCase();
 }
 
 serve(async (req) => {
