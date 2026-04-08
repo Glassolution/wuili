@@ -9,7 +9,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
 /* ══ Types ═══════════════════════════════════════════════════ */
-type Product = { nome: string; preco: string; margem: string; vendas: string; score: string };
+type Product = {
+  nome: string;
+  imagem?: string;
+  url?: string;
+  precoCusto?: number;
+  precoVenda?: number;
+  margem: string;
+  vendas?: string;
+  score?: string;
+  preco?: string; /* legacy */
+};
 type Ad      = { titulo: string; descricao: string; preco: string; plataforma: string };
 type MsgKind = "text" | "products" | "ad";
 type Message = { role: "user" | "ai"; text: string; kind: MsgKind; products?: Product[]; ad?: Ad };
@@ -126,23 +136,79 @@ const GitChatPage = () => {
 
   /* ── Product cards ───────────────────────────────────── */
   const renderProducts = (products: Product[]) => (
-    <div className="flex flex-col gap-2 w-full max-w-[560px]">
+    <div className="flex flex-col gap-3 w-full max-w-[560px]">
       {products.map((p, i) => (
-        <div key={i} className="rounded-2xl border border-border bg-background p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <p className="text-sm font-semibold text-foreground leading-snug">{p.nome}</p>
-            <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
-              <span className="rounded-full bg-[#7C3AED]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C3AED] whitespace-nowrap">{p.margem}</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 whitespace-nowrap">{p.vendas}/mês</span>
+        <div key={i} className="rounded-2xl border border-border bg-background overflow-hidden shadow-sm">
+          <div className="flex gap-3 p-3">
+            {/* Imagem */}
+            {p.imagem ? (
+              <img
+                src={p.imagem}
+                alt={p.nome}
+                className="w-20 h-20 shrink-0 rounded-xl object-cover bg-muted"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <div className="w-20 h-20 shrink-0 rounded-xl bg-muted flex items-center justify-center">
+                <Package size={24} className="text-muted-foreground/40" />
+              </div>
+            )}
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground leading-snug line-clamp-2 mb-1.5">
+                {p.nome}
+              </p>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                <span className="rounded-full bg-[#7C3AED]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C3AED]">
+                  Margem {p.margem}
+                </span>
+                {p.vendas && p.vendas !== "—" && (
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                    {p.vendas} vendas/mês
+                  </span>
+                )}
+              </div>
+
+              {/* Preços */}
+              {p.precoCusto != null && p.precoVenda != null ? (
+                <div className="flex items-end gap-3">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Custo</p>
+                    <p className="text-sm font-bold text-foreground">
+                      R$ {p.precoCusto.toFixed(2).replace(".", ",")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Venda sugerida</p>
+                    <p className="text-sm font-bold text-[#7C3AED]">
+                      R$ {p.precoVenda.toFixed(2).replace(".", ",")}
+                    </p>
+                  </div>
+                </div>
+              ) : p.preco ? (
+                <p className="text-sm font-bold text-foreground">{p.preco}</p>
+              ) : null}
             </div>
           </div>
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="text-base font-bold text-foreground">{p.preco}</p>
-              <p className="text-[11px] text-muted-foreground">Demanda: <span className="font-semibold text-amber-600">{p.score}</span></p>
-            </div>
-            <button onClick={() => send(`Quero o produto: ${p.nome}`)} className="rounded-xl bg-[#7C3AED] px-3 py-2 text-xs font-semibold text-white hover:bg-[#6D28D9] transition-colors whitespace-nowrap">
-              Quero este produto
+
+          {/* Action row */}
+          <div className="flex items-center justify-between border-t border-border px-3 py-2">
+            {p.url ? (
+              <a
+                href={p.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Ver no AliExpress <ArrowUpRight size={11} />
+              </a>
+            ) : <span />}
+            <button
+              onClick={() => send(`Quero criar um anúncio para: ${p.nome}, preço de venda R$ ${p.precoVenda?.toFixed(2) ?? p.preco}`)}
+              className="rounded-xl bg-[#7C3AED] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#6D28D9] transition-colors whitespace-nowrap"
+            >
+              Criar anúncio
             </button>
           </div>
         </div>
