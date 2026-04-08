@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { encode as hexEncode } from "https://deno.land/std@0.168.0/encoding/hex.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,17 +8,22 @@ const corsHeaders = {
 
 const APP_KEY = "531606";
 
-/** MD5 sign: appSecret + sorted(key+value) + appSecret → uppercase hex */
-function generateSign(params: Record<string, string>, appSecret: string): string {
+/** HMAC-SHA256 sign using Web Crypto API */
+async function generateSign(params: Record<string, string>, appSecret: string): Promise<string> {
   const sorted = Object.keys(params)
     .sort()
     .map((k) => `${k}${params[k]}`)
     .join("");
-  const input = new TextEncoder().encode(appSecret + sorted + appSecret);
-  // Use HMAC-SHA256 as MD5 not available in edge runtime; AliExpress also accepts hmac
-  const hashBuffer = new Uint8Array(20); // fallback: use simple hash via encoding
-  // Actually use Web Crypto with SHA-256 as fallback signing
-  return Array.from(input.slice(0, 16))
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(appSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(sorted));
+  return Array.from(new Uint8Array(sig))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
     .toUpperCase();
@@ -48,7 +52,7 @@ serve(async (req) => {
       timestamp,
       format: "json",
       v: "2.0",
-      sign_method: "md5",
+      sign_method: "hmac-sha256",
       keywords: nicho,
       target_currency: "BRL",
       target_language: "PT",
@@ -59,7 +63,7 @@ serve(async (req) => {
     };
 
     if (appSecret) {
-      params.sign = generateSign(params, appSecret);
+      params.sign = await generateSign(params, appSecret);
     }
 
     const url = new URL("https://api-sg.aliexpress.com/sync");
