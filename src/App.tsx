@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/LoginPage";
 import CadastroPage from "./pages/CadastroPage";
+import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import DashboardOverview from "./pages/dashboard/DashboardOverview";
 import AIChatPage from "./pages/dashboard/GitChatPage";
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<CadastroPage />} />
+          <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <DashboardLayout />
