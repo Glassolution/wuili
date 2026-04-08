@@ -54,7 +54,7 @@ serve(async (req) => {
     };
 
     if (appSecret) {
-      params.sign = await generateSign(params, appSecret);
+      params.sign = generateSign(params, appSecret);
     }
 
     const url = new URL("https://api-sg.aliexpress.com/sync");
