@@ -11,14 +11,16 @@ const corsHeaders = {
 const APP_KEY = "531606";
 
 /** MD5 sign: appSecret + sorted(key+value) + appSecret → uppercase hex */
-function generateSign(params: Record<string, string>, appSecret: string): string {
+async function generateSign(params: Record<string, string>, appSecret: string): Promise<string> {
   const sorted = Object.keys(params)
     .sort()
     .map((k) => `${k}${params[k]}`)
     .join("");
-  return createHash("md5")
-    .update(appSecret + sorted + appSecret)
-    .digest("hex")
+  const data = new TextEncoder().encode(appSecret + sorted + appSecret);
+  const hash = await crypto.subtle.digest("MD5", data);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
     .toUpperCase();
 }
 
