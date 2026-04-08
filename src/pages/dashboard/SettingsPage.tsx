@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
-import { Camera } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, CheckCircle2, Loader2 } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const tabs = ["Perfil", "Minhas Lojas", "Integrações", "Plano", "Notificações", "Segurança"];
 
@@ -24,17 +26,18 @@ const SettingsPage = () => {
       </div>
 
       <div className="card-wuili p-6">
-        {tab === "Perfil" && <ProfileTab />}
-        {tab === "Minhas Lojas" && <StoresTab />}
-        {tab === "Integrações" && <IntegrationsTab />}
-        {tab === "Plano" && <PlanTab />}
-        {tab === "Notificações" && <NotificationsTab />}
-        {tab === "Segurança" && <SecurityTab />}
+        {tab === "Perfil"        && <ProfileTab />}
+        {tab === "Minhas Lojas"  && <StoresTab />}
+        {tab === "Integrações"   && <IntegrationsTab />}
+        {tab === "Plano"         && <PlanTab />}
+        {tab === "Notificações"  && <NotificationsTab />}
+        {tab === "Segurança"     && <SecurityTab />}
       </div>
     </div>
   );
 };
 
+/* ══ Profile ════════════════════════════════════════════ */
 const ProfileTab = () => {
   const { nome, foto, setNome, setFoto } = useProfile();
   const [nomeEditado, setNomeEditado] = useState(nome);
@@ -43,12 +46,7 @@ const ProfileTab = () => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const iniciais = nomeEditado
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase();
+    .split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,15 +65,12 @@ const ProfileTab = () => {
 
   return (
     <div className="max-w-md space-y-6">
-      {/* Avatar */}
       <div className="flex items-center gap-5">
         <div className="relative">
           <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-xl font-bold text-primary-foreground overflow-hidden">
             {avatarSrc ? (
               <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" />
-            ) : (
-              iniciais
-            )}
+            ) : iniciais}
           </div>
           <button
             onClick={() => inputRef.current?.click()}
@@ -94,7 +89,6 @@ const ProfileTab = () => {
         </div>
       </div>
 
-      {/* Nome */}
       <div>
         <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Nome</label>
         <input
@@ -105,7 +99,7 @@ const ProfileTab = () => {
       </div>
 
       {[
-        { label: "Email", value: "contato@trendstore.com.br" },
+        { label: "Email",    value: "contato@trendstore.com.br" },
         { label: "Telefone", value: "(11) 98765-4321" },
         { label: "CPF/CNPJ", value: "12.345.678/0001-90" },
       ].map((f) => (
@@ -128,6 +122,7 @@ const ProfileTab = () => {
   );
 };
 
+/* ══ Stores ═════════════════════════════════════════════ */
 const StoresTab = () => (
   <div className="space-y-4">
     <div className="p-5 rounded-2xl border border-border">
@@ -149,36 +144,72 @@ const StoresTab = () => (
   </div>
 );
 
+/* ══ Integrations ════════════════════════════════════════ */
+type Integration = { platform: string; label: string; connected: boolean; loading?: boolean };
+
 const IntegrationsTab = () => {
-  const integrations = [
-    { name: "Mercado Livre", connected: true },
-    { name: "Shopee", connected: true },
-    { name: "AliExpress", connected: false },
-    { name: "Shopify", connected: false },
-    { name: "Stripe", connected: true },
-    { name: "Pix", connected: true, label: "Ativo" },
-  ];
+  const { user } = useAuth();
+  const [integrations, setIntegrations] = useState<Integration[]>([
+    { platform: "mercadolivre", label: "Mercado Livre", connected: false, loading: true },
+    { platform: "shopee",       label: "Shopee",        connected: false },
+    { platform: "aliexpress",   label: "AliExpress",    connected: false },
+    { platform: "shopify",      label: "Shopify",       connected: false },
+    { platform: "stripe",       label: "Stripe",        connected: false },
+    { platform: "pix",          label: "Pix",           connected: false },
+  ]);
+
+  // Carrega status real do Supabase
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("user_integrations")
+      .select("platform")
+      .eq("user_id", user.id)
+      .then(({ data }) => {
+        const connected = new Set((data ?? []).map((r: any) => r.platform));
+        setIntegrations((prev) =>
+          prev.map((i) => ({ ...i, connected: connected.has(i.platform), loading: false }))
+        );
+      });
+  }, [user]);
+
+  const handleConnect = (platform: string) => {
+    if (platform === "mercadolivre" && user) {
+      window.location.href = `/api/ml/connect?user_id=${user.id}`;
+    }
+  };
 
   return (
     <div className="space-y-3 max-w-md">
       {integrations.map((i) => (
-        <div key={i.name} className="flex items-center justify-between p-4 rounded-2xl border border-border">
-          <span className="text-sm font-medium">{i.name}</span>
-          {i.connected ? (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-success-light text-success font-semibold">
-              ✓ {i.label || "Conectado"}
+        <div key={i.platform} className="flex items-center justify-between p-4 rounded-2xl border border-border">
+          <span className="text-sm font-medium">{i.label}</span>
+          {i.loading ? (
+            <Loader2 size={16} className="animate-spin text-muted-foreground" />
+          ) : i.connected ? (
+            <span className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-success-light text-success font-semibold">
+              <CheckCircle2 size={12} /> Conectado
             </span>
           ) : (
-            <button className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all">
+            <button
+              onClick={() => handleConnect(i.platform)}
+              className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all"
+            >
               Conectar +
             </button>
           )}
         </div>
       ))}
+
+      {/* Aviso de variáveis necessárias */}
+      <p className="text-[11px] text-muted-foreground pt-2">
+        Para conectar o Mercado Livre, configure <code className="bg-muted px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> nas variáveis do Vercel.
+      </p>
     </div>
   );
 };
 
+/* ══ Plan ════════════════════════════════════════════════ */
 const PlanTab = () => (
   <div className="max-w-md">
     <div className="p-5 rounded-2xl border-2 border-primary">
@@ -197,6 +228,7 @@ const PlanTab = () => (
   </div>
 );
 
+/* ══ Notifications ═══════════════════════════════════════ */
 const NotificationsTab = () => {
   const [toggles, setToggles] = useState([true, true, true, false, true]);
   const labels = ["Nova venda", "Produto publicado", "Erro de publicação", "Pedido em trânsito", "Relatório semanal"];
@@ -218,6 +250,7 @@ const NotificationsTab = () => {
   );
 };
 
+/* ══ Security ════════════════════════════════════════════ */
 const SecurityTab = () => (
   <div className="max-w-md space-y-6">
     <div>
@@ -248,7 +281,7 @@ const SecurityTab = () => (
       <div className="space-y-2">
         {[
           { device: "Chrome — São Paulo", active: true },
-          { device: "Safari — iPhone", active: false },
+          { device: "Safari — iPhone",    active: false },
         ].map((s) => (
           <div key={s.device} className="flex items-center justify-between p-3 rounded-xl border border-border">
             <span className="text-sm">{s.device}</span>
