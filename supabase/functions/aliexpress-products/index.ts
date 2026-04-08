@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Md5 } from "https://deno.land/std@0.168.0/hash/md5.ts";
+import { HmacSha256 } from "https://deno.land/std@0.168.0/hash/sha256.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
