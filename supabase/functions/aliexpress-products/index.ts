@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
+import { Md5 } from "https://deno.land/std@0.168.0/hash/md5.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,9 +15,7 @@ function generateSign(params: Record<string, string>, appSecret: string): string
     .sort()
     .map((k) => `${k}${params[k]}`)
     .join("");
-  const hash = createHash("md5");
-  hash.update(appSecret + sorted + appSecret);
-  return hash.toString("hex").toUpperCase();
+  return new Md5().update(appSecret + sorted + appSecret).toString("hex").toUpperCase();
 }
 
 serve(async (req) => {
