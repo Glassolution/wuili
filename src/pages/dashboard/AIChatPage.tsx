@@ -1,110 +1,42 @@
-import { useRef, useState } from "react";
-import { Send, ShoppingBag, Sparkles } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { Send, ShoppingBag, Sparkles, Star } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-type Product = {
-  name: string;
-  supplier: string;
-  profit: number;
-  price: number;
-  cat: string;
+type AliProduct = {
+  nome: string;
+  preco_custo: string;
+  preco_venda: string;
+  margem: string;
+  vendas: string;
+  imagem: string;
+  product_id: string;
+  link?: string;
 };
-
-const catalog: Product[] = [
-  { name: "Fone Bluetooth TWS", supplier: "TechImport BR", profit: 63, price: 89, cat: "Eletrônicos" },
-  { name: "Tênis Casual Masculino", supplier: "ModaFlex SP", profit: 47, price: 127, cat: "Moda" },
-  { name: "Kit Skincare Coreano", supplier: "BeautyAsia", profit: 38, price: 89, cat: "Beleza" },
-  { name: "Relógio Smartwatch", supplier: "TechImport BR", profit: 82, price: 234, cat: "Eletrônicos" },
-  { name: "Mochila Urbana", supplier: "UrbanBags", profit: 55, price: 156, cat: "Moda" },
-  { name: "Óculos de Sol Retrô", supplier: "StyleVision", profit: 34, price: 78, cat: "Moda" },
-  { name: "Mouse Sem Fio", supplier: "TechImport BR", profit: 28, price: 67, cat: "Eletrônicos" },
-  { name: "Capa iPhone 15", supplier: "CaseBR", profit: 22, price: 39, cat: "Eletrônicos" },
-  { name: "Perfume Importado", supplier: "BeautyAsia", profit: 71, price: 189, cat: "Beleza" },
-  { name: "Tênis Feminino", supplier: "ModaFlex SP", profit: 52, price: 144, cat: "Moda" },
-  { name: "Câmera de Segurança", supplier: "TechImport BR", profit: 94, price: 278, cat: "Eletrônicos" },
-  { name: "Suporte Notebook", supplier: "OfficeGear", profit: 31, price: 89, cat: "Casa" },
-  { name: "Kit Maquiagem", supplier: "BeautyAsia", profit: 45, price: 119, cat: "Beleza" },
-  { name: "Luminária LED", supplier: "HomeDeco", profit: 38, price: 97, cat: "Casa" },
-  { name: "Caixa de Som BT", supplier: "TechImport BR", profit: 57, price: 167, cat: "Eletrônicos" },
-  { name: "Carteira Couro", supplier: "LeatherBR", profit: 44, price: 134, cat: "Moda" },
-];
 
 type Message = {
   role: "user" | "ai";
   text?: string;
-  products?: Product[];
+  products?: AliProduct[];
+  adPreview?: { titulo: string; descricao: string; preco: string; plataforma: string };
 };
 
 const suggestions = [
-  "Eletrônicos com maior lucro",
-  "Produtos baratos de moda",
-  "Melhores de beleza",
-  "Top produtos de casa",
+  "Quero vender eletrônicos",
+  "Produtos de moda com boa margem",
+  "Melhores produtos de beleza",
+  "Produtos para casa e decoração",
 ];
 
 function getProductInitials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 }
 
-function searchProducts(query: string): { text: string; products: Product[] } {
-  const q = query.toLowerCase();
-
-  const catMap: Record<string, string> = {
-    "eletrônico": "Eletrônicos", "eletronico": "Eletrônicos", "eletrônicos": "Eletrônicos", "eletronicos": "Eletrônicos",
-    "moda": "Moda", "roupa": "Moda", "tênis": "Moda", "tenis": "Moda",
-    "beleza": "Beleza", "skincare": "Beleza", "maquiagem": "Beleza", "perfume": "Beleza",
-    "casa": "Casa", "luminária": "Casa", "luminaria": "Casa",
-  };
-
-  let filtered = [...catalog];
-  let matchedCat = "";
-
-  for (const [kw, cat] of Object.entries(catMap)) {
-    if (q.includes(kw)) {
-      filtered = filtered.filter((p) => p.cat === cat);
-      matchedCat = cat;
-      break;
-    }
-  }
-
-  const wantsHighProfit = /lucro|rentável|rentavel|margem|ganho/.test(q);
-  const wantsCheap = /barato|econômico|economico|baixo preço|baixo preco/.test(q);
-  const wantsExpensive = /caro|premium|alto valor/.test(q);
-
-  const nameMatch = catalog.filter((p) => p.name.toLowerCase().includes(q) || p.supplier.toLowerCase().includes(q));
-  if (nameMatch.length > 0 && !matchedCat && !wantsHighProfit && !wantsCheap && !wantsExpensive) {
-    filtered = nameMatch;
-  }
-
-  if (wantsHighProfit) filtered = filtered.sort((a, b) => b.profit - a.profit);
-  else if (wantsCheap) filtered = filtered.sort((a, b) => a.price - b.price);
-  else if (wantsExpensive) filtered = filtered.sort((a, b) => b.price - a.price);
-  else filtered = filtered.sort((a, b) => b.profit - a.profit);
-
-  const top = filtered.slice(0, 4);
-
-  if (top.length === 0) {
-    return { text: "Não encontrei produtos para essa busca. Tente categorias como Eletrônicos, Moda, Beleza ou Casa.", products: [] };
-  }
-
-  const label = matchedCat ? `em ${matchedCat}` : "no catálogo";
-  const criterion = wantsHighProfit ? "maior lucro" : wantsCheap ? "menor preço" : "melhor margem";
-  return {
-    text: `Encontrei ${top.length} produtos ${label} com ${criterion}. Adicione à sua loja com um clique:`,
-    products: top,
-  };
-}
-
-function processMessage(text: string): Message {
-  const q = text.trim().toLowerCase();
-  if (/^(oi|olá|ola|hey|bom dia|boa tarde|boa noite)/.test(q)) {
-    return { role: "ai", text: "Olá! Me diga o que você quer vender — categoria, faixa de preço ou maior lucro — e eu filtro os melhores do catálogo pra você." };
-  }
-  if (/ajuda|como funciona|o que você faz|o que voce faz/.test(q)) {
-    return { role: "ai", text: 'Busco produtos no catálogo por categoria (Eletrônicos, Moda, Beleza, Casa), lucro, preço ou nome. Tente: "eletrônicos com maior lucro" ou "produtos baratos de moda".' };
-  }
-  const result = searchProducts(text);
-  return { role: "ai", text: result.text, products: result.products };
-}
+const SYSTEM_PROMPT = `Você é a IA da Wuilli, plataforma de dropshipping para iniciantes brasileiros.
+Quando o usuário disser um nicho, responda APENAS com JSON: {"tipo":"buscar_produtos","nicho":"<nicho>"}
+Quando o usuário disser "Quero este produto" seguido de dados, crie o anúncio retornando JSON:
+{"tipo":"anuncio","titulo":"","descricao":"","preco":"","plataforma":"Mercado Livre"}
+Para qualquer outra mensagem, responda normalmente com dicas de dropshipping.
+Seja direto e use linguagem simples.`;
 
 const AIChatPage = () => {
   const [input, setInput] = useState("");
@@ -113,24 +45,141 @@ const AIChatPage = () => {
   const [thinking, setThinking] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const send = (text?: string) => {
+  const scroll = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+
+  const fetchProducts = async (nicho: string): Promise<AliProduct[]> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("aliexpress-products", {
+        body: { nicho },
+      });
+      if (error) throw error;
+      return data?.products || [];
+    } catch (e) {
+      console.error("Error fetching products:", e);
+      return [];
+    }
+  };
+
+  const createAd = async (product: AliProduct): Promise<Message> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: {
+          messages: [
+            {
+              role: "user",
+              content: `Crie um anúncio completo para o Mercado Livre para este produto de dropshipping:
+Nome: ${product.nome}
+Preço de custo: ${product.preco_custo}
+Preço de venda sugerido: ${product.preco_venda}
+Margem: ${product.margem}
+
+Retorne APENAS um JSON no formato:
+{"tipo":"anuncio","titulo":"título chamativo","descricao":"descrição completa com emojis e benefícios para o Mercado Livre","preco":"${product.preco_venda}","plataforma":"Mercado Livre"}`,
+            },
+          ],
+        },
+      });
+      if (error) throw error;
+
+      const text = data?.response || "";
+      const jsonMatch = text.match(/\{[\s\S]*"tipo"\s*:\s*"anuncio"[\s\S]*\}/);
+      if (jsonMatch) {
+        const ad = JSON.parse(jsonMatch[0]);
+        return {
+          role: "ai",
+          text: `📢 Anúncio criado para "${product.nome}":`,
+          adPreview: { titulo: ad.titulo, descricao: ad.descricao, preco: ad.preco || product.preco_venda, plataforma: ad.plataforma || "Mercado Livre" },
+        };
+      }
+      return { role: "ai", text: text || "Não consegui criar o anúncio. Tente novamente." };
+    } catch (e) {
+      console.error("Error creating ad:", e);
+      return { role: "ai", text: "Erro ao criar o anúncio. Tente novamente." };
+    }
+  };
+
+  const send = async (text?: string) => {
     const msg = (text ?? input).trim();
-    if (!msg) return;
+    if (!msg || thinking) return;
     setInput("");
     setMessages((prev) => [...prev, { role: "user", text: msg }]);
     setThinking(true);
-    setTimeout(() => {
-      const reply = processMessage(msg);
-      setMessages((prev) => [...prev, reply]);
+    scroll();
+
+    // Detect niche mentions
+    const nichoKeywords: Record<string, string> = {
+      "eletrônico": "eletronicos", "eletronico": "eletronicos", "eletrônicos": "eletronicos", "eletronicos": "eletronicos", "tech": "eletronicos",
+      "moda": "moda", "roupa": "moda", "tênis": "moda", "tenis": "moda", "fashion": "moda",
+      "beleza": "beleza", "skincare": "beleza", "maquiagem": "beleza", "cosmético": "beleza", "cosmetico": "beleza",
+      "casa": "casa", "decoração": "casa", "decoracao": "casa", "lar": "casa",
+      "esporte": "esporte", "fitness": "esporte", "gym": "esporte",
+      "brinquedo": "brinquedos", "brinquedos": "brinquedos", "kids": "brinquedos",
+      "joia": "joias", "joias": "joias", "acessório": "joias",
+      "pet": "pet", "animal": "pet", "cachorro": "pet", "gato": "pet",
+      "bebê": "bebes", "bebe": "bebes", "bebês": "bebes",
+      "ferramenta": "ferramentas", "ferramentas": "ferramentas",
+      "automotivo": "automotivo", "carro": "automotivo", "auto": "automotivo",
+    };
+
+    const lower = msg.toLowerCase();
+    let detectedNicho = "";
+    for (const [kw, nicho] of Object.entries(nichoKeywords)) {
+      if (lower.includes(kw)) {
+        detectedNicho = nicho;
+        break;
+      }
+    }
+
+    if (detectedNicho) {
+      const products = await fetchProducts(detectedNicho);
+      if (products.length > 0) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            text: `🔥 Encontrei ${products.length} produtos reais do AliExpress para ${detectedNicho}! Todos com margem de 40%+. Clique em "Quero este" para criar o anúncio:`,
+            products,
+          },
+        ]);
+      } else {
+        setMessages((prev) => [...prev, { role: "ai", text: "Não encontrei produtos para esse nicho. Tente outro como: eletrônicos, moda, beleza, casa." }]);
+      }
       setThinking(false);
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-    }, 700);
+      scroll();
+      return;
+    }
+
+    // Fallback to AI chat
+    try {
+      const history = messages.filter(m => m.text).map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text! }));
+      history.push({ role: "user", content: msg });
+
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: { messages: history },
+      });
+
+      if (error) throw error;
+      setMessages((prev) => [...prev, { role: "ai", text: data?.response || "Desculpe, não consegui processar." }]);
+    } catch (e) {
+      console.error("Chat error:", e);
+      setMessages((prev) => [...prev, { role: "ai", text: "Erro ao processar. Tente novamente." }]);
+    }
+
+    setThinking(false);
+    scroll();
   };
 
-  const addToStore = (product: Product) => {
-    setAddedProducts((prev) => new Set(prev).add(product.name));
-    setMessages((prev) => [...prev, { role: "ai", text: `✅ "${product.name}" adicionado à sua loja!` }]);
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  const handleProductSelect = async (product: AliProduct) => {
+    if (addedProducts.has(product.product_id)) return;
+    setAddedProducts((prev) => new Set(prev).add(product.product_id));
+    setMessages((prev) => [...prev, { role: "user", text: `Quero este produto: ${product.nome}` }]);
+    setThinking(true);
+    scroll();
+
+    const adMessage = await createAd(product);
+    setMessages((prev) => [...prev, adMessage]);
+    setThinking(false);
+    scroll();
   };
 
   const isEmpty = messages.length === 0;
@@ -146,7 +195,7 @@ const AIChatPage = () => {
           <div>
             <h2 className="text-xl font-bold text-foreground">IA de Produtos</h2>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Diga o que você quer vender e eu busco os melhores produtos do catálogo pra adicionar à sua loja.
+              Diga o nicho que você quer vender e eu busco produtos reais do AliExpress com margem de 40%+.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
@@ -168,40 +217,69 @@ const AIChatPage = () => {
         <div className="flex-1 overflow-y-auto scrollbar-none py-4 space-y-4" style={{ scrollbarWidth: "none" }}>
           {messages.map((msg, i) => (
             <div key={i} className={`flex flex-col gap-2 ${msg.role === "user" ? "items-end" : "items-start"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground rounded-br-sm"
-                  : "bg-muted text-foreground rounded-bl-sm"
-              }`}>
-                {msg.text}
-              </div>
+              {msg.text && (
+                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-primary text-primary-foreground rounded-br-sm"
+                    : "bg-muted text-foreground rounded-bl-sm"
+                }`}>
+                  {msg.text}
+                </div>
+              )}
 
+              {/* Product cards */}
               {msg.products && msg.products.length > 0 && (
                 <div className="w-full max-w-lg space-y-2">
                   {msg.products.map((p) => {
-                    const isAdded = addedProducts.has(p.name);
+                    const isSelected = addedProducts.has(p.product_id);
                     return (
-                      <div key={p.name} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold tracking-wide text-foreground">
-                          {getProductInitials(p.name)}
-                        </div>
+                      <div key={p.product_id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
+                        {p.imagem ? (
+                          <img src={p.imagem} alt={p.nome} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                        ) : (
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold tracking-wide text-foreground">
+                            {getProductInitials(p.nome)}
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{p.name}</p>
-                          <p className="text-xs text-muted-foreground">{p.supplier} · {p.cat}</p>
-                          <p className="text-xs text-primary font-semibold mt-0.5">Lucro R${p.profit} · Preço R${p.price}</p>
+                          <p className="text-sm font-semibold truncate">{p.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Custo: {p.preco_custo} · Venda: <span className="text-primary font-semibold">{p.preco_venda}</span>
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs font-semibold text-green-600">Margem {p.margem}</span>
+                            {p.vendas && p.vendas !== "0" && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                                <Star size={10} className="fill-yellow-400 text-yellow-400" /> {p.vendas} vendas
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <button
-                          onClick={() => !isAdded && addToStore(p)}
+                          onClick={() => handleProductSelect(p)}
                           className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                            isAdded ? "bg-green-100 text-green-700" : "bg-primary text-primary-foreground hover:opacity-90"
+                            isSelected ? "bg-green-100 text-green-700" : "bg-primary text-primary-foreground hover:opacity-90"
                           }`}
                         >
                           <ShoppingBag size={12} />
-                          {isAdded ? "Adicionado" : "Adicionar"}
+                          {isSelected ? "Criando anúncio..." : "Quero este"}
                         </button>
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Ad preview */}
+              {msg.adPreview && (
+                <div className="w-full max-w-lg rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold bg-primary/10 text-primary rounded-full px-2 py-0.5">{msg.adPreview.plataforma}</span>
+                    <span className="text-xs text-muted-foreground">Anúncio pronto!</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">{msg.adPreview.titulo}</h3>
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{msg.adPreview.descricao}</p>
+                  <p className="text-lg font-bold text-primary">{msg.adPreview.preco}</p>
                 </div>
               )}
             </div>
@@ -223,14 +301,15 @@ const AIChatPage = () => {
         <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 focus-within:ring-2 focus-within:ring-primary/20">
           <input
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            placeholder="Ex: eletrônicos com maior lucro..."
+            placeholder="Diga um nicho: eletrônicos, moda, beleza..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
           />
           <button
             onClick={() => send()}
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            disabled={thinking}
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             <Send size={14} />
           </button>
