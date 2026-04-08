@@ -42,16 +42,26 @@ async function callAI(history: { role: string; content: string }[]): Promise<str
 }
 
 /* ══ Parse AI response ════════════════════════════════════════ */
-function parse(text: string): Pick<Message, "kind" | "products" | "ad"> {
+function parse(text: string): Pick<Message, "kind" | "products" | "ad"> & { _nicho?: string } {
   const m = text.match(/\{[\s\S]*\}/);
   if (m) {
     try {
       const p = JSON.parse(m[0]);
+      if (p.tipo === "buscar_produtos" && p.nicho) return { kind: "text", _nicho: p.nicho };
       if (p.tipo === "produtos" && Array.isArray(p.lista)) return { kind: "products", products: p.lista };
-      if (p.tipo === "anuncio")                              return { kind: "ad", ad: p };
+      if (p.tipo === "anuncio")                            return { kind: "ad", ad: p };
     } catch { /**/ }
   }
   return { kind: "text" };
+}
+
+/* ══ Fetch real products from AliExpress edge function ════════ */
+async function fetchProducts(nicho: string): Promise<Product[]> {
+  const { data, error } = await supabase.functions.invoke("aliexpress-products", {
+    body: { nicho },
+  });
+  if (error) throw new Error(error.message || "Erro ao buscar produtos");
+  return (data?.products ?? []) as Product[];
 }
 
 /* ══ Static data ══════════════════════════════════════════════ */
@@ -116,6 +126,19 @@ const GitChatPage = () => {
       const response = await callAI(nextHistory);
       apiHistory.current = [...nextHistory, { role: "assistant", content: response }];
       const parsed = parse(response);
+
+      /* ── Intercept buscar_produtos: fetch real AliExpress data ─ */
+      if (parsed._nicho) {
+        setMessages(prev => [...prev, {
+          role: "ai", text: `🔍 Buscando produtos reais de **${parsed._nicho}** no AliExpress...`, kind: "text",
+        }]);
+        const products = await fetchProducts(parsed._nicho);
+        const context = `Produtos encontrados no AliExpress para "${parsed._nicho}": ${products.map(p => p.nome).join(", ")}`;
+        apiHistory.current = [...apiHistory.current, { role: "assistant", content: context }];
+        setMessages(prev => [...prev, { role: "ai", text: "", kind: "products", products }]);
+        return;
+      }
+
       setMessages(prev => [...prev, { role: "ai", text: response, ...parsed }]);
     } catch (err) {
       console.error("[Wuilli IA] Error:", err);
@@ -205,10 +228,10 @@ const GitChatPage = () => {
               </a>
             ) : <span />}
             <button
-              onClick={() => send(`Quero criar um anúncio para: ${p.nome}, preço de venda R$ ${p.precoVenda?.toFixed(2) ?? p.preco}`)}
+              onClick={() => send(`Quero este produto: ${p.nome}. Preço de venda sugerido: R$ ${p.precoVenda?.toFixed(2) ?? p.preco}`)}
               className="rounded-xl bg-[#7C3AED] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#6D28D9] transition-colors whitespace-nowrap"
             >
-              Criar anúncio
+              Quero este produto
             </button>
           </div>
         </div>

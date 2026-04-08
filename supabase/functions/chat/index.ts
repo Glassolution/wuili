@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createHash } from "https://deno.land/std@0.168.0/node/crypto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,83 +8,14 @@ const corsHeaders = {
 
 const SYSTEM_PROMPT = `Você é a IA da Wuilli, plataforma de dropshipping para iniciantes brasileiros.
 Guie o usuário neste fluxo:
-1) Pergunte o nicho de produtos que ele quer vender.
-2) Quando o usuário informar o nicho, retorne SOMENTE este JSON (sem texto extra):
-   {"tipo":"produtos_request","keywords":"palavras-chave do nicho em português"}
-3) Após os produtos serem exibidos, crie um anúncio para o produto escolhido retornando SOMENTE:
+1) Pergunte qual nicho de produtos ele quer vender (ex: eletrônicos, moda, beleza, casa).
+2) Quando o usuário informar o nicho, retorne SOMENTE este JSON (sem texto extra, sem markdown):
+   {"tipo":"buscar_produtos","nicho":"nicho informado pelo usuário"}
+3) Após os produtos reais serem exibidos e o usuário escolher um, crie o anúncio retornando SOMENTE:
    {"tipo":"anuncio","titulo":"","descricao":"","preco":"","plataforma":"Mercado Livre"}
 4) Confirme a publicação de forma amigável.
 Seja direto e use linguagem simples.`;
 
-/* ── AliExpress Affiliate API ────────────────────────── */
-const APP_KEY = "531606";
-
-function generateSign(params: Record<string, string>, appSecret: string): string {
-  const sorted = Object.keys(params)
-    .sort()
-    .map((k) => `${k}${params[k]}`)
-    .join("");
-  return createHash("md5")
-    .update(appSecret + sorted + appSecret)
-    .digest("hex")
-    .toUpperCase();
-}
-
-async function fetchAliProducts(keywords: string): Promise<object[]> {
-  const appSecret = Deno.env.get("ALIEXPRESS_APP_SECRET") ?? "";
-  const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
-
-  const params: Record<string, string> = {
-    method: "aliexpress.affiliate.product.query",
-    app_key: APP_KEY,
-    timestamp,
-    format: "json",
-    v: "2.0",
-    sign_method: "md5",
-    keywords,
-    target_currency: "BRL",
-    target_language: "PT",
-    tracking_id: "wuilli",
-    page_no: "1",
-    page_size: "5",
-    sort: "SALE_PRICE_ASC",
-  };
-
-  if (appSecret) {
-    params.sign = generateSign(params, appSecret);
-  }
-
-  const url = new URL("https://api-sg.aliexpress.com/sync");
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-
-  const res = await fetch(url.toString());
-  const data = await res.json();
-
-  const raw: object[] =
-    data?.aliexpress_affiliate_product_query_response?.resp_result?.result
-      ?.products?.product ?? [];
-
-  if (raw.length === 0) {
-    console.warn("AliExpress returned no products for:", keywords, JSON.stringify(data));
-  }
-
-  return raw.map((p: any) => {
-    const custo = parseFloat(p.target_sale_price || p.sale_price || "0");
-    const venda = parseFloat((custo * 1.6).toFixed(2));
-    return {
-      nome: (p.product_title ?? "Produto").slice(0, 70),
-      imagem: p.product_main_image_url ?? "",
-      url: p.promotion_link || p.product_detail_url || "",
-      precoCusto: custo,
-      precoVenda: venda,
-      margem: "40%+",
-      vendas: p.lastest_volume ? String(p.lastest_volume) : "—",
-      score: "Alta",
-    };
-  });
-}
-
-/* ── Main handler ───────────────────────────────────── */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -144,22 +74,6 @@ serve(async (req) => {
     const aiMessage: string =
       data.choices?.[0]?.message?.content ||
       "Desculpe, não consegui processar sua mensagem.";
-
-    /* ── Intercept product request ──────────────────── */
-    const jsonMatch = aiMessage.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.tipo === "produtos_request" && parsed.keywords) {
-          const produtos = await fetchAliProducts(parsed.keywords);
-          const reply = JSON.stringify({ tipo: "produtos", lista: produtos });
-          return new Response(
-            JSON.stringify({ response: reply }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      } catch { /* not valid JSON, continue */ }
-    }
 
     return new Response(
       JSON.stringify({ response: aiMessage }),
