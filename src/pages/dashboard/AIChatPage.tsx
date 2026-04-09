@@ -183,10 +183,9 @@ Retorne APENAS um JSON no formato:
   };
 
 
-  const send = async (text?: string) => {
-    const msg = (text ?? input).trim();
+  const send = useCallback(async (text: string) => {
+    const msg = text.trim();
     if (!msg || thinking) return;
-    setInput("");
     setMessages((prev) => [...prev, { role: "user", text: msg }]);
     setThinking(true);
     scroll();
