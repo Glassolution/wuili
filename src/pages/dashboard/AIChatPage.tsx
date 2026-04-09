@@ -425,25 +425,7 @@ Retorne APENAS um JSON no formato:
         </div>
       )}
 
-      {/* input */}
-      <div className="shrink-0 pt-3">
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 focus-within:ring-2 focus-within:ring-primary/20">
-          <input
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            placeholder="Diga um nicho: eletrônicos, moda, beleza..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-          />
-          <button
-            onClick={() => send()}
-            disabled={thinking}
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            <Send size={14} />
-          </button>
-        </div>
-      </div>
+      <ChatInput onSend={send} disabled={thinking} />
     </div>
   );
 };
