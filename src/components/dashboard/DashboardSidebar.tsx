@@ -7,20 +7,20 @@ import {
   Layers,
   MessageSquare,
   Settings,
-  Sun,
   Users,
   Zap,
+  Sparkles,
 } from "lucide-react";
-
-const WuilliLogo = () => (
-  <svg width="38" height="38" viewBox="0 0 30 30" fill="none">
-    <rect width="30" height="30" rx="8" fill="#7C3AED" />
-    <path d="M15 7.5L21 11.25V18.75L15 22.5L9 18.75V11.25L15 7.5Z" fill="white" />
-  </svg>
-);
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useProfile } from "@/lib/profileContext";
+
+const WuilliLogo = () => (
+  <svg width="34" height="34" viewBox="0 0 30 30" fill="none">
+    <rect width="30" height="30" rx="8" fill="#8B5CF6" />
+    <path d="M15 7.5L21 11.25V18.75L15 22.5L9 18.75V11.25L15 7.5Z" fill="white" />
+  </svg>
+);
 
 type RailLink = {
   to: string;
@@ -30,13 +30,13 @@ type RailLink = {
 };
 
 const railLinks: RailLink[] = [
-  { to: "/dashboard/ia", icon: MessageSquare, label: "Chat IA" },
-  { to: "/dashboard/notificacoes", icon: Bell, label: "Notificações" },
-  { to: "/dashboard/relatorios", icon: Zap, label: "Relatórios" },
-  { to: "/dashboard/configuracoes", icon: Settings, label: "Configurações" },
+  { to: "/dashboard/ia", icon: Sparkles, label: "Chat IA" },
   { to: "/dashboard", icon: LayoutGrid, label: "Página inicial" },
   { to: "/dashboard/publicacoes", icon: Layers, label: "Publicações" },
-  { to: "/dashboard/clientes", icon: Users, label: "Clientes", badge: "live" },
+  { to: "/dashboard/notificacoes", icon: Bell, label: "Notificações" },
+  { to: "/dashboard/relatorios", icon: Zap, label: "Relatórios" },
+  { to: "/dashboard/clientes", icon: Users, label: "Clientes" },
+  { to: "/dashboard/configuracoes", icon: Settings, label: "Configurações" },
 ];
 
 const DashboardSidebar = () => {
@@ -60,14 +60,14 @@ const DashboardSidebar = () => {
     .toUpperCase();
 
   return (
-    <nav className="flex h-full w-[56px] shrink-0 flex-col items-center bg-[#F8FAFC] py-4">
+    <nav className="flex h-full w-[60px] shrink-0 flex-col items-center bg-[#0c0e1a] border-r border-white/5 py-4">
       {/* Wuilli Logo */}
-      <Link to="/" className="mb-5 shrink-0" title="Wuilli">
+      <Link to="/" className="mb-6 shrink-0" title="Wuilli">
         <WuilliLogo />
       </Link>
 
       {/* Nav icons */}
-      <div className="flex flex-col items-center gap-1.5">
+      <div className="flex flex-col items-center gap-1">
         {railLinks.map(({ to, icon: Icon, label, badge }) => {
           const active = location.pathname === to;
           return (
@@ -76,10 +76,10 @@ const DashboardSidebar = () => {
                 <Link
                   to={to}
                   className={cn(
-                    "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200",
+                    "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
                     active
-                      ? "bg-[#7C3AED] text-white shadow-sm"
-                      : "text-gray-400 hover:bg-gray-100 hover:text-gray-600",
+                      ? "bg-white/10 text-white"
+                      : "text-white/30 hover:bg-white/5 hover:text-white/60",
                   )}
                 >
                   <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
@@ -90,7 +90,7 @@ const DashboardSidebar = () => {
                   )}
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8} className="text-xs">
+              <TooltipContent side="right" sideOffset={8} className="text-xs bg-[#1a1d2e] text-white border-white/10">
                 {label}
               </TooltipContent>
             </Tooltip>
@@ -100,52 +100,37 @@ const DashboardSidebar = () => {
 
       <div className="flex-1" />
 
-      {/* Bottom */}
-      <div className="flex flex-col items-center gap-2">
-        {/* Sun / theme */}
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
-              <Sun className="h-[18px] w-[18px]" strokeWidth={1.75} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={8} className="text-xs">
-            Tema
-          </TooltipContent>
-        </Tooltip>
-
-        {/* User avatar */}
-        <div className="relative">
-          <button
-            onClick={() => setUserMenuOpen((v) => !v)}
-            className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-[12px] font-bold text-primary-foreground overflow-hidden hover:opacity-90 transition-opacity"
-          >
-            {foto ? (
-              <img src={foto} alt="avatar" className="w-full h-full object-cover" />
-            ) : (
-              iniciais
-            )}
-            <span className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#F8FAFC] bg-emerald-500" />
-          </button>
-
-          {userMenuOpen && (
-            <div className="absolute bottom-full left-full mb-1 ml-2 w-40 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50">
-              <Link
-                to="/dashboard/configuracoes"
-                onClick={() => setUserMenuOpen(false)}
-                className="flex items-center px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
-              >
-                Perfil
-              </Link>
-              <button
-                onClick={handleSignOut}
-                className="w-full flex items-center px-4 py-2.5 text-sm text-destructive hover:bg-muted transition-colors"
-              >
-                Sair
-              </button>
-            </div>
+      {/* User avatar */}
+      <div className="relative">
+        <button
+          onClick={() => setUserMenuOpen((v) => !v)}
+          className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-[11px] font-bold text-white overflow-hidden hover:opacity-90 transition-opacity"
+        >
+          {foto ? (
+            <img src={foto} alt="avatar" className="w-full h-full object-cover" />
+          ) : (
+            iniciais
           )}
-        </div>
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[#0c0e1a] bg-emerald-400" />
+        </button>
+
+        {userMenuOpen && (
+          <div className="absolute bottom-full left-full mb-1 ml-2 w-40 rounded-xl border border-white/10 bg-[#1a1d2e] shadow-2xl overflow-hidden z-50">
+            <Link
+              to="/dashboard/configuracoes"
+              onClick={() => setUserMenuOpen(false)}
+              className="flex items-center px-4 py-2.5 text-sm text-white/80 hover:bg-white/5 transition-colors"
+            >
+              Perfil
+            </Link>
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 transition-colors"
+            >
+              Sair
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   );
