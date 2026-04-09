@@ -25,7 +25,12 @@ serve(async (req) => {
 
     console.log('ML public search:', searchUrl)
 
-    const mlRes = await fetch(searchUrl)
+    const mlRes = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Wuilli/1.0)',
+        'Accept': 'application/json',
+      },
+    })
 
     console.log('ML status:', mlRes.status)
 
