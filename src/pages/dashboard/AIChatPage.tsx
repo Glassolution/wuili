@@ -357,7 +357,7 @@ Retorne APENAS um JSON no formato:
 
               {/* Ad preview */}
               {msg.adPreview && (
-                <div className="w-full max-w-lg rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-2">
+                <div className="w-full max-w-lg rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold bg-primary/10 text-primary rounded-full px-2 py-0.5">{msg.adPreview.plataforma}</span>
                     <span className="text-xs text-muted-foreground">Anúncio pronto!</span>
@@ -365,6 +365,51 @@ Retorne APENAS um JSON no formato:
                   <h3 className="text-sm font-bold text-foreground">{msg.adPreview.titulo}</h3>
                   <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{msg.adPreview.descricao}</p>
                   <p className="text-lg font-bold text-primary">{msg.adPreview.preco}</p>
+
+                  {/* Publish button / result */}
+                  {!msg.publishResult && (
+                    <button
+                      onClick={() => publishToML(msg.adPreview, i)}
+                      disabled={publishing !== null}
+                      className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      <Rocket size={14} />
+                      {publishing === msg.adPreview?.titulo ? "Publicando..." : "Publicar no Mercado Livre"}
+                    </button>
+                  )}
+
+                  {msg.publishResult?.status === "success" && (
+                    <div className="flex items-center gap-2 rounded-lg bg-green-100 text-green-800 px-4 py-2 text-sm">
+                      <span>✅ Anúncio publicado!</span>
+                      {msg.publishResult.permalink && (
+                        <a href={msg.publishResult.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 underline font-semibold">
+                          Ver no ML <ExternalLink size={12} />
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {msg.publishResult?.status === "not_connected" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 rounded-lg bg-yellow-100 text-yellow-800 px-4 py-2 text-sm">
+                        <AlertCircle size={14} />
+                        <span>{msg.publishResult.message}</span>
+                      </div>
+                      <button
+                        onClick={() => navigate("/dashboard/configuracoes")}
+                        className="flex items-center gap-2 rounded-lg border border-primary text-primary px-4 py-2 text-sm font-semibold hover:bg-primary/5 transition-colors"
+                      >
+                        Conectar Mercado Livre →
+                      </button>
+                    </div>
+                  )}
+
+                  {msg.publishResult?.status === "error" && (
+                    <div className="flex items-center gap-2 rounded-lg bg-destructive/10 text-destructive px-4 py-2 text-sm">
+                      <AlertCircle size={14} />
+                      <span>{msg.publishResult.message}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
