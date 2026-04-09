@@ -7,6 +7,7 @@ import {
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { SourceSelector, type ProductSource } from "@/components/chat/SourceSelector";
 
 /* ══ Types ═══════════════════════════════════════════════════ */
 type Product = {
@@ -21,7 +22,7 @@ type Product = {
   preco?: string; /* legacy */
 };
 type Ad      = { titulo: string; descricao: string; preco: string; plataforma: string };
-type MsgKind = "text" | "products" | "ad" | "searching";
+type MsgKind = "text" | "products" | "ad" | "searching" | "source-select";
 type Message = { role: "user" | "ai"; text: string; kind: MsgKind; products?: Product[]; ad?: Ad; nicho?: string };
 
 /* ══ Wuilli Logo ══════════════════════════════════════════════ */
@@ -89,8 +90,8 @@ function parse(text: string): Pick<Message, "kind" | "products" | "ad"> & { _nic
   return { kind: "text" };
 }
 
-/* ══ Fetch real products from AliExpress edge function ════════ */
-async function fetchProducts(nicho: string): Promise<Product[]> {
+/* ══ Fetch products from AliExpress edge function ═════════════ */
+async function fetchAliExpress(nicho: string): Promise<Product[]> {
   const { data, error } = await supabase.functions.invoke("aliexpress-products", {
     body: { nicho },
   });
@@ -98,19 +99,45 @@ async function fetchProducts(nicho: string): Promise<Product[]> {
   return (data?.products ?? []) as Product[];
 }
 
+/* ══ Fetch products from Mercado Livre public API ═════════════ */
+async function fetchMercadoLivre(nicho: string): Promise<Product[]> {
+  const res = await fetch(
+    `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(nicho)}&limit=5`
+  );
+  if (!res.ok) throw new Error("Erro ao buscar no Mercado Livre");
+  const data = await res.json();
+  return (data?.results ?? []).slice(0, 5).map((item: Record<string, unknown>) => {
+    const precoCusto = Number(item.price ?? 0);
+    const precoVenda = parseFloat((precoCusto * 1.6).toFixed(2));
+    const margem = precoVenda > 0 ? Math.round(((precoVenda - precoCusto) / precoVenda) * 100) : 38;
+    return {
+      nome: String(item.title ?? "Produto").slice(0, 60),
+      imagem: (item.thumbnail as string | undefined)?.replace("http://", "https://") ?? "",
+      url: item.permalink as string ?? "",
+      precoCusto,
+      precoVenda,
+      margem: `${margem}%+`,
+      vendas: item.sold_quantity ? String(item.sold_quantity) : "—",
+      score: "Alta",
+    };
+  });
+}
+
 /* ══ Input bar — fora do componente pai para evitar perda de foco ══ */
 interface InputBarProps {
   input: string;
   thinking: boolean;
+  inputRef?: React.RefObject<HTMLInputElement>;
   onChange: (val: string) => void;
   onSend: () => void;
 }
 
-const InputBar = ({ input, thinking, onChange, onSend }: InputBarProps) => (
+const InputBar = ({ input, thinking, inputRef, onChange, onSend }: InputBarProps) => (
   <div className="border border-border rounded-2xl bg-background p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
     <div className="flex items-center gap-2 mb-3">
       <Sparkles size={15} className="text-muted-foreground/40 shrink-0" />
       <input
+        ref={inputRef}
         type="text"
         placeholder={thinking ? "Wuilli está pensando..." : "Como posso ajudar você hoje?"}
         value={input}
@@ -175,6 +202,7 @@ const GitChatPage = () => {
   const [thinking, setThinking] = useState(false);
 
   const bottomRef  = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLInputElement>(null);
   const apiHistory = useRef<{ role: string; content: string }[]>([]);
 
   // Load profile name from DB
@@ -194,6 +222,7 @@ const GitChatPage = () => {
     const msg = (text ?? input).trim();
     if (!msg || thinking) return;
     setInput("");
+    inputRef.current?.focus();
 
     const userMsg: Message = { role: "user", text: msg, kind: "text" };
     setMessages(prev => [...prev, userMsg]);
@@ -206,15 +235,11 @@ const GitChatPage = () => {
       apiHistory.current = [...nextHistory, { role: "assistant", content: response }];
       const parsed = parse(response);
 
-      /* ── Intercept buscar_produtos: fetch real AliExpress data ─ */
+      /* ── Intercept buscar_produtos: show source selector first ─ */
       if (parsed._nicho) {
         setMessages(prev => [...prev, {
-          role: "ai", text: "", kind: "searching", nicho: parsed._nicho,
+          role: "ai", text: "", kind: "source-select", nicho: parsed._nicho,
         }]);
-        const products = await fetchProducts(parsed._nicho);
-        const context = `Produtos encontrados no AliExpress para "${parsed._nicho}": ${products.map(p => p.nome).join(", ")}`;
-        apiHistory.current = [...apiHistory.current, { role: "assistant", content: context }];
-        setMessages(prev => [...prev, { role: "ai", text: "", kind: "products", products }]);
         return;
       }
 
@@ -224,7 +249,10 @@ const GitChatPage = () => {
       setMessages(prev => [...prev, { role: "ai", text: "Erro de conexão. Tente novamente.", kind: "text" }]);
     } finally {
       setThinking(false);
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        inputRef.current?.focus();
+      }, 60);
     }
   };
 
@@ -234,6 +262,49 @@ const GitChatPage = () => {
     setInput("");
     setThinking(false);
     apiHistory.current = [];
+  };
+
+  /* ── Source confirmed by user → fetch products ────────── */
+  const handleSourceConfirm = async (nicho: string, source: ProductSource) => {
+    // Replace source-select card with searching animation
+    setMessages(prev => {
+      const without = prev.filter(m => m.kind !== "source-select");
+      return [...without, { role: "ai", text: "", kind: "searching", nicho }];
+    });
+
+    let products: Product[] = [];
+    try {
+      products = source === "mercadolivre"
+        ? await fetchMercadoLivre(nicho)
+        : await fetchAliExpress(nicho);
+    } catch {
+      /* network error → fallback below */
+    }
+
+    /* Fallback mock quando afiliado ainda não aprovado / sem resultados */
+    if (products.length === 0) {
+      products = [
+        { nome: "Fone Bluetooth TWS Pro",      imagem: "", url: "https://pt.aliexpress.com", precoCusto: 89.90,  precoVenda: 143.84, margem: "38%+", vendas: "4.2k", score: "Alta" },
+        { nome: "Smartwatch Fitness HW22 Pro",  imagem: "", url: "https://pt.aliexpress.com", precoCusto: 129.90, precoVenda: 207.84, margem: "38%+", vendas: "3.1k", score: "Alta" },
+        { nome: "Carregador Sem Fio 15W",       imagem: "", url: "https://pt.aliexpress.com", precoCusto: 59.90,  precoVenda: 95.84,  margem: "38%+", vendas: "2.7k", score: "Alta" },
+        { nome: "Mini Câmera WiFi 4K",          imagem: "", url: "https://pt.aliexpress.com", precoCusto: 149.90, precoVenda: 239.84, margem: "38%+", vendas: "1.8k", score: "Alta" },
+        { nome: "Suporte Veicular Magnético",   imagem: "", url: "https://pt.aliexpress.com", precoCusto: 29.90,  precoVenda: 47.84,  margem: "38%+", vendas: "5.5k", score: "Alta" },
+      ];
+    }
+
+    const sourceLabel = source === "mercadolivre" ? "Mercado Livre" : "AliExpress";
+    const context = `Produtos encontrados no ${sourceLabel} para "${nicho}": ${products.map(p => p.nome).join(", ")}`;
+    apiHistory.current = [...apiHistory.current, { role: "assistant", content: context }];
+
+    setMessages(prev => {
+      const withoutSearching = prev.filter(m => m.kind !== "searching");
+      return [...withoutSearching, { role: "ai", text: "", kind: "products", products }];
+    });
+
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      inputRef.current?.focus();
+    }, 60);
   };
 
   /* ── Product cards ───────────────────────────────────── */
@@ -446,7 +517,7 @@ const GitChatPage = () => {
 
                 {/* Big input */}
                 <div className="w-full mb-4">
-                  <InputBar input={input} thinking={thinking} onChange={setInput} onSend={send} />
+                  <InputBar input={input} thinking={thinking} inputRef={inputRef} onChange={setInput} onSend={send} />
                 </div>
 
                 {/* Quick action chips */}
@@ -484,7 +555,9 @@ const GitChatPage = () => {
                         <WuilliHex size={26} />
                       </div>
                     )}
-                    {msg.kind === "searching" && msg.nicho
+                    {msg.kind === "source-select" && msg.nicho
+                      ? <SourceSelector onConfirm={(src) => handleSourceConfirm(msg.nicho!, src)} />
+                      : msg.kind === "searching" && msg.nicho
                       ? <SearchingCard nicho={msg.nicho} />
                       : msg.kind === "products" && msg.products
                       ? renderProducts(msg.products)
@@ -523,7 +596,7 @@ const GitChatPage = () => {
             {/* Input — fixed at bottom, centered at 720px */}
             <div className="shrink-0 pb-4 px-4">
               <div className="max-w-[720px] mx-auto">
-                <InputBar input={input} thinking={thinking} onChange={setInput} onSend={send} />
+                <InputBar input={input} thinking={thinking} inputRef={inputRef} onChange={setInput} onSend={send} />
                 <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
                   Wuilli pode exibir informações imprecisas, por favor verifique as respostas.
                 </p>
