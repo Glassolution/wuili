@@ -89,11 +89,33 @@ const AIChatPage = () => {
 
   const fetchProducts = async (nicho: string): Promise<AliProduct[]> => {
     try {
-      const { data, error } = await supabase.functions.invoke("ml-search", {
-        body: { nicho },
+      // Call ML public search directly from browser (server IPs are blocked by ML)
+      const searchUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(nicho)}&limit=12`;
+      const res = await fetch(searchUrl);
+      if (!res.ok) throw new Error(`ML search failed: ${res.status}`);
+      const data = await res.json();
+      const rawResults: any[] = data.results ?? [];
+
+      return rawResults.slice(0, 8).map((item: any) => {
+        const precoCusto = Number(item.price ?? 0);
+        const precoVenda = parseFloat((precoCusto * 1.6).toFixed(2));
+        const margem = precoVenda > 0
+          ? Math.round(((precoVenda - precoCusto) / precoVenda) * 100)
+          : 38;
+
+        return {
+          product_id: String(item.id ?? ''),
+          nome: String(item.title ?? 'Produto').slice(0, 60),
+          imagem: (item.thumbnail ?? '')
+            .replace('http://', 'https://')
+            .replace('I.jpg', 'O.jpg'),
+          link: item.permalink ?? '',
+          preco_custo: `R$ ${precoCusto.toFixed(2)}`,
+          preco_venda: `R$ ${precoVenda.toFixed(2)}`,
+          margem: `${margem}%+`,
+          vendas: item.sold_quantity ? String(item.sold_quantity) : '—',
+        };
       });
-      if (error) throw error;
-      return data?.products || [];
     } catch (e) {
       console.error("Error fetching products:", e);
       return [];
