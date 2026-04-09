@@ -43,7 +43,7 @@ serve(async (req) => {
 
     console.log(`ML returned ${rawResults.length} results for "${nicho}"`)
 
-    const products = rawResults.slice(0, 5).map((item: any) => {
+    const products = rawResults.slice(0, 8).map((item: any) => {
       const precoCusto = Number(item.price ?? 0)
       const precoVenda = parseFloat((precoCusto * 1.6).toFixed(2))
       const margem     = precoVenda > 0
@@ -51,19 +51,18 @@ serve(async (req) => {
         : 38
 
       return {
-        nome:      String(item.title ?? 'Produto').slice(0, 60),
-        // I.jpg → O.jpg sobe de thumbnail para imagem maior no CDN do ML
-        imagem:    (item.thumbnail ?? '')
+        product_id: String(item.id ?? ''),
+        nome:       String(item.title ?? 'Produto').slice(0, 60),
+        imagem:     (item.thumbnail ?? '')
           .replace('http://', 'https://')
           .replace('I.jpg', 'O.jpg'),
-        url:       item.permalink ?? '',
-        condicao:  item.condition === 'new' ? 'Novo' : 'Usado',
-        vendedor:  item.seller?.nickname ?? '',
-        precoCusto,
-        precoVenda,
-        margem:    `${margem}%+`,
-        vendas:    item.sold_quantity ? String(item.sold_quantity) : '—',
-        score:     'Alta',
+        link:       item.permalink ?? '',
+        condicao:   item.condition === 'new' ? 'Novo' : 'Usado',
+        vendedor:   item.seller?.nickname ?? '',
+        preco_custo: `R$ ${precoCusto.toFixed(2)}`,
+        preco_venda: `R$ ${precoVenda.toFixed(2)}`,
+        margem:     `${margem}%+`,
+        vendas:     item.sold_quantity ? String(item.sold_quantity) : '—',
       }
     })
 

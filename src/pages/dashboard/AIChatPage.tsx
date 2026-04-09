@@ -89,7 +89,7 @@ const AIChatPage = () => {
 
   const fetchProducts = async (nicho: string): Promise<AliProduct[]> => {
     try {
-      const { data, error } = await supabase.functions.invoke("aliexpress-products", {
+      const { data, error } = await supabase.functions.invoke("ml-search", {
         body: { nicho },
       });
       if (error) throw error;
