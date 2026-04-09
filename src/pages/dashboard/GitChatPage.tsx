@@ -64,6 +64,51 @@ async function fetchProducts(nicho: string): Promise<Product[]> {
   return (data?.products ?? []) as Product[];
 }
 
+/* ══ Input bar — fora do componente pai para evitar perda de foco ══ */
+interface InputBarProps {
+  input: string;
+  thinking: boolean;
+  onChange: (val: string) => void;
+  onSend: () => void;
+}
+
+const InputBar = ({ input, thinking, onChange, onSend }: InputBarProps) => (
+  <div className="border border-border rounded-2xl bg-background p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
+    <div className="flex items-center gap-2 mb-3">
+      <Sparkles size={15} className="text-muted-foreground/40 shrink-0" />
+      <input
+        type="text"
+        placeholder={thinking ? "Wuilli está pensando..." : "Como posso ajudar você hoje?"}
+        value={input}
+        disabled={thinking}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && !thinking && onSend()}
+        className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 outline-none disabled:cursor-not-allowed"
+      />
+    </div>
+    <div className="flex items-center justify-between">
+      <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted transition-colors">
+        Selecionar fonte <ChevronDown size={12} />
+      </button>
+      <div className="flex items-center gap-1.5">
+        <button className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
+          <Paperclip size={14} /> Anexar
+        </button>
+        <button className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
+          <Mic size={14} /> Voz
+        </button>
+        <button
+          onClick={onSend}
+          disabled={thinking || !input.trim()}
+          className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#7C3AED] rounded-lg px-4 py-1.5 hover:bg-[#6D28D9] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Send size={13} /> Enviar
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 /* ══ Static data ══════════════════════════════════════════════ */
 const savedChats = [
   { id: 1, label: "Análise de Vendas", cls: "bg-sky-500",    l: "A" },
@@ -261,40 +306,6 @@ const GitChatPage = () => {
     </div>
   );
 
-  /* ── Input bar ───────────────────────────────────────── */
-  const InputBar = () => (
-    <div className="border border-border rounded-2xl bg-background p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles size={15} className="text-muted-foreground/40 shrink-0" />
-        <input
-          type="text"
-          placeholder={thinking ? "Wuilli está pensando..." : "Como posso ajudar você hoje?"}
-          value={input}
-          disabled={thinking}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && !thinking && send()}
-          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 outline-none disabled:cursor-not-allowed"
-        />
-      </div>
-      <div className="flex items-center justify-between">
-        <button className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted transition-colors">
-          Selecionar fonte <ChevronDown size={12} />
-        </button>
-        <div className="flex items-center gap-1.5">
-          <button className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
-            <Paperclip size={14} /> Anexar
-          </button>
-          <button className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg px-3 py-1.5 transition-colors">
-            <Mic size={14} /> Voz
-          </button>
-          <button onClick={() => send()} disabled={thinking || !input.trim()} className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#7C3AED] rounded-lg px-4 py-1.5 hover:bg-[#6D28D9] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            <Send size={13} /> Enviar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   /* ══ Render ══════════════════════════════════════════════ */
   return (
     <div className="flex overflow-hidden" style={{ height: "100vh" }}>
@@ -401,7 +412,7 @@ const GitChatPage = () => {
 
                 {/* Big input */}
                 <div className="w-full mb-4">
-                  <InputBar />
+                  <InputBar input={input} thinking={thinking} onChange={setInput} onSend={send} />
                 </div>
 
                 {/* Quick action chips */}
@@ -476,7 +487,7 @@ const GitChatPage = () => {
             {/* Input — fixed at bottom, centered at 720px */}
             <div className="shrink-0 pb-4 px-4">
               <div className="max-w-[720px] mx-auto">
-                <InputBar />
+                <InputBar input={input} thinking={thinking} onChange={setInput} onSend={send} />
                 <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
                   Wuilli pode exibir informações imprecisas, por favor verifique as respostas.
                 </p>
