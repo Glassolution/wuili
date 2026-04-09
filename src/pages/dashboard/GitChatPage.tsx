@@ -369,14 +369,14 @@ const GitChatPage = () => {
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
               >
-                Ver no AliExpress <ArrowUpRight size={11} />
+                Ver no Mercado Livre <ArrowUpRight size={11} />
               </a>
             ) : <span />}
             <button
-              onClick={() => send(`Quero este produto: ${p.nome}. Preço de venda sugerido: R$ ${p.precoVenda?.toFixed(2) ?? p.preco}`)}
+              onClick={() => send(`aprovar produto: ${p.nome}. Preço: R$ ${p.precoVenda?.toFixed(2) ?? p.preco}. Publicar no Mercado Livre.`)}
               className="rounded-xl bg-[#7C3AED] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#6D28D9] transition-colors whitespace-nowrap"
             >
-              Quero este produto
+              Publicar no Mercado Livre
             </button>
           </div>
         </div>
