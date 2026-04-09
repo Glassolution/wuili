@@ -251,7 +251,7 @@ Retorne APENAS um JSON no formato:
           ...prev,
           {
             role: "ai",
-            text: `🔥 Encontrei ${products.length} produtos reais do AliExpress para ${detectedNicho}! Todos com margem de 40%+. Clique em "Quero este" para criar o anúncio:`,
+            text: `🔥 Encontrei ${products.length} produtos do Mercado Livre para "${detectedNicho}"! Todos com margem de 40%+. Clique em "Quero este" para criar o anúncio:`,
             products,
           },
         ]);
@@ -309,7 +309,7 @@ Retorne APENAS um JSON no formato:
           <div>
             <h2 className="text-xl font-bold text-foreground">IA de Produtos</h2>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Diga o nicho que você quer vender e eu busco produtos reais do AliExpress com margem de 40%+.
+              Diga o nicho que você quer vender e eu busco produtos reais do Mercado Livre com margem de 40%+.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
