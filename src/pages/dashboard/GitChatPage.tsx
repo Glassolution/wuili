@@ -100,9 +100,9 @@ async function fetchAliExpress(nicho: string): Promise<Product[]> {
 }
 
 /* ══ Fetch products from Mercado Livre via Edge Function ══════ */
-async function fetchMercadoLivre(nicho: string, userId?: string): Promise<Product[]> {
+async function fetchMercadoLivre(nicho: string): Promise<Product[]> {
   const { data, error } = await supabase.functions.invoke("ml-search", {
-    body: { nicho, user_id: userId ?? null },
+    body: { nicho },
   });
   if (error) throw new Error(error.message || "Erro ao buscar no Mercado Livre");
   if (data?.error) throw new Error(data.error);
@@ -262,7 +262,7 @@ const GitChatPage = () => {
     let fetchError = false;
     try {
       products = source === "mercadolivre"
-        ? await fetchMercadoLivre(nicho, user?.id)
+        ? await fetchMercadoLivre(nicho)
         : await fetchAliExpress(nicho);
     } catch {
       fetchError = true;
