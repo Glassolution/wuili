@@ -184,6 +184,7 @@ Retorne APENAS um JSON no formato:
   };
 
 
+  const send = async (text?: string) => {
     const msg = (text ?? input).trim();
     if (!msg || thinking) return;
     setInput("");
