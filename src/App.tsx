@@ -13,7 +13,7 @@ import CadastroPage from "./pages/CadastroPage";
 import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import DashboardOverview from "./pages/dashboard/DashboardOverview";
-import AIChatPage from "./pages/dashboard/AIChatPage";
+import AIChatPage from "./pages/dashboard/GitChatPage";
 import CatalogPage from "./pages/dashboard/CatalogPage";
 import OrdersPage from "./pages/dashboard/OrdersPage";
 import PublicationsPage from "./pages/dashboard/PublicationsPage";
