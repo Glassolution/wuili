@@ -27,8 +27,8 @@ type Message = {
   products?: AliProduct[];
   adPreview?: { titulo: string; descricao: string; preco: string; plataforma: string; sourceProduct?: AliProduct };
   publishResult?: PublishResult;
+  showConnectML?: boolean;
 };
-
 const suggestions = [
   "Quero vender eletrônicos",
   "Produtos de moda com boa margem",
@@ -259,6 +259,20 @@ Retorne APENAS um JSON no formato:
 
     const lower = msg.toLowerCase();
     let detectedNicho = "";
+
+    // Detect ML connect intent
+    const connectKeywords = ["conectar", "integrar", "minha conta ml", "vincular mercado", "mercado livre"];
+    const wantsConnect = connectKeywords.some((kw) => lower.includes(kw)) && !lower.includes("produto");
+    if (wantsConnect) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", text: "Para publicar no Mercado Livre, você precisa conectar sua conta primeiro. Clique no botão abaixo:", showConnectML: true },
+      ]);
+      setThinking(false);
+      scroll();
+      return;
+    }
+
     for (const [kw, nicho] of Object.entries(nichoKeywords)) {
       if (lower.includes(kw)) {
         detectedNicho = nicho;
