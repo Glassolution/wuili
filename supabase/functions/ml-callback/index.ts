@@ -6,8 +6,7 @@ serve(async (req) => {
   const code = url.searchParams.get("code");
   const userId = url.searchParams.get("state");
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const dashboardUrl = `${supabaseUrl.replace(".supabase.co", "").replace("https://", "https://id-preview--")}.lovableproject.com/dashboard/settings`;
+  const dashboardUrl = "https://wuili.lovable.app/dashboard/settings";
 
   if (!code || !userId) {
     return new Response(null, {
