@@ -99,7 +99,7 @@ Retorne APENAS um JSON no formato:
         return {
           role: "ai",
           text: `📢 Anúncio criado para "${product.nome}":`,
-          adPreview: { titulo: ad.titulo, descricao: ad.descricao, preco: ad.preco || product.preco_venda, plataforma: ad.plataforma || "Mercado Livre" },
+          adPreview: { titulo: ad.titulo, descricao: ad.descricao, preco: ad.preco || product.preco_venda, plataforma: ad.plataforma || "Mercado Livre", sourceProduct: product },
         };
       }
       return { role: "ai", text: text || "Não consegui criar o anúncio. Tente novamente." };
