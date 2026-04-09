@@ -78,7 +78,7 @@ const DashboardSidebar = () => {
                   className={cn(
                     "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200",
                     active
-                      ? "bg-gray-900 text-white shadow-sm"
+                      ? "bg-[#7C3AED] text-white shadow-sm"
                       : "text-gray-400 hover:bg-gray-100 hover:text-gray-600",
                   )}
                 >
