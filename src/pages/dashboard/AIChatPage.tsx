@@ -51,8 +51,10 @@ const AIChatPage = () => {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [addedProducts, setAddedProducts] = useState<Set<string>>(new Set());
+  const [publishing, setPublishing] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const scroll = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
