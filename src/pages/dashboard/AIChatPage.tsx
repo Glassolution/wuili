@@ -47,6 +47,36 @@ Quando o usuário disser "Quero este produto" seguido de dados, crie o anúncio 
 Para qualquer outra mensagem, responda normalmente com dicas de dropshipping.
 Seja direto e use linguagem simples.`;
 
+const ChatInput = memo(({ onSend, disabled }: { onSend: (text: string) => void; disabled: boolean }) => {
+  const [value, setValue] = useState("");
+  const handleSend = () => {
+    if (!value.trim()) return;
+    onSend(value);
+    setValue("");
+  };
+  return (
+    <div className="shrink-0 pt-3">
+      <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 focus-within:ring-2 focus-within:ring-primary/20">
+        <input
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          placeholder="Diga um nicho: eletrônicos, moda, beleza..."
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+        />
+        <button
+          onClick={handleSend}
+          disabled={disabled}
+          className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          <Send size={14} />
+        </button>
+      </div>
+    </div>
+  );
+});
+ChatInput.displayName = "ChatInput";
+
 const AIChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [addedProducts, setAddedProducts] = useState<Set<string>>(new Set());
