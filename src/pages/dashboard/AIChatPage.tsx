@@ -447,7 +447,7 @@ Retorne APENAS um JSON no formato:
                         <span>{msg.publishResult.message}</span>
                       </div>
                       <button
-                        onClick={() => navigate("/dashboard/configuracoes")}
+                        onClick={() => navigate("/dashboard/integracoes")}
                         className="flex items-center gap-2 rounded-lg border border-primary text-primary px-4 py-2 text-sm font-semibold hover:bg-primary/5 transition-colors"
                       >
                         Conectar Mercado Livre →
