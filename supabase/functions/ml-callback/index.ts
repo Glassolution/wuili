@@ -6,7 +6,8 @@ serve(async (req) => {
   const code = url.searchParams.get("code");
   const userId = url.searchParams.get("state");
 
-  const dashboardUrl = "https://wuili.lovable.app/dashboard/integracoes";
+  const appUrl = Deno.env.get("APP_URL") || "https://wuili.vercel.app";
+  const dashboardUrl = `${appUrl}/dashboard/integracoes`;
 
   if (!code || !userId) {
     return new Response(null, {
