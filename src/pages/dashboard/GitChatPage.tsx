@@ -273,33 +273,32 @@ const GitChatPage = () => {
     });
 
     let products: Product[] = [];
+    let fetchError = false;
     try {
       products = source === "mercadolivre"
         ? await fetchMercadoLivre(nicho)
         : await fetchAliExpress(nicho);
     } catch {
-      /* network error → fallback below */
-    }
-
-    /* Fallback mock quando afiliado ainda não aprovado / sem resultados */
-    if (products.length === 0) {
-      products = [
-        { nome: "Fone Bluetooth TWS Pro",      imagem: "", url: "https://pt.aliexpress.com", precoCusto: 89.90,  precoVenda: 143.84, margem: "38%+", vendas: "4.2k", score: "Alta" },
-        { nome: "Smartwatch Fitness HW22 Pro",  imagem: "", url: "https://pt.aliexpress.com", precoCusto: 129.90, precoVenda: 207.84, margem: "38%+", vendas: "3.1k", score: "Alta" },
-        { nome: "Carregador Sem Fio 15W",       imagem: "", url: "https://pt.aliexpress.com", precoCusto: 59.90,  precoVenda: 95.84,  margem: "38%+", vendas: "2.7k", score: "Alta" },
-        { nome: "Mini Câmera WiFi 4K",          imagem: "", url: "https://pt.aliexpress.com", precoCusto: 149.90, precoVenda: 239.84, margem: "38%+", vendas: "1.8k", score: "Alta" },
-        { nome: "Suporte Veicular Magnético",   imagem: "", url: "https://pt.aliexpress.com", precoCusto: 29.90,  precoVenda: 47.84,  margem: "38%+", vendas: "5.5k", score: "Alta" },
-      ];
+      fetchError = true;
     }
 
     const sourceLabel = source === "mercadolivre" ? "Mercado Livre" : "AliExpress";
-    const context = `Produtos encontrados no ${sourceLabel} para "${nicho}": ${products.map(p => p.nome).join(", ")}`;
-    apiHistory.current = [...apiHistory.current, { role: "assistant", content: context }];
 
-    setMessages(prev => {
-      const withoutSearching = prev.filter(m => m.kind !== "searching");
-      return [...withoutSearching, { role: "ai", text: "", kind: "products", products }];
-    });
+    if (fetchError || products.length === 0) {
+      const noResultsMsg = "Ainda não encontrei produtos disponíveis para esse nicho agora. Isso pode acontecer porque a integração com o fornecedor está sendo ativada. Tente novamente em alguns instantes ou escolha outro nicho.";
+      apiHistory.current = [...apiHistory.current, { role: "assistant", content: noResultsMsg }];
+      setMessages(prev => {
+        const withoutSearching = prev.filter(m => m.kind !== "searching");
+        return [...withoutSearching, { role: "ai", text: noResultsMsg, kind: "text" }];
+      });
+    } else {
+      const context = `Produtos encontrados no ${sourceLabel} para "${nicho}": ${products.map(p => p.nome).join(", ")}`;
+      apiHistory.current = [...apiHistory.current, { role: "assistant", content: context }];
+      setMessages(prev => {
+        const withoutSearching = prev.filter(m => m.kind !== "searching");
+        return [...withoutSearching, { role: "ai", text: "", kind: "products", products }];
+      });
+    }
 
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
