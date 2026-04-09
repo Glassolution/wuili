@@ -20,6 +20,8 @@ type Product = {
   vendas?: string;
   score?: string;
   preco?: string; /* legacy */
+  mlId?: string;
+  seller?: string;
 };
 type Ad      = { titulo: string; descricao: string; preco: string; plataforma: string };
 type MsgKind = "text" | "products" | "ad" | "searching" | "source-select";
