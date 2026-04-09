@@ -20,6 +20,8 @@ type Product = {
   vendas?: string;
   score?: string;
   preco?: string; /* legacy */
+  mlId?: string;
+  seller?: string;
 };
 type Ad      = { titulo: string; descricao: string; preco: string; plataforma: string };
 type MsgKind = "text" | "products" | "ad" | "searching" | "source-select";
@@ -99,14 +101,24 @@ async function fetchAliExpress(nicho: string): Promise<Product[]> {
   return (data?.products ?? []) as Product[];
 }
 
-/* ══ Fetch products from Mercado Livre via Edge Function ══════ */
+/* ══ Fetch products from Mercado Livre (direct browser call) ══ */
 async function fetchMercadoLivre(nicho: string): Promise<Product[]> {
-  const { data, error } = await supabase.functions.invoke("ml-search", {
-    body: { nicho },
-  });
-  if (error) throw new Error(error.message || "Erro ao buscar no Mercado Livre");
-  if (data?.error) throw new Error(data.error);
-  return (data?.products ?? []) as Product[];
+  const query = encodeURIComponent(nicho);
+  const res = await fetch(`https://api.mercadolibre.com/sites/MLB/search?q=${query}&limit=12`);
+  if (!res.ok) throw new Error("Erro ao buscar no Mercado Livre");
+  const data = await res.json();
+  return (data.results ?? []).map((item: any) => ({
+    nome: item.title,
+    imagem: item.thumbnail?.replace("http://", "https://"),
+    url: item.permalink,
+    precoCusto: undefined,
+    precoVenda: item.price,
+    margem: "—",
+    vendas: item.sold_quantity ? `${item.sold_quantity}` : "—",
+    preco: `R$ ${item.price?.toFixed(2).replace(".", ",")}`,
+    mlId: item.id,
+    seller: item.seller?.nickname || "",
+  }));
 }
 
 /* ══ Input bar — fora do componente pai para evitar perda de foco ══ */
@@ -359,14 +371,14 @@ const GitChatPage = () => {
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
               >
-                Ver no AliExpress <ArrowUpRight size={11} />
+                Ver no Mercado Livre <ArrowUpRight size={11} />
               </a>
             ) : <span />}
             <button
-              onClick={() => send(`Quero este produto: ${p.nome}. Preço de venda sugerido: R$ ${p.precoVenda?.toFixed(2) ?? p.preco}`)}
+              onClick={() => send(`aprovar produto: ${p.nome}. Preço: R$ ${p.precoVenda?.toFixed(2) ?? p.preco}. Publicar no Mercado Livre.`)}
               className="rounded-xl bg-[#7C3AED] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#6D28D9] transition-colors whitespace-nowrap"
             >
-              Quero este produto
+              Publicar no Mercado Livre
             </button>
           </div>
         </div>
