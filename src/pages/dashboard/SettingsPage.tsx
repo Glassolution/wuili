@@ -175,7 +175,8 @@ const IntegrationsTab = () => {
 
   const handleConnect = (platform: string) => {
     if (platform === "mercadolivre" && user) {
-      window.location.href = `/api/ml/connect?user_id=${user.id}`;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
     }
   };
 
@@ -203,7 +204,7 @@ const IntegrationsTab = () => {
 
       {/* Aviso de variáveis necessárias */}
       <p className="text-[11px] text-muted-foreground pt-2">
-        Para conectar o Mercado Livre, configure <code className="bg-muted px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> nas variáveis do Vercel.
+        Clique em "Conectar +" para autorizar sua conta do Mercado Livre.
       </p>
     </div>
   );
