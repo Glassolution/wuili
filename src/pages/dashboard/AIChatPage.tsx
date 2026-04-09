@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect, useCallback, memo } from "react";
-import { Send, ShoppingBag, Sparkles, Star, Rocket, ExternalLink, AlertCircle } from "lucide-react";
+import { useRef, useState, useCallback, memo } from "react";
+import { Send, ShoppingBag, Star, Rocket, ExternalLink, AlertCircle, ArrowUp, Cpu, TrendingUp, Palette } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
@@ -30,10 +30,34 @@ type Message = {
 };
 
 const suggestions = [
-  "Quero vender eletrônicos",
-  "Produtos de moda com boa margem",
-  "Melhores produtos de beleza",
-  "Produtos para casa e decoração",
+  {
+    label: "Buscar eletrônicos",
+    desc: "Gadgets, fones e acessórios com alta margem",
+    icon: Cpu,
+    gradient: "from-blue-600/80 to-indigo-700/80",
+    message: "Quero vender eletrônicos",
+  },
+  {
+    label: "Buscar moda",
+    desc: "Roupas, tênis e acessórios em alta",
+    icon: Palette,
+    gradient: "from-pink-600/80 to-rose-700/80",
+    message: "Produtos de moda com boa margem",
+  },
+  {
+    label: "Buscar beleza",
+    desc: "Skincare, maquiagem e cuidados",
+    icon: Star,
+    gradient: "from-amber-500/80 to-orange-600/80",
+    message: "Melhores produtos de beleza",
+  },
+  {
+    label: "Buscar casa",
+    desc: "Decoração, organização e utilidades",
+    icon: TrendingUp,
+    gradient: "from-emerald-500/80 to-teal-600/80",
+    message: "Produtos para casa e decoração",
+  },
 ];
 
 function getProductInitials(name: string) {
@@ -55,11 +79,11 @@ const ChatInput = memo(({ onSend, disabled }: { onSend: (text: string) => void; 
     setValue("");
   };
   return (
-    <div className="shrink-0 pt-3">
-      <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 focus-within:ring-2 focus-within:ring-primary/20">
+    <div className="w-full max-w-[680px] mx-auto px-4 pb-6">
+      <div className="relative">
         <input
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          placeholder="Diga um nicho: eletrônicos, moda, beleza..."
+          className="w-full rounded-2xl border border-white/10 bg-[#1a1d2e] px-5 py-4 pr-14 text-sm text-white/90 outline-none placeholder:text-white/30 focus:border-white/20 focus:ring-1 focus:ring-white/10 transition-all"
+          placeholder="O que você quer vender?"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
@@ -67,9 +91,9 @@ const ChatInput = memo(({ onSend, disabled }: { onSend: (text: string) => void; 
         <button
           onClick={handleSend}
           disabled={disabled}
-          className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-r from-violet-500 to-indigo-500 text-white hover:opacity-90 transition-opacity disabled:opacity-30"
         >
-          <Send size={14} />
+          <ArrowUp size={16} strokeWidth={2.5} />
         </button>
       </div>
     </div>
@@ -89,7 +113,6 @@ const AIChatPage = () => {
 
   const fetchProducts = async (nicho: string): Promise<AliProduct[]> => {
     try {
-      // Call ML public search directly from browser (server IPs are blocked by ML)
       const searchUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(nicho)}&limit=12`;
       const res = await fetch(searchUrl);
       if (!res.ok) throw new Error(`ML search failed: ${res.status}`);
@@ -234,7 +257,6 @@ Retorne APENAS um JSON no formato:
     scroll();
   };
 
-
   const send = useCallback(async (text: string) => {
     const msg = text.trim();
     if (!msg || thinking) return;
@@ -242,7 +264,6 @@ Retorne APENAS um JSON no formato:
     setThinking(true);
     scroll();
 
-    // Detect niche mentions
     const nichoKeywords: Record<string, string> = {
       "eletrônico": "eletronicos", "eletronico": "eletronicos", "eletrônicos": "eletronicos", "eletronicos": "eletronicos", "tech": "eletronicos",
       "moda": "moda", "roupa": "moda", "tênis": "moda", "tenis": "moda", "fashion": "moda",
@@ -273,7 +294,7 @@ Retorne APENAS um JSON no formato:
           ...prev,
           {
             role: "ai",
-            text: `🔥 Encontrei ${products.length} produtos do Mercado Livre para "${detectedNicho}"! Todos com margem de 40%+. Clique em "Quero este" para criar o anúncio:`,
+            text: `🔥 Encontrei ${products.length} produtos do Mercado Livre para "${detectedNicho}"! Todos com margem de 40%+.`,
             products,
           },
         ]);
@@ -285,7 +306,6 @@ Retorne APENAS um JSON no formato:
       return;
     }
 
-    // Fallback to AI chat
     try {
       const history = messages.filter(m => m.text).map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text! }));
       history.push({ role: "user", content: msg });
@@ -321,162 +341,182 @@ Retorne APENAS um JSON no formato:
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] max-w-2xl mx-auto">
-      {/* empty state */}
+    <div className="flex flex-col h-screen w-full bg-[#0f1117]">
+      {/* Empty state — Leonardo AI style */}
       {isEmpty && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-6 text-center px-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-            <Sparkles size={26} />
+        <div className="flex flex-col items-center justify-center flex-1 px-4">
+          {/* Sparkle icon with glow */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 blur-2xl opacity-60 bg-gradient-to-r from-violet-500 to-cyan-400 rounded-full scale-150" />
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="relative z-10">
+              <path d="M24 4L27.5 18.5H42L30 28L34 44L24 34L14 44L18 28L6 18.5H20.5L24 4Z" fill="url(#sparkleGrad)" />
+              <defs>
+                <linearGradient id="sparkleGrad" x1="6" y1="4" x2="42" y2="44">
+                  <stop stopColor="#a78bfa" />
+                  <stop offset="0.5" stopColor="#7dd3fc" />
+                  <stop offset="1" stopColor="#a78bfa" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground">IA de Produtos</h2>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Diga o nicho que você quer vender e eu busco produtos reais do Mercado Livre com margem de 40%+.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 justify-center">
+
+          {/* Welcome text */}
+          <p className="text-white/40 text-sm mb-2 tracking-wide">Bem-vindo à Wuilli AI</p>
+          <h1 className="text-4xl md:text-5xl font-bold text-white/90 mb-10 tracking-tight">
+            Como posso <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-cyan-300">ajudar</span>?
+          </h1>
+
+          {/* Suggestion cards */}
+          <div className="flex flex-wrap justify-center gap-4 max-w-3xl mb-12">
             {suggestions.map((s) => (
               <button
-                key={s}
-                onClick={() => send(s)}
-                className="rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                key={s.message}
+                onClick={() => send(s.message)}
+                className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${s.gradient} p-5 w-[200px] text-left transition-all duration-300 hover:scale-[1.03] hover:shadow-xl hover:shadow-violet-500/10`}
               >
-                {s}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                <div className="relative z-10">
+                  <s.icon className="h-5 w-5 text-white/80 mb-3" />
+                  <p className="text-sm font-semibold text-white mb-1">{s.label}</p>
+                  <p className="text-xs text-white/60 leading-relaxed">{s.desc}</p>
+                </div>
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* messages */}
+      {/* Messages */}
       {!isEmpty && (
-        <div className="flex-1 overflow-y-auto scrollbar-none py-4 space-y-4" style={{ scrollbarWidth: "none" }}>
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex flex-col gap-2 ${msg.role === "user" ? "items-end" : "items-start"}`}>
-              {msg.text && (
-                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-br-sm"
-                    : "bg-muted text-foreground rounded-bl-sm"
-                }`}>
-                  {msg.text}
-                </div>
-              )}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4" style={{ scrollbarWidth: "none" }}>
+          <div className="max-w-2xl mx-auto space-y-4">
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex flex-col gap-2 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                {msg.text && (
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-br-sm"
+                      : "bg-[#1a1d2e] text-white/80 rounded-bl-sm border border-white/5"
+                  }`}>
+                    {msg.text}
+                  </div>
+                )}
 
-              {/* Product cards */}
-              {msg.products && msg.products.length > 0 && (
-                <div className="w-full max-w-lg space-y-2">
-                  {msg.products.map((p) => {
-                    const isSelected = addedProducts.has(p.product_id);
-                    return (
-                      <div key={p.product_id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
-                        {p.imagem ? (
-                          <img src={p.imagem} alt={p.nome} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
-                        ) : (
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold tracking-wide text-foreground">
-                            {getProductInitials(p.nome)}
+                {/* Product cards */}
+                {msg.products && msg.products.length > 0 && (
+                  <div className="w-full max-w-lg space-y-2">
+                    {msg.products.map((p) => {
+                      const isSelected = addedProducts.has(p.product_id);
+                      return (
+                        <div key={p.product_id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#1a1d2e] p-3 transition-all hover:border-white/20">
+                          {p.imagem ? (
+                            <img src={p.imagem} alt={p.nome} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                          ) : (
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xs font-bold tracking-wide text-white/60">
+                              {getProductInitials(p.nome)}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-white/90 truncate">{p.nome}</p>
+                            <p className="text-xs text-white/40">
+                              Custo: {p.preco_custo} · Venda: <span className="text-emerald-400 font-semibold">{p.preco_venda}</span>
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs font-semibold text-emerald-400">Margem {p.margem}</span>
+                              {p.vendas && p.vendas !== "0" && p.vendas !== "—" && (
+                                <span className="text-xs text-white/30 flex items-center gap-0.5">
+                                  <Star size={10} className="fill-amber-400 text-amber-400" /> {p.vendas} vendas
+                                </span>
+                              )}
+                            </div>
                           </div>
+                          <button
+                            onClick={() => handleProductSelect(p)}
+                            className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                              isSelected ? "bg-emerald-500/20 text-emerald-400" : "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:opacity-90"
+                            }`}
+                          >
+                            <ShoppingBag size={12} />
+                            {isSelected ? "Criando..." : "Quero este"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Ad preview */}
+                {msg.adPreview && (
+                  <div className="w-full max-w-lg rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold bg-violet-500/20 text-violet-300 rounded-full px-2 py-0.5">{msg.adPreview.plataforma}</span>
+                      <span className="text-xs text-white/40">Anúncio pronto!</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-white/90">{msg.adPreview.titulo}</h3>
+                    <p className="text-xs text-white/50 whitespace-pre-wrap leading-relaxed">{msg.adPreview.descricao}</p>
+                    <p className="text-lg font-bold text-violet-300">{msg.adPreview.preco}</p>
+
+                    {!msg.publishResult && (
+                      <button
+                        onClick={() => publishToML(msg.adPreview, i)}
+                        disabled={publishing !== null}
+                        className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                      >
+                        <Rocket size={14} />
+                        {publishing === msg.adPreview?.titulo ? "Publicando..." : "Publicar no Mercado Livre"}
+                      </button>
+                    )}
+
+                    {msg.publishResult?.status === "success" && (
+                      <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-2 text-sm">
+                        <span>✅ Publicado!</span>
+                        {msg.publishResult.permalink && (
+                          <a href={msg.publishResult.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 underline font-semibold">
+                            Ver no ML <ExternalLink size={12} />
+                          </a>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{p.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Custo: {p.preco_custo} · Venda: <span className="text-primary font-semibold">{p.preco_venda}</span>
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs font-semibold text-green-600">Margem {p.margem}</span>
-                            {p.vendas && p.vendas !== "0" && (
-                              <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                                <Star size={10} className="fill-yellow-400 text-yellow-400" /> {p.vendas} vendas
-                              </span>
-                            )}
-                          </div>
+                      </div>
+                    )}
+
+                    {msg.publishResult?.status === "not_connected" && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 px-4 py-2 text-sm">
+                          <AlertCircle size={14} />
+                          <span>{msg.publishResult.message}</span>
                         </div>
                         <button
-                          onClick={() => handleProductSelect(p)}
-                          className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                            isSelected ? "bg-green-100 text-green-700" : "bg-primary text-primary-foreground hover:opacity-90"
-                          }`}
+                          onClick={() => navigate("/dashboard/configuracoes")}
+                          className="flex items-center gap-2 rounded-lg border border-violet-500/30 text-violet-300 px-4 py-2 text-sm font-semibold hover:bg-violet-500/5 transition-colors"
                         >
-                          <ShoppingBag size={12} />
-                          {isSelected ? "Criando anúncio..." : "Quero este"}
+                          Conectar Mercado Livre →
                         </button>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    )}
 
-              {/* Ad preview */}
-              {msg.adPreview && (
-                <div className="w-full max-w-lg rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold bg-primary/10 text-primary rounded-full px-2 py-0.5">{msg.adPreview.plataforma}</span>
-                    <span className="text-xs text-muted-foreground">Anúncio pronto!</span>
-                  </div>
-                  <h3 className="text-sm font-bold text-foreground">{msg.adPreview.titulo}</h3>
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{msg.adPreview.descricao}</p>
-                  <p className="text-lg font-bold text-primary">{msg.adPreview.preco}</p>
-
-                  {/* Publish button / result */}
-                  {!msg.publishResult && (
-                    <button
-                      onClick={() => publishToML(msg.adPreview, i)}
-                      disabled={publishing !== null}
-                      className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-                    >
-                      <Rocket size={14} />
-                      {publishing === msg.adPreview?.titulo ? "Publicando..." : "Publicar no Mercado Livre"}
-                    </button>
-                  )}
-
-                  {msg.publishResult?.status === "success" && (
-                    <div className="flex items-center gap-2 rounded-lg bg-green-100 text-green-800 px-4 py-2 text-sm">
-                      <span>✅ Anúncio publicado!</span>
-                      {msg.publishResult.permalink && (
-                        <a href={msg.publishResult.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 underline font-semibold">
-                          Ver no ML <ExternalLink size={12} />
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {msg.publishResult?.status === "not_connected" && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 rounded-lg bg-yellow-100 text-yellow-800 px-4 py-2 text-sm">
+                    {msg.publishResult?.status === "error" && (
+                      <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-2 text-sm">
                         <AlertCircle size={14} />
                         <span>{msg.publishResult.message}</span>
                       </div>
-                      <button
-                        onClick={() => navigate("/dashboard/configuracoes")}
-                        className="flex items-center gap-2 rounded-lg border border-primary text-primary px-4 py-2 text-sm font-semibold hover:bg-primary/5 transition-colors"
-                      >
-                        Conectar Mercado Livre →
-                      </button>
-                    </div>
-                  )}
-
-                  {msg.publishResult?.status === "error" && (
-                    <div className="flex items-center gap-2 rounded-lg bg-destructive/10 text-destructive px-4 py-2 text-sm">
-                      <AlertCircle size={14} />
-                      <span>{msg.publishResult.message}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {thinking && (
-            <div className="flex items-start">
-              <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-muted-foreground animate-pulse">
-                Buscando produtos...
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
+            ))}
+
+            {thinking && (
+              <div className="flex items-start">
+                <div className="bg-[#1a1d2e] border border-white/5 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-white/40 animate-pulse">
+                  Buscando produtos...
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
         </div>
       )}
 
+      {/* Input */}
       <ChatInput onSend={send} disabled={thinking} />
     </div>
   );
