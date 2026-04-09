@@ -377,6 +377,16 @@ Retorne APENAS um JSON no formato:
                 </div>
               )}
 
+              {/* ML Connect button */}
+              {msg.showConnectML && (
+                <button
+                  onClick={() => navigate("/dashboard/integracoes")}
+                  className="flex items-center gap-2 rounded-lg bg-[#FFE600] text-gray-900 px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
+                >
+                  🔗 Ir para Integrações
+                </button>
+              )}
+
               {/* Product cards */}
               {msg.products && msg.products.length > 0 && (
                 <div className="w-full max-w-lg space-y-2">
