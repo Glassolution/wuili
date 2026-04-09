@@ -99,14 +99,24 @@ async function fetchAliExpress(nicho: string): Promise<Product[]> {
   return (data?.products ?? []) as Product[];
 }
 
-/* ══ Fetch products from Mercado Livre via Edge Function ══════ */
+/* ══ Fetch products from Mercado Livre (direct browser call) ══ */
 async function fetchMercadoLivre(nicho: string): Promise<Product[]> {
-  const { data, error } = await supabase.functions.invoke("ml-search", {
-    body: { nicho },
-  });
-  if (error) throw new Error(error.message || "Erro ao buscar no Mercado Livre");
-  if (data?.error) throw new Error(data.error);
-  return (data?.products ?? []) as Product[];
+  const query = encodeURIComponent(nicho);
+  const res = await fetch(`https://api.mercadolibre.com/sites/MLB/search?q=${query}&limit=12`);
+  if (!res.ok) throw new Error("Erro ao buscar no Mercado Livre");
+  const data = await res.json();
+  return (data.results ?? []).map((item: any) => ({
+    nome: item.title,
+    imagem: item.thumbnail?.replace("http://", "https://"),
+    url: item.permalink,
+    precoCusto: undefined,
+    precoVenda: item.price,
+    margem: "—",
+    vendas: item.sold_quantity ? `${item.sold_quantity}` : "—",
+    preco: `R$ ${item.price?.toFixed(2).replace(".", ",")}`,
+    mlId: item.id,
+    seller: item.seller?.nickname || "",
+  }));
 }
 
 /* ══ Input bar — fora do componente pai para evitar perda de foco ══ */
