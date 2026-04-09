@@ -45,7 +45,7 @@ const App = () => (
               <DashboardLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<DashboardOverview />} />
+            <Route index element={<AIChatPage />} />
             <Route path="ia" element={<AIChatPage />} />
             <Route path="saldos" element={<SaldosPage />} />
             <Route path="transacoes" element={<TransacoesPage />} />

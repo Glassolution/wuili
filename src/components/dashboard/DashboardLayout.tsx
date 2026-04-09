@@ -7,7 +7,9 @@ import DashboardTopbar from "@/components/dashboard/DashboardTopbar";
 const DashboardLayout = () => {
   const location = useLocation();
   const navigate  = useNavigate();
-  const fullscreen = location.pathname === "/dashboard/ia";
+  const fullscreen =
+    location.pathname === "/dashboard" ||
+    location.pathname === "/dashboard/ia";
 
   // Toast de sucesso / erro do OAuth do Mercado Livre
   useEffect(() => {
@@ -60,7 +62,7 @@ const DashboardLayout = () => {
             <DashboardTopbar />
           </div>
         )}
-        <main className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${fullscreen ? "p-0" : "p-4 md:p-8"}`}>
+        <main className={`min-h-0 flex-1 overflow-x-hidden ${fullscreen ? "overflow-hidden p-0" : "overflow-y-auto p-4 md:p-8"}`}>
           <Outlet />
         </main>
       </div>
