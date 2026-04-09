@@ -1,48 +1,59 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, Boxes, Package, ShoppingCart, Users, Wallet } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-const chartData = [
-  { day: "Seg", value: 820 },
-  { day: "Ter", value: 1240 },
-  { day: "Qua", value: 980 },
-  { day: "Qui", value: 1680 },
-  { day: "Sex", value: 2100 },
-  { day: "Sáb", value: 1890 },
-  { day: "Dom", value: 2961 },
-];
+interface Integration {
+  platform: string;
+  access_token: string | null;
+}
 
-const orders = [
-  { id: "#4821", product: "Fone TWS", platform: "Mercado Livre", status: "Entregue", value: "R$189,00", date: "hoje 14:32" },
-  { id: "#4820", product: "Tênis Casual", platform: "Shopee", status: "Em trânsito", value: "R$127,00", date: "hoje 11:15" },
-  { id: "#4819", product: "Kit Skincare", platform: "Minha Loja", status: "Processando", value: "R$89,00", date: "ontem 18:40" },
-  { id: "#4818", product: "Relógio Smart", platform: "Mercado Livre", status: "Entregue", value: "R$234,00", date: "ontem 09:22" },
-  { id: "#4817", product: "Mochila Urban", platform: "Shopee", status: "Cancelado", value: "R$156,00", date: "2 dias atrás" },
-];
-
-const statusColors: Record<string, string> = {
-  Entregue: "bg-success-light text-success",
-  "Em trânsito": "bg-warning/10 text-warning",
-  Processando: "bg-accent text-accent-foreground",
-  Cancelado: "bg-destructive/10 text-destructive",
+const KNOWN_PLATFORMS = ["Mercado Livre", "Shopee", "AliExpress", "Minha Loja"];
+const platformDbMap: Record<string, string> = {
+  mercadolivre: "Mercado Livre",
+  shopee: "Shopee",
+  aliexpress: "AliExpress",
+  minhaloja: "Minha Loja",
 };
 
-const platforms = [
-  { name: "Mercado Livre", connected: true },
-  { name: "Shopee", connected: true },
-  { name: "AliExpress", connected: false },
-  { name: "Minha Loja", connected: true },
-];
-
 const DashboardOverview = () => {
+  const { user } = useAuth();
   const [period, setPeriod] = useState("Semanal");
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [loading, setLoading] = useState(true);
   const periods = ["Últimas 24h", "Semanal", "Mensal", "Anual"];
 
+  useEffect(() => {
+    if (!user) return;
+    const fetchData = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("user_integrations")
+        .select("platform, access_token")
+        .eq("user_id", user.id);
+      setIntegrations(data ?? []);
+      setLoading(false);
+    };
+    fetchData();
+  }, [user]);
+
+  const connectedPlatforms = new Set(
+    integrations.filter((i) => i.access_token).map((i) => platformDbMap[i.platform] || i.platform)
+  );
+
+  const platforms = KNOWN_PLATFORMS.map((name) => ({
+    name,
+    connected: connectedPlatforms.has(name),
+  }));
+
+  const connectedCount = platforms.filter((p) => p.connected).length;
+
   const stats = [
-    { icon: Wallet, label: "Lucro", value: "R$ 6.961,19", change: "+24%" },
-    { icon: ShoppingCart, label: "Pedidos", value: "47", change: "+18%" },
-    { icon: Package, label: "Produtos vendidos", value: "12", change: "+12%" },
-    { icon: Users, label: "Clientes", value: "8", change: "+11%" },
+    { icon: Wallet, label: "Lucro", value: "R$ 0,00", change: "0%" },
+    { icon: ShoppingCart, label: "Pedidos", value: "0", change: "0%" },
+    { icon: Package, label: "Produtos vendidos", value: "0", change: "0%" },
+    { icon: Users, label: "Clientes", value: "0", change: "0%" },
   ];
 
   return (
@@ -70,8 +81,7 @@ const DashboardOverview = () => {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <s.icon size={18} />
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-2.5 py-1 text-[11px] font-semibold text-success">
-                <ArrowUpRight size={12} />
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
                 {s.change}
               </span>
             </div>
@@ -85,28 +95,9 @@ const DashboardOverview = () => {
       <div className="grid lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 card-wuili p-6">
           <h3 className="text-sm font-bold mb-4">Faturamento semanal</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(243, 100%, 68%)" stopOpacity={0.1} />
-                  <stop offset="95%" stopColor="hsl(243, 100%, 68%)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(216, 30%, 91%)" />
-              <XAxis dataKey="day" tick={{ fontSize: 12 }} stroke="hsl(215, 17%, 47%)" />
-              <YAxis tick={{ fontSize: 12 }} stroke="hsl(215, 17%, 47%)" />
-              <Tooltip
-                contentStyle={{
-                  background: "white",
-                  border: "1px solid hsl(216, 30%, 91%)",
-                  borderRadius: "12px",
-                  boxShadow: "0 8px 24px rgba(10,37,64,0.1)",
-                }}
-              />
-              <Area type="monotone" dataKey="value" stroke="hsl(243, 100%, 68%)" fill="url(#colorValue)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div className="flex items-center justify-center h-[240px] text-muted-foreground text-sm">
+            Nenhum dado de faturamento ainda
+          </div>
         </div>
 
         <div className="lg:col-span-2 card-wuili p-6">
@@ -116,7 +107,9 @@ const DashboardOverview = () => {
             </div>
             <div>
               <h3 className="text-sm font-bold">Plataformas conectadas</h3>
-              <p className="text-xs text-muted-foreground">Integrações ativas e prontas para sincronizar</p>
+              <p className="text-xs text-muted-foreground">
+                {loading ? "Carregando..." : `${connectedCount} de ${KNOWN_PLATFORMS.length} conectadas`}
+              </p>
             </div>
           </div>
           <div className="space-y-3">
@@ -129,7 +122,10 @@ const DashboardOverview = () => {
                 {p.connected ? (
                   <span className="rounded-full bg-success-light px-2.5 py-1 text-xs font-semibold text-success">Conectado</span>
                 ) : (
-                  <button className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-all hover:bg-primary hover:text-primary-foreground">
+                  <button
+                    onClick={() => window.location.href = "/dashboard/integracoes"}
+                    className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground transition-all hover:bg-primary hover:text-primary-foreground"
+                  >
                     Conectar
                   </button>
                 )}
@@ -139,49 +135,27 @@ const DashboardOverview = () => {
           <div className="grid grid-cols-3 gap-2 mt-4">
             <div className="text-center p-2 rounded-xl bg-muted/50">
               <p className="text-xs text-muted-foreground">Lucro</p>
-              <p className="text-sm font-bold">R$6.961</p>
+              <p className="text-sm font-bold">R$0</p>
             </div>
             <div className="text-center p-2 rounded-xl bg-muted/50">
               <p className="text-xs text-muted-foreground">Pedidos</p>
-              <p className="text-sm font-bold">47</p>
+              <p className="text-sm font-bold">0</p>
             </div>
             <div className="text-center p-2 rounded-xl bg-muted/50">
               <p className="text-xs text-muted-foreground">Produtos</p>
-              <p className="text-sm font-bold">12</p>
+              <p className="text-sm font-bold">0</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Orders table */}
+      {/* Orders table — empty state */}
       <div className="card-wuili overflow-hidden">
         <div className="p-5 border-b border-border">
           <h3 className="text-sm font-bold">Pedidos Recentes</h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                {["#", "Produto", "Plataforma", "Status", "Valor", "Data"].map((h) => (
-                  <th key={h} className="text-left px-5 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((o) => (
-                <tr key={o.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-muted-foreground">{o.id}</td>
-                  <td className="px-5 py-3.5 font-medium">{o.product}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground">{o.platform}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${statusColors[o.status]}`}>{o.status}</span>
-                  </td>
-                  <td className="px-5 py-3.5 font-medium">{o.value}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground">{o.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="p-10 text-center text-muted-foreground text-sm">
+          Nenhum pedido ainda
         </div>
       </div>
     </div>
