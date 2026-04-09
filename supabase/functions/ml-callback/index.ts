@@ -6,7 +6,7 @@ serve(async (req) => {
   const code = url.searchParams.get("code");
   const userId = url.searchParams.get("state");
 
-  const dashboardUrl = "https://wuili.lovable.app/dashboard/settings";
+  const dashboardUrl = "https://wuili.lovable.app/dashboard/integracoes";
 
   if (!code || !userId) {
     return new Response(null, {
@@ -46,6 +46,7 @@ serve(async (req) => {
   }
 
   // Save to Supabase
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabase = createClient(
     supabaseUrl,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
