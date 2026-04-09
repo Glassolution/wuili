@@ -27,8 +27,8 @@ type Message = {
   products?: AliProduct[];
   adPreview?: { titulo: string; descricao: string; preco: string; plataforma: string; sourceProduct?: AliProduct };
   publishResult?: PublishResult;
+  showConnectML?: boolean;
 };
-
 const suggestions = [
   "Quero vender eletrônicos",
   "Produtos de moda com boa margem",
@@ -259,6 +259,20 @@ Retorne APENAS um JSON no formato:
 
     const lower = msg.toLowerCase();
     let detectedNicho = "";
+
+    // Detect ML connect intent
+    const connectKeywords = ["conectar", "integrar", "minha conta ml", "vincular mercado", "mercado livre"];
+    const wantsConnect = connectKeywords.some((kw) => lower.includes(kw)) && !lower.includes("produto");
+    if (wantsConnect) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", text: "Para publicar no Mercado Livre, você precisa conectar sua conta primeiro. Clique no botão abaixo:", showConnectML: true },
+      ]);
+      setThinking(false);
+      scroll();
+      return;
+    }
+
     for (const [kw, nicho] of Object.entries(nichoKeywords)) {
       if (lower.includes(kw)) {
         detectedNicho = nicho;
@@ -363,6 +377,16 @@ Retorne APENAS um JSON no formato:
                 </div>
               )}
 
+              {/* ML Connect button */}
+              {msg.showConnectML && (
+                <button
+                  onClick={() => navigate("/dashboard/integracoes")}
+                  className="flex items-center gap-2 rounded-lg bg-[#FFE600] text-gray-900 px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
+                >
+                  🔗 Ir para Integrações
+                </button>
+              )}
+
               {/* Product cards */}
               {msg.products && msg.products.length > 0 && (
                 <div className="w-full max-w-lg space-y-2">
@@ -447,7 +471,7 @@ Retorne APENAS um JSON no formato:
                         <span>{msg.publishResult.message}</span>
                       </div>
                       <button
-                        onClick={() => navigate("/dashboard/configuracoes")}
+                        onClick={() => navigate("/dashboard/integracoes")}
                         className="flex items-center gap-2 rounded-lg border border-primary text-primary px-4 py-2 text-sm font-semibold hover:bg-primary/5 transition-colors"
                       >
                         Conectar Mercado Livre →

@@ -19,6 +19,7 @@ import OrdersPage from "./pages/dashboard/OrdersPage";
 import PublicationsPage from "./pages/dashboard/PublicationsPage";
 import ReportsPage from "./pages/dashboard/ReportsPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
+import IntegracoesPage from "./pages/dashboard/IntegracoesPage";
 import DashboardInfoPage from "./pages/dashboard/DashboardInfoPage";
 import SaldosPage from "./pages/dashboard/SaldosPage";
 import TransacoesPage from "./pages/dashboard/TransacoesPage";
@@ -103,6 +104,7 @@ const App = () => (
                 />
               }
             />
+            <Route path="integracoes" element={<IntegracoesPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
