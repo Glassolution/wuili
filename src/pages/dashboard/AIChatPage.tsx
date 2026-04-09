@@ -251,7 +251,7 @@ Retorne APENAS um JSON no formato:
 
     setThinking(false);
     scroll();
-  };
+  }, [thinking, messages]);
 
   const handleProductSelect = async (product: AliProduct) => {
     if (addedProducts.has(product.product_id)) return;
