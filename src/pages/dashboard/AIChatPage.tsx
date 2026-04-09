@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
-import { Send, ShoppingBag, Sparkles, Star } from "lucide-react";
+import { Send, ShoppingBag, Sparkles, Star, Rocket, ExternalLink, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 type AliProduct = {
   nome: string;
@@ -13,11 +14,19 @@ type AliProduct = {
   link?: string;
 };
 
+type PublishResult = {
+  status: "success" | "error" | "not_connected";
+  permalink?: string;
+  item_id?: string;
+  message?: string;
+};
+
 type Message = {
   role: "user" | "ai";
   text?: string;
   products?: AliProduct[];
-  adPreview?: { titulo: string; descricao: string; preco: string; plataforma: string };
+  adPreview?: { titulo: string; descricao: string; preco: string; plataforma: string; sourceProduct?: AliProduct };
+  publishResult?: PublishResult;
 };
 
 const suggestions = [
