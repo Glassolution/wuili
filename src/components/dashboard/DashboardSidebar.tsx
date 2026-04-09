@@ -52,7 +52,7 @@ const DashboardSidebar = () => {
   };
 
   const iniciais = nome
-    .split(" ")
+    .split(/[\s._\-]+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((p) => p[0])
