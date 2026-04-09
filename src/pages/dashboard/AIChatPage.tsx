@@ -51,13 +51,6 @@ const suggestions = [
     gradient: "from-amber-500/80 to-orange-600/80",
     message: "Melhores produtos de beleza",
   },
-  {
-    label: "Buscar casa",
-    desc: "Decoração, organização e utilidades",
-    icon: TrendingUp,
-    gradient: "from-emerald-500/80 to-teal-600/80",
-    message: "Produtos para casa e decoração",
-  },
 ];
 
 function getProductInitials(name: string) {
