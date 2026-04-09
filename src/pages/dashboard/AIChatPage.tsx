@@ -48,7 +48,6 @@ Para qualquer outra mensagem, responda normalmente com dicas de dropshipping.
 Seja direto e use linguagem simples.`;
 
 const AIChatPage = () => {
-  const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [addedProducts, setAddedProducts] = useState<Set<string>>(new Set());
   const [publishing, setPublishing] = useState<string | null>(null);
