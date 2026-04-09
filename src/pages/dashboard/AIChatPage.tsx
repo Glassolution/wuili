@@ -109,7 +109,81 @@ Retorne APENAS um JSON no formato:
     }
   };
 
-  const send = async (text?: string) => {
+  const publishToML = async (adPreview: Message["adPreview"], messageIndex: number) => {
+    if (!adPreview || publishing) return;
+    setPublishing(adPreview.titulo);
+    scroll();
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[messageIndex] = {
+            ...updated[messageIndex],
+            publishResult: { status: "error", message: "Você precisa estar logado para publicar." },
+          };
+          return updated;
+        });
+        setPublishing(null);
+        return;
+      }
+
+      const priceNum = parseFloat(adPreview.preco.replace(/[^\d.,]/g, "").replace(",", "."));
+
+      const { data, error } = await supabase.functions.invoke("ml-publish", {
+        body: {
+          user_id: session.user.id,
+          product: {
+            title: adPreview.titulo.substring(0, 60),
+            price: priceNum || 99.9,
+            description: adPreview.descricao,
+            condition: "new",
+            available_quantity: 10,
+            images: adPreview.sourceProduct?.imagem ? [adPreview.sourceProduct.imagem] : [],
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error?.includes("não conectado") || data?.error?.includes("Mercado Livre")) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[messageIndex] = {
+            ...updated[messageIndex],
+            publishResult: { status: "not_connected", message: "Conecte sua conta do Mercado Livre para publicar." },
+          };
+          return updated;
+        });
+      } else if (data?.success) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[messageIndex] = {
+            ...updated[messageIndex],
+            publishResult: { status: "success", permalink: data.permalink, item_id: data.item_id },
+          };
+          return updated;
+        });
+      } else {
+        throw new Error(data?.error || "Erro desconhecido");
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erro ao publicar";
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[messageIndex] = {
+          ...updated[messageIndex],
+          publishResult: { status: "error", message: msg },
+        };
+        return updated;
+      });
+    }
+    setPublishing(null);
+    scroll();
+  };
+
+
     const msg = (text ?? input).trim();
     if (!msg || thinking) return;
     setInput("");
