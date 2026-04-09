@@ -99,28 +99,14 @@ async function fetchAliExpress(nicho: string): Promise<Product[]> {
   return (data?.products ?? []) as Product[];
 }
 
-/* ══ Fetch products from Mercado Livre public API ═════════════ */
-async function fetchMercadoLivre(nicho: string): Promise<Product[]> {
-  const res = await fetch(
-    `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(nicho)}&limit=5`
-  );
-  if (!res.ok) throw new Error("Erro ao buscar no Mercado Livre");
-  const data = await res.json();
-  return (data?.results ?? []).slice(0, 5).map((item: Record<string, unknown>) => {
-    const precoCusto = Number(item.price ?? 0);
-    const precoVenda = parseFloat((precoCusto * 1.6).toFixed(2));
-    const margem = precoVenda > 0 ? Math.round(((precoVenda - precoCusto) / precoVenda) * 100) : 38;
-    return {
-      nome: String(item.title ?? "Produto").slice(0, 60),
-      imagem: (item.thumbnail as string | undefined)?.replace("http://", "https://") ?? "",
-      url: item.permalink as string ?? "",
-      precoCusto,
-      precoVenda,
-      margem: `${margem}%+`,
-      vendas: item.sold_quantity ? String(item.sold_quantity) : "—",
-      score: "Alta",
-    };
+/* ══ Fetch products from Mercado Livre via Edge Function ══════ */
+async function fetchMercadoLivre(nicho: string, userId?: string): Promise<Product[]> {
+  const { data, error } = await supabase.functions.invoke("ml-search", {
+    body: { nicho, user_id: userId ?? null },
   });
+  if (error) throw new Error(error.message || "Erro ao buscar no Mercado Livre");
+  if (data?.error) throw new Error(data.error);
+  return (data?.products ?? []) as Product[];
 }
 
 /* ══ Input bar — fora do componente pai para evitar perda de foco ══ */
@@ -276,7 +262,7 @@ const GitChatPage = () => {
     let fetchError = false;
     try {
       products = source === "mercadolivre"
-        ? await fetchMercadoLivre(nicho)
+        ? await fetchMercadoLivre(nicho, user?.id)
         : await fetchAliExpress(nicho);
     } catch {
       fetchError = true;
