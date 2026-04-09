@@ -21,8 +21,8 @@ type Product = {
   preco?: string; /* legacy */
 };
 type Ad      = { titulo: string; descricao: string; preco: string; plataforma: string };
-type MsgKind = "text" | "products" | "ad";
-type Message = { role: "user" | "ai"; text: string; kind: MsgKind; products?: Product[]; ad?: Ad };
+type MsgKind = "text" | "products" | "ad" | "searching";
+type Message = { role: "user" | "ai"; text: string; kind: MsgKind; products?: Product[]; ad?: Ad; nicho?: string };
 
 /* ══ Wuilli Logo ══════════════════════════════════════════════ */
 const WuilliHex = ({ size = 48 }: { size?: number }) => (
@@ -30,6 +30,40 @@ const WuilliHex = ({ size = 48 }: { size?: number }) => (
     <rect width="30" height="30" rx="8" fill="#7C3AED" />
     <path d="M15 7.5L21 11.25V18.75L15 22.5L9 18.75V11.25L15 7.5Z" fill="white" />
   </svg>
+);
+
+/* ══ Searching card ═══════════════════════════════════════════ */
+const SearchingCard = ({ nicho }: { nicho: string }) => (
+  <div className="flex items-center gap-4 rounded-2xl border border-[#7C3AED]/15 bg-[#7C3AED]/5 px-5 py-4 w-full max-w-[340px]">
+    {/* Animated bars */}
+    <div className="flex items-end gap-[3px] shrink-0 h-5">
+      {[0, 1, 2, 3].map((i) => (
+        <span
+          key={i}
+          className="w-[3px] rounded-full bg-[#7C3AED]/60"
+          style={{
+            animation: "searchBar 1s ease-in-out infinite",
+            animationDelay: `${i * 0.15}s`,
+          }}
+        />
+      ))}
+    </div>
+    <div className="min-w-0">
+      <p className="text-sm font-semibold text-foreground leading-snug">
+        Buscando produtos
+      </p>
+      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+        Nicho:{" "}
+        <span className="font-medium text-[#7C3AED] capitalize">{nicho}</span>
+      </p>
+    </div>
+    <style>{`
+      @keyframes searchBar {
+        0%, 100% { height: 6px; opacity: 0.4; }
+        50%       { height: 20px; opacity: 1; }
+      }
+    `}</style>
+  </div>
 );
 
 /* ══ Edge Function call ═══════════════════════════════════════ */
@@ -175,7 +209,7 @@ const GitChatPage = () => {
       /* ── Intercept buscar_produtos: fetch real AliExpress data ─ */
       if (parsed._nicho) {
         setMessages(prev => [...prev, {
-          role: "ai", text: `🔍 Buscando produtos reais de **${parsed._nicho}** no AliExpress...`, kind: "text",
+          role: "ai", text: "", kind: "searching", nicho: parsed._nicho,
         }]);
         const products = await fetchProducts(parsed._nicho);
         const context = `Produtos encontrados no AliExpress para "${parsed._nicho}": ${products.map(p => p.nome).join(", ")}`;
@@ -450,7 +484,9 @@ const GitChatPage = () => {
                         <WuilliHex size={26} />
                       </div>
                     )}
-                    {msg.kind === "products" && msg.products
+                    {msg.kind === "searching" && msg.nicho
+                      ? <SearchingCard nicho={msg.nicho} />
+                      : msg.kind === "products" && msg.products
                       ? renderProducts(msg.products)
                       : msg.kind === "ad" && msg.ad
                       ? renderAd(msg.ad)
