@@ -360,7 +360,7 @@ Retorne APENAS um JSON no formato:
           </h1>
 
           {/* Suggestion cards */}
-          <div className="flex flex-wrap justify-center gap-4 max-w-3xl mb-12">
+          <div className="grid grid-cols-3 gap-4 max-w-[660px] mb-12">
             {suggestions.map((s) => (
               <button
                 key={s.message}
