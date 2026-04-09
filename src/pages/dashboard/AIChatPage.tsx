@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
-import { Send, ShoppingBag, Sparkles, Star } from "lucide-react";
+import { Send, ShoppingBag, Sparkles, Star, Rocket, ExternalLink, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 type AliProduct = {
   nome: string;
@@ -13,11 +14,19 @@ type AliProduct = {
   link?: string;
 };
 
+type PublishResult = {
+  status: "success" | "error" | "not_connected";
+  permalink?: string;
+  item_id?: string;
+  message?: string;
+};
+
 type Message = {
   role: "user" | "ai";
   text?: string;
   products?: AliProduct[];
-  adPreview?: { titulo: string; descricao: string; preco: string; plataforma: string };
+  adPreview?: { titulo: string; descricao: string; preco: string; plataforma: string; sourceProduct?: AliProduct };
+  publishResult?: PublishResult;
 };
 
 const suggestions = [
@@ -42,8 +51,10 @@ const AIChatPage = () => {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [addedProducts, setAddedProducts] = useState<Set<string>>(new Set());
+  const [publishing, setPublishing] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const scroll = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
@@ -88,7 +99,7 @@ Retorne APENAS um JSON no formato:
         return {
           role: "ai",
           text: `📢 Anúncio criado para "${product.nome}":`,
-          adPreview: { titulo: ad.titulo, descricao: ad.descricao, preco: ad.preco || product.preco_venda, plataforma: ad.plataforma || "Mercado Livre" },
+          adPreview: { titulo: ad.titulo, descricao: ad.descricao, preco: ad.preco || product.preco_venda, plataforma: ad.plataforma || "Mercado Livre", sourceProduct: product },
         };
       }
       return { role: "ai", text: text || "Não consegui criar o anúncio. Tente novamente." };
@@ -97,6 +108,81 @@ Retorne APENAS um JSON no formato:
       return { role: "ai", text: "Erro ao criar o anúncio. Tente novamente." };
     }
   };
+
+  const publishToML = async (adPreview: Message["adPreview"], messageIndex: number) => {
+    if (!adPreview || publishing) return;
+    setPublishing(adPreview.titulo);
+    scroll();
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[messageIndex] = {
+            ...updated[messageIndex],
+            publishResult: { status: "error", message: "Você precisa estar logado para publicar." },
+          };
+          return updated;
+        });
+        setPublishing(null);
+        return;
+      }
+
+      const priceNum = parseFloat(adPreview.preco.replace(/[^\d.,]/g, "").replace(",", "."));
+
+      const { data, error } = await supabase.functions.invoke("ml-publish", {
+        body: {
+          user_id: session.user.id,
+          product: {
+            title: adPreview.titulo.substring(0, 60),
+            price: priceNum || 99.9,
+            description: adPreview.descricao,
+            condition: "new",
+            available_quantity: 10,
+            images: adPreview.sourceProduct?.imagem ? [adPreview.sourceProduct.imagem] : [],
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error?.includes("não conectado") || data?.error?.includes("Mercado Livre")) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[messageIndex] = {
+            ...updated[messageIndex],
+            publishResult: { status: "not_connected", message: "Conecte sua conta do Mercado Livre para publicar." },
+          };
+          return updated;
+        });
+      } else if (data?.success) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[messageIndex] = {
+            ...updated[messageIndex],
+            publishResult: { status: "success", permalink: data.permalink, item_id: data.item_id },
+          };
+          return updated;
+        });
+      } else {
+        throw new Error(data?.error || "Erro desconhecido");
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erro ao publicar";
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[messageIndex] = {
+          ...updated[messageIndex],
+          publishResult: { status: "error", message: msg },
+        };
+        return updated;
+      });
+    }
+    setPublishing(null);
+    scroll();
+  };
+
 
   const send = async (text?: string) => {
     const msg = (text ?? input).trim();
@@ -272,7 +358,7 @@ Retorne APENAS um JSON no formato:
 
               {/* Ad preview */}
               {msg.adPreview && (
-                <div className="w-full max-w-lg rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-2">
+                <div className="w-full max-w-lg rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold bg-primary/10 text-primary rounded-full px-2 py-0.5">{msg.adPreview.plataforma}</span>
                     <span className="text-xs text-muted-foreground">Anúncio pronto!</span>
@@ -280,6 +366,51 @@ Retorne APENAS um JSON no formato:
                   <h3 className="text-sm font-bold text-foreground">{msg.adPreview.titulo}</h3>
                   <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{msg.adPreview.descricao}</p>
                   <p className="text-lg font-bold text-primary">{msg.adPreview.preco}</p>
+
+                  {/* Publish button / result */}
+                  {!msg.publishResult && (
+                    <button
+                      onClick={() => publishToML(msg.adPreview, i)}
+                      disabled={publishing !== null}
+                      className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      <Rocket size={14} />
+                      {publishing === msg.adPreview?.titulo ? "Publicando..." : "Publicar no Mercado Livre"}
+                    </button>
+                  )}
+
+                  {msg.publishResult?.status === "success" && (
+                    <div className="flex items-center gap-2 rounded-lg bg-green-100 text-green-800 px-4 py-2 text-sm">
+                      <span>✅ Anúncio publicado!</span>
+                      {msg.publishResult.permalink && (
+                        <a href={msg.publishResult.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 underline font-semibold">
+                          Ver no ML <ExternalLink size={12} />
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {msg.publishResult?.status === "not_connected" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 rounded-lg bg-yellow-100 text-yellow-800 px-4 py-2 text-sm">
+                        <AlertCircle size={14} />
+                        <span>{msg.publishResult.message}</span>
+                      </div>
+                      <button
+                        onClick={() => navigate("/dashboard/configuracoes")}
+                        className="flex items-center gap-2 rounded-lg border border-primary text-primary px-4 py-2 text-sm font-semibold hover:bg-primary/5 transition-colors"
+                      >
+                        Conectar Mercado Livre →
+                      </button>
+                    </div>
+                  )}
+
+                  {msg.publishResult?.status === "error" && (
+                    <div className="flex items-center gap-2 rounded-lg bg-destructive/10 text-destructive px-4 py-2 text-sm">
+                      <AlertCircle size={14} />
+                      <span>{msg.publishResult.message}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
