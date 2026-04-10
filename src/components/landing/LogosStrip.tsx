@@ -1,62 +1,54 @@
-/* Each entry styled to mimic its brand's visual identity */
-const logos = [
-  {
-    name: "Mercado Livre",
-    style: { fontWeight: 900, fontStyle: "italic", letterSpacing: "-0.02em", fontSize: "18px" },
-  },
-  {
-    name: "Shopee",
-    style: { fontWeight: 800, letterSpacing: "0.02em", fontSize: "20px" },
-  },
-  {
-    name: "AliExpress",
-    style: { fontWeight: 700, letterSpacing: "-0.01em", fontSize: "19px" },
-  },
-  {
-    name: "Dropi",
-    style: { fontWeight: 900, letterSpacing: "0.04em", fontSize: "20px", textTransform: "uppercase" as const },
-  },
-  {
-    name: "Pix",
-    style: { fontWeight: 800, letterSpacing: "0.06em", fontSize: "22px", textTransform: "uppercase" as const },
-  },
-  {
-    name: "Stripe",
-    style: { fontWeight: 700, letterSpacing: "-0.02em", fontSize: "22px" },
-  },
-  {
-    name: "WooCommerce",
-    style: { fontWeight: 700, letterSpacing: "-0.01em", fontSize: "18px" },
-  },
-];
-
-const allLogos = [...logos, ...logos];
-
 const LogosStrip = () => (
-  <div className="relative overflow-hidden border-y border-white/[0.05] bg-[#080d1a] py-10">
-    <p className="mb-8 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/20">
-      Integrado com
-    </p>
+  <div className="border-y border-white/[0.05] bg-[#080d1a] py-14">
+    <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-center gap-x-16 gap-y-10 px-10">
 
-    <div className="relative overflow-hidden">
-      {/* fade edges */}
-      <div className="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-32 bg-gradient-to-r from-[#080d1a] to-transparent" />
-      <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-10 w-32 bg-gradient-to-l from-[#080d1a] to-transparent" />
+      {/* Mercado Livre */}
+      <svg height="28" viewBox="0 0 220 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-35 transition-opacity duration-300 hover:opacity-90">
+        <circle cx="20" cy="20" r="18" fill="none" stroke="white" strokeWidth="2"/>
+        <path d="M12 22 L16 16 L20 22 L24 16 L28 22" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        <text x="48" y="27" fontFamily="Inter, sans-serif" fontSize="17" fontWeight="800" fontStyle="italic" fill="white" letterSpacing="-0.5">mercado livre</text>
+      </svg>
 
-      <div className="flex animate-ticker items-center whitespace-nowrap">
-        {allLogos.map((logo, i) => (
-          <span
-            key={i}
-            className="mx-14 flex-shrink-0 whitespace-nowrap text-white/30 transition-colors duration-300 hover:text-white/90"
-            style={{
-              fontFamily: "'Inter', sans-serif",
-              ...logo.style,
-            }}
-          >
-            {logo.name}
-          </span>
-        ))}
-      </div>
+      {/* Shopee */}
+      <svg height="28" viewBox="0 0 110 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-35 transition-opacity duration-300 hover:opacity-90">
+        <path d="M20 8 C20 8 14 10 14 16 C14 20 17 22 20 22 C23 22 26 20 26 16 C26 10 20 8 20 8Z" stroke="white" strokeWidth="2" fill="none"/>
+        <path d="M10 24 L10 36 L30 36 L30 24" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        <text x="42" y="27" fontFamily="Inter, sans-serif" fontSize="19" fontWeight="800" fill="white" letterSpacing="0.5">Shopee</text>
+      </svg>
+
+      {/* AliExpress */}
+      <svg height="28" viewBox="0 0 140 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-35 transition-opacity duration-300 hover:opacity-90">
+        <text x="0" y="27" fontFamily="Inter, sans-serif" fontSize="19" fontWeight="700" fill="white" letterSpacing="-0.3">Ali</text>
+        <text x="40" y="27" fontFamily="Inter, sans-serif" fontSize="19" fontWeight="400" fill="white" letterSpacing="-0.3">Express</text>
+      </svg>
+
+      {/* Pix */}
+      <svg height="28" viewBox="0 0 80 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-35 transition-opacity duration-300 hover:opacity-90">
+        <path d="M16 8 L24 16 L16 24 L8 16 Z" stroke="white" strokeWidth="2" fill="none" strokeLinejoin="round"/>
+        <path d="M16 16 L20 12 L24 16 L20 20 Z" fill="white"/>
+        <text x="34" y="27" fontFamily="Inter, sans-serif" fontSize="20" fontWeight="800" fill="white" letterSpacing="1">PIX</text>
+      </svg>
+
+      {/* Stripe */}
+      <svg height="28" viewBox="0 0 90 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-35 transition-opacity duration-300 hover:opacity-90">
+        <path d="M16 14 C16 14 12 15 12 18 C12 22 20 22 20 26 C20 30 14 30 10 29" stroke="white" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+        <text x="28" y="27" fontFamily="Inter, sans-serif" fontSize="19" fontWeight="700" fill="white" letterSpacing="-0.3">Stripe</text>
+      </svg>
+
+      {/* WooCommerce */}
+      <svg height="28" viewBox="0 0 180 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-35 transition-opacity duration-300 hover:opacity-90">
+        <rect x="2" y="10" width="26" height="20" rx="4" stroke="white" strokeWidth="2" fill="none"/>
+        <path d="M8 20 L11 26 L15 18 L19 26 L22 20" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        <text x="36" y="27" fontFamily="Inter, sans-serif" fontSize="17" fontWeight="700" fill="white" letterSpacing="-0.3">WooCommerce</text>
+      </svg>
+
+      {/* Dropi */}
+      <svg height="28" viewBox="0 0 90 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-35 transition-opacity duration-300 hover:opacity-90">
+        <path d="M16 8 C16 8 8 12 8 20 C8 26 12 30 16 30 C20 30 24 26 24 20 C24 12 16 8 16 8Z" stroke="white" strokeWidth="2" fill="none"/>
+        <circle cx="16" cy="20" r="4" fill="white"/>
+        <text x="34" y="27" fontFamily="Inter, sans-serif" fontSize="19" fontWeight="900" fill="white" letterSpacing="1">DROPI</text>
+      </svg>
+
     </div>
   </div>
 );
