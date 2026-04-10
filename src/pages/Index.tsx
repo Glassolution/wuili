@@ -39,15 +39,6 @@ const ambientOrbs = [
   },
 ];
 
-const lightSpecks = [
-  "left-[14%] top-[20%]",
-  "left-[24%] top-[68%]",
-  "left-[42%] top-[15%]",
-  "left-[58%] top-[62%]",
-  "left-[74%] top-[24%]",
-  "left-[84%] top-[72%]",
-];
-
 const navGroups = {
   Produto: ["ChatGPT", "Sora", "Atlas", "Codex", "Prism"],
   Recursos: ["Automacoes", "Catalogo IA", "Operacao", "Relatorios"],
