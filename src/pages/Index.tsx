@@ -268,11 +268,13 @@ const Index = () => {
           </section>
         </main>
 
-        {/* Smooth gradient transition from hero bg to dark sections */}
-        <div className="bg-gradient-to-b from-[#cfd7ff] to-[#0a0a0a] pb-16 pt-0">
-          <LogosStrip />
+        {/* Smooth gradient transition — wraps logos + features so there's no seam */}
+        <div className="bg-gradient-to-b from-[#cfd7ff] via-[#0a0a0a] to-[#0a0a0a]" style={{ paddingTop: 0 }}>
+          <div className="pt-20">
+            <LogosStrip />
+          </div>
+          <FeaturesSection />
         </div>
-        <FeaturesSection />
         <HowItWorks />
         <TestimonialsSection />
         <PricingSection />
