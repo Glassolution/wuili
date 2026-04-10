@@ -269,12 +269,9 @@ const Index = () => {
         </main>
 
         {/* Smooth gradient transition — wraps logos + features so there's no seam */}
-        {/* Gradient fade: fixed 300px transition then solid dark */}
-        <div className="relative">
-          <div className="h-[300px]" style={{ background: "linear-gradient(to bottom, #cfd7ff, #0a0a0a)" }} />
-          <div className="absolute bottom-6 left-0 right-0 z-10">
-            <LogosStrip />
-          </div>
+        {/* Gradient fade into dark */}
+        <div style={{ background: "linear-gradient(to bottom, #cfd7ff 0%, #111113 100%)", paddingTop: "80px", paddingBottom: "80px" }}>
+          <LogosStrip />
         </div>
         <HowItWorks />
         <TestimonialsSection />
