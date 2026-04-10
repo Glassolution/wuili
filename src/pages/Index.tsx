@@ -39,15 +39,6 @@ const ambientOrbs = [
   },
 ];
 
-const lightSpecks = [
-  "left-[14%] top-[20%]",
-  "left-[24%] top-[68%]",
-  "left-[42%] top-[15%]",
-  "left-[58%] top-[62%]",
-  "left-[74%] top-[24%]",
-  "left-[84%] top-[72%]",
-];
-
 const navGroups = {
   Produto: ["ChatGPT", "Sora", "Atlas", "Codex", "Prism"],
   Recursos: ["Automacoes", "Catalogo IA", "Operacao", "Relatorios"],
@@ -124,17 +115,9 @@ const Index = () => {
             className={`absolute rounded-full blur-3xl ${orb.className} ${orb.animation}`}
           />
         ))}
-        {lightSpecks.map((position, index) => (
-          <span
-            key={position}
-            className={`absolute ${position} animate-speck-float h-2 w-2 rounded-full bg-white/80 shadow-[0_0_18px_rgba(255,255,255,0.55)]`}
-            style={{ animationDelay: `${index * 1.4}s` }}
-          />
-        ))}
       </div>
       <div className="pointer-events-none absolute inset-0 opacity-80 transition-transform duration-300 ease-out bg-[radial-gradient(circle_at_var(--pointer-x)_var(--pointer-y),rgba(255,255,255,0.48),transparent_0_10%),radial-gradient(circle_at_calc(var(--pointer-x)_+_8%)_calc(var(--pointer-y)_-_4%),rgba(132,146,255,0.24),transparent_0_16%),radial-gradient(circle_at_calc(var(--pointer-x)_-_10%)_calc(var(--pointer-y)_+_7%),rgba(255,255,255,0.18),transparent_0_14%)]" />
       <div className="pointer-events-none absolute inset-0 animate-light-sweep opacity-45 bg-[linear-gradient(115deg,transparent_30%,rgba(255,255,255,0.12)_48%,transparent_64%)]" />
-      <div className="absolute inset-0 opacity-[0.08] [background-image:radial-gradient(rgba(255,255,255,0.95)_0.7px,transparent_0.7px)] [background-size:18px_18px]" />
 
       <div className="relative z-10">
         <header
