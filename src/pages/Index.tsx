@@ -267,6 +267,14 @@ const Index = () => {
             </div>
           </section>
         </main>
+
+        <LogosStrip />
+        <FeaturesSection />
+        <HowItWorks />
+        <TestimonialsSection />
+        <PricingSection />
+        <CTASection />
+        <Footer />
       </div>
     </div>
   );
