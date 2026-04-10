@@ -76,9 +76,10 @@ const Index = () => {
   return (
     <div
       ref={rootRef}
-      className="relative min-h-screen overflow-x-hidden bg-[#cfd7ff] text-[#0a0a0a]"
+      className="relative min-h-screen overflow-x-hidden bg-[#0e0e10] text-[#0a0a0a]"
     >
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,#dfe6ff_0%,#ced7ff_48%,#c5ceff_100%)]" />
+      {/* Lavender gradient overlay — covers hero area only, fades to transparent */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[1200px]" style={{ background: "linear-gradient(to bottom, #dfe6ff 0%, #ced7ff 55%, #0e0e10 100%)" }} />
 
       <div className="relative z-10">
         <header
@@ -268,11 +269,10 @@ const Index = () => {
           </section>
         </main>
 
-        {/* Smooth gradient transition from hero bg to dark sections */}
-        <div className="bg-gradient-to-b from-[#cfd7ff] to-[#0a0a0a] pb-16 pt-0">
+        {/* Smooth gradient transition — wraps logos + features so there's no seam */}
+        <div className="bg-[#0e0e10]">
           <LogosStrip />
         </div>
-        <FeaturesSection />
         <HowItWorks />
         <TestimonialsSection />
         <PricingSection />
