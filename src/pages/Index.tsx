@@ -24,20 +24,6 @@ const codeLines = [
   '};',
 ];
 
-const ambientOrbs = [
-  {
-    className: "left-[-10%] top-[8%] h-[420px] w-[420px] bg-[#6d7cff]/50",
-    animation: "animate-orb-drift-a",
-  },
-  {
-    className: "right-[-8%] top-[18%] h-[360px] w-[360px] bg-[#ffffff]/40",
-    animation: "animate-orb-drift-b",
-  },
-  {
-    className: "bottom-[-14%] right-[10%] h-[420px] w-[420px] bg-[#d8b4fe]/35",
-    animation: "animate-orb-drift-c",
-  },
-];
 
 const navGroups = {
   Produto: ["ChatGPT", "Sora", "Atlas", "Codex", "Prism"],
@@ -79,45 +65,13 @@ const Index = () => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [activeMenu, setActiveMenu] = useState<keyof typeof navGroups | null>(null);
 
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    const x = (event.clientX / window.innerWidth) * 100;
-    const y = (event.clientY / window.innerHeight) * 100;
-    root.style.setProperty("--pointer-x", `${x}%`);
-    root.style.setProperty("--pointer-y", `${y}%`);
-  };
-
-  const handlePointerLeave = () => {
-    const root = rootRef.current;
-    if (!root) return;
-    root.style.setProperty("--pointer-x", "50%");
-    root.style.setProperty("--pointer-y", "28%");
-  };
 
   return (
     <div
       ref={rootRef}
       className="relative min-h-screen overflow-x-hidden bg-[#cfd7ff] text-[#0a0a0a]"
-      style={{
-        ["--pointer-x" as string]: "50%",
-        ["--pointer-y" as string]: "28%",
-      }}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(94,110,255,0.72),transparent_24%),radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.36),transparent_28%),radial-gradient(circle_at_82%_74%,rgba(235,214,255,0.62),transparent_26%),linear-gradient(180deg,#dfe6ff_0%,#ced7ff_48%,#c5ceff_100%)]" />
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {ambientOrbs.map((orb) => (
-          <div
-            key={orb.className}
-            className={`absolute rounded-full blur-3xl ${orb.className} ${orb.animation}`}
-          />
-        ))}
-      </div>
-      <div className="pointer-events-none absolute inset-0 opacity-80 transition-transform duration-300 ease-out bg-[radial-gradient(circle_at_var(--pointer-x)_var(--pointer-y),rgba(255,255,255,0.48),transparent_0_10%),radial-gradient(circle_at_calc(var(--pointer-x)_+_8%)_calc(var(--pointer-y)_-_4%),rgba(132,146,255,0.24),transparent_0_16%),radial-gradient(circle_at_calc(var(--pointer-x)_-_10%)_calc(var(--pointer-y)_+_7%),rgba(255,255,255,0.18),transparent_0_14%)]" />
-      <div className="pointer-events-none absolute inset-0 animate-light-sweep opacity-45 bg-[linear-gradient(115deg,transparent_30%,rgba(255,255,255,0.12)_48%,transparent_64%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,#dfe6ff_0%,#ced7ff_48%,#c5ceff_100%)]" />
 
       <div className="relative z-10">
         <header
