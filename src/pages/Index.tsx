@@ -1,5 +1,12 @@
 import { Link } from "react-router-dom";
 import { useRef, useState } from "react";
+import LogosStrip from "@/components/landing/LogosStrip";
+import FeaturesSection from "@/components/landing/FeaturesSection";
+import HowItWorks from "@/components/landing/HowItWorks";
+import TestimonialsSection from "@/components/landing/TestimonialsSection";
+import PricingSection from "@/components/landing/PricingSection";
+import CTASection from "@/components/landing/CTASection";
+import Footer from "@/components/landing/Footer";
 
 const sidebarItems = [
   "Novo chat",
