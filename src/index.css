@@ -64,17 +64,12 @@
   }
 
   html {
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Manrope', system-ui, sans-serif;
-    background-image:
-      radial-gradient(circle at top, rgba(112, 84, 255, 0.22), transparent 36%),
-      radial-gradient(circle at 20% 20%, rgba(108, 245, 255, 0.14), transparent 28%),
-      linear-gradient(180deg, #0f1023 0%, #12142d 40%, #0c0d18 100%);
-    background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -91,12 +86,12 @@
   }
 
   .card-wuili {
-    @apply rounded-[28px] border border-white/10 bg-card/80 backdrop-blur-xl;
+    @apply rounded-[28px] border border-white/10 bg-card/80;
     box-shadow: 0 20px 80px rgba(7, 10, 25, 0.35);
   }
 
   .card-wuili-elevated {
-    @apply rounded-[32px] border border-cyan-200/20 bg-card/90 backdrop-blur-xl;
+    @apply rounded-[32px] border border-cyan-200/20 bg-card/90;
     box-shadow: 0 28px 100px rgba(24, 27, 70, 0.45);
   }
 
