@@ -1,7 +1,7 @@
 const logos = ["Mercado Livre", "Shopee", "AliExpress", "Shopify", "WooCommerce", "Pix", "Stripe"];
 
 const LogosStrip = () => (
-  <div className="border-t border-black/10 bg-[#0a0a0a]">
+  <div className="pt-24">
     <div className="relative mx-auto max-w-[1280px] px-6 md:px-20">
       <div className="flex items-center gap-10 py-6 overflow-hidden">
         <span className="flex-shrink-0 whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.1em] text-white/30">
