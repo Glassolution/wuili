@@ -269,9 +269,9 @@ const Index = () => {
         </main>
 
         {/* Smooth gradient transition from hero bg to dark sections */}
-        <div className="h-[200px] bg-gradient-to-b from-[#cfd7ff] via-[#3a3f5c] to-[#0a0a0a]" />
-
-        <LogosStrip />
+        <div className="bg-gradient-to-b from-[#cfd7ff] to-[#0a0a0a] pb-16 pt-0">
+          <LogosStrip />
+        </div>
         <FeaturesSection />
         <HowItWorks />
         <TestimonialsSection />
