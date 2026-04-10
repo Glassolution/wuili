@@ -3,23 +3,23 @@ import { useRef } from "react";
 
 const sidebarItems = [
   "Novo chat",
-  "Automações",
+  "AutomaÃ§Ãµes",
   "Skills",
-  "Wuili",
+  "Wuilli",
   "Landing principal",
-  "Revisar anúncios",
+  "Revisar anÃºncios",
 ];
 
 const activityRows = [
-  "Vou simplificar o hero e reforçar a clareza da proposta.",
+  "Vou simplificar o hero e reforÃ§ar a clareza da proposta.",
   "Ajustei a hierarquia visual para um visual mais leve.",
-  "CTA principal mais direto e sem ruído.",
+  "CTA principal mais direto e sem ruÃ­do.",
 ];
 
 const codeLines = [
   'export const hero = {',
-  '  title: "Wuili",',
-  '  subtitle: "Sua operação de vendas, automatizada por IA.",',
+  '  title: "Wuilli",',
+  '  subtitle: "Sua operaÃ§Ã£o de vendas, automatizada por IA.",',
   '  primaryCta: "Criar workspace",',
   '};',
 ];
@@ -62,7 +62,19 @@ const Index = () => {
 
       <div className="relative z-10">
         <header className="flex items-center justify-between px-6 py-6 md:px-10">
-          <div className="text-[18px] font-semibold text-white">Wuili</div>
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/brand-star-logo.png"
+              alt="Wuilli"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                filter: "drop-shadow(0 4px 12px rgba(37,99,235,0.3))",
+              }}
+            />
+            <span className="text-[18px] font-semibold text-white">Wuilli</span>
+          </div>
           <Link
             to="/login"
             className="rounded-full bg-[#1b1b1b] px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
@@ -73,20 +85,23 @@ const Index = () => {
 
         <main className="px-6 pb-16 pt-10 md:px-10 md:pb-24 md:pt-16">
           <section className="mx-auto flex max-w-[800px] flex-col items-center text-center">
-            <div className="mb-10 flex h-24 w-24 items-center justify-center rounded-[30px] bg-white/75 p-3 shadow-[0_16px_50px_rgba(70,82,160,0.14)]">
-              <img
-                src="/brand-star-logo.png"
-                alt="Wuili"
-                className="h-full w-full rounded-[24px] object-cover"
-              />
-            </div>
+            <img
+              src="/brand-star-logo.png"
+              alt="Wuilli"
+              style={{
+                width: 96,
+                height: 96,
+                marginBottom: 40,
+                filter: "drop-shadow(0 8px 24px rgba(37,99,235,0.25))",
+              }}
+            />
 
             <h1 className="text-[48px] font-medium tracking-[-0.05em] text-[#0a0a0a] md:text-[64px]">
-              Wuili
+              Wuilli
             </h1>
 
             <p className="mt-6 max-w-[600px] text-[17px] leading-8 text-[#6b7280]">
-              Sua operação de vendas, automatizada por IA.
+              Sua operaÃ§Ã£o de vendas, automatizada por IA.
             </p>
 
             <div className="mt-10">
@@ -107,13 +122,13 @@ const Index = () => {
                   <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
                   <span className="h-3 w-3 rounded-full bg-[#28c840]" />
                 </div>
-                <div className="text-sm font-medium">Workspace Wuili</div>
+                <div className="text-sm font-medium">Workspace Wuilli</div>
                 <div className="rounded-full border border-white/12 px-3 py-1 text-xs">Abrir</div>
               </div>
 
               <div className="grid min-h-[440px] md:grid-cols-[230px_1fr_380px]">
                 <aside className="border-r border-white/10 bg-[#556091]/92 px-4 py-5 text-white">
-                  <div className="mb-6 text-sm font-medium text-white/84">Navegação</div>
+                  <div className="mb-6 text-sm font-medium text-white/84">NavegaÃ§Ã£o</div>
                   <div className="space-y-2">
                     {sidebarItems.map((item, index) => (
                       <div
