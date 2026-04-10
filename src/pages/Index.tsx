@@ -270,8 +270,6 @@ const Index = () => {
         </main>
 
         {/* Smooth gradient transition — wraps logos + features so there's no seam */}
-        {/* Gradient fade into dark — logos sit on dark bg */}
-        <div className="h-[180px]" style={{ background: "linear-gradient(to bottom, #cfd7ff, #0e0e10)" }} />
         <div className="bg-[#0e0e10]">
           <LogosStrip />
         </div>
