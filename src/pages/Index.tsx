@@ -78,7 +78,7 @@ const Index = () => {
       ref={rootRef}
       className="relative min-h-screen overflow-x-hidden bg-[#0e0e10] text-[#0a0a0a]"
     >
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,#dfe6ff_0%,#ced7ff_48%,#c5ceff_100%)]" />
+      {/* Lavender bg only for hero area — not full page */}
 
       <div className="relative z-10">
         <header
