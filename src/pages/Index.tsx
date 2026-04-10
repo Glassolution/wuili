@@ -166,7 +166,7 @@ const Index = () => {
         </header>
 
         <main
-          className={`bg-[linear-gradient(180deg,#dfe6ff_0%,#ced7ff_48%,#c5ceff_100%)] px-6 pb-16 pt-2 transition-[transform,opacity] duration-300 md:px-10 md:pb-24 md:pt-4 ${activeMenu ? "scale-[0.995] opacity-50" : "opacity-100"}`}
+          className={`px-6 pb-16 pt-2 transition-[transform,opacity] duration-300 md:px-10 md:pb-24 md:pt-4 ${activeMenu ? "scale-[0.995] opacity-50" : "opacity-100"}`}
           style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
         >
           <section className="mx-auto flex max-w-[860px] flex-col items-center text-center">
