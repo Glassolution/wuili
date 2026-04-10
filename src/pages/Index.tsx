@@ -269,7 +269,7 @@ const Index = () => {
         </main>
 
         {/* Smooth gradient transition — wraps logos + features so there's no seam */}
-        <div className="bg-gradient-to-b from-[#cfd7ff] via-[#0a0a0a] to-[#0a0a0a]" style={{ paddingTop: 0 }}>
+        <div style={{ background: "linear-gradient(to bottom, #cfd7ff 0%, #2a2e4a 30%, #0a0a0a 50%)" }}>
           <div className="pt-20">
             <LogosStrip />
           </div>
