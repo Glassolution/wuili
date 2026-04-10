@@ -36,7 +36,7 @@ const DashboardLayout = () => {
 
   return (
     <div className="flex h-screen min-h-0 w-full max-w-full overflow-x-hidden bg-background">
-      <div className="pointer-events-none fixed inset-0 panel-grid opacity-15" />
+      
       <style>{`
         @keyframes sidebarEntry {
           from { opacity: 0; transform: translateX(-100%); }
