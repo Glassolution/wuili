@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(\"/c/Program Files/nodejs/npm\" install)",
+      "Bash(ls /c/dev/wuilli/node_modules/.bin/vite*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(grep -r \"onboarding\\\\|Onboarding\\\\|connect\\\\|integration\" /c/dev/wuilli/src --include=*.tsx -l)",
+      "Bash(npm install:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl -s \"https://api.mercadolibre.com/sites/MLB/search?q=eletronicos&limit=5\")",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://api.mercadolibre.com/sites/MLB/search?q=eletronicos&limit=5\")",
+      "Bash(curl -s \"https://api.mercadolibre.com/sites/MLB/search?q=eletronicos&limit=5\" -H \"Accept: application/json\" -H \"Content-Type: application/json\")",
+      "Bash(python3 -c \":*)",
+      "Bash(git rebase:*)",
+      "Bash(GIT_EDITOR=true git rebase --continue)",
+      "Bash(git checkout:*)",
+      "Bash(dir /b /s .agents)",
+      "Bash(git fetch:*)",
+      "Bash(git restore:*)",
+      "Bash(grep -rn \"operaÃ\\\\|AutomaÃ\\\\|NavegaÃ\\\\|anÃ\\\\|Ã§\\\\|Ã£\\\\|Ã©\\\\|Ã³\\\\|Ãµ\\\\|Ã¡\\\\|Ã­\\\\|Ãº\\\\|Â£\\\\|Â§\" src/ --include=*.tsx --include=*.ts --include=*.js)",
+      "Bash(grep -rn --include=*.tsx --include=*.ts --include=*.js \"operaÃ\\\\|AutomaÃ\\\\|NavegaÃ\\\\|anÃº\\\\|configuraÃ\\\\|integraÃ\\\\|publicaÃ\\\\|funÃ\\\\|tambÃ\\\\|soluÃ\" src/)",
+      "Bash(grep -rn \"BrandMark\\\\|brand-star-logo\\\\|logo\\\\.png\" src/ --include=*.tsx --include=*.ts)"
+    ]
+  }
+}

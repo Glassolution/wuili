@@ -176,6 +176,33 @@
   100% { transform: translateX(18%) translateY(3%) rotate(2deg); opacity: 0; }
 }
 
+@keyframes orb-drift-a {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(3%, -4%, 0) scale(1.08); }
+  100% { transform: translate3d(-2%, 3%, 0) scale(0.98); }
+}
+
+@keyframes orb-drift-b {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-4%, 2%, 0) scale(1.04); }
+  100% { transform: translate3d(2%, -2%, 0) scale(0.96); }
+}
+
+@keyframes orb-drift-c {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2%, -3%, 0) scale(1.06); }
+  100% { transform: translate3d(-3%, 2%, 0) scale(1); }
+}
+
+@keyframes speck-float {
+  0%, 100% { transform: translateY(0) scale(0.9); opacity: 0.32; }
+  50% { transform: translateY(-8px) scale(1.15); opacity: 0.9; }
+}
+
 .animate-aurora-drift { animation: aurora-drift 18s ease-in-out infinite alternate; }
 .animate-light-sweep { animation: light-sweep 14s ease-in-out infinite; }
+.animate-orb-drift-a { animation: orb-drift-a 18s ease-in-out infinite alternate; }
+.animate-orb-drift-b { animation: orb-drift-b 22s ease-in-out infinite alternate; }
+.animate-orb-drift-c { animation: orb-drift-c 20s ease-in-out infinite alternate; }
+.animate-speck-float { animation: speck-float 6s ease-in-out infinite; }
 
