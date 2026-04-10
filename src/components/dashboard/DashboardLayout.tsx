@@ -37,7 +37,6 @@ const DashboardLayout = () => {
   return (
     <div className="flex h-screen min-h-0 w-full max-w-full overflow-x-hidden bg-background">
       <div className="pointer-events-none fixed inset-0 panel-grid opacity-15" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_right,rgba(120,93,255,0.14),transparent_22%),radial-gradient(circle_at_bottom_left,rgba(93,236,255,0.10),transparent_20%)]" />
       <style>{`
         @keyframes sidebarEntry {
           from { opacity: 0; transform: translateX(-100%); }
