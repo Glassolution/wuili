@@ -1,20 +1,21 @@
 const logos = ["Mercado Livre", "Shopee", "AliExpress", "Shopify", "WooCommerce", "Pix", "Stripe"];
 
 const LogosStrip = () => (
-  <div style={{ background: "#fff", borderTop: "1px solid #e3e8ef" }}>
-    <div style={{ position: "relative", maxWidth: "1280px", margin: "0 auto", padding: "0 80px" }}>
-      <div style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "1px", background: "#e3e8ef" }} />
-      <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: "1px", background: "#e3e8ef" }} />
-      <div style={{ padding: "24px 0", overflow: "hidden", display: "flex", alignItems: "center", gap: "40px" }}>
-        <span style={{ fontSize: "11px", fontWeight: 700, color: "#97aab3", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap", flexShrink: 0 }}>
+  <div className="border-t border-black/10 bg-[#0a0a0a]">
+    <div className="relative mx-auto max-w-[1280px] px-6 md:px-20">
+      <div className="flex items-center gap-10 py-6 overflow-hidden">
+        <span className="flex-shrink-0 whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.1em] text-white/30">
           Integrado com
         </span>
-        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "64px", background: "linear-gradient(to right, #fff, transparent)", zIndex: 1 }} />
-          <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "64px", background: "linear-gradient(to left, #fff, transparent)", zIndex: 1 }} />
+        <div className="relative flex-1 overflow-hidden">
+          <div className="absolute bottom-0 left-0 top-0 z-[1] w-16 bg-gradient-to-r from-[#0a0a0a] to-transparent" />
+          <div className="absolute bottom-0 right-0 top-0 z-[1] w-16 bg-gradient-to-l from-[#0a0a0a] to-transparent" />
           <div className="flex animate-ticker whitespace-nowrap">
             {[...logos, ...logos].map((logo, i) => (
-              <span key={i} style={{ fontSize: "15px", fontWeight: 800, color: "#c8d2dc", marginRight: "52px", whiteSpace: "nowrap", flexShrink: 0 }}>
+              <span
+                key={i}
+                className="mr-[52px] flex-shrink-0 whitespace-nowrap text-[15px] font-extrabold text-white/20"
+              >
                 {logo}
               </span>
             ))}

@@ -40,58 +40,58 @@ const plans = [
 ];
 
 const PricingSection = () => (
-  <section id="planos" className="relative z-[1] py-[120px] bg-white">
-    <div className="max-w-[1100px] mx-auto px-6 md:px-10">
-      <div className="text-center mb-16">
-        <div className="inline-flex items-center justify-center gap-[6px] text-[0.75rem] font-medium text-[#7C3AED] tracking-[0.08em] uppercase mb-[18px] before:content-[''] before:w-5 before:h-px before:bg-[#7C3AED]">
+  <section id="planos" className="relative z-[1] bg-[#111113] py-[120px]">
+    <div className="mx-auto max-w-[1100px] px-6 md:px-10">
+      <div className="mb-16 text-center">
+        <div className="mb-[18px] inline-flex items-center justify-center gap-[6px] text-[0.75rem] font-medium uppercase tracking-[0.08em] text-[#8ec5ff] before:h-px before:w-5 before:bg-[#8ec5ff] before:content-['']">
           Planos
         </div>
-        <h2 className="font-['Sora'] text-[clamp(1.9rem,3.5vw,2.8rem)] font-bold tracking-[-0.035em] leading-[1.12] text-[#0A0A0A] mx-auto mb-4">
+        <h2 className="mx-auto mb-4 font-['Sora'] text-[clamp(1.9rem,3.5vw,2.8rem)] font-bold leading-[1.12] tracking-[-0.035em] text-white">
           Comece grátis. Escale quando quiser.
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-[400px] md:max-w-none mx-auto">
+      <div className="mx-auto grid max-w-[400px] grid-cols-1 gap-5 md:max-w-none md:grid-cols-3">
         {plans.map((plan) => (
           <div
             key={plan.name}
-            className={`border rounded-[20px] p-8 relative transition-all hover:-translate-y-[3px] ${
+            className={`relative rounded-[20px] border p-8 transition-all hover:-translate-y-[3px] ${
               plan.featured
-                ? "border-[#7C3AED] bg-[#0A0A0A] text-white shadow-[0_20px_60px_rgba(124,58,237,0.2)] hover:shadow-[0_24px_64px_rgba(124,58,237,0.25)]"
-                : "border-[rgba(0,0,0,0.07)] bg-white hover:shadow-[0_16px_48px_rgba(0,0,0,0.07)]"
+                ? "border-white/20 bg-white text-[#0a0a0a] shadow-[0_20px_60px_rgba(255,255,255,0.08)] hover:shadow-[0_24px_64px_rgba(255,255,255,0.12)]"
+                : "border-white/[0.06] bg-white/[0.03] hover:shadow-[0_16px_48px_rgba(0,0,0,0.3)]"
             }`}
           >
             {plan.badge && (
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#7C3AED] text-white text-[0.6875rem] font-semibold tracking-[0.06em] uppercase px-[14px] py-1 rounded-full">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-white px-[14px] py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-[#0a0a0a]">
                 {plan.badge}
               </div>
             )}
-            <div className={`font-['Sora'] text-[0.875rem] font-semibold uppercase tracking-[0.06em] mb-4 ${plan.featured ? "text-white/50" : "text-[#6B6B6B]"}`}>
+            <div className={`mb-4 font-['Sora'] text-[0.875rem] font-semibold uppercase tracking-[0.06em] ${plan.featured ? "text-[#0a0a0a]/50" : "text-white/30"}`}>
               {plan.name}
             </div>
-            <div className={`font-['Sora'] text-[2.8rem] font-bold tracking-[-0.04em] leading-none mb-[6px] ${plan.featured ? "text-white" : "text-[#0A0A0A]"}`}>
-              <sup className="text-[1.1rem] font-medium align-top mt-2 inline-block">R$</sup>
+            <div className={`mb-[6px] font-['Sora'] text-[2.8rem] font-bold leading-none tracking-[-0.04em] ${plan.featured ? "text-[#0a0a0a]" : "text-white"}`}>
+              <sup className="mt-2 inline-block align-top text-[1.1rem] font-medium">R$</sup>
               {plan.price}
-              <sub className={`text-[0.875rem] font-normal ${plan.featured ? "text-white/40" : "text-[#6B6B6B]"}`}>{plan.sub}</sub>
+              <sub className={`text-[0.875rem] font-normal ${plan.featured ? "text-[#0a0a0a]/40" : "text-white/30"}`}>{plan.sub}</sub>
             </div>
-            <div className={`text-[0.875rem] leading-[1.5] mb-7 ${plan.featured ? "text-white/50" : "text-[#6B6B6B]"}`}>{plan.desc}</div>
-            <div className={`h-px mb-6 ${plan.featured ? "bg-white/10" : "bg-[rgba(0,0,0,0.07)]"}`} />
-            <div className="flex flex-col gap-3 mb-8">
+            <div className={`mb-7 text-[0.875rem] leading-[1.5] ${plan.featured ? "text-[#0a0a0a]/50" : "text-white/40"}`}>{plan.desc}</div>
+            <div className={`mb-6 h-px ${plan.featured ? "bg-[#0a0a0a]/10" : "bg-white/[0.06]"}`} />
+            <div className="mb-8 flex flex-col gap-3">
               {plan.features.map((f) => (
-                <div key={f.text} className={`flex items-start gap-[10px] text-[0.875rem] font-light ${!f.included ? "opacity-35" : ""} ${plan.featured ? "text-white/80" : "text-[#0A0A0A]"}`}>
+                <div key={f.text} className={`flex items-start gap-[10px] text-[0.875rem] font-light ${!f.included ? "opacity-35" : ""} ${plan.featured ? "text-[#0a0a0a]/80" : "text-white/70"}`}>
                   {f.included ? (
-                    <Check size={18} className={`flex-shrink-0 mt-[1px] ${plan.featured ? "text-[#9F67FF]" : "text-[#7C3AED]"}`} strokeWidth={1.5} />
+                    <Check size={18} className={`mt-[1px] flex-shrink-0 ${plan.featured ? "text-[#0a0a0a]" : "text-[#8ec5ff]"}`} strokeWidth={1.5} />
                   ) : (
-                    <X size={18} className="flex-shrink-0 mt-[1px] text-[#999]" strokeWidth={1.5} />
+                    <X size={18} className="mt-[1px] flex-shrink-0 text-white/20" strokeWidth={1.5} />
                   )}
                   {f.text}
                 </div>
               ))}
             </div>
-            <button className={`w-full text-[0.9375rem] font-medium py-[13px] rounded-full cursor-pointer border-none transition-all tracking-[-0.01em] font-['DM_Sans'] ${
+            <button className={`w-full cursor-pointer rounded-full border-none py-[13px] font-['Manrope'] text-[0.9375rem] font-medium tracking-[-0.01em] transition-all ${
               plan.featured
-                ? "bg-[#7C3AED] text-white shadow-[0_4px_20px_rgba(124,58,237,0.22)] hover:bg-[#9F67FF]"
-                : "bg-[#F4F4F4] text-[#0A0A0A] hover:bg-[#E8E8E8]"
+                ? "bg-[#0a0a0a] text-white shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:bg-[#1a1a1a]"
+                : "bg-white/[0.06] text-white hover:bg-white/[0.1]"
             }`}>
               {plan.cta}
             </button>
