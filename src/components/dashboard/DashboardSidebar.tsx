@@ -5,7 +5,7 @@ import { useProfile } from "@/lib/profileContext";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  ShoppingCart, BookOpen, Star, Users,
+  Users,
   BarChart3, Settings, MessageCircle, Wallet, Package,
   ArrowLeftRight, CreditCard, HelpCircle, ChevronRight,
 } from "lucide-react";
@@ -14,16 +14,20 @@ import BrandMark from "@/components/brand/BrandMark";
 type RailLink = { to: string; icon: typeof MessageCircle; label: string };
 
 const railLinks: RailLink[] = [
-  { to: "/dashboard/pedidos", icon: ShoppingCart, label: "Pedidos" },
-  { to: "/dashboard/produtos", icon: BookOpen, label: "Produtos" },
-  { to: "/dashboard/dropshipping", icon: Package, label: "Dropshipping" },
-  { to: "/dashboard/publicacoes", icon: Star, label: "Publicações" },
   { to: "/dashboard/clientes", icon: Users, label: "Clientes" },
   { to: "/dashboard/saldos", icon: Wallet, label: "Saldos" },
   { to: "/dashboard/transacoes", icon: ArrowLeftRight, label: "Transações" },
   { to: "/dashboard/pagamentos", icon: CreditCard, label: "Pagamentos" },
   { to: "/dashboard/relatorios", icon: BarChart3, label: "Relatórios" },
   { to: "/dashboard/ia", icon: MessageCircle, label: "Chat IA" },
+];
+
+/* These paths belong to the Dropshipping workspace */
+const dropshippingPaths = [
+  "/dashboard/produtos",
+  "/dashboard/dropshipping",
+  "/dashboard/publicacoes",
+  "/dashboard/pedidos",
 ];
 
 const workspaceItems = [
@@ -52,6 +56,8 @@ const DashboardSidebar = () => {
     return location.pathname.startsWith(to);
   };
 
+  const isDropshippingActive = dropshippingPaths.some(p => location.pathname.startsWith(p));
+
   return (
     <div className="flex h-full shrink-0">
       {/* Rail */}
@@ -61,8 +67,26 @@ const DashboardSidebar = () => {
           <BrandMark size="sm" tone="light" />
         </Link>
 
-        {/* Nav icons */}
-        <div className="flex flex-1 flex-col items-center gap-1">
+        {/* Dropshipping icon — opens workspace panel */}
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <Link
+              to="/dashboard/dropshipping"
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                isDropshippingActive
+                  ? "bg-foreground text-background shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <Package className="h-[17px] w-[17px]" strokeWidth={1.75} />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8} className="text-xs">Dropshipping</TooltipContent>
+        </Tooltip>
+
+        {/* Other nav icons */}
+        <div className="flex flex-1 flex-col items-center gap-1 mt-1">
           {railLinks.map(({ to, icon: Icon, label }) => {
             const active = isActive(to);
             return (
@@ -120,40 +144,42 @@ const DashboardSidebar = () => {
         </div>
       </nav>
 
-      {/* Secondary panel */}
-      <aside className="flex h-full w-[160px] shrink-0 flex-col border-r border-border bg-background py-4">
-        <div className="px-4 mb-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Workspace</p>
-        </div>
+      {/* Workspace panel — only visible when on dropshipping pages */}
+      {isDropshippingActive && (
+        <aside className="flex h-full w-[160px] shrink-0 flex-col border-r border-border bg-background py-4">
+          <div className="px-4 mb-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Workspace</p>
+          </div>
 
-        <nav className="flex-1 px-2 space-y-0.5">
-          {workspaceItems.map((item) => {
-            const active = location.pathname === item.path;
-            return (
-              <Link
-                key={item.label}
-                to={item.path}
-                className={cn(
-                  "flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
-                  active
-                    ? "bg-muted font-semibold text-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                {item.label}
-                {item.hasSubmenu && <ChevronRight size={13} className="text-muted-foreground" />}
-              </Link>
-            );
-          })}
-        </nav>
+          <nav className="flex-1 px-2 space-y-0.5">
+            {workspaceItems.map((item) => {
+              const active = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.label}
+                  to={item.path}
+                  className={cn(
+                    "flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
+                    active
+                      ? "bg-muted font-semibold text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {item.label}
+                  {item.hasSubmenu && <ChevronRight size={13} className="text-muted-foreground" />}
+                </Link>
+              );
+            })}
+          </nav>
 
-        <div className="px-4 mt-4 border-t border-border pt-4">
-          <p className="text-xs text-muted-foreground">Need some help?</p>
-          <Link to="/dashboard/configuracoes" className="text-xs text-foreground hover:underline flex items-center gap-1 mt-0.5">
-            <HelpCircle size={11} /> Drop us a word
-          </Link>
-        </div>
-      </aside>
+          <div className="px-4 mt-4 border-t border-border pt-4">
+            <p className="text-xs text-muted-foreground">Need some help?</p>
+            <Link to="/dashboard/configuracoes" className="text-xs text-foreground hover:underline flex items-center gap-1 mt-0.5">
+              <HelpCircle size={11} /> Drop us a word
+            </Link>
+          </div>
+        </aside>
+      )}
     </div>
   );
 };

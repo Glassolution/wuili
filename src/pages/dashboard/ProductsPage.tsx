@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight, Eye, EyeOff } from "lucide-react";
+import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight } from "lucide-react";
 
 type Product = {
   id: string;
@@ -20,14 +20,14 @@ const products: Product[] = [
     id: "1",
     name: "Macbook Pro M1 Pro 14\" 512GB",
     image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop",
-    source: "Ali Express",
+    source: "AliExpress",
     sourceIcon: "🔴",
     sourceColor: "bg-[#e74c3c]",
     rating: 4.8,
-    reviews: "1,345",
-    price: "$180–$220",
-    minOrder: "12 unit",
-    tags: ["Apple", "Electronic"],
+    reviews: "1.345",
+    price: "R$950–R$1.180",
+    minOrder: "12 unid.",
+    tags: ["Apple", "Eletrônico"],
   },
   {
     id: "2",
@@ -38,9 +38,9 @@ const products: Product[] = [
     sourceColor: "bg-[#ff9900]",
     rating: 4.9,
     reviews: "976",
-    price: "$175–$200",
-    minOrder: "11 unit",
-    tags: ["MSI", "Electronic", "Display"],
+    price: "R$920–R$1.050",
+    minOrder: "11 unid.",
+    tags: ["MSI", "Eletrônico", "Monitor"],
   },
   {
     id: "3",
@@ -50,10 +50,10 @@ const products: Product[] = [
     sourceIcon: "🟢",
     sourceColor: "bg-[#42b549]",
     rating: 4.7,
-    reviews: "1,654",
-    price: "$180–$250",
-    minOrder: "10 unit",
-    tags: ["Apple", "Electronic"],
+    reviews: "1.654",
+    price: "R$950–R$1.320",
+    minOrder: "10 unid.",
+    tags: ["Apple", "Eletrônico"],
   },
   {
     id: "4",
@@ -64,9 +64,9 @@ const products: Product[] = [
     sourceColor: "bg-[#ee4d2d]",
     rating: 4.8,
     reviews: "886",
-    price: "$197–$224",
-    minOrder: "8 unit",
-    tags: ["MSI", "Electronic", "Display"],
+    price: "R$1.040–R$1.180",
+    minOrder: "8 unid.",
+    tags: ["MSI", "Eletrônico", "Monitor"],
   },
   {
     id: "5",
@@ -76,10 +76,10 @@ const products: Product[] = [
     sourceIcon: "🏷",
     sourceColor: "bg-[#86b817]",
     rating: 4.5,
-    reviews: "1,256",
-    price: "$180–$220",
-    minOrder: "12 unit",
-    tags: ["Apple", "Electronic"],
+    reviews: "1.256",
+    price: "R$950–R$1.180",
+    minOrder: "12 unid.",
+    tags: ["Apple", "Eletrônico"],
   },
   {
     id: "6",
@@ -89,10 +89,10 @@ const products: Product[] = [
     sourceIcon: "🟠",
     sourceColor: "bg-[#ee4d2d]",
     rating: 4.6,
-    reviews: "1,276",
-    price: "$180–$220",
-    minOrder: "15 unit",
-    tags: ["Apple", "Electronic"],
+    reviews: "1.276",
+    price: "R$950–R$1.180",
+    minOrder: "15 unid.",
+    tags: ["Apple", "Eletrônico"],
   },
   {
     id: "7",
@@ -102,10 +102,10 @@ const products: Product[] = [
     sourceIcon: "❤️",
     sourceColor: "bg-[#0f146d]",
     rating: 4.8,
-    reviews: "1,334",
-    price: "$180–$220",
-    minOrder: "5 unit",
-    tags: ["Apple", "Electronic"],
+    reviews: "1.334",
+    price: "R$950–R$1.180",
+    minOrder: "5 unid.",
+    tags: ["Apple", "Eletrônico"],
   },
   {
     id: "8",
@@ -115,10 +115,10 @@ const products: Product[] = [
     sourceIcon: "🔷",
     sourceColor: "bg-[#34313f]",
     rating: 4.7,
-    reviews: "1,967",
-    price: "$180–$220",
-    minOrder: "20 unit",
-    tags: ["Apple", "Electronic", "Display"],
+    reviews: "1.967",
+    price: "R$950–R$1.180",
+    minOrder: "20 unid.",
+    tags: ["Apple", "Eletrônico", "Monitor"],
   },
 ];
 
@@ -148,7 +148,7 @@ const ProductsPage = () => {
           </button>
         </div>
         <button className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors">
-          Platform Integration
+          Integração de Plataforma
           <ArrowRight size={14} />
         </button>
       </div>
@@ -163,8 +163,8 @@ const ProductsPage = () => {
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-44 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-              placeholder="Search"
+              className="w-44 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -172,16 +172,16 @@ const ProductsPage = () => {
 
           {/* Date range pill */}
           <button className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-2 text-sm font-medium text-background hover:opacity-80 transition-opacity">
-            2 Feb - 14 apr
+            2 Fev - 14 Abr
             <ChevronDown size={13} />
           </button>
 
           {/* Filter buttons */}
           <button className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
-            Payment Status <ChevronDown size={13} />
+            Status de Pagamento <ChevronDown size={13} />
           </button>
           <button className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
-            Category <ChevronDown size={13} />
+            Categoria <ChevronDown size={13} />
           </button>
 
           {/* Hide button */}
@@ -189,7 +189,7 @@ const ProductsPage = () => {
             onClick={() => setShowHidden(!showHidden)}
             className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            Hide
+            Ocultar
           </button>
         </div>
 
@@ -218,18 +218,17 @@ const ProductsPage = () => {
             key={p.id}
             className="group overflow-hidden rounded-2xl border border-border bg-background transition-shadow hover:shadow-md"
           >
-            {/* Product image — contained in white/light bg */}
+            {/* Product image */}
             <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#f5f5f5] dark:bg-muted/50 p-6">
               <img
                 src={p.image}
                 alt={p.name}
                 className="h-full w-full rounded-lg object-contain transition-transform duration-300 group-hover:scale-105"
               />
-              {/* Checkbox */}
               <div className="absolute left-3 top-3 flex h-5 w-5 items-center justify-center rounded border-2 border-border bg-background shadow-sm" />
             </div>
 
-            {/* Card body — consistent left-aligned padding */}
+            {/* Card body */}
             <div className="px-4 pb-4 pt-3">
               {/* Source + Rating */}
               <div className="flex items-center justify-between">
@@ -246,19 +245,19 @@ const ProductsPage = () => {
                 </div>
               </div>
 
-              {/* Product name — wraps to next line if too long */}
+              {/* Product name */}
               <p className="mt-2 text-[14px] font-semibold leading-[1.35] text-foreground">
                 {p.name}
               </p>
 
-              {/* Price + Min Order — same row, aligned */}
+              {/* Price + Min Order */}
               <div className="mt-3 flex items-baseline justify-between">
                 <div>
-                  <p className="text-[11px] leading-none text-muted-foreground">Price</p>
+                  <p className="text-[11px] leading-none text-muted-foreground">Preço</p>
                   <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{p.price}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[11px] leading-none text-muted-foreground">Min. Order</p>
+                  <p className="text-[11px] leading-none text-muted-foreground">Pedido mín.</p>
                   <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{p.minOrder}</p>
                 </div>
               </div>
@@ -278,7 +277,7 @@ const ProductsPage = () => {
               {/* Import button */}
               <div className="mt-3 flex items-center gap-2">
                 <button className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80">
-                  Import Product
+                  Importar Produto
                 </button>
                 <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted">
                   <ChevronsRight size={16} />
