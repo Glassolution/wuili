@@ -5,6 +5,7 @@ import LogosStrip from "@/components/landing/LogosStrip";
 import CreditBanner from "@/components/landing/CreditBanner";
 import MultiPlatformSection from "@/components/landing/MultiPlatformSection";
 import AnywhereSection from "@/components/landing/AnywhereSection";
+import FeatureSections from "@/components/landing/FeatureSections";
 import TestimonialsSection from "@/components/landing/TestimonialsSection";
 import PricingSection from "@/components/landing/PricingSection";
 import CTASection from "@/components/landing/CTASection";
@@ -57,12 +58,12 @@ const Index = () => {
 
           {/* Headline */}
           <h1 className="mb-6 font-['Manrope'] text-[clamp(2.75rem,5.5vw,4.5rem)] font-[700] leading-[1.08] tracking-[-0.035em] text-[#0a0a0a]">
-            A Plataforma de<br />Vendas com IA<br />para e-commerce
+            Produtos prontos.<br />Anúncios criados<br />por IA. Só vender.
           </h1>
 
           {/* Subtitle */}
-          <p className="mb-10 max-w-[480px] font-['Manrope'] text-[1.0625rem] font-normal leading-[1.65] text-[#6b7280]">
-            Publique, responda e venda no e-commerce com IA — operação automatizada ponta a ponta, sem esforço manual.
+          <p className="mb-10 max-w-[520px] font-['Manrope'] text-[1.0625rem] font-normal leading-[1.65] text-[#6b7280]">
+            A Velo te dá produtos para dropshipping com alta margem e usa IA para criar anúncios otimizados no Mercado Livre e Shopee — título, fotos, preço e descrição prontos em segundos.
           </p>
 
           {/* CTAs */}
@@ -71,87 +72,218 @@ const Index = () => {
               to="/cadastro"
               className="inline-flex items-center gap-2 rounded-full bg-[#0a0a0a] px-7 py-[15px] font-['Manrope'] text-[15px] font-semibold text-white transition hover:bg-[#1a1a1a] hover:shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
             >
-              Criar workspace — É grátis
+              Começar grátis
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </Link>
-            <Link
-              to="/login"
+            <a
+              href="#planos"
               className="inline-flex items-center gap-2 rounded-full border border-black/20 bg-white px-7 py-[15px] font-['Manrope'] text-[15px] font-semibold text-[#0a0a0a] transition hover:border-black/40 hover:bg-black/[0.03]"
             >
-              Baixar App Mobile
-            </Link>
+              Ver planos
+            </a>
           </div>
         </section>
 
-        {/* ── PRODUCT VISUAL ── */}
+        {/* ── PRODUCT VISUAL — Dashboard mockup ── */}
         <section className="mx-auto max-w-[1120px] px-6 pb-0 md:px-8">
-          <div
-            className="relative overflow-hidden rounded-[24px]"
-            style={{
-              background: "linear-gradient(135deg, #c8f542 0%, #48e8a8 38%, #64b8f0 65%, #b89cf8 100%)",
-              minHeight: "500px",
-            }}
-          >
-            {/* Floating card — left */}
-            <div className="absolute left-8 top-1/2 -translate-y-1/2 w-[220px] rounded-2xl bg-white p-4 shadow-[0_16px_48px_rgba(0,0,0,0.15)]">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f3f4f6] text-[13px] font-semibold text-[#0a0a0a]">C</div>
+          <div className="overflow-hidden rounded-[20px] border border-black/[0.08] bg-white shadow-[0_32px_80px_rgba(0,0,0,0.08)]">
+            {/* Browser chrome */}
+            <div className="flex items-center gap-2 border-b border-black/[0.06] bg-[#fafafa] px-4 py-[10px]">
+              <div className="flex gap-[6px]">
+                <div className="h-[10px] w-[10px] rounded-full bg-[#ff5f57]" />
+                <div className="h-[10px] w-[10px] rounded-full bg-[#febc2e]" />
+                <div className="h-[10px] w-[10px] rounded-full bg-[#28c840]" />
+              </div>
+              <div className="ml-3 flex-1 rounded-md bg-black/[0.04] px-3 py-[5px] text-center font-['Manrope'] text-[11px] text-black/40">
+                app.velo.com.br/dashboard/dropshipping
+              </div>
+            </div>
+
+            {/* Dashboard content */}
+            <div className="flex">
+              {/* Sidebar */}
+              <div className="hidden w-[180px] flex-shrink-0 border-r border-black/[0.06] bg-[#fafafa] md:block">
+                {/* Store selector */}
+                <div className="flex items-center gap-2 border-b border-black/[0.06] px-4 py-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0a0a0a]">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 6l6-4 6 4v7a1 1 0 01-1 1H3a1 1 0 01-1-1V6z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
                   <div>
-                    <div className="text-[12px] font-semibold text-[#0a0a0a]">Carlos S.</div>
-                    <div className="text-[10px] text-[#9ca3af]">agora mesmo</div>
+                    <div className="font-['Manrope'] text-[11px] font-bold text-[#0a0a0a]">Minha Loja</div>
+                    <div className="text-[9px] text-black/40">Workspace</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 rounded-full bg-[#0a0a0a] px-2 py-[2px] text-[10px] font-semibold text-white">
-                  <span>✕</span>
-                  <span>3 Novos</span>
+
+                {/* Nav items */}
+                <div className="px-3 py-3">
+                  <div className="mb-3 px-2 font-['Manrope'] text-[9px] font-semibold uppercase tracking-wider text-black/30">Workspace</div>
+                  {[
+                    { icon: "📦", label: "Produtos", active: false },
+                    { icon: "🏷", label: "Catálogo", active: false },
+                    { icon: "📋", label: "Pedidos", active: false },
+                    { icon: "🚚", label: "Dropshipping", active: true },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className={`mb-[2px] flex items-center gap-2.5 rounded-lg px-2 py-[7px] font-['Manrope'] text-[11px] transition ${
+                        item.active
+                          ? "bg-[#0a0a0a] font-semibold text-white"
+                          : "font-medium text-black/60 hover:bg-black/[0.04]"
+                      }`}
+                    >
+                      <span className="text-[12px]">{item.icon}</span>
+                      {item.label}
+                    </div>
+                  ))}
+
+                  <div className="my-3 h-px bg-black/[0.06]" />
+                  <div className="mb-3 px-2 font-['Manrope'] text-[9px] font-semibold uppercase tracking-wider text-black/30">Ferramentas</div>
+                  {[
+                    { icon: "🤖", label: "IA Anúncios", active: false },
+                    { icon: "📊", label: "Analytics", active: false },
+                    { icon: "💬", label: "Mensagens", active: false },
+                    { icon: "⚙", label: "Configurações", active: false },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="mb-[2px] flex items-center gap-2.5 rounded-lg px-2 py-[7px] font-['Manrope'] text-[11px] font-medium text-black/60 hover:bg-black/[0.04]"
+                    >
+                      <span className="text-[12px]">{item.icon}</span>
+                      {item.label}
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="rounded-xl bg-[#f9fafb] px-3 py-2 text-[11px] leading-[1.5] text-[#374151]">
-                Olá! O produto chegou? Quando sai meu pedido? 📦
-              </div>
-              <div className="mt-2 rounded-xl bg-[#0a0a0a] px-3 py-2 text-[11px] leading-[1.5] text-white">
-                IA respondendo automaticamente...
-              </div>
-            </div>
 
-            {/* Center decorative cloud shapes */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <svg width="220" height="140" viewBox="0 0 220 140" fill="none" opacity="0.18">
-                <ellipse cx="110" cy="90" rx="110" ry="50" fill="white" />
-                <ellipse cx="70" cy="70" rx="65" ry="40" fill="white" />
-                <ellipse cx="150" cy="65" rx="70" ry="42" fill="white" />
-                <ellipse cx="110" cy="55" rx="55" ry="38" fill="white" />
-              </svg>
-            </div>
-
-            {/* Floating cards — right */}
-            <div className="absolute right-8 top-1/2 flex -translate-y-1/2 flex-col gap-3">
-              {/* Co-pilot / IA badge */}
-              <div className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0a0a0a]">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M7 1.5C7 1.5 10 4 10 7s-3 5.5-3 5.5M7 1.5C7 1.5 4 4 4 7s3 5.5 3 5.5" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <span className="font-['DM_Sans'] text-[13px] font-semibold text-[#0a0a0a]">IA Velo</span>
-                <div className="flex gap-1">
-                  <span className="rounded bg-[#0a0a0a] px-1.5 py-0.5 text-[9px] font-bold text-white">ML</span>
-                  <span className="rounded bg-[#f97316] px-1.5 py-0.5 text-[9px] font-bold text-white">SP</span>
-                  <span className="rounded bg-[#3b82f6] px-1.5 py-0.5 text-[9px] font-bold text-white">SH</span>
-                </div>
-              </div>
-
-              {/* Automate card */}
-              <div className="w-[220px] rounded-2xl bg-white p-4 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f3f4f6] text-[13px] font-semibold">W</div>
-                  <div className="flex items-center gap-1 rounded-full bg-[#dcfce7] px-2 py-[2px]">
-                    <div className="h-[6px] w-[6px] rounded-full bg-[#16a34a] animate-pulse" />
-                    <span className="text-[10px] font-semibold text-[#16a34a]">Ativo</span>
+              {/* Main content */}
+              <div className="flex-1">
+                {/* Top bar */}
+                <div className="hidden items-center justify-between border-b border-black/[0.06] px-5 py-[10px] md:flex">
+                  <div className="flex items-center gap-2 font-['Manrope'] text-[11px] text-black/40">
+                    <span className="font-semibold text-[#0a0a0a]">Minha Loja</span>
+                    <span>/</span>
+                    <span>Dropshipping</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-lg bg-black/[0.04] px-3 py-[6px]">
+                      <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5" className="text-black/30"/><path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-black/30"/></svg>
+                      <span className="font-['Manrope'] text-[10px] text-black/30">Buscar produtos...</span>
+                    </div>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/[0.04]">
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2v4M8 10v4M2 8h4M10 8h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-black/40"/></svg>
+                    </div>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0a0a0a] font-['Manrope'] text-[9px] font-bold text-white">V</div>
                   </div>
                 </div>
-                <div className="text-[12px] font-semibold text-[#0a0a0a]">Automação*</div>
-                <div className="mt-0.5 text-[11px] leading-[1.4] text-[#9ca3af]">Deixe a IA cuidar das suas vendas</div>
+
+                <div className="p-5">
+                  {/* Page header */}
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-['Manrope'] text-[16px] font-bold text-[#0a0a0a]">Dropshipping</h3>
+                      <span className="rounded-full bg-[#0a0a0a] px-2 py-[2px] text-[8px] font-bold text-white">248 produtos</span>
+                    </div>
+                    <div className="hidden items-center gap-2 sm:flex">
+                      <div className="rounded-lg border border-black/[0.08] bg-white px-3 py-[5px] font-['Manrope'] text-[10px] font-medium text-black/50">
+                        Plataforma
+                        <span className="ml-1 text-black/25">▾</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filter bar */}
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-2.5 py-[5px]">
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5" className="text-black/30"/><path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-black/30"/></svg>
+                      <span className="font-['Manrope'] text-[10px] text-black/30">Buscar...</span>
+                    </div>
+                    {["Todos", "Eletrônicos", "Moda", "Casa", "Beleza"].map((cat, i) => (
+                      <span
+                        key={cat}
+                        className={`rounded-lg px-2.5 py-[5px] font-['Manrope'] text-[10px] font-semibold transition ${
+                          i === 0
+                            ? "bg-[#0a0a0a] text-white"
+                            : "border border-black/[0.08] bg-white text-black/50 hover:bg-black/[0.02]"
+                        }`}
+                      >
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Product grid */}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {[
+                      { name: "Fone Bluetooth TWS Pro Max", price: "R$45–R$89", minOrder: "10 un.", source: "AliExpress", sourceColor: "bg-[#e74c3c]", rating: "4.8", reviews: "1.345", img: "🎧", color: "bg-gradient-to-br from-[#f8f9fa] to-[#e9ecef]", tags: ["Eletrônico", "Bluetooth"] },
+                      { name: "Smartwatch Series X Ultra", price: "R$120–R$200", minOrder: "5 un.", source: "Shopee", sourceColor: "bg-[#ee4d2d]", rating: "4.9", reviews: "976", img: "⌚", color: "bg-gradient-to-br from-[#e0f2fe] to-[#dbeafe]", tags: ["Eletrônico", "Wearable"] },
+                      { name: "Tênis Casual Urban Style", price: "R$60–R$110", minOrder: "8 un.", source: "Amazon", sourceColor: "bg-[#ff9900]", rating: "4.7", reviews: "1.654", img: "👟", color: "bg-gradient-to-br from-[#fef3c7] to-[#fde68a]", tags: ["Moda", "Calçado"] },
+                      { name: "Kit Skincare 5 Passos", price: "R$35–R$75", minOrder: "12 un.", source: "AliExpress", sourceColor: "bg-[#e74c3c]", rating: "4.8", reviews: "886", img: "🧴", color: "bg-gradient-to-br from-[#f0fdf4] to-[#dcfce7]", tags: ["Beleza", "Skincare"] },
+                      { name: "Mochila Urbana Impermeável", price: "R$55–R$95", minOrder: "6 un.", source: "Shopee", sourceColor: "bg-[#ee4d2d]", rating: "4.5", reviews: "1.256", img: "🎒", color: "bg-gradient-to-br from-[#eff6ff] to-[#dbeafe]", tags: ["Acessório", "Urban"] },
+                      { name: "Mouse Ergonômico Sem Fio", price: "R$25–R$55", minOrder: "15 un.", source: "Amazon", sourceColor: "bg-[#ff9900]", rating: "4.6", reviews: "1.276", img: "🖱", color: "bg-gradient-to-br from-[#f5f5f5] to-[#e5e5e5]", tags: ["Eletrônico", "Periférico"] },
+                      { name: "Perfume Importado Premium", price: "R$80–R$150", minOrder: "4 un.", source: "AliExpress", sourceColor: "bg-[#e74c3c]", rating: "4.8", reviews: "1.334", img: "🧪", color: "bg-gradient-to-br from-[#fdf2f8] to-[#fce7f3]", tags: ["Beleza", "Perfumaria"] },
+                      { name: "Luminária LED Moderna", price: "R$30–R$65", minOrder: "10 un.", source: "Shopee", sourceColor: "bg-[#ee4d2d]", rating: "4.7", reviews: "1.967", img: "💡", color: "bg-gradient-to-br from-[#fefce8] to-[#fef08a]", tags: ["Casa", "Decoração"] },
+                    ].map((p) => (
+                      <div key={p.name} className="group overflow-hidden rounded-xl border border-black/[0.06] bg-white transition hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+                        {/* Product image area */}
+                        <div className={`relative flex h-[80px] items-center justify-center text-[28px] sm:h-[100px] ${p.color}`}>
+                          <div className="text-[32px] drop-shadow-sm">{p.img}</div>
+                          {/* Checkbox */}
+                          <div className="absolute left-2 top-2 h-[14px] w-[14px] rounded border border-black/[0.15] bg-white" />
+                        </div>
+
+                        <div className="p-[10px]">
+                          {/* Source + Rating */}
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`rounded px-1.5 py-[1px] text-[7px] font-bold text-white ${p.sourceColor}`}>{p.source}</span>
+                            </div>
+                            <div className="flex items-center gap-[3px]">
+                              <span className="text-[8px] text-[#f59e0b]">★</span>
+                              <span className="font-['Manrope'] text-[8px] font-semibold text-black/60">{p.rating}</span>
+                              <span className="text-[7px] text-black/30">({p.reviews})</span>
+                            </div>
+                          </div>
+
+                          {/* Product name */}
+                          <div className="mb-1.5 truncate font-['Manrope'] text-[10px] font-bold text-[#0a0a0a]">
+                            {p.name}
+                          </div>
+
+                          {/* Price + Min order */}
+                          <div className="mb-2 flex items-center justify-between">
+                            <div>
+                              <div className="font-['Manrope'] text-[7px] text-black/35">Preço</div>
+                              <div className="font-['Manrope'] text-[10px] font-bold text-[#0a0a0a]">{p.price}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-['Manrope'] text-[7px] text-black/35">Min. Pedido</div>
+                              <div className="font-['Manrope'] text-[10px] font-bold text-[#0a0a0a]">{p.minOrder}</div>
+                            </div>
+                          </div>
+
+                          {/* Tags */}
+                          <div className="mb-2.5 flex gap-1">
+                            {p.tags.map((tag) => (
+                              <span key={tag} className="rounded bg-black/[0.04] px-1.5 py-[2px] font-['Manrope'] text-[7px] font-medium text-black/45">{tag}</span>
+                            ))}
+                          </div>
+
+                          {/* Import button */}
+                          <div className="flex items-center gap-1">
+                            <div className="flex-1 rounded-lg bg-[#0a0a0a] py-[6px] text-center font-['Manrope'] text-[9px] font-semibold text-white transition group-hover:bg-[#1a1a1a]">
+                              Importar Produto
+                            </div>
+                            <div className="flex h-[26px] w-[26px] items-center justify-center rounded-lg border border-black/[0.08] bg-white text-[10px] text-black/40">
+                              »
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -165,6 +297,9 @@ const Index = () => {
 
         {/* ── MULTIPLATAFORMA ── */}
         <MultiPlatformSection />
+
+        {/* ── FEATURE DEEP-DIVES ── */}
+        <FeatureSections />
 
         {/* ── ANYWHERE (3 cards) ── */}
         <AnywhereSection />

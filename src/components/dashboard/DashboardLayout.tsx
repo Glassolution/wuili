@@ -32,7 +32,7 @@ const DashboardLayout = () => {
   }, [location.search]);
 
   return (
-    <div className="flex h-screen min-h-0 w-full max-w-full overflow-x-hidden bg-background">
+    <div className="dashboard-inter flex h-screen min-h-0 w-full max-w-full overflow-x-hidden bg-background">
       <div className="hidden h-full min-h-0 shrink-0 md:block" style={{ animation: "sidebarEntry 0.9s cubic-bezier(0.16,1,0.3,1) 0.3s both" }}>
         <DashboardSidebar />
       </div>

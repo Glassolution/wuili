@@ -27,10 +27,10 @@ const railLinks: RailLink[] = [
 ];
 
 const workspaceItems = [
-  { label: "Produtos", path: "/dashboard/produtos" },
-  { label: "Dropshipping", path: "/dashboard/dropshipping" },
-  { label: "Publicações", path: "/dashboard/publicacoes" },
-  { label: "Pedidos", path: "/dashboard/pedidos" },
+  { label: "Products", path: "/dashboard/produtos", hasSubmenu: true },
+  { label: "Dropshipping", path: "/dashboard/dropshipping", hasSubmenu: false },
+  { label: "Publicações", path: "/dashboard/publicacoes", hasSubmenu: false },
+  { label: "Pedidos", path: "/dashboard/pedidos", hasSubmenu: false },
 ];
 
 const DashboardSidebar = () => {
@@ -100,7 +100,7 @@ const DashboardSidebar = () => {
           <div className="relative">
             <button
               onClick={() => setMenuOpen(v => !v)}
-              className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-primary text-[11px] font-bold text-primary-foreground transition-opacity hover:opacity-90"
+              className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-foreground text-[11px] font-bold text-background transition-opacity hover:opacity-90"
             >
               {foto ? <img src={foto} alt="avatar" className="h-full w-full object-cover" /> : iniciais}
               <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full border-2 border-background bg-emerald-500" />
@@ -141,16 +141,16 @@ const DashboardSidebar = () => {
                 )}
               >
                 {item.label}
-                {active && <ChevronRight size={13} className="text-muted-foreground" />}
+                {item.hasSubmenu && <ChevronRight size={13} className="text-muted-foreground" />}
               </Link>
             );
           })}
         </nav>
 
         <div className="px-4 mt-4 border-t border-border pt-4">
-          <p className="text-xs text-muted-foreground">Precisa de ajuda?</p>
-          <Link to="/dashboard/configuracoes" className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5">
-            <HelpCircle size={11} /> Fale conosco
+          <p className="text-xs text-muted-foreground">Need some help?</p>
+          <Link to="/dashboard/configuracoes" className="text-xs text-foreground hover:underline flex items-center gap-1 mt-0.5">
+            <HelpCircle size={11} /> Drop us a word
           </Link>
         </div>
       </aside>

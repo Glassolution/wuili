@@ -14,7 +14,7 @@ const pageTitles: Record<string, string> = {
   "/dashboard/transacoes": "Transações",
   "/dashboard/clientes": "Clientes",
   "/dashboard/produtos": "Produtos",
-  "/dashboard/dropshipping": "Dropshipping",
+  "/dashboard/dropshipping": "Produtos",
   "/dashboard/pedidos": "Pedidos",
   "/dashboard/publicacoes": "Publicações",
   "/dashboard/pagamentos": "Pagamentos",
@@ -55,19 +55,19 @@ const DashboardTopbar = () => {
           <Menu size={20} />
         </button>
 
-        {/* Breadcrumb */}
+        {/* Breadcrumb — store name style like reference */}
         <div className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
-          <span className="font-medium text-foreground">Velo</span>
+          <span className="font-semibold text-foreground">Velo</span>
           <ChevronRight size={13} />
           <span>{pageTitle}</span>
         </div>
 
-        {/* Search */}
+        {/* Search — centered */}
         <div className="flex flex-1 justify-center">
           <div className="relative w-full max-w-sm">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-full rounded-xl border border-border bg-muted/50 py-2 pl-8 pr-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-muted/50 py-2 pl-8 pr-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20"
               placeholder="Search or Press '/' for commands"
             />
           </div>

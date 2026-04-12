@@ -39,23 +39,19 @@ const BrandMark = ({
             fill={cloudFill}
             d="M50.8 20.3c.1-.6.1-1.2.1-1.8 0-7.2-5.9-13.1-13.1-13.1-5.4 0-10.2 3.3-12.2 8.1-1.2-.5-2.5-.7-3.9-.7C15.2 12.8 9.8 18.2 9.8 24.8c0 6.6 5.4 12 12 12h28.6c5.5 0 9.9-4.4 9.9-9.9 0-4.3-2.7-7.9-6.5-9.3-.9 1.1-1.9 2-3 2.7z"
           />
-          {/* > symbol */}
-          <path
-            d="M25 20l6 5.5-6 5.5"
-            stroke={codeFill}
-            strokeWidth="2.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-          {/* _ symbol */}
-          <path
-            d="M34 32.5h9"
-            stroke={codeFill}
-            strokeWidth="2.8"
-            strokeLinecap="round"
-            fill="none"
-          />
+          {/* Shopping cart icon — centered inside cloud */}
+          <g transform="translate(20, 14) scale(0.95)">
+            <path
+              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.5 6M17 13l1.5 6"
+              stroke={codeFill}
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+            <circle cx="10" cy="20.5" r="1.2" fill={codeFill} />
+            <circle cx="17" cy="20.5" r="1.2" fill={codeFill} />
+          </g>
         </svg>
       </div>
       {showWordmark && (

@@ -1,200 +1,287 @@
 import { useState } from "react";
-import { Search, ChevronDown, MoreHorizontal, ArrowRight, Plus, LayoutGrid, Table } from "lucide-react";
-
-type StockLevel = "High" | "Low" | "Out of Stock";
-type ProductStatus = "Active" | "Draft" | "Archived";
-type ProductType = "Dropship" | "Inventory";
+import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight, Eye, EyeOff } from "lucide-react";
 
 type Product = {
   id: string;
   name: string;
-  sku: string;
   image: string;
-  status: ProductStatus;
-  type: ProductType;
+  source: string;
+  sourceIcon: string;
+  sourceColor: string;
+  rating: number;
+  reviews: string;
+  price: string;
+  minOrder: string;
   tags: string[];
-  retail: string;
-  wholesale: string;
-  stock: number | null;
-  stockLevel: StockLevel;
-  variants?: number;
 };
 
 const products: Product[] = [
-  { id: "1", name: "Macbook Pro 14 Inch 512GB...", sku: "Mac-5006", image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=80&h=80&fit=crop", status: "Active", type: "Dropship", tags: ["Apple", "Electronic", "+2"], retail: "$180.00–$220.00", wholesale: "$80.00–$50.00", stock: 210, stockLevel: "High", variants: 6 },
-  { id: "2", name: "Logitech MX Mechanical Mini...", sku: "Logitect-9920", image: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=80&h=80&fit=crop", status: "Active", type: "Inventory", tags: ["Mechanical", "Keyboard"], retail: "$120.00", wholesale: "$40.00", stock: 12, stockLevel: "Low" },
-  { id: "3", name: "JBL Go 2 Portable Speaker Bl...", sku: "JBL-9928", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=80&h=80&fit=crop", status: "Draft", type: "Dropship", tags: ["Speaker", "Electronic", "+2"], retail: "$180.00", wholesale: "$80.00", stock: 341, stockLevel: "High" },
-  { id: "4", name: "Gopro hero 7", sku: "Gopro-9912", image: "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=80&h=80&fit=crop", status: "Draft", type: "Dropship", tags: ["Camera", "Gopro", "+2"], retail: "$45.00", wholesale: "$5.00", stock: null, stockLevel: "Out of Stock" },
-  { id: "5", name: "DJI Air 3 Fly More Combo (DJ...", sku: "DJI-5006", image: "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=80&h=80&fit=crop", status: "Active", type: "Dropship", tags: ["DJI", "Electronic"], retail: "$85.00–$120.00", wholesale: "$5.00–$10.00", stock: 32, stockLevel: "Low", variants: 8 },
-  { id: "6", name: "Logitech C920 Webcam PRO...", sku: "Logitech-5006", image: "https://images.unsplash.com/photo-1587826080692-f439cd0b70da?w=80&h=80&fit=crop", status: "Draft", type: "Dropship", tags: ["Camera", "Accessories"], retail: "$60.00–$70.00", wholesale: "$10.00–$20.00", stock: null, stockLevel: "Out of Stock" },
-  { id: "7", name: "Thinkplus LP1 Headset Earph...", sku: "LP1-8821", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=80&h=80&fit=crop", status: "Active", type: "Dropship", tags: ["Headset", "Electronic", "+2"], retail: "$100.00–$140.00", wholesale: "$20.00–$30.00", stock: 55, stockLevel: "High" },
-  { id: "8", name: "JBL Charge 5 - Portable Blue...", sku: "JBL-1019", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=80&h=80&fit=crop", status: "Active", type: "Dropship", tags: ["JBL", "Electronic", "+2"], retail: "$100.00", wholesale: "$30.00", stock: 88, stockLevel: "High" },
-  { id: "9", name: "Acer Aspire 5 Spin 14\" A5SP1...", sku: "Acer-9829", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=80&h=80&fit=crop", status: "Active", type: "Dropship", tags: ["Laptop", "Electronic", "+2"], retail: "$400.00–$500.00", wholesale: "$100.00–$150.00", stock: 15, stockLevel: "Low" },
+  {
+    id: "1",
+    name: "Macbook Pro M1 Pro 14\" 512GB",
+    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop",
+    source: "Ali Express",
+    sourceIcon: "🔴",
+    sourceColor: "bg-[#e74c3c]",
+    rating: 4.8,
+    reviews: "1,345",
+    price: "$180–$220",
+    minOrder: "12 unit",
+    tags: ["Apple", "Electronic"],
+  },
+  {
+    id: "2",
+    name: "Monitor MSI 27\" Modern MD271UL 4K",
+    image: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&h=300&fit=crop",
+    source: "Amazon",
+    sourceIcon: "📦",
+    sourceColor: "bg-[#ff9900]",
+    rating: 4.9,
+    reviews: "976",
+    price: "$175–$200",
+    minOrder: "11 unit",
+    tags: ["MSI", "Electronic", "Display"],
+  },
+  {
+    id: "3",
+    name: "Macbook Pro M1 2020 13\" 512GB",
+    image: "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=400&h=300&fit=crop",
+    source: "Tokopedia",
+    sourceIcon: "🟢",
+    sourceColor: "bg-[#42b549]",
+    rating: 4.7,
+    reviews: "1,654",
+    price: "$180–$250",
+    minOrder: "10 unit",
+    tags: ["Apple", "Electronic"],
+  },
+  {
+    id: "4",
+    name: "Monitor MSI 27\" Modern MD271UL 4K",
+    image: "https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=400&h=300&fit=crop",
+    source: "Shopee",
+    sourceIcon: "🟠",
+    sourceColor: "bg-[#ee4d2d]",
+    rating: 4.8,
+    reviews: "886",
+    price: "$197–$224",
+    minOrder: "8 unit",
+    tags: ["MSI", "Electronic", "Display"],
+  },
+  {
+    id: "5",
+    name: "Macbook Pro M1 Pro 14\" 512GB",
+    image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=300&fit=crop",
+    source: "eBay",
+    sourceIcon: "🏷",
+    sourceColor: "bg-[#86b817]",
+    rating: 4.5,
+    reviews: "1,256",
+    price: "$180–$220",
+    minOrder: "12 unit",
+    tags: ["Apple", "Electronic"],
+  },
+  {
+    id: "6",
+    name: "Macbook Pro M1 Pro 14\" 512GB",
+    image: "https://images.unsplash.com/photo-1484788984921-03950022c9ef?w=400&h=300&fit=crop",
+    source: "Shopee",
+    sourceIcon: "🟠",
+    sourceColor: "bg-[#ee4d2d]",
+    rating: 4.6,
+    reviews: "1,276",
+    price: "$180–$220",
+    minOrder: "15 unit",
+    tags: ["Apple", "Electronic"],
+  },
+  {
+    id: "7",
+    name: "Macbook Air M1 2020 13\" 256GB",
+    image: "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400&h=300&fit=crop",
+    source: "Lazada",
+    sourceIcon: "❤️",
+    sourceColor: "bg-[#0f146d]",
+    rating: 4.8,
+    reviews: "1,334",
+    price: "$180–$220",
+    minOrder: "5 unit",
+    tags: ["Apple", "Electronic"],
+  },
+  {
+    id: "8",
+    name: "Apple 32\" Pro Display XDR Retina 6K",
+    image: "https://images.unsplash.com/photo-1527443195645-1133f7f28990?w=400&h=300&fit=crop",
+    source: "BigCommerce",
+    sourceIcon: "🔷",
+    sourceColor: "bg-[#34313f]",
+    rating: 4.7,
+    reviews: "1,967",
+    price: "$180–$220",
+    minOrder: "20 unit",
+    tags: ["Apple", "Electronic", "Display"],
+  },
 ];
 
-const statusCls: Record<ProductStatus, string> = {
-  Active: "bg-green-100 text-green-700",
-  Draft: "bg-gray-100 text-gray-500",
-  Archived: "bg-orange-100 text-orange-600",
-};
-
-const statusLabel: Record<ProductStatus, string> = {
-  Active: "Ativo",
-  Draft: "Não publicado",
-  Archived: "Arquivado",
-};
-
-const stockBarCls: Record<StockLevel, string> = {
-  High: "bg-green-500",
-  Low: "bg-red-500",
-  "Out of Stock": "bg-red-500",
-};
-
-const tabs: Array<{ label: string; value: string }> = [
-  { label: "Todos", value: "all" },
-  { label: "Ativo", value: "Active" },
-  { label: "Não publicado", value: "Draft" },
-  { label: "Arquivado", value: "Archived" },
-];
+const categories = ["Todos", "Eletrônicos", "Moda", "Beleza", "Casa"];
 
 const ProductsPage = () => {
-  const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("Todos");
+  const [showHidden, setShowHidden] = useState(false);
 
   const filtered = products.filter((p) => {
-    const matchTab = tab === "all" || p.status === tab;
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
-    return matchTab && matchSearch;
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    return matchSearch;
   });
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-foreground tracking-tight">Dropshipping</h2>
+          <button className="text-muted-foreground hover:text-foreground transition-colors">
+            <MoreHorizontal size={18} />
+          </button>
+          <button className="text-muted-foreground hover:text-foreground transition-colors">
+            <RefreshCw size={15} />
+          </button>
+        </div>
+        <button className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors">
+          Platform Integration
+          <ArrowRight size={14} />
+        </button>
+      </div>
+
+      {/* Subtitle */}
+      <p className="text-sm text-muted-foreground -mt-3">Encontre produtos e importe para sua loja</p>
+
+      {/* Filters row */}
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-bold text-foreground">Produtos</h2>
-          <button className="text-muted-foreground hover:text-foreground"><MoreHorizontal size={16} /></button>
-          <button className="text-muted-foreground hover:text-foreground"><ArrowRight size={16} /></button>
-        </div>
-        <button className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors">
-          <Plus size={15} /> Adicionar Produto
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border">
-        {tabs.map((t) => (
-          <button
-            key={t.value}
-            onClick={() => setTab(t.value)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              tab === t.value
-                ? "border-orange-500 text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-        <button className="flex items-center gap-1 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground border-b-2 border-transparent -mb-px">
-          <Plus size={13} /> Visualização
-        </button>
-        <div className="ml-auto flex items-center gap-2 pb-1">
-          <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-            Configurar Visualização
-          </button>
-          <div className="flex items-center gap-1 rounded-lg border border-border p-1">
-            <button className="rounded p-1 bg-muted"><LayoutGrid size={13} /></button>
-            <button className="rounded p-1 text-muted-foreground hover:bg-muted"><Table size={13} /></button>
+          {/* Search */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              className="w-44 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              placeholder="Search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-        </div>
-      </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2">
-        <div className="relative">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            className="w-44 pl-8 pr-3 py-1.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            placeholder="Buscar"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        {["Categoria", "Tipo", "Filtro Avançado"].map((f) => (
-          <button key={f} className="flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors">
-            {f} <ChevronDown size={12} />
+          {/* Date range pill */}
+          <button className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-2 text-sm font-medium text-background hover:opacity-80 transition-opacity">
+            2 Feb - 14 apr
+            <ChevronDown size={13} />
           </button>
-        ))}
+
+          {/* Filter buttons */}
+          <button className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
+            Payment Status <ChevronDown size={13} />
+          </button>
+          <button className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
+            Category <ChevronDown size={13} />
+          </button>
+
+          {/* Hide button */}
+          <button
+            onClick={() => setShowHidden(!showHidden)}
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Hide
+          </button>
+        </div>
+
+        {/* Category pills */}
+        <div className="hidden items-center gap-1.5 lg:flex">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
+                activeCategory === cat
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Product grid */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filtered.map((p) => (
-          <div key={p.id} className="rounded-2xl border border-border bg-background p-4 space-y-3 hover:shadow-sm transition-shadow">
-            {/* Top row */}
-            <div className="flex items-start gap-3">
-              <img src={p.image} alt={p.name} className="h-12 w-12 rounded-xl object-cover shrink-0 border border-border" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-1">
-                  <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
-                  <button className="text-muted-foreground shrink-0"><MoreHorizontal size={14} /></button>
-                </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-muted-foreground">SKU {p.sku}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusCls[p.status]}`}>
-                    {p.status === "Active" && <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500 mr-1" />}
-                    {statusLabel[p.status]}
+          <div
+            key={p.id}
+            className="group overflow-hidden rounded-2xl border border-border bg-background transition-shadow hover:shadow-md"
+          >
+            {/* Product image — contained in white/light bg */}
+            <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#f5f5f5] dark:bg-muted/50 p-6">
+              <img
+                src={p.image}
+                alt={p.name}
+                className="h-full w-full rounded-lg object-contain transition-transform duration-300 group-hover:scale-105"
+              />
+              {/* Checkbox */}
+              <div className="absolute left-3 top-3 flex h-5 w-5 items-center justify-center rounded border-2 border-border bg-background shadow-sm" />
+            </div>
+
+            {/* Card body — consistent left-aligned padding */}
+            <div className="px-4 pb-4 pt-3">
+              {/* Source + Rating */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className={`inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-white ${p.sourceColor}`}>
+                    {p.source.charAt(0)}
                   </span>
+                  <span className="text-[13px] font-medium text-foreground">{p.source}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[12px] text-amber-500">★</span>
+                  <span className="text-[13px] font-semibold text-foreground">{p.rating}</span>
+                  <span className="text-[12px] text-muted-foreground">({p.reviews})</span>
                 </div>
               </div>
-            </div>
 
-            {/* Tags */}
-            <div className="flex flex-wrap gap-1">
-              {p.tags.map((tag) => (
-                <span key={tag} className="rounded-md bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{tag}</span>
-              ))}
-              <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] text-muted-foreground flex items-center gap-1">
-                {p.type === "Dropship" ? "⬡" : "▦"} {p.type}
-              </span>
-            </div>
+              {/* Product name — wraps to next line if too long */}
+              <p className="mt-2 text-[14px] font-semibold leading-[1.35] text-foreground">
+                {p.name}
+              </p>
 
-            {/* Prices */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="text-[10px] text-muted-foreground">Preço de Venda</p>
-                <p className="text-sm font-semibold text-foreground">{p.retail}</p>
+              {/* Price + Min Order — same row, aligned */}
+              <div className="mt-3 flex items-baseline justify-between">
+                <div>
+                  <p className="text-[11px] leading-none text-muted-foreground">Price</p>
+                  <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{p.price}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] leading-none text-muted-foreground">Min. Order</p>
+                  <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{p.minOrder}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] text-muted-foreground">Lucro</p>
-                <p className="text-sm font-semibold text-foreground">{p.wholesale}</p>
-              </div>
-            </div>
 
-            {/* Stock + actions */}
-            <div className="flex items-center justify-between pt-1 border-t border-border">
-              <div className="flex items-center gap-2">
-                {p.stockLevel === "Out of Stock" ? (
-                  <span className="text-xs font-semibold text-red-500">Sem estoque</span>
-                ) : (
-                  <>
-                    <div className={`h-1.5 w-12 rounded-full ${stockBarCls[p.stockLevel]}`} />
-                    <span className="text-xs text-muted-foreground">{p.stock} em estoque · {p.stockLevel === "High" ? "Alto" : "Baixo"}</span>
-                  </>
-                )}
-                {p.variants && (
-                  <span className="text-xs text-muted-foreground ml-1">Variantes ({p.variants})</span>
-                )}
+              {/* Tags */}
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {p.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-md bg-muted px-2 py-[3px] text-[11px] font-medium text-muted-foreground"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
-              <div className="flex items-center gap-1">
-                {p.stockLevel === "Out of Stock" && (
-                  <button className="rounded-xl bg-foreground px-3 py-1.5 text-xs font-bold text-background hover:opacity-90 transition-opacity">
-                    Repor estoque
-                  </button>
-                )}
-                <button className="flex h-7 w-7 items-center justify-center rounded-xl border border-border hover:bg-muted transition-colors">
-                  <ArrowRight size={12} className="text-muted-foreground" />
+
+              {/* Import button */}
+              <div className="mt-3 flex items-center gap-2">
+                <button className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80">
+                  Import Product
+                </button>
+                <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted">
+                  <ChevronsRight size={16} />
                 </button>
               </div>
             </div>
