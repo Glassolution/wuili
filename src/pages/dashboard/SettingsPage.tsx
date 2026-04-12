@@ -99,7 +99,7 @@ const ProfileTab = () => {
       </div>
 
       {[
-        { label: "Email",    value: "contato@trendstore.com.br" },
+        { label: "Email",    value: "contato@velo.com.br" },
         { label: "Telefone", value: "(11) 98765-4321" },
         { label: "CPF/CNPJ", value: "12.345.678/0001-90" },
       ].map((f) => (
@@ -128,7 +128,7 @@ const StoresTab = () => (
     <div className="p-5 rounded-2xl border border-border">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <p className="font-bold">TrendStore BR</p>
+          <p className="font-bold">Velo</p>
           <span className="text-xs px-2.5 py-1 rounded-full bg-success-light text-success font-semibold">Ativa</span>
         </div>
       </div>

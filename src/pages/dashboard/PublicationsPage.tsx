@@ -173,7 +173,7 @@ const PublicationsPage = () => {
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <div className="card-wuili overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <table className="w-full min-w-[860px] table-fixed">
               <colgroup>
                 <col className="w-[42%]" />

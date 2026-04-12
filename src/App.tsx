@@ -5,14 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "./lib/profileContext";
-import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/LoginPage";
 import CadastroPage from "./pages/CadastroPage";
 import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
-import DashboardOverview from "./pages/dashboard/DashboardOverview";
+import { Navigate } from "react-router-dom";
 import AIChatPage from "./pages/dashboard/GitChatPage";
 import CatalogPage from "./pages/dashboard/CatalogPage";
 import OrdersPage from "./pages/dashboard/OrdersPage";
@@ -23,6 +22,7 @@ import IntegracoesPage from "./pages/dashboard/IntegracoesPage";
 import DashboardInfoPage from "./pages/dashboard/DashboardInfoPage";
 import SaldosPage from "./pages/dashboard/SaldosPage";
 import TransacoesPage from "./pages/dashboard/TransacoesPage";
+import ProductsPage from "./pages/dashboard/ProductsPage";
 import PagamentosPage from "./pages/dashboard/PagamentosPage";
 
 const queryClient = new QueryClient();
@@ -33,19 +33,15 @@ const App = () => (
     <ProfileProvider>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
+      <Sonner position="top-center" expand={false} style={{ width: "100vw", left: 0, top: 0, transform: "none" }} />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<CadastroPage />} />
           <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<AIChatPage />} />
+          <Route path="/dashboard" element={<DashboardLayout />}>
+            <Route index element={<Navigate to="/dashboard/produtos" replace />} />
             <Route path="ia" element={<AIChatPage />} />
             <Route path="saldos" element={<SaldosPage />} />
             <Route path="transacoes" element={<TransacoesPage />} />
@@ -75,7 +71,8 @@ const App = () => (
                 />
               }
             />
-            <Route path="catalogo" element={<CatalogPage />} />
+            <Route path="produtos" element={<CatalogPage />} />
+            <Route path="dropshipping" element={<ProductsPage />} />
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="publicacoes" element={<PublicationsPage />} />
             <Route path="relatorios" element={<ReportsPage />} />
