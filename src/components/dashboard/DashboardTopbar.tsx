@@ -45,7 +45,6 @@ const DashboardTopbar = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pageTitle = pageTitles[location.pathname] || "Dashboard";
-  const pageTitle = pageTitles[location.pathname] || "Dashboard";
 
   return (
     <>
