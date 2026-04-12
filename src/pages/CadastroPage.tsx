@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowRight } from "lucide-react";
+import { ArrowUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import BrandMark from "@/components/brand/BrandMark";
 
@@ -9,46 +9,46 @@ type Step = "nome" | "email" | "senha" | "whatsapp" | "nicho" | "criando";
 const STEPS: Step[] = ["nome", "email", "senha", "whatsapp", "nicho", "criando"];
 
 const questions: Record<Step, string> = {
-  nome: "Qual e o seu nome completo?",
+  nome: "Qual é o seu nome completo?",
   email: "",
   senha: "Crie uma senha segura.",
-  whatsapp: "Qual e o seu WhatsApp?",
-  nicho: "Qual nicho voce quer explorar?",
+  whatsapp: "Qual é o seu WhatsApp?",
+  nicho: "Qual nicho você quer explorar?",
   criando: "",
 };
 
 const placeholders: Record<Step, string> = {
   nome: "Seu nome completo",
   email: "seu@email.com",
-  senha: "Minimo 8 caracteres",
+  senha: "Mínimo 8 caracteres",
   whatsapp: "(XX) XXXXX-XXXX",
-  nicho: "Ex: moda, eletronicos, beleza...",
+  nicho: "Ex: moda, eletrônicos, beleza...",
   criando: "",
 };
 
 const subtexts: Record<Step, string> = {
-  nome: "Vamos comecar pelo basico",
-  email: "Usaremos para acessar sua conta",
-  senha: "Minimo de 8 caracteres",
-  whatsapp: "Para avisos sobre suas vendas",
-  nicho: "Escolha o mercado que mais te interessa",
+  nome: "Vamos começar pelo básico.",
+  email: "Usaremos para acessar sua conta.",
+  senha: "Mínimo de 8 caracteres.",
+  whatsapp: "Para avisos sobre suas vendas.",
+  nicho: "Escolha o mercado que mais te interessa.",
   criando: "",
 };
 
-const NICHOS = ["moda", "eletronicos", "beleza", "casa", "pets", "esportes"];
+const NICHOS = ["moda", "eletrônicos", "beleza", "casa", "pets", "esportes"];
 
 function passwordStrength(pw: string): { label: string; color: string; pct: number } {
-  if (pw.length < 4) return { label: "Fraca", color: "#EF4444", pct: 20 };
+  if (pw.length < 4) return { label: "Fraca", color: "#ef4444", pct: 20 };
   let score = 0;
   if (pw.length >= 8) score++;
   if (pw.length >= 12) score++;
   if (/[A-Z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { label: "Fraca", color: "#EF4444", pct: 25 };
-  if (score <= 2) return { label: "Razoavel", color: "#F59E0B", pct: 50 };
-  if (score <= 3) return { label: "Boa", color: "#3B82F6", pct: 75 };
-  return { label: "Forte", color: "#22C55E", pct: 100 };
+  if (score <= 1) return { label: "Fraca", color: "#ef4444", pct: 25 };
+  if (score <= 2) return { label: "Razoável", color: "#f59e0b", pct: 50 };
+  if (score <= 3) return { label: "Boa", color: "#3b82f6", pct: 75 };
+  return { label: "Forte", color: "#22c55e", pct: 100 };
 }
 
 function maskWhatsApp(v: string): string {
@@ -87,7 +87,7 @@ const CadastroPage = () => {
   }, [step, animating]);
 
   const getQuestion = () => {
-    if (step === "email") return `Prazer, ${nome.split(" ")[0]}! Qual e o seu email?`;
+    if (step === "email") return `Prazer, ${nome.split(" ")[0]}! Qual é o seu email?`;
     if (step === "criando") return `Criando sua conta, ${nome.split(" ")[0]}...`;
     return questions[step];
   };
@@ -115,15 +115,15 @@ const CadastroPage = () => {
       setNome(val);
       transitionTo("email", val);
     } else if (step === "email") {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) { setErrorText("Email invalido. Verifique e tente novamente."); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) { setErrorText("Email inválido. Verifique e tente novamente."); return; }
       setEmail(val);
       transitionTo("senha", val);
     } else if (step === "senha") {
       if (val.length < 8) { setErrorText("A senha precisa ter pelo menos 8 caracteres."); return; }
       setSenha(val);
-      transitionTo("whatsapp", "��������");
+      transitionTo("whatsapp", "••••••••");
     } else if (step === "whatsapp") {
-      if (!isValidWhatsApp(val)) { setErrorText("Formato invalido. Use (XX) XXXXX-XXXX."); return; }
+      if (!isValidWhatsApp(val)) { setErrorText("Formato inválido. Use (XX) XXXXX-XXXX."); return; }
       setWhatsapp(val);
       transitionTo("nicho", val);
     } else if (step === "nicho") {
@@ -151,7 +151,7 @@ const CadastroPage = () => {
           setLoading(false);
           if (error.message.includes("already registered") || error.message.includes("already been registered")) {
             setStep("email");
-            setErrorText("Esse email ja esta cadastrado. Tente outro ou faca login.");
+            setErrorText("Esse email já está cadastrado. Tente outro ou faça login.");
           } else {
             setStep("nicho");
             setErrorText(error.message);
@@ -177,142 +177,150 @@ const CadastroPage = () => {
   const str = step === "senha" ? passwordStrength(input) : null;
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(117,90,255,0.24),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(100,247,255,0.14),transparent_24%)]" />
-      <div className="absolute inset-0 panel-grid opacity-25" />
+    <div className="relative flex min-h-screen flex-col bg-[#0f0f0f] font-['Manrope'] text-white">
+      {/* ── Topbar ── */}
+      <header className="flex items-center justify-between px-5 py-4 sm:px-8">
+        <Link to="/" className="flex items-center opacity-90 transition hover:opacity-100">
+          <BrandMark size="xs" showWordmark tone="dark" />
+        </Link>
+        <span className="text-[12px] font-medium tracking-wide text-white/40">
+          {Math.min(stepIndex + 1, 5)} / 5
+        </span>
+      </header>
 
-      <div className="absolute left-0 right-0 top-0 z-10 h-1 bg-white/6">
+      {/* ── Thin progress bar ── */}
+      <div className="h-[2px] w-full bg-white/[0.06]">
         <div
-          className="h-full bg-cyan-300 transition-all duration-700 ease-out"
+          className="h-full bg-white/70 transition-all duration-700 ease-out"
           style={{ width: `${step === "criando" ? 100 : progressPct}%` }}
         />
       </div>
 
-      <div className="absolute right-6 top-6 z-10">
-        <span className="text-xs font-medium tracking-wide text-slate-400">
-          {Math.min(stepIndex + 1, 5)} / 5
-        </span>
-      </div>
+      {/* ── Chat area ── */}
+      <main className="flex flex-1 flex-col items-center px-5 pb-48 pt-16 sm:pt-24">
+        <div className="flex w-full max-w-[680px] flex-col gap-6">
 
-      <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-10">
-        <div className="card-wuili-elevated w-full max-w-[760px] px-6 py-10 sm:px-10">
-          <div className="mb-3 flex justify-center">
-            <BrandMark size="lg" showWordmark />
-          </div>
-          <div className="flex flex-col items-center">
-            <div className="mb-6 animate-fade-in">
-              <div className="rounded-[26px] border border-white/10 bg-white/5 p-3">
-                <BrandMark size="md" />
-              </div>
+          {/* Assistant bubble: question */}
+          <div key={`q-${step}`} className="flex animate-fade-in items-start gap-3">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1f1f1f] ring-1 ring-white/[0.08]">
+              <BrandMark size="xs" tone="dark" />
             </div>
-
-            <div className="relative mb-10 flex min-h-[80px] w-full flex-col items-center justify-center">
-              <h1
-                key={step}
-                className="animate-fade-in text-center text-[1.75rem] font-semibold leading-tight tracking-[-0.03em] text-white sm:text-[2.25rem]"
-              >
+            <div className="flex max-w-[calc(100%-3rem)] flex-col gap-1 rounded-2xl rounded-tl-sm bg-[#1f1f1f] px-5 py-4">
+              <h1 className="text-[1.0625rem] font-semibold leading-snug tracking-[-0.01em] text-white sm:text-[1.1875rem]">
                 {getQuestion()}
               </h1>
-
-              {subtexts[step] && !loading && (
-                <p
-                  key={`sub-${step}`}
-                  className="mt-3 animate-fade-in text-center text-sm text-slate-400"
-                  style={{ animationDelay: "100ms" }}
-                >
+              {subtexts[step] && (
+                <p className="text-[0.8125rem] leading-snug text-white/50">
                   {subtexts[step]}
                 </p>
               )}
+            </div>
+          </div>
 
-              {step === "criando" && (
-                <div className="mt-6 flex items-center gap-3 animate-fade-in">
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-cyan-300 border-t-transparent" />
-                  <span className="text-sm text-slate-300">Preparando tudo para voce...</span>
-                </div>
-              )}
+          {/* User confirmation bubble (appears briefly on send) */}
+          {confirmText && (
+            <div className="flex animate-fade-in justify-end">
+              <div className="flex max-w-[70%] items-center gap-2 rounded-2xl rounded-tr-sm bg-[#2a2a2a] px-4 py-[10px] text-[0.9375rem] text-white">
+                <Check size={14} className="text-white/60" strokeWidth={2.5} />
+                <span>{confirmText}</span>
+              </div>
+            </div>
+          )}
 
-              {confirmText && (
-                <p className="mt-4 animate-fade-in text-sm font-medium text-cyan-200">
-                  ? {confirmText}
-                </p>
-              )}
+          {/* Error as assistant follow-up */}
+          {errorText && (
+            <div className="flex animate-fade-in items-start gap-3">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1f1f1f] ring-1 ring-white/[0.08]">
+                <BrandMark size="xs" tone="dark" />
+              </div>
+              <div className="rounded-2xl rounded-tl-sm bg-[#2a1515] px-5 py-3 text-[0.875rem] text-[#fca5a5]">
+                {errorText}
+              </div>
+            </div>
+          )}
 
-              {errorText && (
-                <p className="mt-4 animate-fade-in text-sm font-medium text-red-400">
-                  {errorText}
-                </p>
-              )}
+          {/* Creating state */}
+          {step === "criando" && (
+            <div className="flex animate-fade-in items-center gap-3 pl-12 text-[0.875rem] text-white/60">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
+              <span>Preparando tudo para você...</span>
+            </div>
+          )}
+
+          {/* Nicho quick picks (shown above composer on step) */}
+          {step === "nicho" && !animating && (
+            <div className="flex flex-wrap gap-2 pl-12">
+              {NICHOS.map(n => (
+                <button
+                  key={n}
+                  onClick={() => { setInput(n); setTimeout(() => inputRef.current?.focus(), 0); }}
+                  className="rounded-full border border-white/[0.08] bg-[#1a1a1a] px-3 py-[7px] text-[0.8125rem] font-medium capitalize text-white/70 transition hover:border-white/20 hover:bg-[#262626] hover:text-white"
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ── Composer (sticky bottom, ChatGPT style) ── */}
+      {step !== "criando" && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/95 to-transparent px-5 pb-6 pt-10 sm:pb-8">
+          <div className="pointer-events-auto flex w-full max-w-[680px] flex-col gap-2">
+            <div className="relative flex items-end rounded-[24px] border border-white/[0.08] bg-[#1f1f1f] shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-colors focus-within:border-white/20">
+              <input
+                ref={inputRef}
+                type={step === "senha" ? "password" : "text"}
+                value={input}
+                onChange={e => {
+                  setErrorText(null);
+                  if (step === "whatsapp") {
+                    setInput(maskWhatsApp(e.target.value));
+                  } else {
+                    setInput(e.target.value);
+                  }
+                }}
+                onKeyDown={e => e.key === "Enter" && handleSend()}
+                placeholder={placeholders[step]}
+                disabled={loading || animating}
+                autoFocus
+                className="flex-1 bg-transparent px-5 py-[18px] text-[0.9375rem] text-white outline-none placeholder:text-white/30 disabled:opacity-50"
+              />
+              <button
+                onClick={handleSend}
+                disabled={loading || animating || !input.trim()}
+                aria-label="Enviar"
+                className="mb-[9px] mr-[9px] flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-black transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
+              >
+                <ArrowUp size={18} strokeWidth={2.5} />
+              </button>
             </div>
 
-            {step !== "criando" && (
-              <div className="w-full animate-fade-in" key={`input-${step}`}>
-                {step === "nicho" && (
-                  <div className="mb-5 flex flex-wrap justify-center gap-2">
-                    {NICHOS.map(n => (
-                      <button
-                        key={n}
-                        onClick={() => { setInput(n); setTimeout(() => inputRef.current?.focus(), 0); }}
-                        className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium capitalize text-slate-300 transition-all hover:border-cyan-300/50 hover:bg-cyan-300 hover:text-slate-950"
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="relative flex items-center">
-                  <input
-                    ref={inputRef}
-                    type={step === "senha" ? "password" : "text"}
-                    value={input}
-                    onChange={e => {
-                      setErrorText(null);
-                      if (step === "whatsapp") {
-                        setInput(maskWhatsApp(e.target.value));
-                      } else {
-                        setInput(e.target.value);
-                      }
-                    }}
-                    onKeyDown={e => e.key === "Enter" && handleSend()}
-                    placeholder={placeholders[step]}
-                    disabled={loading || animating}
-                    autoFocus
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 pr-14 text-base text-white outline-none transition-all placeholder:text-slate-500 focus:border-cyan-300/40 focus:ring-2 focus:ring-cyan-300/10 disabled:opacity-50"
+            {/* Password strength meter */}
+            {step === "senha" && input.length > 0 && str && (
+              <div className="flex items-center gap-3 px-2">
+                <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/[0.08]">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ width: `${str.pct}%`, backgroundColor: str.color }}
                   />
-                  <button
-                    onClick={handleSend}
-                    disabled={loading || animating || !input.trim()}
-                    className="absolute right-2 flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-300 text-slate-950 transition-colors hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-30"
-                  >
-                    <ArrowRight size={18} />
-                  </button>
                 </div>
-
-                {step === "senha" && input.length > 0 && str && (
-                  <div className="mt-3 flex items-center gap-3 px-1">
-                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{ width: `${str.pct}%`, backgroundColor: str.color }}
-                      />
-                    </div>
-                    <span className="text-xs font-medium" style={{ color: str.color }}>
-                      {str.label}
-                    </span>
-                  </div>
-                )}
-
-                <p className="mt-8 text-center text-sm text-slate-400">
-                  Ja tem conta?{' '}
-                  <Link to="/login" className="font-semibold text-cyan-200 hover:text-white">
-                    Fazer login
-                  </Link>
-                </p>
+                <span className="text-[11px] font-medium" style={{ color: str.color }}>
+                  {str.label}
+                </span>
               </div>
             )}
+
+            <p className="text-center text-[12px] text-white/40">
+              Já tem conta?{" "}
+              <Link to="/login" className="font-semibold text-white/80 hover:text-white">
+                Fazer login
+              </Link>
+            </p>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

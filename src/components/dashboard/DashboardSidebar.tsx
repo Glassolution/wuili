@@ -43,8 +43,8 @@ const DashboardSidebar = () => {
 
   return (
     <nav className="flex h-full w-20 shrink-0 flex-col items-center border-r border-white/10 bg-[#090b17]/80 py-5 backdrop-blur-xl">
-      <Link to="/dashboard" className="mb-8 shrink-0" title="Wuilli">
-        <BrandMark size="sm" />
+      <Link to="/dashboard" className="mb-8 shrink-0" title="Velo">
+        <BrandMark size="sm" tone="dark" />
       </Link>
 
       <div className="flex flex-1 flex-col items-center gap-1.5">

@@ -40,7 +40,7 @@ const HeroCard = () => {
           <div className="w-3 h-3 rounded-full bg-success/80" />
         </div>
         <div className="flex-1 text-center">
-          <span className="text-xs text-muted-foreground bg-background rounded px-3 py-0.5">app.wuili.com.br</span>
+          <span className="text-xs text-muted-foreground bg-background rounded px-3 py-0.5">app.velo.com.br</span>
         </div>
       </div>
 

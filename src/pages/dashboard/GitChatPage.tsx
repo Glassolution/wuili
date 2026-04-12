@@ -38,7 +38,7 @@ type Conversation = {
   date: string;
 };
 
-/* ══ Wuilli hex icon ══════════════════════════════════════════ */
+/* ══ Velo hex icon ══════════════════════════════════════════ */
 const WuilliHex = ({ size = 28 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 30 30" fill="none" style={{ flexShrink: 0 }}>
     <rect width="30" height="30" rx="8" fill="#7C3AED" />
@@ -150,7 +150,7 @@ const InputBar = ({ input, thinking, inputRef, onChange, onSend }: InputBarProps
       <input
         ref={inputRef}
         type="text"
-        placeholder={thinking ? "Wuilli está pensando..." : "Ask me anything ..."}
+        placeholder={thinking ? "Velo está pensando..." : "Ask me anything ..."}
         value={input}
         disabled={thinking}
         onChange={e => onChange(e.target.value)}

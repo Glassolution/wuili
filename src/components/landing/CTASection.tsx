@@ -4,7 +4,7 @@ const CTASection = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="relative z-[1] overflow-hidden bg-[#0a0f1e] py-[120px] text-center">
+    <section className="relative z-[1] overflow-hidden bg-black py-[120px] text-center">
       {/* Blue gradient card */}
       <div className="mx-auto max-w-[1100px] px-6 md:px-10">
         <div className="relative mx-auto max-w-[720px] overflow-hidden rounded-[28px] px-[60px] py-[80px]">

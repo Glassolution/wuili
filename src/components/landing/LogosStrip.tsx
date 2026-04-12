@@ -1,5 +1,5 @@
 const LogosStrip = () => (
-  <div className="border-y border-white/[0.05] bg-[#080d1a] py-14">
+  <div className="border-y border-white/[0.05] bg-black py-14">
     <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-center gap-x-16 gap-y-10 px-10">
 
       {/* Mercado Livre */}

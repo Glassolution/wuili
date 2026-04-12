@@ -11,7 +11,7 @@ const Navbar = () => (
   <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-[52px] py-[18px] bg-[rgba(250,250,250,0.82)] backdrop-blur-[20px] border-b border-[rgba(0,0,0,0.07)]">
     <Link to="/" className="flex items-center gap-[10px] no-underline">
       <WuilliLogo />
-      <span className="font-['Sora'] font-bold text-[1.2rem] text-[#0A0A0A] tracking-[-0.035em]">wuilli</span>
+      <span className="font-['Sora'] font-bold text-[1.2rem] text-[#0A0A0A] tracking-[-0.035em]">velo</span>
     </Link>
     <ul className="hidden md:flex items-center gap-[34px] list-none">
       <li><a href="#como-funciona" className="text-[0.875rem] font-normal text-[#6B6B6B] no-underline hover:text-[#0A0A0A] transition-colors">Como funciona</a></li>

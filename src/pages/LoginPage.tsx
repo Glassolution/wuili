@@ -46,7 +46,7 @@ const LoginPage = () => {
         <div className="grid min-h-[680px] lg:grid-cols-[0.9fr_1.1fr]">
           <div className="hidden border-r border-white/10 bg-[linear-gradient(160deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] p-10 lg:flex lg:flex-col lg:justify-between">
             <div>
-              <BrandMark size="lg" showWordmark />
+              <BrandMark size="lg" showWordmark tone="dark" />
               <div className="mt-10 label-upper">Access node</div>
               <h2 className="mt-4 text-4xl leading-tight">Entre no centro de comando da sua operacao.</h2>
               <p className="mt-5 max-w-md text-sm leading-7 text-slate-300">
@@ -63,9 +63,9 @@ const LoginPage = () => {
           <div className="relative flex items-center justify-center px-6 py-10 sm:px-10">
             <div className="w-full max-w-sm">
               <div className="mb-8 flex flex-col items-center text-center">
-                <BrandMark size="lg" />
+                <BrandMark size="lg" tone="dark" />
                 <h1 className="mt-5 text-3xl text-white">
-                  {resetMode ? "Recuperar senha" : "Entrar na Wuilli"}
+                  {resetMode ? "Recuperar senha" : "Entrar na Velo"}
                 </h1>
                 <p className="mt-2 text-sm text-slate-300">
                   {resetMode
@@ -96,7 +96,7 @@ const LoginPage = () => {
                       onChange={e => setPassword(e.target.value)}
                       required
                       className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition-all placeholder:text-slate-500 focus:border-cyan-300/40 focus:ring-2 focus:ring-cyan-300/10"
-                      placeholder="••••••••"
+                      placeholder="ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
                     />
                   </div>
                 )}

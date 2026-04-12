@@ -1,284 +1,181 @@
 import { Link } from "react-router-dom";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import BrandMark from "@/components/brand/BrandMark";
 import LogosStrip from "@/components/landing/LogosStrip";
-import FeaturesSection from "@/components/landing/FeaturesSection";
-import HowItWorks from "@/components/landing/HowItWorks";
+import CreditBanner from "@/components/landing/CreditBanner";
+import MultiPlatformSection from "@/components/landing/MultiPlatformSection";
+import AnywhereSection from "@/components/landing/AnywhereSection";
 import TestimonialsSection from "@/components/landing/TestimonialsSection";
 import PricingSection from "@/components/landing/PricingSection";
 import CTASection from "@/components/landing/CTASection";
 import Footer from "@/components/landing/Footer";
 
-const sidebarItems = [
-  "Novo chat",
-  "Automacoes",
-  "Skills",
-  "Wuilli",
-  "Landing principal",
-  "Revisar anuncios",
-];
-
-const activityRows = [
-  "Vou simplificar o hero e reforcar a clareza da proposta.",
-  "Ajustei a hierarquia visual para um visual mais leve.",
-  "CTA principal mais direto e sem ruido.",
-];
-
-const codeLines = [
-  'export const hero = {',
-  '  title: "Wuilli",',
-  '  subtitle: "Sua operacao de vendas, automatizada por IA.",',
-  '  primaryCta: "Criar workspace",',
-  '};',
-];
-
-
-const navGroups = {
-  Produto: ["ChatGPT", "Sora", "Atlas", "Codex", "Prism"],
-  Recursos: ["Automacoes", "Catalogo IA", "Operacao", "Relatorios"],
-  Precos: ["Starter", "Growth", "Scale", "Enterprise"],
-  Empresa: ["Sobre", "Clientes", "Carreiras", "Contato"],
-  Desenvolvedores: ["API", "Documentacao", "SDKs", "Status"],
-} as const;
-
-const navMeta = {
-  Produto: {
-    eyebrow: "Explore Produto",
-    featured: ["ChatGPT", "Sora", "Atlas", "Codex", "Prism"],
-    secondary: ["Automacoes", "Workspace IA", "Catalogo", "Respostas"],
-  },
-  Recursos: {
-    eyebrow: "Explore Recursos",
-    featured: ["Automacoes", "Catalogo IA", "Operacao", "Relatorios"],
-    secondary: ["Central de ajuda", "Tutoriais", "Modelos", "Playbooks"],
-  },
-  Precos: {
-    eyebrow: "Explore Precos",
-    featured: ["Starter", "Growth", "Scale", "Enterprise"],
-    secondary: ["Comparar planos", "Consultoria", "Implementacao", "Suporte"],
-  },
-  Empresa: {
-    eyebrow: "Explore Empresa",
-    featured: ["Sobre", "Clientes", "Carreiras", "Contato"],
-    secondary: ["Manifesto", "Casos", "Parceiros", "Midia"],
-  },
-  Desenvolvedores: {
-    eyebrow: "Explore Desenvolvedores",
-    featured: ["Plataforma de API", "Codex", "Agentes", "Modelos Abertos", "Aplicativos"],
-    secondary: ["Documentos", "Livros de receitas", "Comunidade", "Status"],
-  },
-} as const;
+const NAV_LINKS = ["Produto", "Soluções", "FAQ", "Suporte"];
 
 const Index = () => {
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const [activeMenu, setActiveMenu] = useState<keyof typeof navGroups | null>(null);
-
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div
-      ref={rootRef}
-      className="relative min-h-screen overflow-x-hidden bg-[#0e0e10] text-[#0a0a0a]"
-    >
-      {/* Lavender gradient overlay — covers hero area only, fades to transparent */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[1200px]" style={{ background: "linear-gradient(to bottom, #dfe6ff 0%, #ced7ff 55%, #0e0e10 100%)" }} />
+    <div className="min-h-screen overflow-x-hidden bg-white text-[#0a0a0a]">
 
-      <div className="relative z-10">
-        <header
-          className="sticky top-0 z-40"
-          onMouseLeave={() => setActiveMenu(null)}
-        >
-          <div
-            className={`absolute inset-x-0 top-0 overflow-hidden bg-black text-white transition-[height,opacity,transform] duration-300 ${activeMenu ? "h-[408px] translate-y-0 opacity-100" : "h-0 -translate-y-2 opacity-0"}`}
-            style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
-          >
-            <div className="mx-auto grid max-w-[1280px] grid-cols-[minmax(280px,1.1fr)_minmax(220px,0.7fr)] gap-24 px-6 pb-12 pt-24 md:px-8">
-              <div>
-                <div className="mb-5 text-sm text-[#8ec5ff]">
-                  {activeMenu ? navMeta[activeMenu].eyebrow : ""}
-                </div>
-                <div className="space-y-3 font-['Manrope']">
-                  {(activeMenu ? navMeta[activeMenu].featured : []).map((item) => (
-                    <a
-                      key={item}
-                      href="#"
-                      className="block text-[24px] font-medium tracking-[-0.03em] text-white transition hover:translate-x-1 hover:text-white/75 md:text-[30px]"
-                    >
-                      {item}
-                    </a>
-                  ))}
-                </div>
-              </div>
-              <div className="pt-1">
-                <div className="mb-5 text-sm text-[#9ca3af]">Recursos</div>
-                <div className="space-y-3 font-['Manrope']">
-                  {(activeMenu ? navMeta[activeMenu].secondary : []).map((item) => (
-                    <a
-                      key={item}
-                      href="#"
-                      className="block text-[16px] font-semibold text-white transition hover:text-white/75"
-                    >
-                      {item}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
+      {/* ── NAVBAR ── */}
+      <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-white/90 backdrop-blur-[12px]">
+        <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-[14px] md:px-8">
+          {/* Logo */}
+          <Link to="/" className="flex items-center">
+            <BrandMark size="xs" showWordmark tone="light" />
+          </Link>
+
+          {/* Nav links (desktop) */}
+          <nav className="hidden items-center gap-8 font-['Manrope'] text-[14px] font-medium text-[#0a0a0a]/70 md:flex">
+            {NAV_LINKS.map((item) => (
+              <a key={item} href="#" className="transition hover:text-[#0a0a0a]">{item}</a>
+            ))}
+          </nav>
+
+          {/* Actions */}
+          <div className="flex items-center gap-4">
+            <Link to="/login" className="hidden font-['Manrope'] text-[14px] font-medium text-[#0a0a0a]/70 transition hover:text-[#0a0a0a] md:inline-flex">
+              Preços
+            </Link>
+            <Link
+              to="/cadastro"
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0a] px-5 py-[10px] font-['Manrope'] text-[13.5px] font-semibold text-white transition hover:bg-[#1a1a1a]"
+            >
+              Criar workspace
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
           </div>
-
-          <div className={`relative mx-auto flex max-w-[1280px] items-center justify-between px-6 py-4 transition-colors duration-300 md:px-8 ${activeMenu ? "text-white" : "text-[#0a0a0a]"}`}>
-            <div className="flex items-center gap-10">
-              <Link to="/" className="flex items-center">
-                <span className="text-[17px] font-semibold tracking-[-0.01em]">Wuilli</span>
-              </Link>
-              <nav className="hidden items-center gap-7 text-[14px] font-normal md:flex">
-                {Object.keys(navGroups).map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onMouseEnter={() => setActiveMenu(item as keyof typeof navGroups)}
-                    className={`transition ${activeMenu === item ? "opacity-100" : "hover:opacity-60"}`}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </nav>
-            </div>
-            <div className="flex items-center gap-4 md:gap-5">
-              <button aria-label="Buscar" className="hidden p-1.5 transition hover:opacity-60 md:inline-flex">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
-                  <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </button>
-              <Link to="/login" className="hidden text-[14px] font-normal transition hover:opacity-60 md:inline-flex">
-                Entrar
-              </Link>
-              <Link
-                to="/cadastro"
-                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2.5 text-[13.5px] font-medium transition ${activeMenu ? "bg-white text-black hover:bg-white/90" : "bg-[#0a0a0a] text-white hover:bg-[#1a1a1a]"}`}
-              >
-                Criar workspace
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                  <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </header>
-
-        <main
-          className={`px-6 pb-16 pt-2 transition-[transform,opacity] duration-300 md:px-10 md:pb-24 md:pt-4 ${activeMenu ? "scale-[0.995] opacity-50" : "opacity-100"}`}
-          style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
-        >
-          <section className="mx-auto flex max-w-[860px] flex-col items-center text-center">
-            <div className="mb-3 flex items-center justify-center">
-              <img
-                src="/logo-transparente.png"
-                alt="Wuilli"
-                className="h-40 w-40 object-contain drop-shadow-[0_18px_44px_rgba(79,70,229,0.24)] md:h-48 md:w-48"
-              />
-            </div>
-
-            <h1 className="font-['Sora'] text-[44px] font-medium leading-[1.02] tracking-[-0.045em] text-[#0a0a0a] md:text-[60px]">
-              Wuilli
-            </h1>
-
-            <p className="mt-2 max-w-[760px] font-['Sora'] text-[15px] font-normal leading-[1.6] tracking-[-0.012em] text-[#0a0a0a]/82 md:text-[18px]">
-              Um agente de vendas que ajuda voce a publicar, responder e vender no e-commerce com IA, com operacao automatizada ponta a ponta.
-            </p>
-
-            <div className="mt-5">
-              <Link
-                to="/cadastro"
-                className="inline-flex items-center gap-2 rounded-full bg-[#0a0a0a] px-7 py-4 text-[15px] font-medium text-white transition hover:bg-[#1a1a1a] hover:shadow-[0_18px_40px_rgba(10,10,10,0.25)]"
-              >
-                Criar workspace
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Link>
-            </div>
-          </section>
-
-          <section className="mx-auto mt-20 max-w-[1120px] md:mt-24">
-            <div className="overflow-hidden rounded-[20px] border border-black/8 bg-[#0c0c0d]/96 shadow-[0_40px_120px_rgba(46,55,120,0.22)] [transform:perspective(1800px)_rotateX(7deg)]">
-              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white/78">
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-                  <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
-                  <span className="h-3 w-3 rounded-full bg-[#28c840]" />
-                </div>
-                <div className="text-sm font-medium">Workspace Wuilli</div>
-                <div className="rounded-full border border-white/12 px-3 py-1 text-xs">Abrir</div>
-              </div>
-
-              <div className="grid min-h-[440px] md:grid-cols-[230px_1fr_380px]">
-                <aside className="border-r border-white/10 bg-[#556091]/92 px-4 py-5 text-white">
-                  <div className="mb-6 text-sm font-medium text-white/84">Navegacao</div>
-                  <div className="space-y-2">
-                    {sidebarItems.map((item, index) => (
-                      <div
-                        key={item}
-                        className={`rounded-xl px-3 py-2 text-sm ${
-                          index === 4 ? "bg-white/14 text-white" : "text-white/78"
-                        }`}
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </aside>
-
-                <div className="border-r border-white/10 bg-[#0c0c0d] px-5 py-5 text-white">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="text-base font-medium">Atualizar hero</div>
-                    <div className="text-xs text-white/44">agora</div>
-                  </div>
-
-                  <div className="max-w-md rounded-[20px] bg-white/[0.08] px-4 py-3 text-sm leading-7 text-white/88">
-                    Vou deixar a landing mais silenciosa, clara e premium, com foco total no produto e no CTA.
-                  </div>
-
-                  <div className="mt-6 space-y-3">
-                    {activityRows.map((item) => (
-                      <div
-                        key={item}
-                        className="rounded-2xl bg-white/[0.04] px-4 py-3 text-sm leading-7 text-white/70"
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-[#151516] px-5 py-5 text-white">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="text-sm font-medium">2 arquivos alterados</div>
-                    <div className="text-xs text-[#6fda7a]">+8 -3</div>
-                  </div>
-
-                  <div className="rounded-[18px] bg-[#1d1d1f] p-4 font-mono text-[13px] leading-7 text-white/88">
-                    {codeLines.map((line, index) => (
-                      <div key={`${line}-${index}`} className="whitespace-pre">
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </main>
-
-        {/* Smooth gradient transition — wraps logos + features so there's no seam */}
-        <div className="bg-[#0e0e10]">
-          <LogosStrip />
         </div>
-        <HowItWorks />
+      </header>
+
+      {/* ── HERO ── */}
+      <main>
+        <section className="mx-auto flex max-w-[760px] flex-col items-center px-6 pb-10 pt-20 text-center md:pt-28">
+
+          {/* Headline */}
+          <h1 className="mb-6 font-['Manrope'] text-[clamp(2.75rem,5.5vw,4.5rem)] font-[700] leading-[1.08] tracking-[-0.035em] text-[#0a0a0a]">
+            A Plataforma de<br />Vendas com IA<br />para e-commerce
+          </h1>
+
+          {/* Subtitle */}
+          <p className="mb-10 max-w-[480px] font-['Manrope'] text-[1.0625rem] font-normal leading-[1.65] text-[#6b7280]">
+            Publique, responda e venda no e-commerce com IA — operação automatizada ponta a ponta, sem esforço manual.
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/cadastro"
+              className="inline-flex items-center gap-2 rounded-full bg-[#0a0a0a] px-7 py-[15px] font-['Manrope'] text-[15px] font-semibold text-white transition hover:bg-[#1a1a1a] hover:shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
+            >
+              Criar workspace — É grátis
+            </Link>
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 rounded-full border border-black/20 bg-white px-7 py-[15px] font-['Manrope'] text-[15px] font-semibold text-[#0a0a0a] transition hover:border-black/40 hover:bg-black/[0.03]"
+            >
+              Baixar App Mobile
+            </Link>
+          </div>
+        </section>
+
+        {/* ── PRODUCT VISUAL ── */}
+        <section className="mx-auto max-w-[1120px] px-6 pb-0 md:px-8">
+          <div
+            className="relative overflow-hidden rounded-[24px]"
+            style={{
+              background: "linear-gradient(135deg, #c8f542 0%, #48e8a8 38%, #64b8f0 65%, #b89cf8 100%)",
+              minHeight: "500px",
+            }}
+          >
+            {/* Floating card — left */}
+            <div className="absolute left-8 top-1/2 -translate-y-1/2 w-[220px] rounded-2xl bg-white p-4 shadow-[0_16px_48px_rgba(0,0,0,0.15)]">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f3f4f6] text-[13px] font-semibold text-[#0a0a0a]">C</div>
+                  <div>
+                    <div className="text-[12px] font-semibold text-[#0a0a0a]">Carlos S.</div>
+                    <div className="text-[10px] text-[#9ca3af]">agora mesmo</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 rounded-full bg-[#0a0a0a] px-2 py-[2px] text-[10px] font-semibold text-white">
+                  <span>✕</span>
+                  <span>3 Novos</span>
+                </div>
+              </div>
+              <div className="rounded-xl bg-[#f9fafb] px-3 py-2 text-[11px] leading-[1.5] text-[#374151]">
+                Olá! O produto chegou? Quando sai meu pedido? 📦
+              </div>
+              <div className="mt-2 rounded-xl bg-[#0a0a0a] px-3 py-2 text-[11px] leading-[1.5] text-white">
+                IA respondendo automaticamente...
+              </div>
+            </div>
+
+            {/* Center decorative cloud shapes */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <svg width="220" height="140" viewBox="0 0 220 140" fill="none" opacity="0.18">
+                <ellipse cx="110" cy="90" rx="110" ry="50" fill="white" />
+                <ellipse cx="70" cy="70" rx="65" ry="40" fill="white" />
+                <ellipse cx="150" cy="65" rx="70" ry="42" fill="white" />
+                <ellipse cx="110" cy="55" rx="55" ry="38" fill="white" />
+              </svg>
+            </div>
+
+            {/* Floating cards — right */}
+            <div className="absolute right-8 top-1/2 flex -translate-y-1/2 flex-col gap-3">
+              {/* Co-pilot / IA badge */}
+              <div className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0a0a0a]">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M7 1.5C7 1.5 10 4 10 7s-3 5.5-3 5.5M7 1.5C7 1.5 4 4 4 7s3 5.5 3 5.5" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <span className="font-['DM_Sans'] text-[13px] font-semibold text-[#0a0a0a]">IA Velo</span>
+                <div className="flex gap-1">
+                  <span className="rounded bg-[#0a0a0a] px-1.5 py-0.5 text-[9px] font-bold text-white">ML</span>
+                  <span className="rounded bg-[#f97316] px-1.5 py-0.5 text-[9px] font-bold text-white">SP</span>
+                  <span className="rounded bg-[#3b82f6] px-1.5 py-0.5 text-[9px] font-bold text-white">SH</span>
+                </div>
+              </div>
+
+              {/* Automate card */}
+              <div className="w-[220px] rounded-2xl bg-white p-4 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f3f4f6] text-[13px] font-semibold">W</div>
+                  <div className="flex items-center gap-1 rounded-full bg-[#dcfce7] px-2 py-[2px]">
+                    <div className="h-[6px] w-[6px] rounded-full bg-[#16a34a] animate-pulse" />
+                    <span className="text-[10px] font-semibold text-[#16a34a]">Ativo</span>
+                  </div>
+                </div>
+                <div className="text-[12px] font-semibold text-[#0a0a0a]">Automação*</div>
+                <div className="mt-0.5 text-[11px] leading-[1.4] text-[#9ca3af]">Deixe a IA cuidar das suas vendas</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── LOGOS ── */}
+        <LogosStrip />
+
+        {/* ── CREDIT BANNER ── */}
+        <CreditBanner />
+
+        {/* ── MULTIPLATAFORMA ── */}
+        <MultiPlatformSection />
+
+        {/* ── ANYWHERE (3 cards) ── */}
+        <AnywhereSection />
+
+        {/* ── TESTIMONIALS (grid) ── */}
         <TestimonialsSection />
+
         <PricingSection />
         <CTASection />
         <Footer />
-      </div>
+      </main>
     </div>
   );
 };

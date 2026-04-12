@@ -55,7 +55,7 @@ const HowItWorks = () => {
   const [active, setActive] = useState(0);
 
   return (
-    <section id="como-funciona" className="relative z-[1] bg-[#060b18] py-[120px]">
+    <section id="como-funciona" className="relative z-[1] bg-black py-[120px]">
       <div className="mx-auto max-w-[1100px] px-6 md:px-10">
         {/* Header */}
         <div className="mb-[18px] inline-flex items-center gap-[6px] text-[0.75rem] font-medium uppercase tracking-[0.08em] text-[#8ec5ff] before:h-px before:w-5 before:bg-[#8ec5ff] before:content-['']">
@@ -111,11 +111,11 @@ const HowItWorks = () => {
 
           {/* Mock panel */}
           <div
-            className="overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#0d1526] shadow-[0_24px_80px_rgba(37,99,235,0.12)]"
+            className="overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#0a0a0a] shadow-[0_24px_80px_rgba(37,99,235,0.12)]"
             style={{ aspectRatio: "4/3" }}
           >
             {/* Browser chrome */}
-            <div className="flex items-center gap-2 border-b border-white/[0.06] bg-[#0a1020] px-4 py-3">
+            <div className="flex items-center gap-2 border-b border-white/[0.06] bg-black px-4 py-3">
               <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
               <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
               <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />

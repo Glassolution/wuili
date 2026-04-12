@@ -40,7 +40,7 @@ function getProductInitials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 }
 
-const SYSTEM_PROMPT = `Você é a IA da Wuilli, plataforma de dropshipping para iniciantes brasileiros.
+const SYSTEM_PROMPT = `Você é a IA da Velo, plataforma de dropshipping para iniciantes brasileiros.
 Quando o usuário disser um nicho, responda APENAS com JSON: {"tipo":"buscar_produtos","nicho":"<nicho>"}
 Quando o usuário disser "Quero este produto" seguido de dados, crie o anúncio retornando JSON:
 {"tipo":"anuncio","titulo":"","descricao":"","preco":"","plataforma":"Mercado Livre"}

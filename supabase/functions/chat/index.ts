@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `Você é a IA da Wuilli, plataforma de dropshipping para iniciantes brasileiros.
+const SYSTEM_PROMPT = `Você é a IA da Velo, plataforma de dropshipping para iniciantes brasileiros.
 Guie o usuário neste fluxo:
 1) Pergunte qual nicho de produtos ele quer vender (ex: eletrônicos, moda, beleza, casa).
 2) Quando o usuário informar o nicho, retorne SOMENTE este JSON (sem texto extra, sem markdown):
