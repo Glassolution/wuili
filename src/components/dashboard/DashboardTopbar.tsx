@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useTheme } from "next-themes";
+
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import {
   Menu, Search, ChevronRight, X, type LucideIcon,
