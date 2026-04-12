@@ -44,8 +44,7 @@ const mobileItems: MobileMenuItem[] = [
 const DashboardTopbar = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
+  const pageTitle = pageTitles[location.pathname] || "Dashboard";
   const pageTitle = pageTitles[location.pathname] || "Dashboard";
 
   return (
