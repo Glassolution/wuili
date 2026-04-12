@@ -1,11 +1,7 @@
 import { ArrowDownLeft, ArrowUpRight, Building2, Clock, TrendingUp } from "lucide-react";
+import { mockSaldos } from "@/lib/mockData";
 
-const repasses = [
-  { canal: "Mercado Livre", valor: "R$ 4.200,00", status: "ok", data: "Hoje" },
-  { canal: "Shopee", valor: "R$ 1.840,00", status: "ok", data: "Hoje" },
-  { canal: "Minha Loja", valor: "R$ 620,00", status: "warning", data: "Ontem" },
-  { canal: "Reserva chargeback", valor: "R$ 890,00", status: "neutral", data: "Em análise" },
-];
+const repasses = mockSaldos.repasses;
 
 const statusCls: Record<string, string> = {
   ok: "bg-success-light text-success",
@@ -40,7 +36,7 @@ const SaldosPage = () => (
             <TrendingUp size={15} />
           </div>
         </div>
-        <p className="text-2xl font-black text-foreground">R$ 12.480,00</p>
+        <p className="text-2xl font-black text-foreground">R$ {mockSaldos.disponivel.toLocaleString("pt-BR")},00</p>
         <p className="mt-1 text-xs text-muted-foreground">Atualizado hoje às 14:32</p>
       </div>
       <div className="card-wuili p-5">
@@ -50,7 +46,7 @@ const SaldosPage = () => (
             <Clock size={15} />
           </div>
         </div>
-        <p className="text-2xl font-black text-foreground">R$ 3.240,00</p>
+        <p className="text-2xl font-black text-foreground">R$ {mockSaldos.aLiberar.toLocaleString("pt-BR")},00</p>
         <p className="mt-1 text-xs text-muted-foreground">Previsão para os próximos 3 dias</p>
       </div>
       <div className="card-wuili p-5">

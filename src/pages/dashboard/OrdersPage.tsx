@@ -1,23 +1,8 @@
 import { useState } from "react";
 import { Search, Eye, FileText } from "lucide-react";
+import { mockOrders } from "@/lib/mockData";
 
-const allOrders = [
-  { id: "#4821", product: "Fone TWS", client: "João M.", platform: "Mercado Livre", status: "Entregue", value: 189, profit: 63, date: "hoje 14:32" },
-  { id: "#4820", product: "Tênis Casual", client: "Maria S.", platform: "Shopee", status: "Em trânsito", value: 127, profit: 47, date: "hoje 11:15" },
-  { id: "#4819", product: "Kit Skincare", client: "Ana L.", platform: "Minha Loja", status: "Processando", value: 89, profit: 38, date: "ontem 18:40" },
-  { id: "#4818", product: "Relógio Smart", client: "Pedro R.", platform: "Mercado Livre", status: "Entregue", value: 234, profit: 82, date: "ontem 09:22" },
-  { id: "#4817", product: "Mochila Urban", client: "Lucas F.", platform: "Shopee", status: "Cancelado", value: 156, profit: 0, date: "2 dias atrás" },
-  { id: "#4816", product: "Óculos Retrô", client: "Carla D.", platform: "Minha Loja", status: "Entregue", value: 78, profit: 34, date: "2 dias atrás" },
-  { id: "#4815", product: "Mouse Sem Fio", client: "Marcos V.", platform: "Mercado Livre", status: "Em trânsito", value: 67, profit: 28, date: "3 dias atrás" },
-  { id: "#4814", product: "Capa iPhone", client: "Julia A.", platform: "Shopee", status: "Entregue", value: 39, profit: 22, date: "3 dias atrás" },
-  { id: "#4813", product: "Perfume Importado", client: "Fernanda K.", platform: "Mercado Livre", status: "Processando", value: 189, profit: 71, date: "4 dias atrás" },
-  { id: "#4812", product: "Tênis Feminino", client: "Camila B.", platform: "Shopee", status: "Em trânsito", value: 144, profit: 52, date: "4 dias atrás" },
-  { id: "#4811", product: "Câmera Seg.", client: "Ricardo P.", platform: "Minha Loja", status: "Entregue", value: 278, profit: 94, date: "5 dias atrás" },
-  { id: "#4810", product: "Suporte Notebook", client: "Amanda G.", platform: "Mercado Livre", status: "Entregue", value: 89, profit: 31, date: "5 dias atrás" },
-  { id: "#4809", product: "Kit Maquiagem", client: "Beatriz N.", platform: "Shopee", status: "Cancelado", value: 119, profit: 0, date: "6 dias atrás" },
-  { id: "#4808", product: "Luminária LED", client: "Diego S.", platform: "Minha Loja", status: "Entregue", value: 97, profit: 38, date: "6 dias atrás" },
-  { id: "#4807", product: "Caixa de Som", client: "Thiago M.", platform: "Mercado Livre", status: "Processando", value: 167, profit: 57, date: "7 dias atrás" },
-];
+const allOrders = mockOrders;
 
 const statusColors: Record<string, string> = {
   Entregue: "bg-success-light text-success",

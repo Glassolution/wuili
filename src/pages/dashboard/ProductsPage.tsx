@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight } from "lucide-react";
+import PlatformLogo from "@/components/dashboard/PlatformLogo";
 
 type Product = {
   id: string;
@@ -233,10 +234,8 @@ const ProductsPage = () => {
               {/* Source + Rating */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <span className={`inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-white ${p.sourceColor}`}>
-                    {p.source.charAt(0)}
-                  </span>
-                  <span className="text-[13px] font-medium text-foreground">{p.source}</span>
+                  <PlatformLogo platform={p.source} color={p.sourceColor.replace("bg-[", "").replace("]", "")} size={22} />
+                  <span className="text-[13px] font-semibold text-foreground">{p.source}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-[12px] text-amber-500">★</span>

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "./lib/profileContext";
+import { ImportedProductsProvider } from "./lib/importedProductsContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/LoginPage";
@@ -31,6 +32,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
     <ProfileProvider>
+    <ImportedProductsProvider>
     <TooltipProvider>
       <Toaster />
       <Sonner position="top-center" expand={false} style={{ width: "100vw", left: 0, top: 0, transform: "none" }} />
@@ -108,6 +110,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+    </ImportedProductsProvider>
     </ProfileProvider>
     </AuthProvider>
   </QueryClientProvider>
