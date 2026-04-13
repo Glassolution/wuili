@@ -140,33 +140,16 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
 
       if (error) throw error;
 
-      // Handle streaming response - read full text
-      if (typeof data === "string") {
-        // Parse SSE response
-        const lines = data.split("\n");
-        let fullText = "";
-        for (const line of lines) {
-          if (line.startsWith("data: ") && line !== "data: [DONE]") {
-            try {
-              const parsed = JSON.parse(line.slice(6));
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) fullText += content;
-            } catch { /* skip */ }
-          }
-        }
-        if (fullText) {
-          setDescription(fullText.trim());
-          setDescGenerated(true);
-          toast.success("Descrição gerada com IA!");
-        } else {
-          throw new Error("Resposta vazia da IA");
-        }
-      } else if (data?.choices?.[0]?.message?.content) {
-        setDescription(data.choices[0].message.content.trim());
+      // The chat function returns { response: "text" }
+      const text = data?.response || data?.choices?.[0]?.message?.content || "";
+      if (typeof text === "string" && text.trim()) {
+        setDescription(text.trim());
         setDescGenerated(true);
         toast.success("Descrição gerada com IA!");
       } else {
-        throw new Error("Formato inesperado");
+        // Fallback: leave description empty for manual input
+        console.warn("AI returned empty or unexpected format:", data);
+        toast.error("Não foi possível gerar a descrição. Digite manualmente.");
       }
     } catch (err: any) {
       console.error("Erro ao gerar descrição:", err);

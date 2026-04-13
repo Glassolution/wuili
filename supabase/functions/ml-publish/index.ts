@@ -6,47 +6,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Upload image to Supabase Storage and return public URL
+// Upload image to Supabase Storage and return public URL — with fallback
 async function uploadImageToSupabase(
   supabase: any,
   imageUrl: string,
   productId: string,
   index: number
 ): Promise<string> {
-  const response = await fetch(imageUrl)
-  if (!response.ok) throw new Error(`Failed to download image ${index}`)
-  const arrayBuffer = await response.arrayBuffer()
-  const uint8 = new Uint8Array(arrayBuffer)
-  const fileName = `products/${productId}/${Date.now()}_${index}.jpg`
+  try {
+    console.log(`Uploading image ${index}: ${imageUrl.substring(0, 80)}...`)
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      console.warn(`Failed to download image ${index}, status: ${response.status}`)
+      return imageUrl // fallback to original
+    }
+    const arrayBuffer = await response.arrayBuffer()
+    const uint8 = new Uint8Array(arrayBuffer)
+    const fileName = `products/${productId}/${Date.now()}_${index}.jpg`
 
-  const { error } = await supabase.storage
-    .from('product-images')
-    .upload(fileName, uint8, { contentType: 'image/jpeg', upsert: true })
+    const { error } = await supabase.storage
+      .from('product-images')
+      .upload(fileName, uint8, { contentType: 'image/jpeg', upsert: true })
 
-  if (error) throw error
+    if (error) {
+      console.warn(`Storage upload error for image ${index}:`, error.message)
+      return imageUrl // fallback to original
+    }
 
-  const { data: { publicUrl } } = supabase.storage
-    .from('product-images')
-    .getPublicUrl(fileName)
+    const { data: { publicUrl } } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(fileName)
 
-  return publicUrl
+    console.log(`Image ${index} uploaded: ${publicUrl.substring(0, 80)}`)
+    return publicUrl
+  } catch (err) {
+    console.warn(`Exception uploading image ${index}:`, err)
+    return imageUrl // fallback to original
+  }
 }
 
 // Map ML API errors to user-friendly messages
 function mapMLError(mlData: any): string {
   const msg = mlData?.message || ''
-  const cause = JSON.stringify(mlData?.cause || mlData?.error || '')
+  const causeArr = mlData?.cause || []
+  const causeStr = JSON.stringify(causeArr)
 
-  if (msg.includes('title') || cause.includes('title.length'))
+  if (causeStr.includes('missing_required') || causeStr.includes('attributes'))
+    return 'Atributos obrigatórios faltando (marca/modelo). O Mercado Livre exige esses dados para esta categoria.'
+  if (msg.includes('title') || causeStr.includes('title.length'))
     return 'Título muito longo. Máximo 60 caracteres.'
-  if (msg.includes('category') || cause.includes('category'))
+  if (msg.includes('category') || causeStr.includes('category'))
     return 'Categoria não encontrada. Tente outro título para melhor detecção.'
-  if (msg.includes('picture') || cause.includes('download_error') || cause.includes('picture'))
+  if (msg.includes('picture') || causeStr.includes('download_error'))
     return 'Erro ao processar imagens. Tente novamente.'
   if (msg.includes('token') || msg.includes('unauthorized') || mlData?.status === 401)
     return 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.'
   if (msg.includes('price'))
     return 'Preço inválido. Verifique o valor de venda.'
+  if (causeStr.includes('shipping'))
+    return 'Configuração de envio necessária no Mercado Livre. Verifique suas preferências de frete.'
 
   return `Erro do Mercado Livre: ${msg || JSON.stringify(mlData)}`
 }
@@ -57,14 +75,28 @@ serve(async (req) => {
   }
 
   try {
-    const { user_id, product } = await req.json()
+    console.log('=== ml-publish START ===')
+    const body = await req.json()
+    const { user_id, product } = body
+    console.log('user_id:', user_id)
+    console.log('product title:', product?.title?.substring(0, 60))
+    console.log('product images count:', product?.images?.length || 0)
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    console.log('Env vars present:', { SUPABASE_URL: !!supabaseUrl, SERVICE_ROLE_KEY: !!serviceRoleKey })
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return new Response(
+        JSON.stringify({ error: 'Configuração do servidor incompleta.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     // Get user's ML integration
+    console.log('Fetching ML integration...')
     const { data: integration, error } = await supabase
       .from('user_integrations')
       .select('access_token, expires_at, refresh_token')
@@ -73,6 +105,7 @@ serve(async (req) => {
       .single()
 
     if (error || !integration) {
+      console.log('No ML integration found:', error?.message)
       return new Response(
         JSON.stringify({ error: 'Conecte sua conta do Mercado Livre para publicar.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -84,6 +117,7 @@ serve(async (req) => {
     // Refresh token if expired
     const expiresAt = new Date(integration.expires_at)
     if (expiresAt <= new Date()) {
+      console.log('Token expired, refreshing...')
       const refreshRes = await fetch('https://api.mercadolibre.com/oauth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -97,6 +131,7 @@ serve(async (req) => {
       const refreshData = await refreshRes.json()
 
       if (!refreshRes.ok || !refreshData.access_token) {
+        console.error('Token refresh failed:', JSON.stringify(refreshData))
         return new Response(
           JSON.stringify({ error: 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -131,49 +166,40 @@ serve(async (req) => {
     } catch (_e) { /* fallback */ }
     console.log('Categoria detectada:', categoryId)
 
-    // 3. Proxy images through Supabase Storage
+    // 3. Proxy images through Supabase Storage (with per-image fallback)
     const rawImages: string[] = product.images || []
     const imagesToUse = rawImages.slice(0, 6)
-    let pictures: { source: string }[] = []
+    const productId = product.id || `pub_${Date.now()}`
 
-    if (imagesToUse.length > 0) {
-      const productId = product.id || `pub_${Date.now()}`
-      try {
-        const uploadedUrls = await Promise.all(
-          imagesToUse.map((url: string, i: number) =>
-            uploadImageToSupabase(supabase, url, productId, i)
-          )
-        )
-        pictures = uploadedUrls.map(url => ({ source: url }))
-        console.log('Imagens proxy:', pictures.length)
-      } catch (imgErr) {
-        console.error('Erro ao fazer proxy das imagens:', imgErr)
-        return new Response(
-          JSON.stringify({ error: 'Erro ao processar imagens. Tente novamente.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-    }
+    const pictures = await Promise.all(
+      imagesToUse.map((url: string, i: number) =>
+        uploadImageToSupabase(supabase, url, productId, i).then(src => ({ source: src }))
+      )
+    )
+    console.log('Imagens processadas:', pictures.length)
 
     // 4. Publish to ML
+    const mlPayload = {
+      title,
+      category_id: categoryId,
+      price: product.price,
+      currency_id: 'BRL',
+      available_quantity: product.available_quantity || 10,
+      buying_mode: 'buy_it_now',
+      condition: product.condition || 'new',
+      listing_type_id: 'gold_special',
+      description: { plain_text: product.description || '' },
+      pictures,
+    }
+    console.log('Sending to ML API...')
+
     const mlRes = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        title,
-        category_id: categoryId,
-        price: product.price,
-        currency_id: 'BRL',
-        available_quantity: product.available_quantity || 10,
-        buying_mode: 'buy_it_now',
-        condition: product.condition || 'new',
-        listing_type_id: 'gold_special',
-        description: { plain_text: product.description || '' },
-        pictures,
-      }),
+      body: JSON.stringify(mlPayload),
     })
 
     const mlData = await mlRes.json()
@@ -183,10 +209,11 @@ serve(async (req) => {
       console.error('Erro ML API:', JSON.stringify(mlData))
       return new Response(
         JSON.stringify({ error: friendlyError, details: mlData }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    console.log('=== ml-publish SUCCESS ===', mlData.id)
     return new Response(
       JSON.stringify({ success: true, permalink: mlData.permalink, item_id: mlData.id }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
