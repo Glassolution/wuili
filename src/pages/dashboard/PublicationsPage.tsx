@@ -2,10 +2,21 @@ import { useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, RefreshCcw, Search, Store } from "lucide-react";
 import { type ChannelStatus } from "@/lib/mockData";
 
-const publications: { name: string; sku: string; category: string; price: string; updatedAt: string; ml: ChannelStatus; shopee: ChannelStatus; loja: ChannelStatus }[] = [];
+type Publication = {
+  name: string;
+  sku: string;
+  category: string;
+  price: string;
+  updatedAt: string;
+  ml: ChannelStatus;
+  shopee: ChannelStatus;
+  loja: ChannelStatus;
+};
+
+const publications: Publication[] = [];
 
 const statusBadge: Record<ChannelStatus, { label: string; cls: string }> = {
-  published: { label: "Publicado", cls: "bg-success-light text-success" },
+  published: { label: "Publicado", cls: "bg-emerald-500/10 text-emerald-500" },
   publishing: { label: "Publicando", cls: "bg-warning/10 text-warning" },
   error: { label: "Erro", cls: "bg-destructive/10 text-destructive" },
   none: { label: "Não publicado", cls: "bg-muted text-muted-foreground" },
@@ -14,29 +25,13 @@ const statusBadge: Record<ChannelStatus, { label: string; cls: string }> = {
 const filterOptions = ["Todos", "Ativos", "Publicando", "Com erro", "Não publicados"];
 
 const getProductInitials = (name: string) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
+  name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 
 const getPublicationState = (publication: Publication) => {
   const statuses = [publication.ml, publication.shopee, publication.loja];
-
-  if (statuses.includes("error")) {
-    return "Com erro";
-  }
-
-  if (statuses.includes("publishing")) {
-    return "Publicando";
-  }
-
-  if (statuses.every((status) => status === "none")) {
-    return "Não publicados";
-  }
-
+  if (statuses.includes("error")) return "Com erro";
+  if (statuses.includes("publishing")) return "Publicando";
+  if (statuses.every((status) => status === "none")) return "Não publicados";
   return "Ativos";
 };
 
@@ -58,7 +53,6 @@ const PublicationsPage = () => {
         publication.sku.toLowerCase().includes(search.toLowerCase());
       const publicationState = getPublicationState(publication);
       const matchesFilter = filter === "Todos" || publicationState === filter;
-
       return matchesSearch && matchesFilter;
     });
   }, [filter, search]);
@@ -66,9 +60,9 @@ const PublicationsPage = () => {
   const selectedPublication = filteredPublications[selectedIndex] || filteredPublications[0];
 
   const summary = {
-    active: publications.filter((publication) => getPublicationState(publication) === "Ativos").length,
-    publishing: publications.filter((publication) => getPublicationState(publication) === "Publicando").length,
-    errors: publications.filter((publication) => getPublicationState(publication) === "Com erro").length,
+    active: publications.filter((p) => getPublicationState(p) === "Ativos").length,
+    publishing: publications.filter((p) => getPublicationState(p) === "Publicando").length,
+    errors: publications.filter((p) => getPublicationState(p) === "Com erro").length,
   };
 
   return (
@@ -94,12 +88,11 @@ const PublicationsPage = () => {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="card-wuili p-5">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-success-light text-success">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
             <CheckCircle2 size={18} />
           </div>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">Publicações ativas</p>
           <p className="mt-2 text-2xl font-black text-foreground">{summary.active}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Anúncios disponíveis em pelo menos um canal</p>
         </div>
         <div className="card-wuili p-5">
           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10 text-warning">
@@ -107,7 +100,6 @@ const PublicationsPage = () => {
           </div>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">Em publicação</p>
           <p className="mt-2 text-2xl font-black text-foreground">{summary.publishing}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Itens aguardando sincronização ou processamento</p>
         </div>
         <div className="card-wuili p-5">
           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
@@ -115,7 +107,6 @@ const PublicationsPage = () => {
           </div>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">Com atenção</p>
           <p className="mt-2 text-2xl font-black text-foreground">{summary.errors}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Precisam de ajuste antes da próxima sincronização</p>
         </div>
       </div>
 
@@ -126,20 +117,14 @@ const PublicationsPage = () => {
             className="w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="Buscar por nome ou SKU..."
             value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setSelectedIndex(0);
-            }}
+            onChange={(e) => { setSearch(e.target.value); setSelectedIndex(0); }}
           />
         </div>
         <div className="flex gap-2 overflow-x-auto">
           {filterOptions.map((option) => (
             <button
               key={option}
-              onClick={() => {
-                setFilter(option);
-                setSelectedIndex(0);
-              }}
+              onClick={() => { setFilter(option); setSelectedIndex(0); }}
               className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                 filter === option ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"
               }`}
@@ -173,7 +158,6 @@ const PublicationsPage = () => {
               <tbody>
                 {filteredPublications.map((publication, index) => {
                   const isSelected = selectedPublication?.sku === publication.sku;
-
                   return (
                     <tr
                       key={publication.sku}
@@ -213,7 +197,7 @@ const PublicationsPage = () => {
           {filteredPublications.length === 0 && (
             <div className="px-5 py-10 text-center">
               <p className="text-sm font-medium text-foreground">Nenhuma publicação encontrada</p>
-              <p className="mt-1 text-xs text-muted-foreground">Ajuste a busca ou troque o filtro para ver outros itens.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Ajuste a busca ou troque o filtro.</p>
             </div>
           )}
         </div>
@@ -276,7 +260,7 @@ const PublicationsPage = () => {
                   {getChecklist(selectedPublication).map((item) => (
                     <div key={item.label} className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
                       <span className="text-sm text-foreground">{item.label}</span>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.done ? "bg-success-light text-success" : "bg-muted text-muted-foreground"}`}>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.done ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"}`}>
                         {item.done ? "Ok" : "Pendente"}
                       </span>
                     </div>
@@ -297,7 +281,7 @@ const PublicationsPage = () => {
             <div className="flex min-h-72 items-center justify-center text-center">
               <div>
                 <p className="text-sm font-medium text-foreground">Nenhum item selecionado</p>
-                <p className="mt-1 text-xs text-muted-foreground">Escolha uma publicação na lista para ver os detalhes.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Escolha uma publicação na lista.</p>
               </div>
             </div>
           )}
