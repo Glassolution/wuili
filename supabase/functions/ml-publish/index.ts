@@ -169,13 +169,8 @@ serve(async (req) => {
     } catch (_e) { /* fallback */ }
     console.log('Categoria detectada:', categoryId)
 
-    // 3. Process images — direct URL with base64 fallback
-    const rawImages: string[] = product.images || []
-    const imagesToUse = rawImages.slice(0, 6)
-
-    const pictures = (await Promise.all(
-      imagesToUse.map((url: string, i: number) => processImage(url, i))
-    )).filter(Boolean)
+    // 3. Process images via base64
+    const pictures = await processImages(product.images || [])
     console.log('Imagens processadas:', pictures.length)
 
     // 4. Description
