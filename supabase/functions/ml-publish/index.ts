@@ -18,33 +18,22 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary)
 }
 
-// Process image: try direct URL first, fallback to base64
+// Process image: download and convert to base64 for ML
 async function processImage(imageUrl: string, index: number): Promise<{ source?: string; data?: string } | null> {
   console.log(`Processando imagem ${index}: ${imageUrl}`)
   
-  // First try direct URL
   try {
-    const head = await fetch(imageUrl, { method: 'HEAD' })
-    if (head.ok) {
-      console.log(`Imagem ${index}: usando URL direta`)
-      return { source: imageUrl }
-    }
-  } catch (_) { /* try base64 fallback */ }
-
-  // Fallback: download and convert to base64
-  try {
-    console.log(`Imagem ${index}: convertendo para base64...`)
     const imgResponse = await fetch(imageUrl)
     if (!imgResponse.ok) {
-      console.warn(`Imagem ${index}: download falhou (${imgResponse.status})`)
-      return { source: imageUrl } // last resort: send URL anyway
+      console.warn(`Imagem ${index}: download falhou (${imgResponse.status}), enviando URL`)
+      return { source: imageUrl }
     }
     const imgBuffer = await imgResponse.arrayBuffer()
     const base64 = arrayBufferToBase64(imgBuffer)
     console.log(`Imagem ${index}: base64 gerado (${base64.length} chars)`)
-    return { source: `data:image/jpeg;base64,${base64}` }
+    return { data: base64 }
   } catch (err) {
-    console.warn(`Imagem ${index}: falha total, enviando URL original`, err)
+    console.warn(`Imagem ${index}: falha, enviando URL original`, err)
     return { source: imageUrl }
   }
 }
