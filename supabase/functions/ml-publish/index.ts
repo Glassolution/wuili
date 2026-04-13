@@ -70,9 +70,11 @@ serve(async (req) => {
   try {
     console.log('=== ml-publish START ===')
     const body = await req.json()
+    console.log('Body recebido:', JSON.stringify(body).substring(0, 500))
     const { user_id, product } = body
     console.log('user_id:', user_id)
     console.log('product title:', product?.title?.substring(0, 60))
+    console.log('product description:', (product?.description || '').substring(0, 100))
     console.log('product images count:', product?.images?.length || 0)
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
