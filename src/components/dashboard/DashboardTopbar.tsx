@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useTheme } from "next-themes";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useProfile } from "@/lib/profileContext";
+import { useAuth } from "@/contexts/AuthContext";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import {
-  Menu, Search, ChevronRight, X, type LucideIcon,
+  Menu, Search, ChevronRight, X, MessageSquare, type LucideIcon,
   LayoutGrid, ShoppingCart, BookOpen, Star, Users,
   BarChart3, Settings, MessageCircle, Wallet, ArrowLeftRight, CreditCard,
 } from "lucide-react";
@@ -42,10 +43,25 @@ const mobileItems: MobileMenuItem[] = [
 
 const DashboardTopbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const { nome, foto } = useProfile();
+  const { signOut } = useAuth();
   const pageTitle = pageTitles[location.pathname] || "Dashboard";
+
+  const iniciais = nome
+    .split(/[\s._\-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <>
@@ -55,7 +71,7 @@ const DashboardTopbar = () => {
           <Menu size={20} />
         </button>
 
-        {/* Breadcrumb — store name style like reference */}
+        {/* Breadcrumb */}
         <div className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
           <span className="font-semibold text-foreground">Velo</span>
           <ChevronRight size={13} />
@@ -67,41 +83,60 @@ const DashboardTopbar = () => {
           <div className="relative w-full max-w-sm">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-full rounded-xl border border-border bg-muted/50 py-2 pl-8 pr-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-              placeholder="Search or Press '/' for commands"
+              className="w-full rounded-xl border border-border bg-muted/50 py-2 pl-8 pr-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Pesquisar ou pressione '/' para comandos"
             />
           </div>
         </div>
 
-        {/* Right */}
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" /> Online
-          </span>
+        {/* Right — notification bell + chat + avatar */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Notifications */}
           <NotificacoesPopover />
-          <button
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title={isDark ? "Modo claro" : "Modo escuro"}
+
+          {/* Chat IA */}
+          <Link
+            to="/dashboard/ia"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="Chat IA"
           >
-            {isDark ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="4"/>
-                <line x1="12" y1="2" x2="12" y2="4"/>
-                <line x1="12" y1="20" x2="12" y2="22"/>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                <line x1="2" y1="12" x2="4" y2="12"/>
-                <line x1="20" y1="12" x2="22" y2="12"/>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-              </svg>
+            <MessageSquare size={18} strokeWidth={1.75} />
+          </Link>
+
+          {/* User avatar */}
+          <div className="relative">
+            <button
+              onClick={() => setAvatarMenuOpen((v) => !v)}
+              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white transition-opacity hover:opacity-90"
+            >
+              {foto ? (
+                <img src={foto} alt="avatar" className="h-full w-full object-cover" />
+              ) : (
+                iniciais || "VL"
+              )}
+            </button>
+
+            {avatarMenuOpen && (
+              <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-background shadow-lg">
+                <div className="border-b border-border px-4 py-2.5">
+                  <p className="text-sm font-semibold text-foreground truncate">{nome || "Usuário"}</p>
+                </div>
+                <Link
+                  to="/dashboard/configuracoes"
+                  onClick={() => setAvatarMenuOpen(false)}
+                  className="flex items-center px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                >
+                  Perfil
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="flex w-full items-center px-4 py-2.5 text-sm text-destructive hover:bg-muted transition-colors"
+                >
+                  Sair
+                </button>
+              </div>
             )}
-          </button>
+          </div>
         </div>
       </header>
 
