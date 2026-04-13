@@ -223,6 +223,9 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(4);
       toast.success("Produto publicado com sucesso!");
+      if (data.permalink) {
+        window.open(data.permalink, '_blank', 'noopener,noreferrer');
+      }
     } catch (err: any) {
       toast.error(err?.message || "Erro inesperado ao publicar");
     } finally {
