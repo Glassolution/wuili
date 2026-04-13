@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight, Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
