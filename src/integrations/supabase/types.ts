@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      catalog_products: {
+        Row: {
+          category: string | null
+          cost_price: number
+          created_at: string | null
+          description: string | null
+          external_id: string
+          id: string
+          images: Json | null
+          is_active: boolean | null
+          margin_percent: number
+          source: string
+          stock_quantity: number | null
+          suggested_price: number
+          supplier_contact: string | null
+          supplier_name: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          cost_price: number
+          created_at?: string | null
+          description?: string | null
+          external_id: string
+          id?: string
+          images?: Json | null
+          is_active?: boolean | null
+          margin_percent: number
+          source?: string
+          stock_quantity?: number | null
+          suggested_price: number
+          supplier_contact?: string | null
+          supplier_name?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          cost_price?: number
+          created_at?: string | null
+          description?: string | null
+          external_id?: string
+          id?: string
+          images?: Json | null
+          is_active?: boolean | null
+          margin_percent?: number
+          source?: string
+          stock_quantity?: number | null
+          suggested_price?: number
+          supplier_contact?: string | null
+          supplier_name?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      cj_token_cache: {
+        Row: {
+          access_token: string
+          created_at: string | null
+          expires_at: string
+          id: number
+          refresh_token: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string | null
+          expires_at: string
+          id?: number
+          refresh_token: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: number
+          refresh_token?: string
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           created_at: string
