@@ -186,12 +186,15 @@ serve(async (req) => {
       currency_id: 'BRL',
       available_quantity: product.available_quantity || 10,
       buying_mode: 'buy_it_now',
+      condition: 'not_specified',
       listing_type_id: 'gold_pro',
       description: { plain_text: product.description || '' },
       pictures,
       attributes: [
         { id: 'BRAND', value_name: 'Genérico' },
+        { id: 'MODEL', value_name: 'Genérico' },
         { id: 'SELLER_SKU', value_name: product.external_id || 'SKU-001' },
+        { id: 'MAX_WEIGHT_SUPPORTED', value_name: '100 kg' },
       ],
     }
     console.log('Sending to ML API...')
