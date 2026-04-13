@@ -122,11 +122,12 @@ const { user } = useAuth();
     window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!isConnectedToML) {
       toast.error("Conecte sua conta do Mercado Livre para publicar");
       return;
     }
+    if (!user) return;
     if (!title.trim()) {
       toast.error("Preencha o título do produto.");
       return;
@@ -136,18 +137,45 @@ const { user } = useAuth();
       return;
     }
 
-    const payload = {
-      title: title.trim(),
-      price: sellPrice,
-      pictures: product?.images || [],
-      description,
-      category_id: "MLB1055",
-      quantity: 10,
-    };
+    setPublishing(true);
 
-    console.log("Produto pronto para publicação", payload);
-    toast.success("Produto preparado para publicação no Mercado Livre!");
-    handleClose();
+    try {
+      const images = (() => {
+        try {
+          const arr = typeof product?.images === "string" ? JSON.parse(product.images) : product?.images;
+          return Array.isArray(arr) ? arr : [];
+        } catch { return []; }
+      })();
+
+      const { data, error } = await supabase.functions.invoke("ml-publish", {
+        body: {
+          user_id: user.id,
+          product: {
+            title: title.trim(),
+            price: sellPrice,
+            description,
+            images,
+            available_quantity: 10,
+            condition: "new",
+          },
+        },
+      });
+
+      if (error || data?.error) {
+        const msg = data?.error || error?.message || "Erro ao publicar";
+        toast.error(msg);
+        console.error("Erro ml-publish:", data?.details || error);
+        return;
+      }
+
+      setPublishResult({ permalink: data.permalink, item_id: data.item_id });
+      setStep(4);
+      toast.success("Produto publicado com sucesso!");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro inesperado ao publicar");
+    } finally {
+      setPublishing(false);
+    }
   };
 
   if (!open && !visible) return null;
