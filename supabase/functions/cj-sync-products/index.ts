@@ -1,14 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 
+const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 const USD_TO_BRL = 5.0;
 
 const categories = [
-  { id: "CJP00000059", name: "Eletrônicos" },
-  { id: "CJP00000010", name: "Telefones e Acessórios" },
-  { id: "CJP00000058", name: "Beleza e Saúde" },
-  { id: "CJP00000035", name: "Casa e Jardim" },
-  { id: "CJP00000056", name: "Esportes" },
+  { keyword: "electronics", name: "Eletrônicos" },
+  { keyword: "phone accessories", name: "Telefones e Acessórios" },
+  { keyword: "beauty", name: "Beleza e Saúde" },
+  { keyword: "home garden", name: "Casa e Jardim" },
+  { keyword: "sports", name: "Esportes" },
 ];
 
 Deno.serve(async (req) => {
@@ -30,6 +30,8 @@ Deno.serve(async (req) => {
       },
     });
     const authData = await authRes.json();
+    console.log("Auth response:", JSON.stringify(authData));
+
     if (!authData.accessToken) {
       return new Response(
         JSON.stringify({ error: "Failed to get CJ access token", details: authData }),
@@ -43,29 +45,47 @@ Deno.serve(async (req) => {
 
     for (const cat of categories) {
       try {
-        const url = new URL("https://developers.cjdropshipping.com/api2.0/v1/product/list");
-        url.searchParams.set("categoryId", cat.id);
-        url.searchParams.set("pageNum", "1");
-        url.searchParams.set("pageSize", "25");
+        // Use product/list with productNameEn search
+        const res = await fetch(
+          "https://developers.cjdropshipping.com/api2.0/v1/product/list",
+          {
+            method: "GET",
+            headers: { "CJ-Access-Token": accessToken },
+          }
+        );
 
-        const res = await fetch(url.toString(), {
-          headers: { "CJ-Access-Token": accessToken },
-        });
-        const json = await res.json();
+        // Try the search endpoint instead
+        const searchRes = await fetch(
+          "https://developers.cjdropshipping.com/api2.0/v1/product/list?" +
+          new URLSearchParams({
+            productNameEn: cat.keyword,
+            pageNum: "1",
+            pageSize: "25",
+          }).toString(),
+          {
+            headers: { "CJ-Access-Token": accessToken },
+          }
+        );
+        
+        // Consume the first response body
+        await res.text();
+
+        const json = await searchRes.json();
+        console.log(`Category ${cat.name} response code:`, json.code, "count:", json.data?.list?.length || 0);
 
         if (json.code !== 200 || !json.data?.list) {
+          console.log(`Category ${cat.name} full response:`, JSON.stringify(json).substring(0, 500));
           results[cat.name] = 0;
           continue;
         }
 
         const products = json.data.list.filter(
           (p: any) =>
-            p.sellPrice > 0 &&
-            (p.productImage || (p.productImageSet && p.productImageSet.length > 0))
+            (p.sellPrice || p.productSku?.[0]?.sellPrice) > 0
         );
 
         const rows = products.map((p: any) => {
-          const costUsd = parseFloat(p.sellPrice) || 0;
+          const costUsd = parseFloat(p.sellPrice || p.productSku?.[0]?.sellPrice || "0");
           const costBrl = Math.round(costUsd * USD_TO_BRL * 100) / 100;
           const suggestedBrl = Math.round(costBrl * 2.5 * 100) / 100;
           const margin = suggestedBrl > 0
@@ -73,7 +93,7 @@ Deno.serve(async (req) => {
             : 0;
 
           const images = p.productImageSet && p.productImageSet.length > 0
-            ? p.productImageSet.map((img: any) => img.imageUrl || img)
+            ? p.productImageSet.map((img: any) => typeof img === "string" ? img : img.imageUrl || img)
             : p.productImage
               ? [p.productImage]
               : [];
