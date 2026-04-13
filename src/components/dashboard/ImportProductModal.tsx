@@ -458,14 +458,14 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
               <span className="text-2xl font-black text-[#0A0A0A]">{formatBRL(sellPrice)}</span>
               {profit > 0 && (
                 <span className="rounded-md bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 text-xs font-bold text-emerald-700">
-                  +{formatBRL(profit)} lucro
+                  +{formatBRL(profit)} de margem
                 </span>
               )}
             </div>
 
             {/* Auto-generated description */}
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Descrição automática</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Texto do anúncio</p>
               <div className="rounded-xl bg-white border border-gray-100 p-4">
                 <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{description}</p>
               </div>
