@@ -97,6 +97,8 @@ const { user } = useAuth();
     setTitle(product.title);
     setSellPrice(Math.round(suggestedPrice * 1.2 * 100) / 100);
     setStep(1);
+    setPublishResult(null);
+    setPublishing(false);
   }
 
   const costPrice = product?.cost_price ?? 0;
