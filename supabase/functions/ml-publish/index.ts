@@ -208,8 +208,8 @@ serve(async (req) => {
     const mlData = await mlRes.json()
 
     if (!mlRes.ok) {
+      console.error('ML Error completo:', JSON.stringify(mlData))
       const friendlyError = mapMLError(mlData)
-      console.error('Erro ML API:', JSON.stringify(mlData))
       return new Response(
         JSON.stringify({ error: friendlyError, details: mlData }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
