@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { X, Package, ChevronRight, Check, Store, TrendingUp, AlertCircle, Link } from "lucide-react";
+import { X, Package, ChevronRight, Check, Store, TrendingUp, AlertCircle, Link, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
