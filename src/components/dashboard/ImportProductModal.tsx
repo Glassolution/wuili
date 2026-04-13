@@ -53,6 +53,8 @@ const STEPS = [
 ];
 
 const ImportProductModal = ({ open, onClose, product }: Props) => {
+const { user } = useAuth();
+
   const suggestedPrice = product
     ? product.suggested_price || product.cost_price * 2.2
     : 0;
@@ -61,6 +63,21 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const [title, setTitle] = useState("");
   const [sellPrice, setSellPrice] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [isConnectedToML, setIsConnectedToML] = useState<boolean | null>(null);
+
+  // Check ML connection status
+  useEffect(() => {
+    if (!user || !open) return;
+    (async () => {
+      const { data } = await supabase
+        .from("user_integrations")
+        .select("access_token")
+        .eq("user_id", user.id)
+        .eq("platform", "mercadolivre")
+        .maybeSingle();
+      setIsConnectedToML(!!data?.access_token);
+    })();
+  }, [user, open]);
 
   // Animate in/out
   useEffect(() => {
