@@ -64,6 +64,8 @@ const { user } = useAuth();
   const [sellPrice, setSellPrice] = useState(0);
   const [visible, setVisible] = useState(false);
   const [isConnectedToML, setIsConnectedToML] = useState<boolean | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
 
   // Check ML connection status
   useEffect(() => {
