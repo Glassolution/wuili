@@ -18,6 +18,8 @@ const CatalogPage = () => {
   const [category, setCategory] = useState("todos");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const limit = 20;
 
