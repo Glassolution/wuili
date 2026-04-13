@@ -6,36 +6,44 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Convert ArrayBuffer to base64
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer)
-  const CHUNK_SIZE = 8192
-  let binary = ''
-  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
-    const chunk = bytes.subarray(i, i + CHUNK_SIZE)
-    binary += String.fromCharCode.apply(null, Array.from(chunk))
+// Process all images: download and convert to base64
+async function processImages(images: any[]): Promise<any[]> {
+  if (!images || !Array.isArray(images) || images.length === 0) {
+    return []
   }
-  return btoa(binary)
-}
 
-// Process image: download and convert to base64 for ML
-async function processImage(imageUrl: string, index: number): Promise<{ source?: string; data?: string } | null> {
-  console.log(`Processando imagem ${index}: ${imageUrl}`)
-  
-  try {
-    const imgResponse = await fetch(imageUrl)
-    if (!imgResponse.ok) {
-      console.warn(`Imagem ${index}: download falhou (${imgResponse.status}), enviando URL`)
-      return { source: imageUrl }
+  const processed = []
+  for (const imageUrl of images.slice(0, 6)) {
+    try {
+      console.log('Processando imagem:', imageUrl)
+      const response = await fetch(imageUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      })
+      if (!response.ok) {
+        console.log('Fetch falhou, usando URL:', imageUrl, 'Status:', response.status)
+        processed.push({ source: imageUrl })
+        continue
+      }
+      const arrayBuffer = await response.arrayBuffer()
+      const uint8Array = new Uint8Array(arrayBuffer)
+      if (uint8Array.length === 0) {
+        console.log('Imagem vazia, usando URL:', imageUrl)
+        processed.push({ source: imageUrl })
+        continue
+      }
+      let binary = ''
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i])
+      }
+      const base64 = btoa(binary)
+      console.log('Imagem convertida para base64:', base64.length, 'chars')
+      processed.push({ data: base64 })
+    } catch (e) {
+      console.log('Erro na imagem, usando URL:', imageUrl, e)
+      processed.push({ source: imageUrl })
     }
-    const imgBuffer = await imgResponse.arrayBuffer()
-    const base64 = arrayBufferToBase64(imgBuffer)
-    console.log(`Imagem ${index}: base64 gerado (${base64.length} chars)`)
-    return { data: base64 }
-  } catch (err) {
-    console.warn(`Imagem ${index}: falha, enviando URL original`, err)
-    return { source: imageUrl }
   }
+  return processed
 }
 
 // Map ML API errors to user-friendly messages
@@ -161,13 +169,8 @@ serve(async (req) => {
     } catch (_e) { /* fallback */ }
     console.log('Categoria detectada:', categoryId)
 
-    // 3. Process images — direct URL with base64 fallback
-    const rawImages: string[] = product.images || []
-    const imagesToUse = rawImages.slice(0, 6)
-
-    const pictures = (await Promise.all(
-      imagesToUse.map((url: string, i: number) => processImage(url, i))
-    )).filter(Boolean)
+    // 3. Process images via base64
+    const pictures = await processImages(product.images || [])
     console.log('Imagens processadas:', pictures.length)
 
     // 4. Description
