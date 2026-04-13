@@ -112,7 +112,17 @@ const { user } = useAuth();
     setTimeout(onClose, 300);
   };
 
+  const handleConnectML = () => {
+    if (!user) return;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
+  };
+
   const handlePublish = () => {
+    if (!isConnectedToML) {
+      toast.error("Conecte sua conta do Mercado Livre para publicar");
+      return;
+    }
     if (!title.trim()) {
       toast.error("Preencha o título do produto.");
       return;
