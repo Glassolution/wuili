@@ -263,6 +263,11 @@ const CatalogPage = () => {
           </button>
         </div>
       )}
+      <ImportProductModal
+        open={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        product={selectedProduct}
+      />
     </div>
   );
 };
