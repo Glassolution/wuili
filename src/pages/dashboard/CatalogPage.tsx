@@ -224,7 +224,10 @@ const CatalogPage = () => {
 
                   {/* Import button */}
                   <div className="mt-3 flex items-center gap-2">
-                    <button className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80">
+                    <button
+                      onClick={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
+                      className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
+                    >
                       Importar produto
                     </button>
                     <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted">
