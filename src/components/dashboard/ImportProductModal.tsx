@@ -34,16 +34,14 @@ const getImage = (images: any): string | null => {
 
 const generateProductDescription = (product: CatalogProduct): string => {
   const title = product.title || "este produto";
-  return `🚀 ${title}
+  return `${title}
 
-✅ Qualidade premium com acabamento profissional
-✅ Design moderno e funcional para o dia a dia
-✅ Material resistente e durável — feito para durar
-✅ Envio rápido direto do fornecedor
-✅ Satisfação garantida ou seu dinheiro de volta
+• Estrutura reforçada para uso frequente e intenso
+• Sistema compacto para fácil armazenamento e transporte
+• Materiais selecionados com foco em durabilidade
+• Envio direto do fornecedor com rastreamento completo
 
-💡 Ideal para quem busca praticidade sem abrir mão do estilo.
-📦 Estoque limitado — garanta o seu agora!`;
+Ideal para quem busca praticidade no dia a dia, seja em atividades externas, compras ou transporte de equipamentos.`;
 };
 
 const STEPS = [
@@ -143,8 +141,8 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-100 px-8 py-5">
             <div>
-              <h2 className="text-lg font-bold text-[#0A0A0A]">Importar Produto</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Configure e publique em sua loja</p>
+              <h2 className="text-lg font-bold text-[#0A0A0A]">Novo anúncio</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Defina preço, revise e publique</p>
             </div>
             <button
               onClick={handleClose}
@@ -195,7 +193,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
               <div className="space-y-6 animate-fade-in">
                 <div>
                   <h3 className="text-base font-bold text-[#0A0A0A]">Produto selecionado</h3>
-                  <p className="text-sm text-gray-500 mt-1">Confirme o produto que deseja importar</p>
+                  <p className="text-sm text-gray-500 mt-1">Verifique os dados antes de continuar</p>
                 </div>
 
                 <div className="flex gap-5 rounded-xl border border-gray-100 bg-gray-50/50 p-5">
@@ -255,8 +253,8 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
             {step === 2 && (
               <div className="space-y-6 animate-fade-in">
                 <div>
-                  <h3 className="text-base font-bold text-[#0A0A0A]">Personalização</h3>
-                  <p className="text-sm text-gray-500 mt-1">Ajuste título e preço de venda</p>
+                  <h3 className="text-base font-bold text-[#0A0A0A]">Defina seu preço</h3>
+                  <p className="text-sm text-gray-500 mt-1">Ajuste o título e o valor de venda do anúncio</p>
                 </div>
 
                 {/* Title */}
@@ -312,7 +310,10 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                         : "bg-gray-100 border border-gray-200"
                     }`}
                   >
-                    <span className="text-sm font-medium text-[#0A0A0A]">Lucro por venda</span>
+                     <div>
+                       <span className="text-sm font-medium text-[#0A0A0A]">Ganho estimado por venda</span>
+                       <p className="text-[10px] text-gray-400 mt-0.5">Calculado com base no custo atual</p>
+                     </div>
                     <div className="text-right flex items-baseline gap-2">
                       <span
                         className={`text-2xl font-black ${
@@ -338,7 +339,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   {profit > 0 && profitMargin >= 40 && (
                     <div className="flex items-center gap-2 text-emerald-600">
                       <TrendingUp size={14} />
-                      <span className="text-xs font-semibold">Margem excelente! Produto com alto potencial de lucro.</span>
+                      <span className="text-xs font-semibold">Boa relação entre custo e preço de venda</span>
                     </div>
                   )}
                 </div>
@@ -349,8 +350,8 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
             {step === 3 && (
               <div className="space-y-6 animate-fade-in">
                 <div>
-                  <h3 className="text-base font-bold text-[#0A0A0A]">Revisão final</h3>
-                  <p className="text-sm text-gray-500 mt-1">Confira os dados antes de publicar</p>
+                  <h3 className="text-base font-bold text-[#0A0A0A]">Resumo do anúncio</h3>
+                  <p className="text-sm text-gray-500 mt-1">Tudo certo? Confirme e publique</p>
                 </div>
 
                 <div className="space-y-4">
@@ -380,7 +381,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                         : "bg-red-50 border border-red-200/50"
                     }`}
                   >
-                    <span className="text-sm font-bold text-[#0A0A0A]">Seu lucro por venda</span>
+                    <span className="text-sm font-bold text-[#0A0A0A]">Ganho estimado por venda</span>
                     <span
                       className={`text-xl font-black ${
                         profit > 0 ? "text-emerald-600" : "text-red-600"
@@ -457,14 +458,14 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
               <span className="text-2xl font-black text-[#0A0A0A]">{formatBRL(sellPrice)}</span>
               {profit > 0 && (
                 <span className="rounded-md bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 text-xs font-bold text-emerald-700">
-                  +{formatBRL(profit)} lucro
+                  +{formatBRL(profit)} de margem
                 </span>
               )}
             </div>
 
             {/* Auto-generated description */}
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Descrição automática</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Texto do anúncio</p>
               <div className="rounded-xl bg-white border border-gray-100 p-4">
                 <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{description}</p>
               </div>
