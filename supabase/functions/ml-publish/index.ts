@@ -179,17 +179,20 @@ serve(async (req) => {
     console.log('Imagens processadas:', pictures.length)
 
     // 4. Publish to ML
-    const mlPayload = {
+    const mlPayload: Record<string, unknown> = {
       title,
       category_id: categoryId,
       price: product.price,
       currency_id: 'BRL',
       available_quantity: product.available_quantity || 10,
       buying_mode: 'buy_it_now',
-      condition: product.condition || 'new',
-      listing_type_id: 'gold_special',
+      listing_type_id: 'gold_pro',
       description: { plain_text: product.description || '' },
       pictures,
+      attributes: [
+        { id: 'BRAND', value_name: 'Genérico' },
+        { id: 'SELLER_SKU', value_name: product.external_id || 'SKU-001' },
+      ],
     }
     console.log('Sending to ML API...')
 
