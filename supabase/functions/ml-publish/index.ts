@@ -6,42 +6,46 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Upload image to Supabase Storage and return public URL — with fallback
-async function uploadImageToSupabase(
-  supabase: any,
-  imageUrl: string,
-  productId: string,
-  index: number
-): Promise<string> {
+// Convert ArrayBuffer to base64
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  const CHUNK_SIZE = 8192
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, i + CHUNK_SIZE)
+    binary += String.fromCharCode.apply(null, Array.from(chunk))
+  }
+  return btoa(binary)
+}
+
+// Process image: try direct URL first, fallback to base64
+async function processImage(imageUrl: string, index: number): Promise<{ source?: string; data?: string } | null> {
+  console.log(`Processando imagem ${index}: ${imageUrl}`)
+  
+  // First try direct URL
   try {
-    console.log(`Uploading image ${index}: ${imageUrl.substring(0, 80)}...`)
-    const response = await fetch(imageUrl)
-    if (!response.ok) {
-      console.warn(`Failed to download image ${index}, status: ${response.status}`)
-      return imageUrl // fallback to original
+    const head = await fetch(imageUrl, { method: 'HEAD' })
+    if (head.ok) {
+      console.log(`Imagem ${index}: usando URL direta`)
+      return { source: imageUrl }
     }
-    const arrayBuffer = await response.arrayBuffer()
-    const uint8 = new Uint8Array(arrayBuffer)
-    const fileName = `products/${productId}/${Date.now()}_${index}.jpg`
+  } catch (_) { /* try base64 fallback */ }
 
-    const { error } = await supabase.storage
-      .from('product-images')
-      .upload(fileName, uint8, { contentType: 'image/jpeg', upsert: true })
-
-    if (error) {
-      console.warn(`Storage upload error for image ${index}:`, error.message)
-      return imageUrl // fallback to original
+  // Fallback: download and convert to base64
+  try {
+    console.log(`Imagem ${index}: convertendo para base64...`)
+    const imgResponse = await fetch(imageUrl)
+    if (!imgResponse.ok) {
+      console.warn(`Imagem ${index}: download falhou (${imgResponse.status})`)
+      return { source: imageUrl } // last resort: send URL anyway
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('product-images')
-      .getPublicUrl(fileName)
-
-    console.log(`Image ${index} uploaded: ${publicUrl.substring(0, 80)}`)
-    return publicUrl
+    const imgBuffer = await imgResponse.arrayBuffer()
+    const base64 = arrayBufferToBase64(imgBuffer)
+    console.log(`Imagem ${index}: base64 gerado (${base64.length} chars)`)
+    return { source: `data:image/jpeg;base64,${base64}` }
   } catch (err) {
-    console.warn(`Exception uploading image ${index}:`, err)
-    return imageUrl // fallback to original
+    console.warn(`Imagem ${index}: falha total, enviando URL original`, err)
+    return { source: imageUrl }
   }
 }
 
@@ -166,19 +170,20 @@ serve(async (req) => {
     } catch (_e) { /* fallback */ }
     console.log('Categoria detectada:', categoryId)
 
-    // 3. Proxy images through Supabase Storage (with per-image fallback)
+    // 3. Process images — direct URL with base64 fallback
     const rawImages: string[] = product.images || []
     const imagesToUse = rawImages.slice(0, 6)
-    const productId = product.id || `pub_${Date.now()}`
 
-    const pictures = await Promise.all(
-      imagesToUse.map((url: string, i: number) =>
-        uploadImageToSupabase(supabase, url, productId, i).then(src => ({ source: src }))
-      )
-    )
+    const pictures = (await Promise.all(
+      imagesToUse.map((url: string, i: number) => processImage(url, i))
+    )).filter(Boolean)
     console.log('Imagens processadas:', pictures.length)
 
-    // 4. Publish to ML
+    // 4. Description
+    const descriptionText = product.description || ''
+    console.log('Descrição recebida:', descriptionText.substring(0, 100))
+
+    // 5. Publish to ML
     const mlPayload: Record<string, unknown> = {
       title,
       category_id: categoryId,
@@ -188,7 +193,7 @@ serve(async (req) => {
       buying_mode: 'buy_it_now',
       condition: 'not_specified',
       listing_type_id: 'gold_pro',
-      description: { plain_text: product.description || '' },
+      description: { plain_text: descriptionText || 'Produto importado via Velo' },
       pictures,
       attributes: [
         { id: 'BRAND', value_name: 'Genérico' },
