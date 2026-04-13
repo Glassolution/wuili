@@ -470,15 +470,29 @@ const { user } = useAuth();
               )}
               {step < 3 ? (
                 <button
-                  onClick={() => setStep(step + 1)}
-                  className="rounded-xl bg-[#0A0A0A] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#1a1a1a] transition-colors"
+                  onClick={() => {
+                    if (step === 1 && !isConnectedToML) {
+                      toast.error("Conecte sua conta do Mercado Livre para continuar");
+                      return;
+                    }
+                    setStep(step + 1);
+                  }}
+                  className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-colors ${
+                    step === 1 && !isConnectedToML
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-[#0A0A0A] text-white hover:bg-[#1a1a1a]"
+                  }`}
                 >
                   Continuar
                 </button>
               ) : (
                 <button
                   onClick={handlePublish}
-                  className="rounded-xl bg-[#0A0A0A] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
+                  className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-colors flex items-center gap-2 ${
+                    !isConnectedToML
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-[#0A0A0A] text-white hover:bg-[#1a1a1a]"
+                  }`}
                 >
                   Publicar no Mercado Livre
                 </button>
