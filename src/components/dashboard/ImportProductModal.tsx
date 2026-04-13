@@ -481,6 +481,34 @@ const { user } = useAuth();
                 </div>
               </div>
             )}
+
+            {/* STEP 4: Success */}
+            {step === 4 && publishResult && (
+              <div className="space-y-6 animate-fade-in flex flex-col items-center justify-center py-10">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+                  <Check size={32} className="text-emerald-600" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-[#0A0A0A]">Anúncio publicado!</h3>
+                  <p className="text-sm text-gray-500 mt-1">Seu produto já está disponível no Mercado Livre</p>
+                </div>
+                <div className="w-full max-w-sm space-y-3">
+                  <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 px-4 py-3">
+                    <span className="text-sm text-gray-500">ID do anúncio</span>
+                    <span className="text-sm font-bold text-[#0A0A0A]">{publishResult.item_id}</span>
+                  </div>
+                  <a
+                    href={publishResult.permalink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#0A0A0A] px-5 py-3 text-sm font-bold text-white hover:bg-[#1a1a1a] transition-colors"
+                  >
+                    <ExternalLink size={14} />
+                    Ver anúncio no Mercado Livre
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -489,10 +517,10 @@ const { user } = useAuth();
               onClick={handleClose}
               className="rounded-xl px-5 py-2.5 text-sm font-medium text-gray-500 hover:text-[#0A0A0A] hover:bg-gray-100 transition-colors"
             >
-              Cancelar
+              {step === 4 ? "Fechar" : "Cancelar"}
             </button>
             <div className="flex items-center gap-3">
-              {step > 1 && (
+              {step > 1 && step < 4 && (
                 <button
                   onClick={() => setStep(step - 1)}
                   className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-[#0A0A0A] hover:bg-gray-50 transition-colors"
@@ -517,18 +545,20 @@ const { user } = useAuth();
                 >
                   Continuar
                 </button>
-              ) : (
+              ) : step === 3 ? (
                 <button
                   onClick={handlePublish}
+                  disabled={publishing || !isConnectedToML}
                   className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-colors flex items-center gap-2 ${
-                    !isConnectedToML
+                    publishing || !isConnectedToML
                       ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                       : "bg-[#0A0A0A] text-white hover:bg-[#1a1a1a]"
                   }`}
                 >
-                  Publicar no Mercado Livre
+                  {publishing && <Loader2 size={14} className="animate-spin" />}
+                  {publishing ? "Publicando..." : "Publicar no Mercado Livre"}
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
