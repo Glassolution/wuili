@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight, Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
@@ -17,6 +18,8 @@ const CatalogPage = () => {
   const [category, setCategory] = useState("todos");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const limit = 20;
 
@@ -221,7 +224,10 @@ const CatalogPage = () => {
 
                   {/* Import button */}
                   <div className="mt-3 flex items-center gap-2">
-                    <button className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80">
+                    <button
+                      onClick={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
+                      className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
+                    >
                       Importar produto
                     </button>
                     <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted">
@@ -257,6 +263,11 @@ const CatalogPage = () => {
           </button>
         </div>
       )}
+      <ImportProductModal
+        open={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        product={selectedProduct}
+      />
     </div>
   );
 };
