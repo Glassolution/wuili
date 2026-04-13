@@ -275,6 +275,33 @@ const { user } = useAuth();
                     </div>
                   </div>
                 </div>
+
+                {/* ML Connection Status */}
+                {isConnectedToML === false && (
+                  <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+                    <AlertCircle size={18} className="text-amber-600 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-[#0A0A0A]">Conta não conectada</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Conecte sua conta do Mercado Livre para publicar produtos</p>
+                    </div>
+                    <button
+                      onClick={handleConnectML}
+                      className="shrink-0 flex items-center gap-1.5 rounded-lg bg-[#0A0A0A] px-4 py-2 text-xs font-bold text-white hover:bg-[#1a1a1a] transition-colors"
+                    >
+                      <Link size={12} />
+                      Conectar
+                    </button>
+                  </div>
+                )}
+                {isConnectedToML === true && (
+                  <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+                    <Check size={18} className="text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-[#0A0A0A]">Conta conectada</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Sua conta do Mercado Livre está pronta para publicação</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
