@@ -7,7 +7,6 @@ import {
   Menu, Search, ChevronRight, X, MessageSquare, type LucideIcon,
   LayoutGrid, ShoppingCart, BookOpen, Star, Users,
   BarChart3, Settings, MessageCircle, Wallet, ArrowLeftRight, CreditCard,
-  Monitor, MessageSquare,
 } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
@@ -67,19 +66,16 @@ const DashboardTopbar = () => {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-background px-4">
-        {/* Mobile menu */}
         <button className="md:hidden text-muted-foreground" onClick={() => setMobileOpen(true)}>
           <Menu size={20} />
         </button>
 
-        {/* Breadcrumb */}
         <div className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
           <span className="font-semibold text-foreground">Velo</span>
           <ChevronRight size={13} />
           <span>{pageTitle}</span>
         </div>
 
-        {/* Search — centered */}
         <div className="flex flex-1 justify-center">
           <div className="relative w-full max-w-sm">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -90,12 +86,8 @@ const DashboardTopbar = () => {
           </div>
         </div>
 
-        {/* Right — notification bell + chat + avatar */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Notifications */}
           <NotificacoesPopover />
-
-          {/* Chat IA */}
           <Link
             to="/dashboard/ia"
             className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -104,7 +96,6 @@ const DashboardTopbar = () => {
             <MessageSquare size={18} strokeWidth={1.75} />
           </Link>
 
-          {/* User avatar */}
           <div className="relative">
             <button
               onClick={() => setAvatarMenuOpen((v) => !v)}
@@ -141,7 +132,6 @@ const DashboardTopbar = () => {
         </div>
       </header>
 
-      {/* Mobile drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-foreground/30" onClick={() => setMobileOpen(false)} />
