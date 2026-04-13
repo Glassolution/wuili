@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { X, Package, ChevronRight, Check, Store, TrendingUp, AlertCircle, Link, Loader2, ExternalLink } from "lucide-react";
+import { X, Package, ChevronRight, Check, Store, TrendingUp, AlertCircle, Link, Loader2, ExternalLink, Sparkles, Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +22,8 @@ type Props = {
   product: CatalogProduct | null;
 };
 
+const MAX_TITLE_LENGTH = 60;
+
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
@@ -34,18 +36,6 @@ const getImage = (images: any): string | null => {
   }
 };
 
-const generateProductDescription = (product: CatalogProduct): string => {
-  const title = product.title || "este produto";
-  return `${title}
-
-• Estrutura reforçada para uso frequente e intenso
-• Sistema compacto para fácil armazenamento e transporte
-• Materiais selecionados com foco em durabilidade
-• Envio direto do fornecedor com rastreamento completo
-
-Ideal para quem busca praticidade no dia a dia, seja em atividades externas, compras ou transporte de equipamentos.`;
-};
-
 const STEPS = [
   { label: "Produto", num: 1 },
   { label: "Personalizar", num: 2 },
@@ -53,7 +43,7 @@ const STEPS = [
 ];
 
 const ImportProductModal = ({ open, onClose, product }: Props) => {
-const { user } = useAuth();
+  const { user } = useAuth();
 
   const suggestedPrice = product
     ? product.suggested_price || product.cost_price * 2.2
@@ -66,6 +56,11 @@ const { user } = useAuth();
   const [isConnectedToML, setIsConnectedToML] = useState<boolean | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
+
+  // AI description
+  const [description, setDescription] = useState("");
+  const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [descGenerated, setDescGenerated] = useState(false);
 
   // Check ML connection status
   useEffect(() => {
@@ -94,11 +89,17 @@ const { user } = useAuth();
   const [lastProductId, setLastProductId] = useState<string | null>(null);
   if (product && product.id !== lastProductId) {
     setLastProductId(product.id);
-    setTitle(product.title);
+    // Truncate title to 60 chars on load
+    const truncated = product.title.length > MAX_TITLE_LENGTH
+      ? product.title.substring(0, MAX_TITLE_LENGTH)
+      : product.title;
+    setTitle(truncated);
     setSellPrice(Math.round(suggestedPrice * 1.2 * 100) / 100);
     setStep(1);
     setPublishResult(null);
     setPublishing(false);
+    setDescription("");
+    setDescGenerated(false);
   }
 
   const costPrice = product?.cost_price ?? 0;
@@ -109,7 +110,6 @@ const { user } = useAuth();
   );
 
   const img = product ? getImage(product.images) : null;
-  const description = product ? generateProductDescription(product) : "";
 
   const handleClose = () => {
     setVisible(false);
@@ -122,20 +122,88 @@ const { user } = useAuth();
     window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
   };
 
-  const handlePublish = async () => {
-    if (!isConnectedToML) {
-      toast.error("Conecte sua conta do Mercado Livre para publicar");
-      return;
+  // Generate AI description
+  const handleGenerateDescription = async () => {
+    if (!product) return;
+    setGeneratingDesc(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: {
+          messages: [
+            {
+              role: "user",
+              content: `Você é um especialista em copywriting para e-commerce brasileiro. Crie uma descrição de produto persuasiva para o Mercado Livre com no máximo 500 caracteres. O produto é: ${title}. Preço de venda: R$ ${sellPrice.toFixed(2)}. Use linguagem direta, destaque benefícios e inclua uma chamada para ação. Não use bullet points, apenas parágrafos curtos. Responda APENAS com a descrição, sem comentários adicionais.`
+            }
+          ]
+        },
+      });
+
+      if (error) throw error;
+
+      // Handle streaming response - read full text
+      if (typeof data === "string") {
+        // Parse SSE response
+        const lines = data.split("\n");
+        let fullText = "";
+        for (const line of lines) {
+          if (line.startsWith("data: ") && line !== "data: [DONE]") {
+            try {
+              const parsed = JSON.parse(line.slice(6));
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) fullText += content;
+            } catch { /* skip */ }
+          }
+        }
+        if (fullText) {
+          setDescription(fullText.trim());
+          setDescGenerated(true);
+          toast.success("Descrição gerada com IA!");
+        } else {
+          throw new Error("Resposta vazia da IA");
+        }
+      } else if (data?.choices?.[0]?.message?.content) {
+        setDescription(data.choices[0].message.content.trim());
+        setDescGenerated(true);
+        toast.success("Descrição gerada com IA!");
+      } else {
+        throw new Error("Formato inesperado");
+      }
+    } catch (err: any) {
+      console.error("Erro ao gerar descrição:", err);
+      toast.error("Erro ao gerar descrição. Tente novamente.");
+    } finally {
+      setGeneratingDesc(false);
     }
-    if (!user) return;
+  };
+
+  // Validate before publish
+  const validatePublish = (): boolean => {
     if (!title.trim()) {
       toast.error("Preencha o título do produto.");
-      return;
+      return false;
+    }
+    if (title.trim().length > MAX_TITLE_LENGTH) {
+      toast.error(`Título muito longo. Máximo ${MAX_TITLE_LENGTH} caracteres.`);
+      return false;
     }
     if (sellPrice <= 0) {
       toast.error("Defina um preço de venda válido.");
-      return;
+      return false;
     }
+    if (sellPrice <= costPrice) {
+      toast.error("O preço de venda deve ser maior que o preço de custo.");
+      return false;
+    }
+    if (!isConnectedToML) {
+      toast.error("Conecte sua conta do Mercado Livre para publicar.");
+      return false;
+    }
+    return true;
+  };
+
+  const handlePublish = async () => {
+    if (!validatePublish()) return;
+    if (!user) return;
 
     setPublishing(true);
 
@@ -151,9 +219,10 @@ const { user } = useAuth();
         body: {
           user_id: user.id,
           product: {
+            id: product?.id,
             title: title.trim(),
             price: sellPrice,
-            description,
+            description: description || `${title} - Produto de alta qualidade com envio rápido.`,
             images,
             available_quantity: 10,
             condition: "new",
@@ -180,6 +249,9 @@ const { user } = useAuth();
 
   if (!open && !visible) return null;
   if (!product) return null;
+
+  const titleLength = title.length;
+  const titleOverLimit = titleLength > MAX_TITLE_LENGTH;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -345,15 +417,28 @@ const { user } = useAuth();
                   <p className="text-sm text-gray-500 mt-1">Ajuste o título e o valor de venda do anúncio</p>
                 </div>
 
-                {/* Title */}
+                {/* Title with char counter */}
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-[#0A0A0A]">Título do anúncio</label>
                   <input
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/10 focus:border-[#0A0A0A]/30 transition-all placeholder:text-gray-400"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.length <= MAX_TITLE_LENGTH) setTitle(val);
+                    }}
+                    maxLength={MAX_TITLE_LENGTH}
+                    className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 transition-all placeholder:text-gray-400 ${
+                      titleOverLimit
+                        ? "border-red-300 focus:ring-red-200 focus:border-red-400"
+                        : "border-gray-200 focus:ring-[#0A0A0A]/10 focus:border-[#0A0A0A]/30"
+                    }`}
                     placeholder="Título do produto"
                   />
+                  <p className={`text-xs font-medium text-right ${
+                    titleOverLimit ? "text-red-500" : titleLength > 50 ? "text-amber-500" : "text-gray-400"
+                  }`}>
+                    {titleLength}/{MAX_TITLE_LENGTH} caracteres
+                  </p>
                 </div>
 
                 {/* Pricing */}
@@ -424,6 +509,13 @@ const { user } = useAuth();
                     </div>
                   </div>
 
+                  {sellPrice > 0 && sellPrice <= costPrice && (
+                    <div className="flex items-center gap-2 text-red-500">
+                      <AlertCircle size={14} />
+                      <span className="text-xs font-semibold">O preço de venda deve ser maior que o custo</span>
+                    </div>
+                  )}
+
                   {profit > 0 && profitMargin >= 40 && (
                     <div className="flex items-center gap-2 text-emerald-600">
                       <TrendingUp size={14} />
@@ -478,6 +570,41 @@ const { user } = useAuth();
                       {formatBRL(profit)}
                     </span>
                   </div>
+                </div>
+
+                {/* AI Description section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-[#0A0A0A] flex items-center gap-2">
+                      <Edit3 size={14} className="text-gray-400" />
+                      Descrição do anúncio
+                    </h4>
+                    <button
+                      onClick={handleGenerateDescription}
+                      disabled={generatingDesc}
+                      className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-50"
+                    >
+                      {generatingDesc ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Sparkles size={12} />
+                      )}
+                      {generatingDesc ? "Gerando..." : descGenerated ? "Regenerar com IA" : "Gerar com IA"}
+                    </button>
+                  </div>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Clique em 'Gerar com IA' para criar uma descrição persuasiva, ou escreva manualmente..."
+                    rows={5}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/10 focus:border-[#0A0A0A]/30 transition-all placeholder:text-gray-400 resize-none"
+                  />
+                  {descGenerated && (
+                    <p className="text-xs text-violet-500 flex items-center gap-1">
+                      <Sparkles size={10} />
+                      Descrição gerada por IA — edite se necessário
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -595,11 +722,13 @@ const { user } = useAuth();
               )}
             </div>
 
-            {/* Auto-generated description */}
+            {/* Description preview */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Texto do anúncio</p>
               <div className="rounded-xl bg-white border border-gray-100 p-4">
-                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{description}</p>
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                  {description || "Descrição será gerada no passo de revisão..."}
+                </p>
               </div>
             </div>
           </div>
