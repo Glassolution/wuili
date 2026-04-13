@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { X, Package, ChevronRight, Check, Store, TrendingUp } from "lucide-react";
+import { X, Package, ChevronRight, Check, Store, TrendingUp, AlertCircle, Link } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type CatalogProduct = {
   id: string;
@@ -51,6 +53,8 @@ const STEPS = [
 ];
 
 const ImportProductModal = ({ open, onClose, product }: Props) => {
+const { user } = useAuth();
+
   const suggestedPrice = product
     ? product.suggested_price || product.cost_price * 2.2
     : 0;
@@ -59,6 +63,21 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const [title, setTitle] = useState("");
   const [sellPrice, setSellPrice] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [isConnectedToML, setIsConnectedToML] = useState<boolean | null>(null);
+
+  // Check ML connection status
+  useEffect(() => {
+    if (!user || !open) return;
+    (async () => {
+      const { data } = await supabase
+        .from("user_integrations")
+        .select("access_token")
+        .eq("user_id", user.id)
+        .eq("platform", "mercadolivre")
+        .maybeSingle();
+      setIsConnectedToML(!!data?.access_token);
+    })();
+  }, [user, open]);
 
   // Animate in/out
   useEffect(() => {
@@ -93,7 +112,17 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     setTimeout(onClose, 300);
   };
 
+  const handleConnectML = () => {
+    if (!user) return;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
+  };
+
   const handlePublish = () => {
+    if (!isConnectedToML) {
+      toast.error("Conecte sua conta do Mercado Livre para publicar");
+      return;
+    }
     if (!title.trim()) {
       toast.error("Preencha o título do produto.");
       return;
@@ -246,6 +275,33 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                     </div>
                   </div>
                 </div>
+
+                {/* ML Connection Status */}
+                {isConnectedToML === false && (
+                  <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+                    <AlertCircle size={18} className="text-amber-600 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-[#0A0A0A]">Conta não conectada</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Conecte sua conta do Mercado Livre para publicar produtos</p>
+                    </div>
+                    <button
+                      onClick={handleConnectML}
+                      className="shrink-0 flex items-center gap-1.5 rounded-lg bg-[#0A0A0A] px-4 py-2 text-xs font-bold text-white hover:bg-[#1a1a1a] transition-colors"
+                    >
+                      <Link size={12} />
+                      Conectar
+                    </button>
+                  </div>
+                )}
+                {isConnectedToML === true && (
+                  <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+                    <Check size={18} className="text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-[#0A0A0A]">Conta conectada</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Sua conta do Mercado Livre está pronta para publicação</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -414,15 +470,29 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
               )}
               {step < 3 ? (
                 <button
-                  onClick={() => setStep(step + 1)}
-                  className="rounded-xl bg-[#0A0A0A] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#1a1a1a] transition-colors"
+                  onClick={() => {
+                    if (step === 1 && !isConnectedToML) {
+                      toast.error("Conecte sua conta do Mercado Livre para continuar");
+                      return;
+                    }
+                    setStep(step + 1);
+                  }}
+                  className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-colors ${
+                    step === 1 && !isConnectedToML
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-[#0A0A0A] text-white hover:bg-[#1a1a1a]"
+                  }`}
                 >
                   Continuar
                 </button>
               ) : (
                 <button
                   onClick={handlePublish}
-                  className="rounded-xl bg-[#0A0A0A] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
+                  className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-colors flex items-center gap-2 ${
+                    !isConnectedToML
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-[#0A0A0A] text-white hover:bg-[#1a1a1a]"
+                  }`}
                 >
                   Publicar no Mercado Livre
                 </button>
