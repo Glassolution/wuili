@@ -14,52 +14,28 @@ import {
   Legend,
 } from "recharts";
 
-const revenueData = [
-  { month: "Jan", faturamento: 4200, lucro: 1400 },
-  { month: "Fev", faturamento: 5800, lucro: 2100 },
-  { month: "Mar", faturamento: 4900, lucro: 1700 },
-  { month: "Abr", faturamento: 7200, lucro: 2800 },
-  { month: "Mai", faturamento: 6800, lucro: 2400 },
-  { month: "Jun", faturamento: 9100, lucro: 3600 },
-  { month: "Jul", faturamento: 8400, lucro: 3200 },
-  { month: "Ago", faturamento: 11200, lucro: 4500 },
-  { month: "Set", faturamento: 10800, lucro: 4200 },
-  { month: "Out", faturamento: 13400, lucro: 5600 },
-  { month: "Nov", faturamento: 15200, lucro: 6800 },
-  { month: "Dez", faturamento: 18900, lucro: 8400 },
-];
+import { mockRevenueData, mockOrdersData, mockResumoLoja, mockResumoCategoria, mockOrders, mockStats } from "@/lib/mockData";
 
-const ordersData = [
-  { day: "Seg", ml: 8, shopee: 5, loja: 3 },
-  { day: "Ter", ml: 12, shopee: 7, loja: 4 },
-  { day: "Qua", ml: 9, shopee: 6, loja: 2 },
-  { day: "Qui", ml: 14, shopee: 9, loja: 5 },
-  { day: "Sex", ml: 18, shopee: 11, loja: 6 },
-  { day: "Sáb", ml: 15, shopee: 8, loja: 4 },
-  { day: "Dom", ml: 20, shopee: 13, loja: 7 },
-];
+const revenueData = mockRevenueData;
+const ordersData = mockResumoLoja.map(l => ({ day: l.loja, ml: l.pedidos, shopee: 0 }));
 
-const topProducts = [
-  { name: "Fone TWS", sales: 45, max: 45 },
-  { name: "Tênis Casual", sales: 38, max: 45 },
-  { name: "Kit Skincare", sales: 32, max: 45 },
-  { name: "Relógio Smart", sales: 28, max: 45 },
-  { name: "Mochila Urbana", sales: 22, max: 45 },
-];
+const topProducts = (() => {
+  const counts: Record<string, number> = {};
+  mockOrders.forEach(o => { counts[o.product] = (counts[o.product] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const max = sorted[0]?.[1] ?? 1;
+  return sorted.map(([name, sales]) => ({ name, sales, max }));
+})();
 
-const pieData = [
-  { name: "Mercado Livre", value: 52 },
-  { name: "Shopee", value: 31 },
-  { name: "Minha Loja", value: 17 },
-];
+const pieData = mockResumoLoja.map(l => ({ name: l.loja, value: Math.round(l.receita / mockStats.totalRevenue * 100) }));
+const pieColors = ["hsl(243, 100%, 68%)", "hsl(25, 95%, 53%)", "hsl(167, 100%, 42%)", "hsl(200, 80%, 50%)", "hsl(340, 80%, 55%)", "hsl(60, 80%, 45%)", "hsl(280, 70%, 55%)"];
 
-const pieColors = ["hsl(243, 100%, 68%)", "hsl(25, 95%, 53%)", "hsl(167, 100%, 42%)"];
-
+const ticketMedio = mockStats.totalOrders > 0 ? (mockStats.totalRevenue / mockStats.totalOrders).toFixed(2) : "0,00";
 const kpis = [
-  { label: "Ticket médio", value: "R$179,40" },
-  { label: "Cancelamentos", value: "3,2%" },
-  { label: "Produtos ativos", value: "12" },
-  { label: "Recorrentes", value: "34%" },
+  { label: "Ticket médio", value: `R$${Number(ticketMedio).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+  { label: "Total pedidos", value: mockStats.totalOrders.toString() },
+  { label: "Receita total", value: `R$${mockStats.totalRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+  { label: "Lucro total", value: `R$${mockStats.totalProfit.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
 ];
 
 const tooltipStyle = {
@@ -119,7 +95,6 @@ const ReportsPage = () => (
             <Legend />
             <Bar dataKey="ml" name="Mercado Livre" fill="hsl(243, 100%, 68%)" radius={[4, 4, 0, 0]} />
             <Bar dataKey="shopee" name="Shopee" fill="hsl(25, 95%, 53%)" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="loja" name="Minha Loja" fill="hsl(167, 100%, 42%)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

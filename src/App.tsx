@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "./lib/profileContext";
+import { ImportedProductsProvider } from "./lib/importedProductsContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/LoginPage";
@@ -31,6 +32,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
     <ProfileProvider>
+    <ImportedProductsProvider>
     <TooltipProvider>
       <Toaster />
       <Sonner position="top-center" expand={false} style={{ width: "100vw", left: 0, top: 0, transform: "none" }} />
@@ -54,19 +56,21 @@ const App = () => (
                   description="Visualize recorrência, ticket médio e interações importantes para priorizar atendimento."
                   primaryAction="Criar segmento"
                   stats={[
-                    { label: "Clientes ativos", value: "1.248", hint: "Compraram nos últimos 90 dias" },
-                    { label: "Recorrentes", value: "36%", hint: "Voltaram a comprar no período" },
-                    { label: "Ticket médio", value: "R$ 142,00", hint: "Média por pedido concluído" },
+                    { label: "Clientes ativos", value: "5", hint: "Compraram nos últimos 90 dias" },
+                    { label: "Recorrentes", value: "0%", hint: "Nenhum cliente recorrente ainda" },
+                    { label: "Ticket médio", value: "R$ 56,41", hint: "Média por pedido" },
                   ]}
                   items={[
-                    { title: "Mariana Costa", subtitle: "3 compras no mês e ticket acima da média", meta: "VIP", status: "ok" },
-                    { title: "Eduardo Lima", subtitle: "Solicitou suporte no último pedido", meta: "Hoje", status: "warning" },
-                    { title: "Juliana Rocha", subtitle: "Lead novo vindo da loja própria", meta: "Novo", status: "neutral" },
+                    { title: "Ana Souza", subtitle: "Organizador de Gaveta — Magalu", meta: "24/05/2025", status: "ok" },
+                    { title: "Bruno Ferreira", subtitle: "Elástico de Resistência Set — Mercado Livre", meta: "07/10/2025", status: "neutral" },
+                    { title: "Camila Santos", subtitle: "LEGO Compatível City — AliExpress", meta: "03/06/2025", status: "neutral" },
+                    { title: "Diego Oliveira", subtitle: "Elástico de Resistência Set — Mercado Livre", meta: "01/09/2025", status: "neutral" },
+                    { title: "Elisa Martins", subtitle: "Tênis Running Lite — Mercado Livre", meta: "02/08/2025", status: "neutral" },
                   ]}
                   summary={[
-                    { label: "Novos hoje", value: "18" },
-                    { label: "Avaliação média", value: "4,8/5" },
-                    { label: "Canal com mais clientes", value: "Shopee" },
+                    { label: "Total de clientes", value: "5" },
+                    { label: "Novos este mês", value: "5" },
+                    { label: "Canal principal", value: "Mercado Livre" },
                   ]}
                 />
               }
@@ -108,6 +112,7 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+    </ImportedProductsProvider>
     </ProfileProvider>
     </AuthProvider>
   </QueryClientProvider>

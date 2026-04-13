@@ -1,48 +1,7 @@
 import { AlertTriangle, CheckCircle2, CreditCard, QrCode, Smartphone } from "lucide-react";
 
-const metodos = [
-  {
-    nome: "Pix",
-    icon: QrCode,
-    participacao: "41%",
-    aprovacao: "99,8%",
-    status: "ok",
-    detalhe: "Confirmação automática em tempo real",
-  },
-  {
-    nome: "Cartão de crédito",
-    icon: CreditCard,
-    participacao: "38%",
-    aprovacao: "89,2%",
-    status: "warning",
-    detalhe: "Queda leve em emissor específico",
-  },
-  {
-    nome: "Boleto",
-    icon: Smartphone,
-    participacao: "12%",
-    aprovacao: "74,1%",
-    status: "neutral",
-    detalhe: "Disponível apenas na loja própria",
-  },
-];
-
-const statusCls: Record<string, string> = {
-  ok: "bg-success-light text-success",
-  warning: "bg-warning/10 text-warning",
-  neutral: "bg-muted text-muted-foreground",
-};
-const statusLabel: Record<string, string> = {
-  ok: "Saudável",
-  warning: "Atenção",
-  neutral: "Opcional",
-};
-
-const falhas = [
-  { id: "#4820", motivo: "Cartão recusado pelo emissor", metodo: "Crédito", valor: "R$ 127,00", data: "Hoje 11:15" },
-  { id: "#4813", motivo: "Timeout na autorização", metodo: "Crédito", valor: "R$ 189,00", data: "4 dias atrás" },
-  { id: "#4809", motivo: "Boleto não compensado", metodo: "Boleto", valor: "R$ 119,00", data: "6 dias atrás" },
-];
+const metodos: { nome: string; icon: typeof import("lucide-react").QrCode; participacao: string; aprovacao: string; status: string; detalhe: string }[] = [];
+const falhas: { id: string; motivo: string; metodo: string; valor: string; data: string }[] = [];
 
 const PagamentosPage = () => (
   <div className="space-y-6">
@@ -59,9 +18,9 @@ const PagamentosPage = () => (
     {/* Stats */}
     <div className="grid gap-4 md:grid-cols-3">
       {[
-        { label: "Taxa de aprovação", value: "92,4%", hint: "Média nas últimas 24h", icon: CheckCircle2, cls: "bg-success-light text-success" },
-        { label: "Falhas", value: "23", hint: "Necessitam revisão", icon: AlertTriangle, cls: "bg-destructive/10 text-destructive" },
-        { label: "Chargebacks", value: "0,7%", hint: "Abaixo da média do setor", icon: CreditCard, cls: "bg-primary/10 text-primary" },
+        { label: "Taxa de aprovação", value: "—", hint: "Nenhum dado ainda", icon: CheckCircle2, cls: "bg-success-light text-success" },
+        { label: "Falhas", value: "0", hint: "Nenhuma falha registrada", icon: AlertTriangle, cls: "bg-destructive/10 text-destructive" },
+        { label: "Chargebacks", value: "—", hint: "Nenhum dado ainda", icon: CreditCard, cls: "bg-primary/10 text-primary" },
       ].map((s) => (
         <div key={s.label} className="card-wuili p-5">
           <div className="flex items-center justify-between mb-3">
@@ -126,9 +85,9 @@ const PagamentosPage = () => (
 
         <div className="card-wuili p-5 space-y-2">
           {[
-            { label: "Gateway principal", value: "Stripe" },
-            { label: "Tempo de liquidação", value: "D+1" },
-            { label: "Volume mensal", value: "R$ 18.920,00" },
+            { label: "Gateway principal", value: "—" },
+            { label: "Tempo de liquidação", value: "—" },
+            { label: "Volume mensal", value: "R$ 0,00" },
           ].map((item) => (
             <div key={item.label} className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">
               <span className="text-sm text-muted-foreground">{item.label}</span>

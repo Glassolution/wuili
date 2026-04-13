@@ -1,28 +1,10 @@
 import { useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, Download, Search } from "lucide-react";
+import { mockTransacoes, mockStats } from "@/lib/mockData";
 
-type Tx = {
-  id: string;
-  descricao: string;
-  canal: string;
-  tipo: "entrada" | "saida";
-  valor: number;
-  status: "conciliado" | "pendente" | "ajuste";
-  data: string;
-};
-
-const transacoes: Tx[] = [
-  { id: "TX-0091", descricao: "Pagamento Shopee", canal: "Shopee", tipo: "entrada", valor: 127, status: "conciliado", data: "Hoje 14:10" },
-  { id: "TX-0090", descricao: "Pagamento Mercado Livre", canal: "Mercado Livre", tipo: "entrada", valor: 234, status: "conciliado", data: "Hoje 13:55" },
-  { id: "TX-0089", descricao: "Tarifa logística", canal: "Transportadora", tipo: "saida", valor: 18, status: "conciliado", data: "Hoje 13:48" },
-  { id: "TX-0088", descricao: "Ajuste manual", canal: "Interno", tipo: "saida", valor: 45, status: "ajuste", data: "Ontem" },
-  { id: "TX-0087", descricao: "Pagamento Minha Loja", canal: "Minha Loja", tipo: "entrada", valor: 89, status: "conciliado", data: "Ontem" },
-  { id: "TX-0086", descricao: "Taxa marketplace", canal: "Shopee", tipo: "saida", valor: 12, status: "conciliado", data: "Ontem" },
-  { id: "TX-0085", descricao: "Pagamento Mercado Livre", canal: "Mercado Livre", tipo: "entrada", valor: 189, status: "conciliado", data: "2 dias atrás" },
-  { id: "TX-0084", descricao: "Estorno pedido #4817", canal: "Shopee", tipo: "saida", valor: 156, status: "pendente", data: "2 dias atrás" },
-  { id: "TX-0083", descricao: "Pagamento Minha Loja", canal: "Minha Loja", tipo: "entrada", valor: 278, status: "conciliado", data: "3 dias atrás" },
-  { id: "TX-0082", descricao: "Tarifa logística", canal: "Transportadora", tipo: "saida", valor: 22, status: "conciliado", data: "3 dias atrás" },
-];
+const transacoes = mockTransacoes;
+const totalEntradas = mockStats.totalEntradas;
+const totalSaidas = mockStats.totalSaidas;
 
 const statusCls: Record<string, string> = {
   conciliado: "bg-success-light text-success",
@@ -51,8 +33,8 @@ const TransacoesPage = () => {
     return matchSearch && matchFilter;
   });
 
-  const totalEntradas = transacoes.filter((t) => t.tipo === "entrada").reduce((s, t) => s + t.valor, 0);
-  const totalSaidas = transacoes.filter((t) => t.tipo === "saida").reduce((s, t) => s + t.valor, 0);
+  const totalEntradasVal = totalEntradas;
+  const totalSaidasVal = totalSaidas;
 
   return (
     <div className="space-y-6">
@@ -75,7 +57,7 @@ const TransacoesPage = () => {
               <ArrowDownLeft size={15} />
             </div>
           </div>
-          <p className="text-2xl font-black text-foreground">R$ {totalEntradas.toLocaleString("pt-BR")},00</p>
+          <p className="text-2xl font-black text-foreground">R$ {totalEntradasVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           <p className="mt-1 text-xs text-muted-foreground">Últimos 30 dias</p>
         </div>
         <div className="card-wuili p-5">
@@ -85,7 +67,7 @@ const TransacoesPage = () => {
               <ArrowUpRight size={15} />
             </div>
           </div>
-          <p className="text-2xl font-black text-foreground">R$ {totalSaidas.toLocaleString("pt-BR")},00</p>
+          <p className="text-2xl font-black text-foreground">R$ {totalSaidasVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           <p className="mt-1 text-xs text-muted-foreground">Taxas, frete e custos operacionais</p>
         </div>
         <div className="card-wuili p-5">
@@ -95,7 +77,7 @@ const TransacoesPage = () => {
               <Search size={15} />
             </div>
           </div>
-          <p className="text-2xl font-black text-foreground">98,7%</p>
+          <p className="text-2xl font-black text-foreground">{Math.round(transacoes.filter(t => t.status === "conciliado").length / (transacoes.length || 1) * 100)}%</p>
           <p className="mt-1 text-xs text-muted-foreground">Operações validadas automaticamente</p>
         </div>
       </div>

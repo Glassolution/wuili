@@ -1,29 +1,8 @@
 import { useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, RefreshCcw, Search, Store } from "lucide-react";
+import { type ChannelStatus } from "@/lib/mockData";
 
-type ChannelStatus = "published" | "publishing" | "error" | "none";
-
-type Publication = {
-  name: string;
-  sku: string;
-  category: string;
-  price: string;
-  updatedAt: string;
-  ml: ChannelStatus;
-  shopee: ChannelStatus;
-  loja: ChannelStatus;
-};
-
-const publications: Publication[] = [
-  { name: "Fone TWS", sku: "AUD-4821", category: "Eletrônicos", price: "R$ 189,00", updatedAt: "Hoje, 14:32", ml: "published", shopee: "published", loja: "published" },
-  { name: "Tênis Casual", sku: "MOD-4820", category: "Moda", price: "R$ 127,00", updatedAt: "Hoje, 11:15", ml: "published", shopee: "publishing", loja: "published" },
-  { name: "Kit Skincare", sku: "BEL-4819", category: "Beleza", price: "R$ 89,00", updatedAt: "Ontem, 18:40", ml: "published", shopee: "published", loja: "error" },
-  { name: "Relógio Smart", sku: "TEC-4818", category: "Eletrônicos", price: "R$ 234,00", updatedAt: "Ontem, 09:22", ml: "published", shopee: "published", loja: "published" },
-  { name: "Mochila Urbana", sku: "MOD-4817", category: "Moda", price: "R$ 156,00", updatedAt: "2 dias atrás", ml: "publishing", shopee: "none", loja: "published" },
-  { name: "Óculos Retrô", sku: "MOD-4816", category: "Moda", price: "R$ 78,00", updatedAt: "2 dias atrás", ml: "published", shopee: "published", loja: "none" },
-  { name: "Mouse Sem Fio", sku: "TEC-4815", category: "Eletrônicos", price: "R$ 67,00", updatedAt: "3 dias atrás", ml: "published", shopee: "error", loja: "published" },
-  { name: "Capa iPhone", sku: "TEC-4814", category: "Eletrônicos", price: "R$ 39,00", updatedAt: "3 dias atrás", ml: "published", shopee: "published", loja: "published" },
-];
+const publications: { name: string; sku: string; category: string; price: string; updatedAt: string; ml: ChannelStatus; shopee: ChannelStatus; loja: ChannelStatus }[] = [];
 
 const statusBadge: Record<ChannelStatus, { label: string; cls: string }> = {
   published: { label: "Publicado", cls: "bg-success-light text-success" },

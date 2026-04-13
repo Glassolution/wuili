@@ -19,7 +19,6 @@ const railLinks: RailLink[] = [
   { to: "/dashboard/transacoes", icon: ArrowLeftRight, label: "Transações" },
   { to: "/dashboard/pagamentos", icon: CreditCard, label: "Pagamentos" },
   { to: "/dashboard/relatorios", icon: BarChart3, label: "Relatórios" },
-  { to: "/dashboard/ia", icon: MessageCircle, label: "Chat IA" },
 ];
 
 /* These paths belong to the Dropshipping workspace */
@@ -31,7 +30,7 @@ const dropshippingPaths = [
 ];
 
 const workspaceItems = [
-  { label: "Products", path: "/dashboard/produtos", hasSubmenu: true },
+  { label: "Produtos", path: "/dashboard/produtos", hasSubmenu: false },
   { label: "Dropshipping", path: "/dashboard/dropshipping", hasSubmenu: false },
   { label: "Publicações", path: "/dashboard/publicacoes", hasSubmenu: false },
   { label: "Pedidos", path: "/dashboard/pedidos", hasSubmenu: false },
@@ -66,6 +65,24 @@ const DashboardSidebar = () => {
         <Link to="/" className="mb-4 flex items-center justify-center h-9 w-9">
           <BrandMark size="sm" tone="light" />
         </Link>
+
+        {/* Dropshipping icon — opens workspace panel */}
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <Link
+              to="/dashboard/ia"
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                isActive("/dashboard/ia")
+                  ? "bg-foreground text-background shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <MessageCircle className="h-[17px] w-[17px]" strokeWidth={1.75} />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8} className="text-xs">Chat IA</TooltipContent>
+        </Tooltip>
 
         {/* Dropshipping icon — opens workspace panel */}
         <Tooltip delayDuration={200}>

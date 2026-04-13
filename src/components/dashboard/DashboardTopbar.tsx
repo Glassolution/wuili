@@ -7,6 +7,7 @@ import {
   Menu, Search, ChevronRight, X, MessageSquare, type LucideIcon,
   LayoutGrid, ShoppingCart, BookOpen, Star, Users,
   BarChart3, Settings, MessageCircle, Wallet, ArrowLeftRight, CreditCard,
+  Monitor, MessageSquare,
 } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
