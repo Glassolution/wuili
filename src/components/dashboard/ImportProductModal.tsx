@@ -601,6 +601,9 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                 <div className="text-center">
                   <h3 className="text-lg font-bold text-[#0A0A0A]">Anúncio publicado!</h3>
                   <p className="text-sm text-gray-500 mt-1">Seu produto já está disponível no Mercado Livre</p>
+                  <p className="text-xs text-amber-600 mt-2 bg-amber-50 rounded-lg px-3 py-2">
+                    💡 Se o anúncio aparecer pausado, acesse Meus Anúncios no Mercado Livre e clique em "Ativar". Isso é normal para contas novas.
+                  </p>
                 </div>
                 <div className="w-full max-w-sm space-y-3">
                   <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 px-4 py-3">
