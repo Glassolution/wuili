@@ -36,8 +36,7 @@ const SaldosPage = () => (
             <TrendingUp size={15} />
           </div>
         </div>
-        <p className="text-2xl font-black text-foreground">R$ {mockSaldos.disponivel.toLocaleString("pt-BR")},00</p>
-        <p className="mt-1 text-xs text-muted-foreground">Atualizado hoje às 14:32</p>
+        <p className="text-2xl font-black text-foreground">R$ {mockSaldos.disponivel.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
       </div>
       <div className="card-wuili p-5">
         <div className="flex items-center justify-between mb-3">
@@ -46,7 +45,7 @@ const SaldosPage = () => (
             <Clock size={15} />
           </div>
         </div>
-        <p className="text-2xl font-black text-foreground">R$ {mockSaldos.aLiberar.toLocaleString("pt-BR")},00</p>
+        <p className="text-2xl font-black text-foreground">R$ {mockSaldos.aLiberar.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
         <p className="mt-1 text-xs text-muted-foreground">Previsão para os próximos 3 dias</p>
       </div>
       <div className="card-wuili p-5">
@@ -56,7 +55,7 @@ const SaldosPage = () => (
             <Building2 size={15} />
           </div>
         </div>
-        <p className="text-2xl font-black text-foreground">R$ 890,00</p>
+        <p className="text-2xl font-black text-foreground">R$ {mockSaldos.reservado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
         <p className="mt-1 text-xs text-muted-foreground">Valores em análise e estorno</p>
       </div>
     </div>
@@ -96,17 +95,17 @@ const SaldosPage = () => (
             <Building2 size={18} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">Banco Inter</p>
-            <p className="text-xs text-muted-foreground">Ag. 0001 · CC ••••4821</p>
+            <p className="text-sm font-semibold text-foreground">Nenhuma conta vinculada</p>
+            <p className="text-xs text-muted-foreground">Conecte uma conta bancária</p>
           </div>
         </div>
 
         <div className="space-y-2">
           {[
-            { label: "Último repasse", value: "R$ 4.200,00" },
-            { label: "Próxima previsão", value: "Amanhã" },
-            { label: "Ciclo de repasse", value: "D+1 útil" },
-            { label: "Total repasses (mês)", value: "R$ 18.660,00" },
+            { label: "Último repasse", value: "—" },
+            { label: "Próxima previsão", value: "—" },
+            { label: "Ciclo de repasse", value: "—" },
+            { label: "Total repasses (mês)", value: "R$ 0,00" },
           ].map((item) => (
             <div key={item.label} className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">
               <span className="text-sm text-muted-foreground">{item.label}</span>

@@ -3,6 +3,8 @@ import { ArrowDownLeft, ArrowUpRight, Download, Search } from "lucide-react";
 import { mockTransacoes, mockStats } from "@/lib/mockData";
 
 const transacoes = mockTransacoes;
+const totalEntradas = mockStats.totalEntradas;
+const totalSaidas = mockStats.totalSaidas;
 
 const statusCls: Record<string, string> = {
   conciliado: "bg-success-light text-success",
@@ -31,8 +33,8 @@ const TransacoesPage = () => {
     return matchSearch && matchFilter;
   });
 
-  const totalEntradas = mockStats.totalEntradas;
-  const totalSaidas = mockStats.totalSaidas;
+  const totalEntradasVal = totalEntradas;
+  const totalSaidasVal = totalSaidas;
 
   return (
     <div className="space-y-6">
@@ -55,7 +57,7 @@ const TransacoesPage = () => {
               <ArrowDownLeft size={15} />
             </div>
           </div>
-          <p className="text-2xl font-black text-foreground">R$ {totalEntradas.toLocaleString("pt-BR")},00</p>
+          <p className="text-2xl font-black text-foreground">R$ {totalEntradasVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           <p className="mt-1 text-xs text-muted-foreground">Últimos 30 dias</p>
         </div>
         <div className="card-wuili p-5">
@@ -65,7 +67,7 @@ const TransacoesPage = () => {
               <ArrowUpRight size={15} />
             </div>
           </div>
-          <p className="text-2xl font-black text-foreground">R$ {totalSaidas.toLocaleString("pt-BR")},00</p>
+          <p className="text-2xl font-black text-foreground">R$ {totalSaidasVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           <p className="mt-1 text-xs text-muted-foreground">Taxas, frete e custos operacionais</p>
         </div>
         <div className="card-wuili p-5">
@@ -75,7 +77,7 @@ const TransacoesPage = () => {
               <Search size={15} />
             </div>
           </div>
-          <p className="text-2xl font-black text-foreground">98,7%</p>
+          <p className="text-2xl font-black text-foreground">{Math.round(transacoes.filter(t => t.status === "conciliado").length / (transacoes.length || 1) * 100)}%</p>
           <p className="mt-1 text-xs text-muted-foreground">Operações validadas automaticamente</p>
         </div>
       </div>

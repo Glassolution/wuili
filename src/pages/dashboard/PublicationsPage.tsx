@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, RefreshCcw, Search, Store } from "lucide-react";
-import { mockPublications, type ChannelStatus } from "@/lib/mockData";
+import { type ChannelStatus } from "@/lib/mockData";
 
-const publications = mockPublications;
+const publications: { name: string; sku: string; category: string; price: string; updatedAt: string; ml: ChannelStatus; shopee: ChannelStatus; loja: ChannelStatus }[] = [];
 
 const statusBadge: Record<ChannelStatus, { label: string; cls: string }> = {
   published: { label: "Publicado", cls: "bg-success-light text-success" },

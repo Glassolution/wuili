@@ -6,12 +6,13 @@ const allOrders = mockOrders;
 
 const statusColors: Record<string, string> = {
   Entregue: "bg-success-light text-success",
-  "Em trânsito": "bg-warning/10 text-warning",
-  Processando: "bg-accent text-accent-foreground",
+  Enviado: "bg-primary/10 text-primary",
+  "Em processo": "bg-accent text-accent-foreground",
+  "Aguardando pagamento": "bg-warning/10 text-warning",
   Cancelado: "bg-destructive/10 text-destructive",
 };
 
-const statuses = ["Todos", "Processando", "Em trânsito", "Entregue", "Cancelado"];
+const statuses = ["Todos", "Enviado", "Em processo", "Aguardando pagamento", "Entregue", "Cancelado"];
 
 const OrdersPage = () => {
   const [search, setSearch] = useState("");
