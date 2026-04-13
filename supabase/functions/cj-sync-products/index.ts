@@ -11,6 +11,8 @@ const categories = [
   { keyword: "sports", name: "Esportes" },
 ];
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -21,7 +23,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Get access token via cj-auth
     const authRes = await fetch(`${supabaseUrl}/functions/v1/cj-auth`, {
       method: "POST",
       headers: {
@@ -30,7 +31,6 @@ Deno.serve(async (req) => {
       },
     });
     const authData = await authRes.json();
-    console.log("Auth response:", JSON.stringify(authData));
 
     if (!authData.accessToken) {
       return new Response(
@@ -43,45 +43,35 @@ Deno.serve(async (req) => {
     const results: Record<string, number> = {};
     let totalSynced = 0;
 
-    for (const cat of categories) {
-      try {
-        // Use product/list with productNameEn search
-        const res = await fetch(
-          "https://developers.cjdropshipping.com/api2.0/v1/product/list",
-          {
-            method: "GET",
-            headers: { "CJ-Access-Token": accessToken },
-          }
-        );
+    for (let i = 0; i < categories.length; i++) {
+      const cat = categories[i];
+      
+      // Rate limit: wait 1.5s between requests
+      if (i > 0) await sleep(1500);
 
-        // Try the search endpoint instead
-        const searchRes = await fetch(
-          "https://developers.cjdropshipping.com/api2.0/v1/product/list?" +
+      try {
+        const url = "https://developers.cjdropshipping.com/api2.0/v1/product/list?" +
           new URLSearchParams({
             productNameEn: cat.keyword,
             pageNum: "1",
             pageSize: "25",
-          }).toString(),
-          {
-            headers: { "CJ-Access-Token": accessToken },
-          }
-        );
-        
-        // Consume the first response body
-        await res.text();
+          }).toString();
 
-        const json = await searchRes.json();
-        console.log(`Category ${cat.name} response code:`, json.code, "count:", json.data?.list?.length || 0);
+        const res = await fetch(url, {
+          headers: { "CJ-Access-Token": accessToken },
+        });
+
+        const json = await res.json();
+        console.log(`Category ${cat.name}: code=${json.code}, count=${json.data?.list?.length || 0}`);
 
         if (json.code !== 200 || !json.data?.list) {
-          console.log(`Category ${cat.name} full response:`, JSON.stringify(json).substring(0, 500));
+          console.log(`${cat.name} response:`, JSON.stringify(json).substring(0, 300));
           results[cat.name] = 0;
           continue;
         }
 
         const products = json.data.list.filter(
-          (p: any) =>
-            (p.sellPrice || p.productSku?.[0]?.sellPrice) > 0
+          (p: any) => (p.sellPrice || p.productSku?.[0]?.sellPrice) > 0
         );
 
         const rows = products.map((p: any) => {
@@ -92,11 +82,9 @@ Deno.serve(async (req) => {
             ? Math.round(((suggestedBrl - costBrl) / suggestedBrl) * 10000) / 100
             : 0;
 
-          const images = p.productImageSet && p.productImageSet.length > 0
+          const images = p.productImageSet?.length
             ? p.productImageSet.map((img: any) => typeof img === "string" ? img : img.imageUrl || img)
-            : p.productImage
-              ? [p.productImage]
-              : [];
+            : p.productImage ? [p.productImage] : [];
 
           return {
             source: "cj",
@@ -119,9 +107,7 @@ Deno.serve(async (req) => {
           const { error } = await supabase
             .from("catalog_products")
             .upsert(rows, { onConflict: "external_id" });
-          if (error) {
-            console.error(`Upsert error for ${cat.name}:`, error);
-          }
+          if (error) console.error(`Upsert error ${cat.name}:`, error);
         }
 
         results[cat.name] = rows.length;
