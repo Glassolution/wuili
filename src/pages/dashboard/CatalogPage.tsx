@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCcw, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight, Package, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -77,59 +77,82 @@ const CatalogPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-black text-foreground">Catálogo de Produtos</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Produtos reais do CJ Dropshipping prontos para importar.
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-foreground tracking-tight">Dropshipping</h2>
+          <button className="text-muted-foreground hover:text-foreground transition-colors">
+            <MoreHorizontal size={18} />
+          </button>
         </div>
         <button
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending}
-          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
         >
-          <RefreshCcw size={15} className={syncMutation.isPending ? "animate-spin" : ""} />
+          <RefreshCw size={14} className={syncMutation.isPending ? "animate-spin" : ""} />
           {syncMutation.isPending ? "Sincronizando..." : "Sincronizar produtos"}
         </button>
       </div>
 
-      {/* Search */}
-      <input
-        className="w-full max-w-md rounded-xl border border-border bg-muted/50 px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-        placeholder="Buscar produto..."
-        value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-      />
+      {/* Subtitle */}
+      <p className="text-sm text-muted-foreground -mt-3">Produtos reais do CJ Dropshipping prontos para importar.</p>
 
-      {/* Category filters */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.key}
-            onClick={() => { setCategory(c.key); setPage(1); }}
-            className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-              category === c.key
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {c.label}
+      {/* Filters row */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              className="w-52 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Buscar produto..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            />
+          </div>
+
+          {/* Filter buttons */}
+          <button className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
+            Categoria <ChevronDown size={13} />
           </button>
-        ))}
+
+          {/* Hide button */}
+          <button className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Ocultar
+          </button>
+        </div>
+
+        {/* Category pills */}
+        <div className="hidden items-center gap-1.5 lg:flex">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.key}
+              onClick={() => { setCategory(c.key); setPage(1); }}
+              className={`rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
+                category === c.key
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Product Grid */}
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-border bg-card p-4 space-y-3">
-              <Skeleton className="h-40 w-full rounded-xl" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-10 w-full rounded-xl" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="overflow-hidden rounded-2xl border border-border bg-background">
+              <Skeleton className="aspect-[4/3] w-full" />
+              <div className="p-4 space-y-3">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
             </div>
           ))}
         </div>
@@ -142,53 +165,69 @@ const CatalogPage = () => {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((p: any) => {
             const img = getImage(p.images);
             return (
               <div
                 key={p.id}
-                className="group rounded-2xl border border-border bg-card overflow-hidden transition-shadow hover:shadow-lg"
+                className="group overflow-hidden rounded-2xl border border-border bg-background transition-shadow hover:shadow-md"
               >
-                <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+                {/* Product image */}
+                <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#f5f5f5] dark:bg-muted/50">
                   {img ? (
                     <img
                       src={img}
                       alt={p.title}
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                       loading="lazy"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <Package size={32} className="text-muted-foreground/30" />
-                    </div>
+                    <Package size={32} className="text-muted-foreground/30" />
                   )}
-                  <span className="absolute left-3 top-3 rounded-full bg-orange-500 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                  {/* Source badge */}
+                  <span className="absolute left-3 top-3 rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-bold text-background">
                     CJ Dropshipping
                   </span>
+                  {/* Checkbox */}
+                  <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded border-2 border-border bg-background shadow-sm" />
                 </div>
 
-                <div className="p-4 space-y-2">
-                  <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">
+                {/* Card body */}
+                <div className="px-4 pb-4 pt-3">
+                  {/* Product name */}
+                  <p className="text-[14px] font-semibold leading-[1.35] text-foreground line-clamp-2">
                     {p.title}
-                  </h3>
+                  </p>
 
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      Custo: {formatPrice(p.cost_price)}
-                    </span>
-                    <span className="text-sm font-bold text-primary">
-                      Venda: {formatPrice(p.suggested_price)}
+                  {/* Price + Suggested price */}
+                  <div className="mt-3 flex items-baseline justify-between">
+                    <div>
+                      <p className="text-[11px] leading-none text-muted-foreground">Custo</p>
+                      <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{formatPrice(p.cost_price)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] leading-none text-muted-foreground">Venda</p>
+                      <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{formatPrice(p.suggested_price)}</p>
+                    </div>
+                  </div>
+
+                  {/* Margin tag */}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <span className="rounded-md bg-emerald-500/10 px-2 py-[3px] text-[11px] font-semibold text-emerald-600">
+                      Margem {Math.round(p.margin_percent)}%
                     </span>
                   </div>
 
-                  <span className="inline-flex rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-500">
-                    Margem {Math.round(p.margin_percent)}%
-                  </span>
-
-                  <button className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
-                    Importar produto
-                  </button>
+                  {/* Import button */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <button className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80">
+                      Importar produto
+                    </button>
+                    <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted">
+                      <ChevronsRight size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -198,11 +237,11 @@ const CatalogPage = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-4 pt-4">
+        <div className="flex items-center justify-center gap-4 pt-2">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="flex items-center gap-1 rounded-xl bg-muted px-4 py-2 text-sm font-medium text-foreground disabled:opacity-40"
+            className="flex items-center gap-1 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
           >
             <ChevronLeft size={14} /> Anterior
           </button>
@@ -212,7 +251,7 @@ const CatalogPage = () => {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            className="flex items-center gap-1 rounded-xl bg-muted px-4 py-2 text-sm font-medium text-foreground disabled:opacity-40"
+            className="flex items-center gap-1 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
           >
             Próximo <ChevronRight size={14} />
           </button>
