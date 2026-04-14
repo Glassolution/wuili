@@ -215,11 +215,16 @@ const CatalogPage = () => {
                     </div>
                   </div>
 
-                  {/* Margin tag */}
+                  {/* Margin tag + Stock */}
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <span className="rounded-md bg-emerald-500/10 px-2 py-[3px] text-[11px] font-semibold text-emerald-600">
                       Margem {Math.round(p.margin_percent)}%
                     </span>
+                    {p.stock_quantity != null && (
+                      <span className="rounded-md bg-muted px-2 py-[3px] text-[11px] font-medium text-muted-foreground">
+                        Estoque: {p.stock_quantity} un
+                      </span>
+                    )}
                   </div>
 
                   {/* Import button */}

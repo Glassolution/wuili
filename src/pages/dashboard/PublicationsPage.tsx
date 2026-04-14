@@ -1,292 +1,146 @@
-import { useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, RefreshCcw, Search, Store } from "lucide-react";
-import { type ChannelStatus } from "@/lib/mockData";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ExternalLink, Package, ShoppingBag } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
-type Publication = {
-  name: string;
-  sku: string;
-  category: string;
-  price: string;
-  updatedAt: string;
-  ml: ChannelStatus;
-  shopee: ChannelStatus;
-  loja: ChannelStatus;
-};
-
-const publications: Publication[] = [];
-
-const statusBadge: Record<ChannelStatus, { label: string; cls: string }> = {
-  published: { label: "Publicado", cls: "bg-emerald-500/10 text-emerald-500" },
-  publishing: { label: "Publicando", cls: "bg-warning/10 text-warning" },
-  error: { label: "Erro", cls: "bg-destructive/10 text-destructive" },
-  none: { label: "Não publicado", cls: "bg-muted text-muted-foreground" },
-};
-
-const filterOptions = ["Todos", "Ativos", "Publicando", "Com erro", "Não publicados"];
-
-const getProductInitials = (name: string) =>
-  name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-
-const getPublicationState = (publication: Publication) => {
-  const statuses = [publication.ml, publication.shopee, publication.loja];
-  if (statuses.includes("error")) return "Com erro";
-  if (statuses.includes("publishing")) return "Publicando";
-  if (statuses.every((status) => status === "none")) return "Não publicados";
-  return "Ativos";
-};
-
-const getChecklist = (publication: Publication) => [
-  { label: "Título revisado", done: true },
-  { label: "Preço sincronizado", done: publication.ml !== "error" && publication.shopee !== "error" && publication.loja !== "error" },
-  { label: "Estoque publicado em todos os canais", done: ![publication.ml, publication.shopee, publication.loja].includes("none") },
-];
+const formatBRL = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 const PublicationsPage = () => {
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("Todos");
+  const { user } = useAuth();
 
-  const filteredPublications = useMemo(() => {
-    return publications.filter((publication) => {
-      const matchesSearch =
-        publication.name.toLowerCase().includes(search.toLowerCase()) ||
-        publication.sku.toLowerCase().includes(search.toLowerCase());
-      const publicationState = getPublicationState(publication);
-      const matchesFilter = filter === "Todos" || publicationState === filter;
-      return matchesSearch && matchesFilter;
-    });
-  }, [filter, search]);
+  const { data: publications, isLoading } = useQuery({
+    queryKey: ["user-publications", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_publications" as any)
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("published_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
 
-  const selectedPublication = filteredPublications[selectedIndex] || filteredPublications[0];
-
-  const summary = {
-    active: publications.filter((p) => getPublicationState(p) === "Ativos").length,
-    publishing: publications.filter((p) => getPublicationState(p) === "Publicando").length,
-    errors: publications.filter((p) => getPublicationState(p) === "Com erro").length,
-  };
+  const items = publications || [];
 
   return (
     <div className="space-y-6">
-      <div className="card-wuili p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black text-foreground">Publicações</h2>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              Acompanhe o que já foi publicado, o que ainda está em fila e quais anúncios precisam de correção.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button className="rounded-xl bg-muted px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/80">
-              Sincronizar canais
-            </button>
-            <button className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
-              Nova publicação
-            </button>
-          </div>
-        </div>
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-foreground tracking-tight">Publicações</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Produtos que você já publicou no Mercado Livre.
+        </p>
       </div>
 
+      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="card-wuili p-5">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
-            <CheckCircle2 size={18} />
-          </div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">Publicações ativas</p>
-          <p className="mt-2 text-2xl font-black text-foreground">{summary.active}</p>
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground/80">Total publicados</p>
+          <p className="mt-2 text-2xl font-black text-foreground">{items.length}</p>
         </div>
         <div className="card-wuili p-5">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10 text-warning">
-            <RefreshCcw size={18} />
-          </div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">Em publicação</p>
-          <p className="mt-2 text-2xl font-black text-foreground">{summary.publishing}</p>
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground/80">Ativos</p>
+          <p className="mt-2 text-2xl font-black text-emerald-600">
+            {items.filter((p: any) => p.status === "active").length}
+          </p>
         </div>
         <div className="card-wuili p-5">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-            <AlertCircle size={18} />
-          </div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">Com atenção</p>
-          <p className="mt-2 text-2xl font-black text-foreground">{summary.errors}</p>
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground/80">Lucro potencial total</p>
+          <p className="mt-2 text-2xl font-black text-foreground">
+            {formatBRL(items.reduce((sum: number, p: any) => sum + ((p.price || 0) - (p.cost_price || 0)), 0))}
+          </p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="relative w-full max-w-md">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            className="w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            placeholder="Buscar por nome ou SKU..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setSelectedIndex(0); }}
-          />
-        </div>
-        <div className="flex gap-2 overflow-x-auto">
-          {filterOptions.map((option) => (
-            <button
-              key={option}
-              onClick={() => { setFilter(option); setSelectedIndex(0); }}
-              className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-                filter === option ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {option}
-            </button>
+      {/* Grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="card-wuili overflow-hidden">
+              <Skeleton className="aspect-video w-full" />
+              <div className="p-4 space-y-3">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </div>
           ))}
         </div>
-      </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <ShoppingBag size={48} className="text-muted-foreground/40 mb-4" />
+          <p className="text-sm font-medium text-foreground">Nenhuma publicação ainda</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Importe um produto do catálogo e publique no Mercado Livre.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((pub: any) => {
+            const profit = (pub.price || 0) - (pub.cost_price || 0);
+            const isActive = pub.status === "active";
+            return (
+              <div key={pub.id} className="card-wuili overflow-hidden group">
+                {/* Thumbnail */}
+                <div className="relative aspect-video bg-muted/50 flex items-center justify-center overflow-hidden">
+                  {pub.thumbnail ? (
+                    <img src={pub.thumbnail} alt={pub.title} className="h-full w-full object-cover" loading="lazy" />
+                  ) : (
+                    <Package size={32} className="text-muted-foreground/30" />
+                  )}
+                  <span className={`absolute top-3 left-3 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                    isActive ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"
+                  }`}>
+                    {isActive ? "Ativo" : "Pausado"}
+                  </span>
+                </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <div className="card-wuili overflow-hidden">
-          <div className="overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            <table className="w-full min-w-[860px] table-fixed">
-              <colgroup>
-                <col className="w-[42%]" />
-                <col className="w-[14%]" />
-                <col className="w-[14%]" />
-                <col className="w-[14%]" />
-                <col className="w-[16%]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-border text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground/80">
-                  <th className="px-5 py-4 text-left">Produto</th>
-                  <th className="px-4 py-4 text-left">Mercado Livre</th>
-                  <th className="px-4 py-4 text-left">Shopee</th>
-                  <th className="px-4 py-4 text-left">Loja</th>
-                  <th className="px-4 py-4 text-left">Atualizado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPublications.map((publication, index) => {
-                  const isSelected = selectedPublication?.sku === publication.sku;
-                  return (
-                    <tr
-                      key={publication.sku}
-                      onClick={() => setSelectedIndex(index)}
-                      className={`cursor-pointer border-b border-border transition-colors last:border-0 ${
-                        isSelected ? "bg-accent/60" : "hover:bg-muted/30"
-                      }`}
+                {/* Body */}
+                <div className="p-4 space-y-3">
+                  <p className="text-sm font-semibold text-foreground line-clamp-2">{pub.title}</p>
+
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">Venda</p>
+                      <p className="text-sm font-bold text-foreground">{formatBRL(pub.price || 0)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] text-muted-foreground">Lucro estimado</p>
+                      <p className={`text-sm font-bold ${profit > 0 ? "text-emerald-600" : "text-red-500"}`}>
+                        {formatBRL(profit)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {pub.permalink && (
+                      <a
+                        href={pub.permalink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
+                      >
+                        <ExternalLink size={13} />
+                        Ver no ML
+                      </a>
+                    )}
+                    <button
+                      disabled
+                      className="flex flex-1 items-center justify-center rounded-xl border border-border py-2.5 text-[13px] font-medium text-muted-foreground cursor-not-allowed opacity-50"
                     >
-                      <td className="px-5 py-4 align-middle">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted text-xs font-bold tracking-[0.16em] text-foreground">
-                            {getProductInitials(publication.name)}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-foreground">{publication.name}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {publication.sku} · {publication.category} · {publication.price}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      {(["ml", "shopee", "loja"] as const).map((channel) => (
-                        <td key={channel} className="px-4 py-4 align-middle">
-                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge[publication[channel]].cls}`}>
-                            {statusBadge[publication[channel]].label}
-                          </span>
-                        </td>
-                      ))}
-                      <td className="px-4 py-4 align-middle text-xs text-muted-foreground">{publication.updatedAt}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredPublications.length === 0 && (
-            <div className="px-5 py-10 text-center">
-              <p className="text-sm font-medium text-foreground">Nenhuma publicação encontrada</p>
-              <p className="mt-1 text-xs text-muted-foreground">Ajuste a busca ou troque o filtro.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="card-wuili p-5">
-          {selectedPublication ? (
-            <>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-sm font-bold tracking-[0.16em] text-foreground">
-                    {getProductInitials(selectedPublication.name)}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-foreground">{selectedPublication.name}</h3>
-                    <p className="text-xs text-muted-foreground">{selectedPublication.sku}</p>
+                      Ver pedidos
+                    </button>
                   </div>
                 </div>
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                  {selectedPublication.category}
-                </span>
               </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-muted/50 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Preço atual</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">{selectedPublication.price}</p>
-                </div>
-                <div className="rounded-xl bg-muted/50 px-4 py-3">
-                  <p className="text-xs text-muted-foreground">Última atualização</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">{selectedPublication.updatedAt}</p>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <h4 className="text-sm font-bold text-foreground">Canais</h4>
-                <div className="mt-3 space-y-3">
-                  {([
-                    ["Mercado Livre", selectedPublication.ml],
-                    ["Shopee", selectedPublication.shopee],
-                    ["Loja própria", selectedPublication.loja],
-                  ] as const).map(([name, status]) => (
-                    <div key={name} className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                          <Store size={16} />
-                        </div>
-                        <span className="text-sm font-medium text-foreground">{name}</span>
-                      </div>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge[status].cls}`}>
-                        {statusBadge[status].label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <h4 className="text-sm font-bold text-foreground">Checklist de publicação</h4>
-                <div className="mt-3 space-y-2">
-                  {getChecklist(selectedPublication).map((item) => (
-                    <div key={item.label} className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
-                      <span className="text-sm text-foreground">{item.label}</span>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.done ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"}`}>
-                        {item.done ? "Ok" : "Pendente"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 flex gap-2">
-                <button className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
-                  Publicar novamente
-                </button>
-                <button className="flex-1 rounded-xl bg-muted py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/80">
-                  Editar anúncio
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex min-h-72 items-center justify-center text-center">
-              <div>
-                <p className="text-sm font-medium text-foreground">Nenhum item selecionado</p>
-                <p className="mt-1 text-xs text-muted-foreground">Escolha uma publicação na lista.</p>
-              </div>
-            </div>
-          )}
+            );
+          })}
         </div>
-      </div>
+      )}
     </div>
   );
 };
