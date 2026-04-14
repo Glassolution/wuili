@@ -85,7 +85,7 @@ const LoginPage = () => {
           {!resetMode && (
             <div className="mb-6 flex rounded-full border border-white/[0.08] bg-white/[0.03] p-[3px]">
               <div className="flex-1 rounded-full bg-white py-[7px] text-center font-['Manrope'] text-[12px] font-semibold text-black">
-                Sign in
+                Login
               </div>
               <Link
                 to="/cadastro"

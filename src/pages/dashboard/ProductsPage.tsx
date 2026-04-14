@@ -7,7 +7,6 @@ type Product = {
   name: string;
   image: string;
   source: string;
-  sourceIcon: string;
   sourceColor: string;
   rating: number;
   reviews: string;
@@ -22,7 +21,6 @@ const products: Product[] = [
     name: "Macbook Pro M1 Pro 14\" 512GB",
     image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop",
     source: "AliExpress",
-    sourceIcon: "🔴",
     sourceColor: "bg-[#e74c3c]",
     rating: 4.8,
     reviews: "1.345",
@@ -35,7 +33,6 @@ const products: Product[] = [
     name: "Monitor MSI 27\" Modern MD271UL 4K",
     image: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&h=300&fit=crop",
     source: "Amazon",
-    sourceIcon: "📦",
     sourceColor: "bg-[#ff9900]",
     rating: 4.9,
     reviews: "976",
@@ -48,7 +45,6 @@ const products: Product[] = [
     name: "Macbook Pro M1 2020 13\" 512GB",
     image: "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=400&h=300&fit=crop",
     source: "Tokopedia",
-    sourceIcon: "🟢",
     sourceColor: "bg-[#42b549]",
     rating: 4.7,
     reviews: "1.654",
@@ -61,7 +57,6 @@ const products: Product[] = [
     name: "Monitor MSI 27\" Modern MD271UL 4K",
     image: "https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=400&h=300&fit=crop",
     source: "Shopee",
-    sourceIcon: "🟠",
     sourceColor: "bg-[#ee4d2d]",
     rating: 4.8,
     reviews: "886",
@@ -74,7 +69,6 @@ const products: Product[] = [
     name: "Macbook Pro M1 Pro 14\" 512GB",
     image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=300&fit=crop",
     source: "eBay",
-    sourceIcon: "🏷",
     sourceColor: "bg-[#86b817]",
     rating: 4.5,
     reviews: "1.256",
@@ -87,7 +81,6 @@ const products: Product[] = [
     name: "Macbook Pro M1 Pro 14\" 512GB",
     image: "https://images.unsplash.com/photo-1484788984921-03950022c9ef?w=400&h=300&fit=crop",
     source: "Shopee",
-    sourceIcon: "🟠",
     sourceColor: "bg-[#ee4d2d]",
     rating: 4.6,
     reviews: "1.276",
@@ -100,7 +93,6 @@ const products: Product[] = [
     name: "Macbook Air M1 2020 13\" 256GB",
     image: "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400&h=300&fit=crop",
     source: "Lazada",
-    sourceIcon: "❤️",
     sourceColor: "bg-[#0f146d]",
     rating: 4.8,
     reviews: "1.334",
@@ -113,7 +105,6 @@ const products: Product[] = [
     name: "Apple 32\" Pro Display XDR Retina 6K",
     image: "https://images.unsplash.com/photo-1527443195645-1133f7f28990?w=400&h=300&fit=crop",
     source: "BigCommerce",
-    sourceIcon: "🔷",
     sourceColor: "bg-[#34313f]",
     rating: 4.7,
     reviews: "1.967",

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { X, Package, ChevronRight, Check, Store, TrendingUp, AlertCircle, Link, Loader2, ExternalLink, Sparkles, Edit3 } from "lucide-react";
+import { X, Package, ChevronRight, Check, Store, TrendingUp, AlertCircle, Link, Loader2, ExternalLink, Sparkles, Edit3, Hash, FileText, Play } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ export type CatalogProduct = {
   margin_percent: number;
   category: string | null;
   source: string;
+  original_url?: string;
 };
 
 type Props = {
@@ -354,12 +355,12 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   </h4>
                   <div className="flex gap-3">
                     <div className="flex items-center gap-2.5 rounded-xl border-2 border-[#0A0A0A] bg-[#0A0A0A]/[0.02] px-4 py-3 text-sm font-semibold text-[#0A0A0A]">
-                      <span className="h-3 w-3 rounded-full bg-[#FFE600]" />
+                      <div className="h-3 w-3 rounded-sm bg-[#FFE600]"></div>
                       Mercado Livre
                       <Check size={14} className="text-[#0A0A0A]" />
                     </div>
                     <div className="flex items-center gap-2.5 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-400 cursor-not-allowed">
-                      <span className="h-3 w-3 rounded-full bg-[#EE4D2D] opacity-40" />
+                      <div className="h-3 w-3 rounded-sm bg-[#EE4D2D]"></div>
                       Shopee
                       <span className="text-[10px]">(em breve)</span>
                     </div>
@@ -565,18 +566,107 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                       <Edit3 size={14} className="text-gray-400" />
                       Descrição do anúncio
                     </h4>
-                    <button
-                      onClick={handleGenerateDescription}
-                      disabled={generatingDesc}
-                      className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-50"
-                    >
-                      {generatingDesc ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <Sparkles size={12} />
-                      )}
-                      {generatingDesc ? "Gerando..." : descGenerated ? "Regenerar com IA" : "Gerar com IA"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleGenerateDescription}
+                        disabled={generatingDesc}
+                        className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-50"
+                      >
+                        {generatingDesc ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Sparkles size={12} />
+                        )}
+                        {generatingDesc ? "Gerando..." : descGenerated ? "Regenerar com IA" : "Gerar com IA"}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!description.trim()) {
+                            toast.error("Crie uma descrição antes de fazer o vídeo");
+                            return;
+                          }
+                          
+                          // Get the product image URL
+                          const productImage = img || '';
+                          
+                          // Convert image URL to PNG/JPG format
+                          const getImageWithFormat = (imageUrl: string): string => {
+                            if (!imageUrl) return '';
+                            
+                            // If already has .png or .jpg extension, return as is
+                            if (imageUrl.match(/\.(png|jpg|jpeg)(\?|$)/i)) {
+                              return imageUrl;
+                            }
+                            
+                            // If it's a webp or other format, try to convert to jpg
+                            if (imageUrl.includes('.webp')) {
+                              return imageUrl.replace('.webp', '.jpg');
+                            }
+                            
+                            // If no extension, add .jpg
+                            const separator = imageUrl.includes('?') ? '&' : '?';
+                            return `${imageUrl}${separator}format=jpg`;
+                          };
+                          
+                          const formattedImageUrl = getImageWithFormat(productImage);
+                          
+                          // Get original product URL or construct one
+                          const originalUrl = product.original_url || `https://cjdropshipping.com/product/${product.id}`;
+                          
+                          // Create simplified message with essential info for Bandy.ai
+                          const productInfo = `Título: ${title}
+Descrição: ${description}
+Link Original: ${originalUrl}
+URL Imagem: ${formattedImageUrl}`;
+                          
+                          try {
+                            // Copy image to clipboard
+                            if (formattedImageUrl) {
+                              const response = await fetch(formattedImageUrl);
+                              const blob = await response.blob();
+                              
+                              // Copy both text and image to clipboard
+                              await navigator.clipboard.write([
+                                new ClipboardItem({
+                                  'text/plain': new Blob([productInfo], { type: 'text/plain' }),
+                                  [blob.type]: blob
+                                })
+                              ]);
+                              
+                              toast.success("Informações e imagem copiadas! Cole no Bandy.ai");
+                            } else {
+                              // Fallback: copy only text if no image
+                              await navigator.clipboard.writeText(productInfo);
+                              toast.success("Informações copiadas! Cole no Bandy.ai");
+                            }
+                          } catch (err) {
+                            console.warn("Erro ao copiar:", err);
+                            // Fallback: copy only text
+                            try {
+                              await navigator.clipboard.writeText(productInfo);
+                              toast.success("Informações copiadas! Cole no Bandy.ai");
+                            } catch (textErr) {
+                              toast.error("Erro ao copiar. Tente novamente.");
+                            }
+                          }
+                          
+                          // Create the Bandy.ai URL with product image as parameter
+                          const bandyUrl = `https://bandy.ai/agent?new&product=${encodeURIComponent(formattedImageUrl)}&title=${encodeURIComponent(title)}`;
+                          
+                          // Open in new tab
+                          window.open(bandyUrl, '_blank', 'noopener,noreferrer');
+                        }}
+                        disabled={!description.trim()}
+                        className={`flex items-center gap-1.5 rounded-lg bg-gradient-to-r px-3 py-1.5 text-xs font-bold text-white transition-all ${
+                          description.trim() 
+                            ? "from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700" 
+                            : "from-gray-400 to-gray-500 cursor-not-allowed opacity-50"
+                        }`}
+                      >
+                        <Play size={12} />
+                        Criar vídeo
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     value={description}

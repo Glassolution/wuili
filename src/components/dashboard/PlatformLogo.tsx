@@ -6,6 +6,9 @@ const platformData: Record<string, { url: string }> = {
   Lazada:     { url: "https://cdn.simpleicons.org/lazada/0F146D" },
   WooCommerce:{ url: "https://cdn.simpleicons.org/woocommerce/96588A" },
   Etsy:       { url: "https://cdn.simpleicons.org/etsy/F16521" },
+  Tokopedia:  { url: "https://cdn.simpleicons.org/tokopedia/42B549" },
+  BigCommerce:{ url: "https://cdn.simpleicons.org/bigcommerce/121118" },
+  "Mercado Livre": { url: "https://cdn.simpleicons.org/mercadolibre/FFE600" },
 };
 
 const AmazonLogo = ({ size }: { size: number }) => (
