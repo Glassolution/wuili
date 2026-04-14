@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
@@ -14,10 +14,60 @@ const CATEGORIES = [
   { key: "esportes", label: "Esportes" },
 ];
 
+type QuickFilter = "all" | "best" | "recent" | "in_stock";
+
+function calcScore(p: any): number {
+  let score = 0;
+
+  // Stock
+  if (!p.stock_quantity || p.stock_quantity === 0) {
+    score -= 100;
+  } else {
+    score += 50;
+  }
+
+  // Recency
+  if (p.created_at) {
+    const days = (Date.now() - new Date(p.created_at).getTime()) / 86400000;
+    if (days < 7) score += 30;
+    else if (days < 30) score += 20;
+  }
+
+  // Price range (suggested_price in BRL)
+  const sp = p.suggested_price || 0;
+  if (sp >= 49 && sp <= 199) score += 25;
+  else if (sp >= 20 && sp < 49) score += 10;
+  else if (sp > 300) score -= 20;
+
+  // Margin
+  const margin = sp > 0 ? ((sp - p.cost_price) / sp) * 100 : 0;
+  if (margin >= 60) score += 15;
+  else if (margin >= 50) score += 10;
+  else score -= 10;
+
+  // Heavy penalty for high cost
+  if (p.cost_price > 500) score -= 30;
+
+  return score;
+}
+
+function getPriorityBadge(score: number) {
+  if (score >= 60) return { label: "Alta prioridade", cls: "bg-emerald-500/10 text-emerald-600" };
+  if (score >= 20) return { label: "Média", cls: "bg-amber-500/10 text-amber-600" };
+  return { label: "Baixa", cls: "bg-red-500/10 text-red-600" };
+}
+
+const QUICK_FILTERS: { key: QuickFilter; label: string; icon: any }[] = [
+  { key: "best", label: "Melhores", icon: Flame },
+  { key: "recent", label: "Recentes", icon: Clock },
+  { key: "in_stock", label: "Em estoque", icon: PackageCheck },
+];
+
 const CatalogPage = () => {
   const [category, setCategory] = useState("todos");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -64,8 +114,27 @@ const CatalogPage = () => {
     onError: () => toast.error("Erro ao sincronizar produtos"),
   });
 
-  const products = data?.products || [];
+  const rawProducts = data?.products || [];
   const totalPages = data?.totalPages || 1;
+
+  // Score, filter & sort
+  const products = useMemo(() => {
+    let scored = rawProducts.map((p: any) => ({ ...p, _score: calcScore(p) }));
+
+    if (quickFilter === "best") {
+      scored = scored.filter((p: any) => p._score >= 40);
+    } else if (quickFilter === "recent") {
+      scored = scored.filter((p: any) => {
+        if (!p.created_at) return false;
+        return (Date.now() - new Date(p.created_at).getTime()) / 86400000 < 30;
+      });
+    } else if (quickFilter === "in_stock") {
+      scored = scored.filter((p: any) => p.stock_quantity && p.stock_quantity > 0);
+    }
+
+    scored.sort((a: any, b: any) => b._score - a._score);
+    return scored;
+  }, [rawProducts, quickFilter]);
 
   const formatPrice = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -101,6 +170,34 @@ const CatalogPage = () => {
 
       {/* Subtitle */}
       <p className="text-sm text-muted-foreground -mt-3">Produtos reais do CJ Dropshipping prontos para importar.</p>
+
+      {/* Quick filter buttons */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setQuickFilter("all")}
+          className={`rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
+            quickFilter === "all"
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          Todos
+        </button>
+        {QUICK_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setQuickFilter(f.key)}
+            className={`flex items-center gap-1.5 rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
+              quickFilter === f.key
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <f.icon size={13} />
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       {/* Filters row */}
       <div className="flex items-center justify-between gap-4">
@@ -164,13 +261,19 @@ const CatalogPage = () => {
           <Package size={48} className="text-muted-foreground/40 mb-4" />
           <p className="text-sm font-medium text-foreground">Nenhum produto encontrado</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Clique em "Sincronizar produtos" para popular o catálogo.
+            {quickFilter !== "all"
+              ? "Nenhum produto corresponde a esse filtro. Tente outro."
+              : 'Clique em "Sincronizar produtos" para popular o catálogo.'}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((p: any) => {
             const img = getImage(p.images);
+            const priority = getPriorityBadge(p._score);
+            const margin = p.suggested_price > 0
+              ? Math.round(((p.suggested_price - p.cost_price) / p.suggested_price) * 100)
+              : Math.round(p.margin_percent);
             return (
               <div
                 key={p.id}
@@ -192,8 +295,10 @@ const CatalogPage = () => {
                   <span className="absolute left-3 top-3 rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-bold text-background">
                     CJ Dropshipping
                   </span>
-                  {/* Checkbox */}
-                  <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded border-2 border-border bg-background shadow-sm" />
+                  {/* Priority badge */}
+                  <span className={`absolute right-3 top-3 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${priority.cls}`}>
+                    {priority.label}
+                  </span>
                 </div>
 
                 {/* Card body */}
@@ -218,13 +323,11 @@ const CatalogPage = () => {
                   {/* Margin tag + Stock */}
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <span className={`rounded-md px-2 py-[3px] text-[11px] font-semibold ${
-                      p.margin_percent >= 60 ? "bg-emerald-500/10 text-emerald-600" :
-                      p.margin_percent >= 40 ? "bg-blue-500/10 text-blue-600" :
+                      margin >= 60 ? "bg-emerald-500/10 text-emerald-600" :
+                      margin >= 40 ? "bg-blue-500/10 text-blue-600" :
                       "bg-amber-500/10 text-amber-600"
                     }`}>
-                      Margem {p.suggested_price > 0 
-                        ? Math.round(((p.suggested_price - p.cost_price) / p.suggested_price) * 100)
-                        : Math.round(p.margin_percent)}%
+                      Margem {margin}%
                     </span>
                     <span className={`rounded-md px-2 py-[3px] text-[11px] font-medium ${
                       !p.stock_quantity || p.stock_quantity === 0
