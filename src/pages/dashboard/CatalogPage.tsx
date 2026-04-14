@@ -157,81 +157,84 @@ const CatalogPage = () => {
       <p className="text-sm text-muted-foreground -mt-3">Produtos reais do CJ Dropshipping prontos para importar.</p>
 
       {/* Filters row */}
-      <div className="flex items-center gap-2">
-        {/* Search */}
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            className="w-52 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            placeholder="Buscar produto..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-        </div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              className="w-52 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Buscar produto..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            />
+          </div>
 
-        {/* Dropdown Filtrar */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setDropdownOpen((v) => !v)}
-            className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
-              dropdownOpen || quickFilter !== "all" || category !== "todos"
-                ? "border-foreground bg-foreground text-background"
-                : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {dropdownLabel}
-            <ChevronDown size={13} className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
-          </button>
+          {/* Dropdown Filtrar */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
+                dropdownOpen || quickFilter !== "all"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {quickFilter !== "all"
+                ? QUICK_FILTERS.find(f => f.key === quickFilter)?.label
+                : "Filtrar"}
+              <ChevronDown size={13} className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+            </button>
 
-          {dropdownOpen && (
-            <div className="absolute left-0 top-full z-50 mt-2 w-52 rounded-2xl border border-border bg-background shadow-lg overflow-hidden">
-              {/* Filtros rápidos */}
-              <div className="px-3 pt-3 pb-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Ordenar por</p>
-                {QUICK_FILTERS.map((f) => {
+            {dropdownOpen && (
+              <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-2xl border border-border bg-background shadow-lg overflow-hidden py-2">
+                {QUICK_FILTERS.filter(f => f.key !== "all").map((f) => {
                   const Icon = f.icon;
                   const active = quickFilter === f.key;
                   return (
                     <button
                       key={f.key}
                       onClick={() => { setQuickFilter(f.key); setDropdownOpen(false); }}
-                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-                        active ? "bg-foreground/5 font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className={`flex w-full items-center justify-between px-4 py-2.5 text-sm transition-colors ${
+                        active ? "font-semibold text-foreground bg-foreground/5" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
                     >
                       <span className="flex items-center gap-2">
                         {Icon && <Icon size={13} />}
                         {f.label}
                       </span>
-                      {active && <Check size={13} className="text-foreground" />}
+                      {active && <Check size={13} />}
                     </button>
                   );
                 })}
+                {quickFilter !== "all" && (
+                  <button
+                    onClick={() => { setQuickFilter("all"); setDropdownOpen(false); }}
+                    className="flex w-full items-center px-4 py-2 text-xs text-muted-foreground hover:text-foreground border-t border-border mt-1 pt-2"
+                  >
+                    Limpar filtro
+                  </button>
+                )}
               </div>
+            )}
+          </div>
+        </div>
 
-              <div className="mx-3 my-2 border-t border-border" />
-
-              {/* Categorias */}
-              <div className="px-3 pb-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Categoria</p>
-                {CATEGORIES.map((c) => {
-                  const active = category === c.key;
-                  return (
-                    <button
-                      key={c.key}
-                      onClick={() => { setCategory(c.key); setPage(1); setDropdownOpen(false); }}
-                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-                        active ? "bg-foreground/5 font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {c.label}
-                      {active && <Check size={13} className="text-foreground" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+        {/* Category pills */}
+        <div className="flex items-center gap-1.5">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.key}
+              onClick={() => { setCategory(c.key); setPage(1); }}
+              className={`rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
+                category === c.key
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
         </div>
       </div>
 
