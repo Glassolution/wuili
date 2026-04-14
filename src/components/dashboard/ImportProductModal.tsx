@@ -346,7 +346,19 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                         Margem {Math.round(product.margin_percent)}%
                       </span>
                     </div>
+                {/* Stock availability */}
+                {product.stock_quantity != null && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`text-sm font-semibold ${
+                      product.stock_quantity > 10 ? "text-emerald-600" :
+                      product.stock_quantity >= 5 ? "text-amber-600" :
+                      "text-red-600"
+                    }`}>
+                      Disponível: {product.stock_quantity} unidades
+                    </span>
                   </div>
+                )}
+              </div>
                 </div>
 
                 {/* Platform */}
@@ -395,6 +407,27 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                     </div>
                   </div>
                 )}
+
+                {/* Supplier info */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-[#0A0A0A] flex items-center gap-2">
+                    <Package size={14} className="text-gray-400" />
+                    Fornecedor
+                  </h4>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 space-y-2">
+                    <p className="text-sm font-semibold text-[#0A0A0A]">CJ Dropshipping</p>
+                    <a
+                      href="https://app.cjdropshipping.com/contact.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#0A0A0A] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#1a1a1a] transition-colors"
+                    >
+                      <ExternalLink size={11} />
+                      Contato do fornecedor
+                    </a>
+                    <p className="text-[11px] text-gray-400">Em caso de problema com entrega ou produto, entre em contato direto com o fornecedor.</p>
+                  </div>
+                </div>
               </div>
             )}
 
