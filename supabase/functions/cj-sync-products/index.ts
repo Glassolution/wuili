@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
             supplier_name: p.supplierName || "CJ Dropshipping",
             supplier_contact: null,
             stock_quantity: stockQty,
-            is_active: true,
+            is_active: stockQty > 0,
           };
         });
 
@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
             .from("catalog_products")
             .upsert(rows, { onConflict: "external_id" });
           if (error) console.error(`Upsert error ${cat.name}:`, error);
-          else console.log(`${cat.name}: ${rows.length} products synced, margins: ${rows.map(r => r.margin_percent.toFixed(0) + '%').slice(0, 3).join(', ')}...`);
+          else console.log(`${cat.name}: ${rows.length} products synced, margins: ${rows.map((r: any) => r.margin_percent.toFixed(0) + '%').slice(0, 3).join(', ')}...`);
         }
 
         results[cat.name] = rows.length;

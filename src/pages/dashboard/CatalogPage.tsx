@@ -329,29 +329,28 @@ const CatalogPage = () => {
                     }`}>
                       Margem {margin}%
                     </span>
-                    <span className={`rounded-md px-2 py-[3px] text-[11px] font-medium ${
-                      !p.stock_quantity || p.stock_quantity === 0
-                        ? "bg-red-500/10 text-red-600"
-                        : "bg-emerald-500/10 text-emerald-600"
-                    }`}>
-                      {!p.stock_quantity || p.stock_quantity === 0 
-                        ? "Sem estoque" 
-                        : p.stock_quantity >= 999 
-                          ? "✓ Disponível" 
+                    {p.stock_quantity > 0 && (
+                      <span className={`rounded-md px-2 py-[3px] text-[11px] font-medium ${
+                        p.stock_quantity > 50
+                          ? "bg-emerald-500/10 text-emerald-600"
+                          : p.stock_quantity >= 10
+                            ? "bg-amber-500/10 text-amber-600"
+                            : "bg-red-500/10 text-red-600"
+                      }`}>
+                        {p.stock_quantity >= 999
+                          ? "✓ Disponível"
                           : `Estoque: ${p.stock_quantity} un`}
-                    </span>
+                      </span>
+                    )}
                   </div>
 
                   {/* Import button */}
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-3">
                     <button
                       onClick={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
-                      className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
+                      className="flex w-full items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
                     >
                       Importar produto
-                    </button>
-                    <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-muted">
-                      <ChevronsRight size={16} />
                     </button>
                   </div>
                 </div>
