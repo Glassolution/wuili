@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck } from "lucide-react";
+import { Search, ChevronDown, MoreHorizontal, RefreshCw, ChevronsRight, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
@@ -16,80 +16,68 @@ const CATEGORIES = [
 
 type QuickFilter = "all" | "best" | "recent" | "in_stock";
 
+const QUICK_FILTERS: { key: QuickFilter; label: string; icon: any }[] = [
+  { key: "all", label: "Todos", icon: null },
+  { key: "best", label: "Melhores", icon: Flame },
+  { key: "recent", label: "Recentes", icon: Clock },
+  { key: "in_stock", label: "Em estoque", icon: PackageCheck },
+];
+
 function calcScore(p: any): number {
   let score = 0;
-
-  // Stock
-  if (!p.stock_quantity || p.stock_quantity === 0) {
-    score -= 100;
-  } else {
-    score += 50;
-  }
-
-  // Recency
+  if (!p.stock_quantity || p.stock_quantity === 0) score -= 100;
+  else score += 50;
   if (p.created_at) {
     const days = (Date.now() - new Date(p.created_at).getTime()) / 86400000;
     if (days < 7) score += 30;
     else if (days < 30) score += 20;
   }
-
-  // Price range (suggested_price in BRL)
   const sp = p.suggested_price || 0;
   if (sp >= 49 && sp <= 199) score += 25;
   else if (sp >= 20 && sp < 49) score += 10;
   else if (sp > 300) score -= 20;
-
-  // Margin
   const margin = sp > 0 ? ((sp - p.cost_price) / sp) * 100 : 0;
   if (margin >= 60) score += 15;
   else if (margin >= 50) score += 10;
   else score -= 10;
-
-  // Heavy penalty for high cost
   if (p.cost_price > 500) score -= 30;
-
   return score;
 }
-
-function getPriorityBadge(score: number) {
-  if (score >= 60) return { label: "Alta prioridade", cls: "bg-emerald-500/10 text-emerald-600" };
-  if (score >= 20) return { label: "Média", cls: "bg-amber-500/10 text-amber-600" };
-  return { label: "Baixa", cls: "bg-red-500/10 text-red-600" };
-}
-
-const QUICK_FILTERS: { key: QuickFilter; label: string; icon: any }[] = [
-  { key: "best", label: "Melhores", icon: Flame },
-  { key: "recent", label: "Recentes", icon: Clock },
-  { key: "in_stock", label: "Em estoque", icon: PackageCheck },
-];
 
 const CatalogPage = () => {
   const [category, setCategory] = useState("todos");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const limit = 20;
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
   const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const { data, isLoading } = useQuery({
     queryKey: ["catalog", category, page, search],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(limit),
-      });
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
       if (category !== "todos") params.set("category", category);
       if (search) params.set("search", search);
-
       const url = `https://${projectId}.supabase.co/functions/v1/catalog?${params}`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${anonKey}` },
-      });
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${anonKey}` } });
       if (!res.ok) throw new Error("Failed to fetch catalog");
       return res.json();
     },
@@ -100,10 +88,7 @@ const CatalogPage = () => {
       const url = `https://${projectId}.supabase.co/functions/v1/cj-sync-products`;
       const res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${anonKey}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
       });
       return res.json();
     },
@@ -117,21 +102,14 @@ const CatalogPage = () => {
   const rawProducts = data?.products || [];
   const totalPages = data?.totalPages || 1;
 
-  // Score, filter & sort
   const products = useMemo(() => {
     let scored = rawProducts.map((p: any) => ({ ...p, _score: calcScore(p) }));
-
-    if (quickFilter === "best") {
-      scored = scored.filter((p: any) => p._score >= 40);
-    } else if (quickFilter === "recent") {
-      scored = scored.filter((p: any) => {
-        if (!p.created_at) return false;
-        return (Date.now() - new Date(p.created_at).getTime()) / 86400000 < 30;
-      });
-    } else if (quickFilter === "in_stock") {
-      scored = scored.filter((p: any) => p.stock_quantity && p.stock_quantity > 0);
-    }
-
+    if (quickFilter === "best") scored = scored.filter((p: any) => p._score >= 40);
+    else if (quickFilter === "recent") scored = scored.filter((p: any) => {
+      if (!p.created_at) return false;
+      return (Date.now() - new Date(p.created_at).getTime()) / 86400000 < 30;
+    });
+    else if (quickFilter === "in_stock") scored = scored.filter((p: any) => p.stock_quantity && p.stock_quantity > 0);
     scored.sort((a: any, b: any) => b._score - a._score);
     return scored;
   }, [rawProducts, quickFilter]);
@@ -143,10 +121,17 @@ const CatalogPage = () => {
     try {
       const arr = typeof images === "string" ? JSON.parse(images) : images;
       return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   };
+
+  // Label shown on the dropdown button
+  const activeCategoryLabel = CATEGORIES.find(c => c.key === category)?.label ?? "Todos";
+  const activeFilterLabel = QUICK_FILTERS.find(f => f.key === quickFilter)?.label ?? "Todos";
+  const dropdownLabel = quickFilter !== "all"
+    ? activeFilterLabel
+    : category !== "todos"
+      ? activeCategoryLabel
+      : "Filtrar";
 
   return (
     <div className="space-y-5">
@@ -171,74 +156,82 @@ const CatalogPage = () => {
       {/* Subtitle */}
       <p className="text-sm text-muted-foreground -mt-3">Produtos reais do CJ Dropshipping prontos para importar.</p>
 
-      {/* Quick filter buttons */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setQuickFilter("all")}
-          className={`rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
-            quickFilter === "all"
-              ? "bg-foreground text-background"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
-        >
-          Todos
-        </button>
-        {QUICK_FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setQuickFilter(f.key)}
-            className={`flex items-center gap-1.5 rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
-              quickFilter === f.key
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            <f.icon size={13} />
-            {f.label}
-          </button>
-        ))}
-      </div>
-
       {/* Filters row */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          {/* Search */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              className="w-52 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              placeholder="Buscar produto..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            />
-          </div>
-
-          {/* Filter buttons */}
-          <button className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
-            Categoria <ChevronDown size={13} />
-          </button>
-
-          {/* Hide button */}
-          <button className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Ocultar
-          </button>
+      <div className="flex items-center gap-2">
+        {/* Search */}
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            className="w-52 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder="Buscar produto..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          />
         </div>
 
-        {/* Category pills */}
-        <div className="hidden items-center gap-1.5 lg:flex">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.key}
-              onClick={() => { setCategory(c.key); setPage(1); }}
-              className={`rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
-                category === c.key
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
+        {/* Dropdown Filtrar */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setDropdownOpen((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
+              dropdownOpen || quickFilter !== "all" || category !== "todos"
+                ? "border-foreground bg-foreground text-background"
+                : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {dropdownLabel}
+            <ChevronDown size={13} className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {dropdownOpen && (
+            <div className="absolute left-0 top-full z-50 mt-2 w-52 rounded-2xl border border-border bg-background shadow-lg overflow-hidden">
+              {/* Filtros rápidos */}
+              <div className="px-3 pt-3 pb-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Ordenar por</p>
+                {QUICK_FILTERS.map((f) => {
+                  const Icon = f.icon;
+                  const active = quickFilter === f.key;
+                  return (
+                    <button
+                      key={f.key}
+                      onClick={() => { setQuickFilter(f.key); setDropdownOpen(false); }}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                        active ? "bg-foreground/5 font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {Icon && <Icon size={13} />}
+                        {f.label}
+                      </span>
+                      {active && <Check size={13} className="text-foreground" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mx-3 my-2 border-t border-border" />
+
+              {/* Categorias */}
+              <div className="px-3 pb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Categoria</p>
+                {CATEGORIES.map((c) => {
+                  const active = category === c.key;
+                  return (
+                    <button
+                      key={c.key}
+                      onClick={() => { setCategory(c.key); setPage(1); setDropdownOpen(false); }}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                        active ? "bg-foreground/5 font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {c.label}
+                      {active && <Check size={13} className="text-foreground" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -270,10 +263,6 @@ const CatalogPage = () => {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((p: any) => {
             const img = getImage(p.images);
-            const priority = getPriorityBadge(p._score);
-            const margin = p.suggested_price > 0
-              ? Math.round(((p.suggested_price - p.cost_price) / p.suggested_price) * 100)
-              : Math.round(p.margin_percent);
             return (
               <div
                 key={p.id}
@@ -291,19 +280,13 @@ const CatalogPage = () => {
                   ) : (
                     <Package size={32} className="text-muted-foreground/30" />
                   )}
-                  {/* Source badge */}
                   <span className="absolute left-3 top-3 rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-bold text-background">
                     CJ Dropshipping
-                  </span>
-                  {/* Priority badge */}
-                  <span className={`absolute right-3 top-3 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${priority.cls}`}>
-                    {priority.label}
                   </span>
                 </div>
 
                 {/* Card body */}
                 <div className="px-4 pb-4 pt-3">
-                  {/* Product name */}
                   <p className="text-[14px] font-semibold leading-[1.35] text-foreground line-clamp-2">
                     {p.title}
                   </p>
@@ -316,19 +299,10 @@ const CatalogPage = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-[11px] leading-none text-muted-foreground">Você lucra</p>
-                      <p className="mt-0.5 text-[14px] font-bold leading-none text-emerald-600">+{formatPrice(Math.round((p.suggested_price - p.cost_price) * 100) / 100)}</p>
+                      <p className="mt-0.5 text-[14px] font-bold leading-none text-emerald-600">
+                        +{formatPrice(Math.round((p.suggested_price - p.cost_price) * 100) / 100)}
+                      </p>
                     </div>
-                  </div>
-
-                  {/* Margin tag */}
-                  <div className="mt-3">
-                    <span className={`rounded-md px-2 py-[3px] text-[11px] font-semibold ${
-                      margin >= 60 ? "bg-emerald-500/10 text-emerald-600" :
-                      margin >= 40 ? "bg-blue-500/10 text-blue-600" :
-                      "bg-amber-500/10 text-amber-600"
-                    }`}>
-                      Margem {margin}%
-                    </span>
                   </div>
 
                   {/* Import button */}
@@ -357,9 +331,7 @@ const CatalogPage = () => {
           >
             <ChevronLeft size={14} /> Anterior
           </button>
-          <span className="text-sm text-muted-foreground">
-            {page} / {totalPages}
-          </span>
+          <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
@@ -369,6 +341,7 @@ const CatalogPage = () => {
           </button>
         </div>
       )}
+
       <ImportProductModal
         open={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
