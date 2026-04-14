@@ -6,44 +6,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Process all images: download and convert to base64
-async function processImages(images: any[]): Promise<any[]> {
-  if (!images || !Array.isArray(images) || images.length === 0) {
-    return []
-  }
-
-  const processed = []
-  for (const imageUrl of images.slice(0, 6)) {
-    try {
-      console.log('Processando imagem:', imageUrl)
-      const response = await fetch(imageUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      })
-      if (!response.ok) {
-        console.log('Fetch falhou, usando URL:', imageUrl, 'Status:', response.status)
-        processed.push({ source: imageUrl })
-        continue
-      }
-      const arrayBuffer = await response.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
-      if (uint8Array.length === 0) {
-        console.log('Imagem vazia, usando URL:', imageUrl)
-        processed.push({ source: imageUrl })
-        continue
-      }
-      let binary = ''
-      for (let i = 0; i < uint8Array.length; i++) {
-        binary += String.fromCharCode(uint8Array[i])
-      }
-      const base64 = btoa(binary)
-      console.log('Imagem convertida para base64:', base64.length, 'chars')
-      processed.push({ data: base64 })
-    } catch (e) {
-      console.log('Erro na imagem, usando URL:', imageUrl, e)
-      processed.push({ source: imageUrl })
+// Upload image to ML via their official endpoint, fallback to source URL
+async function uploadImageToML(imageUrl: string, accessToken: string): Promise<{ id: string } | { source: string } | null> {
+  try {
+    console.log('Uploading image to ML:', imageUrl)
+    const response = await fetch('https://api.mercadolibre.com/pictures/items/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ source: imageUrl }),
+    })
+    if (!response.ok) {
+      console.log('ML upload failed, falling back to source URL. Status:', response.status)
+      return { source: imageUrl }
     }
+    const data = await response.json()
+    if (data.id) {
+      console.log('Image uploaded to ML, id:', data.id)
+      return { id: data.id }
+    }
+    return { source: imageUrl }
+  } catch (e) {
+    console.log('Error uploading image, using source URL:', imageUrl, e)
+    return { source: imageUrl }
   }
-  return processed
 }
 
 // Map ML API errors to user-friendly messages
@@ -169,9 +157,13 @@ serve(async (req) => {
     } catch (_e) { /* fallback */ }
     console.log('Categoria detectada:', categoryId)
 
-    // 3. Process images via base64
-    const pictures = await processImages(product.images || [])
-    console.log('Imagens processadas:', pictures.length)
+    // 3. Upload images to ML
+    const rawImages = (product.images || []).slice(0, 6)
+    const pictureResults = await Promise.all(
+      rawImages.map((url: string) => uploadImageToML(url, accessToken))
+    )
+    const pictures = pictureResults.filter((p): p is { id: string } | { source: string } => p !== null)
+    console.log('Imagens processadas:', pictures.length, JSON.stringify(pictures.map(p => 'id' in p ? { id: p.id } : { source: '...' })))
 
     // 4. Description
     const descriptionText = product.description || ''
