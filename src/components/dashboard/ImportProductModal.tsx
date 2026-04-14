@@ -427,7 +427,11 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                         stockQty > 0 ? "text-red-600" :
                         "text-red-600"
                       }`}>
-                        {stockQty === 0 ? "⚠️ Sem estoque" : `Disponível: ${stockQty} unidades`}
+                        {stockQty === 0
+                        ? "⚠️ Sem estoque"
+                        : stockQty >= 999
+                          ? "Em estoque"
+                          : `${stockQty} unidades disponíveis`}
                       </span>
                     </div>
                   </div>

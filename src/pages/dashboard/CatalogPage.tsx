@@ -320,8 +320,8 @@ const CatalogPage = () => {
                     </div>
                   </div>
 
-                  {/* Margin tag + Stock */}
-                  <div className="mt-3 flex flex-wrap gap-1.5">
+                  {/* Margin tag */}
+                  <div className="mt-3">
                     <span className={`rounded-md px-2 py-[3px] text-[11px] font-semibold ${
                       margin >= 60 ? "bg-emerald-500/10 text-emerald-600" :
                       margin >= 40 ? "bg-blue-500/10 text-blue-600" :
@@ -329,19 +329,6 @@ const CatalogPage = () => {
                     }`}>
                       Margem {margin}%
                     </span>
-                    {p.stock_quantity > 0 && (
-                      <span className={`rounded-md px-2 py-[3px] text-[11px] font-medium ${
-                        p.stock_quantity > 50
-                          ? "bg-emerald-500/10 text-emerald-600"
-                          : p.stock_quantity >= 10
-                            ? "bg-amber-500/10 text-amber-600"
-                            : "bg-red-500/10 text-red-600"
-                      }`}>
-                        {p.stock_quantity >= 999
-                          ? "✓ Disponível"
-                          : `Estoque: ${p.stock_quantity} un`}
-                      </span>
-                    )}
                   </div>
 
                   {/* Import button */}
