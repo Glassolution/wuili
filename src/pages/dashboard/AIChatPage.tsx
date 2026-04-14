@@ -1,507 +1,430 @@
-import { useRef, useState, useEffect, useCallback, memo } from "react";
-import { Send, ShoppingBag, Sparkles, Star, Rocket, ExternalLink, AlertCircle } from "lucide-react";
+import { useState, useRef, useEffect, memo } from "react";
+import {
+  ArrowUp, Plus, Package, ArrowUpRight, X,
+  Sparkles, PanelLeft, ChevronLeft,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useProfile } from "@/lib/profileContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { SourceSelector, type ProductSource } from "@/components/chat/SourceSelector";
 
-type AliProduct = {
+type Product = {
   nome: string;
-  preco_custo: string;
-  preco_venda: string;
+  imagem?: string;
+  url?: string;
+  precoCusto?: number;
+  precoVenda?: number;
   margem: string;
-  vendas: string;
-  imagem: string;
-  product_id: string;
-  link?: string;
+  vendas?: string;
+  condicao?: string;
+  vendedor?: string;
+  preco?: string;
 };
-
-type PublishResult = {
-  status: "success" | "error" | "not_connected";
-  permalink?: string;
-  item_id?: string;
-  message?: string;
-};
-
+type Ad = { titulo: string; descricao: string; preco: string; plataforma: string };
+type MsgKind = "text" | "products" | "ad" | "searching" | "source-select";
 type Message = {
   role: "user" | "ai";
-  text?: string;
-  products?: AliProduct[];
-  adPreview?: { titulo: string; descricao: string; preco: string; plataforma: string; sourceProduct?: AliProduct };
-  publishResult?: PublishResult;
-  showConnectML?: boolean;
+  text: string;
+  kind: MsgKind;
+  products?: Product[];
+  ad?: Ad;
+  nicho?: string;
 };
-const suggestions = [
-  "Quero vender eletrônicos",
-  "Produtos de moda com boa margem",
-  "Melhores produtos de beleza",
-  "Produtos para casa e decoração",
+
+const chatHistory = [
+  { id: "1", title: "Eletronicos com margem", preview: "Encontrei 8 produtos...", date: "hoje", active: true },
+  { id: "2", title: "Produtos de moda", preview: "Moda feminina tem boa...", date: "hoje", active: false },
+  { id: "3", title: "Beleza e skincare", preview: "Cosmeticos importados...", date: "ontem", active: false },
+  { id: "4", title: "Como diminuir CAC?", preview: "O custo de aquisicao...", date: "ontem", active: false },
+  { id: "5", title: "Como aumentar LTV?", preview: "O lifetime value pode...", date: "ontem", active: false },
 ];
 
-function getProductInitials(name: string) {
-  return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+async function callAI(history: { role: string; content: string }[]): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("chat", { body: { messages: history } });
+  if (error) throw new Error(error.message || "Erro ao conectar com a IA");
+  return data?.response || data?.choices?.[0]?.message?.content || "Erro ao processar resposta.";
 }
 
-const SYSTEM_PROMPT = `Você é a IA da Velo, plataforma de dropshipping para iniciantes brasileiros.
-Quando o usuário disser um nicho, responda APENAS com JSON: {"tipo":"buscar_produtos","nicho":"<nicho>"}
-Quando o usuário disser "Quero este produto" seguido de dados, crie o anúncio retornando JSON:
-{"tipo":"anuncio","titulo":"","descricao":"","preco":"","plataforma":"Mercado Livre"}
-Para qualquer outra mensagem, responda normalmente com dicas de dropshipping.
-Seja direto e use linguagem simples.`;
+async function fetchMercadoLivre(nicho: string): Promise<Product[]> {
+  const query = encodeURIComponent(nicho);
+  const res = await fetch(`https://api.mercadolibre.com/sites/MLB/search?q=${query}&limit=12`);
+  if (!res.ok) throw new Error("Erro ao buscar no Mercado Livre");
+  const mlData = await res.json();
+  return (mlData.results ?? []).map((item: any) => ({
+    nome: item.title,
+    imagem: item.thumbnail?.replace("http://", "https://"),
+    url: item.permalink,
+    precoVenda: item.price,
+    margem: "",
+    condicao: item.condition === "new" ? "Novo" : "Usado",
+    vendedor: item.seller?.nickname || "",
+  }));
+}
 
-const ChatInput = memo(({ onSend, disabled }: { onSend: (text: string) => void; disabled: boolean }) => {
-  const [value, setValue] = useState("");
-  const handleSend = () => {
-    if (!value.trim()) return;
-    onSend(value);
-    setValue("");
-  };
-  return (
-    <div className="shrink-0 pt-3">
-      <div className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3 focus-within:ring-2 focus-within:ring-primary/20">
-        <input
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          placeholder="Diga um nicho: eletrônicos, moda, beleza..."
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        />
-        <button
-          onClick={handleSend}
-          disabled={disabled}
-          className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          <Send size={14} />
-        </button>
-      </div>
+async function fetchAliExpress(nicho: string): Promise<Product[]> {
+  const { data, error } = await supabase.functions.invoke("aliexpress-products", { body: { nicho } });
+  if (error) throw new Error(error.message || "Erro ao buscar produtos");
+  return (data?.products ?? []) as Product[];
+}
+
+function parse(text: string): Pick<Message, "kind" | "products" | "ad"> & { _nicho?: string } {
+  const m = text.match(/\{[\s\S]*\}/);
+  if (m) {
+    try {
+      const p = JSON.parse(m[0]);
+      if (p.tipo === "buscar_produtos" && p.nicho) return { kind: "text", _nicho: p.nicho };
+      if (p.tipo === "produtos" && Array.isArray(p.lista)) return { kind: "products", products: p.lista };
+      if (p.tipo === "anuncio") return { kind: "ad", ad: p };
+    } catch { /**/ }
+  }
+  return { kind: "text" };
+}
+
+async function fetchProducts(nicho: string, source: ProductSource): Promise<Product[]> {
+  return source === "mercadolivre" ? fetchMercadoLivre(nicho) : fetchAliExpress(nicho);
+}
+
+const SearchingCard = ({ nicho }: { nicho: string }) => (
+  <div className="flex items-center gap-4 rounded-2xl bg-gray-50 border border-gray-100 px-5 py-4 w-full max-w-[340px] shadow-sm">
+    <div className="flex items-end gap-[3px] shrink-0 h-5">
+      {[0, 1, 2, 3].map(i => (
+        <span key={i} className="w-[3px] rounded-full bg-violet-400"
+          style={{ animation: "searchBar 1s ease-in-out infinite", animationDelay: `${i * 0.15}s` }} />
+      ))}
     </div>
-  );
-});
+    <div className="min-w-0">
+      <p className="text-sm font-semibold text-gray-800 leading-snug">Buscando produtos</p>
+      <p className="text-xs text-gray-400 mt-0.5 truncate">
+        Nicho: <span className="font-medium text-violet-600 capitalize">{nicho}</span>
+      </p>
+    </div>
+    <style>{`@keyframes searchBar { 0%,100%{height:6px;opacity:.4} 50%{height:20px;opacity:1} }`}</style>
+  </div>
+);
+
+interface ChatInputProps {
+  input: string;
+  thinking: boolean;
+  inputRef?: React.RefObject<HTMLInputElement>;
+  onChange: (val: string) => void;
+  onSend: () => void;
+}
+
+const ChatInput = memo(({ input, thinking, inputRef, onChange, onSend }: ChatInputProps) => (
+  <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-violet-300 focus-within:ring-2 focus-within:ring-violet-100 transition-all">
+    <input
+      ref={inputRef}
+      type="text"
+      placeholder={thinking ? "Velo esta pensando..." : "Ask me anything..."}
+      value={input}
+      disabled={thinking}
+      onChange={e => onChange(e.target.value)}
+      onKeyDown={e => e.key === "Enter" && !thinking && onSend()}
+      className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 disabled:cursor-not-allowed"
+    />
+    <button
+      onClick={onSend}
+      disabled={thinking || !input.trim()}
+      className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-purple-700 text-white flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
+    >
+      <ArrowUp size={15} strokeWidth={2.5} />
+    </button>
+  </div>
+));
 ChatInput.displayName = "ChatInput";
 
 const AIChatPage = () => {
+  const { nome } = useProfile();
+  const { user } = useAuth();
+  const [profileName, setProfileName] = useState(nome);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [addedProducts, setAddedProducts] = useState<Set<string>>(new Set());
-  const [publishing, setPublishing] = useState<string | null>(null);
+  const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(
+    () => localStorage.getItem("ai-chat-sidebar") !== "false"
+  );
   const bottomRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const apiHistory = useRef<{ role: string; content: string }[]>([]);
 
-  const scroll = () => setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  useEffect(() => {
+    localStorage.setItem("ai-chat-sidebar", String(sidebarOpen));
+  }, [sidebarOpen]);
 
-  const fetchProducts = async (nicho: string): Promise<AliProduct[]> => {
-    try {
-      // Call ML public search directly from browser (server IPs are blocked by ML)
-      const searchUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(nicho)}&limit=12`;
-      const res = await fetch(searchUrl);
-      if (!res.ok) throw new Error(`ML search failed: ${res.status}`);
-      const data = await res.json();
-      const rawResults: any[] = data.results ?? [];
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("display_name").eq("user_id", user.id).single()
+      .then(({ data }) => { if (data?.display_name) setProfileName(data.display_name); });
+  }, [user]);
 
-      return rawResults.slice(0, 8).map((item: any) => {
-        const precoCusto = Number(item.price ?? 0);
-        const precoVenda = parseFloat((precoCusto * 1.6).toFixed(2));
-        const margem = precoVenda > 0
-          ? Math.round(((precoVenda - precoCusto) / precoVenda) * 100)
-          : 38;
+  useEffect(() => { if (nome) setProfileName(nome); }, [nome]);
 
-        return {
-          product_id: String(item.id ?? ''),
-          nome: String(item.title ?? 'Produto').slice(0, 60),
-          imagem: (item.thumbnail ?? '')
-            .replace('http://', 'https://')
-            .replace('I.jpg', 'O.jpg'),
-          link: item.permalink ?? '',
-          preco_custo: `R$ ${precoCusto.toFixed(2)}`,
-          preco_venda: `R$ ${precoVenda.toFixed(2)}`,
-          margem: `${margem}%+`,
-          vendas: item.sold_quantity ? String(item.sold_quantity) : '—',
-        };
-      });
-    } catch (e) {
-      console.error("Error fetching products:", e);
-      return [];
-    }
+  const scroll = () => {
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      inputRef.current?.focus();
+    }, 60);
   };
 
-  const createAd = async (product: AliProduct): Promise<Message> => {
+  const hasStarted = messages.length > 0;
+
+  const send = async (text?: string) => {
+    const msg = (text ?? input).trim();
+    if (!msg || thinking) return;
+    setInput("");
+    inputRef.current?.focus();
+    const userMsg: Message = { role: "user", text: msg, kind: "text" };
+    setMessages(prev => [...prev, userMsg]);
+    const nextHistory = [...apiHistory.current, { role: "user", content: msg }];
+    setThinking(true);
     try {
-      const { data, error } = await supabase.functions.invoke("chat", {
-        body: {
-          messages: [
-            {
-              role: "user",
-              content: `Crie um anúncio completo para o Mercado Livre para este produto de dropshipping:
-Nome: ${product.nome}
-Preço de custo: ${product.preco_custo}
-Preço de venda sugerido: ${product.preco_venda}
-Margem: ${product.margem}
-
-Retorne APENAS um JSON no formato:
-{"tipo":"anuncio","titulo":"título chamativo","descricao":"descrição completa com emojis e benefícios para o Mercado Livre","preco":"${product.preco_venda}","plataforma":"Mercado Livre"}`,
-            },
-          ],
-        },
-      });
-      if (error) throw error;
-
-      const text = data?.response || "";
-      const jsonMatch = text.match(/\{[\s\S]*"tipo"\s*:\s*"anuncio"[\s\S]*\}/);
-      if (jsonMatch) {
-        const ad = JSON.parse(jsonMatch[0]);
-        return {
-          role: "ai",
-          text: `📢 Anúncio criado para "${product.nome}":`,
-          adPreview: { titulo: ad.titulo, descricao: ad.descricao, preco: ad.preco || product.preco_venda, plataforma: ad.plataforma || "Mercado Livre", sourceProduct: product },
-        };
-      }
-      return { role: "ai", text: text || "Não consegui criar o anúncio. Tente novamente." };
-    } catch (e) {
-      console.error("Error creating ad:", e);
-      return { role: "ai", text: "Erro ao criar o anúncio. Tente novamente." };
-    }
-  };
-
-  const publishToML = async (adPreview: Message["adPreview"], messageIndex: number) => {
-    if (!adPreview || publishing) return;
-    setPublishing(adPreview.titulo);
-    scroll();
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[messageIndex] = {
-            ...updated[messageIndex],
-            publishResult: { status: "error", message: "Você precisa estar logado para publicar." },
-          };
-          return updated;
-        });
-        setPublishing(null);
+      const response = await callAI(nextHistory);
+      apiHistory.current = [...nextHistory, { role: "assistant", content: response }];
+      const parsed = parse(response);
+      if (parsed._nicho) {
+        setMessages(prev => [...prev, { role: "ai", text: "", kind: "source-select", nicho: parsed._nicho }]);
         return;
       }
-
-      const priceNum = parseFloat(adPreview.preco.replace(/[^\d.,]/g, "").replace(",", "."));
-
-      const { data, error } = await supabase.functions.invoke("ml-publish", {
-        body: {
-          user_id: session.user.id,
-          product: {
-            title: adPreview.titulo.substring(0, 60),
-            price: priceNum || 99.9,
-            description: adPreview.descricao,
-            condition: "new",
-            available_quantity: 10,
-            images: adPreview.sourceProduct?.imagem ? [adPreview.sourceProduct.imagem] : [],
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.error?.includes("não conectado") || data?.error?.includes("Mercado Livre")) {
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[messageIndex] = {
-            ...updated[messageIndex],
-            publishResult: { status: "not_connected", message: "Conecte sua conta do Mercado Livre para publicar." },
-          };
-          return updated;
-        });
-      } else if (data?.success) {
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[messageIndex] = {
-            ...updated[messageIndex],
-            publishResult: { status: "success", permalink: data.permalink, item_id: data.item_id },
-          };
-          return updated;
-        });
-      } else {
-        throw new Error(data?.error || "Erro desconhecido");
-      }
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Erro ao publicar";
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[messageIndex] = {
-          ...updated[messageIndex],
-          publishResult: { status: "error", message: msg },
-        };
-        return updated;
-      });
+      setMessages(prev => [...prev, { role: "ai", text: response, ...parsed }]);
+    } catch (err) {
+      console.error("[AI Chat]", err);
+      setMessages(prev => [...prev, { role: "ai", text: "Erro de conexao. Tente novamente.", kind: "text" }]);
+    } finally {
+      setThinking(false);
+      scroll();
     }
-    setPublishing(null);
+  };
+
+  const newChat = () => {
+    setMessages([]);
+    setInput("");
+    setThinking(false);
+    apiHistory.current = [];
+    setTimeout(() => inputRef.current?.focus(), 80);
+  };
+
+  const handleSourceConfirm = async (nicho: string, source: ProductSource) => {
+    setMessages(prev => {
+      const without = prev.filter(m => m.kind !== "source-select");
+      return [...without, { role: "ai", text: "", kind: "searching", nicho }];
+    });
+    let products: Product[] = [];
+    let fetchError = false;
+    try { products = await fetchProducts(nicho, source); } catch { fetchError = true; }
+    const sourceLabel = source === "mercadolivre" ? "Mercado Livre" : "AliExpress";
+    if (fetchError || products.length === 0) {
+      const errMsg = "Nao encontrei produtos para esse nicho agora. Tente outro nicho.";
+      apiHistory.current = [...apiHistory.current, { role: "assistant", content: errMsg }];
+      setMessages(prev => { const w = prev.filter(m => m.kind !== "searching"); return [...w, { role: "ai", text: errMsg, kind: "text" }]; });
+    } else {
+      const ctx = `Produtos encontrados no ${sourceLabel} para "${nicho}": ${products.map(p => p.nome).join(", ")}`;
+      apiHistory.current = [...apiHistory.current, { role: "assistant", content: ctx }];
+      setMessages(prev => { const w = prev.filter(m => m.kind !== "searching"); return [...w, { role: "ai", text: "", kind: "products", products }]; });
+    }
     scroll();
   };
 
+  const renderProducts = (products: Product[]) => (
+    <div className="grid grid-cols-2 gap-3 w-full max-w-[560px]">
+      {products.map((p, i) => (
+        <div key={i} className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm flex flex-col">
+          <div className="h-[140px] bg-gray-50 overflow-hidden">
+            {p.imagem
+              ? <img src={p.imagem} alt={p.nome} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              : <div className="w-full h-full flex items-center justify-center"><Package size={28} className="text-gray-300" /></div>
+            }
+          </div>
+          <div className="p-3.5 flex flex-col flex-1 gap-1.5">
+            <p className="text-[13px] font-semibold text-gray-800 line-clamp-2 leading-snug">{p.nome}</p>
+            {p.margem && <span className="self-start rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-600">Margem {p.margem}</span>}
+            <div className="flex-1" />
+            {p.precoVenda != null
+              ? <p className="text-base font-bold text-violet-600">R$ {p.precoVenda.toFixed(2).replace(".", ",")}</p>
+              : p.preco ? <p className="text-base font-bold text-violet-600">{p.preco}</p> : null
+            }
+            {p.url && (
+              <a href={p.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-violet-600 transition-colors">
+                Ver produto <ArrowUpRight size={10} />
+              </a>
+            )}
+            <button
+              onClick={() => send(`Quero publicar este produto: ${p.nome}`)}
+              className="w-full h-[38px] bg-gradient-to-br from-violet-600 to-purple-700 text-white text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity mt-1"
+            >
+              Publicar no ML
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
-  const send = useCallback(async (text: string) => {
-    const msg = text.trim();
-    if (!msg || thinking) return;
-    setMessages((prev) => [...prev, { role: "user", text: msg }]);
-    setThinking(true);
-    scroll();
+  const renderAd = (ad: Ad) => (
+    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm w-full max-w-[400px]">
+      <div className="bg-gradient-to-br from-violet-600 to-purple-700 px-4 py-3">
+        <p className="text-xs font-bold text-white uppercase tracking-wide">Anuncio criado pela IA</p>
+      </div>
+      <div className="p-4">
+        <p className="text-sm font-bold text-gray-800 mb-2">{ad.titulo}</p>
+        <p className="text-xs text-gray-500 leading-relaxed mb-4">{ad.descricao}</p>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[10px] text-gray-400 mb-0.5">Preco sugerido</p>
+            <p className="text-xl font-bold text-violet-600">{ad.preco}</p>
+          </div>
+          <button
+            onClick={() => send("Publicar no Mercado Livre")}
+            className="h-[38px] bg-gradient-to-br from-violet-600 to-purple-700 px-4 text-xs font-semibold text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Package size={13} /> Publicar no ML
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-    // Detect niche mentions
-    const nichoKeywords: Record<string, string> = {
-      "eletrônico": "eletronicos", "eletronico": "eletronicos", "eletrônicos": "eletronicos", "eletronicos": "eletronicos", "tech": "eletronicos",
-      "moda": "moda", "roupa": "moda", "tênis": "moda", "tenis": "moda", "fashion": "moda",
-      "beleza": "beleza", "skincare": "beleza", "maquiagem": "beleza", "cosmético": "beleza", "cosmetico": "beleza",
-      "casa": "casa", "decoração": "casa", "decoracao": "casa", "lar": "casa",
-      "esporte": "esporte", "fitness": "esporte", "gym": "esporte",
-      "brinquedo": "brinquedos", "brinquedos": "brinquedos", "kids": "brinquedos",
-      "joia": "joias", "joias": "joias", "acessório": "joias",
-      "pet": "pet", "animal": "pet", "cachorro": "pet", "gato": "pet",
-      "bebê": "bebes", "bebe": "bebes", "bebês": "bebes",
-      "ferramenta": "ferramentas", "ferramentas": "ferramentas",
-      "automotivo": "automotivo", "carro": "automotivo", "auto": "automotivo",
-    };
-
-    const lower = msg.toLowerCase();
-    let detectedNicho = "";
-
-    // Detect ML connect intent
-    const connectKeywords = ["conectar", "integrar", "minha conta ml", "vincular mercado", "mercado livre"];
-    const wantsConnect = connectKeywords.some((kw) => lower.includes(kw)) && !lower.includes("produto");
-    if (wantsConnect) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "ai", text: "Para publicar no Mercado Livre, você precisa conectar sua conta primeiro. Clique no botão abaixo:", showConnectML: true },
-      ]);
-      setThinking(false);
-      scroll();
-      return;
-    }
-
-    for (const [kw, nicho] of Object.entries(nichoKeywords)) {
-      if (lower.includes(kw)) {
-        detectedNicho = nicho;
-        break;
-      }
-    }
-
-    if (detectedNicho) {
-      const products = await fetchProducts(detectedNicho);
-      if (products.length > 0) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "ai",
-            text: `🔥 Encontrei ${products.length} produtos do Mercado Livre para "${detectedNicho}"! Todos com margem de 40%+. Clique em "Quero este" para criar o anúncio:`,
-            products,
-          },
-        ]);
-      } else {
-        setMessages((prev) => [...prev, { role: "ai", text: "Não encontrei produtos para esse nicho. Tente outro como: eletrônicos, moda, beleza, casa." }]);
-      }
-      setThinking(false);
-      scroll();
-      return;
-    }
-
-    // Fallback to AI chat
-    try {
-      const history = messages.filter(m => m.text).map(m => ({ role: m.role === "ai" ? "assistant" : "user", content: m.text! }));
-      history.push({ role: "user", content: msg });
-
-      const { data, error } = await supabase.functions.invoke("chat", {
-        body: { messages: history },
-      });
-
-      if (error) throw error;
-      setMessages((prev) => [...prev, { role: "ai", text: data?.response || "Desculpe, não consegui processar." }]);
-    } catch (e) {
-      console.error("Chat error:", e);
-      setMessages((prev) => [...prev, { role: "ai", text: "Erro ao processar. Tente novamente." }]);
-    }
-
-    setThinking(false);
-    scroll();
-  }, [thinking, messages]);
-
-  const handleProductSelect = async (product: AliProduct) => {
-    if (addedProducts.has(product.product_id)) return;
-    setAddedProducts((prev) => new Set(prev).add(product.product_id));
-    setMessages((prev) => [...prev, { role: "user", text: `Quero este produto: ${product.nome}` }]);
-    setThinking(true);
-    scroll();
-
-    const adMessage = await createAd(product);
-    setMessages((prev) => [...prev, adMessage]);
-    setThinking(false);
-    scroll();
-  };
-
-  const isEmpty = messages.length === 0;
+  const todayChats = chatHistory.filter(c => c.date === "hoje");
+  const yesterdayChats = chatHistory.filter(c => c.date === "ontem");
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] max-w-2xl mx-auto">
-      {/* empty state */}
-      {isEmpty && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-6 text-center px-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-            <Sparkles size={26} />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground">IA de Produtos</h2>
-            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-              Diga o nicho que você quer vender e eu busco produtos reais do Mercado Livre com margem de 40%+.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {suggestions.map((s) => (
-              <button
-                key={s}
-                onClick={() => send(s)}
-                className="rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+    <div className="h-[calc(100vh-7rem)] flex flex-row overflow-hidden rounded-2xl border border-gray-100 shadow-sm bg-[#F4F4F8]">
+
+      {/* LEFT PANEL */}
+      <div className={cn(
+        "hidden md:flex flex-col overflow-hidden transition-all duration-300 ease-in-out bg-[#F4F4F8] shrink-0",
+        sidebarOpen ? "w-[300px] min-w-[300px]" : "w-0 min-w-0"
+      )}>
+        <div className="flex items-center gap-3 px-5 pt-6 pb-4">
+          <button onClick={() => setSidebarOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <ChevronLeft size={18} />
+          </button>
+          <h2 className="text-xl font-semibold text-gray-800 flex-1">Chat Results</h2>
         </div>
-      )}
-
-      {/* messages */}
-      {!isEmpty && (
-        <div className="flex-1 overflow-y-auto scrollbar-none py-4 space-y-4" style={{ scrollbarWidth: "none" }}>
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex flex-col gap-2 ${msg.role === "user" ? "items-end" : "items-start"}`}>
-              {msg.text && (
-                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-br-sm"
-                    : "bg-muted text-foreground rounded-bl-sm"
-                }`}>
-                  {msg.text}
-                </div>
-              )}
-
-              {/* ML Connect button */}
-              {msg.showConnectML && (
-                <button
-                  onClick={() => navigate("/dashboard/integracoes")}
-                  className="flex items-center gap-2 rounded-lg bg-[#FFE600] text-gray-900 px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
-                >
-                  🔗 Ir para Integrações
-                </button>
-              )}
-
-              {/* Product cards */}
-              {msg.products && msg.products.length > 0 && (
-                <div className="w-full max-w-lg space-y-2">
-                  {msg.products.map((p) => {
-                    const isSelected = addedProducts.has(p.product_id);
-                    return (
-                      <div key={p.product_id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
-                        {p.imagem ? (
-                          <img src={p.imagem} alt={p.nome} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
-                        ) : (
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold tracking-wide text-foreground">
-                            {getProductInitials(p.nome)}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{p.nome}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Custo: {p.preco_custo} · Venda: <span className="text-primary font-semibold">{p.preco_venda}</span>
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs font-semibold text-green-600">Margem {p.margem}</span>
-                            {p.vendas && p.vendas !== "0" && (
-                              <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                                <Star size={10} className="fill-yellow-400 text-yellow-400" /> {p.vendas} vendas
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleProductSelect(p)}
-                          className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                            isSelected ? "bg-green-100 text-green-700" : "bg-primary text-primary-foreground hover:opacity-90"
-                          }`}
-                        >
-                          <ShoppingBag size={12} />
-                          {isSelected ? "Criando anúncio..." : "Quero este"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Ad preview */}
-              {msg.adPreview && (
-                <div className="w-full max-w-lg rounded-xl border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold bg-primary/10 text-primary rounded-full px-2 py-0.5">{msg.adPreview.plataforma}</span>
-                    <span className="text-xs text-muted-foreground">Anúncio pronto!</span>
+        <button onClick={newChat} className="mx-4 mb-4 w-[calc(100%-2rem)] flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 hover:bg-white transition-all">
+          <Plus size={15} /> Novo Chat
+        </button>
+        <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+          {todayChats.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 mb-2">Hoje</p>
+              {todayChats.map(c => (
+                <div key={c.id} className={cn("mx-3 mb-1 rounded-2xl px-4 py-3 cursor-pointer hover:bg-white/80 transition-all group flex items-center gap-3", c.active && "bg-white shadow-sm")}>
+                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                    <Sparkles size={14} className="text-gray-500" />
                   </div>
-                  <h3 className="text-sm font-bold text-foreground">{msg.adPreview.titulo}</h3>
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{msg.adPreview.descricao}</p>
-                  <p className="text-lg font-bold text-primary">{msg.adPreview.preco}</p>
-
-                  {/* Publish button / result */}
-                  {!msg.publishResult && (
-                    <button
-                      onClick={() => publishToML(msg.adPreview, i)}
-                      disabled={publishing !== null}
-                      className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-                    >
-                      <Rocket size={14} />
-                      {publishing === msg.adPreview?.titulo ? "Publicando..." : "Publicar no Mercado Livre"}
-                    </button>
-                  )}
-
-                  {msg.publishResult?.status === "success" && (
-                    <div className="flex items-center gap-2 rounded-lg bg-green-100 text-green-800 px-4 py-2 text-sm">
-                      <span>✅ Anúncio publicado!</span>
-                      {msg.publishResult.permalink && (
-                        <a href={msg.publishResult.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 underline font-semibold">
-                          Ver no ML <ExternalLink size={12} />
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {msg.publishResult?.status === "not_connected" && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 rounded-lg bg-yellow-100 text-yellow-800 px-4 py-2 text-sm">
-                        <AlertCircle size={14} />
-                        <span>{msg.publishResult.message}</span>
-                      </div>
-                      <button
-                        onClick={() => navigate("/dashboard/integracoes")}
-                        className="flex items-center gap-2 rounded-lg border border-primary text-primary px-4 py-2 text-sm font-semibold hover:bg-primary/5 transition-colors"
-                      >
-                        Conectar Mercado Livre →
-                      </button>
-                    </div>
-                  )}
-
-                  {msg.publishResult?.status === "error" && (
-                    <div className="flex items-center gap-2 rounded-lg bg-destructive/10 text-destructive px-4 py-2 text-sm">
-                      <AlertCircle size={14} />
-                      <span>{msg.publishResult.message}</span>
-                    </div>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{c.title}</p>
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{c.preview}</p>
+                  </div>
+                  <ArrowUpRight size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 </div>
-              )}
-            </div>
-          ))}
-
-          {thinking && (
-            <div className="flex items-start">
-              <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm text-muted-foreground animate-pulse">
-                Buscando produtos...
-              </div>
+              ))}
             </div>
           )}
-          <div ref={bottomRef} />
+          {yesterdayChats.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 mb-2">Ontem</p>
+              {yesterdayChats.map(c => (
+                <div key={c.id} className={cn("mx-3 mb-1 rounded-2xl px-4 py-3 cursor-pointer hover:bg-white/80 transition-all group flex items-center gap-3", c.active && "bg-white shadow-sm")}>
+                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                    <Sparkles size={14} className="text-gray-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{c.title}</p>
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{c.preview}</p>
+                  </div>
+                  <ArrowUpRight size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      <ChatInput onSend={send} disabled={thinking} />
+      {/* RIGHT PANEL */}
+      <div className="flex-1 flex flex-col bg-white overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            {!sidebarOpen && (
+              <button onClick={() => setSidebarOpen(true)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 transition-all">
+                <PanelLeft size={16} />
+              </button>
+            )}
+          </div>
+          <p className="text-base font-semibold text-gray-800">Novo Chat</p>
+          <button onClick={newChat} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto py-6" style={{ scrollbarWidth: "none" }}>
+          <div className="w-full max-w-[800px] mx-auto px-6 space-y-6">
+
+            {!hasStarted && (
+              <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-5 shadow-lg">
+                  <Sparkles size={24} className="text-white" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-800 mb-2">Ola! Como posso te ajudar?</h2>
+                <p className="text-sm text-gray-400 max-w-xs">
+                  Sou especialista em dropshipping. Posso te ajudar a encontrar produtos, criar anuncios e publicar no Mercado Livre.
+                </p>
+              </div>
+            )}
+
+            {messages.map((msg, i) => (
+              <div key={i} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start items-start")}>
+                {msg.role === "ai" && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <Sparkles size={14} className="text-white" />
+                  </div>
+                )}
+                {msg.kind === "source-select" && msg.nicho
+                  ? <SourceSelector onConfirm={src => handleSourceConfirm(msg.nicho!, src)} />
+                  : msg.kind === "searching" && msg.nicho
+                  ? <SearchingCard nicho={msg.nicho} />
+                  : msg.kind === "products" && msg.products
+                  ? renderProducts(msg.products)
+                  : msg.kind === "ad" && msg.ad
+                  ? renderAd(msg.ad)
+                  : (
+                    <div className={cn(
+                      "px-4 py-3 text-sm leading-relaxed max-w-[75%]",
+                      msg.role === "user"
+                        ? "bg-gradient-to-br from-violet-600 to-purple-700 text-white rounded-2xl rounded-tr-sm"
+                        : "bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm text-gray-700"
+                    )}>
+                      {msg.text}
+                    </div>
+                  )
+                }
+              </div>
+            ))}
+
+            {thinking && (
+              <div className="flex gap-3 justify-start items-start">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles size={14} className="text-white" />
+                </div>
+                <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
+                  {[0, 150, 300].map(delay => (
+                    <span key={delay} className="w-1.5 h-1.5 rounded-full bg-violet-300 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        <div className="py-4 border-t border-gray-100">
+          <div className="w-full max-w-[800px] mx-auto px-6">
+            <ChatInput input={input} thinking={thinking} inputRef={inputRef} onChange={setInput} onSend={send} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

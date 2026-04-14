@@ -13,7 +13,7 @@ import CadastroPage from "./pages/CadastroPage";
 import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { Navigate } from "react-router-dom";
-import AIChatPage from "./pages/dashboard/GitChatPage";
+import AIChatPage from "./pages/dashboard/AIChatPage";
 import CatalogPage from "./pages/dashboard/CatalogPage";
 import OrdersPage from "./pages/dashboard/OrdersPage";
 import PublicationsPage from "./pages/dashboard/PublicationsPage";
