@@ -6,15 +6,16 @@ import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 
 const CATEGORIES = [
-  { key: "todos", label: "Todos" },
-  { key: "eletronicos", label: "Eletrônicos" },
-  { key: "telefones", label: "Telefones" },
-  { key: "beleza", label: "Beleza" },
-  { key: "casa", label: "Casa" },
-  { key: "esportes", label: "Esportes" },
+  { key: "todos", label: "Todos", icon: null },
+  { key: "best", label: "Melhores", icon: Flame },
+  { key: "recent", label: "Recentes", icon: Clock },
+  { key: "in_stock", label: "Em estoque", icon: PackageCheck },
+  { key: "eletronicos", label: "Eletrônicos", icon: null },
+  { key: "telefones", label: "Telefones", icon: null },
+  { key: "beleza", label: "Beleza", icon: null },
+  { key: "casa", label: "Casa", icon: null },
+  { key: "esportes", label: "Esportes", icon: null },
 ];
-
-type QuickFilter = "all" | "best" | "recent" | "in_stock";
 
 function calcScore(p: any): number {
   let score = 0;
