@@ -157,19 +157,50 @@ serve(async (req) => {
     } catch (_e) { /* fallback */ }
     console.log('Categoria detectada:', categoryId)
 
-    // 3. Upload images to ML
+    // 3. Fetch required attributes for this category dynamically
+    let categoryAttrs: any[] = []
+    try {
+      const attrRes = await fetch(`https://api.mercadolibre.com/categories/${categoryId}/attributes`)
+      if (attrRes.ok) {
+        categoryAttrs = await attrRes.json()
+      }
+    } catch (_e) { /* ignore */ }
+
+    const baseAttrs = [
+      { id: 'BRAND', value_name: 'Genérico' },
+      { id: 'MODEL', value_name: 'Genérico' },
+      { id: 'SELLER_SKU', value_name: product.external_id || 'SKU-001' },
+    ]
+
+    // Add all required attributes with default values
+    const requiredAttrs = categoryAttrs
+      .filter((a: any) => a.tags?.required)
+      .map((a: any) => ({
+        id: a.id,
+        value_name: a.values?.[0]?.name || 'Genérico',
+      }))
+
+    const allAttrs = [...baseAttrs]
+    for (const req of requiredAttrs) {
+      if (!allAttrs.find(a => a.id === req.id)) {
+        allAttrs.push(req)
+      }
+    }
+    console.log('Atributos:', JSON.stringify(allAttrs.map(a => a.id)))
+
+    // 4. Upload images to ML
     const rawImages = (product.images || []).slice(0, 6)
     const pictureResults = await Promise.all(
       rawImages.map((url: string) => uploadImageToML(url, accessToken))
     )
     const pictures = pictureResults.filter((p): p is { id: string } | { source: string } => p !== null)
-    console.log('Imagens processadas:', pictures.length, JSON.stringify(pictures.map(p => 'id' in p ? { id: p.id } : { source: '...' })))
+    console.log('Imagens processadas:', pictures.length)
 
-    // 4. Description
+    // 5. Description
     const descriptionText = product.description || ''
     console.log('Descrição recebida:', descriptionText.substring(0, 100))
 
-    // 5. Publish to ML (description must be sent separately)
+    // 6. Publish to ML (description must be sent separately)
     const mlPayload: Record<string, unknown> = {
       title,
       category_id: categoryId,
@@ -180,12 +211,7 @@ serve(async (req) => {
       condition: 'not_specified',
       listing_type_id: 'gold_pro',
       pictures,
-      attributes: [
-        { id: 'BRAND', value_name: 'Genérico' },
-        { id: 'MODEL', value_name: 'Genérico' },
-        { id: 'SELLER_SKU', value_name: product.external_id || 'SKU-001' },
-        { id: 'MAX_WEIGHT_SUPPORTED', value_name: '100 kg' },
-      ],
+      attributes: allAttrs,
     }
     console.log('Sending to ML API...')
 
