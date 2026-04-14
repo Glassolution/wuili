@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, MoreHorizontal, RefreshCw, ChevronsRight, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check } from "lucide-react";
+import { Search, ChevronDown, MoreHorizontal, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, ArrowUpRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
@@ -124,70 +124,62 @@ const CatalogPage = () => {
     } catch { return null; }
   };
 
-  // Label shown on the dropdown button
-  const activeCategoryLabel = CATEGORIES.find(c => c.key === category)?.label ?? "Todos";
-  const activeFilterLabel = QUICK_FILTERS.find(f => f.key === quickFilter)?.label ?? "Todos";
-  const dropdownLabel = quickFilter !== "all"
-    ? activeFilterLabel
-    : category !== "todos"
-      ? activeCategoryLabel
-      : "Filtrar";
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-foreground tracking-tight">Dropshipping</h2>
-          <button className="text-muted-foreground hover:text-foreground transition-colors">
-            <MoreHorizontal size={18} />
-          </button>
-        </div>
-        <button
-          onClick={() => syncMutation.mutate()}
-          disabled={syncMutation.isPending}
-          className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={syncMutation.isPending ? "animate-spin" : ""} />
-          {syncMutation.isPending ? "Sincronizando..." : "Sincronizar produtos"}
+      <div className="flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-foreground tracking-tight">Dropshipping</h2>
+        <button className="text-muted-foreground hover:text-foreground transition-colors">
+          <MoreHorizontal size={18} />
+        </button>
+        <button className="text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowUpRight size={16} />
         </button>
       </div>
 
-      {/* Subtitle */}
-      <p className="text-sm text-muted-foreground -mt-3">Produtos reais do CJ Dropshipping prontos para importar.</p>
-
       {/* Filters row */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
+
           {/* Search */}
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-52 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              placeholder="Buscar produto..."
+              className="w-44 rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Search"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
 
-          {/* Dropdown Filtrar */}
+          {/* Filtrar dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((v) => !v)}
-              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                 dropdownOpen || quickFilter !== "all"
                   ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "border-border bg-background text-foreground hover:bg-muted"
               }`}
             >
-              {quickFilter !== "all"
-                ? QUICK_FILTERS.find(f => f.key === quickFilter)?.label
-                : "Filtrar"}
+              {quickFilter !== "all" ? QUICK_FILTERS.find(f => f.key === quickFilter)?.label : "Filtrar"}
               <ChevronDown size={13} className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
             </button>
-
             {dropdownOpen && (
-              <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-2xl border border-border bg-background shadow-lg overflow-hidden py-2">
+              <div className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-background shadow-lg overflow-hidden py-1.5">
                 {QUICK_FILTERS.filter(f => f.key !== "all").map((f) => {
                   const Icon = f.icon;
                   const active = quickFilter === f.key;
@@ -195,7 +187,7 @@ const CatalogPage = () => {
                     <button
                       key={f.key}
                       onClick={() => { setQuickFilter(f.key); setDropdownOpen(false); }}
-                      className={`flex w-full items-center justify-between px-4 py-2.5 text-sm transition-colors ${
+                      className={`flex w-full items-center justify-between px-3.5 py-2 text-sm transition-colors ${
                         active ? "font-semibold text-foreground bg-foreground/5" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
                     >
@@ -203,39 +195,74 @@ const CatalogPage = () => {
                         {Icon && <Icon size={13} />}
                         {f.label}
                       </span>
-                      {active && <Check size={13} />}
+                      {active && <Check size={12} />}
                     </button>
                   );
                 })}
                 {quickFilter !== "all" && (
-                  <button
-                    onClick={() => { setQuickFilter("all"); setDropdownOpen(false); }}
-                    className="flex w-full items-center px-4 py-2 text-xs text-muted-foreground hover:text-foreground border-t border-border mt-1 pt-2"
-                  >
-                    Limpar filtro
-                  </button>
+                  <>
+                    <div className="my-1 border-t border-border" />
+                    <button
+                      onClick={() => { setQuickFilter("all"); setDropdownOpen(false); }}
+                      className="flex w-full items-center px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Limpar filtro
+                    </button>
+                  </>
                 )}
               </div>
             )}
           </div>
-        </div>
 
-        {/* Category pills */}
-        <div className="flex items-center gap-1.5">
-          {CATEGORIES.map((c) => (
+          {/* Categoria dropdown */}
+          <div className="relative" ref={categoryDropdownRef}>
             <button
-              key={c.key}
-              onClick={() => { setCategory(c.key); setPage(1); }}
-              className={`rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
-                category === c.key
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() => setCategoryDropdownOpen((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                categoryDropdownOpen || category !== "todos"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-background text-foreground hover:bg-muted"
               }`}
             >
-              {c.label}
+              {category !== "todos" ? CATEGORIES.find(c => c.key === category)?.label : "Categoria"}
+              <ChevronDown size={13} className={`transition-transform ${categoryDropdownOpen ? "rotate-180" : ""}`} />
             </button>
-          ))}
+            {categoryDropdownOpen && (
+              <div className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-background shadow-lg overflow-hidden py-1.5">
+                {CATEGORIES.map((c) => {
+                  const active = category === c.key;
+                  return (
+                    <button
+                      key={c.key}
+                      onClick={() => { setCategory(c.key); setPage(1); setCategoryDropdownOpen(false); }}
+                      className={`flex w-full items-center justify-between px-3.5 py-2 text-sm transition-colors ${
+                        active ? "font-semibold text-foreground bg-foreground/5" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {c.label}
+                      {active && <Check size={12} />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Ocultar */}
+          <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-1">
+            Ocultar
+          </button>
         </div>
+
+        {/* Sincronizar */}
+        <button
+          onClick={() => syncMutation.mutate()}
+          disabled={syncMutation.isPending}
+          className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+        >
+          <RefreshCw size={13} className={syncMutation.isPending ? "animate-spin" : ""} />
+          {syncMutation.isPending ? "Sincronizando..." : "Sincronizar produtos"}
+        </button>
       </div>
 
       {/* Product Grid */}
