@@ -227,7 +227,7 @@ const CatalogPage = () => {
           <Package size={48} className="text-muted-foreground/40 mb-4" />
           <p className="text-sm font-medium text-foreground">Nenhum produto encontrado</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {quickFilter !== "all"
+            {category !== "todos"
               ? "Nenhum produto corresponde a esse filtro. Tente outro."
               : 'Clique em "Sincronizar produtos" para popular o catálogo.'}
           </p>
