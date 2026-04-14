@@ -226,6 +226,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_publications: {
+        Row: {
+          cost_price: number | null
+          created_at: string | null
+          id: string
+          ml_item_id: string
+          permalink: string | null
+          price: number | null
+          published_at: string | null
+          status: string | null
+          thumbnail: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cost_price?: number | null
+          created_at?: string | null
+          id?: string
+          ml_item_id: string
+          permalink?: string | null
+          price?: number | null
+          published_at?: string | null
+          status?: string | null
+          thumbnail?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cost_price?: number | null
+          created_at?: string | null
+          id?: string
+          ml_item_id?: string
+          permalink?: string | null
+          price?: number | null
+          published_at?: string | null
+          status?: string | null
+          thumbnail?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
