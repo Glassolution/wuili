@@ -157,9 +157,13 @@ serve(async (req) => {
     } catch (_e) { /* fallback */ }
     console.log('Categoria detectada:', categoryId)
 
-    // 3. Process images via base64
-    const pictures = await processImages(product.images || [])
-    console.log('Imagens processadas:', pictures.length)
+    // 3. Upload images to ML
+    const rawImages = (product.images || []).slice(0, 6)
+    const pictureResults = await Promise.all(
+      rawImages.map((url: string) => uploadImageToML(url, accessToken))
+    )
+    const pictures = pictureResults.filter((p): p is { id: string } | { source: string } => p !== null)
+    console.log('Imagens processadas:', pictures.length, JSON.stringify(pictures.map(p => 'id' in p ? { id: p.id } : { source: '...' })))
 
     // 4. Description
     const descriptionText = product.description || ''
