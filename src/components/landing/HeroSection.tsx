@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HeroCard from "./HeroCard";
+import heroDashboard from "@/assets/hero-dashboard.png";
 
 const CheckIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="flex-shrink-0 mt-[1px]">
@@ -108,88 +109,21 @@ const HeroSection = () => {
           </p>
         </div>
 
-        {/* RIGHT: Product mockup */}
+        {/* RIGHT: Product screenshot */}
         <div
           className="flex items-center justify-center lg:justify-end"
           style={{ animation: "fadeUp 0.7s 0.25s ease both" }}
         >
-          {/* Outer browser chrome */}
-          <div className="relative w-full max-w-[540px] bg-[rgba(255,255,255,0.72)] backdrop-blur-[12px] border border-[rgba(0,0,0,0.08)] rounded-[20px] shadow-[0_32px_80px_rgba(0,0,0,0.1)] overflow-hidden">
-            {/* macOS title bar */}
-            <div className="flex items-center gap-2 px-5 py-3 bg-[rgba(255,255,255,0.9)] border-b border-[rgba(0,0,0,0.07)]">
-              <div className="flex gap-1.5">
-                <div className="w-[11px] h-[11px] rounded-full bg-[#FF5F57]" />
-                <div className="w-[11px] h-[11px] rounded-full bg-[#FFBD2E]" />
-                <div className="w-[11px] h-[11px] rounded-full bg-[#28CA42]" />
-              </div>
-              <div className="flex-1 flex justify-center">
-                <span className="text-[0.75rem] text-[#9B9B9B] bg-[rgba(0,0,0,0.04)] rounded-md px-4 py-1 font-['DM_Sans']">
-                  Workspace Velo
-                </span>
-              </div>
-              <button className="text-[0.6875rem] border border-[rgba(0,0,0,0.12)] rounded-full px-3 py-[3px] text-[#6B6B6B] font-['DM_Sans'] hover:bg-black hover:text-white transition-all">
-                Abrir
-              </button>
-            </div>
-
-            {/* App content: two-panel */}
-            <div className="flex h-[380px]">
-              {/* Sidebar */}
-              <div className="w-[160px] bg-[#111] flex-shrink-0 px-4 py-5 flex flex-col gap-1">
-                {["Navegacao", "Novo chat", "Automacoes", "Skills", "Velo", "Landing principal", "Revisar anuncios"].map((item, i) => (
-                  <div
-                    key={item}
-                    className={`text-[0.6875rem] px-2 py-[5px] rounded-md font-['DM_Sans'] cursor-pointer transition-colors ${
-                      i === 4 ? "text-white font-semibold bg-white/10" : "text-[rgba(255,255,255,0.45)] hover:text-white/70"
-                    }`}
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-
-              {/* Chat panel */}
-              <div className="flex-1 bg-[#1A1A1A] px-5 py-4 flex flex-col gap-3 overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-[0.8125rem] font-semibold text-white font-['DM_Sans']">Atualizar hero</span>
-                  <span className="text-[0.6875rem] text-[rgba(255,255,255,0.35)] font-['DM_Sans']">agora</span>
-                </div>
-                {[
-                  "Vou deixar a landing mais silenciosa, clara e premium, com foco total no produto e no CTA.",
-                  "Vou simplificar o hero e reforcar a clareza da proposta.",
-                  "Ajustei a hierarquia visual para um visual mais leve.",
-                  "CTA principal mais direto e sem ruido.",
-                ].map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`text-[0.75rem] leading-[1.55] font-['DM_Sans'] px-3 py-2 rounded-xl ${
-                      i === 0 ? "bg-[rgba(124,58,237,0.18)] text-[rgba(255,255,255,0.9)]" : "text-[rgba(255,255,255,0.45)]"
-                    }`}
-                  >
-                    {msg}
-                  </div>
-                ))}
-              </div>
-
-              {/* Code diff panel */}
-              <div className="w-[180px] bg-[#141414] border-l border-[rgba(255,255,255,0.06)] px-4 py-4 flex flex-col gap-2 overflow-hidden flex-shrink-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[0.6875rem] text-[rgba(255,255,255,0.5)] font-['DM_Sans']">2 arquivos alterados</span>
-                  <span className="text-[0.6875rem] text-[#4ADE80] font-['DM_Sans'] font-semibold">+8 -3</span>
-                </div>
-                {[
-                  'export const hero = {',
-                  '  title: "Velo",',
-                  '  subtitle: "Sua operacao de vendas, automatizad',
-                  '  primaryCta: "Criar workspace",',
-                  '};',
-                ].map((line, i) => (
-                  <div key={i} className={`text-[0.6875rem] font-mono ${i === 3 ? "text-[#4ADE80]" : "text-[rgba(255,255,255,0.45)]"}`}>
-                    {line}
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="relative w-full max-w-[580px] rounded-[20px] shadow-[0_32px_80px_rgba(0,0,0,0.12)] overflow-hidden border border-[rgba(0,0,0,0.08)]">
+            <img
+              src={heroDashboard}
+              alt="Painel de produtos Velo — catálogo dropshipping com importação automática"
+              className="w-full h-auto object-contain"
+              loading="lazy"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
           </div>
         </div>
 
