@@ -455,15 +455,39 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                     Publicar em
                   </h4>
                   <div className="flex gap-3">
+                    {/* Mercado Livre */}
                     <div className="flex items-center gap-2.5 rounded-xl border-2 border-[#0A0A0A] bg-[#0A0A0A]/[0.02] px-4 py-3 text-sm font-semibold text-[#0A0A0A]">
-                      <div className="h-3 w-3 rounded-sm bg-[#FFE600]"></div>
+                      <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <ellipse cx="24" cy="24" rx="24" ry="24" fill="#FFE600"/>
+                        <path d="M24 10C16.268 10 10 16.268 10 24C10 31.732 16.268 38 24 38C31.732 38 38 31.732 38 24C38 16.268 31.732 10 24 10Z" fill="#FFE600"/>
+                        <path d="M17 21.5C17 21.5 19.5 26 24 26C28.5 26 31 21.5 31 21.5" stroke="#333" strokeWidth="2.5" strokeLinecap="round"/>
+                        <circle cx="19.5" cy="18.5" r="1.5" fill="#333"/>
+                        <circle cx="28.5" cy="18.5" r="1.5" fill="#333"/>
+                      </svg>
                       Mercado Livre
                       <Check size={14} className="text-[#0A0A0A]" />
                     </div>
-                    <div className="flex items-center gap-2.5 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-400 cursor-not-allowed">
-                      <div className="h-3 w-3 rounded-sm bg-[#EE4D2D]"></div>
+                    {/* Shopee */}
+                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-400 cursor-not-allowed">
+                      <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="24" cy="24" r="24" fill="#EE4D2D"/>
+                        <path d="M24 10C21.24 10 19 12.24 19 15C19 16.1 19.37 17.11 20 17.92V19H28V17.92C28.63 17.11 29 16.1 29 15C29 12.24 26.76 10 24 10ZM21 15C21 13.34 22.34 12 24 12C25.66 12 27 13.34 27 15H21Z" fill="white"/>
+                        <rect x="14" y="19" width="20" height="19" rx="2" fill="white"/>
+                        <path d="M21 26C21 26 21 28 24 28C27 28 27 26 27 26" stroke="#EE4D2D" strokeWidth="1.8" strokeLinecap="round"/>
+                      </svg>
                       Shopee
-                      <span className="text-[10px]">(em breve)</span>
+                      <span className="text-[10px] bg-gray-100 rounded px-1.5 py-0.5">em breve</span>
+                    </div>
+                    {/* TikTok Shop */}
+                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-400 cursor-not-allowed">
+                      <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="24" cy="24" r="24" fill="#010101"/>
+                        <path d="M31 15.5C29.9 14.3 29.2 12.7 29.1 11H25.2V28.5C25.2 30.2 23.8 31.6 22.1 31.6C20.4 31.6 19 30.2 19 28.5C19 26.8 20.4 25.4 22.1 25.4C22.5 25.4 22.8 25.5 23.1 25.6V21.6C22.8 21.6 22.4 21.5 22.1 21.5C18.2 21.5 15 24.7 15 28.6C15 32.5 18.2 35.7 22.1 35.7C26 35.7 29.2 32.5 29.2 28.6V19.3C30.7 20.4 32.5 21 34.5 21V17.1C33 17 31.9 16.4 31 15.5Z" fill="white"/>
+                        <path d="M29.1 11H25.2" stroke="#69C9D0" strokeWidth="0.5"/>
+                        <path d="M34.5 17.1V21C32.5 21 30.7 20.4 29.2 19.3" stroke="#EE1D52" strokeWidth="0.5"/>
+                      </svg>
+                      TikTok Shop
+                      <span className="text-[10px] bg-gray-100 rounded px-1.5 py-0.5">em breve</span>
                     </div>
                   </div>
                 </div>
