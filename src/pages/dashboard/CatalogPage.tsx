@@ -308,15 +308,15 @@ const CatalogPage = () => {
                     {p.title}
                   </p>
 
-                  {/* Price + Suggested price */}
+                  {/* Price + Profit */}
                   <div className="mt-3 flex items-baseline justify-between">
                     <div>
-                      <p className="text-[11px] leading-none text-muted-foreground">Custo</p>
+                      <p className="text-[11px] leading-none text-muted-foreground">Você paga</p>
                       <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{formatPrice(p.cost_price)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[11px] leading-none text-muted-foreground">Venda</p>
-                      <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{formatPrice(p.suggested_price)}</p>
+                      <p className="text-[11px] leading-none text-muted-foreground">Você lucra</p>
+                      <p className="mt-0.5 text-[14px] font-bold leading-none text-emerald-600">+{formatPrice(Math.round((p.suggested_price - p.cost_price) * 100) / 100)}</p>
                     </div>
                   </div>
 
