@@ -78,7 +78,8 @@ const CatalogPage = () => {
         page: String(page),
         limit: String(limit),
       });
-      if (category !== "todos") params.set("category", category);
+      const backendCategories = ["eletronicos", "telefones", "beleza", "casa", "esportes"];
+      if (category !== "todos" && backendCategories.includes(category)) params.set("category", category);
       if (search) params.set("search", search);
 
       const url = `https://${projectId}.supabase.co/functions/v1/catalog?${params}`;
