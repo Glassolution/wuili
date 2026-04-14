@@ -221,8 +221,16 @@ const CatalogPage = () => {
                       Margem {Math.round(p.margin_percent)}%
                     </span>
                     {p.stock_quantity != null && (
-                      <span className="rounded-md bg-muted px-2 py-[3px] text-[11px] font-medium text-muted-foreground">
-                        Estoque: {p.stock_quantity} un
+                      <span className={`rounded-md px-2 py-[3px] text-[11px] font-medium ${
+                        p.stock_quantity === 0
+                          ? "bg-red-500/10 text-red-600"
+                          : p.stock_quantity < 10
+                          ? "bg-red-500/10 text-red-600"
+                          : p.stock_quantity <= 50
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-emerald-500/10 text-emerald-600"
+                      }`}>
+                        {p.stock_quantity === 0 ? "Sem estoque" : `Estoque: ${p.stock_quantity} un`}
                       </span>
                     )}
                   </div>

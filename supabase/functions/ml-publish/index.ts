@@ -252,6 +252,27 @@ serve(async (req) => {
       console.error('Erro ao enviar descrição:', descErr)
     }
 
+    // 7. Save publication to user_publications
+    try {
+      const { error: pubError } = await supabase
+        .from('user_publications')
+        .insert({
+          user_id: user_id,
+          ml_item_id: mlData.id,
+          title: title,
+          thumbnail: (product.images || [])[0] || null,
+          price: product.price,
+          cost_price: product.cost_price || null,
+          status: 'active',
+          permalink: mlData.permalink,
+          published_at: new Date().toISOString(),
+        })
+      if (pubError) console.log('Erro ao salvar publicação:', pubError)
+      else console.log('Publicação salva em user_publications')
+    } catch (pubErr) {
+      console.error('Erro ao salvar publicação:', pubErr)
+    }
+
     console.log('=== ml-publish SUCCESS ===', mlData.id)
     return new Response(
       JSON.stringify({ success: true, permalink: mlData.permalink, item_id: mlData.id }),

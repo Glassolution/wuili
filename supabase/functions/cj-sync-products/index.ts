@@ -86,6 +86,9 @@ Deno.serve(async (req) => {
             ? p.productImageSet.map((img: any) => typeof img === "string" ? img : img.imageUrl || img)
             : p.productImage ? [p.productImage] : [];
 
+          // Get real stock from CJ API response
+          const stockQty = p.inventory?.sellInventory ?? p.sellInventory ?? p.productSku?.[0]?.inventory?.sellInventory ?? p.productSku?.[0]?.sellInventory ?? 0;
+
           return {
             source: "cj",
             external_id: String(p.pid),
@@ -98,7 +101,7 @@ Deno.serve(async (req) => {
             category: cat.name,
             supplier_name: p.supplierName || "CJ Dropshipping",
             supplier_contact: null,
-            stock_quantity: 999,
+            stock_quantity: typeof stockQty === 'number' ? stockQty : parseInt(stockQty) || 0,
             is_active: true,
           };
         });
