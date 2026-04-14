@@ -201,16 +201,18 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
         } catch { return []; }
       })();
 
+      const stockQty = product?.stock_quantity ?? 10;
       const { data, error } = await supabase.functions.invoke("ml-publish", {
         body: {
           user_id: user.id,
           product: {
             id: product?.id,
+            external_id: product?.external_id,
             title: title.trim(),
             price: sellPrice,
             description: description || `${title} - Produto de alta qualidade com envio rápido.`,
             images,
-            available_quantity: 10,
+            available_quantity: Math.min(stockQty, 10),
             condition: "new",
           },
         },
@@ -225,6 +227,20 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(4);
+
+      // Save publication to database
+      const thumbnailUrl = img || undefined;
+      await supabase.from("user_publications" as any).insert({
+        user_id: user.id,
+        ml_item_id: data.item_id,
+        title: title.trim(),
+        thumbnail: thumbnailUrl,
+        price: sellPrice,
+        cost_price: costPrice,
+        status: "active",
+        permalink: data.permalink,
+      });
+
       toast.success("Produto publicado com sucesso!");
       if (data.permalink) {
         window.open(data.permalink, '_blank', 'noopener,noreferrer');
