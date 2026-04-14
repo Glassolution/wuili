@@ -210,6 +210,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
             external_id: product?.external_id,
             title: title.trim(),
             price: sellPrice,
+            cost_price: costPrice,
             description: description || `${title} - Produto de alta qualidade com envio rápido.`,
             images,
             available_quantity: Math.min(stockQty, 10),
