@@ -217,22 +217,26 @@ const CatalogPage = () => {
 
                   {/* Margin tag + Stock */}
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    <span className="rounded-md bg-emerald-500/10 px-2 py-[3px] text-[11px] font-semibold text-emerald-600">
-                      Margem {Math.round(p.margin_percent)}%
+                    <span className={`rounded-md px-2 py-[3px] text-[11px] font-semibold ${
+                      p.margin_percent >= 60 ? "bg-emerald-500/10 text-emerald-600" :
+                      p.margin_percent >= 40 ? "bg-blue-500/10 text-blue-600" :
+                      "bg-amber-500/10 text-amber-600"
+                    }`}>
+                      Margem {p.suggested_price > 0 
+                        ? Math.round(((p.suggested_price - p.cost_price) / p.suggested_price) * 100)
+                        : Math.round(p.margin_percent)}%
                     </span>
-                    {p.stock_quantity != null && (
-                      <span className={`rounded-md px-2 py-[3px] text-[11px] font-medium ${
-                        p.stock_quantity === 0
-                          ? "bg-red-500/10 text-red-600"
-                          : p.stock_quantity < 10
-                          ? "bg-red-500/10 text-red-600"
-                          : p.stock_quantity <= 50
-                          ? "bg-amber-500/10 text-amber-600"
-                          : "bg-emerald-500/10 text-emerald-600"
-                      }`}>
-                        {p.stock_quantity === 0 ? "Sem estoque" : `Estoque: ${p.stock_quantity} un`}
-                      </span>
-                    )}
+                    <span className={`rounded-md px-2 py-[3px] text-[11px] font-medium ${
+                      !p.stock_quantity || p.stock_quantity === 0
+                        ? "bg-red-500/10 text-red-600"
+                        : "bg-emerald-500/10 text-emerald-600"
+                    }`}>
+                      {!p.stock_quantity || p.stock_quantity === 0 
+                        ? "Sem estoque" 
+                        : p.stock_quantity >= 999 
+                          ? "✓ Disponível" 
+                          : `Estoque: ${p.stock_quantity} un`}
+                    </span>
                   </div>
 
                   {/* Import button */}
