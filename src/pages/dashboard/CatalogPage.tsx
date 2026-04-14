@@ -6,15 +6,16 @@ import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 
 const CATEGORIES = [
-  { key: "todos", label: "Todos" },
-  { key: "eletronicos", label: "Eletrônicos" },
-  { key: "telefones", label: "Telefones" },
-  { key: "beleza", label: "Beleza" },
-  { key: "casa", label: "Casa" },
-  { key: "esportes", label: "Esportes" },
+  { key: "todos", label: "Todos", icon: null },
+  { key: "best", label: "Melhores", icon: Flame },
+  { key: "recent", label: "Recentes", icon: Clock },
+  { key: "in_stock", label: "Em estoque", icon: PackageCheck },
+  { key: "eletronicos", label: "Eletrônicos", icon: null },
+  { key: "telefones", label: "Telefones", icon: null },
+  { key: "beleza", label: "Beleza", icon: null },
+  { key: "casa", label: "Casa", icon: null },
+  { key: "esportes", label: "Esportes", icon: null },
 ];
-
-type QuickFilter = "all" | "best" | "recent" | "in_stock";
 
 function calcScore(p: any): number {
   let score = 0;
@@ -57,17 +58,11 @@ function getPriorityBadge(score: number) {
   return { label: "Baixa", cls: "bg-red-500/10 text-red-600" };
 }
 
-const QUICK_FILTERS: { key: QuickFilter; label: string; icon: any }[] = [
-  { key: "best", label: "Melhores", icon: Flame },
-  { key: "recent", label: "Recentes", icon: Clock },
-  { key: "in_stock", label: "Em estoque", icon: PackageCheck },
-];
 
 const CatalogPage = () => {
   const [category, setCategory] = useState("todos");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -83,7 +78,8 @@ const CatalogPage = () => {
         page: String(page),
         limit: String(limit),
       });
-      if (category !== "todos") params.set("category", category);
+      const backendCategories = ["eletronicos", "telefones", "beleza", "casa", "esportes"];
+      if (category !== "todos" && backendCategories.includes(category)) params.set("category", category);
       if (search) params.set("search", search);
 
       const url = `https://${projectId}.supabase.co/functions/v1/catalog?${params}`;
@@ -121,20 +117,20 @@ const CatalogPage = () => {
   const products = useMemo(() => {
     let scored = rawProducts.map((p: any) => ({ ...p, _score: calcScore(p) }));
 
-    if (quickFilter === "best") {
+    if (category === "best") {
       scored = scored.filter((p: any) => p._score >= 40);
-    } else if (quickFilter === "recent") {
+    } else if (category === "recent") {
       scored = scored.filter((p: any) => {
         if (!p.created_at) return false;
         return (Date.now() - new Date(p.created_at).getTime()) / 86400000 < 30;
       });
-    } else if (quickFilter === "in_stock") {
+    } else if (category === "in_stock") {
       scored = scored.filter((p: any) => p.stock_quantity && p.stock_quantity > 0);
     }
 
     scored.sort((a: any, b: any) => b._score - a._score);
     return scored;
-  }, [rawProducts, quickFilter]);
+  }, [rawProducts, category]);
 
   const formatPrice = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -171,34 +167,6 @@ const CatalogPage = () => {
       {/* Subtitle */}
       <p className="text-sm text-muted-foreground -mt-3">Produtos reais do CJ Dropshipping prontos para importar.</p>
 
-      {/* Quick filter buttons */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setQuickFilter("all")}
-          className={`rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
-            quickFilter === "all"
-              ? "bg-foreground text-background"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
-        >
-          Todos
-        </button>
-        {QUICK_FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setQuickFilter(f.key)}
-            className={`flex items-center gap-1.5 rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
-              quickFilter === f.key
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            <f.icon size={13} />
-            {f.label}
-          </button>
-        ))}
-      </div>
-
       {/* Filters row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
@@ -213,32 +181,31 @@ const CatalogPage = () => {
             />
           </div>
 
-          {/* Filter buttons */}
-          <button className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
-            Categoria <ChevronDown size={13} />
-          </button>
-
           {/* Hide button */}
           <button className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Ocultar
           </button>
         </div>
 
-        {/* Category pills */}
+        {/* Category + filter pills */}
         <div className="hidden items-center gap-1.5 lg:flex">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.key}
-              onClick={() => { setCategory(c.key); setPage(1); }}
-              className={`rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
-                category === c.key
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
+          {CATEGORIES.map((c) => {
+            const Icon = c.icon;
+            return (
+              <button
+                key={c.key}
+                onClick={() => { setCategory(c.key); setPage(1); }}
+                className={`flex items-center gap-1.5 rounded-full px-4 py-[7px] text-sm font-medium transition-colors ${
+                  category === c.key
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {Icon && <Icon size={13} />}
+                {c.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -261,7 +228,7 @@ const CatalogPage = () => {
           <Package size={48} className="text-muted-foreground/40 mb-4" />
           <p className="text-sm font-medium text-foreground">Nenhum produto encontrado</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {quickFilter !== "all"
+            {category !== "todos"
               ? "Nenhum produto corresponde a esse filtro. Tente outro."
               : 'Clique em "Sincronizar produtos" para popular o catálogo.'}
           </p>
