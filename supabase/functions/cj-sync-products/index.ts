@@ -13,6 +13,43 @@ const categories = [
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+async function fetchStockForProduct(pid: string, accessToken: string): Promise<number> {
+  try {
+    // Try CJ product detail endpoint which includes variant/stock info
+    const url = `https://developers.cjdropshipping.com/api2.0/v1/product/query?pid=${pid}`;
+    const res = await fetch(url, {
+      headers: { "CJ-Access-Token": accessToken },
+    });
+    const json = await res.json();
+    if (json.code === 200 && json.data) {
+      const p = json.data;
+      // Try multiple stock fields
+      if (typeof p.inventory === 'number' && p.inventory > 0) return p.inventory;
+      if (typeof p.sellableQuantity === 'number') return p.sellableQuantity;
+      if (typeof p.stock === 'number') return p.stock;
+      // Sum stock from all variants/SKUs
+      if (Array.isArray(p.variants) && p.variants.length > 0) {
+        const total = p.variants.reduce((sum: number, v: any) => {
+          const qty = v.inventory ?? v.sellableQuantity ?? v.stock ?? 0;
+          return sum + (typeof qty === 'number' ? qty : parseInt(qty) || 0);
+        }, 0);
+        if (total > 0) return total;
+      }
+      if (Array.isArray(p.productSku) && p.productSku.length > 0) {
+        const total = p.productSku.reduce((sum: number, sku: any) => {
+          const qty = sku.inventory?.sellInventory ?? sku.sellInventory ?? sku.inventory ?? 0;
+          return sum + (typeof qty === 'number' ? qty : parseInt(qty) || 0);
+        }, 0);
+        if (total > 0) return total;
+      }
+    }
+    return 0;
+  } catch (err) {
+    console.error(`Stock fetch error for ${pid}:`, err);
+    return 0;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -46,7 +83,6 @@ Deno.serve(async (req) => {
     for (let i = 0; i < categories.length; i++) {
       const cat = categories[i];
       
-      // Rate limit: wait 1.5s between requests
       if (i > 0) await sleep(1500);
 
       try {
@@ -74,6 +110,37 @@ Deno.serve(async (req) => {
           (p: any) => (p.sellPrice || p.productSku?.[0]?.sellPrice) > 0
         );
 
+        // Log first product structure to understand stock fields
+        if (products.length > 0 && i === 0) {
+          const sample = products[0];
+          console.log("Sample product fields:", JSON.stringify({
+            pid: sample.pid,
+            sellPrice: sample.sellPrice,
+            inventory: sample.inventory,
+            sellInventory: sample.sellInventory,
+            stock: sample.stock,
+            sellableQuantity: sample.sellableQuantity,
+            listingCount: sample.listingCount,
+            productSkuSample: sample.productSku?.[0] ? {
+              sellInventory: sample.productSku[0].sellInventory,
+              inventory: sample.productSku[0].inventory,
+            } : null,
+          }));
+        }
+
+        // Fetch stock for each product (batch of 5 at a time to avoid rate limits)
+        const stockMap: Record<string, number> = {};
+        for (let j = 0; j < products.length; j += 5) {
+          const batch = products.slice(j, j + 5);
+          const stockResults = await Promise.all(
+            batch.map((p: any) => fetchStockForProduct(String(p.pid), accessToken))
+          );
+          batch.forEach((p: any, idx: number) => {
+            stockMap[String(p.pid)] = stockResults[idx];
+          });
+          if (j + 5 < products.length) await sleep(500);
+        }
+
         const rows = products.map((p: any) => {
           const costUsd = parseFloat(p.sellPrice || p.productSku?.[0]?.sellPrice || "0");
           const costBrl = Math.round(costUsd * USD_TO_BRL * 100) / 100;
@@ -86,8 +153,10 @@ Deno.serve(async (req) => {
             ? p.productImageSet.map((img: any) => typeof img === "string" ? img : img.imageUrl || img)
             : p.productImage ? [p.productImage] : [];
 
-          // Get real stock from CJ API response
-          const stockQty = p.inventory?.sellInventory ?? p.sellInventory ?? p.productSku?.[0]?.inventory?.sellInventory ?? p.productSku?.[0]?.sellInventory ?? 0;
+          // Use stock from detail API, fallback to list API fields
+          const listStock = p.inventory?.sellInventory ?? p.sellInventory ?? p.productSku?.[0]?.inventory?.sellInventory ?? p.productSku?.[0]?.sellInventory ?? 0;
+          const detailStock = stockMap[String(p.pid)] || 0;
+          const finalStock = detailStock > 0 ? detailStock : (typeof listStock === 'number' ? listStock : parseInt(listStock) || 0);
 
           return {
             source: "cj",
@@ -101,7 +170,7 @@ Deno.serve(async (req) => {
             category: cat.name,
             supplier_name: p.supplierName || "CJ Dropshipping",
             supplier_contact: null,
-            stock_quantity: typeof stockQty === 'number' ? stockQty : parseInt(stockQty) || 0,
+            stock_quantity: finalStock,
             is_active: true,
           };
         });
