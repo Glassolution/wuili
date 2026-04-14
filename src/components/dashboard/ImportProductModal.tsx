@@ -15,6 +15,8 @@ export type CatalogProduct = {
   category: string | null;
   source: string;
   original_url?: string;
+  stock_quantity?: number | null;
+  external_id?: string;
 };
 
 type Props = {
