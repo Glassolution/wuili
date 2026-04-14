@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
       .from("catalog_products")
       .select("*", { count: "exact" })
       .eq("is_active", true)
+      .gt("stock_quantity", 0)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
