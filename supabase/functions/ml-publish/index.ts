@@ -169,7 +169,7 @@ serve(async (req) => {
     const descriptionText = product.description || ''
     console.log('Descrição recebida:', descriptionText.substring(0, 100))
 
-    // 5. Publish to ML
+    // 5. Publish to ML (description must be sent separately)
     const mlPayload: Record<string, unknown> = {
       title,
       category_id: categoryId,
@@ -179,7 +179,6 @@ serve(async (req) => {
       buying_mode: 'buy_it_now',
       condition: 'not_specified',
       listing_type_id: 'gold_pro',
-      description: { plain_text: descriptionText || 'Produto importado via Velo' },
       pictures,
       attributes: [
         { id: 'BRAND', value_name: 'Genérico' },
@@ -208,6 +207,23 @@ serve(async (req) => {
         JSON.stringify({ error: friendlyError, details: mlData }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // 6. Send description separately (ML requires this as a separate call)
+    const finalDescription = descriptionText || 'Produto importado via Velo'
+    try {
+      const descRes = await fetch(`https://api.mercadolibre.com/items/${mlData.id}/description`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plain_text: finalDescription }),
+      })
+      const descData = await descRes.json()
+      console.log('Description response:', descRes.status, JSON.stringify(descData).substring(0, 200))
+    } catch (descErr) {
+      console.error('Erro ao enviar descrição:', descErr)
     }
 
     console.log('=== ml-publish SUCCESS ===', mlData.id)
