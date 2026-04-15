@@ -6,56 +6,91 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Upload image to ML via their official endpoint, fallback to source URL
-async function uploadImageToML(imageUrl: string, accessToken: string): Promise<{ id: string } | { source: string } | null> {
-  try {
-    console.log('Uploading image to ML:', imageUrl)
-    const response = await fetch('https://api.mercadolibre.com/pictures/items/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ source: imageUrl }),
-    })
-    if (!response.ok) {
-      console.log('ML upload failed, falling back to source URL. Status:', response.status)
-      return { source: imageUrl }
+function json(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+// Resolve to a leaf category by walking children_categories until empty
+async function resolveLeafCategory(categoryId: string): Promise<string> {
+  let current = categoryId
+  for (let depth = 0; depth < 8; depth++) {
+    const res = await fetch(`https://api.mercadolibre.com/categories/${current}`)
+    if (!res.ok) break
+    const cat = await res.json()
+    if (!cat.children_categories || cat.children_categories.length === 0) {
+      return current // it's a leaf
     }
-    const data = await response.json()
-    if (data.id) {
-      console.log('Image uploaded to ML, id:', data.id)
-      return { id: data.id }
-    }
-    return { source: imageUrl }
-  } catch (e) {
-    console.log('Error uploading image, using source URL:', imageUrl, e)
-    return { source: imageUrl }
+    current = cat.children_categories[0].id // pick first child
   }
+  return current
+}
+
+// Predict category from title, ensuring it's a leaf
+async function predictCategory(title: string): Promise<string> {
+  const fallback = 'MLB1051' // Generic "Outros" leaf category
+
+  try {
+    // Try category predictor first (returns leaf categories)
+    const predRes = await fetch(
+      `https://api.mercadolibre.com/sites/MLB/category_predictor/predict?title=${encodeURIComponent(title)}`
+    )
+    if (predRes.ok) {
+      const predData = await predRes.json()
+      if (predData?.id) {
+        console.log('Category predictor returned:', predData.id, predData.name)
+        return predData.id
+      }
+    }
+  } catch (_e) { /* ignore */ }
+
+  try {
+    // Fallback: domain_discovery + resolve to leaf
+    const catRes = await fetch(
+      `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?q=${encodeURIComponent(title)}`
+    )
+    if (catRes.ok) {
+      const catData = await catRes.json()
+      if (Array.isArray(catData) && catData[0]?.category_id) {
+        const leafId = await resolveLeafCategory(catData[0].category_id)
+        console.log('domain_discovery resolved to leaf:', leafId)
+        return leafId
+      }
+    }
+  } catch (_e) { /* ignore */ }
+
+  console.log('Using fallback category:', fallback)
+  return fallback
 }
 
 // Map ML API errors to user-friendly messages
-function mapMLError(mlData: any): string {
-  const msg = mlData?.message || ''
-  const causeArr = mlData?.cause || []
+function mapMLError(mlData: Record<string, unknown>): string {
+  const msg = (mlData?.message as string) || ''
+  const causeArr = (mlData?.cause as unknown[]) || []
   const causeStr = JSON.stringify(causeArr)
 
+  if (causeStr.includes('category_id')) return 'Categoria inválida. Tente editar o título para melhor detecção automática.'
   if (causeStr.includes('missing_required') || causeStr.includes('attributes'))
     return 'Atributos obrigatórios faltando (marca/modelo). O Mercado Livre exige esses dados para esta categoria.'
   if (msg.includes('title') || causeStr.includes('title.length'))
     return 'Título muito longo. Máximo 60 caracteres.'
-  if (msg.includes('category') || causeStr.includes('category'))
-    return 'Categoria não encontrada. Tente outro título para melhor detecção.'
   if (msg.includes('picture') || causeStr.includes('download_error'))
-    return 'Erro ao processar imagens. Tente novamente.'
+    return 'Erro ao processar imagens. Verifique se as imagens são válidas.'
   if (msg.includes('token') || msg.includes('unauthorized') || mlData?.status === 401)
     return 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.'
   if (msg.includes('price'))
     return 'Preço inválido. Verifique o valor de venda.'
   if (causeStr.includes('shipping'))
-    return 'Configuração de envio necessária no Mercado Livre. Verifique suas preferências de frete.'
+    return 'Configuração de envio necessária no Mercado Livre. Verifique suas preferências de frete na sua conta ML.'
 
   return `Erro do Mercado Livre: ${msg || JSON.stringify(mlData)}`
+}
+
+// Validate that image URL is a public HTTP(S) URL
+function isPublicUrl(url: string): boolean {
+  return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))
 }
 
 serve(async (req) => {
@@ -66,28 +101,41 @@ serve(async (req) => {
   try {
     console.log('=== ml-publish START ===')
     const body = await req.json()
-    console.log('Body recebido:', JSON.stringify(body).substring(0, 500))
     const { user_id, product } = body
+
+    // === VALIDATION ===
+    if (!user_id) return json({ error: 'user_id é obrigatório.' }, 400)
+    if (!product) return json({ error: 'Dados do produto ausentes.' }, 400)
+    if (!product.title?.trim()) return json({ error: 'Título do produto é obrigatório.' }, 400)
+    if (!product.price || product.price <= 0) return json({ error: 'Preço do produto é obrigatório e deve ser maior que zero.' }, 400)
+
+    // Validate images - must be public URLs
+    const rawImages: string[] = (() => {
+      try {
+        const arr = typeof product.images === 'string' ? JSON.parse(product.images) : product.images
+        return Array.isArray(arr) ? arr : []
+      } catch { return [] }
+    })()
+
+    const publicImages = rawImages.filter(isPublicUrl).slice(0, 6)
+    if (publicImages.length === 0) {
+      return json({ error: 'Pelo menos uma imagem pública é necessária. Imagens locais não são aceitas pelo Mercado Livre.' }, 400)
+    }
+
     console.log('user_id:', user_id)
-    console.log('product title:', product?.title?.substring(0, 60))
-    console.log('product description:', (product?.description || '').substring(0, 100))
-    console.log('product images count:', product?.images?.length || 0)
+    console.log('title:', product.title.substring(0, 60))
+    console.log('price:', product.price)
+    console.log('images (public):', publicImages.length)
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    console.log('Env vars present:', { SUPABASE_URL: !!supabaseUrl, SERVICE_ROLE_KEY: !!serviceRoleKey })
-
     if (!supabaseUrl || !serviceRoleKey) {
-      return new Response(
-        JSON.stringify({ error: 'Configuração do servidor incompleta.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return json({ error: 'Configuração do servidor incompleta.' }, 500)
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    // Get user's ML integration
-    console.log('Fetching ML integration...')
+    // === GET ML INTEGRATION ===
     const { data: integration, error } = await supabase
       .from('user_integrations')
       .select('access_token, expires_at, refresh_token')
@@ -95,17 +143,13 @@ serve(async (req) => {
       .eq('platform', 'mercadolivre')
       .single()
 
-    if (error || !integration) {
-      console.log('No ML integration found:', error?.message)
-      return new Response(
-        JSON.stringify({ error: 'Conecte sua conta do Mercado Livre para publicar.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (error || !integration?.access_token) {
+      return json({ error: 'Conecte sua conta do Mercado Livre para publicar.' }, 400)
     }
 
     let accessToken = integration.access_token
 
-    // Refresh token if expired
+    // === REFRESH TOKEN IF EXPIRED ===
     const expiresAt = new Date(integration.expires_at)
     if (expiresAt <= new Date()) {
       console.log('Token expired, refreshing...')
@@ -123,10 +167,7 @@ serve(async (req) => {
 
       if (!refreshRes.ok || !refreshData.access_token) {
         console.error('Token refresh failed:', JSON.stringify(refreshData))
-        return new Response(
-          JSON.stringify({ error: 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+        return json({ error: 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.' }, 401)
       }
 
       accessToken = refreshData.access_token
@@ -138,32 +179,21 @@ serve(async (req) => {
       }).eq('user_id', user_id).eq('platform', 'mercadolivre')
     }
 
-    // 1. Truncate title to 60 chars
+    // === TITLE (max 60 chars) ===
     const title = product.title.length > 60
       ? product.title.substring(0, 57) + '...'
       : product.title
     console.log('Título final:', title, `(${title.length} chars)`)
 
-    // 2. Auto-detect category
-    let categoryId = 'MLB1648'
-    try {
-      const catRes = await fetch(
-        `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?q=${encodeURIComponent(title)}`
-      )
-      const catData = await catRes.json()
-      if (Array.isArray(catData) && catData[0]?.category_id) {
-        categoryId = catData[0].category_id
-      }
-    } catch (_e) { /* fallback */ }
-    console.log('Categoria detectada:', categoryId)
+    // === CATEGORY (leaf only) ===
+    const categoryId = await predictCategory(title)
+    console.log('Categoria final (leaf):', categoryId)
 
-    // 3. Fetch required attributes for this category dynamically
-    let categoryAttrs: any[] = []
+    // === ATTRIBUTES ===
+    let categoryAttrs: Record<string, unknown>[] = []
     try {
       const attrRes = await fetch(`https://api.mercadolibre.com/categories/${categoryId}/attributes`)
-      if (attrRes.ok) {
-        categoryAttrs = await attrRes.json()
-      }
+      if (attrRes.ok) categoryAttrs = await attrRes.json()
     } catch (_e) { /* ignore */ }
 
     const baseAttrs = [
@@ -172,49 +202,40 @@ serve(async (req) => {
       { id: 'SELLER_SKU', value_name: product.external_id || 'SKU-001' },
     ]
 
-    // Add all required attributes with default values
     const requiredAttrs = categoryAttrs
-      .filter((a: any) => a.tags?.required)
-      .map((a: any) => ({
-        id: a.id,
-        value_name: a.values?.[0]?.name || 'Genérico',
+      .filter((a: Record<string, unknown>) => (a.tags as Record<string, unknown>)?.required)
+      .map((a: Record<string, unknown>) => ({
+        id: a.id as string,
+        value_name: ((a.values as Record<string, unknown>[])?.[0]?.name as string) || 'Genérico',
       }))
 
     const allAttrs = [...baseAttrs]
     for (const req of requiredAttrs) {
-      if (!allAttrs.find(a => a.id === req.id)) {
-        allAttrs.push(req)
-      }
+      if (!allAttrs.find(a => a.id === req.id)) allAttrs.push(req)
     }
-    console.log('Atributos:', JSON.stringify(allAttrs.map(a => a.id)))
+    console.log('Atributos:', allAttrs.map(a => a.id))
 
-    // 4. Upload images to ML
-    const rawImages = (product.images || []).slice(0, 6)
-    const pictureResults = await Promise.all(
-      rawImages.map((url: string) => uploadImageToML(url, accessToken))
-    )
-    const pictures = pictureResults.filter((p): p is { id: string } | { source: string } => p !== null)
-    console.log('Imagens processadas:', pictures.length)
+    // === PICTURES (use source URLs directly — CJ URLs are public) ===
+    const pictures = publicImages.map(url => ({ source: url }))
+    console.log('Imagens para ML:', pictures.length)
 
-    // 5. Description
-    const descriptionText = product.description || ''
-    console.log('Descrição recebida:', descriptionText.substring(0, 100))
-
-    // 6. Publish to ML (description must be sent separately)
-    const mlPayload: Record<string, unknown> = {
+    // === BUILD PAYLOAD ===
+    const mlPayload = {
       title,
       category_id: categoryId,
       price: product.price,
       currency_id: 'BRL',
       available_quantity: product.available_quantity || 10,
       buying_mode: 'buy_it_now',
-      condition: 'not_specified',
-      listing_type_id: 'gold_pro',
+      condition: 'new',
+      listing_type_id: 'gold_special',
       pictures,
       attributes: allAttrs,
     }
-    console.log('Sending to ML API...')
 
+    console.log('Payload ML:', JSON.stringify(mlPayload).substring(0, 800))
+
+    // === PUBLISH ===
     const mlRes = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
@@ -227,64 +248,51 @@ serve(async (req) => {
     const mlData = await mlRes.json()
 
     if (!mlRes.ok) {
-      console.error('ML Error completo:', JSON.stringify(mlData))
+      console.error('ML Error:', JSON.stringify(mlData))
       const friendlyError = mapMLError(mlData)
-      return new Response(
-        JSON.stringify({ error: friendlyError, details: mlData }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return json({ error: friendlyError, details: mlData }, 400)
     }
 
-    // 6. Send description separately (ML requires this as a separate call)
-    const finalDescription = descriptionText || 'Produto importado via Velo'
+    console.log('Publicado com sucesso! Item ID:', mlData.id)
+
+    // === DESCRIPTION (separate call, ML requires it) ===
+    const descriptionText = product.description || `${title} - Produto de alta qualidade com envio rápido.`
     try {
-      const descRes = await fetch(`https://api.mercadolibre.com/items/${mlData.id}/description`, {
+      await fetch(`https://api.mercadolibre.com/items/${mlData.id}/description`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ plain_text: finalDescription }),
+        body: JSON.stringify({ plain_text: descriptionText }),
       })
-      const descData = await descRes.json()
-      console.log('Description response:', descRes.status, JSON.stringify(descData).substring(0, 200))
     } catch (descErr) {
       console.error('Erro ao enviar descrição:', descErr)
     }
 
-    // 7. Save publication to user_publications
+    // === SAVE PUBLICATION ===
     try {
-      const { error: pubError } = await supabase
-        .from('user_publications')
-        .insert({
-          user_id: user_id,
-          ml_item_id: mlData.id,
-          title: title,
-          thumbnail: (product.images || [])[0] || null,
-          price: product.price,
-          cost_price: product.cost_price || null,
-          status: 'active',
-          permalink: mlData.permalink,
-          published_at: new Date().toISOString(),
-        })
-      if (pubError) console.log('Erro ao salvar publicação:', pubError)
-      else console.log('Publicação salva em user_publications')
+      await supabase.from('user_publications').insert({
+        user_id,
+        ml_item_id: mlData.id,
+        title,
+        thumbnail: publicImages[0] || null,
+        price: product.price,
+        cost_price: product.cost_price || null,
+        status: 'active',
+        permalink: mlData.permalink,
+        published_at: new Date().toISOString(),
+      })
     } catch (pubErr) {
       console.error('Erro ao salvar publicação:', pubErr)
     }
 
     console.log('=== ml-publish SUCCESS ===', mlData.id)
-    return new Response(
-      JSON.stringify({ success: true, permalink: mlData.permalink, item_id: mlData.id }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return json({ success: true, permalink: mlData.permalink, item_id: mlData.id })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'
     console.error('ml-publish error:', message)
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return json({ error: message }, 500)
   }
 })
