@@ -233,10 +233,10 @@ serve(async (req) => {
       attributes: allAttrs,
     }
 
-    console.log('Payload ML:', JSON.stringify(mlPayload).substring(0, 800))
+    console.log('Payload:', JSON.stringify(mlPayload).substring(0, 800))
 
     // === PUBLISH ===
-    const mlRes = await fetch('https://api.mercadolibre.com/items', {
+    const itemResponse = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -245,40 +245,49 @@ serve(async (req) => {
       body: JSON.stringify(mlPayload),
     })
 
-    const mlData = await mlRes.json()
+    const itemData = await itemResponse.json()
+    console.log('Item criado:', JSON.stringify(itemData).substring(0, 800))
 
-    if (!mlRes.ok) {
-      console.error('ML Error:', JSON.stringify(mlData))
-      const friendlyError = mapMLError(mlData)
-      return json({ error: friendlyError, details: mlData }, 400)
+    if (!itemResponse.ok || !itemData?.id) {
+      console.error('Erro ao criar produto:', JSON.stringify(itemData))
+      const friendlyError = itemResponse.ok
+        ? 'Falha ao criar produto no Mercado Livre.'
+        : mapMLError(itemData)
+      return json({ error: friendlyError, details: itemData }, 400)
     }
 
-    console.log('Publicado com sucesso! Item ID:', mlData.id)
+    const itemId = itemData.id as string
+    console.log('Item ID:', itemId)
 
-    // === DESCRIPTION (separate POST to /items/{id}/description) ===
-    const rawDesc = product.description || ''
-    const descriptionText = rawDesc.length > 20
-      ? rawDesc
-      : `${title} - Produto de alta qualidade. Envio rápido para todo o Brasil. Satisfação garantida.`
-    
-    console.log('Enviando descrição para item:', mlData.id, `(${descriptionText.length} chars)`)
-    try {
-      const descRes = await fetch(`https://api.mercadolibre.com/items/${mlData.id}/description`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ plain_text: descriptionText }),
-      })
-      const descData = await descRes.json()
-      if (!descRes.ok) {
-        console.error('Erro ML descrição:', JSON.stringify(descData))
-      } else {
-        console.log('Descrição enviada com sucesso para:', mlData.id)
+    // === DESCRIPTION (send only after item creation succeeds) ===
+    const descriptionText = typeof product.description === 'string'
+      ? product.description.trim()
+      : ''
+    console.log('Descrição:', descriptionText)
+
+    if (descriptionText.length > 20) {
+      try {
+        const descResponse = await fetch(`https://api.mercadolibre.com/items/${itemId}/description`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ plain_text: descriptionText }),
+        })
+
+        const descData = await descResponse.json()
+
+        if (!descResponse.ok) {
+          console.error('Erro ao enviar descrição:', JSON.stringify(descData))
+        } else {
+          console.log('Descrição enviada com sucesso para:', itemId)
+        }
+      } catch (descErr) {
+        console.error('Erro ao enviar descrição:', descErr)
       }
-    } catch (descErr) {
-      console.error('Erro ao enviar descrição:', descErr)
+    } else {
+      console.log('Descrição não enviada: texto vazio ou com menos de 20 caracteres')
     }
 
     // === SAVE PUBLICATION ===
