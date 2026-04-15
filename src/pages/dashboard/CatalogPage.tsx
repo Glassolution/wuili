@@ -1,9 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, MoreHorizontal, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, ArrowUpRight } from "lucide-react";
+import { Search, ChevronDown, MoreHorizontal, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, ArrowUpRight, Network } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
+import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
@@ -52,6 +53,7 @@ const CatalogPage = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const limit = 20;
@@ -254,14 +256,13 @@ const CatalogPage = () => {
           </button>
         </div>
 
-        {/* Sincronizar */}
+        {/* Integrações */}
         <button
-          onClick={() => syncMutation.mutate()}
-          disabled={syncMutation.isPending}
-          className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+          onClick={() => setIsIntegrationModalOpen(true)}
+          className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
         >
-          <RefreshCw size={13} className={syncMutation.isPending ? "animate-spin" : ""} />
-          {syncMutation.isPending ? "Sincronizando..." : "Sincronizar produtos"}
+          <Network size={13} />
+          Integrações
         </button>
       </div>
 
@@ -376,6 +377,11 @@ const CatalogPage = () => {
         open={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         product={selectedProduct}
+      />
+
+      <PlatformIntegrationModal
+        open={isIntegrationModalOpen}
+        onClose={() => setIsIntegrationModalOpen(false)}
       />
     </div>
   );

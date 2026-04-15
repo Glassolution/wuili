@@ -26,7 +26,15 @@
       "Bash(grep -rn \"operaÃ\\\\|AutomaÃ\\\\|NavegaÃ\\\\|anÃ\\\\|Ã§\\\\|Ã£\\\\|Ã©\\\\|Ã³\\\\|Ãµ\\\\|Ã¡\\\\|Ã­\\\\|Ãº\\\\|Â£\\\\|Â§\" src/ --include=*.tsx --include=*.ts --include=*.js)",
       "Bash(grep -rn --include=*.tsx --include=*.ts --include=*.js \"operaÃ\\\\|AutomaÃ\\\\|NavegaÃ\\\\|anÃº\\\\|configuraÃ\\\\|integraÃ\\\\|publicaÃ\\\\|funÃ\\\\|tambÃ\\\\|soluÃ\" src/)",
       "Bash(grep -rn \"BrandMark\\\\|brand-star-logo\\\\|logo\\\\.png\" src/ --include=*.tsx --include=*.ts)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(supabase status:*)",
+      "Bash(ls *.json)",
+      "Bash(grep -r \"VITE_SUPABASE\" .env*)",
+      "Bash(ls .env*)",
+      "Bash(npx supabase@1.207.9 link --project-ref nqzpoioxvbqavrtphtoa)",
+      "Bash(npx supabase@1.207.9 functions deploy catalog --project-ref nqzpoioxvbqavrtphtoa)",
+      "Read(//c/Users/lordm/.supabase/**)",
+      "Bash(cat C:/dev/wuilli/.github/workflows/*.yml)"
     ]
   }
 }

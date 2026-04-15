@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { X, Package, ChevronRight, Check, Store, TrendingUp, AlertCircle, Link, Loader2, ExternalLink, Sparkles, Edit3, Hash, FileText, Play, Globe, Sliders } from "lucide-react";
+import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +26,7 @@ type Props = {
 };
 
 const MAX_TITLE_LENGTH = 60;
+const ACCENT = "#0A0A0A"; // black
 
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -40,9 +41,9 @@ const getImage = (images: any): string | null => {
 };
 
 const STEPS = [
-  { label: "Produto", num: 1 },
-  { label: "Personalizar", num: 2 },
-  { label: "Revisar", num: 3 },
+  { num: 1, label: "Fornecedor" },
+  { num: 2, label: "Detalhes" },
+  { num: 3, label: "Revisão" },
 ];
 
 const ImportProductModal = ({ open, onClose, product }: Props) => {
@@ -64,13 +65,19 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   // AI description
   const [description, setDescription] = useState("");
   const [generatingDesc, setGeneratingDesc] = useState(false);
-  const [descGenerated, setDescGenerated] = useState(false);
 
   // Translation
   const [translating, setTranslating] = useState(false);
   const [translated, setTranslated] = useState(false);
 
-  // Check ML connection status
+  // Platforms (step 3)
+  const [platforms, setPlatforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
+    ml: true,
+    shopee: false,
+    tiktok: false,
+  });
+
+  // Check ML connection
   useEffect(() => {
     if (!user || !open) return;
     (async () => {
@@ -84,16 +91,13 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     })();
   }, [user, open]);
 
-  // Animate in/out
+  // Animate
   useEffect(() => {
-    if (open) {
-      requestAnimationFrame(() => setVisible(true));
-    } else {
-      setVisible(false);
-    }
+    if (open) requestAnimationFrame(() => setVisible(true));
+    else setVisible(false);
   }, [open]);
 
-  // Reset state when product changes
+  // Reset on product change
   const [lastProductId, setLastProductId] = useState<string | null>(null);
   if (product && product.id !== lastProductId) {
     setLastProductId(product.id);
@@ -104,20 +108,17 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     setMultiplier(2.5);
     setFreightCost(0);
     setTaxCost(0);
-    const baseCost = product.cost_price + 0 + 0; // cost + freight + tax
-    setSellPrice(Math.round(baseCost * 2.5 * 100) / 100);
+    setSellPrice(Math.round(product.cost_price * 2.5 * 100) / 100);
     setStep(1);
     setPublishResult(null);
     setPublishing(false);
     setDescription("");
-    setDescGenerated(false);
     setTranslated(false);
   }
 
   const costPrice = product?.cost_price ?? 0;
   const totalCost = costPrice + freightCost + taxCost;
 
-  // Recalculate sell price when multiplier/freight/tax changes
   const recalcPrice = (mult: number, freight: number, tax: number) => {
     const total = costPrice + freight + tax;
     setSellPrice(Math.round(total * mult * 100) / 100);
@@ -134,8 +135,9 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const hasStock = stockQty > 0;
 
   const handleClose = () => {
+    if (publishing) return;
     setVisible(false);
-    setTimeout(onClose, 300);
+    setTimeout(onClose, 280);
   };
 
   const handleConnectML = () => {
@@ -144,111 +146,77 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
   };
 
-  // Translate title to PT-BR sales copy
   const handleTranslate = async () => {
     if (!product) return;
     setTranslating(true);
     try {
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
-          messages: [
-            {
-              role: "user",
-              content: `Você é um tradutor especialista em e-commerce brasileiro. Traduza o nome deste produto para português do Brasil, adaptando para linguagem de venda (não tradução literal). Máximo ${MAX_TITLE_LENGTH} caracteres. Produto: "${product.title}". Responda APENAS com o título traduzido, sem aspas, sem explicação.`
-            }
-          ]
+          messages: [{
+            role: "user",
+            content: `Você é um tradutor especialista em e-commerce brasileiro. Traduza o nome deste produto para português do Brasil, adaptando para linguagem de venda. Máximo ${MAX_TITLE_LENGTH} caracteres. Produto: "${product.title}". Responda APENAS com o título traduzido, sem aspas, sem explicação.`
+          }]
         },
       });
-
       if (error) throw error;
-
       const text = data?.response || data?.choices?.[0]?.message?.content || "";
       if (typeof text === "string" && text.trim()) {
         const cleaned = text.trim().replace(/^["']|["']$/g, '');
         const truncated = cleaned.length > MAX_TITLE_LENGTH ? cleaned.substring(0, MAX_TITLE_LENGTH) : cleaned;
         setTitle(truncated);
         setTranslated(true);
-        toast.success("Título traduzido para PT-BR!");
+        toast.success("Título traduzido");
       } else {
-        toast.error("Não foi possível traduzir. Edite manualmente.");
+        toast.error("Não foi possível traduzir");
       }
-    } catch (err: any) {
-      console.error("Erro ao traduzir:", err);
-      toast.error("Erro ao traduzir. Tente novamente.");
+    } catch {
+      toast.error("Erro ao traduzir");
     } finally {
       setTranslating(false);
     }
   };
 
-  // Generate AI description
   const handleGenerateDescription = async () => {
     if (!product) return;
     setGeneratingDesc(true);
     try {
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
-          messages: [
-            {
-              role: "user",
-              content: `Você é um especialista em copywriting para e-commerce brasileiro. Crie uma descrição de produto persuasiva para o Mercado Livre com no máximo 500 caracteres. O produto é: ${title}. Preço de venda: R$ ${sellPrice.toFixed(2)}. Use linguagem direta, destaque benefícios e inclua uma chamada para ação. Não use bullet points, apenas parágrafos curtos. Responda APENAS com a descrição, sem comentários adicionais.`
-            }
-          ]
+          messages: [{
+            role: "user",
+            content: `Você é um especialista em copywriting para e-commerce brasileiro. Crie uma descrição de produto persuasiva para o Mercado Livre com no máximo 500 caracteres. Produto: ${title}. Preço: R$ ${sellPrice.toFixed(2)}. Use linguagem direta, destaque benefícios, inclua CTA. Apenas parágrafos curtos, sem bullet points. Responda APENAS com a descrição.`
+          }]
         },
       });
-
       if (error) throw error;
-
       const text = data?.response || data?.choices?.[0]?.message?.content || "";
       if (typeof text === "string" && text.trim()) {
         setDescription(text.trim());
-        setDescGenerated(true);
-        toast.success("Descrição gerada com IA!");
+        toast.success("Descrição gerada");
       } else {
-        toast.error("Não foi possível gerar a descrição. Digite manualmente.");
+        toast.error("Não foi possível gerar a descrição");
       }
-    } catch (err: any) {
-      console.error("Erro ao gerar descrição:", err);
-      toast.error("Erro ao gerar descrição. Tente novamente.");
+    } catch {
+      toast.error("Erro ao gerar descrição");
     } finally {
       setGeneratingDesc(false);
     }
   };
 
-  // Validate before publish
   const validatePublish = (): boolean => {
-    if (!title.trim()) {
-      toast.error("Preencha o título do produto.");
-      return false;
-    }
-    if (title.trim().length > MAX_TITLE_LENGTH) {
-      toast.error(`Título muito longo. Máximo ${MAX_TITLE_LENGTH} caracteres.`);
-      return false;
-    }
-    if (sellPrice <= 0) {
-      toast.error("Defina um preço de venda válido.");
-      return false;
-    }
-    if (sellPrice <= totalCost) {
-      toast.error("O preço de venda deve ser maior que o custo total.");
-      return false;
-    }
-    if (!isConnectedToML) {
-      toast.error("Conecte sua conta do Mercado Livre para publicar.");
-      return false;
-    }
-    if (!hasStock) {
-      toast.error("Produto sem estoque disponível. Não é possível publicar.");
-      return false;
-    }
+    if (!title.trim()) return toast.error("Preencha o título"), false;
+    if (title.length > MAX_TITLE_LENGTH) return toast.error(`Máximo ${MAX_TITLE_LENGTH} caracteres`), false;
+    if (sellPrice <= 0) return toast.error("Defina um preço válido"), false;
+    if (sellPrice <= totalCost) return toast.error("Preço deve ser maior que o custo"), false;
+    if (!platforms.ml && !platforms.shopee && !platforms.tiktok) return toast.error("Selecione ao menos uma plataforma"), false;
+    if (platforms.ml && !isConnectedToML) return toast.error("Conecte sua conta do Mercado Livre"), false;
+    if (!hasStock) return toast.error("Produto sem estoque"), false;
     return true;
   };
 
   const handlePublish = async () => {
-    if (!validatePublish()) return;
-    if (!user) return;
-
+    if (!validatePublish() || !user) return;
     setPublishing(true);
-
     try {
       const images = (() => {
         try {
@@ -275,34 +243,29 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
       });
 
       if (error || data?.error) {
-        const msg = data?.error || error?.message || "Erro ao publicar";
-        toast.error(msg);
-        console.error("Erro ml-publish:", data?.details || error);
+        toast.error(data?.error || error?.message || "Erro ao publicar");
+        setPublishing(false);
         return;
       }
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(4);
 
-      // Save publication to database
-      const thumbnailUrl = img || undefined;
       await supabase.from("user_publications" as any).insert({
         user_id: user.id,
         ml_item_id: data.item_id,
         title: title.trim(),
-        thumbnail: thumbnailUrl,
+        thumbnail: img || undefined,
         price: sellPrice,
         cost_price: totalCost,
         status: "active",
         permalink: data.permalink,
       });
 
-      toast.success("Produto publicado com sucesso!");
-      if (data.permalink) {
-        window.open(data.permalink, '_blank', 'noopener,noreferrer');
-      }
+      toast.success("Produto publicado com sucesso");
+      if (data.permalink) window.open(data.permalink, '_blank', 'noopener,noreferrer');
     } catch (err: any) {
-      toast.error(err?.message || "Erro inesperado ao publicar");
+      toast.error(err?.message || "Erro inesperado");
     } finally {
       setPublishing(false);
     }
@@ -312,13 +275,13 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   if (!product) return null;
 
   const titleLength = title.length;
-  const titleOverLimit = titleLength > MAX_TITLE_LENGTH;
+  const canAdvance = step === 1 ? hasStock : step === 2 ? (!!title.trim() && sellPrice > totalCost) : true;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Overlay */}
       <div
-        className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${
+        className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] transition-opacity duration-300 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
         onClick={handleClose}
@@ -326,340 +289,191 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
 
       {/* Drawer */}
       <div
-        className={`relative flex w-full max-w-[1100px] bg-white shadow-2xl transition-transform duration-300 ease-out ${
+        className={`relative flex w-full max-w-[1040px] h-full overflow-hidden bg-white shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.2)] transition-transform duration-300 ease-out ${
           visible ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* LEFT SIDE — 60% */}
-        <div className="flex w-[60%] flex-col border-r border-gray-100">
+        {/* ============== LEFT — MAIN ============== */}
+        <div className="flex flex-1 flex-col min-w-0">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-gray-100 px-8 py-5">
-            <div>
-              <h2 className="text-lg font-bold text-[#0A0A0A]">Novo anúncio</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Defina preço, revise e publique</p>
+          <div className="flex items-start justify-between px-8 pt-7 pb-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-50">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-[15px] font-semibold text-[#0A0A0A] leading-tight">Importar Produto</h2>
+                <p className="text-[12.5px] text-gray-500 mt-0.5">Publique facilmente no Mercado Livre.</p>
+              </div>
             </div>
             <button
               onClick={handleClose}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
 
           {/* Stepper */}
-          <div className="flex items-center gap-0 border-b border-gray-100 px-8 py-4">
-            {STEPS.map((s, i) => (
-              <div key={s.num} className="flex items-center">
-                <button
-                  onClick={() => setStep(s.num)}
-                  className="flex items-center gap-2.5"
-                >
-                  <span
-                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                      step === s.num
-                        ? "bg-[#0A0A0A] text-white"
-                        : step > s.num
-                        ? "bg-emerald-500 text-white"
-                        : "bg-gray-100 text-gray-400"
-                    }`}
-                  >
-                    {step > s.num ? <Check size={13} /> : s.num}
-                  </span>
-                  <span
-                    className={`text-sm font-medium transition-colors ${
-                      step === s.num ? "text-[#0A0A0A]" : "text-gray-400"
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                </button>
-                {i < STEPS.length - 1 && (
-                  <ChevronRight size={14} className="mx-4 text-gray-300" />
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto px-8 py-6" style={{ scrollbarWidth: "thin" }}>
-            {/* STEP 1: Product */}
-            {step === 1 && (
-              <div className="space-y-6 animate-fade-in">
-                <div>
-                  <h3 className="text-base font-bold text-[#0A0A0A]">Produto selecionado</h3>
-                  <p className="text-sm text-gray-500 mt-1">Verifique os dados antes de continuar</p>
-                </div>
-
-                <div className="flex gap-5 rounded-xl border border-gray-100 bg-gray-50/50 p-5">
-                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-white border border-gray-100">
-                    {img ? (
-                      <img src={img} alt={title} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <Package size={24} className="text-gray-300" />
+          <div className="px-8 pb-6">
+            <div className="flex items-center">
+              {STEPS.map((s, i) => {
+                const active = step === s.num;
+                const done = step > s.num;
+                return (
+                  <div key={s.num} className="flex items-center flex-1 last:flex-initial">
+                    <button
+                      onClick={() => { if (done) setStep(s.num); }}
+                      className="flex items-center gap-2.5 group"
+                      disabled={!done && !active}
+                    >
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold transition-all duration-300 ${
+                          active
+                            ? "text-white shadow-[0_0_0_4px_rgba(249,115,22,0.15)]"
+                            : done
+                            ? "bg-[#0A0A0A] text-white"
+                            : "bg-gray-100 text-gray-400"
+                        }`}
+                        style={active ? { background: ACCENT } : undefined}
+                      >
+                        {done ? <Check size={12} strokeWidth={3} /> : s.num}
+                      </span>
+                      <span
+                        className={`text-[13px] font-medium transition-colors ${
+                          active ? "text-[#0A0A0A]" : done ? "text-[#0A0A0A]" : "text-gray-400"
+                        }`}
+                      >
+                        {s.label}
+                      </span>
+                    </button>
+                    {i < STEPS.length - 1 && (
+                      <div className="flex-1 mx-3 h-px bg-gray-200 relative overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-[#0A0A0A] transition-all duration-500 ease-out"
+                          style={{ width: step > s.num ? "100%" : "0%" }}
+                        />
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="inline-block rounded-md bg-amber-50 border border-amber-200/50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 mb-2">
-                      CJ Dropshipping
-                    </span>
-                    <p className="text-sm font-semibold text-[#0A0A0A] leading-snug line-clamp-2">{product.title}</p>
-                    <div className="mt-3 flex items-center gap-4">
-                      <div>
-                        <p className="text-[11px] text-gray-400">Custo</p>
-                        <p className="text-sm font-bold text-[#0A0A0A]">{formatBRL(costPrice)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-gray-400">Sugerido</p>
-                        <p className="text-sm font-bold text-gray-500">{formatBRL(costPrice * 2.5)}</p>
-                      </div>
-                      <span className="rounded-md bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                        Margem {Math.round(((costPrice * 2.5 - costPrice) / (costPrice * 2.5)) * 100)}%
-                      </span>
-                    </div>
+                );
+              })}
+            </div>
+          </div>
 
-                    {/* Stock availability */}
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className={`text-sm font-semibold ${
-                        stockQty > 50 ? "text-emerald-600" :
-                        stockQty >= 10 ? "text-amber-600" :
-                        stockQty > 0 ? "text-red-600" :
-                        "text-red-600"
-                      }`}>
-                        {stockQty === 0
-                        ? "⚠️ Sem estoque"
-                        : stockQty >= 999
-                          ? "Em estoque"
-                          : `${stockQty} unidades disponíveis`}
-                      </span>
+          {/* Content — animated per step */}
+          <div className="flex-1 overflow-y-auto px-8" style={{ scrollbarWidth: "thin" }}>
+            {/* STEP 1 — Fornecedor */}
+            {step === 1 && (
+              <div key="s1" className="step-fade space-y-6 pb-6">
+                <div>
+                  <h3 className="text-[14px] font-semibold text-[#0A0A0A]">Selecionar Fornecedor</h3>
+                  <p className="text-[12.5px] text-gray-500 mt-1">Confirme o fornecedor e a plataforma de publicação.</p>
+                </div>
+
+                {/* Supplier card */}
+                <div className="rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-50 border border-gray-100">
+                        <span className="text-[11px] font-bold text-gray-600">CJ</span>
+                      </div>
+                      <div>
+                        <p className="text-[13.5px] font-semibold text-[#0A0A0A]">CJ Dropshipping</p>
+                        <p className="text-[11.5px] text-gray-500 mt-0.5">Fornecedor padrão · Envio global</p>
+                      </div>
+                    </div>
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full" style={{ background: ACCENT }}>
+                      <Check size={11} strokeWidth={3} className="text-white" />
                     </div>
                   </div>
                 </div>
 
-                {/* Stock warning */}
-                {!hasStock && (
-                  <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-4">
-                    <AlertCircle size={18} className="text-red-600 shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-[#0A0A0A]">Produto sem estoque</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Não é possível publicar produtos sem estoque disponível na CJ.</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Platform */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-bold text-[#0A0A0A] flex items-center gap-2">
-                    <Store size={14} className="text-gray-400" />
-                    Publicar em
-                  </h4>
-                  <div className="flex gap-3">
-                    {/* Mercado Livre */}
-                    <div className="flex items-center gap-2.5 rounded-xl border-2 border-[#0A0A0A] bg-[#0A0A0A]/[0.02] px-4 py-3 text-sm font-semibold text-[#0A0A0A]">
-                      <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <ellipse cx="24" cy="24" rx="24" ry="24" fill="#FFE600"/>
-                        <path d="M24 10C16.268 10 10 16.268 10 24C10 31.732 16.268 38 24 38C31.732 38 38 31.732 38 24C38 16.268 31.732 10 24 10Z" fill="#FFE600"/>
-                        <path d="M17 21.5C17 21.5 19.5 26 24 26C28.5 26 31 21.5 31 21.5" stroke="#333" strokeWidth="2.5" strokeLinecap="round"/>
-                        <circle cx="19.5" cy="18.5" r="1.5" fill="#333"/>
-                        <circle cx="28.5" cy="18.5" r="1.5" fill="#333"/>
-                      </svg>
-                      Mercado Livre
-                      <Check size={14} className="text-[#0A0A0A]" />
-                    </div>
-                    {/* Shopee */}
-                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-400 cursor-not-allowed">
-                      <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="24" cy="24" r="24" fill="#EE4D2D"/>
-                        <path d="M24 10C21.24 10 19 12.24 19 15C19 16.1 19.37 17.11 20 17.92V19H28V17.92C28.63 17.11 29 16.1 29 15C29 12.24 26.76 10 24 10ZM21 15C21 13.34 22.34 12 24 12C25.66 12 27 13.34 27 15H21Z" fill="white"/>
-                        <rect x="14" y="19" width="20" height="19" rx="2" fill="white"/>
-                        <path d="M21 26C21 26 21 28 24 28C27 28 27 26 27 26" stroke="#EE4D2D" strokeWidth="1.8" strokeLinecap="round"/>
-                      </svg>
-                      Shopee
-                      <span className="text-[10px] bg-gray-100 rounded px-1.5 py-0.5">em breve</span>
-                    </div>
-                    {/* TikTok Shop */}
-                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-400 cursor-not-allowed">
-                      <svg width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="24" cy="24" r="24" fill="#010101"/>
-                        <path d="M31 15.5C29.9 14.3 29.2 12.7 29.1 11H25.2V28.5C25.2 30.2 23.8 31.6 22.1 31.6C20.4 31.6 19 30.2 19 28.5C19 26.8 20.4 25.4 22.1 25.4C22.5 25.4 22.8 25.5 23.1 25.6V21.6C22.8 21.6 22.4 21.5 22.1 21.5C18.2 21.5 15 24.7 15 28.6C15 32.5 18.2 35.7 22.1 35.7C26 35.7 29.2 32.5 29.2 28.6V19.3C30.7 20.4 32.5 21 34.5 21V17.1C33 17 31.9 16.4 31 15.5Z" fill="white"/>
-                        <path d="M29.1 11H25.2" stroke="#69C9D0" strokeWidth="0.5"/>
-                        <path d="M34.5 17.1V21C32.5 21 30.7 20.4 29.2 19.3" stroke="#EE1D52" strokeWidth="0.5"/>
-                      </svg>
-                      TikTok Shop
-                      <span className="text-[10px] bg-gray-100 rounded px-1.5 py-0.5">em breve</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ML Connection Status */}
+                {/* Connection status */}
                 {isConnectedToML === false && (
-                  <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
-                    <AlertCircle size={18} className="text-amber-600 shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-[#0A0A0A]">Conta não conectada</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Conecte sua conta do Mercado Livre para publicar produtos</p>
+                  <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3">
+                    <div>
+                      <p className="text-[13px] font-medium text-[#0A0A0A]">Conecte sua conta</p>
+                      <p className="text-[11.5px] text-gray-500 mt-0.5">É necessário para publicar anúncios</p>
                     </div>
                     <button
                       onClick={handleConnectML}
-                      className="shrink-0 flex items-center gap-1.5 rounded-lg bg-[#0A0A0A] px-4 py-2 text-xs font-bold text-white hover:bg-[#1a1a1a] transition-colors"
+                      className="rounded-lg bg-[#0A0A0A] px-3.5 py-1.5 text-[11.5px] font-semibold text-white hover:bg-[#1a1a1a] transition-colors"
                     >
-                      <Link size={12} />
                       Conectar
                     </button>
                   </div>
                 )}
-                {isConnectedToML === true && (
-                  <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-                    <Check size={18} className="text-emerald-600 shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-[#0A0A0A]">Conta conectada</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Sua conta do Mercado Livre está pronta para publicação</p>
-                    </div>
+
+                {/* Stock warning */}
+                {!hasStock && (
+                  <div className="rounded-xl border border-red-100 bg-red-50/40 px-4 py-3">
+                    <p className="text-[13px] font-medium text-red-600">Produto sem estoque disponível</p>
+                    <p className="text-[11.5px] text-red-500/80 mt-0.5">Não é possível continuar com este produto.</p>
                   </div>
                 )}
-
-                {/* Supplier info */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-bold text-[#0A0A0A] flex items-center gap-2">
-                    <Package size={14} className="text-gray-400" />
-                    Fornecedor
-                  </h4>
-                  <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 space-y-2">
-                    <p className="text-sm font-semibold text-[#0A0A0A]">CJ Dropshipping</p>
-                    <a
-                      href="https://app.cjdropshipping.com/contact.html"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#0A0A0A] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#1a1a1a] transition-colors"
-                    >
-                      <ExternalLink size={11} />
-                      Contato do fornecedor
-                    </a>
-                    <p className="text-[11px] text-gray-400">Em caso de problema com entrega ou produto, entre em contato direto com o fornecedor.</p>
-                  </div>
-                </div>
               </div>
             )}
 
-            {/* STEP 2: Customize */}
+            {/* STEP 2 — Detalhes */}
             {step === 2 && (
-              <div className="space-y-6 animate-fade-in">
+              <div key="s2" className="step-fade space-y-6 pb-6">
                 <div>
-                  <h3 className="text-base font-bold text-[#0A0A0A]">Defina seu preço</h3>
-                  <p className="text-sm text-gray-500 mt-1">Ajuste o título, traduza e configure o valor de venda</p>
+                  <h3 className="text-[14px] font-semibold text-[#0A0A0A]">Título e precificação</h3>
+                  <p className="text-[12.5px] text-gray-500 mt-1">Edite o título e defina seu preço de venda.</p>
                 </div>
 
-                {/* Title with translate + char counter */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-[#0A0A0A]">Título do anúncio</label>
+                {/* Title */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[12px] font-medium text-gray-600">Título do anúncio</label>
                     <button
                       onClick={handleTranslate}
                       disabled={translating}
-                      className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 text-[11.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors disabled:opacity-50"
                     >
-                      {translating ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <Globe size={12} />
-                      )}
-                      {translating ? "Traduzindo..." : translated ? "Retraduzir" : "Traduzir para PT-BR"}
+                      {translating ? <Loader2 size={11} className="animate-spin" /> : <Globe size={11} />}
+                      {translating ? "Traduzindo" : translated ? "Retraduzir" : "Traduzir p/ PT-BR"}
                     </button>
                   </div>
                   <input
                     value={title}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val.length <= MAX_TITLE_LENGTH) setTitle(val);
-                    }}
+                    onChange={(e) => { if (e.target.value.length <= MAX_TITLE_LENGTH) setTitle(e.target.value); }}
                     maxLength={MAX_TITLE_LENGTH}
-                    className={`w-full rounded-xl border bg-white px-4 py-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 transition-all placeholder:text-gray-400 ${
-                      titleOverLimit
-                        ? "border-red-300 focus:ring-red-200 focus:border-red-400"
-                        : "border-gray-200 focus:ring-[#0A0A0A]/10 focus:border-[#0A0A0A]/30"
-                    }`}
-                    placeholder="Título do produto"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors placeholder:text-gray-400"
+                    placeholder="Digite o título"
                   />
-                  <div className="flex items-center justify-between">
-                    {translated && (
-                      <p className="text-xs text-blue-500 flex items-center gap-1">
-                        <Globe size={10} />
-                        Traduzido automaticamente — edite se necessário
-                      </p>
-                    )}
-                    <p className={`text-xs font-medium text-right ml-auto ${
-                      titleOverLimit ? "text-red-500" : titleLength > 50 ? "text-amber-500" : "text-gray-400"
-                    }`}>
-                      {titleLength}/{MAX_TITLE_LENGTH} caracteres
-                    </p>
-                  </div>
+                  <p className="text-[10.5px] text-gray-400 text-right mt-1.5">{titleLength}/{MAX_TITLE_LENGTH}</p>
                 </div>
 
-                {/* Pricing Engine */}
-                <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-5 space-y-5">
-                  <h4 className="text-sm font-bold text-[#0A0A0A] flex items-center gap-2">
-                    <Sliders size={14} className="text-gray-400" />
-                    Motor de Precificação
-                  </h4>
+                {/* Pricing — minimal rows */}
+                <div className="space-y-3">
+                  <p className="text-[12px] font-medium text-gray-600">Precificação</p>
 
-                  {/* Cost breakdown */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-[11px] text-gray-400 mb-1.5">Custo do produto</p>
-                      <p className="text-base font-bold text-[#0A0A0A]">{formatBRL(costPrice)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-gray-400 mb-1.5">Frete estimado</p>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">R$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={freightCost || ""}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setFreightCost(v);
-                            recalcPrice(multiplier, v, taxCost);
-                          }}
-                          className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-sm font-bold text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/10 transition-all"
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-gray-400 mb-1.5">Taxas (opcional)</p>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">R$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={taxCost || ""}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setTaxCost(v);
-                            recalcPrice(multiplier, freightCost, v);
-                          }}
-                          className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-sm font-bold text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/10 transition-all"
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
+                  <div className="rounded-xl border border-gray-200 divide-y divide-gray-100">
+                    <Row label="Custo do produto" value={formatBRL(costPrice)} />
+                    <EditableRow
+                      label="Frete"
+                      value={freightCost}
+                      onChange={(v) => { setFreightCost(v); recalcPrice(multiplier, v, taxCost); }}
+                    />
+                    <EditableRow
+                      label="Taxas"
+                      value={taxCost}
+                      onChange={(v) => { setTaxCost(v); recalcPrice(multiplier, freightCost, v); }}
+                    />
+                    <Row label="Custo total" value={formatBRL(totalCost)} strong />
                   </div>
 
-                  {/* Custo total */}
-                  <div className="flex items-center justify-between rounded-lg bg-gray-100 px-4 py-2.5">
-                    <span className="text-xs font-medium text-gray-500">Custo total</span>
-                    <span className="text-sm font-bold text-[#0A0A0A]">{formatBRL(totalCost)}</span>
-                  </div>
-
-                  {/* Multiplier slider */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] text-gray-400">Multiplicador</p>
-                      <p className="text-sm font-bold text-[#0A0A0A]">{multiplier.toFixed(1)}x</p>
+                  {/* Multiplier */}
+                  <div className="rounded-xl border border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[12px] font-medium text-gray-600">Multiplicador</span>
+                      <span className="text-[13px] font-semibold text-[#0A0A0A]">{multiplier.toFixed(1)}x</span>
                     </div>
                     <input
                       type="range"
@@ -667,223 +481,120 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                       max="5.0"
                       step="0.1"
                       value={multiplier}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        setMultiplier(v);
-                        recalcPrice(v, freightCost, taxCost);
-                      }}
-                      className="w-full accent-[#0A0A0A]"
+                      onChange={(e) => { const v = Number(e.target.value); setMultiplier(v); recalcPrice(v, freightCost, taxCost); }}
+                      className="w-full h-1 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                      style={{ accentColor: ACCENT }}
                     />
-                    <div className="flex justify-between text-[10px] text-gray-400">
-                      <span>1.5x (baixa margem)</span>
-                      <span>5.0x (alta margem)</span>
-                    </div>
                   </div>
 
-                  {/* Sell price (editable) */}
+                  {/* Sell price */}
                   <div>
-                    <p className="text-[11px] text-gray-400 mb-1.5">Preço de venda</p>
+                    <label className="text-[12px] font-medium text-gray-600 mb-2 block">Preço de venda</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">R$</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[13px] text-gray-400">R$</span>
                       <input
                         type="number"
                         step="0.01"
                         min="0"
                         value={sellPrice || ""}
                         onChange={(e) => setSellPrice(Number(e.target.value))}
-                        className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-sm font-bold text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/10 focus:border-[#0A0A0A]/30 transition-all"
+                        className="w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors"
                       />
                     </div>
                   </div>
 
-                  {/* Profit highlight */}
-                  <div
-                    className={`flex items-center justify-between rounded-xl px-5 py-4 ${
-                      profit > 0
-                        ? "bg-emerald-50 border border-emerald-200/50"
-                        : profit < 0
-                        ? "bg-red-50 border border-red-200/50"
-                        : "bg-gray-100 border border-gray-200"
-                    }`}
-                  >
-                     <div>
-                       <span className="text-sm font-medium text-[#0A0A0A]">Ganho estimado por venda</span>
-                       <p className="text-[10px] text-gray-400 mt-0.5">Custo total ({formatBRL(totalCost)}) → Venda ({formatBRL(sellPrice)})</p>
-                     </div>
-                    <div className="text-right flex items-baseline gap-2">
-                      <span
-                        className={`text-2xl font-black ${
-                          profit > 0 ? "text-emerald-600" : profit < 0 ? "text-red-600" : "text-gray-400"
-                        }`}
-                      >
-                        {formatBRL(profit)}
-                      </span>
-                      <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-                          profit > 0
-                            ? "bg-emerald-100 text-emerald-700"
-                            : profit < 0
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-200 text-gray-500"
-                        }`}
-                      >
-                        {profitMargin}%
-                      </span>
-                    </div>
+                  {/* Profit single line */}
+                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+                    <span className="text-[12px] text-gray-500">Lucro por venda</span>
+                    <span className={`text-[13.5px] font-semibold ${profit > 0 ? "text-[#0A0A0A]" : "text-red-500"}`}>
+                      {formatBRL(profit)} <span className="text-[11px] font-medium text-gray-400 ml-1">· {profitMargin}%</span>
+                    </span>
                   </div>
-
-                  {sellPrice > 0 && sellPrice <= totalCost && (
-                    <div className="flex items-center gap-2 text-red-500">
-                      <AlertCircle size={14} />
-                      <span className="text-xs font-semibold">O preço de venda deve ser maior que o custo total</span>
-                    </div>
-                  )}
-
-                  {profit > 0 && profitMargin >= 40 && (
-                    <div className="flex items-center gap-2 text-emerald-600">
-                      <TrendingUp size={14} />
-                      <span className="text-xs font-semibold">Boa relação entre custo e preço de venda</span>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
 
-            {/* STEP 3: Review */}
+            {/* STEP 3 — Revisão */}
             {step === 3 && (
-              <div className="space-y-6 animate-fade-in">
+              <div key="s3" className="step-fade space-y-6 pb-6">
                 <div>
-                  <h3 className="text-base font-bold text-[#0A0A0A]">Resumo do anúncio</h3>
-                  <p className="text-sm text-gray-500 mt-1">Tudo certo? Confirme e publique</p>
+                  <h3 className="text-[14px] font-semibold text-[#0A0A0A]">Revisar anúncio</h3>
+                  <p className="text-[12.5px] text-gray-500 mt-1">Escolha onde publicar e finalize a descrição.</p>
                 </div>
 
-                {/* Publish checklist */}
-                <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 space-y-2">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Checklist de publicação</p>
-                  {[
-                    { ok: isConnectedToML === true, label: "Mercado Livre conectado" },
-                    { ok: hasStock, label: `Estoque disponível (${stockQty} un)` },
-                    { ok: sellPrice > totalCost, label: "Preço de venda definido" },
-                    { ok: translated || title !== product.title, label: "Produto traduzido/adaptado" },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className={`flex h-5 w-5 items-center justify-center rounded-full ${item.ok ? "bg-emerald-100" : "bg-red-100"}`}>
-                        {item.ok ? <Check size={11} className="text-emerald-600" /> : <X size={11} className="text-red-500" />}
-                      </div>
-                      <span className={`text-sm ${item.ok ? "text-[#0A0A0A]" : "text-red-500"}`}>{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-4">
-                  {[
-                    { label: "Título", value: title },
-                    { label: "Plataforma", value: "Mercado Livre" },
-                    { label: "Custo total", value: formatBRL(totalCost) },
-                    { label: "Preço de venda", value: formatBRL(sellPrice) },
-                    { label: "Estoque publicado", value: `${Math.min(stockQty, 10)} unidades` },
-                  ].map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-center justify-between border-b border-gray-100 pb-3"
-                    >
-                      <span className="text-sm text-gray-500">{row.label}</span>
-                      <span className="text-sm font-semibold text-[#0A0A0A] text-right max-w-[60%] truncate">
-                        {row.value}
-                      </span>
-                    </div>
-                  ))}
-
-                  {/* Profit summary */}
-                  <div
-                    className={`flex items-center justify-between rounded-xl px-5 py-4 ${
-                      profit > 0
-                        ? "bg-emerald-50 border border-emerald-200/50"
-                        : "bg-red-50 border border-red-200/50"
-                    }`}
-                  >
-                    <span className="text-sm font-bold text-[#0A0A0A]">Ganho estimado por venda</span>
-                    <span
-                      className={`text-xl font-black ${
-                        profit > 0 ? "text-emerald-600" : "text-red-600"
-                      }`}
-                    >
-                      {formatBRL(profit)}
-                    </span>
+                {/* Platforms — pick where to publish */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2.5">
+                    <Store size={12} className="text-gray-500" />
+                    <p className="text-[12px] font-medium text-gray-600">Publicar em</p>
                   </div>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <PlatformCard
+                      name="Mercado Livre"
+                      status={isConnectedToML ? "Conectado" : "Desconectado"}
+                      disabled={!isConnectedToML}
+                      selected={platforms.ml && !!isConnectedToML}
+                      onToggle={() => { if (isConnectedToML) setPlatforms(p => ({ ...p, ml: !p.ml })); }}
+                    />
+                    <PlatformCard
+                      name="Shopee"
+                      status="Em breve"
+                      disabled
+                      selected={false}
+                      onToggle={() => {}}
+                    />
+                    <PlatformCard
+                      name="TikTok Shop"
+                      status="Em breve"
+                      disabled
+                      selected={false}
+                      onToggle={() => {}}
+                    />
+                  </div>
+                  {!isConnectedToML && (
+                    <button
+                      onClick={handleConnectML}
+                      className="mt-2.5 text-[11.5px] font-medium text-[#0A0A0A] underline hover:no-underline"
+                    >
+                      Conectar Mercado Livre
+                    </button>
+                  )}
                 </div>
 
-                {/* AI Description section */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold text-[#0A0A0A] flex items-center gap-2">
-                      <Edit3 size={14} className="text-gray-400" />
-                      Descrição do anúncio
-                    </h4>
-                    <div className="flex items-center gap-2">
+                {/* Summary */}
+                <div className="rounded-xl border border-gray-200 divide-y divide-gray-100">
+                  <Row label="Título" value={title} />
+                  <Row label="Plataforma" value="Mercado Livre" />
+                  <Row label="Preço" value={formatBRL(sellPrice)} />
+                  <Row label="Estoque publicado" value={`${Math.min(stockQty, 10)} un`} />
+                  <Row label="Lucro" value={formatBRL(profit)} strong />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[12px] font-medium text-gray-600">Descrição do anúncio</label>
+                    <div className="flex items-center gap-3">
                       <button
                         onClick={handleGenerateDescription}
                         disabled={generatingDesc}
-                        className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-50"
+                        className="flex items-center gap-1.5 text-[11.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors disabled:opacity-50"
                       >
-                        {generatingDesc ? (
-                          <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                          <Sparkles size={12} />
-                        )}
-                        {generatingDesc ? "Gerando..." : descGenerated ? "Regenerar com IA" : "Gerar com IA"}
+                        {generatingDesc ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                        {generatingDesc ? "Gerando" : "Gerar com IA"}
                       </button>
                       <button
                         onClick={async () => {
-                          if (!description.trim()) {
-                            toast.error("Crie uma descrição antes de fazer o vídeo");
-                            return;
-                          }
-                          const productImage = img || '';
-                          const getImageWithFormat = (imageUrl: string): string => {
-                            if (!imageUrl) return '';
-                            if (imageUrl.match(/\.(png|jpg|jpeg)(\?|$)/i)) return imageUrl;
-                            if (imageUrl.includes('.webp')) return imageUrl.replace('.webp', '.jpg');
-                            const separator = imageUrl.includes('?') ? '&' : '?';
-                            return `${imageUrl}${separator}format=jpg`;
-                          };
-                          const formattedImageUrl = getImageWithFormat(productImage);
+                          if (!description.trim()) return toast.error("Crie uma descrição primeiro");
                           const originalUrl = product.original_url || `https://cjdropshipping.com/product/${product.id}`;
-                          const productInfo = `Título: ${title}\nDescrição: ${description}\nLink Original: ${originalUrl}\nURL Imagem: ${formattedImageUrl}`;
-                          try {
-                            if (formattedImageUrl) {
-                              const response = await fetch(formattedImageUrl);
-                              const blob = await response.blob();
-                              await navigator.clipboard.write([
-                                new ClipboardItem({
-                                  'text/plain': new Blob([productInfo], { type: 'text/plain' }),
-                                  [blob.type]: blob
-                                })
-                              ]);
-                              toast.success("Informações e imagem copiadas! Cole no Bandy.ai");
-                            } else {
-                              await navigator.clipboard.writeText(productInfo);
-                              toast.success("Informações copiadas! Cole no Bandy.ai");
-                            }
-                          } catch (err) {
-                            try {
-                              await navigator.clipboard.writeText(productInfo);
-                              toast.success("Informações copiadas! Cole no Bandy.ai");
-                            } catch {
-                              toast.error("Erro ao copiar. Tente novamente.");
-                            }
-                          }
-                          const bandyUrl = `https://bandy.ai/agent?new&product=${encodeURIComponent(formattedImageUrl)}&title=${encodeURIComponent(title)}`;
-                          window.open(bandyUrl, '_blank', 'noopener,noreferrer');
+                          const info = `Título: ${title}\nDescrição: ${description}\nLink: ${originalUrl}\nImagem: ${img || ''}`;
+                          try { await navigator.clipboard.writeText(info); toast.success("Copiado"); } catch {}
+                          window.open(`https://bandy.ai/agent?new&product=${encodeURIComponent(img || '')}&title=${encodeURIComponent(title)}`, '_blank');
                         }}
                         disabled={!description.trim()}
-                        className={`flex items-center gap-1.5 rounded-lg bg-gradient-to-r px-3 py-1.5 text-xs font-bold text-white transition-all ${
-                          description.trim() 
-                            ? "from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700" 
-                            : "from-gray-400 to-gray-500 cursor-not-allowed opacity-50"
-                        }`}
+                        className="flex items-center gap-1.5 text-[11.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors disabled:opacity-30"
                       >
-                        <Play size={12} />
+                        <Play size={11} />
                         Criar vídeo
                       </button>
                     </div>
@@ -891,164 +602,241 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Clique em 'Gerar com IA' para criar uma descrição persuasiva, ou escreva manualmente..."
+                    placeholder="Clique em 'Gerar com IA' ou escreva manualmente…"
                     rows={5}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/10 focus:border-[#0A0A0A]/30 transition-all placeholder:text-gray-400 resize-none"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[13px] text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors placeholder:text-gray-400 resize-none"
                   />
-                  {descGenerated && (
-                    <p className="text-xs text-violet-500 flex items-center gap-1">
-                      <Sparkles size={10} />
-                      Descrição gerada por IA — edite se necessário
-                    </p>
-                  )}
                 </div>
               </div>
             )}
 
-            {/* STEP 4: Success */}
+            {/* STEP 4 — Success */}
             {step === 4 && publishResult && (
-              <div className="space-y-6 animate-fade-in flex flex-col items-center justify-center py-10">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-                  <Check size={32} className="text-emerald-600" />
+              <div key="s4" className="step-fade flex flex-col items-center justify-center py-14 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full mb-5" style={{ background: ACCENT }}>
+                  <Check size={26} strokeWidth={3} className="text-white" />
                 </div>
-                <div className="text-center">
-                  <h3 className="text-lg font-bold text-[#0A0A0A]">Anúncio publicado!</h3>
-                  <p className="text-sm text-gray-500 mt-1">Seu produto já está disponível no Mercado Livre</p>
-                  <p className="text-xs text-amber-600 mt-2 bg-amber-50 rounded-lg px-3 py-2">
-                    💡 Se o anúncio aparecer pausado, acesse Meus Anúncios no Mercado Livre e clique em "Ativar". Isso é normal para contas novas.
-                  </p>
-                </div>
-                <div className="w-full max-w-sm space-y-3">
-                  <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 px-4 py-3">
-                    <span className="text-sm text-gray-500">ID do anúncio</span>
-                    <span className="text-sm font-bold text-[#0A0A0A]">{publishResult.item_id}</span>
-                  </div>
-                  <a
-                    href={publishResult.permalink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full rounded-xl bg-[#0A0A0A] px-5 py-3 text-sm font-bold text-white hover:bg-[#1a1a1a] transition-colors"
-                  >
-                    <ExternalLink size={14} />
-                    Ver anúncio no Mercado Livre
-                  </a>
-                </div>
+                <h3 className="text-[16px] font-semibold text-[#0A0A0A]">Anúncio publicado</h3>
+                <p className="text-[12.5px] text-gray-500 mt-1.5 max-w-[320px]">Seu produto já está no Mercado Livre. ID: <span className="font-medium text-[#0A0A0A]">{publishResult.item_id}</span></p>
+                <a
+                  href={publishResult.permalink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0A0A0A] px-5 py-2.5 text-[12.5px] font-semibold text-white hover:bg-[#1a1a1a] transition-colors"
+                >
+                  <ExternalLink size={13} />
+                  Abrir no Mercado Livre
+                </a>
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between border-t border-gray-100 px-8 py-4">
-            <button
-              onClick={handleClose}
-              className="rounded-xl px-5 py-2.5 text-sm font-medium text-gray-500 hover:text-[#0A0A0A] hover:bg-gray-100 transition-colors"
-            >
-              {step === 4 ? "Fechar" : "Cancelar"}
-            </button>
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between border-t border-gray-100 px-8 py-4 bg-white">
+            <p className="text-[11.5px] text-gray-400">
+              Saiba mais sobre <span className="text-[#0A0A0A] underline cursor-pointer">Importar Produto</span>
+            </p>
+            <div className="flex items-center gap-2">
+              {step < 4 && (
+                <button
+                  onClick={handleClose}
+                  className="rounded-xl px-4 py-2 text-[12.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors"
+                >
+                  Cancelar
+                </button>
+              )}
               {step > 1 && step < 4 && (
                 <button
                   onClick={() => setStep(step - 1)}
-                  className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-[#0A0A0A] hover:bg-gray-50 transition-colors"
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-[12.5px] font-medium text-[#0A0A0A] hover:bg-gray-50 transition-colors"
                 >
                   Voltar
                 </button>
               )}
-              {step < 3 ? (
+              {step < 3 && (
                 <button
-                  onClick={() => {
-                    if (step === 1 && !isConnectedToML) {
-                      toast.error("Conecte sua conta do Mercado Livre para continuar");
-                      return;
-                    }
-                    if (step === 1 && !hasStock) {
-                      toast.error("Produto sem estoque. Não é possível continuar.");
-                      return;
-                    }
-                    setStep(step + 1);
-                  }}
-                  className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-colors ${
-                    (step === 1 && (!isConnectedToML || !hasStock))
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-[#0A0A0A] text-white hover:bg-[#1a1a1a]"
-                  }`}
+                  onClick={() => { if (canAdvance) setStep(step + 1); else toast.error(step === 1 ? "Conecte a conta e confira o estoque" : "Confira título e preço"); }}
+                  disabled={!canAdvance}
+                  className="flex items-center gap-1.5 rounded-xl px-5 py-2 text-[12.5px] font-semibold text-white transition-all disabled:opacity-40 hover:brightness-110"
+                  style={{ background: ACCENT }}
                 >
-                  Continuar
+                  Próximo
+                  <ArrowRight size={13} />
                 </button>
-              ) : step === 3 ? (
+              )}
+              {step === 3 && (
                 <button
                   onClick={handlePublish}
-                  disabled={publishing || !isConnectedToML || !hasStock}
-                  className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-colors flex items-center gap-2 ${
-                    publishing || !isConnectedToML || !hasStock
-                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                      : "bg-[#0A0A0A] text-white hover:bg-[#1a1a1a]"
-                  }`}
+                  disabled={publishing}
+                  className="flex items-center gap-1.5 rounded-xl px-5 py-2 text-[12.5px] font-semibold text-white transition-all disabled:opacity-50 hover:brightness-110"
+                  style={{ background: ACCENT }}
                 >
-                  {publishing && <Loader2 size={14} className="animate-spin" />}
-                  {publishing ? "Publicando..." : "Publicar no Mercado Livre"}
+                  {publishing && <Loader2 size={13} className="animate-spin" />}
+                  {publishing ? "Publicando" : "Publicar"}
                 </button>
-              ) : null}
+              )}
+              {step === 4 && (
+                <button
+                  onClick={handleClose}
+                  className="rounded-xl px-5 py-2 text-[12.5px] font-semibold text-white transition-all hover:brightness-110"
+                  style={{ background: ACCENT }}
+                >
+                  Concluir
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* RIGHT SIDE — 40% sticky preview */}
-        <div className="w-[40%] bg-gray-50/70 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-          <div className="sticky top-0 p-6 space-y-5">
-            {/* Product image */}
-            <div className="aspect-square w-full overflow-hidden rounded-xl bg-white border border-gray-100 shadow-sm">
-              {img ? (
-                <img src={img} alt={title} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center">
-                  <Package size={40} className="text-gray-300" />
-                </div>
-              )}
+        {/* ============== RIGHT — PRODUCT DETAIL ============== */}
+        <div className="w-[300px] shrink-0 border-l border-gray-100 bg-gray-50/40 flex flex-col">
+          <div className="flex items-center justify-between px-6 pt-7 pb-4">
+            <h3 className="text-[13px] font-semibold text-[#0A0A0A]">Detalhes do produto</h3>
+          </div>
+          <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-5" style={{ scrollbarWidth: "thin" }}>
+            {/* Image + title */}
+            <div className="flex gap-3">
+              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white border border-gray-100">
+                {img ? <img src={img} alt={title} className="h-full w-full object-cover" /> : null}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[12.5px] font-semibold text-[#0A0A0A] leading-snug line-clamp-2">{title || product.title}</p>
+                <p className="text-[10.5px] text-gray-400 mt-1 truncate">SKU: {product.external_id || product.id.substring(0, 10)}</p>
+              </div>
             </div>
 
-            {/* Title */}
-            <div>
-              <p className="text-base font-bold text-[#0A0A0A] leading-snug">{title || product.title}</p>
-              <span className="mt-2 inline-block rounded-md bg-amber-50 border border-amber-200/50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                CJ Dropshipping
-              </span>
-            </div>
-
-            {/* Price */}
-            <div className="flex items-baseline gap-3">
-              <span className="text-2xl font-black text-[#0A0A0A]">{formatBRL(sellPrice)}</span>
-              {profit > 0 && (
-                <span className="rounded-md bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 text-xs font-bold text-emerald-700">
-                  +{formatBRL(profit)} de margem
+            {/* Categories */}
+            {product.category && (
+              <div className="flex gap-1.5 flex-wrap">
+                <span className="rounded-md bg-white border border-gray-200 px-2 py-0.5 text-[10.5px] font-medium text-gray-600 capitalize">
+                  {product.category}
                 </span>
-              )}
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className="h-px bg-gray-200" />
+
+            {/* Info rows */}
+            <div className="space-y-3">
+              <DetailRow label="Plataforma" value={
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-yellow-400" />
+                  Mercado Livre
+                </span>
+              } />
+              <DetailRow label="Preço" value={<span className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice || costPrice * 2.5)}</span>} />
+              <DetailRow label="Estoque" value={`${stockQty} un`} />
+              <DetailRow label="Custo" value={formatBRL(costPrice)} />
+              {step >= 2 && <DetailRow label="Lucro" value={<span className={profit > 0 ? "text-[#0A0A0A] font-medium" : "text-red-500"}>{formatBRL(profit)}</span>} />}
             </div>
 
-            {/* Stock badge */}
-            <div className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ${
-              stockQty > 50 ? "bg-emerald-50 text-emerald-700 border border-emerald-200/50" :
-              stockQty >= 10 ? "bg-amber-50 text-amber-700 border border-amber-200/50" :
-              stockQty > 0 ? "bg-red-50 text-red-700 border border-red-200/50" :
-              "bg-red-50 text-red-700 border border-red-200/50"
-            }`}>
-              {stockQty === 0 ? "Sem estoque" : `${stockQty} em estoque`}
-            </div>
+            {/* Divider */}
+            <div className="h-px bg-gray-200" />
 
             {/* Description preview */}
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Texto do anúncio</p>
-              <div className="rounded-xl bg-white border border-gray-100 p-4">
-                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                  {description || "Descrição será gerada no passo de revisão..."}
-                </p>
+            <div>
+              <p className="text-[10.5px] font-medium text-gray-400 uppercase tracking-wide mb-2">Descrição</p>
+              <p className="text-[12px] text-gray-600 leading-relaxed line-clamp-6">
+                {description || product.description || "A descrição aparecerá aqui quando for gerada ou escrita."}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Publishing overlay */}
+        {publishing && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-[3px] animate-in fade-in duration-200">
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-white border border-gray-100 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] px-10 py-8">
+              <div className="relative h-12 w-12">
+                <div className="absolute inset-0 rounded-full border-2 border-gray-100" />
+                <div className="absolute inset-0 rounded-full border-2 border-transparent animate-spin" style={{ borderTopColor: ACCENT }} />
+              </div>
+              <div className="text-center">
+                <p className="text-[13.5px] font-semibold text-[#0A0A0A]">Aguarde um momento</p>
+                <p className="text-[11.5px] text-gray-500 mt-0.5">Publicando seu anúncio…</p>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Animations */}
+      <style>{`
+        .step-fade {
+          animation: stepIn 320ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @keyframes stepIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 };
+
+/* ---------- Small presentational helpers ---------- */
+
+const Row = ({ label, value, strong }: { label: string; value: React.ReactNode; strong?: boolean }) => (
+  <div className="flex items-center justify-between px-4 py-2.5">
+    <span className="text-[12px] text-gray-500">{label}</span>
+    <span className={`text-[12.5px] text-right truncate max-w-[60%] ${strong ? "font-semibold text-[#0A0A0A]" : "text-[#0A0A0A]"}`}>
+      {value}
+    </span>
+  </div>
+);
+
+const EditableRow = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
+  <div className="flex items-center justify-between px-4 py-2">
+    <span className="text-[12px] text-gray-500">{label}</span>
+    <div className="relative w-28">
+      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11.5px] text-gray-400">R$</span>
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        value={value || ""}
+        onChange={(e) => onChange(Number(e.target.value))}
+        placeholder="0,00"
+        className="w-full rounded-lg border border-gray-200 bg-white pl-7 pr-2 py-1.5 text-[12.5px] font-medium text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors text-right"
+      />
+    </div>
+  </div>
+);
+
+const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div className="flex items-center justify-between">
+    <span className="text-[11.5px] text-gray-500">{label}</span>
+    <span className="text-[12px] text-[#0A0A0A]">{value}</span>
+  </div>
+);
+
+const PlatformCard = ({
+  name, status, selected, disabled, onToggle,
+}: {
+  name: string; status: string; selected: boolean; disabled?: boolean; onToggle: () => void;
+}) => (
+  <button
+    onClick={onToggle}
+    disabled={disabled}
+    className={`relative rounded-xl border p-3 text-center transition-all ${
+      selected
+        ? "border-[#0A0A0A] bg-[#0A0A0A]/[0.02]"
+        : disabled
+        ? "border-gray-200 opacity-50 cursor-not-allowed"
+        : "border-gray-200 hover:border-gray-400"
+    }`}
+  >
+    {selected && (
+      <span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#0A0A0A]">
+        <Check size={9} strokeWidth={3} className="text-white" />
+      </span>
+    )}
+    <p className={`text-[12.5px] font-semibold ${selected ? "text-[#0A0A0A]" : disabled ? "text-gray-500" : "text-[#0A0A0A]"}`}>
+      {name}
+    </p>
+    <p className="text-[10.5px] text-gray-400 mt-0.5">{status}</p>
+  </button>
+);
 
 export default ImportProductModal;
