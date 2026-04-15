@@ -55,6 +55,8 @@ const CatalogPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
+  const [compareProductId, setCompareProductId] = useState<string | null>(null);
+  const [compareProductTitle, setCompareProductTitle] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const limit = 20;
