@@ -393,6 +393,13 @@ const CatalogPage = () => {
         open={isIntegrationModalOpen}
         onClose={() => setIsIntegrationModalOpen(false)}
       />
+
+      <SupplierCompareModal
+        open={!!compareProductId}
+        onClose={() => setCompareProductId(null)}
+        productId={compareProductId}
+        productTitle={compareProductTitle}
+      />
     </div>
   );
 };
