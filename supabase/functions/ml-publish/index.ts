@@ -294,21 +294,21 @@ serve(async (req) => {
     try {
       await supabase.from('user_publications').insert({
         user_id,
-        ml_item_id: mlData.id,
+        ml_item_id: itemId,
         title,
         thumbnail: publicImages[0] || null,
         price: product.price,
         cost_price: product.cost_price || null,
         status: 'active',
-        permalink: mlData.permalink,
+        permalink: itemData.permalink,
         published_at: new Date().toISOString(),
       })
     } catch (pubErr) {
       console.error('Erro ao salvar publicação:', pubErr)
     }
 
-    console.log('=== ml-publish SUCCESS ===', mlData.id)
-    return json({ success: true, permalink: mlData.permalink, item_id: mlData.id })
+    console.log('=== ml-publish SUCCESS ===', itemId)
+    return json({ success: true, permalink: itemData.permalink, item_id: itemId })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'
