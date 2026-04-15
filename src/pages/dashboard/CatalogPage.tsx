@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, MoreHorizontal, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, ArrowUpRight, Network } from "lucide-react";
+import { Search, ChevronDown, MoreHorizontal, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, ArrowUpRight, Network, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
+import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
