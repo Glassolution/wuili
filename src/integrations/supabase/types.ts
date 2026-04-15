@@ -190,6 +190,99 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_products: {
+        Row: {
+          cost_price: number
+          created_at: string
+          external_id: string
+          id: string
+          product_id: string
+          rating: number | null
+          raw_data: Json | null
+          shipping_cost: number
+          shipping_days: number
+          stock_status: string
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          cost_price?: number
+          created_at?: string
+          external_id: string
+          id?: string
+          product_id: string
+          rating?: number | null
+          raw_data?: Json | null
+          shipping_cost?: number
+          shipping_days?: number
+          stock_status?: string
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          cost_price?: number
+          created_at?: string
+          external_id?: string
+          id?: string
+          product_id?: string
+          rating?: number | null
+          raw_data?: Json | null
+          shipping_cost?: number
+          shipping_days?: number
+          stock_status?: string
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          api_config: Json | null
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          api_config?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          api_config?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_integrations: {
         Row: {
           access_token: string | null

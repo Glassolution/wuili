@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, MoreHorizontal, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, ArrowUpRight, Network } from "lucide-react";
+import { Search, ChevronDown, MoreHorizontal, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, ArrowUpRight, Network, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
+import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
@@ -54,6 +55,8 @@ const CatalogPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
+  const [compareProductId, setCompareProductId] = useState<string | null>(null);
+  const [compareProductTitle, setCompareProductTitle] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const limit = 20;
@@ -336,13 +339,20 @@ const CatalogPage = () => {
                     </div>
                   </div>
 
-                  {/* Import button */}
-                  <div className="mt-3">
+                  {/* Action buttons */}
+                  <div className="mt-3 flex gap-2">
                     <button
                       onClick={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
-                      className="flex w-full items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
+                      className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
                     >
                       Importar produto
+                    </button>
+                    <button
+                      onClick={() => { setCompareProductId(p.id); setCompareProductTitle(p.title); }}
+                      className="flex items-center justify-center rounded-xl border border-border bg-background p-2.5 text-foreground transition-colors hover:bg-muted"
+                      title="Ver fornecedores"
+                    >
+                      <Users size={14} />
                     </button>
                   </div>
                 </div>
@@ -382,6 +392,13 @@ const CatalogPage = () => {
       <PlatformIntegrationModal
         open={isIntegrationModalOpen}
         onClose={() => setIsIntegrationModalOpen(false)}
+      />
+
+      <SupplierCompareModal
+        open={!!compareProductId}
+        onClose={() => setCompareProductId(null)}
+        productId={compareProductId}
+        productTitle={compareProductTitle}
       />
     </div>
   );
