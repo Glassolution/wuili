@@ -255,10 +255,15 @@ serve(async (req) => {
 
     console.log('Publicado com sucesso! Item ID:', mlData.id)
 
-    // === DESCRIPTION (separate call, ML requires it) ===
-    const descriptionText = product.description || `${title} - Produto de alta qualidade com envio rápido.`
+    // === DESCRIPTION (separate POST to /items/{id}/description) ===
+    const rawDesc = product.description || ''
+    const descriptionText = rawDesc.length > 20
+      ? rawDesc
+      : `${title} - Produto de alta qualidade. Envio rápido para todo o Brasil. Satisfação garantida.`
+    
+    console.log('Enviando descrição para item:', mlData.id, `(${descriptionText.length} chars)`)
     try {
-      await fetch(`https://api.mercadolibre.com/items/${mlData.id}/description`, {
+      const descRes = await fetch(`https://api.mercadolibre.com/items/${mlData.id}/description`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -266,6 +271,12 @@ serve(async (req) => {
         },
         body: JSON.stringify({ plain_text: descriptionText }),
       })
+      const descData = await descRes.json()
+      if (!descRes.ok) {
+        console.error('Erro ML descrição:', JSON.stringify(descData))
+      } else {
+        console.log('Descrição enviada com sucesso para:', mlData.id)
+      }
     } catch (descErr) {
       console.error('Erro ao enviar descrição:', descErr)
     }
