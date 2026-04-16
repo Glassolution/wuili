@@ -25,6 +25,9 @@ export type Database = {
           images: Json | null
           is_active: boolean | null
           margin_percent: number
+          orders_count: number | null
+          original_price: number | null
+          rating: number | null
           source: string
           stock_quantity: number | null
           suggested_price: number
@@ -32,6 +35,8 @@ export type Database = {
           supplier_name: string | null
           title: string
           updated_at: string | null
+          variants: Json | null
+          weight: number | null
         }
         Insert: {
           category?: string | null
@@ -43,6 +48,9 @@ export type Database = {
           images?: Json | null
           is_active?: boolean | null
           margin_percent: number
+          orders_count?: number | null
+          original_price?: number | null
+          rating?: number | null
           source?: string
           stock_quantity?: number | null
           suggested_price: number
@@ -50,6 +58,8 @@ export type Database = {
           supplier_name?: string | null
           title: string
           updated_at?: string | null
+          variants?: Json | null
+          weight?: number | null
         }
         Update: {
           category?: string | null
@@ -61,6 +71,9 @@ export type Database = {
           images?: Json | null
           is_active?: boolean | null
           margin_percent?: number
+          orders_count?: number | null
+          original_price?: number | null
+          rating?: number | null
           source?: string
           stock_quantity?: number | null
           suggested_price?: number
@@ -68,6 +81,8 @@ export type Database = {
           supplier_name?: string | null
           title?: string
           updated_at?: string | null
+          variants?: Json | null
+          weight?: number | null
         }
         Relationships: []
       }
