@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -137,7 +138,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const handleClose = () => {
     if (publishing) return;
     setVisible(false);
-    setTimeout(onClose, 280);
+    setTimeout(onClose, 160);
   };
 
   const handleConnectML = () => {
@@ -277,11 +278,11 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const titleLength = title.length;
   const canAdvance = step === 1 ? hasStock : step === 2 ? (!!title.trim() && sellPrice > totalCost) : true;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Overlay */}
       <div
-        className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] transition-opacity duration-300 ${
+        className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] transition-opacity duration-150 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
         onClick={handleClose}
@@ -289,7 +290,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
 
       {/* Drawer */}
       <div
-        className={`relative flex w-full max-w-[1040px] h-full overflow-hidden bg-white shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.2)] transition-transform duration-300 ease-out ${
+        className={`relative flex w-full max-w-[1040px] h-full overflow-hidden bg-white shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.2)] transition-transform duration-150 ease-out ${
           visible ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -366,7 +367,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
           </div>
 
           {/* Content — animated per step */}
-          <div className="flex-1 overflow-y-auto px-8" style={{ scrollbarWidth: "thin" }}>
+          <div className="flex-1 overflow-y-auto px-8" style={{ scrollbarWidth: "thin", minHeight: 320 }}>
             {/* STEP 1 — Fornecedor */}
             {step === 1 && (
               <div key="s1" className="step-fade space-y-6 pb-6">
@@ -764,15 +765,15 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
       {/* Animations */}
       <style>{`
         .step-fade {
-          animation: stepIn 320ms cubic-bezier(0.22, 1, 0.36, 1);
+          animation: stepIn 150ms ease both;
         }
         @keyframes stepIn {
-          from { opacity: 0; transform: translateY(6px); }
+          from { opacity: 0; transform: translateY(4px); }
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
-  );
+  , document.body);
 };
 
 /* ---------- Small presentational helpers ---------- */

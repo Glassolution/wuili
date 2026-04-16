@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, MoreHorizontal, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, ArrowUpRight, Network, Users } from "lucide-react";
+import { Search, ChevronDown, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, Network, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
@@ -33,13 +33,15 @@ const CatalogPage = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
   const [compareProductId, setCompareProductId] = useState<string | null>(null);
   const [compareProductTitle, setCompareProductTitle] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const limit = 20;
 
@@ -48,9 +50,10 @@ const CatalogPage = () => {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node))
+        setFilterDropdownOpen(false);
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node))
+        setCategoryDropdownOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -110,31 +113,20 @@ const CatalogPage = () => {
     } catch { return null; }
   };
 
-  const categoryDropdownRef = useRef<HTMLDivElement>(null);
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
-        setCategoryDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  const activeCategoryLabel = CATEGORIES.find(c => c.key === category)?.label ?? "Todos";
+  const activeFilterLabel = QUICK_FILTERS.find(f => f.key === quickFilter)?.label ?? "Todos";
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground tracking-tight">Dropshipping</h2>
         <button
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending}
-          className="ml-2 flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-          title="Sincronizar catálogo CJ"
+          className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
         >
-          <RefreshCw size={12} className={syncMutation.isPending ? "animate-spin" : ""} />
+          <RefreshCw size={13} className={syncMutation.isPending ? "animate-spin" : ""} />
           {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
         </button>
       </div>
@@ -146,20 +138,24 @@ const CatalogPage = () => {
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-44 rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-48 rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="Buscar produto"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
 
-          {/* Category dropdown */}
+          {/* Categoria dropdown */}
           <div className="relative" ref={categoryDropdownRef}>
             <button
               onClick={() => setCategoryDropdownOpen((v) => !v)}
-              className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                categoryDropdownOpen || category !== "todos"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-background text-foreground hover:bg-muted"
+              }`}
             >
-              {CATEGORIES.find(c => c.key === category)?.label || "Categorias"}
+              {activeCategoryLabel}
               <ChevronDown size={13} className={`transition-transform ${categoryDropdownOpen ? "rotate-180" : ""}`} />
             </button>
             {categoryDropdownOpen && (
@@ -183,20 +179,20 @@ const CatalogPage = () => {
             )}
           </div>
 
-          {/* Quick filter dropdown */}
-          <div className="relative" ref={dropdownRef}>
+          {/* Filtrar dropdown */}
+          <div className="relative" ref={filterDropdownRef}>
             <button
-              onClick={() => setDropdownOpen((v) => !v)}
+              onClick={() => setFilterDropdownOpen((v) => !v)}
               className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                dropdownOpen || quickFilter !== "all"
+                filterDropdownOpen || quickFilter !== "all"
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-background text-foreground hover:bg-muted"
               }`}
             >
-              {quickFilter !== "all" ? QUICK_FILTERS.find(f => f.key === quickFilter)?.label : "Filtrar"}
-              <ChevronDown size={13} className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+              {quickFilter !== "all" ? activeFilterLabel : "Filtrar"}
+              <ChevronDown size={13} className={`transition-transform ${filterDropdownOpen ? "rotate-180" : ""}`} />
             </button>
-            {dropdownOpen && (
+            {filterDropdownOpen && (
               <div className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-background shadow-lg overflow-hidden py-1.5">
                 {QUICK_FILTERS.filter(f => f.key !== "all").map((f) => {
                   const Icon = f.icon;
@@ -204,7 +200,7 @@ const CatalogPage = () => {
                   return (
                     <button
                       key={f.key}
-                      onClick={() => { setQuickFilter(f.key); setDropdownOpen(false); }}
+                      onClick={() => { setQuickFilter(f.key); setFilterDropdownOpen(false); }}
                       className={`flex w-full items-center justify-between px-3.5 py-2 text-sm transition-colors ${
                         active ? "font-semibold text-foreground bg-foreground/5" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
@@ -221,7 +217,7 @@ const CatalogPage = () => {
                   <>
                     <div className="my-1 border-t border-border" />
                     <button
-                      onClick={() => { setQuickFilter("all"); setDropdownOpen(false); }}
+                      onClick={() => { setQuickFilter("all"); setFilterDropdownOpen(false); }}
                       className="flex w-full items-center px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground"
                     >
                       Limpar filtro
@@ -252,6 +248,7 @@ const CatalogPage = () => {
               <div className="p-4 space-y-3">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-1/3" />
                 <Skeleton className="h-10 w-full rounded-xl" />
               </div>
             </div>
@@ -272,11 +269,14 @@ const CatalogPage = () => {
           {products.map((p: any) => {
             const img = getImage(p.images);
             const isBestseller = (p.orders_count || 0) > 100;
-            const suggestedSale = Math.round(p.cost_price * 2.5 * 100) / 100;
+            const lucro = Math.round((p.suggested_price - p.cost_price) * 100) / 100;
+            const categoryLabel = p.category
+              ? p.category.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+              : null;
             return (
               <div
                 key={p.id}
-                className="group overflow-hidden rounded-2xl border border-border bg-background transition-shadow hover:shadow-md"
+                className="group overflow-hidden rounded-2xl border border-border bg-background card-hover"
               >
                 {/* Product image */}
                 <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#f5f5f5] dark:bg-muted/50">
@@ -284,14 +284,18 @@ const CatalogPage = () => {
                     <img
                       src={img}
                       alt={p.title}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      width={400}
+                      height={300}
+                      className="h-full w-full object-cover"
                       loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <Package size={32} className="text-muted-foreground/30" />
                   )}
+                  {/* Source + bestseller badges */}
                   <div className="absolute left-3 top-3 flex items-center gap-1.5">
-                    <span className="rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-bold text-background">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-background">
                       CJ
                     </span>
                     {isBestseller && (
@@ -300,35 +304,36 @@ const CatalogPage = () => {
                       </span>
                     )}
                   </div>
-                  {p.category && (
-                    <span className="absolute right-3 top-3 rounded-full bg-background/80 backdrop-blur-sm px-2 py-0.5 text-[10px] font-medium text-foreground">
-                      {p.category}
+                  {/* Category badge */}
+                  {categoryLabel && (
+                    <span className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[10.5px] font-medium text-foreground/80 shadow-sm backdrop-blur-sm">
+                      {categoryLabel}
                     </span>
                   )}
                 </div>
 
                 {/* Card body */}
                 <div className="px-4 pb-4 pt-3">
-                  <p className="text-[14px] font-semibold leading-[1.35] text-foreground line-clamp-2">
+                  <p className="text-[13.5px] font-semibold leading-[1.35] text-foreground line-clamp-2">
                     {p.title}
                   </p>
 
-                  {/* Price rows */}
-                  <div className="mt-3 space-y-1.5">
-                    <div className="flex items-baseline justify-between">
-                      <div>
-                        <p className="text-[11px] leading-none text-muted-foreground">Custo</p>
-                        <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{formatPrice(p.cost_price)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[11px] leading-none text-muted-foreground">Venda sugerida</p>
-                        <p className="mt-0.5 text-[14px] font-bold leading-none text-emerald-600">{formatPrice(suggestedSale)}</p>
-                      </div>
+                  {/* Custo + Venda sugerida */}
+                  <div className="mt-3 flex items-start justify-between">
+                    <div>
+                      <p className="text-[11px] text-muted-foreground">Custo</p>
+                      <p className="mt-0.5 text-[13.5px] font-bold text-foreground">{formatPrice(p.cost_price)}</p>
                     </div>
-                    <p className="text-[11px] text-emerald-600 font-medium">
-                      Lucro estimado: {formatPrice(suggestedSale - p.cost_price)}
-                    </p>
+                    <div className="text-right">
+                      <p className="text-[11px] text-muted-foreground">Venda sugerida</p>
+                      <p className="mt-0.5 text-[13.5px] font-bold text-foreground">{formatPrice(p.suggested_price)}</p>
+                    </div>
                   </div>
+
+                  {/* Lucro estimado */}
+                  <p className="mt-1.5 text-[11.5px] font-medium text-emerald-600">
+                    Lucro estimado: {formatPrice(lucro)}
+                  </p>
 
                   {/* Action buttons */}
                   <div className="mt-3 flex gap-2">

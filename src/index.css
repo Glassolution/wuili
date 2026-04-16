@@ -267,3 +267,34 @@
 .animate-orb-drift-c { animation: orb-drift-c 20s ease-in-out infinite alternate; }
 .animate-speck-float { animation: speck-float 6s ease-in-out infinite; }
 
+/* Dashboard — page content fade-in (opacity only — transform quebraria fixed positioning) */
+@keyframes pageFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.page-fade-in {
+  animation: pageFadeIn 120ms ease both;
+}
+
+/* Dashboard card hover — GPU-accelerated only */
+.card-hover {
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  will-change: transform;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+}
+
+/* Skeleton pulse */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.skeleton-pulse {
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+

@@ -73,7 +73,7 @@ const DashboardSidebar = () => {
             <Link
               to="/dashboard/ia"
               className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                "flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
                 isActive("/dashboard/ia")
                   ? "bg-foreground text-background shadow-sm"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -91,7 +91,7 @@ const DashboardSidebar = () => {
             <Link
               to="/dashboard/dropshipping"
               className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                "flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
                 isDropshippingActive
                   ? "bg-foreground text-background shadow-sm"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -113,7 +113,7 @@ const DashboardSidebar = () => {
                   <Link
                     to={to}
                     className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                      "flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
                       active
                         ? "bg-foreground text-background shadow-sm"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -142,7 +142,7 @@ const DashboardSidebar = () => {
           <div className="relative">
             <button
               onClick={() => setMenuOpen(v => !v)}
-              className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-foreground text-[11px] font-bold text-background transition-opacity hover:opacity-90"
+              className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-foreground text-[11px] font-bold text-background"
             >
               {foto ? <img src={foto} alt="avatar" className="h-full w-full object-cover" /> : iniciais}
               <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full border-2 border-background bg-emerald-500" />

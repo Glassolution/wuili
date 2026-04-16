@@ -34,7 +34,11 @@
       "Bash(npx supabase@1.207.9 link --project-ref nqzpoioxvbqavrtphtoa)",
       "Bash(npx supabase@1.207.9 functions deploy catalog --project-ref nqzpoioxvbqavrtphtoa)",
       "Read(//c/Users/lordm/.supabase/**)",
-      "Bash(cat C:/dev/wuilli/.github/workflows/*.yml)"
+      "Bash(cat C:/dev/wuilli/.github/workflows/*.yml)",
+      "Bash(find /c/dev/wuilli -maxdepth 1 -name \"package.json\" -exec cat {} \\\\;)",
+      "Bash(wc -l /c/dev/wuilli/src/pages/dashboard/*.tsx)",
+      "Bash(grep -n \"sidebarEntry\\\\|topbarEntry\" /c/dev/wuilli/src/*.css)",
+      "Bash(xargs grep:*)"
     ]
   }
 }
