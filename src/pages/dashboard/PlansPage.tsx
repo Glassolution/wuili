@@ -64,6 +64,22 @@ const PlansPage = () => {
       });
   }, [user]);
 
+  // When arriving from landing CTA with ?plan=plus, show toast and clear param
+  useEffect(() => {
+    if (planFromUrl && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      if (planFromUrl === "plus") {
+        toast.info("Selecione a forma de pagamento e confirme para ativar o Plus.");
+      } else if (planFromUrl === "go" || planFromUrl === "pro") {
+        toast.info(`O plano ${planFromUrl.toUpperCase()} estará disponível em breve.`);
+      }
+      // remove the ?plan param from URL
+      const next = new URLSearchParams(searchParams);
+      next.delete("plan");
+      setSearchParams(next, { replace: true });
+    }
+  }, [planFromUrl, searchParams, setSearchParams]);
+
   const handleCheckout = async (plan: string) => {
     if (!session) {
       toast.error("Você precisa estar logado");
