@@ -12,14 +12,14 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [remember, setRemember] = useState(true);
 
   // If already logged in, redirect to dashboard
   if (!authLoading && user) {
     return <Navigate to="/dashboard" replace />;
   }
-  const [resetMode, setResetMode] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const [remember, setRemember] = useState(true);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
