@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle2 } from "lucide-react";
+import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
 import { toast } from "sonner";
 
 const PLANS = [
@@ -75,14 +76,13 @@ const PlansPage = () => {
 
       // For credit card, generate token via MP SDK
       if (selectedMethod === "credit_card") {
-        const mpPublicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-        if (!mpPublicKey) {
+        if (!MP_PUBLIC_KEY || MP_PUBLIC_KEY.includes("PLACEHOLDER")) {
           toast.error("Chave pública do Mercado Pago não configurada");
           setCheckoutState("idle");
           return;
         }
         // @ts-ignore - MercadoPago SDK loaded via script
-        const mp = new window.MercadoPago(mpPublicKey, { locale: "pt-BR" });
+        const mp = new window.MercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
 
         const [expMonth, expYear] = cardExpiry.split("/");
         const cardTokenRes = await mp.createCardToken({
