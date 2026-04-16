@@ -88,6 +88,11 @@ const CadastroPage = () => {
     }
   }, [step, animating]);
 
+  // Logged-in users skip signup and go to dashboard
+  if (!authLoading && user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const getQuestion = () => {
     if (step === "email") return `Prazer, ${nome.split(" ")[0]}! Qual é o seu email?`;
     if (step === "criando") return `Criando sua conta, ${nome.split(" ")[0]}...`;
