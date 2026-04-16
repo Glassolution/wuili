@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import BrandMark from "@/components/brand/BrandMark";
 import LogosStrip from "@/components/landing/LogosStrip";
 import CreditBanner from "@/components/landing/CreditBanner";
@@ -15,6 +16,12 @@ const NAV_LINKS = ["Produto", "Soluções", "FAQ", "Suporte"];
 
 const Index = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, loading } = useAuth();
+
+  // Logged-in users skip the landing page and go straight to dashboard
+  if (!loading && user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-[#0a0a0a]">

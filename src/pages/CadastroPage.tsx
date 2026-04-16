@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { ArrowUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import BrandMark from "@/components/brand/BrandMark";
@@ -64,6 +65,7 @@ function isValidWhatsApp(v: string): boolean {
 
 const CadastroPage = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState<Step>("nome");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -85,6 +87,11 @@ const CadastroPage = () => {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [step, animating]);
+
+  // Logged-in users skip signup and go to dashboard
+  if (!authLoading && user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const getQuestion = () => {
     if (step === "email") return `Prazer, ${nome.split(" ")[0]}! Qual é o seu email?`;
