@@ -63,7 +63,7 @@ const DashboardSidebar = () => {
       {/* Rail */}
       <nav className="flex h-full w-[60px] shrink-0 flex-col items-center border-r border-border bg-background py-4 gap-1">
         {/* Logo */}
-        <Link to="/" className="mb-4 flex items-center justify-center h-9 w-9">
+        <Link to="/?home=1" className="mb-4 flex items-center justify-center h-9 w-9">
           <BrandMark size="sm" tone="light" />
         </Link>
 

@@ -1,4 +1,4 @@
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import BrandMark from "@/components/brand/BrandMark";
@@ -17,9 +17,12 @@ const NAV_LINKS = ["Produto", "Soluções", "FAQ", "Suporte"];
 const Index = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, loading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const forceHome = searchParams.get("home") === "1";
 
-  // Logged-in users skip the landing page and go straight to dashboard
-  if (!loading && user) {
+  // Logged-in users skip the landing page and go straight to dashboard,
+  // unless they explicitly opted to view the home page (?home=1).
+  if (!loading && user && !forceHome) {
     return <Navigate to="/dashboard" replace />;
   }
 
