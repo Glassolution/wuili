@@ -139,23 +139,6 @@ const CatalogPage = () => {
         </button>
       </div>
 
-      {/* Category chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.key}
-            onClick={() => { setCategory(c.key); setPage(1); }}
-            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-              category === c.key
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
       {/* Filters row */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -168,6 +151,36 @@ const CatalogPage = () => {
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
+          </div>
+
+          {/* Category dropdown */}
+          <div className="relative" ref={categoryDropdownRef}>
+            <button
+              onClick={() => setCategoryDropdownOpen((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              {CATEGORIES.find(c => c.key === category)?.label || "Categorias"}
+              <ChevronDown size={13} className={`transition-transform ${categoryDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+            {categoryDropdownOpen && (
+              <div className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-background shadow-lg overflow-hidden py-1.5">
+                {CATEGORIES.map((c) => {
+                  const active = category === c.key;
+                  return (
+                    <button
+                      key={c.key}
+                      onClick={() => { setCategory(c.key); setPage(1); setCategoryDropdownOpen(false); }}
+                      className={`flex w-full items-center justify-between px-3.5 py-2 text-sm transition-colors ${
+                        active ? "font-semibold text-foreground bg-foreground/5" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {c.label}
+                      {active && <Check size={12} />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Quick filter dropdown */}
