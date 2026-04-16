@@ -65,6 +65,12 @@ function isValidWhatsApp(v: string): boolean {
 
 const CadastroPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = searchParams.get("next");
+  const planParam = searchParams.get("plan");
+  const redirectTarget = nextPath
+    ? `${nextPath}${planParam ? `?plan=${planParam}` : ""}`
+    : "/dashboard";
   const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState<Step>("nome");
   const [input, setInput] = useState("");
