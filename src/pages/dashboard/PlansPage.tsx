@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle2 } from "lucide-react";
@@ -36,11 +37,14 @@ type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
 
 const PlansPage = () => {
   const { user, session } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const planFromUrl = searchParams.get("plan");
   const [currentPlan, setCurrentPlan] = useState("gratis");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("pix");
   const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle");
   const [pixData, setPixData] = useState<{ qr_code_base64: string; copy_paste: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const autoStartedRef = useRef(false);
 
   // Card fields
   const [cardNumber, setCardNumber] = useState("");
