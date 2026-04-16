@@ -9,11 +9,14 @@ import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
-  { key: "eletronicos", label: "Eletrônicos" },
-  { key: "telefones", label: "Telefones" },
   { key: "beleza", label: "Beleza" },
   { key: "casa", label: "Casa" },
-  { key: "esportes", label: "Esportes" },
+  { key: "eletronicos", label: "Eletrônicos" },
+  { key: "moda", label: "Moda" },
+  { key: "esporte", label: "Esporte" },
+  { key: "pet", label: "Pet" },
+  { key: "bebes", label: "Bebês" },
+  { key: "organizacao", label: "Organização" },
 ];
 
 type QuickFilter = "all" | "best" | "recent" | "in_stock";
@@ -24,27 +27,6 @@ const QUICK_FILTERS: { key: QuickFilter; label: string; icon: any }[] = [
   { key: "recent", label: "Recentes", icon: Clock },
   { key: "in_stock", label: "Em estoque", icon: PackageCheck },
 ];
-
-function calcScore(p: any): number {
-  let score = 0;
-  if (!p.stock_quantity || p.stock_quantity === 0) score -= 100;
-  else score += 50;
-  if (p.created_at) {
-    const days = (Date.now() - new Date(p.created_at).getTime()) / 86400000;
-    if (days < 7) score += 30;
-    else if (days < 30) score += 20;
-  }
-  const sp = p.suggested_price || 0;
-  if (sp >= 49 && sp <= 199) score += 25;
-  else if (sp >= 20 && sp < 49) score += 10;
-  else if (sp > 300) score -= 20;
-  const margin = sp > 0 ? ((sp - p.cost_price) / sp) * 100 : 0;
-  if (margin >= 60) score += 15;
-  else if (margin >= 50) score += 10;
-  else score -= 10;
-  if (p.cost_price > 500) score -= 30;
-  return score;
-}
 
 const CatalogPage = () => {
   const [category, setCategory] = useState("todos");
@@ -64,7 +46,6 @@ const CatalogPage = () => {
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
   const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -90,7 +71,7 @@ const CatalogPage = () => {
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const url = `https://${projectId}.supabase.co/functions/v1/cj-sync-products`;
+      const url = `https://${projectId}.supabase.co/functions/v1/cj-sync`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
@@ -98,7 +79,7 @@ const CatalogPage = () => {
       return res.json();
     },
     onSuccess: (data) => {
-      toast.success(`${data.totalSynced || 0} produtos sincronizados!`);
+      toast.success(`${data.synced || 0} produtos sincronizados!`);
       queryClient.invalidateQueries({ queryKey: ["catalog"] });
     },
     onError: () => toast.error("Erro ao sincronizar produtos"),
@@ -108,15 +89,15 @@ const CatalogPage = () => {
   const totalPages = data?.totalPages || 1;
 
   const products = useMemo(() => {
-    let scored = rawProducts.map((p: any) => ({ ...p, _score: calcScore(p) }));
-    if (quickFilter === "best") scored = scored.filter((p: any) => p._score >= 40);
-    else if (quickFilter === "recent") scored = scored.filter((p: any) => {
+    let list = [...rawProducts];
+    if (quickFilter === "best") list = list.filter((p: any) => (p.orders_count || 0) > 50);
+    else if (quickFilter === "recent") list = list.filter((p: any) => {
       if (!p.created_at) return false;
       return (Date.now() - new Date(p.created_at).getTime()) / 86400000 < 30;
     });
-    else if (quickFilter === "in_stock") scored = scored.filter((p: any) => p.stock_quantity && p.stock_quantity > 0);
-    scored.sort((a: any, b: any) => b._score - a._score);
-    return scored;
+    else if (quickFilter === "in_stock") list = list.filter((p: any) => p.stock_quantity && p.stock_quantity > 0);
+    // Already sorted by orders_count DESC from backend
+    return list;
   }, [rawProducts, quickFilter]);
 
   const formatPrice = (v: number) =>
@@ -147,30 +128,49 @@ const CatalogPage = () => {
       {/* Header */}
       <div className="flex items-center gap-2">
         <h2 className="text-2xl font-bold text-foreground tracking-tight">Dropshipping</h2>
-        <button className="text-muted-foreground hover:text-foreground transition-colors">
-          <MoreHorizontal size={18} />
+        <button
+          onClick={() => syncMutation.mutate()}
+          disabled={syncMutation.isPending}
+          className="ml-2 flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+          title="Sincronizar catálogo CJ"
+        >
+          <RefreshCw size={12} className={syncMutation.isPending ? "animate-spin" : ""} />
+          {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
         </button>
-        <button className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowUpRight size={16} />
-        </button>
+      </div>
+
+      {/* Category chips */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.key}
+            onClick={() => { setCategory(c.key); setPage(1); }}
+            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              category === c.key
+                ? "bg-foreground text-background"
+                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
 
       {/* Filters row */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-
           {/* Search */}
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               className="w-44 rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              placeholder="Search"
+              placeholder="Buscar produto"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
 
-          {/* Filtrar dropdown */}
+          {/* Quick filter dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((v) => !v)}
@@ -218,45 +218,6 @@ const CatalogPage = () => {
               </div>
             )}
           </div>
-
-          {/* Categoria dropdown */}
-          <div className="relative" ref={categoryDropdownRef}>
-            <button
-              onClick={() => setCategoryDropdownOpen((v) => !v)}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                categoryDropdownOpen || category !== "todos"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-foreground hover:bg-muted"
-              }`}
-            >
-              {category !== "todos" ? CATEGORIES.find(c => c.key === category)?.label : "Categoria"}
-              <ChevronDown size={13} className={`transition-transform ${categoryDropdownOpen ? "rotate-180" : ""}`} />
-            </button>
-            {categoryDropdownOpen && (
-              <div className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-background shadow-lg overflow-hidden py-1.5">
-                {CATEGORIES.map((c) => {
-                  const active = category === c.key;
-                  return (
-                    <button
-                      key={c.key}
-                      onClick={() => { setCategory(c.key); setPage(1); setCategoryDropdownOpen(false); }}
-                      className={`flex w-full items-center justify-between px-3.5 py-2 text-sm transition-colors ${
-                        active ? "font-semibold text-foreground bg-foreground/5" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {c.label}
-                      {active && <Check size={12} />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Ocultar */}
-          <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-1">
-            Ocultar
-          </button>
         </div>
 
         {/* Integrações */}
@@ -290,13 +251,15 @@ const CatalogPage = () => {
           <p className="text-xs text-muted-foreground mt-1">
             {quickFilter !== "all"
               ? "Nenhum produto corresponde a esse filtro. Tente outro."
-              : 'Clique em "Sincronizar produtos" para popular o catálogo.'}
+              : 'Clique em "Sincronizar" para popular o catálogo.'}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((p: any) => {
             const img = getImage(p.images);
+            const isBestseller = (p.orders_count || 0) > 100;
+            const suggestedSale = Math.round(p.cost_price * 2.5 * 100) / 100;
             return (
               <div
                 key={p.id}
@@ -314,9 +277,21 @@ const CatalogPage = () => {
                   ) : (
                     <Package size={32} className="text-muted-foreground/30" />
                   )}
-                  <span className="absolute left-3 top-3 rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-bold text-background">
-                    CJ Dropshipping
-                  </span>
+                  <div className="absolute left-3 top-3 flex items-center gap-1.5">
+                    <span className="rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-bold text-background">
+                      CJ
+                    </span>
+                    {isBestseller && (
+                      <span className="flex items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                        <Flame size={10} /> Mais vendido
+                      </span>
+                    )}
+                  </div>
+                  {p.category && (
+                    <span className="absolute right-3 top-3 rounded-full bg-background/80 backdrop-blur-sm px-2 py-0.5 text-[10px] font-medium text-foreground">
+                      {p.category}
+                    </span>
+                  )}
                 </div>
 
                 {/* Card body */}
@@ -325,18 +300,21 @@ const CatalogPage = () => {
                     {p.title}
                   </p>
 
-                  {/* Price + Profit */}
-                  <div className="mt-3 flex items-baseline justify-between">
-                    <div>
-                      <p className="text-[11px] leading-none text-muted-foreground">Você paga</p>
-                      <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{formatPrice(p.cost_price)}</p>
+                  {/* Price rows */}
+                  <div className="mt-3 space-y-1.5">
+                    <div className="flex items-baseline justify-between">
+                      <div>
+                        <p className="text-[11px] leading-none text-muted-foreground">Custo</p>
+                        <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{formatPrice(p.cost_price)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[11px] leading-none text-muted-foreground">Venda sugerida</p>
+                        <p className="mt-0.5 text-[14px] font-bold leading-none text-emerald-600">{formatPrice(suggestedSale)}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[11px] leading-none text-muted-foreground">Você lucra</p>
-                      <p className="mt-0.5 text-[14px] font-bold leading-none text-emerald-600">
-                        +{formatPrice(Math.round((p.suggested_price - p.cost_price) * 100) / 100)}
-                      </p>
-                    </div>
+                    <p className="text-[11px] text-emerald-600 font-medium">
+                      Lucro estimado: {formatPrice(suggestedSale - p.cost_price)}
+                    </p>
                   </div>
 
                   {/* Action buttons */}
@@ -397,7 +375,7 @@ const CatalogPage = () => {
       <SupplierCompareModal
         open={!!compareProductId}
         onClose={() => setCompareProductId(null)}
-        productId={compareProductId}
+        productId={compareProductId || ""}
         productTitle={compareProductTitle}
       />
     </div>
