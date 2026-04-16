@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   Users,
   BarChart3, Settings, MessageCircle, Wallet, Package,
-  ArrowLeftRight, CreditCard, HelpCircle, ChevronRight,
+  ArrowLeftRight, CreditCard, HelpCircle, ChevronRight, Crown,
 } from "lucide-react";
 import BrandMark from "@/components/brand/BrandMark";
 
@@ -18,6 +18,7 @@ const railLinks: RailLink[] = [
   { to: "/dashboard/saldos", icon: Wallet, label: "Saldos" },
   { to: "/dashboard/transacoes", icon: ArrowLeftRight, label: "Transações" },
   { to: "/dashboard/pagamentos", icon: CreditCard, label: "Pagamentos" },
+  { to: "/dashboard/planos", icon: Crown, label: "Planos" },
   { to: "/dashboard/relatorios", icon: BarChart3, label: "Relatórios" },
 ];
 

@@ -25,6 +25,7 @@ import SaldosPage from "./pages/dashboard/SaldosPage";
 import TransacoesPage from "./pages/dashboard/TransacoesPage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
 import PagamentosPage from "./pages/dashboard/PagamentosPage";
+import PlansPage from "./pages/dashboard/PlansPage";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="saldos" element={<SaldosPage />} />
             <Route path="transacoes" element={<TransacoesPage />} />
             <Route path="pagamentos" element={<PagamentosPage />} />
+            <Route path="planos" element={<PlansPage />} />
             <Route
               path="clientes"
               element={
