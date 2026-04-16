@@ -8,31 +8,29 @@ const corsHeaders = {
 const USD_TO_BRL = 5.0;
 const MIN_PRICE_BRL = 8;
 
+// Curated categories with keywords that return relevant products for Brazil
 const CURATED_CATEGORIES = [
-  { categoryId: "2447", name: "Beleza e Cuidados Pessoais" },
-  { categoryId: "2448", name: "Casa e Jardim" },
-  { categoryId: "2446", name: "Eletrônicos e Gadgets" },
-  { categoryId: "2440", name: "Moda Feminina" },
-  { categoryId: "2453", name: "Esporte e Lazer" },
-  { categoryId: "2458", name: "Pet" },
-  { categoryId: "2450", name: "Bebês e Crianças" },
-  { categoryId: "2449", name: "Organização e Utilidades" },
+  { keyword: "beauty skincare", name: "Beleza e Cuidados Pessoais" },
+  { keyword: "home kitchen organizer", name: "Casa e Jardim" },
+  { keyword: "wireless earbuds gadget", name: "Eletrônicos e Gadgets" },
+  { keyword: "women fashion accessories", name: "Moda Feminina" },
+  { keyword: "fitness yoga sport", name: "Esporte e Lazer" },
+  { keyword: "pet dog cat accessories", name: "Pet" },
+  { keyword: "baby kids toys", name: "Bebês e Crianças" },
+  { keyword: "storage organizer bathroom", name: "Organização e Utilidades" },
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function passesQualityFilter(p: any): boolean {
-  // Must have images
   const hasImage =
     (Array.isArray(p.productImageSet) && p.productImageSet.length > 0) ||
     p.productImage;
   if (!hasImage) return false;
 
-  // Title min 10 chars
   const title = p.productNameEn || p.productName || "";
   if (title.length < 10) return false;
 
-  // Min price
   const priceUsd = parseFloat(p.sellPrice || p.productSku?.[0]?.sellPrice || "0");
   if (priceUsd * USD_TO_BRL < MIN_PRICE_BRL) return false;
 
@@ -45,7 +43,6 @@ function mapProduct(p: any, categoryName: string) {
   const originalUsd = parseFloat(p.retailPrice || p.sellPrice || "0");
   const originalBrl = Math.round(originalUsd * USD_TO_BRL * 100) / 100;
 
-  // Dynamic margin based on cost bracket
   let multiplier: number;
   if (costBrl < 20) multiplier = 3.0;
   else if (costBrl < 50) multiplier = 2.8;
@@ -69,7 +66,6 @@ function mapProduct(p: any, categoryName: string) {
 
   const weight = parseFloat(p.productWeight || p.packWeight || "0");
 
-  // Variants from SKUs
   const variants =
     p.productSku?.map((sku: any) => ({
       skuId: sku.skuId || sku.vid,
@@ -94,7 +90,7 @@ function mapProduct(p: any, categoryName: string) {
     category: categoryName,
     supplier_name: p.supplierName || "CJ Dropshipping",
     supplier_contact: null,
-    stock_quantity: 999, // CJ manages stock
+    stock_quantity: 999,
     is_active: true,
     weight,
     variants: JSON.stringify(variants),
@@ -133,21 +129,17 @@ Deno.serve(async (req) => {
     const accessToken = authData.accessToken;
     const summary: Record<string, number> = {};
     let totalSynced = 0;
-    let totalUpdated = 0;
     const errors: string[] = [];
 
     for (let i = 0; i < CURATED_CATEGORIES.length; i++) {
       const cat = CURATED_CATEGORIES[i];
-      if (i > 0) await sleep(1500); // Rate limiting
+      if (i > 0) await sleep(1500);
 
       try {
         const params = new URLSearchParams({
-          categoryId: cat.categoryId,
+          productNameEn: cat.keyword,
           pageNum: "1",
           pageSize: "50",
-          orderBy: "ORDERS",
-          minPrice: "5",
-          maxPrice: "200",
         });
 
         const url = `https://developers.cjdropshipping.com/api2.0/v1/product/list?${params}`;
@@ -156,18 +148,23 @@ Deno.serve(async (req) => {
         });
         const json = await res.json();
 
-        console.log(`[cj-sync] ${cat.name} (${cat.categoryId}): code=${json.code}, total=${json.data?.list?.length || 0}`);
+        console.log(`[cj-sync] ${cat.name}: code=${json.code}, raw=${json.data?.list?.length || 0}`);
 
         if (json.code !== 200 || !json.data?.list) {
-          errors.push(`${cat.name}: API code ${json.code}`);
+          errors.push(`${cat.name}: API code ${json.code} - ${json.message || ''}`);
           summary[cat.name] = 0;
           continue;
         }
 
-        // Quality filter + sort by weight (lighter first for cheaper shipping)
+        // Quality filter + prioritize lighter products
         let filtered = json.data.list.filter(passesQualityFilter);
 
-        // Prioritize lighter products (< 500g)
+        // Filter by price range (USD 1-40 ≈ BRL 5-200)
+        filtered = filtered.filter((p: any) => {
+          const price = parseFloat(p.sellPrice || p.productSku?.[0]?.sellPrice || "0");
+          return price >= 1 && price <= 40;
+        });
+
         filtered.sort((a: any, b: any) => {
           const wa = parseFloat(a.productWeight || "9999");
           const wb = parseFloat(b.productWeight || "9999");
@@ -176,20 +173,19 @@ Deno.serve(async (req) => {
           return lightA - lightB;
         });
 
-        // Take top 20
         const top20 = filtered.slice(0, 20);
         const rows = top20.map((p: any) => mapProduct(p, cat.name));
 
         if (rows.length > 0) {
-          const { error, count } = await supabase
+          const { error } = await supabase
             .from("catalog_products")
-            .upsert(rows, { onConflict: "external_id", count: "exact" });
+            .upsert(rows, { onConflict: "external_id" });
 
           if (error) {
             console.error(`[cj-sync] Upsert error ${cat.name}:`, error);
-            errors.push(`${cat.name}: upsert error`);
+            errors.push(`${cat.name}: upsert - ${error.message}`);
           } else {
-            console.log(`[cj-sync] ${cat.name}: ${rows.length} products synced`);
+            console.log(`[cj-sync] ${cat.name}: ${rows.length} synced`);
           }
         }
 
@@ -206,7 +202,6 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         synced: totalSynced,
-        updated: totalUpdated,
         byCategory: summary,
         errors,
       }),
