@@ -8,7 +8,6 @@ const corsHeaders = {
 const USD_TO_BRL = 5.0;
 const MIN_PRICE_BRL = 8;
 
-// Curated categories with keywords that return relevant products for Brazil
 const CURATED_CATEGORIES = [
   { keyword: "beauty skincare", name: "Beleza e Cuidados Pessoais" },
   { keyword: "home kitchen organizer", name: "Casa e Jardim" },
@@ -21,6 +20,57 @@ const CURATED_CATEGORIES = [
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function translateBatch(titles: string[]): Promise<string[]> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey || titles.length === 0) return titles;
+
+  const prompt = `Traduza os seguintes títulos de produtos do inglês para português brasileiro. 
+Retorne APENAS um JSON array de strings traduzidas, na mesma ordem. 
+Mantenha nomes de marcas em inglês. Seja conciso e natural, como um título de produto em loja brasileira.
+Não adicione aspas extras, apenas o JSON array.
+
+Títulos:
+${JSON.stringify(titles)}`;
+
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("[cj-sync] Translation API error:", res.status);
+      return titles;
+    }
+
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    
+    const match = content.match(/\[[\s\S]*\]/);
+    if (!match) {
+      console.error("[cj-sync] Could not parse translation response");
+      return titles;
+    }
+
+    const translated = JSON.parse(match[0]);
+    if (Array.isArray(translated) && translated.length === titles.length) {
+      console.log(`[cj-sync] Translated ${translated.length} titles`);
+      return translated;
+    }
+    return titles;
+  } catch (err) {
+    console.error("[cj-sync] Translation error:", err);
+    return titles;
+  }
+}
 
 function passesQualityFilter(p: any): boolean {
   const hasImage =
@@ -37,7 +87,7 @@ function passesQualityFilter(p: any): boolean {
   return true;
 }
 
-function mapProduct(p: any, categoryName: string) {
+function mapProduct(p: any, categoryName: string, translatedTitle?: string) {
   const costUsd = parseFloat(p.sellPrice || p.productSku?.[0]?.sellPrice || "0");
   const costBrl = Math.round(costUsd * USD_TO_BRL * 100) / 100;
   const originalUsd = parseFloat(p.retailPrice || p.sellPrice || "0");
@@ -77,11 +127,13 @@ function mapProduct(p: any, categoryName: string) {
   const rating = parseFloat(p.productEvaluation || "0");
   const ordersCount = parseInt(p.listingCount || p.salesCount || "0", 10);
 
+  const originalTitle = p.productNameEn || p.productName || "Sem título";
+
   return {
     source: "cj",
     external_id: String(p.pid),
-    title: p.productNameEn || p.productName || "Sem título",
-    description: p.description || p.productNameEn || null,
+    title: translatedTitle || originalTitle,
+    description: p.description || originalTitle,
     images: JSON.stringify(images),
     cost_price: costBrl,
     original_price: originalBrl,
@@ -109,7 +161,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Get CJ access token
     const authRes = await fetch(`${supabaseUrl}/functions/v1/cj-auth`, {
       method: "POST",
       headers: {
@@ -156,10 +207,8 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Quality filter + prioritize lighter products
         let filtered = json.data.list.filter(passesQualityFilter);
 
-        // Filter by price range (USD 1-40 ≈ BRL 5-200)
         filtered = filtered.filter((p: any) => {
           const price = parseFloat(p.sellPrice || p.productSku?.[0]?.sellPrice || "0");
           return price >= 1 && price <= 40;
@@ -174,7 +223,12 @@ Deno.serve(async (req) => {
         });
 
         const top20 = filtered.slice(0, 20);
-        const rows = top20.map((p: any) => mapProduct(p, cat.name));
+
+        // Translate titles to Portuguese
+        const englishTitles = top20.map((p: any) => p.productNameEn || p.productName || "");
+        const translatedTitles = await translateBatch(englishTitles);
+
+        const rows = top20.map((p: any, idx: number) => mapProduct(p, cat.name, translatedTitles[idx]));
 
         if (rows.length > 0) {
           const { error } = await supabase
@@ -185,7 +239,7 @@ Deno.serve(async (req) => {
             console.error(`[cj-sync] Upsert error ${cat.name}:`, error);
             errors.push(`${cat.name}: upsert - ${error.message}`);
           } else {
-            console.log(`[cj-sync] ${cat.name}: ${rows.length} synced`);
+            console.log(`[cj-sync] ${cat.name}: ${rows.length} synced (translated)`);
           }
         }
 
