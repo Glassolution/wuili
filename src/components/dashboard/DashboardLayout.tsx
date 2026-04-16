@@ -12,8 +12,6 @@ const DashboardLayout = () => {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-
-  useEffect(() => {
     const params = new URLSearchParams(location.search);
 
     if (params.get("ml_connected") === "true") {
