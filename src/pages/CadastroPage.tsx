@@ -65,6 +65,7 @@ function isValidWhatsApp(v: string): boolean {
 
 const CadastroPage = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState<Step>("nome");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
