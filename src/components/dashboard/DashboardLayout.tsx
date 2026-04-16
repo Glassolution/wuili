@@ -3,10 +3,15 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardTopbar from "@/components/dashboard/DashboardTopbar";
+import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
 
 const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -30,6 +35,18 @@ const DashboardLayout = () => {
       navigate(location.pathname, { replace: true });
     }
   }, [location.search]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="dashboard-inter flex h-screen min-h-0 w-full max-w-full overflow-x-hidden bg-background">
