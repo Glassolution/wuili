@@ -23,16 +23,19 @@ Deno.serve(async (req) => {
       .select("*", { count: "exact" })
       .eq("is_active", true)
       .gt("stock_quantity", 0)
-      .order("created_at", { ascending: false })
+      .order("orders_count", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (category && category !== "todos") {
       const categoryMap: Record<string, string> = {
-        eletronicos: "Eletrônicos",
-        telefones: "Telefones e Acessórios",
-        beleza: "Beleza e Saúde",
+        beleza: "Beleza e Cuidados Pessoais",
         casa: "Casa e Jardim",
-        esportes: "Esportes",
+        eletronicos: "Eletrônicos e Gadgets",
+        moda: "Moda Feminina",
+        esporte: "Esporte e Lazer",
+        pet: "Pet",
+        bebes: "Bebês e Crianças",
+        organizacao: "Organização e Utilidades",
       };
       const mapped = categoryMap[category.toLowerCase()];
       if (mapped) {
