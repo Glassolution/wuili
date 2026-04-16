@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate, Link, Navigate } from "react-router-dom";
+import { useNavigate, Link, Navigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowUp, Check } from "lucide-react";
@@ -88,9 +88,9 @@ const CadastroPage = () => {
     }
   }, [step, animating]);
 
-  // Logged-in users skip signup and go to dashboard
+  // Logged-in users skip signup and go to destination
   if (!authLoading && user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={redirectTarget} replace />;
   }
 
   const getQuestion = () => {
@@ -176,7 +176,7 @@ const CadastroPage = () => {
 
         setLoading(false);
         toast.success("Conta criada com sucesso!");
-        setTimeout(() => navigate("/dashboard", { replace: true }), 1200);
+        setTimeout(() => navigate(redirectTarget, { replace: true }), 1200);
       }, 600);
     }
   };
