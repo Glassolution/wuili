@@ -75,11 +75,14 @@ const PlansPage = () => {
 
       // For credit card, generate token via MP SDK
       if (selectedMethod === "credit_card") {
+        const mpPublicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+        if (!mpPublicKey) {
+          toast.error("Chave pública do Mercado Pago não configurada");
+          setCheckoutState("idle");
+          return;
+        }
         // @ts-ignore - MercadoPago SDK loaded via script
-        const mp = new window.MercadoPago(
-          import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || (document.querySelector('meta[name="mp-public-key"]') as HTMLMetaElement)?.content,
-          { locale: "pt-BR" }
-        );
+        const mp = new window.MercadoPago(mpPublicKey, { locale: "pt-BR" });
 
         const [expMonth, expYear] = cardExpiry.split("/");
         const cardTokenRes = await mp.createCardToken({
