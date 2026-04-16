@@ -25,6 +25,7 @@ import SaldosPage from "./pages/dashboard/SaldosPage";
 import TransacoesPage from "./pages/dashboard/TransacoesPage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
 import PagamentosPage from "./pages/dashboard/PagamentosPage";
+import PlansPage from "./pages/dashboard/PlansPage";
 
 const queryClient = new QueryClient();
 
