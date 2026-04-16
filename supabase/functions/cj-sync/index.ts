@@ -66,13 +66,13 @@ function mapProduct(p: any, categoryName: string) {
 
   const weight = parseFloat(p.productWeight || p.packWeight || "0");
 
-  const variants =
-    p.productSku?.map((sku: any) => ({
-      skuId: sku.skuId || sku.vid,
-      name: sku.skuName || sku.variantName || "",
-      price: parseFloat(sku.sellPrice || "0") * USD_TO_BRL,
-      image: sku.skuImage || null,
-    })) || [];
+  const skuList = Array.isArray(p.productSku) ? p.productSku : [];
+  const variants = skuList.map((sku: any) => ({
+    skuId: sku.skuId || sku.vid || "",
+    name: sku.skuName || sku.variantName || "",
+    price: parseFloat(sku.sellPrice || "0") * USD_TO_BRL,
+    image: sku.skuImage || null,
+  }));
 
   const rating = parseFloat(p.productEvaluation || "0");
   const ordersCount = parseInt(p.listingCount || p.salesCount || "0", 10);
