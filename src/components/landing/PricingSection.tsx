@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sparkles,
   MessageSquare,
@@ -21,6 +22,7 @@ import type { LucideIcon } from "lucide-react";
 type Feature = { icon: LucideIcon; text: string };
 
 type Plan = {
+  id: string;
   name: string;
   price: string;
   currency: string;
@@ -35,6 +37,7 @@ type Plan = {
 
 const plans: Plan[] = [
   {
+    id: "go",
     name: "Go",
     price: "39,99",
     currency: "R$",
@@ -52,8 +55,9 @@ const plans: Plan[] = [
     note: "Ideal para quem está começando.",
   },
   {
+    id: "plus",
     name: "Plus",
-    price: "99,90",
+    price: "1,00",
     currency: "R$",
     period: "BRL / mês",
     desc: "Desbloqueie a experiência completa",
@@ -70,6 +74,7 @@ const plans: Plan[] = [
     ],
   },
   {
+    id: "pro",
     name: "Pro",
     price: "525",
     currency: "R$",
@@ -95,6 +100,15 @@ const plans: Plan[] = [
 
 const PricingSection = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handlePlanClick = (planId: string) => {
+    if (user) {
+      navigate(`/dashboard/planos?plan=${planId}`);
+    } else {
+      navigate(`/cadastro?next=/dashboard/planos&plan=${planId}`);
+    }
+  };
 
   return (
     <section id="planos" className="relative z-[1] bg-black py-[120px]">
@@ -153,7 +167,7 @@ const PricingSection = () => {
 
               {/* CTA */}
               <button
-                onClick={() => navigate("/cadastro")}
+                onClick={() => handlePlanClick(plan.id)}
                 className={`mb-8 w-full cursor-pointer rounded-full py-[13px] font-['Manrope'] text-[0.875rem] font-semibold transition-all ${
                   plan.ctaStyle === "filled"
                     ? "border-none bg-white text-black hover:bg-white/90"
