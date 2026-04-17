@@ -16,48 +16,88 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+// Clear any corrupted Supabase auth tokens from localStorage.
+// This prevents the client from getting stuck trying to refresh a dead token.
+const clearCorruptedAuthStorage = () => {
+  try {
+    const keys = Object.keys(localStorage);
+    keys.forEach((key) => {
+      if (key.startsWith("sb-") && key.includes("-auth-token")) {
+        const raw = localStorage.getItem(key);
+        if (!raw) return;
+        try {
+          const parsed = JSON.parse(raw);
+          // A valid session must have an access_token AND a refresh_token
+          if (!parsed?.access_token || !parsed?.refresh_token) {
+            localStorage.removeItem(key);
+          }
+        } catch {
+          localStorage.removeItem(key);
+        }
+      }
+    });
+  } catch {
+    // ignore (SSR / private mode)
+  }
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up listener BEFORE getSession to avoid race conditions
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // If token refresh fails, clear everything to avoid stuck state
-      if (event === "TOKEN_REFRESHED" && !session) {
-        setSession(null);
-        setUser(null);
+    let resolved = false;
+    const finishLoading = () => {
+      if (!resolved) {
+        resolved = true;
         setLoading(false);
-        return;
       }
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    };
+
+    // Sweep corrupted tokens before initializing
+    clearCorruptedAuthStorage();
+
+    // Listener BEFORE getSession to avoid race conditions
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      finishLoading();
     });
 
     supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
-        // If refresh token is invalid/missing, sign out cleanly
+      .then(({ data: { session: currentSession }, error }) => {
         if (error) {
-          console.warn("Auth session error, clearing local state:", error.message);
+          // Invalid refresh token, missing session, etc — clean and continue
+          console.warn("Auth init error, clearing session:", error.message);
           supabase.auth.signOut().catch(() => {});
+          try {
+            Object.keys(localStorage)
+              .filter((k) => k.startsWith("sb-") && k.includes("-auth-token"))
+              .forEach((k) => localStorage.removeItem(k));
+          } catch {}
           setSession(null);
           setUser(null);
         } else {
-          setSession(session);
-          setUser(session?.user ?? null);
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
         }
-        setLoading(false);
+        finishLoading();
       })
       .catch((err) => {
-        console.warn("Failed to fetch session:", err);
+        console.warn("getSession failed:", err);
         setSession(null);
         setUser(null);
-        setLoading(false);
+        finishLoading();
       });
 
-    return () => subscription.unsubscribe();
+    // Safety net: never stay loading more than 3s
+    const timeout = window.setTimeout(finishLoading, 3000);
+
+    return () => {
+      window.clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
