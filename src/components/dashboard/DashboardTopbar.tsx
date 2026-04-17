@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import {
   Menu, Search, ChevronRight, X, MessageSquare, type LucideIcon,
   LayoutGrid, ShoppingCart, BookOpen, Star, Users,
   BarChart3, Settings, MessageCircle, Wallet, ArrowLeftRight, CreditCard,
+  Sparkles, Palette, User, HelpCircle, LogOut,
 } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
@@ -46,8 +48,10 @@ const DashboardTopbar = () => {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const [plano, setPlano] = useState<string>("gratis");
+  const menuRef = useRef<HTMLDivElement>(null);
   const { nome, foto } = useProfile();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const pageTitle = pageTitles[location.pathname] || "Dashboard";
 
   const iniciais = nome
@@ -58,9 +62,36 @@ const DashboardTopbar = () => {
     .join("")
     .toUpperCase();
 
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("plano")
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => { if (data?.plano) setPlano(data.plano); });
+  }, [user]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setAvatarMenuOpen(false);
+      }
+    };
+    if (avatarMenuOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [avatarMenuOpen]);
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/login", { replace: true });
+  };
+
+  const planLabel: Record<string, string> = {
+    gratis: "Grátis",
+    plus: "Plus",
+    go: "Go",
+    pro: "Pro",
   };
 
   return (
@@ -96,7 +127,7 @@ const DashboardTopbar = () => {
             <MessageSquare size={18} strokeWidth={1.75} />
           </Link>
 
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               onClick={() => setAvatarMenuOpen((v) => !v)}
               className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white transition-opacity hover:opacity-90"
@@ -109,21 +140,83 @@ const DashboardTopbar = () => {
             </button>
 
             {avatarMenuOpen && (
-              <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-background shadow-lg">
-                <div className="border-b border-border px-4 py-2.5">
-                  <p className="text-sm font-semibold text-foreground truncate">{nome || "Usuário"}</p>
-                </div>
+              <div className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-2xl border border-border bg-background shadow-xl">
+                {/* User info */}
                 <Link
                   to="/dashboard/configuracoes"
                   onClick={() => setAvatarMenuOpen(false)}
-                  className="flex items-center px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                  className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted transition-colors"
                 >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white">
+                    {foto ? <img src={foto} alt="avatar" className="h-full w-full object-cover" /> : iniciais || "VL"}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{nome || "Usuário"}</p>
+                    <p className="text-xs text-muted-foreground">{planLabel[plano] ?? plano}</p>
+                  </div>
+                  <ChevronRight size={14} className="shrink-0 text-muted-foreground" />
+                </Link>
+
+                <div className="border-t border-border" />
+
+                {/* Upgrade */}
+                {plano === "gratis" && (
+                  <Link
+                    to="/checkout"
+                    onClick={() => setAvatarMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Sparkles size={15} className="shrink-0 text-yellow-500" />
+                    Upgrade de plano
+                  </Link>
+                )}
+
+                <Link
+                  to="/dashboard/configuracoes"
+                  onClick={() => setAvatarMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                >
+                  <Palette size={15} className="shrink-0 text-muted-foreground" />
+                  Personalização
+                </Link>
+
+                <Link
+                  to="/dashboard/configuracoes"
+                  onClick={() => setAvatarMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                >
+                  <User size={15} className="shrink-0 text-muted-foreground" />
                   Perfil
                 </Link>
+
+                <Link
+                  to="/dashboard/configuracoes"
+                  onClick={() => setAvatarMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                >
+                  <Settings size={15} className="shrink-0 text-muted-foreground" />
+                  Configurações
+                </Link>
+
+                <div className="border-t border-border" />
+
+                <Link
+                  to="/dashboard/configuracoes"
+                  onClick={() => setAvatarMenuOpen(false)}
+                  className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                >
+                  <span className="flex items-center gap-3">
+                    <HelpCircle size={15} className="shrink-0 text-muted-foreground" />
+                    Ajuda
+                  </span>
+                  <ChevronRight size={13} className="text-muted-foreground" />
+                </Link>
+
                 <button
                   onClick={handleSignOut}
-                  className="flex w-full items-center px-4 py-2.5 text-sm text-destructive hover:bg-muted transition-colors"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-muted transition-colors"
                 >
+                  <LogOut size={15} className="shrink-0" />
                   Sair
                 </button>
               </div>

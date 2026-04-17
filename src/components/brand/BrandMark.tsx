@@ -28,7 +28,7 @@ const BrandMark = ({
     <div className={`inline-flex items-center gap-2.5 ${className}`}>
       <div className={`relative ${sizes[size]} shrink-0`}>
         <svg
-          viewBox="0 0 64 48"
+          viewBox="8 3 54 37"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           className="h-full w-full"
@@ -39,32 +39,14 @@ const BrandMark = ({
             fill={cloudFill}
             d="M50.8 20.3c.1-.6.1-1.2.1-1.8 0-7.2-5.9-13.1-13.1-13.1-5.4 0-10.2 3.3-12.2 8.1-1.2-.5-2.5-.7-3.9-.7C15.2 12.8 9.8 18.2 9.8 24.8c0 6.6 5.4 12 12 12h28.6c5.5 0 9.9-4.4 9.9-9.9 0-4.3-2.7-7.9-6.5-9.3-.9 1.1-1.9 2-3 2.7z"
           />
-          {/* 3D box / package icon — centered inside cloud */}
-          <g transform="translate(22, 13)">
-            <path
-              d="M10 1L1 5.5l9 4.5 9-4.5L10 1z"
-              stroke={codeFill}
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-            <path
-              d="M1 14.5l9 4.5 9-4.5"
-              stroke={codeFill}
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-            <path
-              d="M1 10l9 4.5 9-4.5"
-              stroke={codeFill}
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
+          {/* 3D box — centered in cloud */}
+          <g transform="translate(24, 10)">
+            {/* Top face */}
+            <path d="M11 1L21 6L11 11L1 6Z" fill={codeFill} fillOpacity={1} />
+            {/* Right face */}
+            <path d="M21 6L21 17L11 22L11 11Z" fill={codeFill} fillOpacity={0.5} />
+            {/* Left face */}
+            <path d="M1 6L1 17L11 22L11 11Z" fill={codeFill} fillOpacity={0.25} />
           </g>
         </svg>
       </div>

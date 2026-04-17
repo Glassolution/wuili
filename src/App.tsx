@@ -25,7 +25,7 @@ import SaldosPage from "./pages/dashboard/SaldosPage";
 import TransacoesPage from "./pages/dashboard/TransacoesPage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
 import PagamentosPage from "./pages/dashboard/PagamentosPage";
-import PlansPage from "./pages/dashboard/PlansPage";
+import CheckoutPage from "./pages/CheckoutPage";
 
 const queryClient = new QueryClient();
 
@@ -49,7 +49,7 @@ const App = () => (
             <Route path="saldos" element={<SaldosPage />} />
             <Route path="transacoes" element={<TransacoesPage />} />
             <Route path="pagamentos" element={<PagamentosPage />} />
-            <Route path="planos" element={<PlansPage />} />
+            <Route path="planos" element={<Navigate to="/checkout" replace />} />
             <Route
               path="clientes"
               element={
@@ -110,6 +110,7 @@ const App = () => (
             <Route path="integracoes" element={<IntegracoesPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
           </Route>
+          <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
