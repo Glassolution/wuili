@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { Link, useNavigate, Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -7,7 +7,6 @@ import { Eye, EyeOff, Mail } from "lucide-react";
 import BrandMark from "@/components/brand/BrandMark";
 
 const LoginPage = () => {
-  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,14 +24,16 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast.error(error.message === "Invalid login credentials"
         ? "Email ou senha incorretos. Tente novamente."
         : error.message);
-    } else {
-      navigate("/dashboard", { replace: true });
     }
+    // On success: onAuthStateChange will update `user` in context,
+    // which triggers the guard above to redirect to /dashboard.
+    // Do NOT call navigate() here — it fires before user state is set,
+    // causing DashboardLayout to see user=null and bounce back to /login.
   };
 
   const handleReset = async (e: FormEvent) => {
