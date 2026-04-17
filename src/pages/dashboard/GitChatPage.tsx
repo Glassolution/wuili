@@ -141,12 +141,14 @@ const InputBar = ({ input, thinking, inputRef, onChange, onSend }: InputBarProps
   return (
     <div
       className={cn(
-        "flex items-center gap-3 px-4 rounded-2xl border bg-white/70 backdrop-blur-sm transition-all min-h-[52px]",
+        "group relative flex min-h-[56px] items-center gap-3 overflow-hidden rounded-[26px] border px-4 transition-all duration-300",
         focused
-          ? "border-[#7C3AED]/40 shadow-[0_0_0_3px_rgba(124,58,237,0.06)]"
-          : "border-white/50"
+          ? "border-[#7C3AED]/30 bg-white/72 shadow-[0_28px_90px_rgba(111,118,138,0.16)] backdrop-blur-xl"
+          : "border-white/60 bg-white/58 shadow-[0_24px_70px_rgba(111,118,138,0.12)] backdrop-blur-xl"
       )}
     >
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%,rgba(124,58,237,0.06)_100%)] opacity-80" />
+      <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-white/80" />
       <input
         ref={inputRef}
         type="text"
@@ -157,12 +159,12 @@ const InputBar = ({ input, thinking, inputRef, onChange, onSend }: InputBarProps
         onKeyDown={e => e.key === "Enter" && !thinking && onSend()}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="flex-1 bg-transparent text-sm text-[#1a1a2e] placeholder:text-[#9CA3AF] outline-none disabled:cursor-not-allowed"
+        className="relative z-[1] flex-1 bg-transparent text-sm font-medium text-[#171821] placeholder:text-[#7C8195] outline-none disabled:cursor-not-allowed"
       />
       <button
         onClick={onSend}
         disabled={thinking || !input.trim()}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#7C3AED] text-white hover:bg-[#6D28D9] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        className="relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#171821] text-white shadow-[0_12px_24px_rgba(23,24,33,0.22)] transition-all duration-300 hover:translate-y-[-1px] hover:bg-[#222432] disabled:cursor-not-allowed disabled:opacity-30"
       >
         <ArrowUp size={15} strokeWidth={2.5} />
       </button>

@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { playSatisfyingClick } from "@/lib/uiFeedback";
 
 const CTASection = () => {
   const navigate = useNavigate();
@@ -19,8 +20,11 @@ const CTASection = () => {
           </p>
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
             <button
-              onClick={() => navigate("/cadastro")}
-              className="flex cursor-pointer items-center gap-2 rounded-full border-none bg-white px-7 py-[14px] font-['Manrope'] text-[0.9375rem] font-semibold text-black transition-all hover:bg-white/90"
+              onClick={() => {
+                playSatisfyingClick();
+                navigate("/cadastro");
+              }}
+              className="landing-button-inverse flex cursor-pointer items-center gap-2 rounded-full border-none bg-white px-7 py-[14px] font-['Manrope'] text-[0.9375rem] font-semibold text-black"
             >
               Começar agora
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -35,9 +39,10 @@ const CTASection = () => {
             </button>
             <button
               onClick={() => {
+                playSatisfyingClick();
                 document.getElementById("planos")?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="cursor-pointer rounded-full border border-white/[0.15] bg-transparent px-7 py-[14px] font-['Manrope'] text-[0.9375rem] font-medium text-white/60 transition-all hover:border-white/30 hover:text-white"
+              className="landing-button-ghost cursor-pointer rounded-full border border-white/[0.15] bg-transparent px-7 py-[14px] font-['Manrope'] text-[0.9375rem] font-medium text-white/60"
             >
               Ver planos
             </button>

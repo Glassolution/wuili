@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Check, QrCode, CreditCard, Copy,
@@ -74,10 +74,6 @@ const CheckoutPage = () => {
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
   const [cardHolder, setCardHolder] = useState("");
-
-  useEffect(() => {
-    toast.info(`Plano ${plan.name} selecionado. Escolha a forma de pagamento.`);
-  }, []);
 
   const handleCheckout = async () => {
     if (!session) {
@@ -373,6 +369,22 @@ const CheckoutPage = () => {
 
         {/* RIGHT — Order summary */}
         <div className="space-y-4">
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+                <Check size={14} strokeWidth={3} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">
+                  Plano {plan.name} selecionado
+                </p>
+                <p className="mt-1 text-sm leading-6 text-emerald-800/80">
+                  Escolha a forma de pagamento para continuar com a ativação.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Plan details */}
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-[15px] font-semibold text-gray-900">

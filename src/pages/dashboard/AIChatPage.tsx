@@ -112,7 +112,8 @@ interface ChatInputProps {
 }
 
 const ChatInput = memo(({ input, thinking, inputRef, onChange, onSend }: ChatInputProps) => (
-  <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-violet-300 focus-within:ring-2 focus-within:ring-violet-100 transition-all">
+  <div className="group relative flex items-center gap-3 overflow-hidden rounded-[26px] border border-white/60 bg-white/58 px-4 py-3 backdrop-blur-xl shadow-[0_24px_70px_rgba(111,118,138,0.12)] transition-all duration-300 before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%,rgba(124,58,237,0.06)_100%)] before:opacity-80 focus-within:border-[#7C3AED]/30 focus-within:bg-white/72 focus-within:shadow-[0_28px_90px_rgba(111,118,138,0.16)]">
+    <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-white/80" />
     <input
       ref={inputRef}
       type="text"
@@ -121,12 +122,12 @@ const ChatInput = memo(({ input, thinking, inputRef, onChange, onSend }: ChatInp
       disabled={thinking}
       onChange={e => onChange(e.target.value)}
       onKeyDown={e => e.key === "Enter" && !thinking && onSend()}
-      className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 disabled:cursor-not-allowed"
+      className="relative z-[1] flex-1 bg-transparent text-sm font-medium text-[#171821] outline-none placeholder:text-[#7C8195] disabled:cursor-not-allowed"
     />
     <button
       onClick={onSend}
       disabled={thinking || !input.trim()}
-      className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-purple-700 text-white flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
+      className="relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#171821] text-white shadow-[0_12px_24px_rgba(23,24,33,0.22)] transition-all duration-300 hover:translate-y-[-1px] hover:bg-[#222432] disabled:opacity-40"
     >
       <ArrowUp size={15} strokeWidth={2.5} />
     </button>

@@ -1,5 +1,5 @@
-import { Link, Navigate, useSearchParams } from "react-router-dom";
-import { useState } from "react";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import BrandMark from "@/components/brand/BrandMark";
 import LogosStrip from "@/components/landing/LogosStrip";
@@ -11,14 +11,33 @@ import TestimonialsSection from "@/components/landing/TestimonialsSection";
 import PricingSection from "@/components/landing/PricingSection";
 import CTASection from "@/components/landing/CTASection";
 import Footer from "@/components/landing/Footer";
+import { playSatisfyingClick } from "@/lib/uiFeedback";
 
 const NAV_LINKS = ["Produto", "Soluções", "FAQ", "Suporte"];
 
 const Index = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const forceHome = searchParams.get("home") === "1";
+  const [signupPreparing, setSignupPreparing] = useState(false);
+  const [signupTransition, setSignupTransition] = useState(false);
+
+  const handleStartSignup = () => {
+    if (signupPreparing || signupTransition) return;
+
+    playSatisfyingClick();
+    setSignupPreparing(true);
+
+    window.setTimeout(() => {
+      setSignupTransition(true);
+    }, 3000);
+
+    window.setTimeout(() => {
+      navigate("/cadastro", { state: { fromLandingInk: true, fromLandingSlide: true } });
+    }, 3440);
+  };
 
   // Logged-in users skip the landing page and go straight to dashboard,
   // unless they explicitly opted to view the home page (?home=1).
@@ -27,7 +46,10 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-[#0a0a0a]">
+    <div className={`landing-shell min-h-screen overflow-x-hidden bg-white text-[#0a0a0a] ${signupTransition ? "is-transitioning" : ""}`}>
+      {signupTransition && (
+        <div aria-hidden="true" className="landing-signup-transition" />
+      )}
 
       {/* ── NAVBAR ── */}
       <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-white/90 backdrop-blur-[12px]">
@@ -78,18 +100,21 @@ const Index = () => {
 
           {/* CTAs */}
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link
-              to="/cadastro"
-              className="inline-flex items-center gap-2 rounded-full bg-[#0a0a0a] px-7 py-[15px] font-['Manrope'] text-[15px] font-semibold text-white transition hover:bg-[#1a1a1a] hover:shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
+            <button
+              type="button"
+              onClick={handleStartSignup}
+              disabled={signupPreparing || signupTransition}
+              className="landing-button-primary inline-flex items-center gap-2 rounded-full bg-[#0a0a0a] px-7 py-[15px] font-['Manrope'] text-[15px] font-semibold text-white"
             >
               Começar grátis
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </Link>
+            </button>
             <a
               href="#planos"
-              className="inline-flex items-center gap-2 rounded-full border border-black/20 bg-white px-7 py-[15px] font-['Manrope'] text-[15px] font-semibold text-[#0a0a0a] transition hover:border-black/40 hover:bg-black/[0.03]"
+              onClick={playSatisfyingClick}
+              className="landing-button-secondary inline-flex items-center gap-2 rounded-full border border-black/20 bg-white px-7 py-[15px] font-['Manrope'] text-[15px] font-semibold text-[#0a0a0a]"
             >
               Ver planos
             </a>

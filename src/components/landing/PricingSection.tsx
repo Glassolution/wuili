@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { playSatisfyingClick } from "@/lib/uiFeedback";
 import {
   Sparkles,
   MessageSquare,
@@ -106,14 +106,18 @@ const PricingSection = () => {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handlePlanClick = (planId: string) => {
+    if (loadingPlan) return;
+
+    playSatisfyingClick();
     setLoadingPlan(planId);
+
     setTimeout(() => {
       if (user) {
         navigate(`/checkout?plan=${planId}`);
       } else {
         navigate(`/cadastro?next=/checkout&plan=${planId}`);
       }
-    }, 500);
+    }, 3000);
   };
 
   return (
@@ -175,16 +179,38 @@ const PricingSection = () => {
               <button
                 onClick={() => handlePlanClick(plan.id)}
                 disabled={loadingPlan !== null}
-                className={`mb-8 flex w-full cursor-pointer items-center justify-center gap-2 rounded-full py-[13px] font-['Manrope'] text-[0.875rem] font-semibold transition-all disabled:opacity-70 ${
+                className={`group relative mb-8 flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full py-[13px] font-['Manrope'] text-[0.875rem] font-semibold transition-all duration-500 disabled:cursor-wait disabled:opacity-100 ${
+                  loadingPlan === plan.id ? "animate-pricing-cta-breathe" : ""
+                } ${
                   plan.ctaStyle === "filled"
                     ? "border-none bg-white text-black hover:bg-white/90"
                     : "border border-white/[0.15] bg-transparent text-white/70 hover:border-white/30 hover:text-white"
                 }`}
               >
+                {loadingPlan === plan.id && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_15%,rgba(255,255,255,0.12)_35%,rgba(255,255,255,0.48)_50%,rgba(255,255,255,0.12)_65%,transparent_85%)] opacity-90 animate-pricing-cta-sheen"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-[1px] rounded-full bg-white/8 blur-md"
+                    />
+                  </>
+                )}
+
                 {loadingPlan === plan.id ? (
-                  <><Loader2 size={15} className="animate-spin" /> Abrindo...</>
+                  <span className={`relative z-[1] flex items-center gap-3 ${plan.ctaStyle === "filled" ? "text-black" : "text-white"}`}>
+                    <span aria-hidden="true" className={`pricing-cta-loader ${plan.ctaStyle === "filled" ? "text-black" : "text-white"}`}>
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                    <span className="tracking-[-0.01em]">Abrindo checkout</span>
+                  </span>
                 ) : (
-                  plan.cta
+                  <span className="relative z-[1]">{plan.cta}</span>
                 )}
               </button>
 

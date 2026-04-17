@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate, Link, Navigate, useSearchParams } from "react-router-dom";
+import { useNavigate, Link, Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import BrandMark from "@/components/brand/BrandMark";
+import { playSendSound, playSoftTypeSound } from "@/lib/uiFeedback";
 
 type Step = "nome" | "email" | "senha" | "whatsapp" | "nicho" | "criando";
 const STEPS: Step[] = ["nome", "email", "senha", "whatsapp", "nicho", "criando"];
@@ -65,6 +66,7 @@ function isValidWhatsApp(v: string): boolean {
 
 const CadastroPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const nextPath = searchParams.get("next");
   const planParam = searchParams.get("plan");
@@ -79,11 +81,13 @@ const CadastroPage = () => {
   const [confirmText, setConfirmText] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastTypeSoundAtRef = useRef(0);
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const revealFromInk = Boolean((location.state as { fromLandingInk?: boolean } | null)?.fromLandingInk);
 
   const stepIndex = STEPS.indexOf(step);
   const progressPct = Math.round((stepIndex / 5) * 100);
@@ -93,6 +97,35 @@ const CadastroPage = () => {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [step, animating]);
+
+  useEffect(() => {
+    if (!revealFromInk) return;
+
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflowX = document.documentElement.style.overflowX;
+    const previousBodyOverflowX = document.body.style.overflowX;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflowX = "hidden";
+    document.body.style.overflowX = "hidden";
+
+    const timeout = window.setTimeout(() => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflowX = previousHtmlOverflowX;
+      document.body.style.overflowX = previousBodyOverflowX;
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timeout);
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflowX = previousHtmlOverflowX;
+      document.body.style.overflowX = previousBodyOverflowX;
+    };
+  }, [revealFromInk]);
 
   // Logged-in users skip signup and go to destination
   if (!authLoading && user) {
@@ -116,6 +149,35 @@ const CadastroPage = () => {
       setInput("");
       setTimeout(() => setAnimating(false), 50);
     }, 600);
+  };
+
+  const playTypeSoundThrottled = () => {
+    const now = performance.now();
+    if (now - lastTypeSoundAtRef.current < 38) return;
+    lastTypeSoundAtRef.current = now;
+    playSoftTypeSound();
+  };
+
+  const handleComposerSubmit = () => {
+    playSendSound();
+    void handleSend();
+  };
+
+  const handleComposerKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleComposerSubmit();
+      return;
+    }
+
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    const isPrintable = e.key.length === 1;
+    const isEditingKey = e.key === "Backspace" || e.key === "Delete";
+
+    if (isPrintable || isEditingKey) {
+      playTypeSoundThrottled();
+    }
   };
 
   const handleSend = async () => {
@@ -190,9 +252,9 @@ const CadastroPage = () => {
   const str = step === "senha" ? passwordStrength(input) : null;
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#0f0f0f] font-['Manrope'] text-white">
+    <div className={`relative flex min-h-screen overflow-hidden flex-col bg-[#0f0f0f] font-['Manrope'] text-white ${revealFromInk ? "signup-ink-entry" : ""}`}>
       {/* ── Topbar ── */}
-      <header className="flex items-center justify-between px-5 py-4 sm:px-8">
+      <header className={`flex items-center justify-between px-5 py-4 sm:px-8 ${revealFromInk ? "signup-ink-header" : ""}`}>
         <Link to="/" className="flex items-center opacity-90 transition hover:opacity-100">
           <BrandMark size="xs" showWordmark tone="dark" />
         </Link>
@@ -202,7 +264,7 @@ const CadastroPage = () => {
       </header>
 
       {/* ── Thin progress bar ── */}
-      <div className="h-[2px] w-full bg-white/[0.06]">
+      <div className={`h-[2px] w-full bg-white/[0.06] ${revealFromInk ? "signup-ink-progress" : ""}`}>
         <div
           className="h-full bg-white/70 transition-all duration-700 ease-out"
           style={{ width: `${step === "criando" ? 100 : progressPct}%` }}
@@ -210,11 +272,11 @@ const CadastroPage = () => {
       </div>
 
       {/* ── Chat area ── */}
-      <main className="flex flex-1 flex-col items-center px-5 pb-48 pt-16 sm:pt-24">
+      <main className={`flex flex-1 flex-col items-center px-5 pb-48 pt-16 sm:pt-24 ${revealFromInk ? "signup-ink-main" : ""}`}>
         <div className="flex w-full max-w-[680px] flex-col gap-6">
 
           {/* Assistant bubble: question */}
-          <div key={`q-${step}`} className="flex animate-fade-in items-start gap-3">
+          <div key={`q-${step}`} className={`flex animate-fade-in items-start gap-3 ${revealFromInk ? "signup-ink-card" : ""}`}>
             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1f1f1f] ring-1 ring-white/[0.08]">
               <BrandMark size="xs" tone="dark" />
             </div>
@@ -279,7 +341,7 @@ const CadastroPage = () => {
 
       {/* ── Composer (sticky bottom, ChatGPT style) ── */}
       {step !== "criando" && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/95 to-transparent px-5 pb-6 pt-10 sm:pb-8">
+        <div className={`pointer-events-none fixed inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/95 to-transparent px-5 pb-6 pt-10 sm:pb-8 ${revealFromInk ? "signup-ink-composer" : ""}`}>
           <div className="pointer-events-auto flex w-full max-w-[680px] flex-col gap-2">
             <div className="relative flex items-end rounded-[24px] border border-white/[0.08] bg-[#1f1f1f] shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-colors focus-within:border-white/20">
               <input
@@ -294,14 +356,14 @@ const CadastroPage = () => {
                     setInput(e.target.value);
                   }
                 }}
-                onKeyDown={e => e.key === "Enter" && handleSend()}
+                onKeyDown={handleComposerKeyDown}
                 placeholder={placeholders[step]}
                 disabled={loading || animating}
                 autoFocus
                 className="flex-1 bg-transparent px-5 py-[18px] text-[0.9375rem] text-white outline-none placeholder:text-white/30 disabled:opacity-50"
               />
               <button
-                onClick={handleSend}
+                onClick={handleComposerSubmit}
                 disabled={loading || animating || !input.trim()}
                 aria-label="Enviar"
                 className="mb-[9px] mr-[9px] flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-black transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
