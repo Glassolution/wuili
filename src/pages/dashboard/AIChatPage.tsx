@@ -89,14 +89,14 @@ const SearchingCard = ({ nicho }: { nicho: string }) => (
   <div className="flex items-center gap-4 rounded-2xl bg-gray-50 border border-gray-100 px-5 py-4 w-full max-w-[340px] shadow-sm">
     <div className="flex items-end gap-[3px] shrink-0 h-5">
       {[0, 1, 2, 3].map(i => (
-        <span key={i} className="w-[3px] rounded-full bg-violet-400"
+        <span key={i} className="w-[3px] rounded-full bg-black/70"
           style={{ animation: "searchBar 1s ease-in-out infinite", animationDelay: `${i * 0.15}s` }} />
       ))}
     </div>
     <div className="min-w-0">
       <p className="text-sm font-semibold text-gray-800 leading-snug">Buscando produtos</p>
       <p className="text-xs text-gray-400 mt-0.5 truncate">
-        Nicho: <span className="font-medium text-violet-600 capitalize">{nicho}</span>
+        Nicho: <span className="font-medium text-black capitalize">{nicho}</span>
       </p>
     </div>
     <style>{`@keyframes searchBar { 0%,100%{height:6px;opacity:.4} 50%{height:20px;opacity:1} }`}</style>
@@ -112,7 +112,7 @@ interface ChatInputProps {
 }
 
 const ChatInput = memo(({ input, thinking, inputRef, onChange, onSend }: ChatInputProps) => (
-  <div className="group relative flex items-center gap-3 overflow-hidden rounded-[26px] border border-white/60 bg-white/58 px-4 py-3 backdrop-blur-xl shadow-[0_24px_70px_rgba(111,118,138,0.12)] transition-all duration-300 before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%,rgba(124,58,237,0.06)_100%)] before:opacity-80 focus-within:border-[#7C3AED]/30 focus-within:bg-white/72 focus-within:shadow-[0_28px_90px_rgba(111,118,138,0.16)]">
+  <div className="group relative flex items-center gap-3 overflow-hidden rounded-[26px] border border-white/60 bg-white/58 px-4 py-3 backdrop-blur-xl shadow-[0_24px_70px_rgba(111,118,138,0.12)] transition-all duration-300 before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%,rgba(124,58,237,0.06)_100%)] before:opacity-80 focus-within:border-[#000000]/30 focus-within:bg-white/72 focus-within:shadow-[0_28px_90px_rgba(111,118,138,0.16)]">
     <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-white/80" />
     <input
       ref={inputRef}
@@ -238,14 +238,14 @@ const AIChatPage = () => {
           </div>
           <div className="p-3.5 flex flex-col flex-1 gap-1.5">
             <p className="text-[13px] font-semibold text-gray-800 line-clamp-2 leading-snug">{p.nome}</p>
-            {p.margem && <span className="self-start rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-600">Margem {p.margem}</span>}
+            {p.margem && <span className="self-start rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold text-black">Margem {p.margem}</span>}
             <div className="flex-1" />
             {p.precoVenda != null
-              ? <p className="text-base font-bold text-violet-600">R$ {p.precoVenda.toFixed(2).replace(".", ",")}</p>
-              : p.preco ? <p className="text-base font-bold text-violet-600">{p.preco}</p> : null
+              ? <p className="text-base font-bold text-black">R$ {p.precoVenda.toFixed(2).replace(".", ",")}</p>
+              : p.preco ? <p className="text-base font-bold text-black">{p.preco}</p> : null
             }
             {p.url && (
-              <a href={p.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-violet-600 transition-colors">
+              <a href={p.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-black transition-colors">
                 Ver produto <ArrowUpRight size={10} />
               </a>
             )}
@@ -272,7 +272,7 @@ const AIChatPage = () => {
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-[10px] text-gray-400 mb-0.5">Preco sugerido</p>
-            <p className="text-xl font-bold text-violet-600">{ad.preco}</p>
+            <p className="text-xl font-bold text-black">{ad.preco}</p>
           </div>
           <button
             onClick={() => send("Publicar no Mercado Livre")}
