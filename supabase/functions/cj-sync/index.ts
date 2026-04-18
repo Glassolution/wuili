@@ -182,6 +182,10 @@ Deno.serve(async (req) => {
     let totalSynced = 0;
     const errors: string[] = [];
 
+    // Rotate pages to fetch different products each sync (1–10)
+    const syncPage = String(Math.floor(Math.random() * 10) + 1);
+    console.log(`[cj-sync] Using page ${syncPage} for this sync`);
+
     for (let i = 0; i < CURATED_CATEGORIES.length; i++) {
       const cat = CURATED_CATEGORIES[i];
       if (i > 0) await sleep(1500);
@@ -189,7 +193,7 @@ Deno.serve(async (req) => {
       try {
         const params = new URLSearchParams({
           productNameEn: cat.keyword,
-          pageNum: "1",
+          pageNum: syncPage,
           pageSize: "50",
         });
 
