@@ -149,6 +149,8 @@ Como posso te ajudar hoje?`;
           </button>
         </div>
       </div>
+
+      <RefundSection />
     </div>
   );
 };
