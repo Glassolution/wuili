@@ -392,7 +392,15 @@ const CheckoutPage = () => {
                 {copied ? <CheckCircle2 size={15} className="text-green-500" /> : <Copy size={15} />}
                 {copied ? "Copiado!" : "Copiar código Pix"}
               </button>
-              <p className="text-xs text-gray-400">Após o pagamento, seu plano será ativado automaticamente.</p>
+              <button
+                onClick={handleManualVerify}
+                disabled={verifying}
+                className="mx-auto flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black transition-colors disabled:opacity-60"
+              >
+                {verifying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                Já paguei — verificar agora
+              </button>
+              <p className="text-xs text-gray-400">Verificamos seu pagamento automaticamente a cada 5 segundos.</p>
             </div>
           )}
 
