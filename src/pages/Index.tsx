@@ -1,7 +1,8 @@
-import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import BrandMark from "@/components/brand/BrandMark";
+import PlanBadge from "@/components/PlanBadge";
 import LogosStrip from "@/components/landing/LogosStrip";
 import CreditBanner from "@/components/landing/CreditBanner";
 import MultiPlatformSection from "@/components/landing/MultiPlatformSection";
@@ -17,15 +18,23 @@ const NAV_LINKS = ["Produto", "Soluções", "FAQ", "Suporte"];
 
 const Index = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const forceHome = searchParams.get("home") === "1";
+  useSearchParams();
   const [signupPreparing, setSignupPreparing] = useState(false);
   const [signupTransition, setSignupTransition] = useState(false);
 
+  const isLogged = Boolean(user);
+  const userInitial = (user?.email ?? "U").charAt(0).toUpperCase();
+
   const handleStartSignup = () => {
     if (signupPreparing || signupTransition) return;
+
+    if (isLogged) {
+      playSatisfyingClick();
+      navigate("/dashboard");
+      return;
+    }
 
     playSatisfyingClick();
     setSignupPreparing(true);
@@ -38,12 +47,6 @@ const Index = () => {
       navigate("/cadastro", { state: { fromLandingInk: true, fromLandingSlide: true } });
     }, 3440);
   };
-
-  // Logged-in users skip the landing page and go straight to dashboard,
-  // unless they explicitly opted to view the home page (?home=1).
-  if (!loading && user && !forceHome) {
-    return <Navigate to="/dashboard" replace />;
-  }
 
   return (
     <div className={`landing-shell min-h-screen overflow-x-hidden bg-white text-[#0a0a0a] ${signupTransition ? "is-transitioning" : ""}`}>
@@ -67,19 +70,44 @@ const Index = () => {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-4">
-            <Link to="/login" className="hidden font-['Manrope'] text-[14px] font-medium text-[#0a0a0a]/70 transition hover:text-[#0a0a0a] md:inline-flex">
-              Preços
-            </Link>
-            <Link
-              to="/cadastro"
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0a] px-5 py-[10px] font-['Manrope'] text-[13.5px] font-semibold text-white transition hover:bg-[#1a1a1a]"
-            >
-              Criar workspace
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
+          <div className="flex items-center gap-3">
+            {isLogged ? (
+              <>
+                <PlanBadge size="sm" className="hidden sm:inline-flex" />
+                <Link
+                  to="/dashboard"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0a] px-5 py-[10px] font-['Manrope'] text-[13.5px] font-semibold text-white transition hover:bg-[#1a1a1a]"
+                >
+                  Ir para o dashboard
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+                <Link
+                  to="/dashboard"
+                  aria-label="Ir para o dashboard"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0a0a0a] font-['Manrope'] text-[13px] font-bold text-white ring-2 ring-white transition hover:bg-[#1a1a1a]"
+                  title={user?.email ?? ""}
+                >
+                  {userInitial}
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="hidden font-['Manrope'] text-[14px] font-medium text-[#0a0a0a]/70 transition hover:text-[#0a0a0a] md:inline-flex">
+                  Entrar
+                </Link>
+                <Link
+                  to="/cadastro"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0a] px-5 py-[10px] font-['Manrope'] text-[13.5px] font-semibold text-white transition hover:bg-[#1a1a1a]"
+                >
+                  Criar workspace
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M5 11 11 5M6 5h5v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -106,7 +134,7 @@ const Index = () => {
               disabled={signupPreparing || signupTransition}
               className="landing-button-primary inline-flex items-center gap-2 rounded-full bg-[#0a0a0a] px-7 py-[15px] font-['Manrope'] text-[15px] font-semibold text-white"
             >
-              Começar grátis
+              {isLogged ? "Continuar no dashboard" : "Começar grátis"}
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -119,6 +147,12 @@ const Index = () => {
               Ver planos
             </a>
           </div>
+
+          {isLogged && (
+            <div className="mt-5">
+              <PlanBadge size="md" />
+            </div>
+          )}
         </section>
 
         {/* ── PRODUCT VISUAL — Dashboard mockup ── */}
