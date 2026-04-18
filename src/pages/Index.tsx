@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import BrandMark from "@/components/brand/BrandMark";
 import PlanBadge from "@/components/PlanBadge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import LogosStrip from "@/components/landing/LogosStrip";
 import CreditBanner from "@/components/landing/CreditBanner";
 import MultiPlatformSection from "@/components/landing/MultiPlatformSection";
