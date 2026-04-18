@@ -1,7 +1,8 @@
-import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import BrandMark from "@/components/brand/BrandMark";
+import PlanBadge from "@/components/PlanBadge";
 import LogosStrip from "@/components/landing/LogosStrip";
 import CreditBanner from "@/components/landing/CreditBanner";
 import MultiPlatformSection from "@/components/landing/MultiPlatformSection";
@@ -17,15 +18,23 @@ const NAV_LINKS = ["Produto", "Soluções", "FAQ", "Suporte"];
 
 const Index = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const forceHome = searchParams.get("home") === "1";
+  useSearchParams();
   const [signupPreparing, setSignupPreparing] = useState(false);
   const [signupTransition, setSignupTransition] = useState(false);
 
+  const isLogged = Boolean(user);
+  const userInitial = (user?.email ?? "U").charAt(0).toUpperCase();
+
   const handleStartSignup = () => {
     if (signupPreparing || signupTransition) return;
+
+    if (isLogged) {
+      playSatisfyingClick();
+      navigate("/dashboard");
+      return;
+    }
 
     playSatisfyingClick();
     setSignupPreparing(true);
@@ -38,12 +47,6 @@ const Index = () => {
       navigate("/cadastro", { state: { fromLandingInk: true, fromLandingSlide: true } });
     }, 3440);
   };
-
-  // Logged-in users skip the landing page and go straight to dashboard,
-  // unless they explicitly opted to view the home page (?home=1).
-  if (!loading && user && !forceHome) {
-    return <Navigate to="/dashboard" replace />;
-  }
 
   return (
     <div className={`landing-shell min-h-screen overflow-x-hidden bg-white text-[#0a0a0a] ${signupTransition ? "is-transitioning" : ""}`}>
