@@ -1,20 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, Plug, Shield, Store, User } from "lucide-react";
+import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, User } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import PlanBadge from "@/components/PlanBadge";
 import { usePlan } from "@/hooks/usePlan";
+import SupportTab from "@/components/dashboard/SupportTab";
 
-type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança";
+type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
 
-const NAV: { id: TabId; icon: typeof User }[] = [
+const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
   { id: "Perfil", icon: User },
   { id: "Minhas Lojas", icon: Store },
   { id: "Integrações", icon: Plug },
   { id: "Plano", icon: CreditCard },
   { id: "Notificações", icon: Bell },
   { id: "Segurança", icon: Shield },
+  { id: "Suporte", icon: MessageCircle, separatorBefore: true },
 ];
 
 const SettingsPage = () => {
@@ -46,18 +48,20 @@ const SettingsPage = () => {
             const active = tab === item.id;
             const Icon = item.icon;
             return (
-              <button
-                key={item.id}
-                onClick={() => setTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-[14px] transition-colors ${
-                  active
-                    ? "bg-[#F0F0F0] text-[#0A0A0A] font-medium"
-                    : "text-[#737373] hover:bg-[#F5F5F5]"
-                }`}
-              >
-                <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
-                {item.id}
-              </button>
+              <div key={item.id}>
+                {item.separatorBefore && <div className="my-2 border-t border-[#F0F0F0]" />}
+                <button
+                  onClick={() => setTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-[14px] transition-colors ${
+                    active
+                      ? "bg-[#F0F0F0] text-[#0A0A0A] font-medium"
+                      : "text-[#737373] hover:bg-[#F5F5F5]"
+                  }`}
+                >
+                  <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
+                  {item.id}
+                </button>
+              </div>
             );
           })}
         </nav>
@@ -80,13 +84,14 @@ const SettingsPage = () => {
           ))}
         </div>
 
-        <div className="mx-auto max-w-[600px] bg-white rounded-2xl p-6 md:p-8 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#EFEFEF]">
+        <div className={`mx-auto ${tab === "Suporte" ? "max-w-[760px]" : "max-w-[600px]"} bg-white rounded-2xl p-6 md:p-8 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#EFEFEF]`}>
           {tab === "Perfil"        && <ProfileTab />}
           {tab === "Minhas Lojas"  && <StoresTab />}
           {tab === "Integrações"   && <IntegrationsTab />}
           {tab === "Plano"         && <PlanTab />}
           {tab === "Notificações"  && <NotificationsTab />}
           {tab === "Segurança"     && <SecurityTab />}
+          {tab === "Suporte"       && <SupportTab />}
         </div>
       </div>
     </div>
