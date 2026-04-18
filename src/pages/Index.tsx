@@ -185,11 +185,6 @@ const Index = () => {
             </a>
           </div>
 
-          {isLogged && (
-            <div className="mt-5">
-              <PlanBadge size="md" />
-            </div>
-          )}
         </section>
 
         {/* ── PRODUCT VISUAL — Dashboard mockup ── */}
