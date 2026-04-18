@@ -74,7 +74,6 @@ const Index = () => {
           <div className="flex items-center gap-3">
             {isLogged ? (
               <>
-                <PlanBadge size="sm" className="hidden sm:inline-flex" />
                 <Link
                   to="/dashboard"
                   className="inline-flex items-center gap-1.5 rounded-full bg-[#0a0a0a] px-5 py-[10px] font-['Manrope'] text-[13.5px] font-semibold text-white transition hover:bg-[#1a1a1a]"
@@ -84,14 +83,51 @@ const Index = () => {
                     <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </Link>
-                <Link
-                  to="/dashboard"
-                  aria-label="Ir para o dashboard"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0a0a0a] font-['Manrope'] text-[13px] font-bold text-white ring-2 ring-white transition hover:bg-[#1a1a1a]"
-                  title={user?.email ?? ""}
-                >
-                  {userInitial}
-                </Link>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Ver meu perfil"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0a0a0a] font-['Manrope'] text-[13px] font-bold text-white ring-2 ring-white transition hover:bg-[#1a1a1a]"
+                      title={user?.email ?? ""}
+                    >
+                      {userInitial}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-64 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0a0a0a] font-['Manrope'] text-[14px] font-bold text-white">
+                        {userInitial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-['Manrope'] text-[13px] font-semibold text-[#0a0a0a]">
+                          {user?.email}
+                        </div>
+                        <div className="font-['Manrope'] text-[11px] text-black/50">Conta Velo</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 border-t border-black/[0.06] pt-3">
+                      <div className="mb-2 font-['Manrope'] text-[10px] font-semibold uppercase tracking-wider text-black/40">
+                        Plano atual
+                      </div>
+                      <PlanBadge size="md" />
+                    </div>
+                    <div className="mt-3 flex flex-col gap-1">
+                      <Link
+                        to="/dashboard"
+                        className="rounded-md px-2 py-1.5 font-['Manrope'] text-[12px] font-medium text-[#0a0a0a] transition hover:bg-black/[0.04]"
+                      >
+                        Ir para o dashboard
+                      </Link>
+                      <Link
+                        to="/dashboard/plans"
+                        className="rounded-md px-2 py-1.5 font-['Manrope'] text-[12px] font-medium text-[#0a0a0a] transition hover:bg-black/[0.04]"
+                      >
+                        Gerenciar plano
+                      </Link>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </>
             ) : (
               <>
