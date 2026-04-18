@@ -205,6 +205,54 @@ export type Database = {
         }
         Relationships: []
       }
+      refund_requests: {
+        Row: {
+          created_at: string
+          id: string
+          payment_id: string | null
+          processed_at: string | null
+          provider_response: Json | null
+          reason: string
+          reason_details: string | null
+          refund_amount: number
+          requested_at: string
+          status: string
+          subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_id?: string | null
+          processed_at?: string | null
+          provider_response?: Json | null
+          reason: string
+          reason_details?: string | null
+          refund_amount?: number
+          requested_at?: string
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_id?: string | null
+          processed_at?: string | null
+          provider_response?: Json | null
+          reason?: string
+          reason_details?: string | null
+          refund_amount?: number
+          requested_at?: string
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number

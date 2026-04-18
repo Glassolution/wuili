@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Cloud, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/lib/profileContext";
+import RefundSection from "@/components/dashboard/RefundSection";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -148,6 +149,8 @@ Como posso te ajudar hoje?`;
           </button>
         </div>
       </div>
+
+      <RefundSection />
     </div>
   );
 };

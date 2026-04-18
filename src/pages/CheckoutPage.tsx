@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Check, QrCode, CreditCard, Copy,
@@ -74,6 +74,51 @@ const CheckoutPage = () => {
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
   const [cardHolder, setCardHolder] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const pollRef = useRef<number | null>(null);
+
+  // Polling: a cada 5s verifica se o pagamento foi aprovado
+  useEffect(() => {
+    if (checkoutState !== "pix_pending" || !session) return;
+
+    const tick = async () => {
+      try {
+        const { data } = await supabase.functions.invoke("mp-verify-payment");
+        if (data?.status === "active") {
+          setCheckoutState("success");
+          toast.success("🎉 Plano ativado!");
+          if (pollRef.current) window.clearInterval(pollRef.current);
+          setTimeout(() => navigate("/dashboard"), 1500);
+        }
+      } catch (e) {
+        console.error("polling error", e);
+      }
+    };
+
+    tick();
+    pollRef.current = window.setInterval(tick, 5000);
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current);
+    };
+  }, [checkoutState, session, navigate]);
+
+  const handleManualVerify = async () => {
+    setVerifying(true);
+    try {
+      const { data } = await supabase.functions.invoke("mp-verify-payment");
+      if (data?.status === "active") {
+        setCheckoutState("success");
+        toast.success("🎉 Plano ativado!");
+        setTimeout(() => navigate("/dashboard"), 1500);
+      } else {
+        toast.info("Pagamento ainda não confirmado. Aguarde alguns segundos.");
+      }
+    } catch {
+      toast.error("Erro ao verificar pagamento");
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const handleCheckout = async () => {
     if (!session) {
@@ -347,7 +392,15 @@ const CheckoutPage = () => {
                 {copied ? <CheckCircle2 size={15} className="text-green-500" /> : <Copy size={15} />}
                 {copied ? "Copiado!" : "Copiar código Pix"}
               </button>
-              <p className="text-xs text-gray-400">Após o pagamento, seu plano será ativado automaticamente.</p>
+              <button
+                onClick={handleManualVerify}
+                disabled={verifying}
+                className="mx-auto flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black transition-colors disabled:opacity-60"
+              >
+                {verifying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                Já paguei — verificar agora
+              </button>
+              <p className="text-xs text-gray-400">Verificamos seu pagamento automaticamente a cada 5 segundos.</p>
             </div>
           )}
 

@@ -34,8 +34,8 @@ export const usePlan = (): PlanState => {
     }
 
     let cancelled = false;
-    (async () => {
-      // Prefer the latest active subscription; fall back to profile.plano
+
+    const fetchPlan = async () => {
       const { data: sub } = await supabase
         .from("subscriptions")
         .select("plan, status")
@@ -69,10 +69,28 @@ export const usePlan = (): PlanState => {
         status: plan === "gratis" ? "inactive" : "active",
         loading: false,
       });
-    })();
+    };
+
+    fetchPlan();
+
+    // Realtime: ouve mudanças na assinatura do usuário
+    const channel = supabase
+      .channel(`subscriptions-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "subscriptions",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => fetchPlan()
+      )
+      .subscribe();
 
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
     };
   }, [user, authLoading]);
 
