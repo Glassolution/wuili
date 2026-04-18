@@ -251,7 +251,7 @@ const AIChatPage = () => {
             )}
             <button
               onClick={() => send(`Quero publicar este produto: ${p.nome}`)}
-              className="w-full h-[38px] bg-gradient-to-br from-violet-600 to-purple-700 text-white text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity mt-1"
+              className="w-full h-[38px] bg-gradient-to-br from-black to-gray-800 text-white text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity mt-1"
             >
               Publicar no ML
             </button>
@@ -263,7 +263,7 @@ const AIChatPage = () => {
 
   const renderAd = (ad: Ad) => (
     <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm w-full max-w-[400px]">
-      <div className="bg-gradient-to-br from-violet-600 to-purple-700 px-4 py-3">
+      <div className="bg-gradient-to-br from-black to-gray-800 px-4 py-3">
         <p className="text-xs font-bold text-white uppercase tracking-wide">Anuncio criado pela IA</p>
       </div>
       <div className="p-4">
@@ -276,7 +276,7 @@ const AIChatPage = () => {
           </div>
           <button
             onClick={() => send("Publicar no Mercado Livre")}
-            className="h-[38px] bg-gradient-to-br from-violet-600 to-purple-700 px-4 text-xs font-semibold text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 whitespace-nowrap"
+            className="h-[38px] bg-gradient-to-br from-black to-gray-800 px-4 text-xs font-semibold text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 whitespace-nowrap"
           >
             <Package size={13} /> Publicar no ML
           </button>
@@ -364,7 +364,7 @@ const AIChatPage = () => {
 
             {!hasStarted && (
               <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-5 shadow-lg">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-black to-gray-800 flex items-center justify-center mb-5 shadow-lg">
                   <Sparkles size={24} className="text-white" />
                 </div>
                 <h2 className="text-xl font-semibold text-gray-800 mb-2">Ola! Como posso te ajudar?</h2>
@@ -377,7 +377,7 @@ const AIChatPage = () => {
             {messages.map((msg, i) => (
               <div key={i} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start items-start")}>
                 {msg.role === "ai" && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-black to-gray-800 flex items-center justify-center shrink-0 mt-0.5">
                     <Sparkles size={14} className="text-white" />
                   </div>
                 )}
@@ -393,7 +393,7 @@ const AIChatPage = () => {
                     <div className={cn(
                       "px-4 py-3 text-sm leading-relaxed max-w-[75%]",
                       msg.role === "user"
-                        ? "bg-gradient-to-br from-violet-600 to-purple-700 text-white rounded-2xl rounded-tr-sm"
+                        ? "bg-gradient-to-br from-black to-gray-800 text-white rounded-2xl rounded-tr-sm"
                         : "bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm text-gray-700"
                     )}>
                       {msg.text}
@@ -405,12 +405,12 @@ const AIChatPage = () => {
 
             {thinking && (
               <div className="flex gap-3 justify-start items-start">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-black to-gray-800 flex items-center justify-center shrink-0 mt-0.5">
                   <Sparkles size={14} className="text-white" />
                 </div>
                 <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
                   {[0, 150, 300].map(delay => (
-                    <span key={delay} className="w-1.5 h-1.5 rounded-full bg-violet-300 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                    <span key={delay} className="w-1.5 h-1.5 rounded-full bg-black/40 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
                   ))}
                 </div>
               </div>
