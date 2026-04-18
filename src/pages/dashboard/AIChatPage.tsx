@@ -89,14 +89,14 @@ const SearchingCard = ({ nicho }: { nicho: string }) => (
   <div className="flex items-center gap-4 rounded-2xl bg-gray-50 border border-gray-100 px-5 py-4 w-full max-w-[340px] shadow-sm">
     <div className="flex items-end gap-[3px] shrink-0 h-5">
       {[0, 1, 2, 3].map(i => (
-        <span key={i} className="w-[3px] rounded-full bg-violet-400"
+        <span key={i} className="w-[3px] rounded-full bg-black/70"
           style={{ animation: "searchBar 1s ease-in-out infinite", animationDelay: `${i * 0.15}s` }} />
       ))}
     </div>
     <div className="min-w-0">
       <p className="text-sm font-semibold text-gray-800 leading-snug">Buscando produtos</p>
       <p className="text-xs text-gray-400 mt-0.5 truncate">
-        Nicho: <span className="font-medium text-violet-600 capitalize">{nicho}</span>
+        Nicho: <span className="font-medium text-black capitalize">{nicho}</span>
       </p>
     </div>
     <style>{`@keyframes searchBar { 0%,100%{height:6px;opacity:.4} 50%{height:20px;opacity:1} }`}</style>
@@ -112,7 +112,7 @@ interface ChatInputProps {
 }
 
 const ChatInput = memo(({ input, thinking, inputRef, onChange, onSend }: ChatInputProps) => (
-  <div className="group relative flex items-center gap-3 overflow-hidden rounded-[26px] border border-white/60 bg-white/58 px-4 py-3 backdrop-blur-xl shadow-[0_24px_70px_rgba(111,118,138,0.12)] transition-all duration-300 before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%,rgba(124,58,237,0.06)_100%)] before:opacity-80 focus-within:border-[#7C3AED]/30 focus-within:bg-white/72 focus-within:shadow-[0_28px_90px_rgba(111,118,138,0.16)]">
+  <div className="group relative flex items-center gap-3 overflow-hidden rounded-[26px] border border-white/60 bg-white/58 px-4 py-3 backdrop-blur-xl shadow-[0_24px_70px_rgba(111,118,138,0.12)] transition-all duration-300 before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%,rgba(124,58,237,0.06)_100%)] before:opacity-80 focus-within:border-[#000000]/30 focus-within:bg-white/72 focus-within:shadow-[0_28px_90px_rgba(111,118,138,0.16)]">
     <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-white/80" />
     <input
       ref={inputRef}
@@ -238,20 +238,20 @@ const AIChatPage = () => {
           </div>
           <div className="p-3.5 flex flex-col flex-1 gap-1.5">
             <p className="text-[13px] font-semibold text-gray-800 line-clamp-2 leading-snug">{p.nome}</p>
-            {p.margem && <span className="self-start rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-600">Margem {p.margem}</span>}
+            {p.margem && <span className="self-start rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold text-black">Margem {p.margem}</span>}
             <div className="flex-1" />
             {p.precoVenda != null
-              ? <p className="text-base font-bold text-violet-600">R$ {p.precoVenda.toFixed(2).replace(".", ",")}</p>
-              : p.preco ? <p className="text-base font-bold text-violet-600">{p.preco}</p> : null
+              ? <p className="text-base font-bold text-black">R$ {p.precoVenda.toFixed(2).replace(".", ",")}</p>
+              : p.preco ? <p className="text-base font-bold text-black">{p.preco}</p> : null
             }
             {p.url && (
-              <a href={p.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-violet-600 transition-colors">
+              <a href={p.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-black transition-colors">
                 Ver produto <ArrowUpRight size={10} />
               </a>
             )}
             <button
               onClick={() => send(`Quero publicar este produto: ${p.nome}`)}
-              className="w-full h-[38px] bg-gradient-to-br from-violet-600 to-purple-700 text-white text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity mt-1"
+              className="w-full h-[38px] bg-gradient-to-br from-black to-gray-800 text-white text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity mt-1"
             >
               Publicar no ML
             </button>
@@ -263,7 +263,7 @@ const AIChatPage = () => {
 
   const renderAd = (ad: Ad) => (
     <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm w-full max-w-[400px]">
-      <div className="bg-gradient-to-br from-violet-600 to-purple-700 px-4 py-3">
+      <div className="bg-gradient-to-br from-black to-gray-800 px-4 py-3">
         <p className="text-xs font-bold text-white uppercase tracking-wide">Anuncio criado pela IA</p>
       </div>
       <div className="p-4">
@@ -272,11 +272,11 @@ const AIChatPage = () => {
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-[10px] text-gray-400 mb-0.5">Preco sugerido</p>
-            <p className="text-xl font-bold text-violet-600">{ad.preco}</p>
+            <p className="text-xl font-bold text-black">{ad.preco}</p>
           </div>
           <button
             onClick={() => send("Publicar no Mercado Livre")}
-            className="h-[38px] bg-gradient-to-br from-violet-600 to-purple-700 px-4 text-xs font-semibold text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 whitespace-nowrap"
+            className="h-[38px] bg-gradient-to-br from-black to-gray-800 px-4 text-xs font-semibold text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 whitespace-nowrap"
           >
             <Package size={13} /> Publicar no ML
           </button>
@@ -364,7 +364,7 @@ const AIChatPage = () => {
 
             {!hasStarted && (
               <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-5 shadow-lg">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-black to-gray-800 flex items-center justify-center mb-5 shadow-lg">
                   <Sparkles size={24} className="text-white" />
                 </div>
                 <h2 className="text-xl font-semibold text-gray-800 mb-2">Ola! Como posso te ajudar?</h2>
@@ -377,7 +377,7 @@ const AIChatPage = () => {
             {messages.map((msg, i) => (
               <div key={i} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start items-start")}>
                 {msg.role === "ai" && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-black to-gray-800 flex items-center justify-center shrink-0 mt-0.5">
                     <Sparkles size={14} className="text-white" />
                   </div>
                 )}
@@ -393,7 +393,7 @@ const AIChatPage = () => {
                     <div className={cn(
                       "px-4 py-3 text-sm leading-relaxed max-w-[75%]",
                       msg.role === "user"
-                        ? "bg-gradient-to-br from-violet-600 to-purple-700 text-white rounded-2xl rounded-tr-sm"
+                        ? "bg-gradient-to-br from-black to-gray-800 text-white rounded-2xl rounded-tr-sm"
                         : "bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm text-gray-700"
                     )}>
                       {msg.text}
@@ -405,12 +405,12 @@ const AIChatPage = () => {
 
             {thinking && (
               <div className="flex gap-3 justify-start items-start">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-black to-gray-800 flex items-center justify-center shrink-0 mt-0.5">
                   <Sparkles size={14} className="text-white" />
                 </div>
                 <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
                   {[0, 150, 300].map(delay => (
-                    <span key={delay} className="w-1.5 h-1.5 rounded-full bg-violet-300 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                    <span key={delay} className="w-1.5 h-1.5 rounded-full bg-black/40 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
                   ))}
                 </div>
               </div>

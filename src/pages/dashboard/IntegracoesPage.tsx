@@ -108,7 +108,7 @@ const IntegracoesPage = () => {
                 {status === "not_connected" && (
                   <button
                     onClick={() => handleConnect(p.id)}
-                    className="w-full rounded-lg bg-[#7C3AED] text-white py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
+                    className="w-full rounded-lg bg-black text-white py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
                   >
                     Conectar conta
                   </button>

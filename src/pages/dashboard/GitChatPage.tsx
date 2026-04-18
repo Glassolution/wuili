@@ -41,7 +41,7 @@ type Conversation = {
 /* ══ Velo hex icon ══════════════════════════════════════════ */
 const WuilliHex = ({ size = 28 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 30 30" fill="none" style={{ flexShrink: 0 }}>
-    <rect width="30" height="30" rx="8" fill="#7C3AED" />
+    <rect width="30" height="30" rx="8" fill="#000000" />
     <path d="M15 7.5L21 11.25V18.75L15 22.5L9 18.75V11.25L15 7.5Z" fill="white" />
   </svg>
 );
@@ -53,7 +53,7 @@ const SearchingCard = ({ nicho }: { nicho: string }) => (
       {[0, 1, 2, 3].map(i => (
         <span
           key={i}
-          className="w-[3px] rounded-full bg-[#7C3AED]/60"
+          className="w-[3px] rounded-full bg-[#000000]/60"
           style={{ animation: "searchBar 1s ease-in-out infinite", animationDelay: `${i * 0.15}s` }}
         />
       ))}
@@ -61,7 +61,7 @@ const SearchingCard = ({ nicho }: { nicho: string }) => (
     <div className="min-w-0">
       <p className="text-sm font-semibold text-[#1a1a2e] leading-snug">Buscando produtos</p>
       <p className="text-xs text-[#6B7280] mt-0.5 truncate">
-        Nicho: <span className="font-medium text-[#7C3AED] capitalize">{nicho}</span>
+        Nicho: <span className="font-medium text-[#000000] capitalize">{nicho}</span>
       </p>
     </div>
     <style>{`
@@ -143,7 +143,7 @@ const InputBar = ({ input, thinking, inputRef, onChange, onSend }: InputBarProps
       className={cn(
         "group relative flex min-h-[56px] items-center gap-3 overflow-hidden rounded-[26px] border px-4 transition-all duration-300",
         focused
-          ? "border-[#7C3AED]/30 bg-white/72 shadow-[0_28px_90px_rgba(111,118,138,0.16)] backdrop-blur-xl"
+          ? "border-[#000000]/30 bg-white/72 shadow-[0_28px_90px_rgba(111,118,138,0.16)] backdrop-blur-xl"
           : "border-white/60 bg-white/58 shadow-[0_24px_70px_rgba(111,118,138,0.12)] backdrop-blur-xl"
       )}
     >
@@ -347,31 +347,31 @@ const GitChatPage = () => {
               {p.nome}
             </p>
             {p.margem && (
-              <span className="self-start rounded-full bg-[#7C3AED]/10 px-2 py-0.5 text-[10px] font-bold text-[#7C3AED]">
+              <span className="self-start rounded-full bg-[#000000]/10 px-2 py-0.5 text-[10px] font-bold text-[#000000]">
                 Margem {p.margem}
               </span>
             )}
             <div className="flex-1" />
             {p.precoVenda != null ? (
-              <p className="text-base font-bold text-[#7C3AED]">
+              <p className="text-base font-bold text-[#000000]">
                 R$ {p.precoVenda.toFixed(2).replace(".", ",")}
               </p>
             ) : p.precoCusto != null ? (
-              <p className="text-base font-bold text-[#7C3AED]">
+              <p className="text-base font-bold text-[#000000]">
                 R$ {p.precoCusto.toFixed(2).replace(".", ",")}
               </p>
             ) : p.preco ? (
-              <p className="text-base font-bold text-[#7C3AED]">{p.preco}</p>
+              <p className="text-base font-bold text-[#000000]">{p.preco}</p>
             ) : null}
             {p.url && (
               <a href={p.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[11px] text-[#9CA3AF] hover:text-[#7C3AED] transition-colors">
+                className="flex items-center gap-1 text-[11px] text-[#9CA3AF] hover:text-[#000000] transition-colors">
                 Ver produto <ArrowUpRight size={10} />
               </a>
             )}
             <button
               onClick={() => send(`Quero publicar este produto: ${p.nome}. Preço sugerido: R$ ${p.precoVenda?.toFixed(2) ?? p.preco}`)}
-              className="w-full h-[38px] bg-[#7C3AED] text-white text-xs font-semibold rounded-xl hover:bg-[#6D28D9] transition-colors mt-1"
+              className="w-full h-[38px] bg-[#000000] text-white text-xs font-semibold rounded-xl hover:bg-[#000000] transition-colors mt-1"
             >
               Publicar no ML
             </button>
@@ -384,7 +384,7 @@ const GitChatPage = () => {
   /* ── Ad card ──────────────────────────────────────────────── */
   const renderAd = (ad: Ad) => (
     <div className="rounded-2xl border border-white/40 bg-white/70 backdrop-blur-sm overflow-hidden shadow-sm w-full max-w-[400px]">
-      <div className="bg-[#7C3AED] px-4 py-3">
+      <div className="bg-[#000000] px-4 py-3">
         <p className="text-xs font-bold text-white uppercase tracking-wide">Anúncio criado pela IA</p>
       </div>
       <div className="p-4">
@@ -393,11 +393,11 @@ const GitChatPage = () => {
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-[10px] text-[#9CA3AF] mb-0.5">Preço sugerido</p>
-            <p className="text-xl font-bold text-[#7C3AED]">{ad.preco}</p>
+            <p className="text-xl font-bold text-[#000000]">{ad.preco}</p>
           </div>
           <button
             onClick={() => send("Publicar no Mercado Livre")}
-            className="h-[38px] bg-[#7C3AED] px-4 text-xs font-semibold text-white rounded-xl hover:bg-[#6D28D9] transition-colors flex items-center gap-1.5 whitespace-nowrap"
+            className="h-[38px] bg-[#000000] px-4 text-xs font-semibold text-white rounded-xl hover:bg-[#000000] transition-colors flex items-center gap-1.5 whitespace-nowrap"
           >
             <Package size={13} /> Publicar no ML
           </button>
@@ -422,7 +422,7 @@ const GitChatPage = () => {
               <X size={18} />
             </button>
             <h2 className="text-lg font-bold text-[#1a1a2e] tracking-tight">Chat Results</h2>
-            <button onClick={newChat} className="text-[#6B7280] hover:text-[#7C3AED] transition-colors">
+            <button onClick={newChat} className="text-[#6B7280] hover:text-[#000000] transition-colors">
               <Plus size={18} />
             </button>
           </div>
@@ -450,7 +450,7 @@ const GitChatPage = () => {
                 key={c.id}
                 className="w-full text-left rounded-2xl bg-white/50 backdrop-blur-sm border border-white/30 p-3.5 hover:bg-white/70 transition-all group"
               >
-                <p className="text-[13px] font-semibold text-[#1a1a2e] truncate group-hover:text-[#7C3AED] transition-colors">
+                <p className="text-[13px] font-semibold text-[#1a1a2e] truncate group-hover:text-[#000000] transition-colors">
                   {c.title}
                 </p>
                 <p className="text-[11px] text-[#9CA3AF] mt-1">{c.date}</p>
@@ -468,7 +468,7 @@ const GitChatPage = () => {
           <div className="flex shrink-0 items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.5)" }}>
             <div className="flex items-center gap-3">
               {!showHistory && (
-                <button onClick={() => setShowHistory(true)} className="text-[#9CA3AF] hover:text-[#7C3AED] transition-colors mr-1">
+                <button onClick={() => setShowHistory(true)} className="text-[#9CA3AF] hover:text-[#000000] transition-colors mr-1">
                   <MessageSquare size={18} />
                 </button>
               )}
@@ -567,7 +567,7 @@ const GitChatPage = () => {
                           className={cn(
                             "max-w-[70%] px-4 py-2.5 text-[13px] leading-relaxed shadow-sm",
                             msg.role === "user"
-                              ? "bg-[#7C3AED] text-white"
+                              ? "bg-[#000000] text-white"
                               : "bg-white/70 backdrop-blur-sm border border-white/40 text-[#1a1a2e]"
                           )}
                           style={{
