@@ -60,7 +60,7 @@ const Index = () => {
         <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-[14px] md:px-8">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <BrandMark size="xs" showWordmark tone="light" />
+            <BrandMark size="md" showWordmark tone="light" />
           </Link>
 
           {/* Nav links (desktop) */}

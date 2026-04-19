@@ -26,7 +26,7 @@ const BrandMark = ({
     <div className={`inline-flex items-center gap-2.5 ${className}`}>
       <div className={`relative ${sizes[size]} shrink-0`}>
         <img
-          src="/Logoj.png"
+          src={`/Logoj.png?v=${Date.now()}`}
           alt="Velo"
           className="h-full w-full object-contain"
         />
