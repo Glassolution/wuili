@@ -79,7 +79,6 @@ const App = () => (
               }
             />
             <Route path="produtos" element={<CatalogPage />} />
-            <Route path="dropshipping" element={<ProductsPage />} />
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="publicacoes" element={<PublicationsPage />} />
             <Route path="relatorios" element={<ReportsPage />} />
