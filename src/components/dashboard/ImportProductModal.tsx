@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store } from "lucide-react";
 import { toast } from "sonner";
@@ -48,6 +49,7 @@ const STEPS = [
 
 const ImportProductModal = ({ open, onClose, product }: Props) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [step, setStep] = useState(1); // Start at step 1 (details)
   const [title, setTitle] = useState("");
@@ -581,12 +583,23 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                         {generatingDesc ? "Gerando" : "Gerar com IA"}
                       </button>
                       <button
-                        onClick={async () => {
-                          if (!description.trim()) return toast.error("Crie uma descrição primeiro");
-                          const originalUrl = product.original_url || `https://cjdropshipping.com/product/${product.id}`;
-                          const info = `Título: ${title}\nDescrição: ${description}\nLink: ${originalUrl}\nImagem: ${img || ''}`;
-                          try { await navigator.clipboard.writeText(info); toast.success("Copiado"); } catch {}
-                          window.open(`https://bandy.ai/agent?new&product=${encodeURIComponent(img || '')}&title=${encodeURIComponent(title)}`, '_blank');
+                        onClick={() => {
+                          if (!description.trim()) {
+                            toast.error("Crie uma descrição antes de fazer o vídeo");
+                            return;
+                          }
+                          const productImage = img || '';
+                          const getImageWithFormat = (imageUrl: string): string => {
+                            if (!imageUrl) return '';
+                            if (imageUrl.match(/\.(png|jpg|jpeg)(\?|$)/i)) return imageUrl;
+                            if (imageUrl.includes('.webp')) return imageUrl.replace('.webp', '.jpg');
+                            const separator = imageUrl.includes('?') ? '&' : '?';
+                            return `${imageUrl}${separator}format=jpg`;
+                          };
+                          const formattedImageUrl = getImageWithFormat(productImage);
+                          const params = new URLSearchParams({ imageUrl: formattedImageUrl });
+                          onClose();
+                          navigate(`/dashboard/criar-video?${params.toString()}`);
                         }}
                         disabled={!description.trim()}
                         className="flex items-center gap-1.5 text-[11.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors disabled:opacity-30"

@@ -31,6 +31,7 @@ const BrandMark = ({
           className="h-full w-full object-contain"
         />
       </div>
+
       {showWordmark && (
         <span
           className={`font-['Manrope'] text-lg font-bold tracking-[-0.02em] ${wordmarkColor}`}

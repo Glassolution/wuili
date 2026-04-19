@@ -26,6 +26,7 @@ import TransacoesPage from "./pages/dashboard/TransacoesPage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
 import PagamentosPage from "./pages/dashboard/PagamentosPage";
 import CheckoutPage from "./pages/CheckoutPage";
+import CriarVideoPage from "./pages/dashboard/CriarVideoPage";
 
 const queryClient = new QueryClient();
 
@@ -78,7 +79,6 @@ const App = () => (
               }
             />
             <Route path="produtos" element={<CatalogPage />} />
-            <Route path="dropshipping" element={<ProductsPage />} />
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="publicacoes" element={<PublicationsPage />} />
             <Route path="relatorios" element={<ReportsPage />} />
@@ -109,6 +109,7 @@ const App = () => (
             />
             <Route path="integracoes" element={<IntegracoesPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
+            <Route path="criar-video" element={<CriarVideoPage />} />
           </Route>
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="*" element={<NotFound />} />

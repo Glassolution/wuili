@@ -22,19 +22,19 @@ const railLinks: RailLink[] = [
   { to: "/dashboard/relatorios", icon: BarChart3, label: "Relatórios" },
 ];
 
-/* These paths belong to the Dropshipping workspace */
+/* These paths belong to the main workspace */
 const dropshippingPaths = [
   "/dashboard/produtos",
-  "/dashboard/dropshipping",
   "/dashboard/publicacoes",
   "/dashboard/pedidos",
+  "/dashboard/criar-video",
 ];
 
 const workspaceItems = [
   { label: "Produtos", path: "/dashboard/produtos", hasSubmenu: false },
-  { label: "Dropshipping", path: "/dashboard/dropshipping", hasSubmenu: false },
   { label: "Publicações", path: "/dashboard/publicacoes", hasSubmenu: false },
   { label: "Pedidos", path: "/dashboard/pedidos", hasSubmenu: false },
+  { label: "Criar Vídeos", path: "/dashboard/criar-video", hasSubmenu: false },
 ];
 
 const DashboardSidebar = () => {
@@ -86,11 +86,11 @@ const DashboardSidebar = () => {
           <TooltipContent side="right" sideOffset={8} className="text-xs">Chat IA</TooltipContent>
         </Tooltip>
 
-        {/* Dropshipping icon — opens workspace panel */}
+        {/* Loja icon — opens workspace panel */}
         <Tooltip delayDuration={200}>
           <TooltipTrigger asChild>
             <Link
-              to="/dashboard/dropshipping"
+              to="/dashboard/produtos"
               className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
                 isDropshippingActive
@@ -101,7 +101,7 @@ const DashboardSidebar = () => {
               <Package className="h-[17px] w-[17px]" strokeWidth={1.75} />
             </Link>
           </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={8} className="text-xs">Dropshipping</TooltipContent>
+          <TooltipContent side="right" sideOffset={8} className="text-xs">Loja</TooltipContent>
         </Tooltip>
 
         {/* Other nav icons */}

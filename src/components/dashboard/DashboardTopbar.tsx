@@ -17,13 +17,13 @@ const pageTitles: Record<string, string> = {
   "/dashboard/transacoes": "Transações",
   "/dashboard/clientes": "Clientes",
   "/dashboard/produtos": "Produtos",
-  "/dashboard/dropshipping": "Produtos",
   "/dashboard/pedidos": "Pedidos",
   "/dashboard/publicacoes": "Publicações",
   "/dashboard/pagamentos": "Pagamentos",
   "/dashboard/relatorios": "Relatórios",
   "/dashboard/ia": "Chat IA",
   "/dashboard/configuracoes": "Configurações",
+  "/dashboard/criar-video": "Criar Vídeos",
 };
 
 type MobileMenuItem = { icon: LucideIcon; label: string; path: string };
@@ -32,7 +32,6 @@ const mobileItems: MobileMenuItem[] = [
   { icon: LayoutGrid, label: "Início", path: "/dashboard" },
   { icon: ShoppingCart, label: "Pedidos", path: "/dashboard/pedidos" },
   { icon: BookOpen, label: "Produtos", path: "/dashboard/produtos" },
-  { icon: BookOpen, label: "Dropshipping", path: "/dashboard/dropshipping" },
   { icon: Star, label: "Publicações", path: "/dashboard/publicacoes" },
   { icon: Users, label: "Clientes", path: "/dashboard/clientes" },
   { icon: Wallet, label: "Saldos", path: "/dashboard/saldos" },
