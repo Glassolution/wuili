@@ -41,26 +41,28 @@ const BrandMark = ({
           />
 
           {/*
-            ShoppingBag (lucide 24×24) centrado na nuvem.
-            Centro da bag em coords lucide: (12, 12).
+            ShoppingCart (lucide 24×24) centrado na nuvem.
+            Bounding box lucide: x 1→23, y 1→22  →  centro (12, 11.5).
             Centro-alvo na nuvem SVG: ~(35, 21).
-            translate = (35 - 12×0.62, 21 - 12×0.62) ≈ (27.5, 13.5)
-            scale = 0.62  →  tamanho efetivo ≈ 11×12 unidades SVG
+            translate = (35 - 12×0.62, 21 - 11.5×0.62) ≈ (27.6, 13.9)
+            scale = 0.62  →  tamanho efetivo ≈ 13.6×12.4 unidades SVG
           */}
           <g
-            transform="translate(27.5, 13.5) scale(0.62)"
-            fill="none"
-            stroke={iconFill}
-            strokeWidth="2.4"
+            transform="translate(27.6, 13.9) scale(0.62)"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            {/* Bag body */}
-            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-            {/* Horizontal divider */}
-            <line x1="3" y1="6" x2="21" y2="6" />
-            {/* Handle arc */}
-            <path d="M16 10a4 4 0 0 1-8 0" />
+            {/* Cart body + handle */}
+            <path
+              d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"
+              fill="none"
+              stroke={iconFill}
+              strokeWidth="2.5"
+            />
+            {/* Wheel left */}
+            <circle cx="9" cy="21" r="1.5" fill={iconFill} stroke="none" />
+            {/* Wheel right */}
+            <circle cx="20" cy="21" r="1.5" fill={iconFill} stroke="none" />
           </g>
         </svg>
       </div>
