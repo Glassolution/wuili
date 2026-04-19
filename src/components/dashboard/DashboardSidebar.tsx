@@ -28,6 +28,7 @@ const dropshippingPaths = [
   "/dashboard/dropshipping",
   "/dashboard/publicacoes",
   "/dashboard/pedidos",
+  "/dashboard/criar-video",
 ];
 
 const workspaceItems = [
@@ -35,6 +36,7 @@ const workspaceItems = [
   { label: "Dropshipping", path: "/dashboard/dropshipping", hasSubmenu: false },
   { label: "Publicações", path: "/dashboard/publicacoes", hasSubmenu: false },
   { label: "Pedidos", path: "/dashboard/pedidos", hasSubmenu: false },
+  { label: "Criar Vídeos", path: "/dashboard/criar-video", hasSubmenu: false },
 ];
 
 const DashboardSidebar = () => {

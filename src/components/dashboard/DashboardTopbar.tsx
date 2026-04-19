@@ -24,6 +24,7 @@ const pageTitles: Record<string, string> = {
   "/dashboard/relatorios": "Relatórios",
   "/dashboard/ia": "Chat IA",
   "/dashboard/configuracoes": "Configurações",
+  "/dashboard/criar-video": "Criar Vídeos",
 };
 
 type MobileMenuItem = { icon: LucideIcon; label: string; path: string };
