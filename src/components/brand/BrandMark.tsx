@@ -1,21 +1,17 @@
-import { Zap } from "lucide-react";
-
 type BrandMarkProps = {
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   showWordmark?: boolean;
-  /** "light" = fundo claro → ícone preto · "dark" = fundo escuro → ícone branco */
+  /** "light" = fundo claro → nuvem preta · "dark" = fundo escuro → nuvem branca */
   tone?: "light" | "dark";
   className?: string;
 };
 
-// Mapeamento de tamanhos → px do ícone Zap
-// navbar: 20px (sm) · sidebar: 24px (md) · landing hero: 32px (lg)
-const zapSizes: Record<NonNullable<BrandMarkProps["size"]>, number> = {
-  xs: 18,
-  sm: 20,
-  md: 24,
-  lg: 32,
-  xl: 40,
+const sizes = {
+  xs: "h-6 w-6",
+  sm: "h-9 w-9",
+  md: "h-12 w-12",
+  lg: "h-16 w-16",
+  xl: "h-24 w-24",
 };
 
 const BrandMark = ({
@@ -24,17 +20,51 @@ const BrandMark = ({
   tone = "dark",
   className = "",
 }: BrandMarkProps) => {
-  const color = tone === "dark" ? "#ffffff" : "#000000";
+  const cloudFill = tone === "dark" ? "#ffffff" : "#000000";
+  const iconFill = tone === "dark" ? "#0a0a0a" : "#ffffff";
   const wordmarkColor = tone === "dark" ? "text-white" : "text-[#0a0a0a]";
 
   return (
     <div className={`inline-flex items-center gap-2.5 ${className}`}>
-      <Zap
-        size={zapSizes[size]}
-        color={color}
-        strokeWidth={2.25}
-        aria-label="Velo"
-      />
+      <div className={`relative ${sizes[size]} shrink-0`}>
+        <svg
+          viewBox="8 3 54 37"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-full w-full"
+          aria-label="Velo"
+        >
+          {/* Cloud silhouette — unchanged */}
+          <path
+            fill={cloudFill}
+            d="M50.8 20.3c.1-.6.1-1.2.1-1.8 0-7.2-5.9-13.1-13.1-13.1-5.4 0-10.2 3.3-12.2 8.1-1.2-.5-2.5-.7-3.9-.7C15.2 12.8 9.8 18.2 9.8 24.8c0 6.6 5.4 12 12 12h28.6c5.5 0 9.9-4.4 9.9-9.9 0-4.3-2.7-7.9-6.5-9.3-.9 1.1-1.9 2-3 2.7z"
+          />
+
+          {/*
+            ShoppingBag (lucide 24×24) centrado na nuvem.
+            Centro da bag em coords lucide: (12, 12).
+            Centro-alvo na nuvem SVG: ~(35, 21).
+            translate = (35 - 12×0.62, 21 - 12×0.62) ≈ (27.5, 13.5)
+            scale = 0.62  →  tamanho efetivo ≈ 11×12 unidades SVG
+          */}
+          <g
+            transform="translate(27.5, 13.5) scale(0.62)"
+            fill="none"
+            stroke={iconFill}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {/* Bag body */}
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+            {/* Horizontal divider */}
+            <line x1="3" y1="6" x2="21" y2="6" />
+            {/* Handle arc */}
+            <path d="M16 10a4 4 0 0 1-8 0" />
+          </g>
+        </svg>
+      </div>
+
       {showWordmark && (
         <span
           className={`font-['Manrope'] text-lg font-bold tracking-[-0.02em] ${wordmarkColor}`}
