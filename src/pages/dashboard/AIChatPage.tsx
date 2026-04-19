@@ -1,14 +1,16 @@
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
-  ArrowUp, Plus, Package, ArrowUpRight, X,
-  Sparkles, PanelLeft, ChevronLeft,
+  Package, ArrowUpRight, Copy, Check, RefreshCw, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { SourceSelector, type ProductSource } from "@/components/chat/SourceSelector";
+import SelectProductModal from "@/components/dashboard/SelectProductModal";
+import BrandMark from "@/components/brand/BrandMark";
 
+// ─── Types (unchanged) ────────────────────────────────────────────────────────
 type Product = {
   nome: string;
   imagem?: string;
@@ -32,14 +34,44 @@ type Message = {
   nicho?: string;
 };
 
-const chatHistory = [
-  { id: "1", title: "Eletronicos com margem", preview: "Encontrei 8 produtos...", date: "hoje", active: true },
-  { id: "2", title: "Produtos de moda", preview: "Moda feminina tem boa...", date: "hoje", active: false },
-  { id: "3", title: "Beleza e skincare", preview: "Cosmeticos importados...", date: "ontem", active: false },
-  { id: "4", title: "Como diminuir CAC?", preview: "O custo de aquisicao...", date: "ontem", active: false },
-  { id: "5", title: "Como aumentar LTV?", preview: "O lifetime value pode...", date: "ontem", active: false },
+// Catalog product from SelectProductModal
+type CatalogProduct = {
+  id: string;
+  title: string;
+  images: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  cost_price: number;
+  suggested_price: number;
+  category: string | null;
+};
+
+// ─── Quick suggestion chips ───────────────────────────────────────────────────
+const QUICK_CHIPS = [
+  {
+    label: "📦 Destacar benefícios",
+    text: "Destaque os principais benefícios e diferenciais do produto, o que ele resolve para o comprador.",
+  },
+  {
+    label: "🔥 Foco no preço",
+    text: "Foque no custo-benefício e no melhor preço do mercado, criando senso de urgência na compra.",
+  },
+  {
+    label: "⭐ Prova social",
+    text: "Use prova social, popularidade e avaliações positivas do produto para convencer o comprador.",
+  },
 ];
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const getProductImage = (images: any): string | null => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  try {
+    const arr = typeof images === "string" ? JSON.parse(images) : images;
+    return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
+  } catch { return null; }
+};
+
+const formatBRL = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+// ─── AI & product fetch logic (unchanged) ────────────────────────────────────
 async function callAI(history: { role: string; content: string }[]): Promise<string> {
   const { data, error } = await supabase.functions.invoke("chat", { body: { messages: history } });
   if (error) throw new Error(error.message || "Erro ao conectar com a IA");
@@ -51,7 +83,7 @@ async function fetchMercadoLivre(nicho: string): Promise<Product[]> {
   const res = await fetch(`https://api.mercadolibre.com/sites/MLB/search?q=${query}&limit=12`);
   if (!res.ok) throw new Error("Erro ao buscar no Mercado Livre");
   const mlData = await res.json();
-  return (mlData.results ?? []).map((item: any) => ({
+  return (mlData.results ?? []).map((item: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
     nome: item.title,
     imagem: item.thumbnail?.replace("http://", "https://"),
     url: item.permalink,
@@ -85,12 +117,16 @@ async function fetchProducts(nicho: string, source: ProductSource): Promise<Prod
   return source === "mercadolivre" ? fetchMercadoLivre(nicho) : fetchAliExpress(nicho);
 }
 
+// ─── Searching indicator (reused in intermediate messages) ───────────────────
 const SearchingCard = ({ nicho }: { nicho: string }) => (
-  <div className="flex items-center gap-4 rounded-2xl bg-gray-50 border border-gray-100 px-5 py-4 w-full max-w-[340px] shadow-sm">
+  <div className="flex items-center gap-4 rounded-2xl bg-gray-50 border border-gray-100 px-5 py-4 w-full shadow-sm">
     <div className="flex items-end gap-[3px] shrink-0 h-5">
       {[0, 1, 2, 3].map(i => (
-        <span key={i} className="w-[3px] rounded-full bg-black/70"
-          style={{ animation: "searchBar 1s ease-in-out infinite", animationDelay: `${i * 0.15}s` }} />
+        <span
+          key={i}
+          className="w-[3px] rounded-full bg-black/70"
+          style={{ animation: "searchBar 1s ease-in-out infinite", animationDelay: `${i * 0.15}s` }}
+        />
       ))}
     </div>
     <div className="min-w-0">
@@ -99,60 +135,34 @@ const SearchingCard = ({ nicho }: { nicho: string }) => (
         Nicho: <span className="font-medium text-black capitalize">{nicho}</span>
       </p>
     </div>
-    <style>{`@keyframes searchBar { 0%,100%{height:6px;opacity:.4} 50%{height:20px;opacity:1} }`}</style>
   </div>
 );
 
-interface ChatInputProps {
-  input: string;
-  thinking: boolean;
-  inputRef?: React.RefObject<HTMLInputElement>;
-  onChange: (val: string) => void;
-  onSend: () => void;
-}
-
-const ChatInput = memo(({ input, thinking, inputRef, onChange, onSend }: ChatInputProps) => (
-  <div className="group relative flex items-center gap-3 overflow-hidden rounded-[26px] border border-white/60 bg-white/58 px-4 py-3 backdrop-blur-xl shadow-[0_24px_70px_rgba(111,118,138,0.12)] transition-all duration-300 before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%,rgba(124,58,237,0.06)_100%)] before:opacity-80 focus-within:border-[#000000]/30 focus-within:bg-white/72 focus-within:shadow-[0_28px_90px_rgba(111,118,138,0.16)]">
-    <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-white/80" />
-    <input
-      ref={inputRef}
-      type="text"
-      placeholder={thinking ? "Velo esta pensando..." : "Ask me anything..."}
-      value={input}
-      disabled={thinking}
-      onChange={e => onChange(e.target.value)}
-      onKeyDown={e => e.key === "Enter" && !thinking && onSend()}
-      className="relative z-[1] flex-1 bg-transparent text-sm font-medium text-[#171821] outline-none placeholder:text-[#7C8195] disabled:cursor-not-allowed"
-    />
-    <button
-      onClick={onSend}
-      disabled={thinking || !input.trim()}
-      className="relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#171821] text-white shadow-[0_12px_24px_rgba(23,24,33,0.22)] transition-all duration-300 hover:translate-y-[-1px] hover:bg-[#222432] disabled:opacity-40"
-    >
-      <ArrowUp size={15} strokeWidth={2.5} />
-    </button>
-  </div>
-));
-ChatInput.displayName = "ChatInput";
-
+// ─── Page ─────────────────────────────────────────────────────────────────────
 const AIChatPage = () => {
   const { nome } = useProfile();
   const { user } = useAuth();
+
+  // state – profile (unchanged)
   const [profileName, setProfileName] = useState(nome);
+
+  // state – chat logic (unchanged)
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(
-    () => localStorage.getItem("ai-chat-sidebar") !== "false"
-  );
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const apiHistory = useRef<{ role: string; content: string }[]>([]);
 
-  useEffect(() => {
-    localStorage.setItem("ai-chat-sidebar", String(sidebarOpen));
-  }, [sidebarOpen]);
+  // state – new UI
+  const [adInput, setAdInput] = useState("");
+  const [textareaFocused, setTextareaFocused] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [lastGenerateMsg, setLastGenerateMsg] = useState("");
 
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // ── Effects (unchanged) ───────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("display_name").eq("user_id", user.id).single()
@@ -161,20 +171,16 @@ const AIChatPage = () => {
 
   useEffect(() => { if (nome) setProfileName(nome); }, [nome]);
 
+  // ── Scroll helper ─────────────────────────────────────────────────────────
   const scroll = () => {
-    setTimeout(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      inputRef.current?.focus();
-    }, 60);
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
   };
 
-  const hasStarted = messages.length > 0;
-
+  // ── send() — logic unchanged ──────────────────────────────────────────────
   const send = async (text?: string) => {
     const msg = (text ?? input).trim();
     if (!msg || thinking) return;
     setInput("");
-    inputRef.current?.focus();
     const userMsg: Message = { role: "user", text: msg, kind: "text" };
     setMessages(prev => [...prev, userMsg]);
     const nextHistory = [...apiHistory.current, { role: "user", content: msg }];
@@ -190,21 +196,25 @@ const AIChatPage = () => {
       setMessages(prev => [...prev, { role: "ai", text: response, ...parsed }]);
     } catch (err) {
       console.error("[AI Chat]", err);
-      setMessages(prev => [...prev, { role: "ai", text: "Erro de conexao. Tente novamente.", kind: "text" }]);
+      setMessages(prev => [...prev, { role: "ai", text: "Erro de conexão. Tente novamente.", kind: "text" }]);
     } finally {
       setThinking(false);
       scroll();
     }
   };
 
+  // ── newChat() — logic unchanged ───────────────────────────────────────────
   const newChat = () => {
     setMessages([]);
     setInput("");
     setThinking(false);
+    setAdInput("");
+    setSelectedProduct(null);
+    setLastGenerateMsg("");
     apiHistory.current = [];
-    setTimeout(() => inputRef.current?.focus(), 80);
   };
 
+  // ── handleSourceConfirm() — logic unchanged ───────────────────────────────
   const handleSourceConfirm = async (nicho: string, source: ProductSource) => {
     setMessages(prev => {
       const without = prev.filter(m => m.kind !== "source-select");
@@ -215,43 +225,83 @@ const AIChatPage = () => {
     try { products = await fetchProducts(nicho, source); } catch { fetchError = true; }
     const sourceLabel = source === "mercadolivre" ? "Mercado Livre" : "AliExpress";
     if (fetchError || products.length === 0) {
-      const errMsg = "Nao encontrei produtos para esse nicho agora. Tente outro nicho.";
+      const errMsg = "Não encontrei produtos para esse nicho agora. Tente outro nicho.";
       apiHistory.current = [...apiHistory.current, { role: "assistant", content: errMsg }];
-      setMessages(prev => { const w = prev.filter(m => m.kind !== "searching"); return [...w, { role: "ai", text: errMsg, kind: "text" }]; });
+      setMessages(prev => {
+        const w = prev.filter(m => m.kind !== "searching");
+        return [...w, { role: "ai", text: errMsg, kind: "text" }];
+      });
     } else {
       const ctx = `Produtos encontrados no ${sourceLabel} para "${nicho}": ${products.map(p => p.nome).join(", ")}`;
       apiHistory.current = [...apiHistory.current, { role: "assistant", content: ctx }];
-      setMessages(prev => { const w = prev.filter(m => m.kind !== "searching"); return [...w, { role: "ai", text: "", kind: "products", products }]; });
+      setMessages(prev => {
+        const w = prev.filter(m => m.kind !== "searching");
+        return [...w, { role: "ai", text: "", kind: "products", products }];
+      });
     }
     scroll();
   };
 
+  // ── handleGenerate — builds message and calls send() ─────────────────────
+  const handleGenerate = () => {
+    let msg = "";
+    if (selectedProduct) {
+      msg = `Crie um anúncio para o produto: "${selectedProduct.title}". Custo: ${formatBRL(selectedProduct.cost_price)}. Preço sugerido: ${formatBRL(selectedProduct.suggested_price)}.`;
+      if (adInput.trim()) msg += ` ${adInput.trim()}`;
+    } else {
+      msg = adInput.trim() || "Crie um anúncio para um produto de dropshipping.";
+    }
+    setLastGenerateMsg(msg);
+    send(msg);
+  };
+
+  // ── copyAd ────────────────────────────────────────────────────────────────
+  const copyAd = (ad: Ad) => {
+    const text = `${ad.titulo}\n\n${ad.descricao}\n\nPreço: ${ad.preco}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  // ── Derived state ─────────────────────────────────────────────────────────
+  // Latest generated ad → shown in result card
+  const latestAd = [...messages].reverse().find(m => m.kind === "ad")?.ad ?? null;
+  // All messages except ads (ads are shown in the card, not inline)
+  const intermediateMessages = messages.filter(m => m.kind !== "ad");
+
+  // ── Products grid (kept from original logic) ──────────────────────────────
   const renderProducts = (products: Product[]) => (
-    <div className="grid grid-cols-2 gap-3 w-full max-w-[560px]">
+    <div className="grid grid-cols-2 gap-3 w-full">
       {products.map((p, i) => (
         <div key={i} className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm flex flex-col">
-          <div className="h-[140px] bg-gray-50 overflow-hidden">
+          <div className="h-[120px] bg-gray-50 overflow-hidden">
             {p.imagem
               ? <img src={p.imagem} alt={p.nome} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-              : <div className="w-full h-full flex items-center justify-center"><Package size={28} className="text-gray-300" /></div>
+              : <div className="w-full h-full flex items-center justify-center"><Package size={24} className="text-gray-300" /></div>
             }
           </div>
-          <div className="p-3.5 flex flex-col flex-1 gap-1.5">
+          <div className="p-3 flex flex-col flex-1 gap-1.5">
             <p className="text-[13px] font-semibold text-gray-800 line-clamp-2 leading-snug">{p.nome}</p>
-            {p.margem && <span className="self-start rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold text-black">Margem {p.margem}</span>}
+            {p.margem && (
+              <span className="self-start rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold text-black">
+                Margem {p.margem}
+              </span>
+            )}
             <div className="flex-1" />
             {p.precoVenda != null
-              ? <p className="text-base font-bold text-black">R$ {p.precoVenda.toFixed(2).replace(".", ",")}</p>
-              : p.preco ? <p className="text-base font-bold text-black">{p.preco}</p> : null
+              ? <p className="text-sm font-bold text-black">R$ {p.precoVenda.toFixed(2).replace(".", ",")}</p>
+              : p.preco ? <p className="text-sm font-bold text-black">{p.preco}</p> : null
             }
             {p.url && (
-              <a href={p.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-black transition-colors">
+              <a href={p.url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-black transition-colors">
                 Ver produto <ArrowUpRight size={10} />
               </a>
             )}
             <button
               onClick={() => send(`Quero publicar este produto: ${p.nome}`)}
-              className="w-full h-[38px] bg-gradient-to-br from-black to-gray-800 text-white text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity mt-1"
+              className="w-full h-8 bg-black text-white text-xs font-semibold rounded-xl hover:opacity-90 transition-opacity mt-1"
             >
               Publicar no ML
             </button>
@@ -261,124 +311,266 @@ const AIChatPage = () => {
     </div>
   );
 
-  const renderAd = (ad: Ad) => (
-    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm w-full max-w-[400px]">
-      <div className="bg-gradient-to-br from-black to-gray-800 px-4 py-3">
-        <p className="text-xs font-bold text-white uppercase tracking-wide">Anuncio criado pela IA</p>
-      </div>
-      <div className="p-4">
-        <p className="text-sm font-bold text-gray-800 mb-2">{ad.titulo}</p>
-        <p className="text-xs text-gray-500 leading-relaxed mb-4">{ad.descricao}</p>
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-[10px] text-gray-400 mb-0.5">Preco sugerido</p>
-            <p className="text-xl font-bold text-black">{ad.preco}</p>
-          </div>
-          <button
-            onClick={() => send("Publicar no Mercado Livre")}
-            className="h-[38px] bg-gradient-to-br from-black to-gray-800 px-4 text-xs font-semibold text-white rounded-xl hover:opacity-90 transition-opacity flex items-center gap-1.5 whitespace-nowrap"
-          >
-            <Package size={13} /> Publicar no ML
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const todayChats = chatHistory.filter(c => c.date === "hoje");
-  const yesterdayChats = chatHistory.filter(c => c.date === "ontem");
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="h-[calc(100vh-7rem)] flex flex-row overflow-hidden rounded-2xl border border-gray-100 shadow-sm bg-[#F4F4F8]">
+    <div className="min-h-full bg-white overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+      <style>{`
+        @keyframes searchBar   { 0%,100%{height:6px;opacity:.4} 50%{height:20px;opacity:1} }
+        @keyframes slideUp     { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulseDot    { 0%,100%{opacity:1} 50%{opacity:0.25} }
+        .ad-card-enter         { animation: slideUp 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        .ia-pulse              { animation: pulseDot 1.6s ease-in-out infinite; }
+      `}</style>
 
-      {/* LEFT PANEL */}
-      <div className={cn(
-        "hidden md:flex flex-col overflow-hidden transition-all duration-300 ease-in-out bg-[#F4F4F8] shrink-0",
-        sidebarOpen ? "w-[300px] min-w-[300px]" : "w-0 min-w-0"
-      )}>
-        <div className="flex items-center gap-3 px-5 pt-6 pb-4">
-          <button onClick={() => setSidebarOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <ChevronLeft size={18} />
-          </button>
-          <h2 className="text-xl font-semibold text-gray-800 flex-1">Chat Results</h2>
-        </div>
-        <button onClick={newChat} className="mx-4 mb-4 w-[calc(100%-2rem)] flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-500 hover:bg-white transition-all">
-          <Plus size={15} /> Novo Chat
-        </button>
-        <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-          {todayChats.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 mb-2">Hoje</p>
-              {todayChats.map(c => (
-                <div key={c.id} className={cn("mx-3 mb-1 rounded-2xl px-4 py-3 cursor-pointer hover:bg-white/80 transition-all group flex items-center gap-3", c.active && "bg-white shadow-sm")}>
-                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                    <Sparkles size={14} className="text-gray-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{c.title}</p>
-                    <p className="text-xs text-gray-400 truncate mt-0.5">{c.preview}</p>
-                  </div>
-                  <ArrowUpRight size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                </div>
-              ))}
-            </div>
-          )}
-          {yesterdayChats.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 mb-2">Ontem</p>
-              {yesterdayChats.map(c => (
-                <div key={c.id} className={cn("mx-3 mb-1 rounded-2xl px-4 py-3 cursor-pointer hover:bg-white/80 transition-all group flex items-center gap-3", c.active && "bg-white shadow-sm")}>
-                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                    <Sparkles size={14} className="text-gray-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{c.title}</p>
-                    <p className="text-xs text-gray-400 truncate mt-0.5">{c.preview}</p>
-                  </div>
-                  <ArrowUpRight size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                </div>
-              ))}
-            </div>
+      <div className="max-w-[680px] mx-auto px-4 py-10 pb-16">
+
+        {/* ── HEADER ──────────────────────────────────────────────────────── */}
+        <div className="flex flex-col items-center text-center mb-10">
+          <BrandMark size="sm" tone="light" className="mb-4" />
+          <h1 style={{ fontSize: 22, fontWeight: 600, color: "#0A0A0A", lineHeight: 1.3, margin: 0 }}>
+            Criar anúncio com IA
+          </h1>
+          <p style={{ fontSize: 14, color: "#737373", marginTop: 6, marginBottom: 0 }}>
+            Selecione um produto e descreva o que você quer destacar
+          </p>
+          {messages.length > 0 && (
+            <button
+              onClick={newChat}
+              style={{ fontSize: 12, color: "#A3A3A3", marginTop: 10, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+            >
+              Nova consulta
+            </button>
           )}
         </div>
-      </div>
 
-      {/* RIGHT PANEL */}
-      <div className="flex-1 flex flex-col bg-white overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            {!sidebarOpen && (
-              <button onClick={() => setSidebarOpen(true)} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 transition-all">
-                <PanelLeft size={16} />
-              </button>
-            )}
-          </div>
-          <p className="text-base font-semibold text-gray-800">Novo Chat</p>
-          <button onClick={newChat} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto py-6" style={{ scrollbarWidth: "none" }}>
-          <div className="w-full max-w-[800px] mx-auto px-6 space-y-6">
-
-            {!hasStarted && (
-              <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-black to-gray-800 flex items-center justify-center mb-5 shadow-lg">
-                  <Sparkles size={24} className="text-white" />
-                </div>
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">Ola! Como posso te ajudar?</h2>
-                <p className="text-sm text-gray-400 max-w-xs">
-                  Sou especialista em dropshipping. Posso te ajudar a encontrar produtos, criar anuncios e publicar no Mercado Livre.
-                </p>
+        {/* ── PRODUCT SELECTOR ────────────────────────────────────────────── */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setShowProductModal(true)}
+          onKeyDown={e => e.key === "Enter" && setShowProductModal(true)}
+          className="product-selector"
+          style={{
+            border: "1.5px dashed #D4D4D4",
+            borderRadius: 16,
+            padding: 20,
+            background: "#FAFAFA",
+            cursor: "pointer",
+            transition: "border-color 150ms, background 150ms",
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLDivElement).style.borderColor = "#000";
+            (e.currentTarget as HTMLDivElement).style.background = "#F5F5F5";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLDivElement).style.borderColor = "#D4D4D4";
+            (e.currentTarget as HTMLDivElement).style.background = "#FAFAFA";
+          }}
+        >
+          {selectedProduct ? (
+            /* ── Selected state ── */
+            <div className="flex items-center gap-3">
+              <div style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden", background: "#F0F0F0", flexShrink: 0 }}>
+                {getProductImage(selectedProduct.images) ? (
+                  <img
+                    src={getProductImage(selectedProduct.images)!}
+                    alt={selectedProduct.title}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Package size={22} color="#A3A3A3" />
+                  </div>
+                )}
               </div>
-            )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#0A0A0A", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {selectedProduct.title}
+                </p>
+                <p style={{ fontSize: 12, color: "#737373", margin: "3px 0 0" }}>
+                  Custo {formatBRL(selectedProduct.cost_price)} · Venda sugerida {formatBRL(selectedProduct.suggested_price)}
+                </p>
+                <span style={{
+                  display: "inline-block", marginTop: 5,
+                  background: "#DCFCE7", color: "#16A34A",
+                  fontSize: 11, fontWeight: 600,
+                  borderRadius: 100, padding: "2px 8px",
+                }}>
+                  Lucro {formatBRL(selectedProduct.suggested_price - selectedProduct.cost_price)}
+                </span>
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); setShowProductModal(true); }}
+                style={{ fontSize: 12, color: "#737373", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}
+              >
+                Trocar
+              </button>
+            </div>
+          ) : (
+            /* ── Empty state ── */
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "8px 0" }}>
+              <Package size={28} color="#A3A3A3" />
+              <p style={{ fontSize: 14, color: "#737373", fontWeight: 500, margin: 0 }}>
+                Selecionar produto do catálogo
+              </p>
+              <p style={{ fontSize: 12, color: "#A3A3A3", margin: 0 }}>
+                Escolha um produto da Velo para gerar o anúncio
+              </p>
+            </div>
+          )}
+        </div>
 
-            {messages.map((msg, i) => (
-              <div key={i} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start items-start")}>
+        {/* ── QUICK CHIPS ─────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
+          {QUICK_CHIPS.map(chip => (
+            <button
+              key={chip.label}
+              onClick={() => setAdInput(chip.text)}
+              style={{
+                border: "1px solid #E5E5E5",
+                borderRadius: 100,
+                padding: "8px 16px",
+                fontSize: 13,
+                background: "#FFFFFF",
+                cursor: "pointer",
+                color: "#0A0A0A",
+                transition: "border-color 120ms, background 120ms",
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "#000";
+                (e.currentTarget as HTMLButtonElement).style.background = "#F5F5F5";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "#E5E5E5";
+                (e.currentTarget as HTMLButtonElement).style.background = "#FFFFFF";
+              }}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── TEXTAREA ────────────────────────────────────────────────────── */}
+        <div
+          style={{
+            border: `1.5px solid ${textareaFocused ? "#000" : "#E5E5E5"}`,
+            boxShadow: textareaFocused ? "0 0 0 3px rgba(0,0,0,0.06)" : "none",
+            borderRadius: 16,
+            background: "#FFFFFF",
+            padding: "16px 20px",
+            marginTop: 16,
+            transition: "border-color 150ms, box-shadow 150ms",
+          }}
+        >
+          <textarea
+            value={adInput}
+            onChange={e => { if (e.target.value.length <= 500) setAdInput(e.target.value); }}
+            onFocus={() => setTextareaFocused(true)}
+            onBlur={() => setTextareaFocused(false)}
+            placeholder="Descreva o que você quer destacar no anúncio... Ex: foco no conforto, ideal para treinos, entrega rápida"
+            rows={4}
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              resize: "none",
+              fontSize: 15,
+              lineHeight: 1.6,
+              color: "#0A0A0A",
+              fontFamily: "inherit",
+            }}
+          />
+          <div style={{
+            borderTop: "1px solid #F0F0F0",
+            paddingTop: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}>
+            <span style={{ fontSize: 12, color: "#A3A3A3" }}>{adInput.length} / 500</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                className="ia-pulse"
+                style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", display: "inline-block" }}
+              />
+              <span style={{ fontSize: 12, color: "#737373", fontWeight: 500 }}>IA Pronta</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── GENERATE BUTTON ─────────────────────────────────────────────── */}
+        <button
+          onClick={handleGenerate}
+          disabled={thinking}
+          style={{
+            width: "100%",
+            marginTop: 16,
+            background: "#000",
+            color: "#FFF",
+            borderRadius: 100,
+            padding: "14px 32px",
+            fontSize: 15,
+            fontWeight: 500,
+            border: "none",
+            cursor: thinking ? "not-allowed" : "pointer",
+            opacity: thinking ? 0.6 : 1,
+            transition: "opacity 150ms, transform 150ms",
+          }}
+          onMouseEnter={e => {
+            if (!thinking) {
+              (e.currentTarget as HTMLButtonElement).style.opacity = "0.85";
+              (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.98)";
+            }
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = thinking ? "0.6" : "1";
+            (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+          }}
+        >
+          {thinking ? (
+            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              <span style={{ display: "flex", gap: 4 }}>
+                {[0, 150, 300].map(delay => (
+                  <span
+                    key={delay}
+                    className="animate-bounce"
+                    style={{
+                      width: 6, height: 6, borderRadius: "50%",
+                      background: "rgba(255,255,255,0.7)",
+                      display: "inline-block",
+                      animationDelay: `${delay}ms`,
+                    }}
+                  />
+                ))}
+              </span>
+              Gerando anúncio...
+            </span>
+          ) : "✦ Gerar anúncio com IA"}
+        </button>
+        <p style={{ fontSize: 12, color: "#A3A3A3", textAlign: "center", marginTop: 8 }}>
+          Powered by Velo IA · Resultado em segundos
+        </p>
+
+        {/* ── INTERMEDIATE MESSAGES (text, products, searching, source-select) */}
+        {intermediateMessages.length > 0 && (
+          <div style={{ marginTop: 32, display: "flex", flexDirection: "column", gap: 16 }}>
+            {intermediateMessages.map((msg, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "flex gap-3",
+                  msg.role === "user" ? "justify-end" : "justify-start items-start"
+                )}
+              >
                 {msg.role === "ai" && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-black to-gray-800 flex items-center justify-center shrink-0 mt-0.5">
-                    <Sparkles size={14} className="text-white" />
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: "#000",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0, marginTop: 2,
+                  }}>
+                    <Sparkles size={14} color="#fff" />
                   </div>
                 )}
                 {msg.kind === "source-select" && msg.nicho
@@ -387,15 +579,15 @@ const AIChatPage = () => {
                   ? <SearchingCard nicho={msg.nicho} />
                   : msg.kind === "products" && msg.products
                   ? renderProducts(msg.products)
-                  : msg.kind === "ad" && msg.ad
-                  ? renderAd(msg.ad)
                   : (
-                    <div className={cn(
-                      "px-4 py-3 text-sm leading-relaxed max-w-[75%]",
-                      msg.role === "user"
-                        ? "bg-gradient-to-br from-black to-gray-800 text-white rounded-2xl rounded-tr-sm"
-                        : "bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm text-gray-700"
-                    )}>
+                    <div
+                      className={cn(
+                        "px-4 py-3 text-sm leading-relaxed",
+                        msg.role === "user"
+                          ? "bg-black text-white rounded-2xl rounded-tr-sm max-w-[80%]"
+                          : "bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm text-gray-700 max-w-[80%]"
+                      )}
+                    >
                       {msg.text}
                     </div>
                   )
@@ -403,29 +595,137 @@ const AIChatPage = () => {
               </div>
             ))}
 
+            {/* Thinking dots */}
             {thinking && (
               <div className="flex gap-3 justify-start items-start">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-black to-gray-800 flex items-center justify-center shrink-0 mt-0.5">
-                  <Sparkles size={14} className="text-white" />
+                <div style={{
+                  width: 32, height: 32, borderRadius: "50%", background: "#000",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2,
+                }}>
+                  <Sparkles size={14} color="#fff" />
                 </div>
                 <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
                   {[0, 150, 300].map(delay => (
-                    <span key={delay} className="w-1.5 h-1.5 rounded-full bg-black/40 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                    <span
+                      key={delay}
+                      className="w-1.5 h-1.5 rounded-full bg-black/40 animate-bounce"
+                      style={{ animationDelay: `${delay}ms` }}
+                    />
                   ))}
                 </div>
               </div>
             )}
-
-            <div ref={bottomRef} />
           </div>
-        </div>
+        )}
 
-        <div className="py-4 border-t border-gray-100">
-          <div className="w-full max-w-[800px] mx-auto px-6">
-            <ChatInput input={input} thinking={thinking} inputRef={inputRef} onChange={setInput} onSend={send} />
+        {/* ── RESULT CARD ─────────────────────────────────────────────────── */}
+        {latestAd && (
+          <div
+            className="ad-card-enter"
+            style={{
+              marginTop: 32,
+              border: "1.5px solid #000",
+              borderRadius: 16,
+              padding: 24,
+            }}
+          >
+            {/* Card header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "#0A0A0A" }}>Anúncio gerado</span>
+                {["Mercado Livre", "Shopee"].map(platform => (
+                  <span
+                    key={platform}
+                    style={{
+                      fontSize: 11, fontWeight: 600, color: "#EA580C",
+                      background: "#FFF7ED", border: "1px solid #FED7AA",
+                      borderRadius: 100, padding: "2px 8px",
+                    }}
+                  >
+                    {platform}
+                  </span>
+                ))}
+              </div>
+              <button
+                onClick={() => copyAd(latestAd)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  border: "1px solid #E5E5E5", borderRadius: 8,
+                  padding: "6px 12px", background: "#FFFFFF",
+                  cursor: "pointer", fontSize: 12, color: "#737373",
+                  flexShrink: 0, transition: "border-color 120ms",
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.borderColor = "#000"}
+                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.borderColor = "#E5E5E5"}
+              >
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+                {copied ? "Copiado!" : "Copiar"}
+              </button>
+            </div>
+
+            {/* Card body */}
+            <div style={{ marginTop: 18 }}>
+              <p style={{ fontWeight: 700, fontSize: 14, color: "#0A0A0A", margin: "0 0 8px" }}>
+                {latestAd.titulo}
+              </p>
+              <p style={{ fontSize: 14, lineHeight: 1.7, color: "#404040", margin: 0 }}>
+                {latestAd.descricao}
+              </p>
+              {latestAd.preco && (
+                <p style={{ marginTop: 12, fontSize: 13, color: "#737373" }}>
+                  Preço sugerido:{" "}
+                  <span style={{ fontWeight: 700, color: "#0A0A0A" }}>{latestAd.preco}</span>
+                </p>
+              )}
+            </div>
+
+            {/* Card footer */}
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button
+                onClick={() => send("Publicar no Mercado Livre")}
+                style={{
+                  flex: 1, background: "#000", color: "#FFF",
+                  borderRadius: 10, padding: "11px 20px",
+                  fontSize: 13, fontWeight: 600,
+                  border: "none", cursor: "pointer",
+                  transition: "opacity 150ms",
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = "0.85"}
+                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = "1"}
+              >
+                Publicar agora →
+              </button>
+              <button
+                onClick={() => send(lastGenerateMsg || "Regenere o anúncio com variações diferentes.")}
+                style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  background: "#FFF", color: "#0A0A0A",
+                  border: "1.5px solid #000", borderRadius: 10,
+                  padding: "11px 20px", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", transition: "background 150ms",
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "#F5F5F5"}
+                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "#FFF"}
+              >
+                <RefreshCw size={13} />
+                Regenerar
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        <div ref={bottomRef} />
       </div>
+
+      {/* ── PRODUCT SELECTOR MODAL ────────────────────────────────────────── */}
+      <SelectProductModal
+        open={showProductModal}
+        onClose={() => setShowProductModal(false)}
+        onSelect={p => {
+          setSelectedProduct(p);
+          setShowProductModal(false);
+        }}
+      />
     </div>
   );
 };
