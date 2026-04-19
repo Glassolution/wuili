@@ -26,14 +26,12 @@ const OrdersPage = () => {
             <Headphones size={18} />
           </div>
           <div className="space-y-2">
-            <h3 className="text-sm font-bold text-foreground">CJ Dropshipping — suporte ao vendedor</h3>
+            <h3 className="text-sm font-bold text-foreground">Suporte ao Fornecedor</h3>
             <p className="text-xs text-muted-foreground">
               Para dúvidas sobre entrega, rastreamento ou troca de produtos.
             </p>
             <a
-              href="https://app.cjdropshipping.com/contact.html"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="#"
               className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-xs font-bold text-background hover:opacity-80 transition-opacity"
             >
               <ExternalLink size={11} />

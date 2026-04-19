@@ -293,11 +293,8 @@ const CatalogPage = () => {
                   ) : (
                     <Package size={32} className="text-muted-foreground/30" />
                   )}
-                  {/* Source + bestseller badges */}
+                  {/* Bestseller badge */}
                   <div className="absolute left-3 top-3 flex items-center gap-1.5">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-background">
-                      CJ
-                    </span>
                     {isBestseller && (
                       <span className="flex items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-[11px] font-bold text-white">
                         <Flame size={10} /> Mais vendido

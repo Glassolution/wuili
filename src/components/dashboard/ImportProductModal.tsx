@@ -42,15 +42,14 @@ const getImage = (images: any): string | null => {
 };
 
 const STEPS = [
-  { num: 1, label: "Fornecedor" },
-  { num: 2, label: "Detalhes" },
-  { num: 3, label: "Revisão" },
+  { num: 1, label: "Detalhes" },
+  { num: 2, label: "Revisão" },
 ];
 
 const ImportProductModal = ({ open, onClose, product }: Props) => {
   const { user } = useAuth();
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(1); // Start at step 1 (details)
   const [title, setTitle] = useState("");
   const [sellPrice, setSellPrice] = useState(0);
   const [visible, setVisible] = useState(false);
@@ -250,7 +249,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
       }
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
-      setStep(4);
+      setStep(3);
 
       await supabase.from("user_publications" as any).insert({
         user_id: user.id,
@@ -276,7 +275,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   if (!product) return null;
 
   const titleLength = title.length;
-  const canAdvance = step === 1 ? hasStock : step === 2 ? (!!title.trim() && sellPrice > totalCost) : true;
+  const canAdvance = step === 1 ? (hasStock && isConnectedToML && !!title.trim() && sellPrice > totalCost) : true;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -368,30 +367,12 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
 
           {/* Content — animated per step */}
           <div className="flex-1 overflow-y-auto px-8" style={{ scrollbarWidth: "thin", minHeight: 320 }}>
-            {/* STEP 1 — Fornecedor */}
+            {/* STEP 1 — Detalhes */}
             {step === 1 && (
-              <div key="s1" className="step-fade space-y-6 pb-6">
+              <div key="s2" className="step-fade space-y-6 pb-6">
                 <div>
-                  <h3 className="text-[14px] font-semibold text-[#0A0A0A]">Selecionar Fornecedor</h3>
-                  <p className="text-[12.5px] text-gray-500 mt-1">Confirme o fornecedor e a plataforma de publicação.</p>
-                </div>
-
-                {/* Supplier card */}
-                <div className="rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-50 border border-gray-100">
-                        <span className="text-[11px] font-bold text-gray-600">CJ</span>
-                      </div>
-                      <div>
-                        <p className="text-[13.5px] font-semibold text-[#0A0A0A]">CJ Dropshipping</p>
-                        <p className="text-[11.5px] text-gray-500 mt-0.5">Fornecedor padrão · Envio global</p>
-                      </div>
-                    </div>
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full" style={{ background: ACCENT }}>
-                      <Check size={11} strokeWidth={3} className="text-white" />
-                    </div>
-                  </div>
+                  <h3 className="text-[14px] font-semibold text-[#0A0A0A]">Título e precificação</h3>
+                  <p className="text-[12.5px] text-gray-500 mt-1">Edite o título e defina seu preço de venda.</p>
                 </div>
 
                 {/* Connection status */}
@@ -417,16 +398,6 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                     <p className="text-[11.5px] text-red-500/80 mt-0.5">Não é possível continuar com este produto.</p>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* STEP 2 — Detalhes */}
-            {step === 2 && (
-              <div key="s2" className="step-fade space-y-6 pb-6">
-                <div>
-                  <h3 className="text-[14px] font-semibold text-[#0A0A0A]">Título e precificação</h3>
-                  <p className="text-[12.5px] text-gray-500 mt-1">Edite o título e defina seu preço de venda.</p>
-                </div>
 
                 {/* Title */}
                 <div>
@@ -472,20 +443,45 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
 
                   {/* Multiplier */}
                   <div className="rounded-xl border border-gray-200 p-4">
-                    <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center justify-between mb-3">
                       <span className="text-[12px] font-medium text-gray-600">Multiplicador</span>
                       <span className="text-[13px] font-semibold text-[#0A0A0A]">{multiplier.toFixed(1)}x</span>
                     </div>
-                    <input
-                      type="range"
-                      min="1.5"
-                      max="5.0"
-                      step="0.1"
-                      value={multiplier}
-                      onChange={(e) => { const v = Number(e.target.value); setMultiplier(v); recalcPrice(v, freightCost, taxCost); }}
-                      className="w-full h-1 rounded-lg appearance-none cursor-pointer accent-orange-500"
-                      style={{ accentColor: ACCENT }}
-                    />
+                    <div className="relative">
+                      <input
+                        type="range"
+                        min="1.5"
+                        max="5.0"
+                        step="0.1"
+                        value={multiplier}
+                        onChange={(e) => { const v = Number(e.target.value); setMultiplier(v); recalcPrice(v, freightCost, taxCost); }}
+                        className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 slider"
+                        style={{
+                          background: `linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb 100%)`
+                        }}
+                      />
+                      <style jsx>{`
+                        .slider::-webkit-slider-thumb {
+                          appearance: none;
+                          height: 18px;
+                          width: 18px;
+                          border-radius: 50%;
+                          background: ${ACCENT};
+                          cursor: pointer;
+                          border: 2px solid white;
+                          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                        }
+                        .slider::-moz-range-thumb {
+                          height: 18px;
+                          width: 18px;
+                          border-radius: 50%;
+                          background: ${ACCENT};
+                          cursor: pointer;
+                          border: 2px solid white;
+                          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                        }
+                      `}</style>
+                    </div>
                   </div>
 
                   {/* Sell price */}
@@ -515,8 +511,8 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
               </div>
             )}
 
-            {/* STEP 3 — Revisão */}
-            {step === 3 && (
+            {/* STEP 2 — Revisão */}
+            {step === 2 && (
               <div key="s3" className="step-fade space-y-6 pb-6">
                 <div>
                   <h3 className="text-[14px] font-semibold text-[#0A0A0A]">Revisar anúncio</h3>
@@ -611,8 +607,8 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
               </div>
             )}
 
-            {/* STEP 4 — Success */}
-            {step === 4 && publishResult && (
+            {/* STEP 3 — Success */}
+            {step === 3 && publishResult && (
               <div key="s4" className="step-fade flex flex-col items-center justify-center py-14 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full mb-5" style={{ background: ACCENT }}>
                   <Check size={26} strokeWidth={3} className="text-white" />
@@ -654,9 +650,9 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   Voltar
                 </button>
               )}
-              {step < 3 && (
+              {step < 2 && (
                 <button
-                  onClick={() => { if (canAdvance) setStep(step + 1); else toast.error(step === 1 ? "Conecte a conta e confira o estoque" : "Confira título e preço"); }}
+                  onClick={() => { if (canAdvance) setStep(step + 1); else toast.error("Conecte a conta, confira o estoque, título e preço"); }}
                   disabled={!canAdvance}
                   className="flex items-center gap-1.5 rounded-xl px-5 py-2 text-[12.5px] font-semibold text-white transition-all disabled:opacity-40 hover:brightness-110"
                   style={{ background: ACCENT }}
@@ -665,7 +661,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   <ArrowRight size={13} />
                 </button>
               )}
-              {step === 3 && (
+              {step === 2 && (
                 <button
                   onClick={handlePublish}
                   disabled={publishing}
@@ -676,7 +672,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   {publishing ? "Publicando" : "Publicar"}
                 </button>
               )}
-              {step === 4 && (
+              {step === 3 && (
                 <button
                   onClick={handleClose}
                   className="rounded-xl px-5 py-2 text-[12.5px] font-semibold text-white transition-all hover:brightness-110"
