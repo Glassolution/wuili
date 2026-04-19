@@ -1,16 +1,10 @@
 import { Link } from "react-router-dom";
-
-const WuilliLogo = () => (
-  <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-    <rect width="30" height="30" rx="8" fill="#7C3AED" />
-    <path d="M15 7.5L21 11.25V18.75L15 22.5L9 18.75V11.25L15 7.5Z" fill="white" />
-  </svg>
-);
+import BrandMark from "@/components/brand/BrandMark";
 
 const Navbar = () => (
   <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-[52px] py-[18px] bg-[rgba(250,250,250,0.82)] backdrop-blur-[20px] border-b border-[rgba(0,0,0,0.07)]">
     <Link to="/" className="flex items-center gap-[10px] no-underline">
-      <WuilliLogo />
+      <BrandMark size="sm" tone="light" />
       <span className="font-['Sora'] font-bold text-[1.2rem] text-[#0A0A0A] tracking-[-0.035em]">velo</span>
     </Link>
     <ul className="hidden md:flex items-center gap-[34px] list-none">
