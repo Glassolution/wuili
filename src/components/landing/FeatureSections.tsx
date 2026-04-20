@@ -1,3 +1,5 @@
+import { CatalogMockup, ImportModalMockup, OrdersMockup, OrdersDashboardMockup } from "./DashboardMockups";
+
 /* ────────────────────────────────────────────
    3 seções de feature alternadas (texto + mockup)
    Layout estilo OpenAI Codex deep-dive sections
@@ -72,13 +74,14 @@ const FeatureCreateListings = () => (
 
       {/* Gradient card — right */}
       <div
-        className="relative flex items-center justify-center overflow-hidden rounded-[24px]"
+        className="relative flex items-center justify-center rounded-[24px]"
         style={{
-          background: "linear-gradient(135deg, #7c3aed 0%, #8b5cf6 35%, #a78bfa 70%, #c4b5fd 100%)",
+          background: "linear-gradient(135deg, #111 0%, #1c1c1c 40%, #2a2a2a 100%)",
           minHeight: "480px",
+          padding: "32px",
         }}
       >
-        <ListingMockup />
+        <ImportModalMockup />
       </div>
     </div>
   </section>
@@ -96,7 +99,7 @@ const AutomationsMockup = () => (
     <div className="mb-3 text-[10px] font-semibold text-white/50">Próximas tarefas</div>
 
     {[
-      { icon: "↻", name: "Monitorar preços", channel: "ML", badge: "A cada 2h", badgeColor: "bg-[#7c3aed] text-white", status: "Em andamento" },
+      { icon: "↻", name: "Monitorar preços", channel: "ML", badge: "A cada 2h", badgeColor: "bg-[#0a0a0a] text-white", status: "Em andamento" },
       { icon: "◉", name: "Restock alert", channel: "Shopee", badge: "Diário 9h", badgeColor: "bg-[#2563eb] text-white", status: "Inicia em 13m" },
       { icon: "✎", name: "Atualizar títulos", channel: "ML", badge: "Seg 8h", badgeColor: "bg-[#0d9488] text-white", status: "Inicia em 4h" },
       { icon: "↻", name: "Sync fornecedores", channel: "Ali", badge: "Diário 7h", badgeColor: "bg-[#ea580c] text-white", status: "Inicia em 3d" },
@@ -137,13 +140,14 @@ const FeatureAutomations = () => (
     <div className="mx-auto grid max-w-[1200px] items-center gap-10 lg:grid-cols-[1.6fr_1fr] lg:gap-16">
       {/* Gradient card — left */}
       <div
-        className="relative flex items-center justify-center overflow-hidden rounded-[24px]"
+        className="relative flex items-center justify-center rounded-[24px]"
         style={{
-          background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 40%, #60a5fa 80%, #93c5fd 100%)",
+          background: "linear-gradient(135deg, #0a0a0a 0%, #141414 40%, #1e1e1e 100%)",
           minHeight: "520px",
+          padding: "32px",
         }}
       >
-        <AutomationsMockup />
+        <OrdersMockup />
       </div>
 
       {/* Text — right */}
@@ -239,26 +243,25 @@ const FeatureChat = () => (
       {/* Text — left */}
       <div>
         <h3 className="mb-5 font-['Manrope'] text-[clamp(1.5rem,2.5vw,2rem)] font-bold leading-[1.15] tracking-[-0.02em] text-white">
-          Responde seus compradores em 4 segundos
+          Acompanhe cada venda em tempo real
         </h3>
         <p className="font-['Manrope'] text-[15px] leading-[1.65] text-white/55">
-          A IA da Velo lê cada pergunta, consulta a ficha técnica do produto,
-          verifica estoque e prazo de entrega — e responde com linguagem natural
-          e personalizada. Sem templates genéricos. Funciona 24h, mesmo quando
-          você está dormindo, e já resolveu mais de 98% das perguntas sem
-          precisar de intervenção humana.
+          A Velo centraliza todos os seus pedidos do Mercado Livre e Shopee em
+          um único painel. Veja receita, lucro e status de cada pedido sem
+          precisar entrar em cada plataforma separadamente.
         </p>
       </div>
 
       {/* Gradient card — right */}
       <div
-        className="relative flex items-center justify-center overflow-hidden rounded-[24px]"
+        className="relative flex items-center justify-center rounded-[24px]"
         style={{
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 30%, #334155 70%, #475569 100%)",
+          background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 40%, #242424 100%)",
           minHeight: "520px",
+          padding: "32px",
         }}
       >
-        <ChatMockup />
+        <OrdersDashboardMockup />
       </div>
     </div>
   </section>

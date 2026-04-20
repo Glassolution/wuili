@@ -147,7 +147,7 @@ const InputBar = ({ input, thinking, inputRef, onChange, onSend }: InputBarProps
           : "border-white/60 bg-white/58 shadow-[0_24px_70px_rgba(111,118,138,0.12)] backdrop-blur-xl"
       )}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%,rgba(124,58,237,0.06)_100%)] opacity-80" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%,rgba(0,0,0,0.03)_100%)] opacity-80" />
       <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-white/80" />
       <input
         ref={inputRef}
@@ -409,7 +409,7 @@ const GitChatPage = () => {
   /* ══ Render ════════════════════════════════════════════════ */
   return (
     <div className="flex h-full min-h-0 overflow-hidden" style={{
-      background: "linear-gradient(135deg, #f5f0ff 0%, #fce4ec 30%, #f3e5f5 60%, #ede7f6 100%)",
+      background: "linear-gradient(135deg, #f8f8f8 0%, #f0f0f0 30%, #f5f5f5 60%, #ebebeb 100%)",
     }}>
 
       {/* ── Left Panel: Chat History ─────────────────────────── */}
@@ -441,7 +441,7 @@ const GitChatPage = () => {
             <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">Hoje</p>
             {conversations.length === 0 && (
               <div className="rounded-2xl bg-white/50 backdrop-blur-sm border border-white/30 p-4 text-center">
-                <MessageSquare size={20} className="mx-auto text-[#c4b5fd] mb-2" />
+                <MessageSquare size={20} className="mx-auto text-muted-foreground mb-2" />
                 <p className="text-xs text-[#9CA3AF]">Nenhuma conversa ainda</p>
               </div>
             )}
@@ -520,7 +520,7 @@ const GitChatPage = () => {
                       <button
                         key={s.label}
                         onClick={() => send(s.msg)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/50 backdrop-blur-sm border border-white/40 text-[13px] font-medium text-[#1a1a2e] hover:bg-white/80 hover:border-[#c4b5fd] transition-all cursor-pointer shadow-sm"
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/50 backdrop-blur-sm border border-white/40 text-[13px] font-medium text-[#1a1a2e] hover:bg-white/80 hover:border-white/70 transition-all cursor-pointer shadow-sm"
                       >
                         <span style={{ fontSize: 16 }}>{s.emoji}</span>
                         {s.label}
@@ -593,7 +593,7 @@ const GitChatPage = () => {
                         style={{ borderRadius: "18px 18px 18px 4px" }}
                       >
                         {[0, 150, 300].map(delay => (
-                          <span key={delay} className="w-1.5 h-1.5 rounded-full bg-[#c4b5fd] animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                          <span key={delay} className="w-1.5 h-1.5 rounded-full bg-[#0a0a0a]/30 animate-bounce" style={{ animationDelay: `${delay}ms` }} />
                         ))}
                       </div>
                     </div>

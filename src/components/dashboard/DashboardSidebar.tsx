@@ -9,7 +9,7 @@ import {
   BarChart3, Settings, MessageCircle, Wallet, Package,
   ArrowLeftRight, CreditCard, HelpCircle, ChevronRight, Sun, Moon,
 } from "lucide-react";
-import BrandMark from "@/components/brand/BrandMark";
+import { VeloLogo } from "@/components/VeloLogo";
 import { useTheme } from "next-themes";
 
 type RailLink = { to: string; icon: typeof MessageCircle; label: string };
@@ -65,7 +65,7 @@ const DashboardSidebar = () => {
       <nav className="flex h-full w-[60px] shrink-0 flex-col items-center border-r border-border bg-background py-4 gap-1">
         {/* Logo */}
         <Link to="/?home=1" className="mb-4 flex items-center justify-center h-10 w-10">
-          <BrandMark size="md" tone="light" />
+          <VeloLogo size="sm" variant="dark" />
         </Link>
 
         {/* Dropshipping icon — opens workspace panel */}

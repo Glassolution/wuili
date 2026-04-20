@@ -464,6 +464,130 @@
     landing-button-preparing-sheen 1.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
+/* ─────────────────────────────────────────────────────────
+   Liquid glass primary button system
+   .btn-primary           — base (md: 14px 32px / 15px)
+   .btn-primary--lg       — hero size (20px 56px / 17px)
+   .btn-primary--md       — explicit md alias
+   ───────────────────────────────────────────────────────── */
+.btn-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 32px;
+  border-radius: 100px;
+  border: none;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  /* Specular highlight baked into the background — two layers:
+     1) bright gradient for the top-half glass sheen
+     2) dark semi-transparent base                           */
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,0.55) 0%,
+      rgba(255,255,255,0.22) 38%,
+      rgba(255,255,255,0.04) 54%,
+      transparent 56%
+    ),
+    rgba(10, 10, 10, 0.90);
+  box-shadow:
+    /* top gloss rim */
+    0 1px 0 rgba(255,255,255,0.55) inset,
+    /* outer ring highlight */
+    0 0 0 1px rgba(255,255,255,0.18) inset,
+    /* bottom dark edge */
+    0 -1px 0 rgba(0,0,0,0.45) inset,
+    /* depth shadows */
+    0 14px 48px rgba(0,0,0,0.42),
+    0 4px 14px rgba(0,0,0,0.24);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition: all 200ms ease;
+  overflow: hidden;
+  isolation: isolate;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+/* Gloss line pseudo-elements kept minimal — background layers do the heavy lifting */
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.60), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.btn-primary::after {
+  content: '';
+  pointer-events: none;
+}
+
+/* Keep text / children above pseudo-elements */
+.btn-primary > * {
+  position: relative;
+  z-index: 2;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.20) inset,
+    0 2px 0 rgba(255,255,255,0.15) inset,
+    0 16px 48px rgba(0,0,0,0.35),
+    0 6px 16px rgba(0,0,0,0.20);
+}
+
+.btn-primary:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.6);
+  outline-offset: 3px;
+}
+
+/* Override landing-button-primary's solid hover bg when both classes are present */
+.landing-button-primary.btn-primary:hover {
+  background: rgba(12, 12, 12, 0.90);
+  background-color: rgba(12, 12, 12, 0.90);
+}
+
+/* Size variants */
+.btn-primary--lg {
+  padding: 20px 56px;
+  font-size: 17px;
+}
+
+.btn-primary--md {
+  padding: 14px 32px;
+  font-size: 15px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn-primary:hover {
+    transform: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .landing-shell {
   position: relative;
 }

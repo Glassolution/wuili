@@ -142,7 +142,7 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
             <button onClick={onClose} className="text-sm font-medium text-foreground underline hover:text-muted-foreground transition-colors">
               Cancelar
             </button>
-            <button onClick={() => { toast.success("Integrações salvas com sucesso 🔗"); onClose(); }} className="rounded-xl bg-orange-500 px-5 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors">
+            <button onClick={() => { toast.success("Integrações salvas com sucesso 🔗"); onClose(); }} className="btn-primary btn-primary--md">
               Salvar
             </button>
           </div>

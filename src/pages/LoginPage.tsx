@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Eye, EyeOff, Mail } from "lucide-react";
-import BrandMark from "@/components/brand/BrandMark";
+import { VeloLogo } from "@/components/VeloLogo";
 
 const LoginPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -76,7 +76,7 @@ const LoginPage = () => {
         <div className="w-full px-8 py-10 sm:w-[420px] sm:min-w-[420px] sm:px-12 sm:py-12">
           {/* Logo */}
           <div className="mb-8">
-            <BrandMark size="sm" showWordmark tone="dark" />
+            <VeloLogo size="lg" variant="light" />
           </div>
 
           {/* Header */}
@@ -172,7 +172,7 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="mt-1 w-full rounded-xl bg-white py-[13px] font-['Manrope'] text-[13px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-50"
+              className="btn-primary btn-primary--md mt-1 w-full"
             >
               {loading ? "Aguarde..." : resetMode ? "Enviar link" : "Login"}
             </button>
@@ -216,7 +216,7 @@ const LoginPage = () => {
         <div className="hidden flex-1 border-l border-white/[0.06] sm:flex sm:flex-col sm:justify-between sm:p-10">
           <div>
             <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04]">
-              <BrandMark size="xs" tone="dark" />
+              <svg width="22" height="22" viewBox="0 0 48 48" fill="none"><path d="M33 18 A11 11 0 1 0 33 30" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/><path d="M30 26 L34 30 L38 26" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
             </div>
             <h2 className="mb-3 font-['Manrope'] text-[1.25rem] font-bold leading-[1.2] tracking-[-0.02em] text-white">
               Sua operação de e-commerce no piloto automático.

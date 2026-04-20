@@ -45,7 +45,7 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_STYLE: Record<string, string> = {
   pending:   "bg-yellow-50  text-yellow-700  border border-yellow-200",
   paid:      "bg-blue-50    text-blue-700    border border-blue-200",
-  shipped:   "bg-purple-50  text-purple-700  border border-purple-200",
+  shipped:   "bg-muted      text-foreground   border border-border",
   delivered: "bg-emerald-50 text-emerald-700 border border-emerald-200",
   cancelled: "bg-red-50     text-red-600     border border-red-200",
 };

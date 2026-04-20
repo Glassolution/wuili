@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
 import { toast } from "sonner";
-import BrandMark from "@/components/brand/BrandMark";
+import { VeloLogo } from "@/components/VeloLogo";
 
 type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
@@ -220,7 +220,7 @@ const CheckoutPage = () => {
       <header className="bg-white border-b border-gray-100">
         <div className="mx-auto max-w-5xl flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-5">
-            <BrandMark size="sm" tone="light" showWordmark />
+            <VeloLogo size="md" variant="dark" />
           </div>
           <button
             onClick={() => navigate(-1)}
@@ -409,7 +409,7 @@ const CheckoutPage = () => {
             <button
               onClick={handleCheckout}
               disabled={checkoutState === "loading"}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-3.5 text-sm font-semibold text-white hover:bg-black transition-colors disabled:opacity-50"
+              className="btn-primary btn-primary--md w-full"
             >
               {checkoutState === "loading" ? (
                 <><Loader2 size={16} className="animate-spin" /> Processando...</>

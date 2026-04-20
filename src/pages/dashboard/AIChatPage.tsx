@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { SourceSelector, type ProductSource } from "@/components/chat/SourceSelector";
 import SelectProductModal from "@/components/dashboard/SelectProductModal";
-import BrandMark from "@/components/brand/BrandMark";
+import { VeloLogo } from "@/components/VeloLogo";
 
 // ─── Types (unchanged) ────────────────────────────────────────────────────────
 type Product = {
@@ -326,7 +326,7 @@ const AIChatPage = () => {
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
         <div className="flex flex-col items-center text-center mb-10">
-          <BrandMark size="sm" tone="light" className="mb-4" />
+          <div style={{ marginBottom: 16 }}><VeloLogo size="md" variant="dark" /></div>
           <h1 style={{ fontSize: 22, fontWeight: 600, color: "#0A0A0A", lineHeight: 1.3, margin: 0 }}>
             Criar anúncio com IA
           </h1>

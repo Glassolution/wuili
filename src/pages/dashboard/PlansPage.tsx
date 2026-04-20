@@ -212,7 +212,7 @@ const PlansPage = () => {
                 <button
                   onClick={() => handleCheckout(plan.id)}
                   disabled={checkoutState === "loading"}
-                  className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="btn-primary btn-primary--md w-full"
                 >
                   {checkoutState === "loading" ? (
                     <span className="flex items-center justify-center gap-2">

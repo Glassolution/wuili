@@ -52,11 +52,11 @@ export const SourceSelector = ({ onConfirm }: SourceSelectorProps) => {
   const [selected, setSelected] = useState<ProductSource>("aliexpress");
 
   return (
-    <div className="rounded-2xl border border-[#7C3AED]/20 bg-background shadow-sm w-full max-w-[340px] overflow-hidden">
+    <div className="rounded-2xl border border-border bg-background shadow-sm w-full max-w-[340px] overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-border">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#7C3AED]/10">
-          <Search size={14} className="text-[#7C3AED]" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
+          <Search size={14} className="text-foreground" />
         </div>
         <p className="text-sm font-semibold text-foreground">Onde buscar os produtos?</p>
       </div>
@@ -75,7 +75,7 @@ export const SourceSelector = ({ onConfirm }: SourceSelectorProps) => {
                 ${src.disabled
                   ? "opacity-40 cursor-not-allowed bg-muted/40"
                   : isSelected
-                  ? "bg-[#7C3AED]/8 border border-[#7C3AED]/30"
+                  ? "bg-muted border border-border"
                   : "hover:bg-muted/60 border border-transparent"
                 }
               `}
@@ -83,7 +83,7 @@ export const SourceSelector = ({ onConfirm }: SourceSelectorProps) => {
               {/* Radio indicator */}
               <div className={`
                 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors
-                ${isSelected ? "border-[#7C3AED] bg-[#7C3AED]" : "border-border bg-transparent"}
+                ${isSelected ? "border-foreground bg-foreground" : "border-border bg-transparent"}
               `}>
                 {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
               </div>
@@ -92,7 +92,7 @@ export const SourceSelector = ({ onConfirm }: SourceSelectorProps) => {
               <span className="shrink-0">{src.logo}</span>
 
               {/* Label */}
-              <span className={`flex-1 text-sm font-medium ${isSelected ? "text-[#7C3AED]" : "text-foreground"}`}>
+              <span className={`flex-1 text-sm font-medium text-foreground`}>
                 {src.label}
               </span>
 
@@ -111,7 +111,7 @@ export const SourceSelector = ({ onConfirm }: SourceSelectorProps) => {
       <div className="px-3 pb-3">
         <button
           onClick={() => onConfirm(selected)}
-          className="w-full rounded-xl bg-[#7C3AED] py-2.5 text-sm font-semibold text-white hover:bg-[#6D28D9] transition-colors"
+          className="w-full rounded-xl bg-[#0a0a0a] py-2.5 text-sm font-semibold text-white hover:bg-[#222] transition-colors"
         >
           Buscar agora
         </button>

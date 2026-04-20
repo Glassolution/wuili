@@ -1,12 +1,11 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HeroCard from "./HeroCard";
 const heroDashboard = "/hero.png";
 
 const CheckIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="flex-shrink-0 mt-[1px]">
-    <circle cx="9" cy="9" r="9" fill="rgba(124,58,237,0.12)" />
-    <path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="#7C3AED" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="9" cy="9" r="9" fill="rgba(0,0,0,0.07)" />
+    <path d="M5.5 9l2.5 2.5 4.5-4.5" stroke="#0a0a0a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -26,7 +25,6 @@ const BULLETS = [
 
 const HeroSection = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
 
   return (
     <section className="relative z-[1] min-h-screen flex items-center px-6 pt-[100px] pb-[80px]">
@@ -61,14 +59,14 @@ const HeroSection = () => {
         {/* LEFT: Copy */}
         <div className="flex flex-col items-start" style={{ animation: "fadeUp 0.6s ease both" }}>
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-[14px] py-[6px] pl-2 border border-[rgba(124,58,237,0.22)] rounded-full bg-[rgba(124,58,237,0.06)] mb-7">
-            <div className="w-[6px] h-[6px] rounded-full bg-[#7C3AED] animate-pulse" />
-            <span className="text-[0.75rem] font-medium text-[#7C3AED] tracking-[0.02em]">IA gerenciando seus anúncios agora</span>
+          <div className="inline-flex items-center gap-2 px-[14px] py-[6px] pl-2 border border-[rgba(0,0,0,0.12)] rounded-full bg-[rgba(0,0,0,0.04)] mb-7">
+            <div className="w-[6px] h-[6px] rounded-full bg-[#0a0a0a] animate-pulse" />
+            <span className="text-[0.75rem] font-medium text-[#0a0a0a] tracking-[0.02em]">IA gerenciando seus anúncios agora</span>
           </div>
 
           {/* Headline */}
           <h1 className="font-['Sora'] text-[clamp(2.4rem,4.5vw,3.75rem)] font-bold leading-[1.08] tracking-[-0.04em] text-[#0A0A0A] max-w-[560px] mb-5">
-            Venda online.<br />A <em className="not-italic text-[#7C3AED]">IA</em> faz o trabalho.
+            Venda online.<br />A <em className="not-italic text-[#0a0a0a]">IA</em> faz o trabalho.
           </h1>
 
           <p className="text-[1.0625rem] font-light text-[#6B6B6B] max-w-[440px] leading-[1.65] mb-8 tracking-[-0.01em]">
@@ -85,21 +83,19 @@ const HeroSection = () => {
             ))}
           </ul>
 
-          {/* Email + CTA */}
-          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-[480px] mb-4" style={{ animation: "fadeUp 0.6s 0.45s ease both" }}>
-            <input
-              type="email"
-              placeholder="Seu e-mail"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 px-5 py-[14px] rounded-full border border-[rgba(0,0,0,0.12)] bg-white text-[0.9375rem] text-[#0A0A0A] placeholder-[#9B9B9B] outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[rgba(124,58,237,0.12)] transition-all font-['DM_Sans']"
-            />
+          {/* CTA */}
+          <div className="flex flex-wrap items-center gap-4 mb-4" style={{ animation: "fadeUp 0.6s 0.45s ease both" }}>
             <button
               onClick={() => navigate("/cadastro")}
-              className="flex items-center justify-center gap-2 text-[0.9375rem] font-medium text-white bg-[#0A0A0A] border-none cursor-pointer px-7 py-[14px] rounded-full tracking-[-0.02em] hover:bg-[#222] hover:-translate-y-[2px] hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] transition-all font-['DM_Sans'] whitespace-nowrap"
+              className="btn-primary btn-primary--lg"
             >
-              Criar workspace
-              <ArrowIcon />
+              Criar minha loja
+            </button>
+            <button
+              onClick={() => navigate("/cadastro")}
+              className="text-[15px] font-[400] text-[#737373] transition-all duration-[150ms] hover:text-[#0A0A0A] hover:underline underline-offset-2"
+            >
+              Ver demonstração
             </button>
           </div>
 

@@ -18,31 +18,24 @@ const CTASection = () => {
             <br />
             Escolha um nicho e deixa a IA trabalhar.
           </p>
-          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
             <button
               onClick={() => {
                 playSatisfyingClick();
                 navigate("/cadastro");
               }}
-              className="landing-button-inverse flex cursor-pointer items-center gap-2 rounded-full border-none bg-white px-7 py-[14px] font-['Manrope'] text-[0.9375rem] font-semibold text-black"
+              className="landing-button-inverse group inline-flex cursor-pointer items-center gap-[10px] rounded-[100px] border-none bg-white px-8 py-4 font-['Manrope'] text-[16px] font-[500] text-black shadow-[0_1px_2px_rgba(0,0,0,0.10)]"
             >
+              <span className="text-[13px] leading-none">✦</span>
               Começar agora
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M3 8h10M9 4l4 4-4 4"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <span className="transition-transform duration-[150ms] group-hover:translate-x-[3px]">→</span>
             </button>
             <button
               onClick={() => {
                 playSatisfyingClick();
                 document.getElementById("planos")?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="landing-button-ghost cursor-pointer rounded-full border border-white/[0.15] bg-transparent px-7 py-[14px] font-['Manrope'] text-[0.9375rem] font-medium text-white/60"
+              className="landing-button-ghost cursor-pointer rounded-[100px] border border-white/[0.15] bg-transparent px-7 py-[14px] font-['Manrope'] text-[15px] font-[400] text-white/60 transition-all duration-[120ms] hover:border-white/30 hover:text-white/90"
             >
               Ver planos
             </button>

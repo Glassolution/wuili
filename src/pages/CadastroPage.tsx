@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowUp, Check } from "lucide-react";
 import { toast } from "sonner";
-import BrandMark from "@/components/brand/BrandMark";
+import { VeloLogo } from "@/components/VeloLogo";
 import { playSendSound, playSoftTypeSound } from "@/lib/uiFeedback";
 
 type Step = "nome" | "email" | "senha" | "whatsapp" | "nicho" | "criando";
@@ -256,7 +256,7 @@ const CadastroPage = () => {
       {/* ── Topbar ── */}
       <header className={`flex items-center justify-between px-5 py-4 sm:px-8 ${revealFromInk ? "signup-ink-header" : ""}`}>
         <Link to="/" className="flex items-center opacity-90 transition hover:opacity-100">
-          <BrandMark size="xs" showWordmark tone="dark" />
+          <VeloLogo size="md" variant="light" />
         </Link>
         <span className="text-[12px] font-medium tracking-wide text-white/40">
           {Math.min(stepIndex + 1, 5)} / 5
@@ -278,7 +278,7 @@ const CadastroPage = () => {
           {/* Assistant bubble: question */}
           <div key={`q-${step}`} className={`flex animate-fade-in items-start gap-3 ${revealFromInk ? "signup-ink-card" : ""}`}>
             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1f1f1f] ring-1 ring-white/[0.08]">
-              <BrandMark size="xs" tone="dark" />
+              <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path d="M33 18 A11 11 0 1 0 33 30" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/><path d="M30 26 L34 30 L38 26" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
             </div>
             <div className="flex max-w-[calc(100%-3rem)] flex-col gap-1 rounded-2xl rounded-tl-sm bg-[#1f1f1f] px-5 py-4">
               <h1 className="text-[1.0625rem] font-semibold leading-snug tracking-[-0.01em] text-white sm:text-[1.1875rem]">
@@ -306,7 +306,7 @@ const CadastroPage = () => {
           {errorText && (
             <div className="flex animate-fade-in items-start gap-3">
               <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1f1f1f] ring-1 ring-white/[0.08]">
-                <BrandMark size="xs" tone="dark" />
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path d="M33 18 A11 11 0 1 0 33 30" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/><path d="M30 26 L34 30 L38 26" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
               </div>
               <div className="rounded-2xl rounded-tl-sm bg-[#2a1515] px-5 py-3 text-[0.875rem] text-[#fca5a5]">
                 {errorText}

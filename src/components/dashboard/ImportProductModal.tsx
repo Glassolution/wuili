@@ -632,7 +632,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   href={publishResult.permalink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0A0A0A] px-5 py-2.5 text-[12.5px] font-semibold text-white hover:bg-[#1a1a1a] transition-colors"
+                  className="btn-primary btn-primary--md mt-6"
                 >
                   <ExternalLink size={13} />
                   Abrir no Mercado Livre
@@ -650,7 +650,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
               {step < 4 && (
                 <button
                   onClick={handleClose}
-                  className="rounded-xl px-4 py-2 text-[12.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors"
+                  className="rounded-[100px] px-4 py-2 text-[12.5px] font-[400] text-[#737373] transition-all duration-[120ms] hover:text-[#0A0A0A]"
                 >
                   Cancelar
                 </button>
@@ -658,7 +658,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
               {step > 1 && step < 4 && (
                 <button
                   onClick={() => setStep(step - 1)}
-                  className="rounded-xl border border-gray-200 px-4 py-2 text-[12.5px] font-medium text-[#0A0A0A] hover:bg-gray-50 transition-colors"
+                  className="rounded-[100px] border-[1.5px] border-[#E5E5E5] px-4 py-2 text-[12.5px] font-[400] text-[#0A0A0A] transition-all duration-[120ms] hover:border-[#0A0A0A] hover:bg-[#F5F5F5]"
                 >
                   Voltar
                 </button>
@@ -667,8 +667,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                 <button
                   onClick={() => { if (canAdvance) setStep(step + 1); else toast.error("Conecte a conta, confira o estoque, título e preço"); }}
                   disabled={!canAdvance}
-                  className="flex items-center gap-1.5 rounded-xl px-5 py-2 text-[12.5px] font-semibold text-white transition-all disabled:opacity-40 hover:brightness-110"
-                  style={{ background: ACCENT }}
+                  className="btn-primary btn-primary--md"
                 >
                   Próximo
                   <ArrowRight size={13} />
@@ -678,8 +677,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                 <button
                   onClick={handlePublish}
                   disabled={publishing}
-                  className="flex items-center gap-1.5 rounded-xl px-5 py-2 text-[12.5px] font-semibold text-white transition-all disabled:opacity-50 hover:brightness-110"
-                  style={{ background: ACCENT }}
+                  className="btn-primary btn-primary--md"
                 >
                   {publishing && <Loader2 size={13} className="animate-spin" />}
                   {publishing ? "Publicando" : "Publicar"}
@@ -688,8 +686,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
               {step === 3 && (
                 <button
                   onClick={handleClose}
-                  className="rounded-xl px-5 py-2 text-[12.5px] font-semibold text-white transition-all hover:brightness-110"
-                  style={{ background: ACCENT }}
+                  className="btn-primary btn-primary--md"
                 >
                   Concluir
                 </button>

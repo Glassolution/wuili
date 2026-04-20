@@ -13,7 +13,7 @@ const cards: CardDef[] = [
     title: "Comece no app da Velo",
     cta: "Baixar para Windows",
     ctaIcon: "download",
-    gradient: "linear-gradient(135deg, #a78bfa 0%, #8b5cf6 45%, #6d28d9 100%)",
+    gradient: "linear-gradient(135deg, #111 0%, #1c1c1c 45%, #0a0a0a 100%)",
     mockup: "desktop",
   },
   {
