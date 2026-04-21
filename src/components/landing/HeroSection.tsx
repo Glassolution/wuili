@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HeroCard from "./HeroCard";
 const heroDashboard = "/hero.png";
@@ -25,6 +26,13 @@ const BULLETS = [
 
 const HeroSection = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
+  const handleCTA = () => {
+    if (loading) return;
+    setLoading(true);
+    setTimeout(() => navigate("/cadastro"), 2000);
+  };
 
   return (
     <section className="relative z-[1] min-h-screen flex items-center px-6 pt-[100px] pb-[80px]">
@@ -86,10 +94,26 @@ const HeroSection = () => {
           {/* CTA */}
           <div className="flex flex-wrap items-center gap-4 mb-4" style={{ animation: "fadeUp 0.6s 0.45s ease both" }}>
             <button
-              onClick={() => navigate("/cadastro")}
+              onClick={handleCTA}
+              style={{ minWidth: 196, pointerEvents: loading ? "none" : "auto" }}
               className="btn-primary btn-primary--lg"
             >
-              Criar minha loja
+              {loading ? (
+                <>
+                  <span style={{
+                    display: "inline-block",
+                    width: 14,
+                    height: 14,
+                    borderRadius: "50%",
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "#fff",
+                    animation: "btn-spin 0.7s linear infinite",
+                    transformOrigin: "center",
+                    flexShrink: 0,
+                  }} />
+                  Preparando...
+                </>
+              ) : "Criar minha loja"}
             </button>
             <button
               onClick={() => navigate("/cadastro")}

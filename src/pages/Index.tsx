@@ -16,7 +16,12 @@ import Footer from "@/components/landing/Footer";
 import { CatalogMockup } from "@/components/landing/DashboardMockups";
 import { playSatisfyingClick } from "@/lib/uiFeedback";
 
-const NAV_LINKS = ["Produto", "Soluções", "FAQ", "Suporte"];
+const NAV_LINKS = [
+  { label: "Produto", href: "#" },
+  { label: "Soluções", href: "#" },
+  { label: "FAQ", to: "/docs", forceNavigate: true },
+  { label: "Suporte", href: "#" },
+];
 
 const Index = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -67,7 +72,26 @@ const Index = () => {
           {/* Nav links (desktop) */}
           <nav className="hidden items-center gap-8 font-['Manrope'] text-[14px] font-medium text-[#0a0a0a]/70 md:flex">
             {NAV_LINKS.map((item) => (
-              <a key={item} href="#" className="transition hover:text-[#0a0a0a]">{item}</a>
+              item.to ? (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    if (item.forceNavigate) {
+                      window.location.assign(item.to);
+                      return;
+                    }
+                    navigate(item.to);
+                  }}
+                  className="cursor-pointer bg-transparent p-0 text-inherit transition hover:text-[#0a0a0a]"
+                >
+                  {item.label}
+                </button>
+              ) : (
+                <a key={item.label} href={item.href} className="transition hover:text-[#0a0a0a]">
+                  {item.label}
+                </a>
+              )
             ))}
           </nav>
 
@@ -169,10 +193,25 @@ const Index = () => {
             <button
               type="button"
               onClick={handleStartSignup}
-              disabled={signupPreparing || signupTransition}
+              style={{ minWidth: 196, pointerEvents: (signupPreparing || signupTransition) ? "none" : "auto" }}
               className="landing-button-primary btn-primary btn-primary--lg"
             >
-              {isLogged ? "Continuar no dashboard" : "Criar minha loja"}
+              {(signupPreparing || signupTransition) ? (
+                <>
+                  <span style={{
+                    display: "inline-block",
+                    width: 14,
+                    height: 14,
+                    borderRadius: "50%",
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "#fff",
+                    animation: "btn-spin 0.7s linear infinite",
+                    transformOrigin: "center",
+                    flexShrink: 0,
+                  }} />
+                  Preparando...
+                </>
+              ) : isLogged ? "Continuar no dashboard" : "Criar minha loja"}
             </button>
             <a
               href="#planos"

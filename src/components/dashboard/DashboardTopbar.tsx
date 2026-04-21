@@ -5,9 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import {
-  Menu, Search, ChevronRight, X, MessageSquare, type LucideIcon,
+  Menu, Search, ChevronRight, X, type LucideIcon,
   LayoutGrid, ShoppingCart, BookOpen, Star, Users,
-  BarChart3, Settings, MessageCircle, Wallet, ArrowLeftRight, CreditCard,
+  BarChart3, Settings, Wallet, ArrowLeftRight, CreditCard,
   Sparkles, Palette, User, HelpCircle, LogOut,
 } from "lucide-react";
 
@@ -21,9 +21,9 @@ const pageTitles: Record<string, string> = {
   "/dashboard/publicacoes": "Publicações",
   "/dashboard/pagamentos": "Pagamentos",
   "/dashboard/relatorios": "Relatórios",
-  "/dashboard/ia": "Chat IA",
   "/dashboard/configuracoes": "Configurações",
   "/dashboard/criar-video": "Criar Vídeos",
+  "/dashboard/chat-fornecedores": "Chat com Fornecedores",
 };
 
 type MobileMenuItem = { icon: LucideIcon; label: string; path: string };
@@ -38,7 +38,6 @@ const mobileItems: MobileMenuItem[] = [
   { icon: ArrowLeftRight, label: "Transações", path: "/dashboard/transacoes" },
   { icon: CreditCard, label: "Pagamentos", path: "/dashboard/pagamentos" },
   { icon: BarChart3, label: "Relatórios", path: "/dashboard/relatorios" },
-  { icon: MessageCircle, label: "Chat IA", path: "/dashboard/ia" },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
 ];
 
@@ -118,14 +117,6 @@ const DashboardTopbar = () => {
 
         <div className="flex items-center gap-2 shrink-0">
           <NotificacoesPopover />
-          <Link
-            to="/dashboard/ia"
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="Chat IA"
-          >
-            <MessageSquare size={18} strokeWidth={1.75} />
-          </Link>
-
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setAvatarMenuOpen((v) => !v)}

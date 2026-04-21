@@ -68,24 +68,6 @@ const DashboardSidebar = () => {
           <VeloLogo size="sm" variant="dark" />
         </Link>
 
-        {/* Dropshipping icon — opens workspace panel */}
-        <Tooltip delayDuration={200}>
-          <TooltipTrigger asChild>
-            <Link
-              to="/dashboard/ia"
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
-                isActive("/dashboard/ia")
-                  ? "bg-foreground text-background shadow-sm"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <MessageCircle className="h-[17px] w-[17px]" strokeWidth={1.75} />
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right" sideOffset={8} className="text-xs">Chat IA</TooltipContent>
-        </Tooltip>
-
         {/* Loja icon — opens workspace panel */}
         <Tooltip delayDuration={200}>
           <TooltipTrigger asChild>

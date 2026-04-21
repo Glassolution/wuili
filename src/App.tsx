@@ -13,7 +13,6 @@ import CadastroPage from "./pages/CadastroPage";
 import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { Navigate } from "react-router-dom";
-import AIChatPage from "./pages/dashboard/AIChatPage";
 import CatalogPage from "./pages/dashboard/CatalogPage";
 import OrdersPage from "./pages/dashboard/OrdersPage";
 import PublicationsPage from "./pages/dashboard/PublicationsPage";
@@ -27,6 +26,8 @@ import ProductsPage from "./pages/dashboard/ProductsPage";
 import PagamentosPage from "./pages/dashboard/PagamentosPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import CriarVideoPage from "./pages/dashboard/CriarVideoPage";
+import ChatFornecedoresPage from "./pages/dashboard/ChatFornecedoresPage";
+import Docs from "./pages/Docs";
 
 const queryClient = new QueryClient();
 
@@ -43,10 +44,10 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<CadastroPage />} />
+          <Route path="/docs" element={<Docs />} />
           <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Navigate to="/dashboard/produtos" replace />} />
-            <Route path="ia" element={<AIChatPage />} />
             <Route path="saldos" element={<SaldosPage />} />
             <Route path="transacoes" element={<TransacoesPage />} />
             <Route path="pagamentos" element={<PagamentosPage />} />
@@ -110,6 +111,7 @@ const App = () => (
             <Route path="integracoes" element={<IntegracoesPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
             <Route path="criar-video" element={<CriarVideoPage />} />
+            <Route path="chat-fornecedores" element={<ChatFornecedoresPage />} />
           </Route>
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="*" element={<NotFound />} />

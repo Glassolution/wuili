@@ -28,7 +28,7 @@ const SettingsPage = () => {
     .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 
   return (
-    <div className="-m-4 md:-m-8 min-h-[calc(100vh-64px)] bg-[#F5F5F5] flex">
+    <div className="flex overflow-hidden rounded-2xl border border-[#EBEBEB] bg-[#F5F5F5]" style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
       {/* Sidebar 240px */}
       <aside className="hidden md:flex w-[240px] shrink-0 flex-col bg-white border-r border-[#E5E5E5]">
         <div className="p-5 border-b border-[#F0F0F0]">

@@ -597,9 +597,29 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                             return `${imageUrl}${separator}format=jpg`;
                           };
                           const formattedImageUrl = getImageWithFormat(productImage);
-                          const params = new URLSearchParams({ imageUrl: formattedImageUrl });
+                          // Build full images array for the download section
+                          const allImages: string[] = (() => {
+                            try {
+                              const arr = typeof product.images === "string"
+                                ? JSON.parse(product.images)
+                                : product.images;
+                              return Array.isArray(arr)
+                                ? arr.map((u: string) => getImageWithFormat(u)).filter(Boolean)
+                                : [formattedImageUrl].filter(Boolean);
+                            } catch { return [formattedImageUrl].filter(Boolean); }
+                          })();
                           onClose();
-                          navigate(`/dashboard/criar-video?${params.toString()}`);
+                          navigate('/dashboard/criar-video', {
+                            state: {
+                              product_title: product.title,
+                              product_image: formattedImageUrl,
+                              product_images: allImages,
+                              product_description: description,
+                              cost_price: product.cost_price,
+                              sale_price: product.suggested_price,
+                              profit: Math.round((product.suggested_price - product.cost_price) * 100) / 100,
+                            }
+                          });
                         }}
                         disabled={!description.trim()}
                         className="flex items-center gap-1.5 text-[11.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors disabled:opacity-30"

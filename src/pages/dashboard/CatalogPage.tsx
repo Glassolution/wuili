@@ -276,10 +276,10 @@ const CatalogPage = () => {
             return (
               <div
                 key={p.id}
-                className="group overflow-hidden rounded-2xl border border-border bg-background card-hover"
+                className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-background card-hover"
               >
                 {/* Product image */}
-                <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#f5f5f5] dark:bg-muted/50">
+                <div className="relative flex aspect-[4/3] shrink-0 items-center justify-center overflow-hidden bg-[#f5f5f5] dark:bg-muted/50">
                   {img ? (
                     <img
                       src={img}
@@ -293,25 +293,28 @@ const CatalogPage = () => {
                   ) : (
                     <Package size={32} className="text-muted-foreground/30" />
                   )}
-                  {/* Bestseller badge */}
-                  <div className="absolute left-3 top-3 flex items-center gap-1.5">
-                    {isBestseller && (
-                      <span className="flex items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-[11px] font-bold text-white">
+
+                  {/* Badges row — both anchored top-3, no overlap */}
+                  <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+                    {isBestseller ? (
+                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-[11px] font-bold text-white">
                         <Flame size={10} /> Mais vendido
+                      </span>
+                    ) : (
+                      <span /> /* spacer so category still aligns right */
+                    )}
+                    {categoryLabel && (
+                      <span className="max-w-[140px] truncate rounded-full bg-white/90 px-2.5 py-0.5 text-[10.5px] font-medium text-foreground/80 shadow-sm backdrop-blur-sm">
+                        {categoryLabel}
                       </span>
                     )}
                   </div>
-                  {/* Category badge */}
-                  {categoryLabel && (
-                    <span className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[10.5px] font-medium text-foreground/80 shadow-sm backdrop-blur-sm">
-                      {categoryLabel}
-                    </span>
-                  )}
                 </div>
 
-                {/* Card body */}
-                <div className="px-4 pb-4 pt-3">
-                  <p className="text-[13.5px] font-semibold leading-[1.35] text-foreground line-clamp-2">
+                {/* Card body — flex-col so button always anchors to bottom */}
+                <div className="flex flex-1 flex-col px-4 pb-4 pt-3">
+                  {/* Title — fixed 2-line height so all cards align */}
+                  <p className="line-clamp-2 h-[37px] text-[13.5px] font-semibold leading-[1.35] text-foreground">
                     {p.title}
                   </p>
 
@@ -332,8 +335,8 @@ const CatalogPage = () => {
                     Lucro estimado: {formatPrice(lucro)}
                   </p>
 
-                  {/* Action buttons */}
-                  <div className="mt-3 flex gap-2">
+                  {/* Action buttons — pushed to bottom */}
+                  <div className="mt-auto pt-3 flex gap-2">
                     <button
                       onClick={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
                       className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
