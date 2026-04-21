@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone *)",
+      "Bash(xargs ls *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(zsh -lc \"which npm && which node\")",
+      "Bash(zsh -lc 'echo __TRACKED_VAR__')",
+      "Bash(zsh -lc \"type node npm npx\")",
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(npx tsc *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh auth *)",
+      "Bash(ssh -T git@github.com)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(node -e \"require\\('jszip'\\); console.log\\('jszip ok'\\)\")",
+      "Bash(npx vite *)",
+      "Bash(kill %1)",
+      "Bash(node -e ' *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(grep -n \"R\\\\$\\\\|receita\\\\|Receita\\\\|revenue\\\\|font-bold\\\\|text-\\\\[3\\\\|text-4xl\\\\|text-3xl\\\\|text-2xl\" /Users/luisfelipexavier/Desktop/Velo/wuili/src/pages/dashboard/DashboardHomePage.tsx)",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
+    ]
+  }
+}
