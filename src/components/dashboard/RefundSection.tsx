@@ -289,6 +289,8 @@ const RefundSection = forwardRef<RefundSectionHandle>((_, ref) => {
       )}
     </div>
   );
-};
+});
+
+RefundSection.displayName = "RefundSection";
 
 export default RefundSection;
