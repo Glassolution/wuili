@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Cloud, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/lib/profileContext";
-import RefundSection from "@/components/dashboard/RefundSection";
+import RefundSection, { type RefundSectionHandle } from "@/components/dashboard/RefundSection";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -33,6 +33,7 @@ Como posso te ajudar hoje?`;
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const refundRef = useRef<RefundSectionHandle>(null);
 
   // Reset on unmount handled implicitly by component lifecycle
   useEffect(() => {
@@ -69,7 +70,20 @@ Como posso te ajudar hoje?`;
       }
 
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "assistant", content: data.response }]);
+      const raw: string = data.response || "";
+      const wantsRefund = /\[ACTION:OPEN_REFUND\]/i.test(raw);
+      const cleaned = raw.replace(/\[ACTION:OPEN_REFUND\]/gi, "").trim();
+      setMessages((prev) => [...prev, { role: "assistant", content: cleaned }]);
+
+      if (wantsRefund) {
+        // Give the UI a tick to render the message, then trigger the modal
+        setTimeout(() => {
+          const opened = refundRef.current?.openForLatestEligible();
+          if (opened === false) {
+            toast.info("Você não possui pagamentos elegíveis para reembolso (limite de 7 dias).");
+          }
+        }, 250);
+      }
     } catch (e) {
       console.error(e);
       toast.error("Erro de conexão. Tente novamente.");
@@ -150,7 +164,7 @@ Como posso te ajudar hoje?`;
         </div>
       </div>
 
-      <RefundSection />
+      <RefundSection ref={refundRef} />
     </div>
   );
 };
