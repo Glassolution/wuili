@@ -119,14 +119,10 @@ const RefundSection = forwardRef<RefundSectionHandle>((_, ref) => {
 
   const fmtDate = (s: string) => new Date(s).toLocaleDateString("pt-BR");
   const fmtMoney = (n: number) => `R$ ${n.toFixed(2).replace(".", ",")}`;
-  const isEligible = (s: Subscription) => {
-    if (s.status !== "active") return false;
-    const days = (Date.now() - new Date(s.created_at).getTime()) / (1000 * 60 * 60 * 24);
-    return days <= 7;
-  };
+  const isEligible = isEligibleSub;
 
   return (
-    <div className="mt-8 pt-8 border-t border-[#F0F0F0]">
+    <div id="refund-section" className="mt-8 pt-8 border-t border-[#F0F0F0]">
       <h3 className="text-[18px] font-bold text-[#0A0A0A] mb-1">Solicitar reembolso</h3>
       <p className="text-[13px] text-[#737373] mb-5">
         Reembolso disponível em até 7 dias após o pagamento.
