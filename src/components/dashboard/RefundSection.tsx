@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { CheckCircle2, Loader2, XCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +17,11 @@ type Subscription = {
 type Step = "reason" | "confirm" | "result";
 type Result = { kind: "success" | "error"; message: string } | null;
 
+export type RefundSectionHandle = {
+  /** Open the refund modal for the most recent eligible subscription. Returns true if opened. */
+  openForLatestEligible: () => boolean;
+};
+
 const PLAN_LABEL: Record<string, string> = { gratis: "Free", go: "Go", plus: "Plus", pro: "Pro" };
 const REASONS = [
   "Não atendeu minhas expectativas",
@@ -26,7 +31,13 @@ const REASONS = [
   "Outro",
 ];
 
-const RefundSection = () => {
+const isEligibleSub = (s: Subscription) => {
+  if (s.status !== "active") return false;
+  const days = (Date.now() - new Date(s.created_at).getTime()) / (1000 * 60 * 60 * 24);
+  return days <= 7;
+};
+
+const RefundSection = forwardRef<RefundSectionHandle>((_, ref) => {
   const { user, session } = useAuth();
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +62,23 @@ const RefundSection = () => {
   };
 
   useEffect(() => { load(); }, [user]);
+
+  useImperativeHandle(ref, () => ({
+    openForLatestEligible: () => {
+      setTimeout(() => {
+        document.getElementById("refund-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+      const eligible = subs.find(isEligibleSub);
+      if (!eligible) return false;
+      setActive(eligible);
+      setStep("reason");
+      setReason(REASONS[0]);
+      setDetails("");
+      setConfirmed(false);
+      setResult(null);
+      return true;
+    },
+  }), [subs]);
 
   const closeModal = () => {
     setActive(null);
