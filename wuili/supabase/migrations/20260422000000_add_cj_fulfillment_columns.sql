@@ -1,0 +1,10 @@
+alter table orders add column if not exists cj_order_id text;
+alter table orders add column if not exists fulfillment_status text default 'pending';
+alter table orders add column if not exists fulfillment_error text;
+alter table orders add column if not exists fulfilled_at timestamp with time zone;
+alter table orders add column if not exists buyer_address text;
+alter table orders add column if not exists buyer_city text;
+alter table orders add column if not exists buyer_state text;
+alter table orders add column if not exists buyer_zip text;
+alter table orders add column if not exists buyer_phone text;
+alter table orders add column if not exists cj_variant_id text;

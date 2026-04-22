@@ -29,6 +29,7 @@ import CriarVideoPage from "./pages/dashboard/CriarVideoPage";
 import ChatFornecedoresPage from "./pages/dashboard/ChatFornecedoresPage";
 import DashboardHomePage from "./pages/dashboard/DashboardHomePage";
 import Docs from "./pages/Docs";
+import ClientesPage from "./pages/dashboard/ClientesPage";
 
 const queryClient = new QueryClient();
 
@@ -55,30 +56,7 @@ const App = () => (
             <Route path="planos" element={<Navigate to="/checkout" replace />} />
             <Route
               path="clientes"
-              element={
-                <DashboardInfoPage
-                  title="Clientes"
-                  description="Visualize recorrência, ticket médio e interações importantes para priorizar atendimento."
-                  primaryAction="Criar segmento"
-                  stats={[
-                    { label: "Clientes ativos", value: "5", hint: "Compraram nos últimos 90 dias" },
-                    { label: "Recorrentes", value: "0%", hint: "Nenhum cliente recorrente ainda" },
-                    { label: "Ticket médio", value: "R$ 56,41", hint: "Média por pedido" },
-                  ]}
-                  items={[
-                    { title: "Ana Souza", subtitle: "Organizador de Gaveta — Magalu", meta: "24/05/2025", status: "ok" },
-                    { title: "Bruno Ferreira", subtitle: "Elástico de Resistência Set — Mercado Livre", meta: "07/10/2025", status: "neutral" },
-                    { title: "Camila Santos", subtitle: "LEGO Compatível City — AliExpress", meta: "03/06/2025", status: "neutral" },
-                    { title: "Diego Oliveira", subtitle: "Elástico de Resistência Set — Mercado Livre", meta: "01/09/2025", status: "neutral" },
-                    { title: "Elisa Martins", subtitle: "Tênis Running Lite — Mercado Livre", meta: "02/08/2025", status: "neutral" },
-                  ]}
-                  summary={[
-                    { label: "Total de clientes", value: "5" },
-                    { label: "Novos este mês", value: "5" },
-                    { label: "Canal principal", value: "Mercado Livre" },
-                  ]}
-                />
-              }
+              element={<ClientesPage />}
             />
             <Route path="produtos" element={<CatalogPage />} />
             <Route path="pedidos" element={<OrdersPage />} />
