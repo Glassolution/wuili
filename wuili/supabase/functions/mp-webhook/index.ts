@@ -65,6 +65,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const maybeOrderId =
+      payment.metadata?.order_id ??
+      payment.metadata?.internal_order_id ??
+      payment.external_reference;
+
     let subStatus = "pending";
     if (payment.status === "approved") subStatus = "active";
     else if (payment.status === "rejected" || payment.status === "cancelled") subStatus = "cancelled";
@@ -104,6 +109,30 @@ Deno.serve(async (req) => {
       await adminClient.from("profiles").update({ plano: plan || "plus" }).eq("user_id", userId);
     } else if (subStatus === "cancelled") {
       await adminClient.from("profiles").update({ plano: "gratis" }).eq("user_id", userId);
+    }
+
+    // Trigger CJ fulfillment for paid/approved marketplace orders.
+    if ((payment.status === "approved" || payment.status === "paid") && maybeOrderId) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const fulfillResponse = await fetch(`${supabaseUrl}/functions/v1/cj-fulfill`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+            apikey: serviceRoleKey,
+          },
+          body: JSON.stringify({ order_id: maybeOrderId }),
+        });
+
+        const fulfillJson = await fulfillResponse.json().catch(() => ({}));
+        if (!fulfillResponse.ok || fulfillJson?.success === false) {
+          console.error("CJ fulfillment trigger failed:", JSON.stringify(fulfillJson));
+        }
+      } catch (fulfillError) {
+        console.error("CJ fulfillment trigger error:", fulfillError);
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {

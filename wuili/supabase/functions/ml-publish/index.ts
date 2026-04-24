@@ -291,17 +291,22 @@ serve(async (req) => {
     }
 
     // === SAVE PUBLICATION ===
+    // cj_product_id and cj_variant_id come from the ImportProductModal payload
+    // so the ml-orders-webhook can map ML item → CJ variant without an extra lookup
     try {
       await supabase.from('user_publications').insert({
         user_id,
-        ml_item_id: itemId,
+        ml_item_id:     itemId,
         title,
-        thumbnail: publicImages[0] || null,
-        price: product.price,
-        cost_price: product.cost_price || null,
-        status: 'active',
-        permalink: itemData.permalink,
-        published_at: new Date().toISOString(),
+        thumbnail:      publicImages[0] || null,
+        price:          product.price,
+        cost_price:     product.cost_price || null,
+        status:         'active',
+        permalink:      itemData.permalink,
+        published_at:   new Date().toISOString(),
+        // CJ product/variant IDs passed from frontend when importing the product
+        cj_product_id:  product.cj_product_id  ?? null,
+        cj_variant_id:  product.cj_variant_id  ?? null,
       })
     } catch (pubErr) {
       console.error('Erro ao salvar publicação:', pubErr)
