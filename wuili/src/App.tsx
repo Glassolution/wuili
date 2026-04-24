@@ -31,7 +31,15 @@ import DashboardHomePage from "./pages/dashboard/DashboardHomePage";
 import Docs from "./pages/Docs";
 import ClientesPage from "./pages/dashboard/ClientesPage";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes — data stays fresh on navigation
+      gcTime: 10 * 60 * 1000,   // 10 minutes in cache after unmount
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

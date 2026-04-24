@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -7,13 +7,15 @@ import {
   ReferenceLine,
 } from "recharts";
 import {
-  Package, ShoppingCart, DollarSign,
+  Package, ShoppingCart,
   ChevronRight, ArrowUpRight, ArrowDownRight, AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTheme } from "next-themes";
+import { useFinancialData } from "@/hooks/useFinancialData";
+import { getSalesAnalytics } from "@/lib/financial";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,21 +35,6 @@ const REVENUE_MINI = [
   { m: "Set", v: 3900 },
   { m: "Out", v: 6300 },
   { m: "Nov", v: 9238 },
-];
-
-const SALES_DAILY = [
-  { d: "Seg", v: 3200, p: 2800 }, { d: "Ter", v: 4100, p: 3500 },
-  { d: "Qua", v: 3600, p: 4000 }, { d: "Qui", v: 5200, p: 3800 },
-  { d: "Sex", v: 4800, p: 5100 }, { d: "Sáb", v: 6900, p: 5800 },
-  { d: "Dom", v: 7400, p: 6200 },
-];
-const SALES_WEEKLY = [
-  { d: "S1", v: 18000, p: 15000 }, { d: "S2", v: 22000, p: 19000 },
-  { d: "S3", v: 19500, p: 21000 }, { d: "S4", v: 28000, p: 24000 },
-];
-const SALES_MONTHLY = [
-  { d: "Jan", v: 62000, p: 55000 }, { d: "Fev", v: 58000, p: 61000 },
-  { d: "Mar", v: 75000, p: 68000 }, { d: "Abr", v: 81000, p: 72000 },
 ];
 
 const RECENT_ORDERS = [
@@ -119,6 +106,15 @@ export default function DashboardHomePage() {
   const [ordersTab, setOrdersTab] = useState<OTab>("Hoje");
   const isDark = resolvedTheme === "dark";
 
+  const { orders, isLoading: isLoadingFinancial } = useFinancialData();
+  // Derive total revenue directly from orders (same source as Financeiro page)
+  // For demo user, orders already contains synthetic data with exact totals
+  const revenueFromOrders = useMemo(
+    () => orders.filter(o => ["paid","approved","completed"].includes(o.status))
+                .reduce((s, o) => s + (o.total ?? 0), 0),
+    [orders]
+  );
+
   // ── Fetch published products ──────────────────────────────────────────────
   const { data: publications, isLoading: loadingPubs } = useQuery({
     queryKey: ["dashboard-publications", user?.id],
@@ -169,12 +165,23 @@ export default function DashboardHomePage() {
 
   const totalOrders = statsData?.totalOrders ?? 0;
   const totalPubs   = statsData?.totalPubs   ?? 0;
-  const revenue     = statsData?.revenue     ?? 0;
+  // Use orders from the hook as single source of truth (same as Financeiro page)
+  const revenue = revenueFromOrders > 0 ? revenueFromOrders : (statsData?.revenue ?? 0);
 
-  const chartData =
-    period === "Diário" ? SALES_DAILY :
-    period === "Mensal" ? SALES_MONTHLY : SALES_WEEKLY;
-  const chartGrid = isDark ? "#313131" : "#F5F5F5";
+  const periodMap: Record<string, "daily" | "weekly" | "monthly"> = {
+    "Diário": "daily",
+    "Semanal": "weekly",
+    "Mensal": "monthly",
+  };
+  // Both demo and real users use the same orders array from the hook —
+  // demo orders are synthetic but distributed correctly for period filtering
+  const analyticsData = getSalesAnalytics(periodMap[period] ?? "weekly", orders);
+  const chartData = analyticsData.labels.map((label, i) => ({
+    d: label,
+    v: analyticsData.current[i],
+    p: analyticsData.previous[i],
+  }));
+  const revenueMini = REVENUE_MINI;  const chartGrid = isDark ? "#313131" : "#F5F5F5";
   const chartTick = isDark ? "#A1A1AA" : "#C0C0C0";
   const miniBarActive = isDark ? "#FFFFFF" : "#0A0A0A";
   const miniBarInactive = isDark ? "#52525B" : "#E5E5E5";
@@ -221,12 +228,12 @@ export default function DashboardHomePage() {
             {/* Mini bar chart */}
             <div className="flex-1">
               <ResponsiveContainer width="100%" height={72}>
-                <BarChart data={REVENUE_MINI} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barSize={16} barCategoryGap="30%">
+                <BarChart data={revenueMini} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barSize={16} barCategoryGap="30%">
                   <Bar dataKey="v" radius={[5, 5, 0, 0]} isAnimationActive={false}>
-                    {REVENUE_MINI.map((_, i) => (
+                    {revenueMini.map((_, i) => (
                       <Cell
                         key={i}
-                        fill={i === REVENUE_MINI.length - 1 ? miniBarActive : miniBarInactive}
+                        fill={i === revenueMini.length - 1 ? miniBarActive : miniBarInactive}
                       />
                     ))}
                   </Bar>
