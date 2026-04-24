@@ -114,10 +114,10 @@ Deno.serve(async (req) => {
     }
 
     // Save subscription
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // Hybrid deployment: DB may live on a different project than the functions
+    const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(dbUrl, dbKey);
 
     const now = new Date();
     const periodEnd = new Date(now);

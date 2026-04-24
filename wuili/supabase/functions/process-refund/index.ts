@@ -39,10 +39,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // Hybrid deployment: DB may live on a different project than the functions
+    const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(dbUrl, dbKey);
 
     // Validar assinatura
     const { data: sub, error: subErr } = await adminClient

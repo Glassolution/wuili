@@ -9,7 +9,10 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+    // Hybrid deployment: DB may live on a different project than the functions
+    const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
+    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceKey;
+    const supabase = createClient(dbUrl, dbKey);
 
     // Check cache first
     const { data: cached } = await supabase

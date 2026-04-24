@@ -64,7 +64,10 @@ Deno.serve(async (req) => {
       throw new Error("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY não configurados");
     }
 
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    // Hybrid deployment: DB may live on a different project than the functions
+    const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
+    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
+    const adminClient = createClient(dbUrl, dbKey);
 
     // ── Get fresh CJ access token via cj-auth (auto-caches + auto-refreshes) ─
     const authRes = await fetch(`${supabaseUrl}/functions/v1/cj-auth`, {

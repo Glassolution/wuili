@@ -133,7 +133,10 @@ serve(async (req) => {
       return json({ error: 'Configuração do servidor incompleta.' }, 500)
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
+    // Hybrid deployment: DB may live on a different project than the functions
+    const dbUrl = Deno.env.get('DB_URL') ?? supabaseUrl
+    const dbKey = Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey
+    const supabase = createClient(dbUrl, dbKey)
 
     // === GET ML INTEGRATION ===
     const { data: integration, error } = await supabase

@@ -31,10 +31,10 @@ Deno.serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // Hybrid deployment: DB may live on a different project than the functions
+    const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(dbUrl, dbKey);
 
     // Pega assinatura mais recente do usuário
     const { data: sub } = await adminClient
