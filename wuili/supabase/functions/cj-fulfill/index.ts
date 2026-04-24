@@ -32,16 +32,34 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const cjAccessToken = Deno.env.get("CJ_ACCESS_TOKEN");
 
     if (!supabaseUrl || !serviceRoleKey) {
       throw new Error("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY não configurados");
     }
-    if (!cjAccessToken) {
-      throw new Error("CJ_ACCESS_TOKEN não configurado");
-    }
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    // Get fresh CJ access token via cj-auth (auto-caches + auto-refreshes)
+    const authRes = await fetch(`${supabaseUrl}/functions/v1/cj-auth`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    });
+    const authData = await authRes.json().catch(() => ({}));
+    const cjAccessToken: string | null = authData?.accessToken ?? null;
+
+    if (!cjAccessToken) {
+      const message = "Falha ao obter token CJ: " + (authData?.error ?? "resposta inválida");
+      await adminClient.from("orders")
+        .update({ fulfillment_status: "error", fulfillment_error: message })
+        .eq("id", order_id);
+      return new Response(JSON.stringify({ success: false, error: message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: order, error: orderError } = await adminClient
       .from("orders")
