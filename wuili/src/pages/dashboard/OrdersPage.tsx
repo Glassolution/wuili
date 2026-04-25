@@ -40,103 +40,6 @@ type TabFilter = "all" | "pending" | "paid" | "shipped" | "delivered" | "cancell
 type SortKey = "sale_price" | "profit" | "ordered_at" | null;
 type SortDir = "asc" | "desc";
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
-
-const MOCK_ORDERS: Order[] = [
-  {
-    id: "1", user_id: "", external_order_id: "ML-00123", platform: "mercadolivre",
-    product_title: "Suporte Celular Magnético para Carro Universal",
-    product_image: null, buyer_name: "Ana Paula Ferreira",
-    sale_price: 89.90, cost_price: 22.50, profit: 67.40,
-    status: "delivered", tracking_code: "BR123456789XX",
-    ordered_at: "2026-04-18T10:30:00Z", created_at: "2026-04-18T10:30:00Z",
-    supplier: "CJ Dropshipping",
-  },
-  {
-    id: "2", user_id: "", external_order_id: "ML-00124", platform: "mercadolivre",
-    product_title: "Fone Bluetooth Sem Fio Esportivo TWS Pro",
-    product_image: null, buyer_name: "Carlos Eduardo Lima",
-    sale_price: 149.90, cost_price: 45.00, profit: 104.90,
-    status: "shipped", tracking_code: "BR987654321YY",
-    ordered_at: "2026-04-17T14:15:00Z", created_at: "2026-04-17T14:15:00Z",
-    supplier: "CJ Dropshipping",
-  },
-  {
-    id: "3", user_id: "", external_order_id: "SHP-00050", platform: "shopee",
-    product_title: "Massageador Elétrico Pescoço e Ombros Portátil",
-    product_image: null, buyer_name: "Mariana Costa",
-    sale_price: 129.00, cost_price: 38.00, profit: 91.00,
-    status: "paid", tracking_code: null,
-    ordered_at: "2026-04-17T09:00:00Z", created_at: "2026-04-17T09:00:00Z",
-    supplier: "ShenZhen Trade",
-  },
-  {
-    id: "4", user_id: "", external_order_id: "ML-00125", platform: "mercadolivre",
-    product_title: "Luminária LED USB Mesa Articulável Dimmer",
-    product_image: null, buyer_name: "Roberto Mendes",
-    sale_price: 74.90, cost_price: 18.00, profit: 56.90,
-    status: "pending", tracking_code: null,
-    ordered_at: "2026-04-16T18:45:00Z", created_at: "2026-04-16T18:45:00Z",
-    supplier: "Global Source",
-  },
-  {
-    id: "5", user_id: "", external_order_id: "ML-00126", platform: "mercadolivre",
-    product_title: "Câmera de Segurança WiFi 1080p com Visão Noturna",
-    product_image: null, buyer_name: "Juliana Souza",
-    sale_price: 189.90, cost_price: 62.00, profit: 127.90,
-    status: "delivered", tracking_code: "BR112233445ZZ",
-    ordered_at: "2026-04-15T11:20:00Z", created_at: "2026-04-15T11:20:00Z",
-    supplier: "CJ Dropshipping",
-  },
-  {
-    id: "6", user_id: "", external_order_id: "SHP-00051", platform: "shopee",
-    product_title: "Organizador Gaveta Modular Ajustável Kit 6 peças",
-    product_image: null, buyer_name: "Fernando Alves",
-    sale_price: 59.90, cost_price: 15.50, profit: 44.40,
-    status: "cancelled", tracking_code: null,
-    ordered_at: "2026-04-14T16:00:00Z", created_at: "2026-04-14T16:00:00Z",
-    supplier: "Alibaba Supply",
-  },
-  {
-    id: "7", user_id: "", external_order_id: "ML-00127", platform: "mercadolivre",
-    product_title: "Relógio Smartwatch Fitness Monitor Cardíaco GPS",
-    product_image: null, buyer_name: "Patrícia Oliveira",
-    sale_price: 249.90, cost_price: 88.00, profit: 161.90,
-    status: "shipped", tracking_code: "BR556677889WW",
-    ordered_at: "2026-04-13T08:30:00Z", created_at: "2026-04-13T08:30:00Z",
-    supplier: "FastDrop Co.",
-  },
-  {
-    id: "8", user_id: "", external_order_id: "SHP-00052", platform: "shopee",
-    product_title: "Jogo Tapete Antiderrapante Banheiro Kit 3 peças",
-    product_image: null, buyer_name: "Diego Santos",
-    sale_price: 49.90, cost_price: 12.00, profit: 37.90,
-    status: "delivered", tracking_code: "BR990011223VV",
-    ordered_at: "2026-04-12T13:10:00Z", created_at: "2026-04-12T13:10:00Z",
-    supplier: "Global Source",
-  },
-];
-
-const CHART_REVENUE = [
-  { day: "Seg", value: 312 },
-  { day: "Ter", value: 480 },
-  { day: "Qua", value: 390 },
-  { day: "Qui", value: 610 },
-  { day: "Sex", value: 520 },
-  { day: "Sáb", value: 740 },
-  { day: "Dom", value: 430 },
-];
-
-const CHART_ORDERS = [
-  { day: "Seg", qty: 3 },
-  { day: "Ter", qty: 5 },
-  { day: "Qua", qty: 4 },
-  { day: "Qui", qty: 7 },
-  { day: "Sex", qty: 6 },
-  { day: "Sáb", qty: 9 },
-  { day: "Dom", qty: 4 },
-];
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const formatBRL = (v: number) =>
@@ -286,8 +189,8 @@ const OrdersPage = () => {
     },
   });
 
-  // Use remote data if available, fall back to mock
-  const all: Order[] = (remoteOrders && remoteOrders.length > 0) ? remoteOrders : MOCK_ORDERS;
+  // Use remote data only — no mock fallback
+  const all: Order[] = remoteOrders ?? [];
 
   // Metrics
   const totalOrders  = all.length;
@@ -342,8 +245,31 @@ const OrdersPage = () => {
     toast.info(`Abrindo chat com ${order.supplier ?? "fornecedor"}…`);
   };
 
-  const isMockData = !remoteOrders || remoteOrders.length === 0;
   const isDark = resolvedTheme === "dark";
+
+  // ── Chart data derived from real orders ──────────────────────────────────
+  const DAY_LABELS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  const chartRevenue = useMemo(() => {
+    const map: Record<string, number> = { Seg:0, Ter:0, Qua:0, Qui:0, Sex:0, Sáb:0, Dom:0 };
+    const now = new Date();
+    for (const o of all) {
+      const d = new Date(o.ordered_at ?? o.created_at);
+      const diff = Math.floor((now.getTime() - d.getTime()) / 86400000);
+      if (diff < 7) map[DAY_LABELS[d.getDay()]] = (map[DAY_LABELS[d.getDay()]] ?? 0) + (o.sale_price ?? 0);
+    }
+    return ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].map(day => ({ day, value: map[day] ?? 0 }));
+  }, [all]);
+
+  const chartOrdersData = useMemo(() => {
+    const map: Record<string, number> = { Seg:0, Ter:0, Qua:0, Qui:0, Sex:0, Sáb:0, Dom:0 };
+    const now = new Date();
+    for (const o of all) {
+      const d = new Date(o.ordered_at ?? o.created_at);
+      const diff = Math.floor((now.getTime() - d.getTime()) / 86400000);
+      if (diff < 7) map[DAY_LABELS[d.getDay()]] = (map[DAY_LABELS[d.getDay()]] ?? 0) + 1;
+    }
+    return ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].map(day => ({ day, qty: map[day] ?? 0 }));
+  }, [all]);
   const chartGrid = isDark ? "#3a3a3a" : "#F0F0F0";
   const chartTick = isDark ? "#A1A1AA" : "#A3A3A3";
   const chartMain = isDark ? "#FFFFFF" : "#0A0A0A";
@@ -359,7 +285,6 @@ const OrdersPage = () => {
           <h1 className="text-[22px] font-black tracking-tight text-[#0A0A0A] dark:text-white">Pedidos</h1>
           <p className="mt-0.5 text-[13px] text-[#A3A3A3] dark:text-zinc-400">
             Acompanhe vendas, custos e envios em tempo real.
-            {isMockData && <span className="ml-2 rounded-full border border-[#E5E5E5] bg-[#F5F5F5] px-2 py-0.5 text-[10px] font-semibold text-[#A3A3A3] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">dados de exemplo</span>}
           </p>
         </div>
       </div>
@@ -387,7 +312,7 @@ const OrdersPage = () => {
             </span>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={CHART_REVENUE} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+            <AreaChart data={chartRevenue} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={chartMain} stopOpacity={isDark ? 0.25 : 0.10} />
@@ -419,7 +344,7 @@ const OrdersPage = () => {
             </span>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={CHART_ORDERS} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barSize={22}>
+            <BarChart data={chartOrdersData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barSize={22}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: chartTick }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: chartTick }} axisLine={false} tickLine={false} allowDecimals={false} />

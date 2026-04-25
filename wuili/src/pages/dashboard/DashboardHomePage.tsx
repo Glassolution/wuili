@@ -303,9 +303,10 @@ export default function DashboardHomePage() {
       </div>
 
       {/* ── Middle row ─────────────────────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+      <div className={`grid gap-4 ${hasPublications || loadingPubs ? "lg:grid-cols-[300px_1fr]" : "lg:grid-cols-1"}`}>
 
-        {/* Published products */}
+        {/* Published products — only render when there are real publications */}
+        {(loadingPubs || hasPublications) && (
         <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm flex flex-col dark:border-zinc-800 dark:bg-zinc-900">
           {/* Header */}
           <div className="mb-4">
@@ -327,8 +328,7 @@ export default function DashboardHomePage() {
                     </div>
                   </div>
                 ))
-              : hasPublications
-              ? publications!.map((pub) => (
+              : publications!.map((pub) => (
                   <Link
                     key={pub.id}
                     to="/dashboard/publicacoes"
@@ -348,39 +348,17 @@ export default function DashboardHomePage() {
                     <ChevronRight size={14} className="shrink-0 text-[#D4D4D4] group-hover:text-[#A3A3A3] transition-colors" />
                   </Link>
                 ))
-              : (
-                [
-                  { id: "p1", title: "Suporte Celular Magnético",  price: 89.90,  img: "https://images.unsplash.com/photo-1556656793-08538906a9f8?w=80&h=80&fit=crop&auto=format" },
-                  { id: "p2", title: "Fone Bluetooth TWS Pro",     price: 149.90, img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=80&h=80&fit=crop&auto=format" },
-                  { id: "p3", title: "Massageador Elétrico",       price: 129.00, img: "https://images.unsplash.com/photo-1519864658-d6a83ee7edc0?w=80&h=80&fit=crop&auto=format" },
-                  { id: "p4", title: "Luminária LED USB",          price: 74.90,  img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&auto=format" },
-                ].map((p) => (
-                  <Link
-                    key={p.id}
-                    to="/dashboard/publicacoes"
-                    className="flex items-center gap-3.5 rounded-xl p-2.5 transition hover:bg-[#F7F7F7] dark:hover:bg-zinc-800 group"
-                  >
-                    <span className="flex h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[#F0F0F0] bg-[#F7F7F7]">
-                      <img src={p.img} alt={p.title} className="h-full w-full object-cover" loading="lazy" />
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-[13.5px] font-semibold text-[#0A0A0A] dark:text-white">{p.title}</p>
-                      <p className="text-[11.5px] text-[#A3A3A3] dark:text-zinc-400">{fmt(p.price)} · ativo</p>
-                    </div>
-                    <ChevronRight size={14} className="shrink-0 text-[#D4D4D4] group-hover:text-[#A3A3A3] transition-colors" />
-                  </Link>
-                ))
-              )
             }
           </div>
 
           <Link
             to="/dashboard/publicacoes"
-          className="mt-4 flex items-center justify-center gap-1 rounded-xl border border-[#F0F0F0] dark:border-zinc-800 py-2.5 text-[12.5px] font-medium text-[#A3A3A3] dark:text-zinc-400 transition hover:border-[#D4D4D4] dark:hover:border-zinc-700 hover:text-[#0A0A0A] dark:hover:text-white"
+            className="mt-4 flex items-center justify-center gap-1 rounded-xl border border-[#F0F0F0] dark:border-zinc-800 py-2.5 text-[12.5px] font-medium text-[#A3A3A3] dark:text-zinc-400 transition hover:border-[#D4D4D4] dark:hover:border-zinc-700 hover:text-[#0A0A0A] dark:hover:text-white"
           >
             Ver todas as publicações <ChevronRight size={12} />
           </Link>
         </div>
+        )}
 
         {/* Sales vs Time */}
         <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">

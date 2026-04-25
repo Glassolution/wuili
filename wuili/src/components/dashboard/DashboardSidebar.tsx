@@ -24,6 +24,7 @@ type NavGroup =
 
 const nav: NavGroup[] = [
   { kind: "link",  to: "/dashboard",  icon: LayoutGrid, label: "Início" },
+  { kind: "link",  to: "/dashboard/clientes",  icon: Users,         label: "Clientes"   },
   {
     kind: "group", icon: Store, label: "Loja",
     items: [
@@ -32,7 +33,6 @@ const nav: NavGroup[] = [
       { label: "Pedidos",     to: "/dashboard/pedidos"     },
     ],
   },
-  { kind: "link",  to: "/dashboard/clientes",  icon: Users,         label: "Clientes"   },
   {
     kind: "group", icon: Banknote, label: "Financeiro",
     items: [
