@@ -74,6 +74,20 @@ serve(async (req) => {
     });
   }
 
+  // Register Mercado Livre webhooks for this user (best-effort, non-blocking)
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/ml-setup-webhook`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ user_id: userId, access_token: tokens.access_token }),
+    });
+  } catch (e) {
+    console.error("ml-setup-webhook call failed:", e);
+  }
+
   return new Response(null, {
     status: 302,
     headers: { Location: `${dashboardUrl}?ml_connected=true` },
