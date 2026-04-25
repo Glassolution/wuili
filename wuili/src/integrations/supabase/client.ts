@@ -2,16 +2,35 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// ── Supabase Principal (Lovable) ──────────────────────────────────────────────
+// Usado para TUDO: auth, usuários, pedidos, produtos, publicações, etc.
+// Aponta para o banco de produção com todos os dados reais.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  console.error(
+    '[Supabase] ERRO: variáveis VITE_SUPABASE_URL ou VITE_SUPABASE_PUBLISHABLE_KEY não encontradas. ' +
+    'Configure as variáveis de ambiente no painel da Vercel e faça redeploy.'
+  );
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
-
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
 });
+
+// ── Supabase Secundário (novo projeto) ────────────────────────────────────────
+// Usado APENAS para funções auxiliares, logs e integrações específicas.
+// NÃO usar para auth, pedidos ou dados de usuário.
+const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL;
+const SUPABASE_FUNCTIONS_KEY = import.meta.env.VITE_SUPABASE_FUNCTIONS_KEY;
+
+export const supabaseFunctions = SUPABASE_FUNCTIONS_URL && SUPABASE_FUNCTIONS_KEY
+  ? createClient(SUPABASE_FUNCTIONS_URL, SUPABASE_FUNCTIONS_KEY)
+  : null;
