@@ -169,6 +169,126 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          buyer_address: string | null
+          buyer_city: string | null
+          buyer_name: string | null
+          buyer_phone: string | null
+          buyer_state: string | null
+          buyer_zip: string | null
+          cj_order_id: string | null
+          cj_variant_id: string | null
+          cost_price: number | null
+          created_at: string | null
+          external_order_id: string | null
+          fulfilled_at: string | null
+          fulfillment_error: string | null
+          fulfillment_status: string | null
+          id: string
+          ml_tracking_sent: boolean | null
+          ml_tracking_sent_at: string | null
+          ordered_at: string | null
+          platform: string
+          product_image: string | null
+          product_title: string
+          profit: number | null
+          sale_price: number
+          status: string
+          tracking_code: string | null
+          user_id: string
+        }
+        Insert: {
+          buyer_address?: string | null
+          buyer_city?: string | null
+          buyer_name?: string | null
+          buyer_phone?: string | null
+          buyer_state?: string | null
+          buyer_zip?: string | null
+          cj_order_id?: string | null
+          cj_variant_id?: string | null
+          cost_price?: number | null
+          created_at?: string | null
+          external_order_id?: string | null
+          fulfilled_at?: string | null
+          fulfillment_error?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          ml_tracking_sent?: boolean | null
+          ml_tracking_sent_at?: string | null
+          ordered_at?: string | null
+          platform?: string
+          product_image?: string | null
+          product_title?: string
+          profit?: number | null
+          sale_price?: number
+          status?: string
+          tracking_code?: string | null
+          user_id: string
+        }
+        Update: {
+          buyer_address?: string | null
+          buyer_city?: string | null
+          buyer_name?: string | null
+          buyer_phone?: string | null
+          buyer_state?: string | null
+          buyer_zip?: string | null
+          cj_order_id?: string | null
+          cj_variant_id?: string | null
+          cost_price?: number | null
+          created_at?: string | null
+          external_order_id?: string | null
+          fulfilled_at?: string | null
+          fulfillment_error?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          ml_tracking_sent?: boolean | null
+          ml_tracking_sent_at?: string | null
+          ordered_at?: string | null
+          platform?: string
+          product_image?: string | null
+          product_title?: string
+          profit?: number | null
+          sale_price?: number
+          status?: string
+          tracking_code?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
