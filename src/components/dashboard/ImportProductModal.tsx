@@ -114,6 +114,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     setFreightCost(0);
     setTaxCost(0);
     setSellPrice(Math.round(product.cost_price * 2.5 * 100) / 100);
+    setPublishStock(Math.min(Math.max(product.stock_quantity ?? 10, 1), 10) || 10);
     setStep(1);
     setPublishResult(null);
     setPublishing(false);
