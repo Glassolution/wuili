@@ -171,7 +171,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   );
 
   const img = product ? getImage(product.images) : null;
-  const stockQty = product?.stock_quantity ?? 0;
+  const stockQty = liveStock ?? product?.stock_quantity ?? 0;
   const hasStock = stockQty > 0;
 
   const handleClose = () => {
