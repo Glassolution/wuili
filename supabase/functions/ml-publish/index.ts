@@ -93,6 +93,63 @@ function isPublicUrl(url: string): boolean {
   return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))
 }
 
+// Remove background using remove.bg and apply white background.
+// Uploads the resulting JPG to the public `product-images` bucket and returns its public URL.
+// Returns null on failure (caller should fall back to the original image).
+async function removeBgAndUploadWhite(
+  imageUrl: string,
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<string | null> {
+  const apiKey = Deno.env.get('REMOVEBG_API_KEY')
+  if (!apiKey) {
+    console.warn('REMOVEBG_API_KEY not configured — skipping background removal')
+    return null
+  }
+
+  try {
+    const form = new FormData()
+    form.append('image_url', imageUrl)
+    form.append('size', 'auto')
+    form.append('format', 'jpg')
+    form.append('bg_color', 'ffffff') // white background per ML requirement
+
+    const res = await fetch('https://api.remove.bg/v1.0/removebg', {
+      method: 'POST',
+      headers: { 'X-Api-Key': apiKey },
+      body: form,
+    })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error('remove.bg failed:', res.status, errText.substring(0, 300))
+      return null
+    }
+
+    const imageBytes = new Uint8Array(await res.arrayBuffer())
+    const fileName = `${userId}/cover-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
+
+    const { error: uploadErr } = await supabase.storage
+      .from('product-images')
+      .upload(fileName, imageBytes, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      })
+
+    if (uploadErr) {
+      console.error('Erro ao subir imagem sem fundo:', uploadErr)
+      return null
+    }
+
+    const { data: pub } = supabase.storage.from('product-images').getPublicUrl(fileName)
+    console.log('Imagem com fundo branco salva:', pub.publicUrl)
+    return pub.publicUrl
+  } catch (e) {
+    console.error('Erro inesperado em removeBgAndUploadWhite:', e)
+    return null
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
