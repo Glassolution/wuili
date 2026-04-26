@@ -98,7 +98,7 @@ function isPublicUrl(url: string): boolean {
 // Returns null on failure (caller should fall back to the original image).
 async function removeBgAndUploadWhite(
   imageUrl: string,
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any, any, any>>,
   userId: string,
 ): Promise<string | null> {
   const apiKey = Deno.env.get('REMOVEBG_API_KEY')
