@@ -242,7 +242,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
             cost_price: totalCost,
             description: description || `${title} - Produto de alta qualidade com envio rápido.`,
             images,
-            available_quantity: Math.min(stockQty, 10),
+            available_quantity: publishStock,
             condition: "new",
           },
         },
