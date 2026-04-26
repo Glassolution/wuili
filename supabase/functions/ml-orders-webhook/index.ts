@@ -26,9 +26,10 @@ serve(async (req) => {
     const userId = body.user_id;
 
     const { data: integration } = await supabase
-      .from("ml_integrations")
-      .select("access_token")
+      .from("user_integrations")
+      .select("access_token, user_id")
       .eq("ml_user_id", userId)
+      .eq("platform", "mercadolivre")
       .single();
 
     if (!integration) {
@@ -42,11 +43,17 @@ serve(async (req) => {
 
     await supabase.from("orders").upsert(
       {
+        user_id: integration.user_id,
         ml_order_id: String(order.id),
         ml_user_id: String(userId),
+        external_order_id: String(order.id),
+        platform: "mercadolivre",
         status: order.status,
         buyer_email: order.buyer?.email,
+        buyer_name: order.buyer?.nickname,
         total_amount: order.total_amount,
+        sale_price: order.total_amount ?? 0,
+        product_title: order.order_items?.[0]?.item?.title ?? "",
         raw: order,
       },
       { onConflict: "ml_order_id" }
