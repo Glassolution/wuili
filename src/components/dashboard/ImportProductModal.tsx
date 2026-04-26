@@ -75,6 +75,10 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const [translating, setTranslating] = useState(false);
   const [translated, setTranslated] = useState(false);
 
+  // Live CJ stock (overrides cached stock_quantity)
+  const [liveStock, setLiveStock] = useState<number | null>(null);
+  const [loadingStock, setLoadingStock] = useState(false);
+
   // Platforms (step 3)
   const [platforms, setPlatforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
     ml: true,
@@ -95,6 +99,36 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
       setIsConnectedToML(!!data?.access_token);
     })();
   }, [user, open]);
+
+  // Fetch live CJ stock when product changes
+  useEffect(() => {
+    if (!open || !product?.external_id) return;
+    let cancelled = false;
+    setLiveStock(null);
+    setLoadingStock(true);
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke("cj-product-stock", {
+          body: { pid: product.external_id },
+        });
+        if (cancelled) return;
+        if (typeof data?.stock === "number") {
+          setLiveStock(data.stock);
+          // Cap publish stock to live CJ availability
+          setPublishStock((curr) => {
+            const max = Math.min(data.stock, 9999);
+            if (max <= 0) return 1;
+            return Math.min(Math.max(curr, 1), max);
+          });
+        }
+      } catch {
+        // keep cached stock as fallback
+      } finally {
+        if (!cancelled) setLoadingStock(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, product?.external_id]);
 
   // Animate
   useEffect(() => {
@@ -137,7 +171,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   );
 
   const img = product ? getImage(product.images) : null;
-  const stockQty = product?.stock_quantity ?? 0;
+  const stockQty = liveStock ?? product?.stock_quantity ?? 0;
   const hasStock = stockQty > 0;
 
   const handleClose = () => {
@@ -186,12 +220,31 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     if (!product) return;
     setGeneratingDesc(true);
     try {
+      const category = product.category || "produto";
+      const prompt = `Você é um copywriter sênior especializado em anúncios de alta conversão no Mercado Livre Brasil.
+
+Escreva uma descrição completa e persuasiva para o produto abaixo.
+
+PRODUTO: ${title}
+CATEGORIA: ${category}
+PREÇO: R$ ${sellPrice.toFixed(2)}
+
+REGRAS OBRIGATÓRIAS:
+- Idioma: português brasileiro natural, tom vendedor mas confiável (não exagerado, sem "MELHOR DO MUNDO!!!").
+- Estrutura em 4 a 5 parágrafos curtos separados por linha em branco, NA SEGUINTE ORDEM:
+  1) ABERTURA com o principal benefício/transformação que o produto entrega ao comprador (gancho emocional).
+  2) CARACTERÍSTICAS TÉCNICAS principais (materiais, dimensões aproximadas, funcionamento, voltagem se aplicável, o que vem na caixa).
+  3) COMO USAR no dia a dia, com 2-3 situações práticas concretas.
+  4) PARA QUEM É INDICADO (perfis de uso, presente ideal, soluções que resolve).
+  5) CALL-TO-ACTION final convidando a comprar agora, mencionando envio rápido para todo o Brasil e compra segura via Mercado Livre.
+- Entre 800 e 1500 caracteres no total.
+- Sem bullet points, sem emojis, sem markdown, sem títulos em caixa alta, sem hashtags.
+- NÃO invente marca, modelo, certificações, garantias específicas em anos, nem prazos exatos de entrega.
+- Responda APENAS com o texto da descrição, sem comentários ou aspas.`;
+
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
-          messages: [{
-            role: "user",
-            content: `Você é um especialista em copywriting para e-commerce brasileiro. Crie uma descrição de produto persuasiva para o Mercado Livre com no máximo 500 caracteres. Produto: ${title}. Preço: R$ ${sellPrice.toFixed(2)}. Use linguagem direta, destaque benefícios, inclua CTA. Apenas parágrafos curtos, sem bullet points. Responda APENAS com a descrição.`
-          }]
+          messages: [{ role: "user", content: prompt }],
         },
       });
       if (error) throw error;
@@ -510,24 +563,41 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[12px] font-medium text-gray-600">Estoque a publicar</label>
-                      <span className="text-[10.5px] text-gray-400">
-                        Disponível na CJ: {stockQty}
+                      <span className="text-[10.5px] font-medium text-gray-500 inline-flex items-center gap-1">
+                        {loadingStock ? (
+                          <>
+                            <Loader2 size={10} className="animate-spin" />
+                            Consultando estoque CJ…
+                          </>
+                        ) : (
+                          <>
+                            Disponível na CJ:{" "}
+                            <span className="font-semibold text-[#0A0A0A]">
+                              {stockQty.toLocaleString("pt-BR")} un
+                            </span>
+                            {liveStock !== null && (
+                              <span className="ml-1 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            )}
+                          </>
+                        )}
                       </span>
                     </div>
                     <input
                       type="number"
                       min="1"
-                      max="9999"
+                      max={Math.max(1, stockQty)}
                       step="1"
                       value={publishStock || ""}
                       onChange={(e) => {
-                        const v = Math.floor(Number(e.target.value));
-                        setPublishStock(Number.isFinite(v) && v > 0 ? v : 1);
+                        const raw = Math.floor(Number(e.target.value));
+                        const max = Math.max(1, stockQty);
+                        const safe = Number.isFinite(raw) && raw > 0 ? Math.min(raw, max) : 1;
+                        setPublishStock(safe);
                       }}
                       className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors"
                     />
                     <p className="text-[10.5px] text-gray-400 mt-1.5">
-                      Quantidade que ficará visível no anúncio do Mercado Livre.
+                      Você pode publicar no máximo {stockQty.toLocaleString("pt-BR")} unidades — o limite é o estoque ao vivo do fornecedor.
                     </p>
                   </div>
 
