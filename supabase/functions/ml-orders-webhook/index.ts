@@ -13,26 +13,49 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
+    console.log("[ml-orders-webhook] received body:", JSON.stringify(body));
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     if (body.topic !== "orders_v2") {
+      console.log("[ml-orders-webhook] ignoring topic:", body.topic);
       return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
-    const resourceId = body.resource.split("/").pop();
-    const userId = body.user_id;
+    const resourceId = body.resource?.split("/").pop();
+    // ML envia user_id como number; normalizamos para Number para garantir match com bigint
+    const rawUserId = body.user_id;
+    const userIdNum = Number(rawUserId);
 
-    const { data: integration } = await supabase
+    console.log("[ml-orders-webhook] lookup", {
+      rawUserId,
+      typeofRawUserId: typeof rawUserId,
+      userIdNum,
+      resourceId,
+    });
+
+    // Pode haver múltiplas integrações com o mesmo ml_user_id (re-conexões).
+    // Usamos a mais recente em vez de .single() para evitar erro de múltiplas rows.
+    const { data: integrations, error: intError } = await supabase
       .from("user_integrations")
-      .select("access_token, user_id")
-      .eq("ml_user_id", userId)
+      .select("access_token, user_id, ml_user_id, updated_at")
+      .eq("ml_user_id", userIdNum)
       .eq("platform", "mercadolivre")
-      .single();
+      .order("updated_at", { ascending: false })
+      .limit(1);
 
+    console.log("[ml-orders-webhook] integration query result:", {
+      count: integrations?.length ?? 0,
+      error: intError?.message,
+      first: integrations?.[0] ? { user_id: integrations[0].user_id, ml_user_id: integrations[0].ml_user_id } : null,
+    });
+
+    const integration = integrations?.[0];
     if (!integration) {
+      console.error("[ml-orders-webhook] no integration found for ml_user_id:", userIdNum);
       return new Response("no integration", { status: 200, headers: corsHeaders });
     }
 
@@ -40,12 +63,13 @@ serve(async (req) => {
       headers: { Authorization: `Bearer ${integration.access_token}` },
     });
     const order = await orderRes.json();
+    console.log("[ml-orders-webhook] order fetched:", { id: order?.id, status: order?.status });
 
     await supabase.from("orders").upsert(
       {
         user_id: integration.user_id,
         ml_order_id: String(order.id),
-        ml_user_id: String(userId),
+        ml_user_id: String(userIdNum),
         external_order_id: String(order.id),
         platform: "mercadolivre",
         status: order.status,
