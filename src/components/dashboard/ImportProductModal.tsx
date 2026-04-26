@@ -569,7 +569,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   <Row label="Título" value={title} />
                   <Row label="Plataforma" value="Mercado Livre" />
                   <Row label="Preço" value={formatBRL(sellPrice)} />
-                  <Row label="Estoque publicado" value={`${Math.min(stockQty, 10)} un`} />
+                  <Row label="Estoque publicado" value={`${publishStock} un`} />
                   <Row label="Lucro" value={formatBRL(profit)} strong />
                 </div>
 
