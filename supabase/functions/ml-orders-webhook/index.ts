@@ -59,7 +59,7 @@ serve(async (req) => {
       return new Response("no integration", { status: 200, headers: corsHeaders });
     }
 
-    const orderRes = await fetch(`https://api.mercadolivre.com.br/orders/${resourceId}`, {
+    const orderRes = await fetch(`https://api.mercadolibre.com/orders/${resourceId}`, {
       headers: { Authorization: `Bearer ${integration.access_token}` },
     });
     const order = await orderRes.json();
