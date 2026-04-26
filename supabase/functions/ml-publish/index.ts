@@ -272,8 +272,21 @@ serve(async (req) => {
     }
     console.log('Atributos:', allAttrs.map(a => a.id))
 
-    // === PICTURES (use source URLs directly — CJ URLs are public) ===
-    const pictures = publicImages.map(url => ({ source: url }))
+    // === COVER IMAGE: remove background + add white bg (ML requirement) ===
+    let coverWarning: string | null = null
+    let coverImageUrl = publicImages[0]
+    const whiteBgUrl = await removeBgAndUploadWhite(publicImages[0], supabase, user_id)
+    if (whiteBgUrl) {
+      coverImageUrl = whiteBgUrl
+      console.log('Foto de capa processada com fundo branco')
+    } else {
+      coverWarning = 'Não foi possível processar a foto de capa com fundo branco. A imagem original foi usada e pode ser rejeitada pelo Mercado Livre.'
+      console.warn(coverWarning)
+    }
+
+    // Cover first, then remaining originals (ML uses position 0 as the main picture)
+    const orderedImages = [coverImageUrl, ...publicImages.filter(u => u !== publicImages[0])]
+    const pictures = orderedImages.slice(0, 6).map(url => ({ source: url }))
     console.log('Imagens para ML:', pictures.length)
 
     // === BUILD PAYLOAD ===
