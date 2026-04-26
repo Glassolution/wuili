@@ -180,7 +180,15 @@ Deno.serve(async (req) => {
     const accessToken = authData.accessToken;
     const summary: Record<string, number> = {};
     let totalSynced = 0;
+    let totalNew = 0;
+    let totalUpdated = 0;
     const errors: string[] = [];
+
+    // Snapshot de external_ids existentes para distinguir novos de atualizados
+    const { data: existingRows } = await supabase
+      .from("catalog_products")
+      .select("external_id");
+    const existingIds = new Set((existingRows || []).map((r: any) => r.external_id));
 
     // Rotate pages to fetch different products each sync (1–10)
     const syncPage = String(Math.floor(Math.random() * 10) + 1);
@@ -243,7 +251,11 @@ Deno.serve(async (req) => {
             console.error(`[cj-sync] Upsert error ${cat.name}:`, error);
             errors.push(`${cat.name}: upsert - ${error.message}`);
           } else {
-            console.log(`[cj-sync] ${cat.name}: ${rows.length} synced (translated)`);
+            const newInCat = rows.filter((r: any) => !existingIds.has(r.external_id)).length;
+            const updatedInCat = rows.length - newInCat;
+            totalNew += newInCat;
+            totalUpdated += updatedInCat;
+            console.log(`[cj-sync] ${cat.name}: ${rows.length} synced (${newInCat} novos, ${updatedInCat} atualizados)`);
           }
         }
 
@@ -260,6 +272,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         synced: totalSynced,
+        added: totalNew,
+        updated: totalUpdated,
         byCategory: summary,
         errors,
       }),
