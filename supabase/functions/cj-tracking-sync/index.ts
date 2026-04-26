@@ -57,9 +57,10 @@ serve(async (req) => {
         .eq("id", order.id);
 
       const { data: integration } = await supabase
-        .from("ml_integrations")
+        .from("user_integrations")
         .select("access_token")
         .eq("ml_user_id", order.ml_user_id)
+        .eq("platform", "mercadolivre")
         .single();
 
       if (integration) {

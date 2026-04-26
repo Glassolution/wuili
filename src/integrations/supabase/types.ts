@@ -206,6 +206,7 @@ export type Database = {
         Row: {
           buyer_address: string | null
           buyer_city: string | null
+          buyer_email: string | null
           buyer_name: string | null
           buyer_phone: string | null
           buyer_state: string | null
@@ -219,21 +220,26 @@ export type Database = {
           fulfillment_error: string | null
           fulfillment_status: string | null
           id: string
+          ml_order_id: string | null
           ml_tracking_sent: boolean | null
           ml_tracking_sent_at: string | null
+          ml_user_id: string | null
           ordered_at: string | null
           platform: string
           product_image: string | null
           product_title: string
           profit: number | null
+          raw: Json | null
           sale_price: number
           status: string
+          total_amount: number | null
           tracking_code: string | null
           user_id: string
         }
         Insert: {
           buyer_address?: string | null
           buyer_city?: string | null
+          buyer_email?: string | null
           buyer_name?: string | null
           buyer_phone?: string | null
           buyer_state?: string | null
@@ -247,21 +253,26 @@ export type Database = {
           fulfillment_error?: string | null
           fulfillment_status?: string | null
           id?: string
+          ml_order_id?: string | null
           ml_tracking_sent?: boolean | null
           ml_tracking_sent_at?: string | null
+          ml_user_id?: string | null
           ordered_at?: string | null
           platform?: string
           product_image?: string | null
           product_title?: string
           profit?: number | null
+          raw?: Json | null
           sale_price?: number
           status?: string
+          total_amount?: number | null
           tracking_code?: string | null
           user_id: string
         }
         Update: {
           buyer_address?: string | null
           buyer_city?: string | null
+          buyer_email?: string | null
           buyer_name?: string | null
           buyer_phone?: string | null
           buyer_state?: string | null
@@ -275,15 +286,19 @@ export type Database = {
           fulfillment_error?: string | null
           fulfillment_status?: string | null
           id?: string
+          ml_order_id?: string | null
           ml_tracking_sent?: boolean | null
           ml_tracking_sent_at?: string | null
+          ml_user_id?: string | null
           ordered_at?: string | null
           platform?: string
           product_image?: string | null
           product_title?: string
           profit?: number | null
+          raw?: Json | null
           sale_price?: number
           status?: string
+          total_amount?: number | null
           tracking_code?: string | null
           user_id?: string
         }

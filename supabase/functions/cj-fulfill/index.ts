@@ -45,12 +45,12 @@ serve(async (req) => {
     if (!cjToken) {
       await supabase
         .from("orders")
-        .update({ status: "cj_error", cj_error: "auth failed" })
+        .update({ status: "cj_error", fulfillment_error: "auth failed" })
         .eq("ml_order_id", ml_order_id);
       return new Response("cj auth failed", { status: 500, headers: corsHeaders });
     }
 
-    const raw = order.raw;
+    const raw = order.raw ?? {};
     const item = raw.order_items?.[0];
     const shipping = raw.shipping;
 
@@ -86,7 +86,9 @@ serve(async (req) => {
       .update({
         cj_order_id: fulfillData.data?.orderId,
         status: fulfillData.result ? "fulfilled" : "cj_error",
-        cj_error: fulfillData.result ? null : JSON.stringify(fulfillData),
+        fulfillment_status: fulfillData.result ? "fulfilled" : "error",
+        fulfillment_error: fulfillData.result ? null : JSON.stringify(fulfillData),
+        fulfilled_at: fulfillData.result ? new Date().toISOString() : null,
       })
       .eq("ml_order_id", ml_order_id);
 
