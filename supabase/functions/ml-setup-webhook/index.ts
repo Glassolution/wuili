@@ -79,12 +79,15 @@ serve(async (req) => {
             body: JSON.stringify({ topic, callback_url: callbackUrl }),
           },
         );
-        const bodyJson = await res.json().catch(() => null);
-        results[topic] = { status: res.status, body: bodyJson };
+        const body = await res.text();
+        results[topic] = { status: res.status, body };
         if (!res.ok) {
           console.error(
-            `ml-setup-webhook topic=${topic} failed status=${res.status}`,
-            JSON.stringify(bodyJson),
+            `ml-setup-webhook topic=${topic} failed status=${res.status} body=${body}`,
+          );
+        } else {
+          console.log(
+            `ml-setup-webhook topic=${topic} ok status=${res.status} body=${body}`,
           );
         }
       } catch (e) {
