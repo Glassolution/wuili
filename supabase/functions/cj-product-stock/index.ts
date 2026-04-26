@@ -12,14 +12,15 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
-async function getCjAccessToken(supabase: ReturnType<typeof createClient>): Promise<string | null> {
+// deno-lint-ignore no-explicit-any
+async function getCjAccessToken(supabase: any): Promise<string | null> {
   const { data: cached } = await supabase
     .from("cj_token_cache")
     .select("access_token, expires_at")
     .eq("id", 1)
     .single();
 
-  if (cached?.access_token && new Date(cached.expires_at) > new Date()) {
+  if (cached?.access_token && new Date(cached.expires_at as string) > new Date()) {
     return cached.access_token as string;
   }
 
