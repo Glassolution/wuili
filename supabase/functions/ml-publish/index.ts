@@ -378,7 +378,7 @@ serve(async (req) => {
     }
 
     console.log('=== ml-publish SUCCESS ===', itemId)
-    return json({ success: true, permalink: itemData.permalink, item_id: itemId })
+    return json({ success: true, permalink: itemData.permalink, item_id: itemId, warning: coverWarning })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'
