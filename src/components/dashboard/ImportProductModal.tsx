@@ -220,12 +220,31 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     if (!product) return;
     setGeneratingDesc(true);
     try {
+      const category = product.category || "produto";
+      const prompt = `Você é um copywriter sênior especializado em anúncios de alta conversão no Mercado Livre Brasil.
+
+Escreva uma descrição completa e persuasiva para o produto abaixo.
+
+PRODUTO: ${title}
+CATEGORIA: ${category}
+PREÇO: R$ ${sellPrice.toFixed(2)}
+
+REGRAS OBRIGATÓRIAS:
+- Idioma: português brasileiro natural, tom vendedor mas confiável (não exagerado, sem "MELHOR DO MUNDO!!!").
+- Estrutura em 4 a 5 parágrafos curtos separados por linha em branco, NA SEGUINTE ORDEM:
+  1) ABERTURA com o principal benefício/transformação que o produto entrega ao comprador (gancho emocional).
+  2) CARACTERÍSTICAS TÉCNICAS principais (materiais, dimensões aproximadas, funcionamento, voltagem se aplicável, o que vem na caixa).
+  3) COMO USAR no dia a dia, com 2-3 situações práticas concretas.
+  4) PARA QUEM É INDICADO (perfis de uso, presente ideal, soluções que resolve).
+  5) CALL-TO-ACTION final convidando a comprar agora, mencionando envio rápido para todo o Brasil e compra segura via Mercado Livre.
+- Entre 800 e 1500 caracteres no total.
+- Sem bullet points, sem emojis, sem markdown, sem títulos em caixa alta, sem hashtags.
+- NÃO invente marca, modelo, certificações, garantias específicas em anos, nem prazos exatos de entrega.
+- Responda APENAS com o texto da descrição, sem comentários ou aspas.`;
+
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
-          messages: [{
-            role: "user",
-            content: `Você é um especialista em copywriting para e-commerce brasileiro. Crie uma descrição de produto persuasiva para o Mercado Livre com no máximo 500 caracteres. Produto: ${title}. Preço: R$ ${sellPrice.toFixed(2)}. Use linguagem direta, destaque benefícios, inclua CTA. Apenas parágrafos curtos, sem bullet points. Responda APENAS com a descrição.`
-          }]
+          messages: [{ role: "user", content: prompt }],
         },
       });
       if (error) throw error;
