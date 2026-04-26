@@ -251,7 +251,11 @@ Deno.serve(async (req) => {
             console.error(`[cj-sync] Upsert error ${cat.name}:`, error);
             errors.push(`${cat.name}: upsert - ${error.message}`);
           } else {
-            console.log(`[cj-sync] ${cat.name}: ${rows.length} synced (translated)`);
+            const newInCat = rows.filter((r: any) => !existingIds.has(r.external_id)).length;
+            const updatedInCat = rows.length - newInCat;
+            totalNew += newInCat;
+            totalUpdated += updatedInCat;
+            console.log(`[cj-sync] ${cat.name}: ${rows.length} synced (${newInCat} novos, ${updatedInCat} atualizados)`);
           }
         }
 
@@ -268,6 +272,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         synced: totalSynced,
+        added: totalNew,
+        updated: totalUpdated,
         byCategory: summary,
         errors,
       }),
