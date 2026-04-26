@@ -366,7 +366,7 @@ serve(async (req) => {
         user_id,
         ml_item_id: itemId,
         title,
-        thumbnail: publicImages[0] || null,
+        thumbnail: coverImageUrl || publicImages[0] || null,
         price: product.price,
         cost_price: product.cost_price || null,
         status: 'active',
