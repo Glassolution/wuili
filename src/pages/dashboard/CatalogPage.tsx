@@ -74,18 +74,40 @@ const CatalogPage = () => {
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const url = `https://${projectId}.supabase.co/functions/v1/cj-sync`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error } = await supabase.functions.invoke("cj-sync", {
+        body: {},
       });
-      return res.json();
+      if (error) throw error;
+      return data;
+    },
+    onMutate: () => {
+      toast.loading("Sincronizando catálogo com a CJ Dropshipping...", {
+        id: "cj-sync",
+        description: "Isso pode levar até 1 minuto.",
+      });
     },
     onSuccess: (data) => {
-      toast.success(`${data.synced || 0} produtos sincronizados!`);
+      toast.dismiss("cj-sync");
+      const added = data?.added ?? 0;
+      const updated = data?.updated ?? 0;
+      const total = data?.synced ?? 0;
+      if (total === 0) {
+        toast.warning("Nenhum produto retornado pela CJ. Tente novamente em instantes.");
+      } else {
+        toast.success(
+          `${total} produtos sincronizados!`,
+          { description: `${added} novos · ${updated} atualizados` }
+        );
+      }
       queryClient.invalidateQueries({ queryKey: ["catalog"] });
     },
-    onError: () => toast.error("Erro ao sincronizar produtos"),
+    onError: (err: any) => {
+      toast.dismiss("cj-sync");
+      toast.error("Erro ao sincronizar produtos", {
+        description: err?.message || "Tente novamente em alguns segundos.",
+      });
+    },
   });
 
   const rawProducts = data?.products || [];
