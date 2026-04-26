@@ -93,6 +93,63 @@ function isPublicUrl(url: string): boolean {
   return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))
 }
 
+// Remove background using remove.bg and apply white background.
+// Uploads the resulting JPG to the public `product-images` bucket and returns its public URL.
+// Returns null on failure (caller should fall back to the original image).
+async function removeBgAndUploadWhite(
+  imageUrl: string,
+  supabase: ReturnType<typeof createClient<any, any, any>>,
+  userId: string,
+): Promise<string | null> {
+  const apiKey = Deno.env.get('REMOVEBG_API_KEY')
+  if (!apiKey) {
+    console.warn('REMOVEBG_API_KEY not configured — skipping background removal')
+    return null
+  }
+
+  try {
+    const form = new FormData()
+    form.append('image_url', imageUrl)
+    form.append('size', 'auto')
+    form.append('format', 'jpg')
+    form.append('bg_color', 'ffffff') // white background per ML requirement
+
+    const res = await fetch('https://api.remove.bg/v1.0/removebg', {
+      method: 'POST',
+      headers: { 'X-Api-Key': apiKey },
+      body: form,
+    })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error('remove.bg failed:', res.status, errText.substring(0, 300))
+      return null
+    }
+
+    const imageBytes = new Uint8Array(await res.arrayBuffer())
+    const fileName = `${userId}/cover-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
+
+    const { error: uploadErr } = await supabase.storage
+      .from('product-images')
+      .upload(fileName, imageBytes, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      })
+
+    if (uploadErr) {
+      console.error('Erro ao subir imagem sem fundo:', uploadErr)
+      return null
+    }
+
+    const { data: pub } = supabase.storage.from('product-images').getPublicUrl(fileName)
+    console.log('Imagem com fundo branco salva:', pub.publicUrl)
+    return pub.publicUrl
+  } catch (e) {
+    console.error('Erro inesperado em removeBgAndUploadWhite:', e)
+    return null
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -215,8 +272,21 @@ serve(async (req) => {
     }
     console.log('Atributos:', allAttrs.map(a => a.id))
 
-    // === PICTURES (use source URLs directly — CJ URLs are public) ===
-    const pictures = publicImages.map(url => ({ source: url }))
+    // === COVER IMAGE: remove background + add white bg (ML requirement) ===
+    let coverWarning: string | null = null
+    let coverImageUrl = publicImages[0]
+    const whiteBgUrl = await removeBgAndUploadWhite(publicImages[0], supabase, user_id)
+    if (whiteBgUrl) {
+      coverImageUrl = whiteBgUrl
+      console.log('Foto de capa processada com fundo branco')
+    } else {
+      coverWarning = 'Não foi possível processar a foto de capa com fundo branco. A imagem original foi usada e pode ser rejeitada pelo Mercado Livre.'
+      console.warn(coverWarning)
+    }
+
+    // Cover first, then remaining originals (ML uses position 0 as the main picture)
+    const orderedImages = [coverImageUrl, ...publicImages.filter(u => u !== publicImages[0])]
+    const pictures = orderedImages.slice(0, 6).map(url => ({ source: url }))
     console.log('Imagens para ML:', pictures.length)
 
     // === BUILD PAYLOAD ===
@@ -296,7 +366,7 @@ serve(async (req) => {
         user_id,
         ml_item_id: itemId,
         title,
-        thumbnail: publicImages[0] || null,
+        thumbnail: coverImageUrl || publicImages[0] || null,
         price: product.price,
         cost_price: product.cost_price || null,
         status: 'active',
@@ -308,7 +378,7 @@ serve(async (req) => {
     }
 
     console.log('=== ml-publish SUCCESS ===', itemId)
-    return json({ success: true, permalink: itemData.permalink, item_id: itemId })
+    return json({ success: true, permalink: itemData.permalink, item_id: itemId, warning: coverWarning })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'
