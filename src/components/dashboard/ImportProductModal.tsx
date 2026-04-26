@@ -64,6 +64,9 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const [freightCost, setFreightCost] = useState(0);
   const [taxCost, setTaxCost] = useState(0);
 
+  // Stock to publish (editable, default 10)
+  const [publishStock, setPublishStock] = useState<number>(10);
+
   // AI description
   const [description, setDescription] = useState("");
   const [generatingDesc, setGeneratingDesc] = useState(false);
