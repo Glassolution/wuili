@@ -75,6 +75,10 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const [translating, setTranslating] = useState(false);
   const [translated, setTranslated] = useState(false);
 
+  // Live CJ stock (overrides cached stock_quantity)
+  const [liveStock, setLiveStock] = useState<number | null>(null);
+  const [loadingStock, setLoadingStock] = useState(false);
+
   // Platforms (step 3)
   const [platforms, setPlatforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
     ml: true,
