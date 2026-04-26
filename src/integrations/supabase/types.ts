@@ -212,6 +212,7 @@ export type Database = {
           buyer_state: string | null
           buyer_zip: string | null
           cj_order_id: string | null
+          cj_product_id: string | null
           cj_variant_id: string | null
           cost_price: number | null
           created_at: string | null
@@ -229,6 +230,7 @@ export type Database = {
           product_image: string | null
           product_title: string
           profit: number | null
+          quantity: number
           raw: Json | null
           sale_price: number
           status: string
@@ -245,6 +247,7 @@ export type Database = {
           buyer_state?: string | null
           buyer_zip?: string | null
           cj_order_id?: string | null
+          cj_product_id?: string | null
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
@@ -262,6 +265,7 @@ export type Database = {
           product_image?: string | null
           product_title?: string
           profit?: number | null
+          quantity?: number
           raw?: Json | null
           sale_price?: number
           status?: string
@@ -278,6 +282,7 @@ export type Database = {
           buyer_state?: string | null
           buyer_zip?: string | null
           cj_order_id?: string | null
+          cj_product_id?: string | null
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
@@ -295,6 +300,7 @@ export type Database = {
           product_image?: string | null
           product_title?: string
           profit?: number | null
+          quantity?: number
           raw?: Json | null
           sale_price?: number
           status?: string
