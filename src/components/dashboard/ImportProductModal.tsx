@@ -506,6 +506,31 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                     </div>
                   </div>
 
+                  {/* Stock to publish */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[12px] font-medium text-gray-600">Estoque a publicar</label>
+                      <span className="text-[10.5px] text-gray-400">
+                        Disponível na CJ: {stockQty}
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="9999"
+                      step="1"
+                      value={publishStock || ""}
+                      onChange={(e) => {
+                        const v = Math.floor(Number(e.target.value));
+                        setPublishStock(Number.isFinite(v) && v > 0 ? v : 1);
+                      }}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors"
+                    />
+                    <p className="text-[10.5px] text-gray-400 mt-1.5">
+                      Quantidade que ficará visível no anúncio do Mercado Livre.
+                    </p>
+                  </div>
+
                   {/* Profit single line */}
                   <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
                     <span className="text-[12px] text-gray-500">Lucro por venda</span>
