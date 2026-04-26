@@ -544,24 +544,41 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[12px] font-medium text-gray-600">Estoque a publicar</label>
-                      <span className="text-[10.5px] text-gray-400">
-                        Disponível na CJ: {stockQty}
+                      <span className="text-[10.5px] font-medium text-gray-500 inline-flex items-center gap-1">
+                        {loadingStock ? (
+                          <>
+                            <Loader2 size={10} className="animate-spin" />
+                            Consultando estoque CJ…
+                          </>
+                        ) : (
+                          <>
+                            Disponível na CJ:{" "}
+                            <span className="font-semibold text-[#0A0A0A]">
+                              {stockQty.toLocaleString("pt-BR")} un
+                            </span>
+                            {liveStock !== null && (
+                              <span className="ml-1 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            )}
+                          </>
+                        )}
                       </span>
                     </div>
                     <input
                       type="number"
                       min="1"
-                      max="9999"
+                      max={Math.max(1, stockQty)}
                       step="1"
                       value={publishStock || ""}
                       onChange={(e) => {
-                        const v = Math.floor(Number(e.target.value));
-                        setPublishStock(Number.isFinite(v) && v > 0 ? v : 1);
+                        const raw = Math.floor(Number(e.target.value));
+                        const max = Math.max(1, stockQty);
+                        const safe = Number.isFinite(raw) && raw > 0 ? Math.min(raw, max) : 1;
+                        setPublishStock(safe);
                       }}
                       className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors"
                     />
                     <p className="text-[10.5px] text-gray-400 mt-1.5">
-                      Quantidade que ficará visível no anúncio do Mercado Livre.
+                      Você pode publicar no máximo {stockQty.toLocaleString("pt-BR")} unidades — o limite é o estoque ao vivo do fornecedor.
                     </p>
                   </div>
 
