@@ -305,7 +305,7 @@ serve(async (req) => {
       category_id: categoryId,
       price: product.price,
       currency_id: 'BRL',
-      available_quantity: product.available_quantity || 10,
+      available_quantity: Math.max(1, Math.min(Number(product.available_quantity) || 10, 9999)),
       buying_mode: 'buy_it_now',
       condition: 'new',
       listing_type_id: 'gold_special',
