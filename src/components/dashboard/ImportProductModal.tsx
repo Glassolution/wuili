@@ -100,6 +100,36 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     })();
   }, [user, open]);
 
+  // Fetch live CJ stock when product changes
+  useEffect(() => {
+    if (!open || !product?.external_id) return;
+    let cancelled = false;
+    setLiveStock(null);
+    setLoadingStock(true);
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke("cj-product-stock", {
+          body: { pid: product.external_id },
+        });
+        if (cancelled) return;
+        if (typeof data?.stock === "number") {
+          setLiveStock(data.stock);
+          // Cap publish stock to live CJ availability
+          setPublishStock((curr) => {
+            const max = Math.min(data.stock, 9999);
+            if (max <= 0) return 1;
+            return Math.min(Math.max(curr, 1), max);
+          });
+        }
+      } catch {
+        // keep cached stock as fallback
+      } finally {
+        if (!cancelled) setLoadingStock(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, product?.external_id]);
+
   // Animate
   useEffect(() => {
     if (open) requestAnimationFrame(() => setVisible(true));
