@@ -28,9 +28,20 @@ async function resolveLeafCategory(categoryId: string): Promise<string> {
   return current
 }
 
+// Check if a category is a leaf (no children)
+async function isLeafCategory(categoryId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.mercadolibre.com/categories/${categoryId}`)
+    if (!res.ok) return false
+    const cat = await res.json()
+    return !cat.children_categories || cat.children_categories.length === 0
+  } catch { return false }
+}
+
 // Predict category from title, ensuring it's a leaf
 async function predictCategory(title: string): Promise<string> {
-  const fallback = 'MLB1051' // Generic "Outros" leaf category
+  // Safe leaf fallback (Outros > Outros) — actually a leaf in MLB
+  const fallback = 'MLB264139'
 
   try {
     // Try category predictor first (returns leaf categories)
@@ -40,8 +51,11 @@ async function predictCategory(title: string): Promise<string> {
     if (predRes.ok) {
       const predData = await predRes.json()
       if (predData?.id) {
-        console.log('Category predictor returned:', predData.id, predData.name)
-        return predData.id
+        const leafId = await isLeafCategory(predData.id)
+          ? predData.id
+          : await resolveLeafCategory(predData.id)
+        console.log('Category predictor returned (leaf):', leafId, predData.name)
+        return leafId
       }
     }
   } catch (_e) { /* ignore */ }
@@ -61,8 +75,12 @@ async function predictCategory(title: string): Promise<string> {
     }
   } catch (_e) { /* ignore */ }
 
-  console.log('Using fallback category:', fallback)
-  return fallback
+  // Last resort: ensure fallback itself is a leaf
+  const finalFallback = await isLeafCategory(fallback)
+    ? fallback
+    : await resolveLeafCategory(fallback)
+  console.log('Using fallback category (leaf):', finalFallback)
+  return finalFallback
 }
 
 // Map ML API errors to user-friendly messages
