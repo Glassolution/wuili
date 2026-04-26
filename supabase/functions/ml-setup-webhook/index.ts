@@ -58,17 +58,18 @@ serve(async (req) => {
       );
     }
 
-    const appId = Deno.env.get("ML_CLIENT_ID");
+    const appId = Deno.env.get("ML_CLIENT_ID") ?? "5831446135077053";
     const callbackUrl = `${supabaseUrl}/functions/v1/ml-orders-webhook`;
 
-    // Register webhook topics on Mercado Livre
+    // Register webhook topics on Mercado Livre using the /subscriptions endpoint.
+    // Authentication uses the USER's access_token (the user must have authorized the app).
     const topics = ["orders_v2", "items", "questions", "messages"];
     const results: Record<string, unknown> = {};
 
     for (const topic of topics) {
       try {
         const res = await fetch(
-          `https://api.mercadolibre.com/applications/${appId}/notifications`,
+          `https://api.mercadolibre.com/applications/${appId}/subscriptions`,
           {
             method: "POST",
             headers: {
@@ -78,10 +79,14 @@ serve(async (req) => {
             body: JSON.stringify({ topic, callback_url: callbackUrl }),
           },
         );
-        results[topic] = {
-          status: res.status,
-          body: await res.json().catch(() => null),
-        };
+        const bodyJson = await res.json().catch(() => null);
+        results[topic] = { status: res.status, body: bodyJson };
+        if (!res.ok) {
+          console.error(
+            `ml-setup-webhook topic=${topic} failed status=${res.status}`,
+            JSON.stringify(bodyJson),
+          );
+        }
       } catch (e) {
         results[topic] = { error: String(e) };
       }
