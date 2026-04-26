@@ -340,34 +340,40 @@ serve(async (req) => {
     console.log('Item ID:', itemId)
 
     // === DESCRIPTION (send only after item creation succeeds) ===
-    const descriptionText = typeof product.description === 'string'
+    const rawDescription = typeof product.description === 'string'
       ? product.description.trim()
       : ''
-    console.log('Descrição:', descriptionText)
+    console.log('Descrição recebida (raw, primeiros 200 chars):', rawDescription.substring(0, 200))
+    console.log('Descrição recebida (length):', rawDescription.length)
 
-    if (descriptionText.length > 20) {
-      try {
-        const descResponse = await fetch(`https://api.mercadolibre.com/items/${itemId}/description`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ plain_text: descriptionText }),
-        })
+    // ML exige no mínimo 10 caracteres na descrição. Se vier vazia ou curta,
+    // construímos um fallback baseado no título para garantir que o anúncio
+    // seja publicado com descrição.
+    let descriptionText = rawDescription
+    if (descriptionText.length < 10) {
+      descriptionText = `${title}\n\nProduto novo, original e com garantia. Envio rápido para todo o Brasil. Compre com segurança e aproveite!`
+      console.log('Descrição vazia/curta — usando fallback baseado no título')
+    }
 
-        const descData = await descResponse.json()
+    try {
+      const descResponse = await fetch(`https://api.mercadolibre.com/items/${itemId}/description`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plain_text: descriptionText }),
+      })
 
-        if (!descResponse.ok) {
-          console.error('Erro ao enviar descrição:', JSON.stringify(descData))
-        } else {
-          console.log('Descrição enviada com sucesso para:', itemId)
-        }
-      } catch (descErr) {
-        console.error('Erro ao enviar descrição:', descErr)
+      const descData = await descResponse.json()
+
+      if (!descResponse.ok) {
+        console.error('Erro ao enviar descrição para', itemId, ':', JSON.stringify(descData))
+      } else {
+        console.log('Descrição enviada com sucesso para:', itemId, '(', descriptionText.length, 'chars)')
       }
-    } else {
-      console.log('Descrição não enviada: texto vazio ou com menos de 20 caracteres')
+    } catch (descErr) {
+      console.error('Exceção ao enviar descrição:', descErr)
     }
 
     // === SAVE PUBLICATION ===
