@@ -53,26 +53,39 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const { error } = await supabase.from("user_integrations").upsert(
-    {
-      user_id: userId,
-      platform: "mercadolivre",
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token ?? null,
-      ml_user_id: tokens.user_id ?? null,
-      expires_at: new Date(Date.now() + (tokens.expires_in ?? 21600) * 1000).toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,platform" }
-  );
+  const mlUserIdNumber = tokens.user_id != null ? Number(tokens.user_id) : null;
+  const upsertPayload = {
+    user_id: userId,
+    platform: "mercadolivre",
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token ?? null,
+    ml_user_id: mlUserIdNumber,
+    expires_at: new Date(Date.now() + (tokens.expires_in ?? 21600) * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  console.log("ml-callback upsert payload:", JSON.stringify({
+    user_id: userId,
+    ml_user_id: mlUserIdNumber,
+    has_access_token: !!tokens.access_token,
+    has_refresh_token: !!tokens.refresh_token,
+    expires_at: upsertPayload.expires_at,
+  }));
+
+  const { data: upsertData, error } = await supabase
+    .from("user_integrations")
+    .upsert(upsertPayload, { onConflict: "user_id,platform" })
+    .select();
 
   if (error) {
-    console.error("Supabase upsert error:", error.message);
+    console.error("Supabase upsert error:", JSON.stringify(error));
     return new Response(null, {
       status: 302,
-      headers: { Location: `${dashboardUrl}?ml_error=db_failed` },
+      headers: { Location: `${dashboardUrl}?ml_error=db_failed&msg=${encodeURIComponent(error.message)}` },
     });
   }
+
+  console.log("ml-callback upsert success, rows:", upsertData?.length ?? 0);
 
   // Register Mercado Livre webhooks for this user (best-effort, non-blocking)
   try {
