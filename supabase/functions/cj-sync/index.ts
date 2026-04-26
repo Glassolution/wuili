@@ -180,7 +180,15 @@ Deno.serve(async (req) => {
     const accessToken = authData.accessToken;
     const summary: Record<string, number> = {};
     let totalSynced = 0;
+    let totalNew = 0;
+    let totalUpdated = 0;
     const errors: string[] = [];
+
+    // Snapshot de external_ids existentes para distinguir novos de atualizados
+    const { data: existingRows } = await supabase
+      .from("catalog_products")
+      .select("external_id");
+    const existingIds = new Set((existingRows || []).map((r: any) => r.external_id));
 
     // Rotate pages to fetch different products each sync (1–10)
     const syncPage = String(Math.floor(Math.random() * 10) + 1);
