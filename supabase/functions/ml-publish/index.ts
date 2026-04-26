@@ -350,9 +350,21 @@ serve(async (req) => {
     // construímos um fallback baseado no título para garantir que o anúncio
     // seja publicado com descrição.
     let descriptionText = rawDescription
-    if (descriptionText.length < 10) {
-      descriptionText = `${title}\n\nProduto novo, original e com garantia. Envio rápido para todo o Brasil. Compre com segurança e aproveite!`
-      console.log('Descrição vazia/curta — usando fallback baseado no título')
+    if (descriptionText.length < 200) {
+      descriptionText = [
+        `${title}`,
+        ``,
+        `Você está prestes a levar para casa um produto pensado para facilitar o seu dia a dia, com qualidade comprovada e ótimo custo-benefício. Cada detalhe foi cuidado para entregar uma experiência prática e duradoura, do desempenho ao acabamento.`,
+        ``,
+        `Características principais: produto novo, lacrado e pronto para uso. Material resistente, design moderno e funcional, com acabamento de qualidade. Confira as imagens para ver os detalhes do item.`,
+        ``,
+        `Como usar: basta retirar da embalagem e começar a aproveitar. Indicado para uso diário em casa, no trabalho ou onde precisar — uma solução versátil que se adapta à sua rotina.`,
+        ``,
+        `Para quem é indicado: ideal para quem busca praticidade, qualidade e bom preço. Excelente opção também para presentear amigos e familiares em qualquer ocasião.`,
+        ``,
+        `Garanta já o seu! Compre agora com toda a segurança do Mercado Livre, envio rápido para todo o Brasil e atendimento ágil em caso de dúvidas. Aproveite enquanto o estoque está disponível.`,
+      ].join('\n')
+      console.log('Descrição vazia/curta — usando fallback estruturado')
     }
 
     try {
