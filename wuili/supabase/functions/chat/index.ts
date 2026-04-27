@@ -22,9 +22,20 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, mode } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const normalizedMessages = (messages || []).map((m: { role: string; content: string }) => ({
+      role: m.role === "ai" ? "assistant" : m.role,
+      content: m.content,
+    }));
+    const isProductDescriptionMode =
+      mode === "product_description" ||
+      normalizedMessages.some((m: { content: string }) =>
+        typeof m.content === "string" &&
+        m.content.includes("Gere uma descrição de produto persuasiva e completa para o Mercado Livre")
+      );
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -36,15 +47,14 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...(messages || []).map((m: { role: string; content: string }) => ({
-              role: m.role === "ai" ? "assistant" : m.role,
-              content: m.content,
-            })),
-          ],
-          temperature: 0.8,
-          max_tokens: 1024,
+          messages: isProductDescriptionMode
+            ? normalizedMessages
+            : [
+                { role: "system", content: SYSTEM_PROMPT },
+                ...normalizedMessages,
+              ],
+          temperature: isProductDescriptionMode ? 0.7 : 0.8,
+          max_tokens: isProductDescriptionMode ? 1800 : 1024,
         }),
       }
     );

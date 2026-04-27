@@ -182,11 +182,36 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     if (!product) return;
     setGeneratingDesc(true);
     try {
+      const price = sellPrice.toFixed(2).replace(".", ",");
+      const category = product.category || "Não informada";
+      const productDescriptionPrompt = `Você é um especialista em copywriting para e-commerce brasileiro.
+Gere uma descrição de produto persuasiva e completa para o Mercado Livre
+com base nestas informações:
+
+Nome: ${title}
+Categoria: ${category}
+Preço: R$ ${price}
+
+A descrição deve ter:
+- 4 a 6 parágrafos
+- Parágrafo 1: apresentação do produto e principal benefício
+- Parágrafo 2: características técnicas e diferenciais
+- Parágrafo 3: para quem é indicado e situações de uso
+- Parágrafo 4: garantia de qualidade e satisfação
+- Parágrafo 5: call-to-action persuasivo
+- Tom: confiante, vendedor e acessível
+- Idioma: português brasileiro
+- Não use bullet points, escreva em parágrafos corridos
+- Mínimo 300 palavras
+
+Retorne APENAS a descrição, sem introdução, sem comentários.`;
+
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
+          mode: "product_description",
           messages: [{
             role: "user",
-            content: `Você é um especialista em copywriting para e-commerce brasileiro. Crie uma descrição de produto persuasiva para o Mercado Livre com no máximo 500 caracteres. Produto: ${title}. Preço: R$ ${sellPrice.toFixed(2)}. Use linguagem direta, destaque benefícios, inclua CTA. Apenas parágrafos curtos, sem bullet points. Responda APENAS com a descrição.`
+            content: productDescriptionPrompt
           }]
         },
       });
