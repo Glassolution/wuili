@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, User, ShoppingBag, Wallet, Zap } from "lucide-react";
+import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, User, ShoppingBag, Zap } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -251,17 +251,15 @@ const StoresTab = () => (
 );
 
 /* ══ Integrations ════════════════════════════════════════ */
-type Integration = { platform: string; label: string; connected: boolean; loading?: boolean };
+type Integration = { platform: string; label: string; connected: boolean; loading?: boolean; comingSoon?: boolean };
 
 const IntegrationsTab = () => {
   const { user } = useAuth();
   const [integrations, setIntegrations] = useState<Integration[]>([
     { platform: "mercadolivre", label: "Mercado Livre", connected: false, loading: true },
-    { platform: "shopee",       label: "Shopee",        connected: false },
-    { platform: "aliexpress",   label: "AliExpress",    connected: false },
-    { platform: "shopify",      label: "Shopify",       connected: false },
-    { platform: "stripe",       label: "Stripe",        connected: false },
-    { platform: "pix",          label: "Pix",           connected: false },
+    { platform: "shopee",       label: "Shopee",        connected: false, comingSoon: true },
+    { platform: "amazon",       label: "Amazon",        connected: false, comingSoon: true },
+    { platform: "shopify",      label: "Shopify",       connected: false, comingSoon: true },
   ]);
 
   useEffect(() => {
@@ -273,7 +271,11 @@ const IntegrationsTab = () => {
       .then(({ data }) => {
         const connected = new Set((data ?? []).map((r: { platform: string }) => r.platform));
         setIntegrations((prev) =>
-          prev.map((i) => ({ ...i, connected: connected.has(i.platform), loading: false }))
+          prev.map((i) => ({
+            ...i,
+            connected: i.platform === "mercadolivre" ? connected.has(i.platform) : false,
+            loading: false,
+          }))
         );
       });
   }, [user]);
@@ -288,9 +290,8 @@ const IntegrationsTab = () => {
   const integrationIcon = (platform: string) => {
     if (platform === "mercadolivre") return <ShoppingBag size={14} className="text-black dark:text-white" />;
     if (platform === "shopee") return <ShoppingBag size={14} className="text-[#EE4D2D]" />;
-    if (platform === "aliexpress") return <ShoppingBag size={14} className="text-[#FF6A00]" />;
+    if (platform === "amazon") return <ShoppingBag size={14} className="text-[#737373]" />;
     if (platform === "shopify") return <ShoppingBag size={14} className="text-[#95BF47]" />;
-    if (platform === "stripe") return <Wallet size={14} className="text-[#635BFF]" />;
     return <Zap size={14} className="text-black dark:text-white" />;
   };
 
@@ -301,7 +302,13 @@ const IntegrationsTab = () => {
 
       <div className="space-y-2.5">
         {integrations.map((i) => (
-          <div key={i.platform} className="flex items-center justify-between p-4 rounded-xl border border-[#E5E5E5] dark:border-zinc-700">
+          <div
+            key={i.platform}
+            title={i.comingSoon ? "Disponível em breve" : undefined}
+            className={`flex items-center justify-between p-4 rounded-xl border border-[#E5E5E5] dark:border-zinc-700 ${
+              i.comingSoon ? "bg-[#F7F7F7] opacity-70 grayscale dark:bg-zinc-900" : ""
+            }`}
+          >
             <div className="flex items-center gap-2.5">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5F5F5] dark:bg-zinc-800">
                 {integrationIcon(i.platform)}
@@ -310,6 +317,10 @@ const IntegrationsTab = () => {
             </div>
             {i.loading ? (
               <Loader2 size={16} className="animate-spin text-[#A3A3A3] dark:text-zinc-400" />
+            ) : i.comingSoon ? (
+              <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-[#E5E5E5] text-[#737373] dark:bg-zinc-800 dark:text-zinc-400 font-semibold">
+                Em breve
+              </span>
             ) : i.connected ? (
               <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black font-semibold">
                 <CheckCircle2 size={12} /> Conectado
@@ -327,7 +338,7 @@ const IntegrationsTab = () => {
       </div>
 
       <p className="mt-4 text-[11px] text-[#A3A3A3] dark:text-zinc-400">
-        Clique em "Conectar +" para autorizar sua conta do Mercado Livre.
+        Mercado Livre é a única integração disponível agora. Shopee, Amazon e Shopify chegam em breve.
       </p>
     </div>
   );

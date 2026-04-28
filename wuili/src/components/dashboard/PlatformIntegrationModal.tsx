@@ -1,33 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Network } from "lucide-react";
 import { toast } from "sonner";
 import PlatformLogo from "./PlatformLogo";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Platform = {
+  id: string;
   name: string;
   subtitle: string;
-  connected: boolean;
-  section: "integrated" | "explore";
+  section: "available" | "coming_soon";
 };
 
 const initialPlatforms: Platform[] = [
-  { name: "AliExpress", subtitle: "Platform Integration", connected: true, section: "integrated" },
-  { name: "Amazon", subtitle: "Platform Integration", connected: true, section: "integrated" },
-  { name: "Tokopedia", subtitle: "Platform Integration", connected: false, section: "integrated" },
-  { name: "eBay", subtitle: "Platform Integration", connected: true, section: "integrated" },
-  { name: "Shopee", subtitle: "Platform Integration", connected: false, section: "integrated" },
-  { name: "Lazada", subtitle: "Platform Integration", connected: false, section: "explore" },
-  { name: "Rakuten", subtitle: "Platform Integration", connected: false, section: "explore" },
-  { name: "Etsy", subtitle: "Platform Integration", connected: false, section: "explore" },
-  { name: "BigCommerce", subtitle: "Platform Integration", connected: false, section: "explore" },
-  { name: "WooCommerce", subtitle: "Platform Integration", connected: false, section: "explore" },
-  { name: "Shopee", subtitle: "Platform Integration", connected: false, section: "explore" },
+  { id: "mercadolivre", name: "Mercado Livre", subtitle: "Integração disponível", section: "available" },
+  { id: "shopee", name: "Shopee", subtitle: "Disponível em breve", section: "coming_soon" },
+  { id: "amazon", name: "Amazon", subtitle: "Disponível em breve", section: "coming_soon" },
+  { id: "shopify", name: "Shopify", subtitle: "Disponível em breve", section: "coming_soon" },
 ];
 
-const Toggle = ({ on, onChange }: { on: boolean; onChange: () => void }) => (
+const Toggle = ({ on, onChange, disabled = false }: { on: boolean; onChange: () => void; disabled?: boolean }) => (
   <button
     onClick={onChange}
-    className={`relative h-6 w-11 rounded-full transition-colors ${on ? "bg-green-500" : "bg-gray-200 dark:bg-zinc-700"}`}
+    disabled={disabled}
+    title={disabled ? "Disponível em breve" : undefined}
+    className={`relative h-6 w-11 rounded-full transition-colors ${
+      disabled ? "cursor-not-allowed bg-gray-200 opacity-60 dark:bg-zinc-800" : on ? "bg-green-500" : "bg-gray-200 dark:bg-zinc-700"
+    }`}
   >
     <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? "left-5" : "left-0.5"}`} />
   </button>
@@ -42,25 +41,52 @@ const PlatformLogoBadge = ({ name }: { name: string }) => (
 type Props = { open: boolean; onClose: () => void };
 
 const PlatformIntegrationModal = ({ open, onClose }: Props) => {
-  const [platforms, setPlatforms] = useState(initialPlatforms);
+  const { user } = useAuth();
+  const [connectedML, setConnectedML] = useState(false);
+  const [loadingML, setLoadingML] = useState(false);
 
-  const toggle = (name: string) => {
-    setPlatforms(prev => prev.map(p => {
-      if (p.name === name && p.section === "integrated") {
-        const nowConnected = !p.connected;
-        if (nowConnected) {
-          toast.success(`${name} foi integrada com sucesso 🔗`);
-        }
-        return { ...p, connected: nowConnected };
-      }
-      return p;
-    }));
+  useEffect(() => {
+    if (!open || !user) return;
+
+    setLoadingML(true);
+    supabase
+      .from("user_integrations")
+      .select("access_token")
+      .eq("user_id", user.id)
+      .eq("platform", "mercadolivre")
+      .maybeSingle()
+      .then(({ data }) => setConnectedML(!!data?.access_token))
+      .finally(() => setLoadingML(false));
+  }, [open, user]);
+
+  const connectML = () => {
+    if (!user) return;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
+  };
+
+  const disconnectML = async () => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("user_integrations")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("platform", "mercadolivre");
+
+    if (error) {
+      toast.error("Não foi possível desconectar o Mercado Livre");
+      return;
+    }
+
+    setConnectedML(false);
+    toast.success("Mercado Livre desconectado");
   };
 
   if (!open) return null;
 
-  const integrated = platforms.filter(p => p.section === "integrated");
-  const explore = platforms.filter(p => p.section === "explore");
+  const available = initialPlatforms.filter(p => p.section === "available");
+  const comingSoon = initialPlatforms.filter(p => p.section === "coming_soon");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -83,12 +109,12 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
         </div>
 
         <div className="px-6 pb-6 space-y-5 max-h-[70vh] overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-          {/* Integrated */}
+          {/* Available */}
           <div>
-            <p className="text-sm font-bold text-foreground mb-3">Integradas</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {integrated.map((p) => (
-                <div key={p.name + p.section} className="flex items-center justify-between rounded-xl border border-border p-3">
+            <p className="text-sm font-bold text-foreground mb-3">Disponível</p>
+            <div className="grid grid-cols-1 gap-3">
+              {available.map((p) => (
+                <div key={p.id} className="flex items-center justify-between rounded-xl border border-border p-3">
                   <div className="flex items-center gap-2.5">
                     <PlatformLogoBadge name={p.name} />
                     <div>
@@ -96,18 +122,35 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
                       <p className="text-[10px] text-muted-foreground">{p.subtitle}</p>
                     </div>
                   </div>
-                  <Toggle on={p.connected} onChange={() => toggle(p.name)} />
+                  <div className="flex items-center gap-3">
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      connectedML ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {loadingML ? "Verificando..." : connectedML ? "Conectado" : "Desconectado"}
+                    </span>
+                    <button
+                      onClick={connectedML ? disconnectML : connectML}
+                      disabled={loadingML}
+                      className="rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-85 disabled:cursor-wait disabled:opacity-60 dark:bg-white dark:text-black"
+                    >
+                      {connectedML ? "Desconectar" : "Conectar"}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Explore */}
+          {/* Coming soon */}
           <div>
-            <p className="text-sm font-bold text-foreground mb-3">Explorar</p>
+            <p className="text-sm font-bold text-foreground mb-3">Em breve</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {explore.map((p, i) => (
-                <div key={p.name + i} className="flex items-center justify-between gap-2 rounded-xl border border-border p-3">
+              {comingSoon.map((p) => (
+                <div
+                  key={p.id}
+                  title="Disponível em breve"
+                  className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 opacity-75 grayscale dark:border-zinc-800 dark:bg-zinc-900"
+                >
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <PlatformLogoBadge name={p.name} />
                     <div className="min-w-0">
@@ -115,14 +158,12 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
                       <p className="text-[10px] text-muted-foreground">{p.subtitle}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      toast.success(`${p.name} foi integrada com sucesso 🔗`);
-                    }}
-                    className="shrink-0 whitespace-nowrap text-xs font-semibold text-foreground underline transition-colors hover:text-primary"
-                  >
-                    Conectar
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+                      Em breve
+                    </span>
+                    <Toggle on={false} onChange={() => {}} disabled />
+                  </div>
                 </div>
               ))}
             </div>
@@ -139,8 +180,8 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
             <button onClick={onClose} className="text-sm font-medium text-foreground underline hover:text-muted-foreground transition-colors">
               Cancelar
             </button>
-            <button onClick={() => { toast.success("Integrações salvas com sucesso 🔗"); onClose(); }} className="btn-primary btn-primary--md">
-              Salvar
+            <button onClick={onClose} className="btn-primary btn-primary--md">
+              Concluir
             </button>
           </div>
         </div>

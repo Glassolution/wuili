@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Plug, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -16,8 +15,9 @@ type PlatformCard = {
 
 const platforms: PlatformCard[] = [
   { id: "mercadolivre", name: "Mercado Livre", description: "Publique produtos diretamente nos seus anúncios", color: "#FFE600", initials: "ML", status: "not_connected" },
-  { id: "shopee", name: "Shopee", description: "Em breve disponível", color: "#F53D2D", initials: "S", status: "coming_soon" },
-  { id: "aliexpress", name: "AliExpress", description: "Em breve disponível", color: "#E43225", initials: "AE", status: "coming_soon" },
+  { id: "shopee", name: "Shopee", description: "Disponível em breve", color: "#D4D4D8", initials: "S", status: "coming_soon" },
+  { id: "amazon", name: "Amazon", description: "Disponível em breve", color: "#D4D4D8", initials: "A", status: "coming_soon" },
+  { id: "shopify", name: "Shopify", description: "Disponível em breve", color: "#D4D4D8", initials: "SP", status: "coming_soon" },
 ];
 
 const IntegracoesPage = () => {
@@ -82,11 +82,19 @@ const IntegracoesPage = () => {
           {platforms.map((p) => {
             const status = getStatus(p);
             return (
-              <div key={p.id} className="rounded-xl border border-border bg-background p-5 flex flex-col gap-4">
+              <div
+                key={p.id}
+                title={status === "coming_soon" ? "Disponível em breve" : undefined}
+                className={`rounded-xl border p-5 flex flex-col gap-4 ${
+                  status === "coming_soon"
+                    ? "border-zinc-200 bg-zinc-50 opacity-75 grayscale"
+                    : "border-border bg-background"
+                }`}
+              >
                 <div className="flex items-center gap-3">
                   <div
                     className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold"
-                    style={{ backgroundColor: p.color, color: p.color === "#FFE600" ? "#333" : "#fff" }}
+                    style={{ backgroundColor: p.color, color: p.color === "#FFE600" || status === "coming_soon" ? "#333" : "#fff" }}
                   >
                     {p.initials}
                   </div>
@@ -122,7 +130,11 @@ const IntegracoesPage = () => {
                   </button>
                 )}
                 {status === "coming_soon" && (
-                  <button disabled className="w-full rounded-lg bg-muted text-muted-foreground py-2 text-sm font-semibold cursor-not-allowed opacity-60">
+                  <button
+                    disabled
+                    title="Disponível em breve"
+                    className="w-full rounded-lg bg-muted text-muted-foreground py-2 text-sm font-semibold cursor-not-allowed opacity-70"
+                  >
                     Em breve
                   </button>
                 )}
