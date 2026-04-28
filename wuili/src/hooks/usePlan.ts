@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type PlanName = "gratis" | "go" | "plus" | "pro";
+export type PlanName = "gratis" | "go" | "pro" | "business";
 
 type PlanState = {
   plan: PlanName;
@@ -14,8 +14,9 @@ const NORMALIZE: Record<string, PlanName> = {
   gratis: "gratis",
   free: "gratis",
   go: "go",
-  plus: "plus",
+  plus: "pro",
   pro: "pro",
+  business: "business",
 };
 
 export const usePlan = (): PlanState => {

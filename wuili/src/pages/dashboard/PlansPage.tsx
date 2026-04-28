@@ -16,19 +16,31 @@ const PLANS = [
     current: true,
   },
   {
-    id: "plus",
-    name: "Plus",
-    price: "R$ 1,00",
+    id: "pro",
+    name: "Pro",
+    price: "R$ 99,90",
     period: "/mês",
     features: [
       "Produtos ilimitados",
-      "Todas integrações",
       "Chat com IA avançado",
       "Publicação automática",
       "Relatórios completos",
-      "Suporte prioritário",
+      "Suporte por email",
     ],
     highlight: true,
+  },
+  {
+    id: "business",
+    name: "Business",
+    price: "R$ 149,90",
+    period: "/mês",
+    features: [
+      "Tudo do Pro",
+      "Múltiplas integrações",
+      "Automações de entrega",
+      "Analytics em tempo real",
+      "Suporte prioritário",
+    ],
   },
 ];
 
@@ -60,18 +72,16 @@ const PlansPage = () => {
       .eq("user_id", user.id)
       .single()
       .then(({ data }) => {
-        if (data?.plano) setCurrentPlan(data.plano);
+        if (data?.plano) setCurrentPlan(data.plano === "plus" ? "pro" : data.plano);
       });
   }, [user]);
 
-  // When arriving from landing CTA with ?plan=plus, show toast and clear param
+  // When arriving from landing CTA, show toast and clear param
   useEffect(() => {
     if (planFromUrl && !autoStartedRef.current) {
       autoStartedRef.current = true;
-      if (planFromUrl === "plus") {
-        toast.info("Selecione a forma de pagamento e confirme para ativar o Plus.");
-      } else if (planFromUrl === "go" || planFromUrl === "pro") {
-        toast.info(`O plano ${planFromUrl.toUpperCase()} estará disponível em breve.`);
+      if (planFromUrl === "pro" || planFromUrl === "business") {
+        toast.info(`Selecione a forma de pagamento e confirme para ativar o ${planFromUrl === "pro" ? "Pro" : "Business"}.`);
       }
       // remove the ?plan param from URL
       const next = new URLSearchParams(searchParams);
@@ -172,7 +182,7 @@ const PlansPage = () => {
       </div>
 
       {/* Plans grid */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
         {PLANS.map((plan) => {
           const isCurrentPlan = currentPlan === plan.id;
           return (
@@ -338,7 +348,7 @@ const PlansPage = () => {
         <div className="card-wuili p-6 text-center space-y-2">
           <CheckCircle2 size={48} className="mx-auto text-primary" />
           <h3 className="text-lg font-bold text-foreground">Pagamento aprovado!</h3>
-          <p className="text-sm text-muted-foreground">Seu plano Plus está ativo. Aproveite!</p>
+          <p className="text-sm text-muted-foreground">Seu plano está ativo. Aproveite!</p>
         </div>
       )}
     </div>

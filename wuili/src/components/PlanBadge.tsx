@@ -3,8 +3,8 @@ import { usePlan, type PlanName } from "@/hooks/usePlan";
 const LABELS: Record<PlanName, string> = {
   gratis: "Plano Gratuito",
   go: "Plano Go",
-  plus: "Plano Plus",
   pro: "Plano Pro",
+  business: "Plano Business",
 };
 
 type Props = {
@@ -16,7 +16,7 @@ const PlanBadge = ({ size = "sm", className = "" }: Props) => {
   const { plan, loading } = usePlan();
   if (loading) return null;
 
-  const isPaid = plan === "plus" || plan === "pro" || plan === "go";
+  const isPaid = plan === "pro" || plan === "business" || plan === "go";
   const colors = isPaid
     ? "bg-emerald-500/12 text-emerald-700 border-emerald-500/25"
     : "bg-black/[0.05] text-black/60 border-black/10";

@@ -17,7 +17,13 @@ type Subscription = {
 type Step = "reason" | "confirm" | "result";
 type Result = { kind: "success" | "error"; message: string } | null;
 
-const PLAN_LABEL: Record<string, string> = { gratis: "Free", go: "Go", plus: "Plus", pro: "Pro" };
+const PLAN_LABEL: Record<string, string> = {
+  gratis: "Free",
+  go: "Go",
+  plus: "Pro",
+  pro: "Pro",
+  business: "Business",
+};
 const REASONS = [
   "Não atendeu minhas expectativas",
   "Encontrei outra solução",

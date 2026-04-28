@@ -65,6 +65,31 @@ function buildDemoOrders(): OrderRow[] {
 
 const DEMO_ORDERS: OrderRow[] = buildDemoOrders();
 
+type DbOrderRow = {
+  id: string;
+  sale_price: number | null;
+  cost_price: number | null;
+  profit: number | null;
+  status: string;
+  created_at: string;
+};
+
+function mapDbOrderToFinancialOrder(order: DbOrderRow): OrderRow {
+  const total = Number(order.sale_price ?? 0);
+  const cost = Number(order.cost_price ?? 0);
+  const profit = typeof order.profit === "number" ? Number(order.profit) : total - cost;
+  const fees = Math.max(total - cost - profit, 0);
+
+  return {
+    id: order.id,
+    total,
+    cost,
+    fees,
+    status: order.status,
+    created_at: order.created_at,
+  };
+}
+
 export function useFinancialData() {
   const { user } = useAuth();
   const userId = user?.id;
@@ -77,12 +102,12 @@ export function useFinancialData() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("orders")
-        .select("id, total, cost, fees, status, created_at")
+        .select("id, sale_price, cost_price, profit, status, created_at")
         .eq("user_id", userId)
         .in("status", ["paid", "approved", "completed", "refunded", "pending"]);
 
       if (error) throw error;
-      return (data ?? []) as OrderRow[];
+      return ((data ?? []) as DbOrderRow[]).map(mapDbOrderToFinancialOrder);
     },
   });
 

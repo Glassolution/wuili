@@ -14,42 +14,28 @@ type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
 
 const PLANS_DATA: Record<string, { name: string; price: string; features: string[] }> = {
-  go: {
-    name: "Go",
-    price: "R$ 39,99",
-    features: [
-      "IA para criação de anúncios",
-      "Chat com IA ilimitado",
-      "1 marketplace conectado",
-      "Tratamento de fotos",
-      "Suporte por e-mail",
-    ],
-  },
-  plus: {
-    name: "Plus",
-    price: "R$ 1,00",
+  pro: {
+    name: "Pro",
+    price: "R$ 99,90",
     features: [
       "IA avançada com auto-publicação",
-      "ML + Shopee + AliExpress",
+      "Mercado Livre conectado",
       "Monitoramento de preços 24h",
       "Memória de operação entre sessões",
       "Respostas automáticas a compradores",
-      "Pesquisa de nicho aprofundada",
-      "Projetos e lojas personalizadas",
+      "Relatórios financeiros",
     ],
   },
-  pro: {
-    name: "Pro",
-    price: "R$ 525,00",
+  business: {
+    name: "Business",
+    price: "R$ 149,90",
     features: [
-      "5 vezes mais uso que o Plus",
+      "Tudo do Pro",
       "Modelo de IA avançado",
       "Agentes de venda ilimitados",
       "Analytics em tempo real",
       "Múltiplas contas por marketplace",
-      "Criação de imagens ilimitada",
-      "O máximo de memória e contexto",
-      "Acesso antecipado a novos recursos",
+      "Automações de entrega e rastreio",
       "Suporte prioritário dedicado",
     ],
   },
@@ -60,8 +46,8 @@ const CheckoutPage = () => {
   const { session } = useAuth();
   const [searchParams] = useSearchParams();
 
-  const rawPlan = searchParams.get("plan") ?? "plus";
-  const planId = PLANS_DATA[rawPlan] ? rawPlan : "plus";
+  const rawPlan = searchParams.get("plan") ?? "pro";
+  const planId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
   const plan = PLANS_DATA[planId];
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("pix");
@@ -414,7 +400,7 @@ const CheckoutPage = () => {
               {checkoutState === "loading" ? (
                 <><Loader2 size={16} className="animate-spin" /> Processando...</>
               ) : (
-                `Pay ${plan.price.replace(",", ".")}`
+                `Pagar ${plan.price}`
               )}
             </button>
           )}

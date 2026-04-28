@@ -19,6 +19,7 @@ export type CatalogProduct = {
   original_url?: string;
   stock_quantity?: number | null;
   external_id?: string;
+  variants?: any;
 };
 
 type Props = {
@@ -41,6 +42,28 @@ const getImage = (images: any): string | null => {
     return null;
   }
 };
+
+const getFirstCjVariantId = (variants: any): string | null => {
+  try {
+    const parsed = typeof variants === "string" ? JSON.parse(variants) : variants;
+    const first = Array.isArray(parsed) ? parsed[0] : parsed?.[0] ?? parsed;
+
+    return (
+      first?.vid ??
+      first?.variantId ??
+      first?.variant_id ??
+      first?.id ??
+      first?.skuId ??
+      first?.sku_id ??
+      null
+    );
+  } catch {
+    return null;
+  }
+};
+
+const getCjProductUrl = (externalId?: string | null) =>
+  externalId ? `https://www.cjdropshipping.com/product-detail.html?id=${encodeURIComponent(externalId)}` : null;
 
 const STEPS = [
   { num: 1, label: "Detalhes" },
@@ -258,6 +281,9 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           product: {
             id: product?.id,
             external_id: product?.external_id,
+            cj_product_id: product?.external_id ?? null,
+            cj_product_url: getCjProductUrl(product?.external_id),
+            cj_variant_id: getFirstCjVariantId(product?.variants),
             title: title.trim(),
             price: sellPrice,
             cost_price: totalCost,
@@ -277,17 +303,6 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(3);
-
-      await supabase.from("user_publications" as any).insert({
-        user_id: user.id,
-        ml_item_id: data.item_id,
-        title: title.trim(),
-        thumbnail: img || undefined,
-        price: sellPrice,
-        cost_price: totalCost,
-        status: "active",
-        permalink: data.permalink,
-      });
 
       toast.success("Produto publicado com sucesso");
       if (data.permalink) window.open(data.permalink, '_blank', 'noopener,noreferrer');

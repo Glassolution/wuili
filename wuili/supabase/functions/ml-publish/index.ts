@@ -308,6 +308,7 @@ Deno.serve(async (req) => {
         published_at:   new Date().toISOString(),
         // CJ product/variant IDs passed from frontend when importing the product
         cj_product_id:  product.cj_product_id  ?? null,
+        cj_product_url: product.cj_product_url ?? null,
         cj_variant_id:  product.cj_variant_id  ?? null,
       })
     } catch (pubErr) {

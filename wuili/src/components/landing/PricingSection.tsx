@@ -39,59 +39,59 @@ type Plan = {
 
 const plans: Plan[] = [
   {
-    id: "go",
-    name: "Go",
-    price: "39,99",
+    id: "gratis",
+    name: "Grátis",
+    price: "0",
     currency: "R$",
     period: "BRL / mês",
-    desc: "Continue vendendo com o acesso expandido",
-    cta: "Começar com o Go",
+    desc: "Comece a organizar sua operação",
+    cta: "Criar conta grátis",
     ctaStyle: "outlined",
     features: [
       { icon: Sparkles, text: "IA para criação de anúncios" },
-      { icon: MessageSquare, text: "Chat com IA ilimitado" },
+      { icon: MessageSquare, text: "Chat com IA básico" },
       { icon: Store, text: "1 marketplace conectado" },
-      { icon: Image, text: "Tratamento de fotos" },
+      { icon: Image, text: "5 produtos no catálogo" },
       { icon: Mic, text: "Suporte por e-mail" },
     ],
     note: "Ideal para quem está começando.",
   },
   {
-    id: "plus",
-    name: "Plus",
-    price: "1,00",
+    id: "pro",
+    name: "Pro",
+    price: "99,90",
     currency: "R$",
     period: "BRL / mês",
     desc: "Desbloqueie a experiência completa",
-    cta: "Fazer upgrade para o Plus",
+    cta: "Fazer upgrade para o Pro",
     ctaStyle: "filled",
     features: [
       { icon: Zap, text: "IA avançada com auto-publicação" },
-      { icon: Globe, text: "ML + Shopee + AliExpress" },
+      { icon: Globe, text: "Mercado Livre conectado" },
       { icon: RefreshCw, text: "Monitoramento de preços 24h" },
       { icon: Brain, text: "Memória de operação entre sessões" },
       { icon: Bot, text: "Respostas automáticas a compradores" },
-      { icon: BarChart3, text: "Pesquisa de nicho aprofundada" },
-      { icon: Layers, text: "Projetos e lojas personalizadas" },
+      { icon: BarChart3, text: "Relatórios financeiros" },
+      { icon: Layers, text: "Publicação automática" },
     ],
   },
   {
-    id: "pro",
-    name: "Pro",
-    price: "525",
+    id: "business",
+    name: "Business",
+    price: "149,90",
     currency: "R$",
     period: "BRL / mês",
     desc: "Aumente sua produtividade ao máximo",
-    cta: "Fazer upgrade para o Pro",
+    cta: "Fazer upgrade para Business",
     ctaStyle: "filled",
-    prefix: "Tudo do Plus, incluindo:",
+    prefix: "Tudo do Pro, incluindo:",
     features: [
-      { icon: TrendingUp, text: "5 vezes mais uso que o Plus" },
+      { icon: TrendingUp, text: "Mais automações de operação" },
       { icon: Sparkles, text: "Modelo de IA avançado" },
       { icon: Bot, text: "Agentes de venda ilimitados" },
       { icon: BarChart3, text: "Analytics em tempo real" },
       { icon: Store, text: "Múltiplas contas por marketplace" },
-      { icon: Image, text: "Criação de imagens ilimitada" },
+      { icon: Image, text: "Automações de entrega e rastreio" },
       { icon: Brain, text: "O máximo de memória e contexto" },
       { icon: ShieldCheck, text: "Acesso antecipado a novos recursos" },
       { icon: Headphones, text: "Suporte prioritário dedicado" },
@@ -112,7 +112,9 @@ const PricingSection = () => {
     setLoadingPlan(planId);
 
     setTimeout(() => {
-      if (user) {
+      if (planId === "gratis") {
+        navigate(user ? "/dashboard" : "/cadastro");
+      } else if (user) {
         navigate(`/checkout?plan=${planId}`);
       } else {
         navigate(`/cadastro?next=/checkout&plan=${planId}`);

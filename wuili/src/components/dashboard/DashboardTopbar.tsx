@@ -87,9 +87,9 @@ const DashboardTopbar = () => {
 
   const planLabel: Record<string, string> = {
     gratis: "Grátis",
-    plus: "Plus",
     go: "Go",
     pro: "Pro",
+    business: "Business",
   };
 
   return (

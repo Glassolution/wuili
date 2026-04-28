@@ -25,11 +25,13 @@ import TransacoesPage from "./pages/dashboard/TransacoesPage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
 import PagamentosPage from "./pages/dashboard/PagamentosPage";
 import CheckoutPage from "./pages/CheckoutPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import CriarVideoPage from "./pages/dashboard/CriarVideoPage";
 import ChatFornecedoresPage from "./pages/dashboard/ChatFornecedoresPage";
 import DashboardHomePage from "./pages/dashboard/DashboardHomePage";
 import Docs from "./pages/Docs";
 import ClientesPage from "./pages/dashboard/ClientesPage";
+import AdminSupportPage from "./pages/admin/AdminSupportPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,7 +56,9 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<CadastroPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/docs" element={<Docs />} />
+          <Route path="/admin/suporte" element={<AdminSupportPage />} />
           <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<DashboardHomePage />} />

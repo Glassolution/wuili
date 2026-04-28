@@ -144,10 +144,12 @@ Deno.serve(async (req) => {
     const addr      = shipping.receiver_address ?? {};
 
     const buyerName    = buyer.nickname ?? buyer.first_name ?? "Comprador";
+    const buyerEmail   = buyer.email ?? "";
     const buyerPhone   = buyer.phone?.number ?? buyer.alternative_phone?.number ?? "";
     const streetName   = addr.street_name   ?? "";
     const streetNumber = addr.street_number ?? "";
     const buyerAddress = [streetName, streetNumber].filter(Boolean).join(", ");
+    const buyerNeighborhood = addr.neighborhood?.name ?? "";
     const buyerCity    = addr.city?.name    ?? "";
     const buyerState   = addr.state?.name   ?? "";
     const buyerZip     = addr.zip_code      ?? "";
@@ -155,12 +157,13 @@ Deno.serve(async (req) => {
     // ── 5. Look up publication to get cj_variant_id + cost_price ──────────
     let cjVariantId:  string | null = null;
     let cjProductId:  string | null = null;
+    let cjProductUrl: string | null = null;
     let costPrice:    number | null = null;
 
     if (mlItemId) {
       const { data: pub } = await adminClient
         .from("user_publications")
-        .select("cj_variant_id, cj_product_id, cost_price")
+        .select("cj_variant_id, cj_product_id, cj_product_url, cost_price")
         .eq("ml_item_id", mlItemId)
         .eq("user_id", integration.user_id)
         .maybeSingle();
@@ -168,6 +171,9 @@ Deno.serve(async (req) => {
       if (pub) {
         cjVariantId = pub.cj_variant_id ?? null;
         cjProductId = pub.cj_product_id ?? null;
+        cjProductUrl = pub.cj_product_url ?? (
+          cjProductId ? `https://www.cjdropshipping.com/product-detail.html?id=${cjProductId}` : null
+        );
         costPrice   = pub.cost_price    ?? null;
       }
     }
@@ -185,7 +191,10 @@ Deno.serve(async (req) => {
         product_title:       item?.item?.title ?? "Produto ML",
         product_image:       null,
         buyer_name:          buyerName,
+        buyer_email:         buyerEmail      || null,
         buyer_address:       buyerAddress   || null,
+        buyer_number:        streetNumber    || null,
+        buyer_neighborhood:  buyerNeighborhood || null,
         buyer_city:          buyerCity       || null,
         buyer_state:         buyerState      || null,
         buyer_zip:           buyerZip        || null,
@@ -193,6 +202,8 @@ Deno.serve(async (req) => {
         sale_price:          salePrice,
         cost_price:          costPrice,
         profit,
+        cj_product_id:       cjProductId,
+        cj_product_url:      cjProductUrl,
         cj_variant_id:       cjVariantId,
         status:              "paid",
         fulfillment_status:  cjVariantId ? "pending" : "no_variant",

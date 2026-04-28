@@ -9,6 +9,9 @@ import { playSendSound, playSoftTypeSound } from "@/lib/uiFeedback";
 
 type Step = "nome" | "email" | "senha" | "whatsapp" | "nicho" | "criando";
 const STEPS: Step[] = ["nome", "email", "senha", "whatsapp", "nicho", "criando"];
+type EmailExistsResponse = { exists?: boolean; error?: string };
+
+const duplicateEmailMessage = "Esse email já está cadastrado. Tente outro ou faça login.";
 
 const questions: Record<Step, string> = {
   nome: "Qual é o seu nome completo?",
@@ -62,6 +65,39 @@ function maskWhatsApp(v: string): string {
 
 function isValidWhatsApp(v: string): boolean {
   return /^\(\d{2}\) \d{5}-\d{4}$/.test(v);
+}
+
+function isDuplicateEmailAuthError(error: { message?: string; code?: string } | null): boolean {
+  const message = error?.message?.toLowerCase() ?? "";
+  const code = error?.code?.toLowerCase() ?? "";
+
+  return (
+    code === "user_already_exists" ||
+    message.includes("already registered") ||
+    message.includes("already been registered") ||
+    message.includes("user already registered") ||
+    message.includes("email already")
+  );
+}
+
+function isDuplicateEmailAuthResponse(user: { identities?: unknown[] } | null | undefined): boolean {
+  return Array.isArray(user?.identities) && user.identities.length === 0;
+}
+
+async function checkEmailAlreadyExists(email: string): Promise<boolean | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke<EmailExistsResponse>("auth-email-exists", {
+      body: { email },
+    });
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    return data?.exists === true;
+  } catch (error) {
+    console.error("[cadastro] erro ao verificar email:", error);
+    return null;
+  }
 }
 
 const CadastroPage = () => {
@@ -191,8 +227,19 @@ const CadastroPage = () => {
       transitionTo("email", val);
     } else if (step === "email") {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) { setErrorText("Email inválido. Verifique e tente novamente."); return; }
-      setEmail(val);
-      transitionTo("senha", val);
+      const normalizedEmail = val.toLowerCase();
+
+      setLoading(true);
+      const emailExists = await checkEmailAlreadyExists(normalizedEmail);
+      setLoading(false);
+
+      if (emailExists === true) {
+        setErrorText(duplicateEmailMessage);
+        return;
+      }
+
+      setEmail(normalizedEmail);
+      transitionTo("senha", normalizedEmail);
     } else if (step === "senha") {
       if (val.length < 8) { setErrorText("A senha precisa ter pelo menos 8 caracteres."); return; }
       setSenha(val);
@@ -223,14 +270,30 @@ const CadastroPage = () => {
         });
 
         if (error) {
+          const emailExists = isDuplicateEmailAuthError(error)
+            ? await checkEmailAlreadyExists(email).catch(() => false)
+            : false;
+
           setLoading(false);
-          if (error.message.includes("already registered") || error.message.includes("already been registered")) {
+
+          if (emailExists === true) {
             setStep("email");
-            setErrorText("Esse email já está cadastrado. Tente outro ou faça login.");
+            setErrorText(duplicateEmailMessage);
           } else {
             setStep("nicho");
-            setErrorText(error.message);
+            setErrorText(
+              isDuplicateEmailAuthError(error)
+                ? "Não foi possível concluir o cadastro com esse email. Tente novamente em instantes."
+                : error.message
+            );
           }
+          return;
+        }
+
+        if (isDuplicateEmailAuthResponse(data.user)) {
+          setLoading(false);
+          setStep("email");
+          setErrorText(duplicateEmailMessage);
           return;
         }
 
