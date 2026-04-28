@@ -213,6 +213,7 @@ export type Database = {
           buyer_zip: string | null
           cj_order_id: string | null
           cj_product_id: string | null
+          cj_product_url: string | null
           cj_variant_id: string | null
           cost_price: number | null
           created_at: string | null
@@ -248,6 +249,7 @@ export type Database = {
           buyer_zip?: string | null
           cj_order_id?: string | null
           cj_product_id?: string | null
+          cj_product_url?: string | null
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
@@ -283,6 +285,7 @@ export type Database = {
           buyer_zip?: string | null
           cj_order_id?: string | null
           cj_product_id?: string | null
+          cj_product_url?: string | null
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
