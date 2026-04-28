@@ -26,16 +26,16 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user) {
       return new Response(JSON.stringify({ error: "Token inválido" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = claimsData.claims.sub as string;
-    const userEmail = claimsData.claims.email as string;
+    const userId = userData.user.id;
+    const userEmail = userData.user.email!;
 
     const body = await req.json();
     const { plan, payment_method } = body;
@@ -53,9 +53,8 @@ Deno.serve(async (req) => {
     }
 
     const plans: Record<string, { amount: number; description: string }> = {
-      go: { amount: 39.99, description: "Velo Go — Mensal" },
-      plus: { amount: 1.00, description: "Velo Plus (Teste)" },
-      pro: { amount: 525.00, description: "Velo Pro — Mensal" },
+      pro: { amount: 99.90, description: "Velo Pro" },
+      business: { amount: 149.90, description: "Velo Business" },
     };
 
     const selectedPlan = plans[plan];
@@ -66,21 +65,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create Mercado Pago payment
     const mpPayload: Record<string, unknown> = {
       transaction_amount: selectedPlan.amount,
       description: selectedPlan.description,
       payment_method_id: payment_method === "pix" ? "pix" : undefined,
-      payer: {
-        email: userEmail,
-      },
-      metadata: {
-        user_id: userId,
-        plan: plan,
-      },
+      payer: { email: userEmail },
+      metadata: { user_id: userId, plan: plan },
     };
 
-    // For credit card, we need token from frontend
     if (payment_method === "credit_card") {
       const { card_token, installments, issuer_id } = body;
       if (!card_token) {
@@ -108,14 +100,12 @@ Deno.serve(async (req) => {
     const mpData = await mpResponse.json();
 
     if (!mpResponse.ok) {
-      console.error("MP error:", JSON.stringify(mpData));
       return new Response(JSON.stringify({ error: "Erro ao processar pagamento", details: mpData }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Save subscription
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -139,19 +129,16 @@ Deno.serve(async (req) => {
       updated_at: now.toISOString(),
     }, { onConflict: "user_id" });
 
-    // Update profile plan if approved
     if (mpData.status === "approved") {
       await adminClient.from("profiles").update({ plano: plan }).eq("user_id", userId);
     }
 
-    // Build response
     const result: Record<string, unknown> = {
       status: mpData.status,
       payment_id: mpData.id,
       plan: plan,
     };
 
-    // PIX: return QR code data
     if (payment_method === "pix" && mpData.point_of_interaction?.transaction_data) {
       result.pix_qr_code = mpData.point_of_interaction.transaction_data.qr_code;
       result.pix_qr_code_base64 = mpData.point_of_interaction.transaction_data.qr_code_base64;
