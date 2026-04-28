@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MessageSquare, Search, Send, Paperclip, Sparkles,
   ChevronRight, ArrowLeft, Package, ExternalLink,
+  Headphones, Loader2, UserRound, Bot, Pause, Play,
+  CheckCircle2, ShieldCheck, Inbox, UsersRound,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   useSupplierThreads,
   useSupplierMessages,
@@ -47,6 +53,45 @@ const AI_OPTIONS = [
       `Bom dia! Qual é o prazo de entrega estimado para o ${p} com envio para o Brasil?`,
   },
 ];
+
+type ChatArea = "suppliers" | "support";
+
+type AdminTicket = {
+  id: string;
+  user_id: string;
+  status: "open" | "closed";
+  ai_active: boolean;
+  admin_last_seen_at: string | null;
+  created_at: string;
+  updated_at: string;
+  user_name: string | null;
+  user_email: string | null;
+  last_message: string | null;
+  last_sender: "user" | "admin" | "ai" | null;
+  last_message_at: string | null;
+};
+
+type SupportMessage = {
+  id: string;
+  ticket_id: string;
+  user_id: string;
+  message: string;
+  sender: "user" | "admin" | "ai";
+  created_at: string;
+};
+
+const formatSupportTime = (value: string | null) => {
+  if (!value) return "Sem data";
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+};
+
+const getTicketNeedsReply = (ticket: AdminTicket) => ticket.last_sender === "user";
 
 // ── Message bubble ────────────────────────────────────────────────────────────
 
@@ -385,13 +430,427 @@ function ConversationList({
   );
 }
 
+// ── Admin support panel ───────────────────────────────────────────────────────
+
+function AdminSupportPanel() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [reply, setReply] = useState("");
+
+  const { data: tickets = [], isLoading: loadingTickets } = useQuery({
+    queryKey: ["chat-admin-support-tickets"],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .rpc("get_support_tickets_admin", { p_status: "open" });
+
+      if (error) throw error;
+      return (data ?? []) as AdminTicket[];
+    },
+  });
+
+  const selectedTicket = useMemo(
+    () => tickets.find((ticket) => ticket.id === selectedTicketId) ?? tickets[0] ?? null,
+    [selectedTicketId, tickets]
+  );
+
+  const unansweredCount = useMemo(
+    () => tickets.filter(getTicketNeedsReply).length,
+    [tickets]
+  );
+
+  useEffect(() => {
+    if (!selectedTicketId && tickets[0]?.id) {
+      setSelectedTicketId(tickets[0].id);
+    }
+  }, [selectedTicketId, tickets]);
+
+  const { data: messages = [], isLoading: loadingMessages } = useQuery({
+    queryKey: ["chat-admin-support-messages", selectedTicket?.id],
+    enabled: !!selectedTicket?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("support_messages")
+        .select("*")
+        .eq("ticket_id", selectedTicket!.id)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      return (data ?? []) as SupportMessage[];
+    },
+  });
+
+  const touchSeen = useMutation({
+    mutationFn: async (ticketId: string) => {
+      const { error } = await (supabase as any)
+        .from("support_tickets")
+        .update({ admin_last_seen_at: new Date().toISOString() })
+        .eq("id", ticketId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
+    },
+  });
+
+  useEffect(() => {
+    if (selectedTicket?.id) touchSeen.mutate(selectedTicket.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTicket?.id]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("chat-admin-support")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "support_tickets" },
+        () => {
+          void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "support_tickets" },
+        () => {
+          void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "support_messages" },
+        (payload) => {
+          const message = payload.new as SupportMessage;
+          void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
+          qc.setQueryData<SupportMessage[]>(
+            ["chat-admin-support-messages", message.ticket_id],
+            (prev = []) => prev.some((item) => item.id === message.id) ? prev : [...prev, message]
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc]);
+
+  const sendReply = useMutation({
+    mutationFn: async () => {
+      const trimmed = reply.trim();
+      if (!trimmed || !selectedTicket?.id || !user?.id) return null;
+
+      const { data, error } = await (supabase as any)
+        .from("support_messages")
+        .insert({
+          ticket_id: selectedTicket.id,
+          user_id: user.id,
+          message: trimmed,
+          sender: "admin",
+        })
+        .select("*")
+        .single();
+
+      if (error) throw error;
+      return data as SupportMessage;
+    },
+    onSuccess: (message) => {
+      if (!message) return;
+      setReply("");
+      qc.setQueryData<SupportMessage[]>(
+        ["chat-admin-support-messages", message.ticket_id],
+        (prev = []) => prev.some((item) => item.id === message.id) ? prev : [...prev, message]
+      );
+      void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error("Não foi possível enviar a resposta.");
+    },
+  });
+
+  const toggleAi = useMutation({
+    mutationFn: async (active: boolean) => {
+      if (!selectedTicket?.id) return;
+
+      const { error } = await (supabase as any)
+        .from("support_tickets")
+        .update({ ai_active: active })
+        .eq("id", selectedTicket.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
+      toast.success("Status da IA atualizado.");
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error("Não foi possível atualizar a IA.");
+    },
+  });
+
+  const closeTicket = useMutation({
+    mutationFn: async () => {
+      if (!selectedTicket?.id) return;
+
+      const { error } = await (supabase as any)
+        .from("support_tickets")
+        .update({ status: "closed" })
+        .eq("id", selectedTicket.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Ticket marcado como resolvido.");
+      setSelectedTicketId(null);
+      void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error("Não foi possível resolver o ticket.");
+    },
+  });
+
+  return (
+    <div className="grid h-full min-h-0 grid-cols-1 bg-white dark:bg-zinc-900 md:grid-cols-[340px_minmax(0,1fr)]">
+      <aside className="flex min-h-0 flex-col border-r border-[#EBEBEB] bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="border-b border-[#EBEBEB] px-4 py-4 dark:border-zinc-800">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[15px] font-bold text-[#0A0A0A] dark:text-white">Suporte ao Cliente</h2>
+              <p className="mt-0.5 text-[12px] text-[#737373] dark:text-zinc-400">Tickets abertos em tempo real</p>
+            </div>
+            {unansweredCount > 0 && (
+              <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-red-600 px-2 text-[12px] font-bold text-white">
+                {unansweredCount}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          {loadingTickets ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((item) => (
+                <Skeleton key={item} className="h-28 rounded-2xl" />
+              ))}
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="flex h-full min-h-[300px] flex-col items-center justify-center px-5 text-center">
+              <Inbox size={30} className="text-[#D4D4D4] dark:text-zinc-600" />
+              <p className="mt-3 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Nenhum ticket aberto</p>
+              <p className="mt-1 text-[12px] leading-5 text-[#737373] dark:text-zinc-400">Novas solicitações de suporte aparecerão aqui.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {tickets.map((ticket) => {
+                const active = selectedTicket?.id === ticket.id;
+                const needsReply = getTicketNeedsReply(ticket);
+
+                return (
+                  <button
+                    key={ticket.id}
+                    onClick={() => setSelectedTicketId(ticket.id)}
+                    className={[
+                      "w-full rounded-2xl border p-4 text-left transition",
+                      active
+                        ? "border-[#0A0A0A] bg-[#F7F7F7] dark:border-white dark:bg-zinc-800"
+                        : "border-transparent hover:border-[#E5E5E5] hover:bg-[#FAFAFA] dark:hover:border-zinc-700 dark:hover:bg-zinc-800/70",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[13.5px] font-bold text-[#0A0A0A] dark:text-white">
+                          {ticket.user_email || ticket.user_name || "Usuário sem email"}
+                        </p>
+                        <p className="mt-1 text-[11px] text-[#A3A3A3] dark:text-zinc-500">
+                          Aberto em {formatSupportTime(ticket.created_at)}
+                        </p>
+                      </div>
+                      {needsReply && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-600" />}
+                    </div>
+
+                    <p className="mt-3 line-clamp-2 text-[12px] leading-5 text-[#525252] dark:text-zinc-300">
+                      {ticket.last_message || "Ticket aberto sem mensagens ainda."}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-[#0A0A0A] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.04em] text-white dark:bg-white dark:text-black">
+                        {ticket.status}
+                      </span>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.04em] ${
+                        ticket.ai_active
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                          : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                      }`}>
+                        IA {ticket.ai_active ? "ativa" : "pausada"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col bg-[#FAFAFA] dark:bg-zinc-950">
+        {selectedTicket ? (
+          <>
+            <div className="flex flex-col gap-3 border-b border-[#EBEBEB] bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white dark:bg-white dark:text-black">
+                  <UserRound size={18} />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-[14px] font-bold text-[#0A0A0A] dark:text-white">
+                    {selectedTicket.user_email || selectedTicket.user_name || "Usuário"}
+                  </p>
+                  <p className="text-[11.5px] text-[#737373] dark:text-zinc-400">
+                    Ticket aberto em {formatSupportTime(selectedTicket.created_at)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => toggleAi.mutate(!selectedTicket.ai_active)}
+                  disabled={toggleAi.isPending}
+                  className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[12px] font-semibold transition disabled:opacity-50 ${
+                    selectedTicket.ai_active
+                      ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300"
+                      : "border-[#D4D4D4] bg-white text-[#525252] hover:border-[#0A0A0A] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-white"
+                  }`}
+                >
+                  {selectedTicket.ai_active ? <Pause size={13} /> : <Play size={13} />}
+                  IA {selectedTicket.ai_active ? "Ativa" : "Pausada"}
+                </button>
+
+                <button
+                  onClick={() => closeTicket.mutate()}
+                  disabled={closeTicket.isPending}
+                  className="inline-flex h-9 items-center gap-2 rounded-full border border-[#0A0A0A] bg-white px-3 text-[12px] font-semibold text-[#0A0A0A] transition hover:bg-[#0A0A0A] hover:text-white disabled:opacity-50 dark:border-white dark:bg-zinc-900 dark:text-white dark:hover:bg-white dark:hover:text-black"
+                >
+                  {closeTicket.isPending ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                  Resolver
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+              {loadingMessages ? (
+                <div className="flex h-full items-center justify-center">
+                  <Loader2 size={22} className="animate-spin text-[#737373]" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <MessageSquare size={30} className="text-[#D4D4D4] dark:text-zinc-600" />
+                  <p className="mt-3 text-[13px] text-[#737373] dark:text-zinc-400">Este ticket ainda não tem mensagens.</p>
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <AdminSupportBubble key={message.id} msg={message} />
+                ))
+              )}
+            </div>
+
+            <div className="border-t border-[#EBEBEB] bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex items-end gap-2 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F7] px-3 py-2 transition focus-within:border-[#D4D4D4] focus-within:ring-2 focus-within:ring-[#0A0A0A]/6 dark:border-zinc-700 dark:bg-zinc-800">
+                <textarea
+                  value={reply}
+                  onChange={(event) => setReply(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      sendReply.mutate();
+                    }
+                  }}
+                  placeholder="Responder como admin..."
+                  rows={1}
+                  className="max-h-[120px] min-h-8 flex-1 resize-none bg-transparent py-1 text-[13.5px] text-[#0A0A0A] outline-none placeholder:text-[#A3A3A3] dark:text-white dark:placeholder:text-zinc-500"
+                />
+                <button
+                  onClick={() => sendReply.mutate()}
+                  disabled={sendReply.isPending || !reply.trim()}
+                  className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0A0A0A] text-white transition hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-30 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                  aria-label="Enviar resposta"
+                >
+                  {sendReply.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#E5E5E5] bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+              <Headphones size={23} className="text-[#A3A3A3] dark:text-zinc-400" />
+            </div>
+            <div>
+              <p className="text-[15px] font-semibold text-[#0A0A0A] dark:text-white">Selecione um ticket</p>
+              <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">A conversa do cliente aparecerá aqui.</p>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function AdminSupportBubble({ msg }: { msg: SupportMessage }) {
+  const isAdmin = msg.sender === "admin";
+  const isAi = msg.sender === "ai";
+
+  return (
+    <div className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
+      <div
+        className={[
+          "max-w-[74%] rounded-2xl px-4 py-2.5 text-[13.5px] leading-6 shadow-sm",
+          isAdmin
+            ? "rounded-br-sm bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
+            : isAi
+              ? "rounded-bl-sm bg-blue-50 text-blue-950 dark:bg-blue-500/10 dark:text-blue-100"
+              : "rounded-bl-sm bg-white text-[#0A0A0A] dark:bg-zinc-900 dark:text-white",
+        ].join(" ")}
+      >
+        <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.08em] opacity-70">
+          {isAdmin ? <ShieldCheck size={11} /> : isAi ? <Bot size={11} /> : <UserRound size={11} />}
+          {isAdmin ? "Admin" : isAi ? "IA" : "Usuário"}
+        </div>
+        <p className="whitespace-pre-wrap">{msg.message}</p>
+        <p className="mt-1 text-[10.5px] opacity-55">{formatSupportTime(msg.created_at)}</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ChatFornecedoresPage() {
+  const { user } = useAuth();
   const [selectedId,   setSelectedId]   = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string>("");
   const [search,       setSearch]       = useState("");
   const [mobileView,   setMobileView]   = useState<"list" | "chat">("list");
+  const [activeArea, setActiveArea] = useState<ChatArea>("suppliers");
+
+  const { data: profile } = useQuery({
+    queryKey: ["chat-profile-role", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("profiles")
+        .select("role")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as { role: string | null } | null;
+    },
+  });
+
+  const isAdmin = profile?.role === "admin";
 
   const handleSelect = (id: string, name: string) => {
     setSelectedId(id);
@@ -400,42 +859,80 @@ export default function ChatFornecedoresPage() {
   };
 
   return (
-    <div
-      className="flex overflow-hidden rounded-2xl border border-[#E5E5E5] dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm"
-      style={{ height: "calc(100vh - 56px - 2rem)" }}
-    >
-      {/* Left: conversation list */}
-      <div className={`w-full shrink-0 md:w-[300px] lg:w-[320px] ${mobileView === "chat" ? "hidden md:block" : "block"}`}>
-        <ConversationList
-          selectedId={selectedId}
-          onSelect={handleSelect}
-          search={search}
-          onSearchChange={setSearch}
-        />
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveArea("suppliers")}
+          className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-[13px] font-semibold transition ${
+            activeArea === "suppliers"
+              ? "border-[#0A0A0A] bg-[#0A0A0A] text-white dark:border-white dark:bg-white dark:text-black"
+              : "border-[#E5E5E5] bg-white text-[#525252] hover:border-[#0A0A0A] hover:text-[#0A0A0A] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-white dark:hover:text-white"
+          }`}
+        >
+          <UsersRound size={15} />
+          Chat com Fornecedores
+        </button>
+
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setActiveArea("support")}
+            className={`inline-flex h-10 items-center gap-2 rounded-full border px-4 text-[13px] font-semibold transition ${
+              activeArea === "support"
+                ? "border-[#0A0A0A] bg-[#0A0A0A] text-white dark:border-white dark:bg-white dark:text-black"
+                : "border-[#E5E5E5] bg-white text-[#525252] hover:border-[#0A0A0A] hover:text-[#0A0A0A] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-white dark:hover:text-white"
+            }`}
+          >
+            <Headphones size={15} />
+            Suporte ao Cliente
+          </button>
+        )}
       </div>
 
-      {/* Right: chat window */}
-      <div className={`min-w-0 flex-1 ${mobileView === "list" ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
-        {selectedId ? (
-          <ChatWindow
-            supplierId={selectedId}
-            supplierName={selectedName}
-            onBack={() => setMobileView("list")}
-          />
+      <div
+        className="flex overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+        style={{ height: "calc(100vh - 56px - 5.25rem)" }}
+      >
+        {activeArea === "support" && isAdmin ? (
+          <AdminSupportPanel />
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-[#FAFAFA] dark:bg-zinc-900 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#E5E5E5] dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
-              <MessageSquare size={22} className="text-[#A3A3A3] dark:text-zinc-400" />
+          <>
+            {/* Left: conversation list */}
+            <div className={`w-full shrink-0 md:w-[300px] lg:w-[320px] ${mobileView === "chat" ? "hidden md:block" : "block"}`}>
+              <ConversationList
+                selectedId={selectedId}
+                onSelect={handleSelect}
+                search={search}
+                onSearchChange={setSearch}
+              />
             </div>
-            <div>
-              <p className="text-[15px] font-semibold text-[#0A0A0A] dark:text-white">
-                Nenhuma conversa selecionada
-              </p>
-              <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">
-                Selecione um fornecedor para iniciar
-              </p>
+
+            {/* Right: chat window */}
+            <div className={`min-w-0 flex-1 ${mobileView === "list" ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
+              {selectedId ? (
+                <ChatWindow
+                  supplierId={selectedId}
+                  supplierName={selectedName}
+                  onBack={() => setMobileView("list")}
+                />
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-[#FAFAFA] text-center dark:bg-zinc-900">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#E5E5E5] bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+                    <MessageSquare size={22} className="text-[#A3A3A3] dark:text-zinc-400" />
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-semibold text-[#0A0A0A] dark:text-white">
+                      Nenhuma conversa selecionada
+                    </p>
+                    <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">
+                      Selecione um fornecedor para iniciar
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>
