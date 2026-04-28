@@ -208,6 +208,8 @@ export type Database = {
           buyer_city: string | null
           buyer_email: string | null
           buyer_name: string | null
+          buyer_neighborhood: string | null
+          buyer_number: string | null
           buyer_phone: string | null
           buyer_state: string | null
           buyer_zip: string | null
@@ -244,6 +246,8 @@ export type Database = {
           buyer_city?: string | null
           buyer_email?: string | null
           buyer_name?: string | null
+          buyer_neighborhood?: string | null
+          buyer_number?: string | null
           buyer_phone?: string | null
           buyer_state?: string | null
           buyer_zip?: string | null
@@ -280,6 +284,8 @@ export type Database = {
           buyer_city?: string | null
           buyer_email?: string | null
           buyer_name?: string | null
+          buyer_neighborhood?: string | null
+          buyer_number?: string | null
           buyer_phone?: string | null
           buyer_state?: string | null
           buyer_zip?: string | null
