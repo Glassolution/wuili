@@ -84,8 +84,6 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
 
   // Pricing engine
   const [multiplier, setMultiplier] = useState(2.5);
-  const [freightCost, setFreightCost] = useState(0);
-  const [taxCost, setTaxCost] = useState(0);
 
   // AI description
   const [description, setDescription] = useState("");
@@ -93,6 +91,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
 
   // Translation
   const [translating, setTranslating] = useState(false);
+  const [translatingDescription, setTranslatingDescription] = useState(false);
   const [translated, setTranslated] = useState(false);
 
   // Platforms (step 3)
@@ -131,8 +130,6 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
       : product.title;
     setTitle(truncated);
     setMultiplier(2.5);
-    setFreightCost(0);
-    setTaxCost(0);
     setSellPrice(Math.round(product.cost_price * 2.5 * 100) / 100);
     setStep(1);
     setPublishResult(null);
@@ -142,11 +139,10 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   }
 
   const costPrice = product?.cost_price ?? 0;
-  const totalCost = costPrice + freightCost + taxCost;
+  const totalCost = costPrice;
 
-  const recalcPrice = (mult: number, freight: number, tax: number) => {
-    const total = costPrice + freight + tax;
-    setSellPrice(Math.round(total * mult * 100) / 100);
+  const recalcPrice = (mult: number) => {
+    setSellPrice(Math.round(costPrice * mult * 100) / 100);
   };
 
   const profit = useMemo(() => Math.round((sellPrice - totalCost) * 100) / 100, [sellPrice, totalCost]);
@@ -158,6 +154,43 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const img = product ? getImage(product.images) : null;
   const stockQty = product?.stock_quantity ?? 0;
   const hasStock = stockQty > 0;
+
+  useEffect(() => {
+    if (!open || !product?.description) return;
+
+    let cancelled = false;
+
+    const translateDescription = async () => {
+      setTranslatingDescription(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("chat", {
+          body: {
+            messages: [{
+              role: "user",
+              content: `Você é um tradutor especialista em e-commerce brasileiro. Traduza a descrição deste produto para português do Brasil, mantendo o sentido original e adaptando termos naturais de venda. Não invente características novas. Responda APENAS com a descrição traduzida, sem introdução, sem comentários.\n\nDescrição original:\n${product.description}`
+            }]
+          },
+        });
+
+        if (error) throw error;
+        const text = data?.response || data?.choices?.[0]?.message?.content || "";
+
+        if (!cancelled && typeof text === "string" && text.trim()) {
+          setDescription(text.trim());
+        }
+      } catch {
+        if (!cancelled) setDescription(product.description ?? "");
+      } finally {
+        if (!cancelled) setTranslatingDescription(false);
+      }
+    };
+
+    void translateDescription();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, product?.id, product?.description]);
 
   const handleClose = () => {
     if (publishing) return;
@@ -470,17 +503,6 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
                   <div className="rounded-xl border border-gray-200 divide-y divide-gray-100">
                     <Row label="Custo do produto" value={formatBRL(costPrice)} />
-                    <EditableRow
-                      label="Frete"
-                      value={freightCost}
-                      onChange={(v) => { setFreightCost(v); recalcPrice(multiplier, v, taxCost); }}
-                    />
-                    <EditableRow
-                      label="Taxas"
-                      value={taxCost}
-                      onChange={(v) => { setTaxCost(v); recalcPrice(multiplier, freightCost, v); }}
-                    />
-                    <Row label="Custo total" value={formatBRL(totalCost)} strong />
                   </div>
 
                   {/* Multiplier */}
@@ -496,7 +518,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                         max="5.0"
                         step="0.1"
                         value={multiplier}
-                        onChange={(e) => { const v = Number(e.target.value); setMultiplier(v); recalcPrice(v, freightCost, taxCost); }}
+                        onChange={(e) => { const v = Number(e.target.value); setMultiplier(v); recalcPrice(v); }}
                         className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 slider"
                         style={{
                           background: `linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb 100%)`
@@ -536,8 +558,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                         step="0.01"
                         min="0"
                         value={sellPrice || ""}
-                        onChange={(e) => setSellPrice(Number(e.target.value))}
-                        className="w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors"
+                        readOnly
+                        className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0A0A0A] outline-none transition-colors"
                       />
                     </div>
                   </div>
@@ -805,7 +827,9 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
             <div>
               <p className="text-[10.5px] font-medium text-gray-400 uppercase tracking-wide mb-2">Descrição</p>
               <p className="text-[12px] text-gray-600 leading-relaxed line-clamp-6">
-                {description || product.description || "A descrição aparecerá aqui quando for gerada ou escrita."}
+                {translatingDescription
+                  ? "Traduzindo descrição para PT-BR..."
+                  : description || "A descrição aparecerá aqui quando for gerada ou escrita."}
               </p>
             </div>
           </div>
@@ -850,24 +874,6 @@ const Row = ({ label, value, strong }: { label: string; value: React.ReactNode; 
     <span className={`text-[12.5px] text-right truncate max-w-[60%] ${strong ? "font-semibold text-[#0A0A0A]" : "text-[#0A0A0A]"}`}>
       {value}
     </span>
-  </div>
-);
-
-const EditableRow = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
-  <div className="flex items-center justify-between px-4 py-2">
-    <span className="text-[12px] text-gray-500">{label}</span>
-    <div className="relative w-28">
-      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11.5px] text-gray-400">R$</span>
-      <input
-        type="number"
-        step="0.01"
-        min="0"
-        value={value || ""}
-        onChange={(e) => onChange(Number(e.target.value))}
-        placeholder="0,00"
-        className="w-full rounded-lg border border-gray-200 bg-white pl-7 pr-2 py-1.5 text-[12.5px] font-medium text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors text-right"
-      />
-    </div>
   </div>
 );
 
