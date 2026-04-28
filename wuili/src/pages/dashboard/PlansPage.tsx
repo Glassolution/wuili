@@ -12,7 +12,7 @@ const PLANS = [
     name: "Grátis",
     price: "R$ 0",
     period: "/mês",
-    features: ["5 produtos no catálogo", "1 integração", "Chat com IA básico"],
+    features: ["Explore o catálogo gratuitamente", "Configure preços", "Chat com IA básico"],
     current: true,
   },
   {
@@ -21,6 +21,7 @@ const PLANS = [
     price: "R$ 99,90",
     period: "/mês",
     features: [
+      "Publique e venda no Mercado Livre",
       "Produtos ilimitados",
       "Até 2 marketplaces",
       "Chat com IA avançado",
@@ -36,6 +37,7 @@ const PLANS = [
     price: "R$ 149,90",
     period: "/mês",
     features: [
+      "Escale suas vendas sem limites",
       "Tudo do Pro",
       "Marketplaces ilimitados",
       "API access",

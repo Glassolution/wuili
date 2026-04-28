@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePlan, type PlanName } from "@/hooks/usePlan";
 
 type PlanLimits = {
-  importedProducts: number | null;
   marketplaces: number | null;
   advancedReports: boolean;
   prioritySupport: boolean;
@@ -13,13 +12,11 @@ type PlanLimits = {
 };
 
 type Usage = {
-  importedProducts: number;
   connectedMarketplaces: number;
 };
 
 const LIMITS: Record<PlanName, PlanLimits> = {
   gratis: {
-    importedProducts: 5,
     marketplaces: 1,
     advancedReports: false,
     prioritySupport: false,
@@ -27,7 +24,6 @@ const LIMITS: Record<PlanName, PlanLimits> = {
     apiAccess: false,
   },
   go: {
-    importedProducts: 5,
     marketplaces: 1,
     advancedReports: false,
     prioritySupport: false,
@@ -35,7 +31,6 @@ const LIMITS: Record<PlanName, PlanLimits> = {
     apiAccess: false,
   },
   pro: {
-    importedProducts: null,
     marketplaces: 2,
     advancedReports: true,
     prioritySupport: true,
@@ -43,7 +38,6 @@ const LIMITS: Record<PlanName, PlanLimits> = {
     apiAccess: false,
   },
   business: {
-    importedProducts: null,
     marketplaces: null,
     advancedReports: true,
     prioritySupport: true,
@@ -58,12 +52,12 @@ const hasReachedLimit = (used: number, limit: number | null) =>
 export const usePlanLimits = () => {
   const { user, loading: authLoading } = useAuth();
   const planState = usePlan();
-  const [usage, setUsage] = useState<Usage>({ importedProducts: 0, connectedMarketplaces: 0 });
+  const [usage, setUsage] = useState<Usage>({ connectedMarketplaces: 0 });
   const [usageLoading, setUsageLoading] = useState(true);
 
   const fetchUsage = async () => {
     if (!user) {
-      setUsage({ importedProducts: 0, connectedMarketplaces: 0 });
+      setUsage({ connectedMarketplaces: 0 });
       setUsageLoading(false);
       return;
     }
@@ -71,17 +65,10 @@ export const usePlanLimits = () => {
     setUsageLoading(true);
 
     try {
-      const [productsResult, integrationsResult] = await Promise.all([
-        (supabase as any)
-          .from("user_publications")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("status", "active"),
-        supabase
-          .from("user_integrations")
-          .select("platform, access_token")
-          .eq("user_id", user.id),
-      ]);
+      const integrationsResult = await supabase
+        .from("user_integrations")
+        .select("platform, access_token")
+        .eq("user_id", user.id);
 
       const connectedPlatforms = new Set(
         (integrationsResult.data ?? [])
@@ -90,7 +77,6 @@ export const usePlanLimits = () => {
       );
 
       setUsage({
-        importedProducts: productsResult.count ?? 0,
         connectedMarketplaces: connectedPlatforms.size,
       });
     } finally {
@@ -120,7 +106,7 @@ export const usePlanLimits = () => {
       hasPrioritySupport: limits.prioritySupport,
       hasDedicatedSupport: limits.dedicatedSupport,
       hasApiAccess: limits.apiAccess,
-      canImportProduct: !hasReachedLimit(usage.importedProducts, limits.importedProducts),
+      canPublishToMarketplace: planState.plan === "pro" || planState.plan === "business",
       canConnectMarketplace: !hasReachedLimit(usage.connectedMarketplaces, limits.marketplaces),
       refreshUsage: fetchUsage,
     };

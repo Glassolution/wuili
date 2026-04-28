@@ -5,6 +5,8 @@ import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Sto
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import UpgradeLimitModal from "@/components/UpgradeLimitModal";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 export type CatalogProduct = {
   id: string;
@@ -73,6 +75,7 @@ const STEPS = [
 const ImportProductModal = ({ open, onClose, product }: Props) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const planLimits = usePlanLimits();
 
   const [step, setStep] = useState(1); // Start at step 1 (details)
   const [title, setTitle] = useState("");
@@ -81,6 +84,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const [isConnectedToML, setIsConnectedToML] = useState<boolean | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   // Pricing engine
   const [multiplier, setMultiplier] = useState(2.5);
@@ -299,6 +303,17 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
   const handlePublish = async () => {
     if (!validatePublish() || !user) return;
+
+    if (planLimits.loading) {
+      toast.info("Verificando seu plano...");
+      return;
+    }
+
+    if (!planLimits.canPublishToMarketplace) {
+      setUpgradeModalOpen(true);
+      return;
+    }
+
     setPublishing(true);
     try {
       const images = (() => {
@@ -851,6 +866,14 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           </div>
         )}
       </div>
+
+      <UpgradeLimitModal
+        open={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        title="Publicação disponível no plano Pro"
+        message="Para publicar produtos no Mercado Livre, você precisa de um plano pago. Comece agora por R$99,90/mês."
+        cta="Fazer upgrade"
+      />
 
       {/* Animations */}
       <style>{`
