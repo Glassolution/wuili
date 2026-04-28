@@ -19,11 +19,12 @@ const PLANS_DATA: Record<string, { name: string; price: string; features: string
     price: "R$ 99,90",
     features: [
       "IA avançada com auto-publicação",
-      "Mercado Livre conectado",
+      "Até 2 marketplaces",
       "Monitoramento de preços 24h",
       "Memória de operação entre sessões",
       "Respostas automáticas a compradores",
       "Relatórios financeiros",
+      "Suporte prioritário",
     ],
   },
   business: {
@@ -34,9 +35,10 @@ const PLANS_DATA: Record<string, { name: string; price: string; features: string
       "Modelo de IA avançado",
       "Agentes de venda ilimitados",
       "Analytics em tempo real",
-      "Múltiplas contas por marketplace",
+      "Marketplaces ilimitados",
+      "API access",
       "Automações de entrega e rastreio",
-      "Suporte prioritário dedicado",
+      "Suporte dedicado",
     ],
   },
 };

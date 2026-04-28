@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
 import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
+import UpgradeLimitModal from "@/components/UpgradeLimitModal";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
@@ -38,11 +40,13 @@ const CatalogPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [compareProductId, setCompareProductId] = useState<string | null>(null);
   const [compareProductTitle, setCompareProductTitle] = useState("");
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const planLimits = usePlanLimits();
   const limit = 20;
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -128,6 +132,21 @@ const CatalogPage = () => {
 
   const activeCategoryLabel = CATEGORIES.find(c => c.key === category)?.label ?? "Todos";
   const activeFilterLabel = QUICK_FILTERS.find(f => f.key === quickFilter)?.label ?? "Todos";
+
+  const handleImportProduct = (product: CatalogProduct) => {
+    if (planLimits.loading) {
+      toast.info("Verificando limites do seu plano...");
+      return;
+    }
+
+    if (!planLimits.canImportProduct) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
+    setSelectedProduct(product);
+    setIsImportModalOpen(true);
+  };
 
   return (
     <div className="space-y-5">
@@ -351,7 +370,7 @@ const CatalogPage = () => {
                   {/* Action buttons — pushed to bottom */}
                   <div className="mt-auto pt-3 flex gap-2">
                     <button
-                      onClick={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
+                      onClick={() => handleImportProduct(p)}
                       className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
                     >
                       Importar produto
@@ -394,8 +413,19 @@ const CatalogPage = () => {
 
       <ImportProductModal
         open={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
+        onClose={() => {
+          setIsImportModalOpen(false);
+          void planLimits.refreshUsage();
+        }}
         product={selectedProduct}
+      />
+
+      <UpgradeLimitModal
+        open={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        title="Você atingiu o limite do plano gratuito"
+        message="Você atingiu o limite do plano gratuito. Faça upgrade para continuar importando produtos."
+        cta="Fazer upgrade"
       />
 
       <PlatformIntegrationModal

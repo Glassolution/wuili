@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import UpgradeLimitModal from "@/components/UpgradeLimitModal";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
 
@@ -22,8 +24,10 @@ const platforms: PlatformCard[] = [
 
 const IntegracoesPage = () => {
   const { user } = useAuth();
+  const planLimits = usePlanLimits();
   const [statuses, setStatuses] = useState<Record<string, IntegrationStatus>>({});
   const [loading, setLoading] = useState(true);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -43,6 +47,13 @@ const IntegracoesPage = () => {
   }, [user]);
 
   const handleConnect = (platformId: string) => {
+    if (planLimits.loading) return;
+
+    if (!planLimits.canConnectMarketplace && statuses[platformId] !== "connected") {
+      setUpgradeModalOpen(true);
+      return;
+    }
+
     if (platformId === "mercadolivre" && user) {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
@@ -143,6 +154,14 @@ const IntegracoesPage = () => {
           })}
         </div>
       )}
+
+      <UpgradeLimitModal
+        open={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        title="Limite de marketplaces atingido"
+        message="Seu plano atual não permite conectar outro marketplace. Faça upgrade para liberar mais integrações."
+        cta="Ver planos"
+      />
     </div>
   );
 };

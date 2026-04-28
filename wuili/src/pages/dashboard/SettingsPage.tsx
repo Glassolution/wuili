@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import PlanBadge from "@/components/PlanBadge";
 import { usePlan } from "@/hooks/usePlan";
 import SupportTab from "@/components/dashboard/SupportTab";
+import UpgradeLimitModal from "@/components/UpgradeLimitModal";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
 
@@ -255,6 +257,8 @@ type Integration = { platform: string; label: string; connected: boolean; loadin
 
 const IntegrationsTab = () => {
   const { user } = useAuth();
+  const planLimits = usePlanLimits();
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([
     { platform: "mercadolivre", label: "Mercado Livre", connected: false, loading: true },
     { platform: "shopee",       label: "Shopee",        connected: false, comingSoon: true },
@@ -281,6 +285,13 @@ const IntegrationsTab = () => {
   }, [user]);
 
   const handleConnect = (platform: string) => {
+    if (planLimits.loading) return;
+
+    if (!planLimits.canConnectMarketplace) {
+      setUpgradeModalOpen(true);
+      return;
+    }
+
     if (platform === "mercadolivre" && user) {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
@@ -340,6 +351,14 @@ const IntegrationsTab = () => {
       <p className="mt-4 text-[11px] text-[#A3A3A3] dark:text-zinc-400">
         Mercado Livre é a única integração disponível agora. Shopee, Amazon e Shopify chegam em breve.
       </p>
+
+      <UpgradeLimitModal
+        open={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        title="Limite de marketplaces atingido"
+        message="Seu plano atual não permite conectar outro marketplace. Faça upgrade para liberar mais integrações."
+        cta="Ver planos"
+      />
     </div>
   );
 };

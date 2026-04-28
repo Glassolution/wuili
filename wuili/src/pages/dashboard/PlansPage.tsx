@@ -22,10 +22,11 @@ const PLANS = [
     period: "/mês",
     features: [
       "Produtos ilimitados",
+      "Até 2 marketplaces",
       "Chat com IA avançado",
       "Publicação automática",
       "Relatórios completos",
-      "Suporte por email",
+      "Suporte prioritário",
     ],
     highlight: true,
   },
@@ -36,10 +37,11 @@ const PLANS = [
     period: "/mês",
     features: [
       "Tudo do Pro",
-      "Múltiplas integrações",
+      "Marketplaces ilimitados",
+      "API access",
       "Automações de entrega",
       "Analytics em tempo real",
-      "Suporte prioritário",
+      "Suporte dedicado",
     ],
   },
 ];

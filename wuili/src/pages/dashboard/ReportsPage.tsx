@@ -7,6 +7,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { Link } from "react-router-dom";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,10 +47,11 @@ const tooltipStyle = {
 
 const ReportsPage = () => {
   const { user } = useAuth();
+  const planLimits = usePlanLimits();
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ["reports-orders", user?.id],
-    enabled: !!user,
+    enabled: !!user && !planLimits.loading && planLimits.hasAdvancedReports,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -140,6 +143,43 @@ const ReportsPage = () => {
 
   // ── Empty state ───────────────────────────────────────────────────────────
   const isEmpty = !isLoading && active.length === 0;
+
+  if (!planLimits.loading && !planLimits.hasAdvancedReports) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <span className="inline-flex rounded-full bg-black px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white dark:bg-white dark:text-black">
+                Disponível no plano Pro
+              </span>
+              <h2 className="mt-4 text-[22px] font-bold tracking-[-0.02em] text-foreground">
+                Relatórios avançados bloqueados
+              </h2>
+              <p className="mt-2 max-w-2xl text-[14px] leading-6 text-muted-foreground">
+                O plano gratuito não inclui relatórios completos. Faça upgrade para acompanhar faturamento, lucro, pedidos por plataforma e produtos mais vendidos.
+              </p>
+            </div>
+            <Link
+              to="/dashboard/planos"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100"
+            >
+              Fazer upgrade
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 opacity-45 blur-[1px] pointer-events-none lg:grid-cols-4">
+          {["Ticket médio", "Total pedidos", "Receita total", "Lucro total"].map((label) => (
+            <div key={label} className="card-wuili p-5">
+              <p className="text-xs font-medium text-muted-foreground">{label}</p>
+              <p className="mt-1 text-2xl font-black">R$ --</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

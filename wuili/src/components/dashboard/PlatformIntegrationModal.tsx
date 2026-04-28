@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import PlatformLogo from "./PlatformLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import UpgradeLimitModal from "@/components/UpgradeLimitModal";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 type Platform = {
   id: string;
@@ -42,8 +44,10 @@ type Props = { open: boolean; onClose: () => void };
 
 const PlatformIntegrationModal = ({ open, onClose }: Props) => {
   const { user } = useAuth();
+  const planLimits = usePlanLimits();
   const [connectedML, setConnectedML] = useState(false);
   const [loadingML, setLoadingML] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -61,6 +65,12 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
 
   const connectML = () => {
     if (!user) return;
+
+    if (!planLimits.loading && !connectedML && !planLimits.canConnectMarketplace) {
+      setUpgradeModalOpen(true);
+      return;
+    }
+
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
   };
@@ -80,6 +90,7 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
     }
 
     setConnectedML(false);
+    void planLimits.refreshUsage();
     toast.success("Mercado Livre desconectado");
   };
 
@@ -186,6 +197,13 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
           </div>
         </div>
       </div>
+      <UpgradeLimitModal
+        open={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        title="Limite de marketplaces atingido"
+        message="Seu plano atual não permite conectar outro marketplace. Faça upgrade para liberar mais integrações."
+        cta="Ver planos"
+      />
     </div>
   );
 };
