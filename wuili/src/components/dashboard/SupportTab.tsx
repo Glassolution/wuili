@@ -442,7 +442,7 @@ Como posso te ajudar hoje?`;
               <div className="rounded-2xl border border-[#E5E5E5] bg-white p-4 text-[13px] leading-6 text-[#525252] dark:border-white/10 dark:bg-[#151515] dark:text-zinc-300">
                 <p className="font-semibold text-[#0A0A0A] dark:text-white">Atendimento humano iniciado</p>
                 <p className="mt-1">
-                  Suporte humano acionado. Em breve um de nossos atendentes entrará em contato.
+                  Suporte acionado. Em breve um atendente entrará em contato.
                 </p>
               </div>
 

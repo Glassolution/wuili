@@ -71,6 +71,15 @@ type AdminTicket = {
   last_message_at: string | null;
 };
 
+type SupportTicketRow = {
+  id: string;
+  user_id: string;
+  status: "open" | "closed";
+  ai_active: boolean | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type SupportMessage = {
   id: string;
   ticket_id: string;
@@ -92,6 +101,126 @@ const formatSupportTime = (value: string | null) => {
 };
 
 const getTicketNeedsReply = (ticket: AdminTicket) => ticket.last_sender === "user";
+
+const adminRoleChecks = (userId: string) => [
+  { _role: "admin" },
+  { role: "admin" },
+  { _user_id: userId, _role: "admin" },
+  { user_id: userId, role: "admin" },
+];
+
+async function checkAdminAccess(userId: string) {
+  for (const params of adminRoleChecks(userId)) {
+    const { data, error } = await (supabase as any).rpc("has_role", params);
+    if (!error && data === true) return true;
+  }
+
+  const { data, error } = await (supabase as any)
+    .from("profiles")
+    .select("role")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) return false;
+  return data?.role === "admin";
+}
+
+const normalizeTicket = (ticket: any): AdminTicket => ({
+  id: ticket.id,
+  user_id: ticket.user_id,
+  status: ticket.status,
+  ai_active: ticket.ai_active ?? true,
+  admin_last_seen_at: ticket.admin_last_seen_at ?? null,
+  created_at: ticket.created_at,
+  updated_at: ticket.updated_at,
+  user_name: ticket.user_name ?? ticket.display_name ?? null,
+  user_email: ticket.user_email ?? ticket.email ?? null,
+  last_message: ticket.last_message ?? null,
+  last_sender: ticket.last_sender ?? null,
+  last_message_at: ticket.last_message_at ?? null,
+});
+
+async function fetchAdminTickets(): Promise<AdminTicket[]> {
+  const { data: rpcData, error: rpcError } = await (supabase as any)
+    .rpc("get_support_tickets_admin", { p_status: "open" });
+
+  if (!rpcError && Array.isArray(rpcData)) {
+    return rpcData.map(normalizeTicket);
+  }
+
+  const { data: ticketsData, error: ticketsError } = await (supabase as any)
+    .from("support_tickets")
+    .select("id,user_id,status,ai_active,created_at,updated_at")
+    .eq("status", "open")
+    .order("updated_at", { ascending: false });
+
+  if (ticketsError) throw ticketsError;
+
+  const tickets = (ticketsData ?? []) as SupportTicketRow[];
+  if (tickets.length === 0) return [];
+
+  const ticketIds = tickets.map((ticket) => ticket.id);
+  const userIds = Array.from(new Set(tickets.map((ticket) => ticket.user_id)));
+
+  const profilesByUser = new Map<string, { display_name: string | null; email?: string | null }>();
+  const { data: profilesWithEmail, error: profilesWithEmailError } = await (supabase as any)
+    .from("profiles")
+    .select("user_id,display_name,email")
+    .in("user_id", userIds);
+
+  if (!profilesWithEmailError) {
+    for (const profile of profilesWithEmail ?? []) {
+      profilesByUser.set(profile.user_id, {
+        display_name: profile.display_name ?? null,
+        email: profile.email ?? null,
+      });
+    }
+  } else {
+    const { data: profiles } = await (supabase as any)
+      .from("profiles")
+      .select("user_id,display_name")
+      .in("user_id", userIds);
+
+    for (const profile of profiles ?? []) {
+      profilesByUser.set(profile.user_id, { display_name: profile.display_name ?? null });
+    }
+  }
+
+  const { data: messagesData, error: messagesError } = await (supabase as any)
+    .from("support_messages")
+    .select("id,ticket_id,user_id,message,sender,created_at")
+    .in("ticket_id", ticketIds)
+    .order("created_at", { ascending: false });
+
+  if (messagesError) throw messagesError;
+
+  const lastMessageByTicket = new Map<string, SupportMessage>();
+  for (const message of (messagesData ?? []) as SupportMessage[]) {
+    if (!lastMessageByTicket.has(message.ticket_id)) {
+      lastMessageByTicket.set(message.ticket_id, message);
+    }
+  }
+
+  return tickets.map((ticket) => {
+    const profile = profilesByUser.get(ticket.user_id);
+    const lastMessage = lastMessageByTicket.get(ticket.id);
+
+    return {
+      id: ticket.id,
+      user_id: ticket.user_id,
+      status: ticket.status,
+      ai_active: ticket.ai_active ?? true,
+      admin_last_seen_at: null,
+      created_at: ticket.created_at,
+      updated_at: ticket.updated_at,
+      user_name: profile?.display_name ?? null,
+      user_email: profile?.email ?? null,
+      last_message: lastMessage?.message ?? null,
+      last_sender: lastMessage?.sender ?? null,
+      last_message_at: lastMessage?.created_at ?? null,
+    };
+  });
+}
 
 // ── Message bubble ────────────────────────────────────────────────────────────
 
@@ -441,13 +570,7 @@ function AdminSupportPanel() {
   const { data: tickets = [], isLoading: loadingTickets } = useQuery({
     queryKey: ["chat-admin-support-tickets"],
     enabled: !!user?.id,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .rpc("get_support_tickets_admin", { p_status: "open" });
-
-      if (error) throw error;
-      return (data ?? []) as AdminTicket[];
-    },
+    queryFn: fetchAdminTickets,
   });
 
   const selectedTicket = useMemo(
@@ -480,25 +603,6 @@ function AdminSupportPanel() {
       return (data ?? []) as SupportMessage[];
     },
   });
-
-  const touchSeen = useMutation({
-    mutationFn: async (ticketId: string) => {
-      const { error } = await (supabase as any)
-        .from("support_tickets")
-        .update({ admin_last_seen_at: new Date().toISOString() })
-        .eq("id", ticketId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
-    },
-  });
-
-  useEffect(() => {
-    if (selectedTicket?.id) touchSeen.mutate(selectedTicket.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTicket?.id]);
 
   useEffect(() => {
     const channel = supabase
@@ -663,13 +767,17 @@ function AdminSupportPanel() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-[13.5px] font-bold text-[#0A0A0A] dark:text-white">
-                          {ticket.user_email || ticket.user_name || "Usuário sem email"}
+                          {ticket.user_email || ticket.user_name || `Usuário ${ticket.user_id.slice(0, 8)}`}
                         </p>
                         <p className="mt-1 text-[11px] text-[#A3A3A3] dark:text-zinc-500">
                           Aberto em {formatSupportTime(ticket.created_at)}
                         </p>
                       </div>
-                      {needsReply && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-600" />}
+                      {needsReply && (
+                        <span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                          Novo
+                        </span>
+                      )}
                     </div>
 
                     <p className="mt-3 line-clamp-2 text-[12px] leading-5 text-[#525252] dark:text-zinc-300">
@@ -706,7 +814,7 @@ function AdminSupportPanel() {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-bold text-[#0A0A0A] dark:text-white">
-                    {selectedTicket.user_email || selectedTicket.user_name || "Usuário"}
+                    {selectedTicket.user_email || selectedTicket.user_name || `Usuário ${selectedTicket.user_id.slice(0, 8)}`}
                   </p>
                   <p className="text-[11.5px] text-[#737373] dark:text-zinc-400">
                     Ticket aberto em {formatSupportTime(selectedTicket.created_at)}
@@ -803,14 +911,14 @@ function AdminSupportBubble({ msg }: { msg: SupportMessage }) {
   const isAi = msg.sender === "ai";
 
   return (
-    <div className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
+    <div className={`flex ${isAdmin ? "justify-end" : isAi ? "justify-center" : "justify-start"}`}>
       <div
         className={[
           "max-w-[74%] rounded-2xl px-4 py-2.5 text-[13.5px] leading-6 shadow-sm",
           isAdmin
-            ? "rounded-br-sm bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
+            ? "rounded-br-sm bg-blue-600 text-white dark:bg-blue-500 dark:text-white"
             : isAi
-              ? "rounded-bl-sm bg-blue-50 text-blue-950 dark:bg-blue-500/10 dark:text-blue-100"
+              ? "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
               : "rounded-bl-sm bg-white text-[#0A0A0A] dark:bg-zinc-900 dark:text-white",
         ].join(" ")}
       >
@@ -835,22 +943,17 @@ export default function ChatFornecedoresPage() {
   const [mobileView,   setMobileView]   = useState<"list" | "chat">("list");
   const [activeArea, setActiveArea] = useState<ChatArea>("suppliers");
 
-  const { data: profile } = useQuery({
-    queryKey: ["chat-profile-role", user?.id],
+  const { data: isAdmin = false } = useQuery({
+    queryKey: ["chat-admin-access", user?.id],
     enabled: !!user?.id,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("profiles")
-        .select("role")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as { role: string | null } | null;
-    },
+    queryFn: () => checkAdminAccess(user!.id),
   });
 
-  const isAdmin = profile?.role === "admin";
+  useEffect(() => {
+    if (!isAdmin && activeArea === "support") {
+      setActiveArea("suppliers");
+    }
+  }, [activeArea, isAdmin]);
 
   const handleSelect = (id: string, name: string) => {
     setSelectedId(id);
