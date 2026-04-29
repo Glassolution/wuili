@@ -15,6 +15,7 @@ type DBNotif = {
   message: string;
   read: boolean;
   created_at: string;
+  action_url: string | null;
   metadata: Record<string, unknown> | null;
 };
 
@@ -25,11 +26,14 @@ type Notif = {
   descricao: string;
   tempo: string;
   lida: boolean;
+  actionUrl: string | null;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function mapType(type: string): NotifType {
+  if (type === "warning")           return "warning";
+  if (type === "error")             return "error";
   if (type === "fulfillment_error") return "error";
   if (type === "low_balance")       return "warning";
   if (type === "success")           return "success";
@@ -60,6 +64,7 @@ function toNotif(n: DBNotif): Notif {
     descricao: n.message,
     tempo:    formatTempo(n.created_at),
     lida:     n.read,
+    actionUrl: n.action_url,
   };
 }
 
@@ -107,6 +112,30 @@ const NotificacoesPopover = () => {
 
   const notifs  = rawNotifs.map(toNotif);
   const naoLidas = notifs.filter((n) => !n.lida).length;
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          void qc.invalidateQueries({ queryKey: ["notifications", user.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc, user?.id]);
 
   // ── Mark single as read ──────────────────────────────────────────────────
   const markRead = useMutation({
@@ -228,6 +257,18 @@ const NotificacoesPopover = () => {
                       {n.descricao}
                     </p>
                     <p className="text-[10px] text-muted-foreground/60 mt-1">{n.tempo}</p>
+                    {n.actionUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          markRead.mutate(n.id);
+                          window.open(n.actionUrl!, "_blank", "noopener,noreferrer");
+                        }}
+                        className="mt-2 text-[11px] font-bold text-foreground underline underline-offset-2"
+                      >
+                        Abrir ação
+                      </button>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
                     {!n.lida && (

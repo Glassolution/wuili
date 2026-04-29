@@ -17,6 +17,7 @@ async function createNotification(
   type: string,
   title: string,
   message: string,
+  actionUrl?: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
   try {
@@ -26,12 +27,80 @@ async function createNotification(
       type,
       title,
       message,
+      action_url: actionUrl ?? null,
       read:     false,
       metadata: metadata ?? null,
     });
   } catch (e) {
     console.error("[cj-fulfill] createNotification error:", e);
   }
+}
+
+function extractBalance(payload: unknown): number {
+  const raw = payload as any;
+  const data = raw?.data ?? raw;
+  const candidates = [
+    data?.balance,
+    data?.availableBalance,
+    data?.available_balance,
+    data?.amount,
+    data?.walletBalance,
+    data?.accountBalance,
+    Array.isArray(data) ? data[0]?.balance : undefined,
+    Array.isArray(data) ? data[0]?.availableBalance : undefined,
+  ];
+
+  for (const value of candidates) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return 0;
+}
+
+async function getCjBalance(cjAccessToken: string): Promise<number> {
+  const balanceRes = await fetch(
+    "https://developers.cjdropshipping.com/api2.0/v1/account/balance",
+    { headers: { "CJ-Access-Token": cjAccessToken } }
+  );
+  const balanceData = await balanceRes.json().catch(() => null);
+
+  if (!balanceRes.ok) {
+    throw new Error(balanceData?.message ?? balanceData?.msg ?? `Erro ao consultar saldo CJ (${balanceRes.status})`);
+  }
+
+  return extractBalance(balanceData);
+}
+
+async function markAwaitingPayment(
+  adminClient: ReturnType<typeof createClient>,
+  order: any,
+  orderId: string,
+  availableBalance: number,
+  estimatedCost: number
+): Promise<void> {
+  const message =
+    `Saldo CJ insuficiente. Disponível: $${availableBalance.toFixed(2)}. ` +
+    `Necessário: $${estimatedCost.toFixed(2)}`;
+
+  await adminClient
+    .from("orders")
+    .update({
+      status: "awaiting_payment",
+      fulfillment_status: "awaiting_payment",
+      fulfillment_error: message,
+    })
+    .eq("id", orderId);
+
+  await createNotification(
+    adminClient,
+    order.user_id,
+    "warning",
+    "Saldo insuficiente na CJ",
+    "Você tem um pedido aguardando envio. Recarregue sua conta na CJ Dropshipping para processar automaticamente.",
+    "https://cjdropshipping.com/wallet.html",
+    { order_id: orderId, required: estimatedCost, available: availableBalance }
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -124,35 +193,13 @@ Deno.serve(async (req) => {
 
     // ── Check CJ wallet balance before placing order ───────────────────────
     try {
-      const balanceRes  = await fetch(
-        "https://developers.cjdropshipping.com/api2.0/v1/shopping/wallet/queryBalance",
-        { headers: { Authorization: `Bearer ${cjAccessToken}` } }
-      );
-      const balanceData = await balanceRes.json().catch(() => null);
-      const availableBalance = Number(balanceData?.data?.balance ?? 0);
+      const availableBalance = await getCjBalance(cjAccessToken);
       const estimatedCost    = Number(order.cost_price ?? 0);
 
       if (estimatedCost > 0 && availableBalance < estimatedCost) {
-        const message =
-          `Saldo CJ insuficiente. Disponível: $${availableBalance.toFixed(2)}. ` +
-          `Necessário: $${estimatedCost.toFixed(2)}`;
+        await markAwaitingPayment(adminClient, order, order_id, availableBalance, estimatedCost);
 
-        await adminClient
-          .from("orders")
-          .update({ fulfillment_status: "error", fulfillment_error: message })
-          .eq("id", order_id);
-
-        await createNotification(
-          adminClient,
-          order.user_id,
-          "low_balance",
-          "Saldo insuficiente na CJ",
-          `Recarregue seu saldo na CJ Dropshipping para processar pedidos. ` +
-            `Saldo atual: $${availableBalance.toFixed(2)}`,
-          { order_id, required: estimatedCost, available: availableBalance }
-        );
-
-        return new Response(JSON.stringify({ success: false, error: message }), {
+        return new Response(JSON.stringify({ success: false, error: "Saldo insuficiente na CJ", awaiting_payment: true }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -215,6 +262,7 @@ Deno.serve(async (req) => {
         "Erro ao processar pedido",
         `O pedido ${order.external_order_id ?? order_id} não pôde ser enviado para a CJ: ` +
           `${message}. Acesse Clientes → Entregas para reenviar.`,
+        undefined,
         { order_id, error: message }
       );
 

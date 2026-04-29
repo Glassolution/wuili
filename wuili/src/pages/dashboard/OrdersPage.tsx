@@ -57,6 +57,7 @@ type TabFilter = "all" | "in_progress" | "delivered" | "cancelled";
 type DateRangeFilter = "all" | "7d" | "30d" | "90d" | "month";
 
 const STATUS_GROUP: Record<string, TabFilter> = {
+  awaiting_payment: "in_progress",
   pending: "in_progress",
   paid: "in_progress",
   approved: "in_progress",
@@ -67,6 +68,8 @@ const STATUS_GROUP: Record<string, TabFilter> = {
   cancelled: "cancelled",
   canceled: "cancelled",
 };
+
+const CJ_WALLET_URL = "https://cjdropshipping.com/wallet.html";
 
 const STATUS_COPY: Record<TabFilter, { label: string; dot: string; className: string }> = {
   all: {
@@ -125,6 +128,21 @@ const formatOrderDate = (order: Order) => {
 
 const getStatusGroup = (status?: string | null): TabFilter =>
   STATUS_GROUP[(status ?? "").toLowerCase()] ?? "in_progress";
+
+const isAwaitingCjPayment = (order: Order) =>
+  order.status === "awaiting_payment" || order.fulfillment_status === "awaiting_payment";
+
+const getOrderStatusCopy = (order: Order) => {
+  if (isAwaitingCjPayment(order)) {
+    return {
+      label: "Aguardando recarga",
+      dot: "bg-amber-500",
+      className: "bg-amber-50 text-amber-700",
+    };
+  }
+
+  return STATUS_COPY[getStatusGroup(order.status)];
+};
 
 const getOrderDate = (order: Order) => new Date(order.ordered_at ?? order.created_at);
 
@@ -229,6 +247,10 @@ const copyToClipboard = async (text: string, successMessage: string) => {
   }
 };
 
+const openCjWallet = () => {
+  window.open(CJ_WALLET_URL, "_blank", "noopener,noreferrer");
+};
+
 const OrderImage = ({ order }: { order: Order }) => {
   const itemCount = getProductItems(order.product_title).length;
   const extraItems = Math.max(itemCount - 1, 0);
@@ -318,7 +340,7 @@ const OrdersPage = () => {
 
       if (error) throw error;
     },
-    onSuccess: async () => {
+    onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ["orders", user?.id] });
     },
   });
@@ -492,8 +514,8 @@ const OrdersPage = () => {
             </div>
           ) : (
             filteredOrders.map((order) => {
-              const statusGroup = getStatusGroup(order.status);
-              const status = STATUS_COPY[statusGroup];
+              const status = getOrderStatusCopy(order);
+              const awaitingPayment = isAwaitingCjPayment(order);
               const items = getProductItems(order.product_title);
               const visibleItems = items.slice(0, 3);
               const hiddenCount = Math.max(items.length - visibleItems.length, 0);
@@ -541,6 +563,23 @@ const OrdersPage = () => {
                       <p className="mt-2 text-[20px] font-bold leading-none text-[#151312] dark:text-white sm:text-[22px]">
                         {formatBRL(order.sale_price)}
                       </p>
+                      {awaitingPayment && (
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openCjWallet();
+                            }}
+                            className="inline-flex h-9 items-center justify-center rounded-full bg-amber-500 px-4 text-[13px] font-bold text-white transition hover:bg-amber-600"
+                          >
+                            Recarregar CJ
+                          </button>
+                          <p className="text-[13px] leading-5 text-amber-700">
+                            Recarregue sua conta na CJ e o pedido será processado automaticamente em até 2 horas
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -585,6 +624,7 @@ const DeliveryDetailView = ({
   const profit = getProfit(order);
   const cjProductUrl = getCjProductUrl(order);
   const customerText = getCustomerCopyText(order);
+  const awaitingPayment = isAwaitingCjPayment(order);
 
   const openCjProduct = () => {
     if (!cjProductUrl) {
@@ -673,6 +713,26 @@ const DeliveryDetailView = ({
             Marcar como enviado
           </button>
         </div>
+
+        {awaitingPayment && (
+          <div className="rounded-[20px] border border-amber-200 bg-amber-50 p-5 text-amber-900">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-[15px] font-bold">Aguardando recarga na CJ</p>
+                <p className="mt-1 text-[13px] leading-5">
+                  Recarregue sua conta na CJ e o pedido será processado automaticamente em até 2 horas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openCjWallet}
+                className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-amber-500 px-5 text-[13px] font-bold text-white transition hover:bg-amber-600"
+              >
+                Recarregar CJ
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="rounded-[24px] border border-[#E8E5E2] bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 md:p-7">
@@ -805,6 +865,7 @@ const DeliveryStep = ({
   isSendingToCj,
 }: DeliveryStepProps) => {
   const profit = getProfit(order);
+  const awaitingPayment = isAwaitingCjPayment(order);
   const tone = {
     done: {
       icon: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -845,6 +906,12 @@ const DeliveryStep = ({
 
         {step.number === 2 && (
           <div className="mt-5 space-y-5">
+            {awaitingPayment && (
+              <div className="rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-medium leading-5 text-amber-800">
+                Recarregue sua conta na CJ e o pedido será processado automaticamente em até 2 horas.
+              </div>
+            )}
+
             <div className="grid gap-3 md:grid-cols-3">
               <MetricCard label="Custo do produto na CJ" value={formatMaybeBRL(order.cost_price)} />
               <MetricCard label="Valor que você vai receber do ML" value={formatBRL(order.sale_price)} />
@@ -854,11 +921,11 @@ const DeliveryStep = ({
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={onOpenCjProduct}
+                onClick={awaitingPayment ? openCjWallet : onOpenCjProduct}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition hover:bg-[#1A1A1A]"
               >
                 <ExternalLink size={15} />
-                Comprar na CJ
+                {awaitingPayment ? "Recarregar CJ" : "Comprar na CJ"}
               </button>
               <button
                 type="button"

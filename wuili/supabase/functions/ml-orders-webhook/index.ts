@@ -34,6 +34,73 @@ function err(message: string, status = 500) {
   });
 }
 
+function extractBalance(payload: unknown): number {
+  const raw = payload as any;
+  const data = raw?.data ?? raw;
+  const candidates = [
+    data?.balance,
+    data?.availableBalance,
+    data?.available_balance,
+    data?.amount,
+    data?.walletBalance,
+    data?.accountBalance,
+    Array.isArray(data) ? data[0]?.balance : undefined,
+    Array.isArray(data) ? data[0]?.availableBalance : undefined,
+  ];
+
+  for (const value of candidates) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return 0;
+}
+
+async function getCjAccessToken(supabaseUrl: string, serviceRoleKey: string): Promise<string | null> {
+  const authRes = await fetch(`${supabaseUrl}/functions/v1/cj-auth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+  });
+  const authData = await authRes.json().catch(() => ({}));
+  return authData?.accessToken ?? null;
+}
+
+async function getCjBalance(cjAccessToken: string): Promise<number> {
+  const balanceRes = await fetch(
+    "https://developers.cjdropshipping.com/api2.0/v1/account/balance",
+    { headers: { "CJ-Access-Token": cjAccessToken } }
+  );
+  const balanceData = await balanceRes.json().catch(() => null);
+
+  if (!balanceRes.ok) {
+    throw new Error(balanceData?.message ?? balanceData?.msg ?? `Erro ao consultar saldo CJ (${balanceRes.status})`);
+  }
+
+  return extractBalance(balanceData);
+}
+
+async function createLowBalanceNotification(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  orderId: string,
+  required: number,
+  available: number
+): Promise<void> {
+  try {
+    await (adminClient as any).from("notifications").insert({
+      user_id: userId,
+      title: "Saldo insuficiente na CJ",
+      message: "Você tem um pedido aguardando envio. Recarregue sua conta na CJ Dropshipping para processar automaticamente.",
+      action_url: "https://cjdropshipping.com/wallet.html",
+      type: "warning",
+      read: false,
+      metadata: { order_id: orderId, required, available },
+    });
+  } catch (e) {
+    console.error("[ml-orders-webhook] createLowBalanceNotification error:", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -180,6 +247,35 @@ Deno.serve(async (req) => {
 
     const salePrice = Number(mlOrder.total_amount ?? item?.unit_price ?? 0);
     const profit    = costPrice !== null ? salePrice - costPrice : null;
+    let orderStatus = "paid";
+    let fulfillmentStatus = cjVariantId ? "pending" : "no_variant";
+    let fulfillmentError: string | null = null;
+    let shouldTriggerFulfillment = Boolean(cjVariantId);
+    let balanceCheck: { required: number; available: number } | null = null;
+
+    if (cjVariantId && Number(costPrice ?? 0) > 0) {
+      try {
+        const cjToken = await getCjAccessToken(supabaseUrl, serviceRoleKey);
+        if (cjToken) {
+          const availableBalance = await getCjBalance(cjToken);
+          const requiredBalance = Number(costPrice ?? 0);
+
+          if (availableBalance < requiredBalance) {
+            orderStatus = "awaiting_payment";
+            fulfillmentStatus = "awaiting_payment";
+            fulfillmentError =
+              `Saldo CJ insuficiente. Disponível: $${availableBalance.toFixed(2)}. ` +
+              `Necessário: $${requiredBalance.toFixed(2)}`;
+            shouldTriggerFulfillment = false;
+            balanceCheck = { required: requiredBalance, available: availableBalance };
+          }
+        } else {
+          console.warn("[ml-orders-webhook] CJ token unavailable; balance check skipped");
+        }
+      } catch (balanceErr) {
+        console.warn("[ml-orders-webhook] CJ balance check failed; fulfillment will continue:", balanceErr);
+      }
+    }
 
     // ── 6. INSERT order ────────────────────────────────────────────────────
     const { data: newOrder, error: insertError } = await adminClient
@@ -205,8 +301,9 @@ Deno.serve(async (req) => {
         cj_product_id:       cjProductId,
         cj_product_url:      cjProductUrl,
         cj_variant_id:       cjVariantId,
-        status:              "paid",
-        fulfillment_status:  cjVariantId ? "pending" : "no_variant",
+        status:              orderStatus,
+        fulfillment_status:  fulfillmentStatus,
+        fulfillment_error:   fulfillmentError,
         ordered_at:          mlOrder.date_created ?? new Date().toISOString(),
       })
       .select("id")
@@ -220,8 +317,18 @@ Deno.serve(async (req) => {
     const internalOrderId = newOrder.id as string;
     console.log("[ml-orders-webhook] order saved:", internalOrderId);
 
+    if (balanceCheck) {
+      await createLowBalanceNotification(
+        adminClient,
+        integration.user_id,
+        internalOrderId,
+        balanceCheck.required,
+        balanceCheck.available
+      );
+    }
+
     // ── 7. Trigger CJ fulfillment if we have a variant ────────────────────
-    if (cjVariantId && internalOrderId) {
+    if (shouldTriggerFulfillment && internalOrderId) {
       console.log("[ml-orders-webhook] triggering cj-fulfill for:", internalOrderId);
       // Fire-and-forget — don't await so ML gets a fast 200 response
       fetch(`${supabaseUrl}/functions/v1/cj-fulfill`, {

@@ -38,6 +38,105 @@ const CJ_STATUS_MAP: Record<string, { status: string; fulfillment: string }> = {
   "CANCELLED":  { status: "cancelled",  fulfillment: "error"      },
 };
 
+function extractBalance(payload: unknown): number {
+  const raw = payload as any;
+  const data = raw?.data ?? raw;
+  const candidates = [
+    data?.balance,
+    data?.availableBalance,
+    data?.available_balance,
+    data?.amount,
+    data?.walletBalance,
+    data?.accountBalance,
+    Array.isArray(data) ? data[0]?.balance : undefined,
+    Array.isArray(data) ? data[0]?.availableBalance : undefined,
+  ];
+
+  for (const value of candidates) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return 0;
+}
+
+async function getCjBalance(cjToken: string): Promise<number> {
+  const balanceRes = await fetch(
+    "https://developers.cjdropshipping.com/api2.0/v1/account/balance",
+    { headers: { "CJ-Access-Token": cjToken } }
+  );
+  const balanceData = await balanceRes.json().catch(() => null);
+
+  if (!balanceRes.ok) {
+    throw new Error(balanceData?.message ?? balanceData?.msg ?? `Erro ao consultar saldo CJ (${balanceRes.status})`);
+  }
+
+  return extractBalance(balanceData);
+}
+
+async function retryAwaitingPaymentOrders(
+  adminClient: ReturnType<typeof createClient>,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  cjToken: string
+): Promise<{ checked: number; retried: number; skipped: number }> {
+  const { data: orders, error } = await adminClient
+    .from("orders")
+    .select("id, cost_price")
+    .eq("status", "awaiting_payment")
+    .eq("fulfillment_status", "awaiting_payment")
+    .not("cj_variant_id", "is", null);
+
+  if (error) throw error;
+  if (!orders || orders.length === 0) return { checked: 0, retried: 0, skipped: 0 };
+
+  let availableBalance = 0;
+  try {
+    availableBalance = await getCjBalance(cjToken);
+  } catch (balanceErr) {
+    console.warn("[cj-tracking-sync] balance check for awaiting_payment failed:", balanceErr);
+    return { checked: orders.length, retried: 0, skipped: orders.length };
+  }
+
+  let retried = 0;
+  let skipped = 0;
+
+  for (const order of orders) {
+    const estimatedCost = Number(order.cost_price ?? 0);
+    if (estimatedCost > 0 && availableBalance < estimatedCost) {
+      skipped++;
+      continue;
+    }
+
+    try {
+      const fulfillRes = await fetch(`${supabaseUrl}/functions/v1/cj-fulfill`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({ order_id: order.id }),
+      });
+      const fulfillData = await fulfillRes.json().catch(() => ({}));
+
+      if (fulfillRes.ok && fulfillData?.success !== false) {
+        retried++;
+        availableBalance = Math.max(availableBalance - estimatedCost, 0);
+      } else {
+        skipped++;
+        console.warn("[cj-tracking-sync] retry fulfillment failed:", order.id, JSON.stringify(fulfillData));
+      }
+    } catch (fulfillErr) {
+      skipped++;
+      console.error("[cj-tracking-sync] retry fulfillment error:", order.id, fulfillErr);
+    }
+
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  return { checked: orders.length, retried, skipped };
+}
+
 // ── ML Token helpers ───────────────────────────────────────────────────────────
 
 type MLIntegration = {
@@ -202,6 +301,13 @@ Deno.serve(async (req) => {
       throw new Error("Falha ao obter token CJ: " + (authData?.error ?? "resposta inválida"));
     }
 
+    const awaitingPayment = await retryAwaitingPaymentOrders(
+      adminClient,
+      supabaseUrl,
+      serviceRoleKey,
+      cjToken
+    );
+
     // ── Fetch all orders in 'processing' state ────────────────────────────────
     const { data: orders, error: fetchErr } = await adminClient
       .from("orders")
@@ -212,7 +318,7 @@ Deno.serve(async (req) => {
     if (fetchErr) throw fetchErr;
     if (!orders || orders.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, checked: 0, updated: 0 }),
+        JSON.stringify({ success: true, checked: 0, updated: 0, awaiting_payment: awaitingPayment }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -298,7 +404,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, checked: orders.length, updated }),
+      JSON.stringify({ success: true, checked: orders.length, updated, awaiting_payment: awaitingPayment }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
