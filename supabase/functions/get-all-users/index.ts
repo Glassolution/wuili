@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         id: p.id,
         user_id: p.user_id,
         display_name: p.display_name,
-        email: emailByUser.get(p.user_id) ?? null,
+        email: emailByUser.get(p.user_id) ?? emailByUser.get(p.id) ?? null,
         whatsapp: p.whatsapp,
         plano: p.plano,
         nicho: p.nicho,
