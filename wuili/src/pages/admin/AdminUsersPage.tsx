@@ -3,15 +3,12 @@ import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Check,
-  CheckCircle2,
-  ChevronsUpDown,
   Eye,
   Loader2,
   Lock,
   MoreVertical,
   Search,
   UserX,
-  XCircle,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,7 +48,7 @@ type SubscriptionRow = {
 };
 
 type UserPlanFilter = "all" | "free" | "pro" | "business";
-type UserSortKey = "id" | "name" | "email" | "created_at" | "plan" | "ml_connected" | "orders_count";
+type UserSortKey = "id" | "name" | "email" | "created_at" | "status" | "ml_connected" | "orders_count";
 type SortDirection = "asc" | "desc";
 
 const getProfileUserId = (profile: ProfileRow) => profile.user_id ?? profile.id;
@@ -168,7 +165,7 @@ const formatDate = (value: string | null) => {
   if (!value) return "Sem data";
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
-    month: "short",
+    month: "2-digit",
     year: "numeric",
   }).format(new Date(value));
 };
@@ -199,9 +196,11 @@ const formatStatus = (status?: string | null) => {
   const normalized = (status ?? "inactive").toLowerCase();
   if (["active", "approved", "authorized", "paid"].includes(normalized)) return "Ativo";
   if (["cancelled", "canceled"].includes(normalized)) return "Cancelado";
-  if (normalized === "refunded") return "Reembolsado";
-  return status ?? "Inativo";
+  return "Inativo";
 };
+
+const isActiveStatus = (status?: string | null) =>
+  ["active", "approved", "authorized", "paid"].includes((status ?? "").toLowerCase());
 
 const getInitials = (name?: string | null, email?: string | null) => {
   const source = name || email || "VL";
@@ -219,7 +218,7 @@ const getUserSortValue = (row: AdminUserRow, key: UserSortKey) => {
   if (key === "name") return row.name ?? "";
   if (key === "email") return row.email ?? "";
   if (key === "created_at") return new Date(row.created_at).getTime();
-  if (key === "plan") return formatPlan(row.plan);
+  if (key === "status") return formatStatus(row.subscription_status);
   if (key === "ml_connected") return row.ml_connected ? 1 : 0;
   if (key === "orders_count") return row.orders_count ?? 0;
   return "";
@@ -367,7 +366,7 @@ const AdminUsersPage = () => {
         </div>
       </header>
 
-      <section className="mt-8 rounded-[24px] border border-[#222] bg-[#111]">
+      <section className="mt-8 rounded-[20px] border border-[#222] bg-[#0a0a0a]">
         <div className="border-b border-[#222] px-5 pt-5">
           <div className="flex flex-wrap gap-7">
             {userPlanTabs.map((tab) => (
@@ -403,20 +402,20 @@ const AdminUsersPage = () => {
         ) : (
           <>
             <div className="overflow-x-auto p-4">
-              <table className="w-full min-w-[1120px] border-separate border-spacing-y-3">
+              <table className="w-full min-w-[1120px] border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="text-left text-[12px] font-bold text-white/72">
-                    <th className="rounded-l-xl bg-[#1a1a1a] px-4 py-4">
+                  <tr className="text-left text-[12px] font-bold text-[#888]">
+                    <th className="rounded-l-xl border-y border-l border-[#222] bg-[#111] px-4 py-4">
                       <AdminCheckbox checked={allVisibleSelected} onChange={toggleAllVisible} />
                     </th>
                     <SortableHeader label="ID" sortKey="id" current={sortConfig} onSort={updateSort} />
                     <SortableHeader label="Usuário" sortKey="name" current={sortConfig} onSort={updateSort} />
                     <SortableHeader label="Email" sortKey="email" current={sortConfig} onSort={updateSort} />
                     <SortableHeader label="Data cadastro" sortKey="created_at" current={sortConfig} onSort={updateSort} />
-                    <SortableHeader label="Plano" sortKey="plan" current={sortConfig} onSort={updateSort} />
+                    <SortableHeader label="Status" sortKey="status" current={sortConfig} onSort={updateSort} />
                     <SortableHeader label="ML Conectado" sortKey="ml_connected" current={sortConfig} onSort={updateSort} />
                     <SortableHeader label="Pedidos" sortKey="orders_count" current={sortConfig} onSort={updateSort} />
-                    <th className="rounded-r-xl bg-[#1a1a1a] px-4 py-4 text-right">Ação</th>
+                    <th className="rounded-r-xl border-y border-r border-[#222] bg-[#111] px-4 py-4 text-right">Ação</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -482,7 +481,7 @@ const AdminCheckbox = ({ checked, onChange }: { checked: boolean; onChange: () =
     onClick={onChange}
     className={cn(
       "flex h-5 w-5 items-center justify-center rounded-md border transition",
-      checked ? "border-[#00C853] bg-[#00C853] text-black" : "border-white/55 bg-transparent text-transparent hover:border-white"
+      checked ? "border-[#00C853] bg-[#00C853] text-white" : "border-[#444] bg-transparent text-transparent hover:border-white/70"
     )}
     aria-pressed={checked}
   >
@@ -501,37 +500,41 @@ const SortableHeader = ({
   current: { key: UserSortKey; direction: SortDirection };
   onSort: (key: UserSortKey) => void;
 }) => (
-  <th className="bg-[#1a1a1a] px-4 py-4">
+  <th className="border-y border-[#222] bg-[#111] px-4 py-4">
     <button
       type="button"
       onClick={() => onSort(sortKey)}
       className="inline-flex items-center gap-2 whitespace-nowrap text-left transition hover:text-white"
     >
       {label}
-      <ChevronsUpDown
-        size={14}
-        className={cn(current.key === sortKey ? "text-white" : "text-white/28")}
-      />
+      <span className={cn("text-[12px]", current.key === sortKey ? "text-white" : "text-white/25")}>
+        {current.key === sortKey ? (current.direction === "asc" ? "↑" : "↓") : "↕"}
+      </span>
     </button>
   </th>
 );
 
-const PlanBadge = ({ plan }: { plan?: string | null }) => {
-  const planKey = getPlanKey(plan);
+const StatusBadge = ({ status }: { status?: string | null }) => (
+  <span
+    className={cn(
+      "inline-flex rounded-full px-3 py-1 text-[11px] font-bold",
+      isActiveStatus(status) ? "bg-[#00C853] text-black" : "bg-[#333] text-[#888]"
+    )}
+  >
+    {formatStatus(status)}
+  </span>
+);
 
-  return (
-    <span
-      className={cn(
-        "rounded-full px-3 py-1 text-[11px] font-bold",
-        planKey === "business" && "bg-[#00C853] text-black",
-        planKey === "pro" && "bg-white text-black",
-        planKey === "free" && "bg-[#2b2b2b] text-white/70"
-      )}
-    >
-      {formatPlan(plan)}
-    </span>
-  );
-};
+const ConnectionBadge = ({ connected }: { connected: boolean }) => (
+  <span
+    className={cn(
+      "inline-flex rounded-full px-3 py-1 text-[11px] font-bold",
+      connected ? "bg-[#00C853] text-black" : "bg-[#333] text-[#888]"
+    )}
+  >
+    {connected ? "Sim" : "Não"}
+  </span>
+);
 
 const UserTableRow = ({
   row,
@@ -548,19 +551,19 @@ const UserTableRow = ({
 }) => (
   <tr
     className={cn(
-      "text-[13px] text-white/72 transition",
-      selected ? "bg-[#222]" : "bg-[#111] hover:bg-[#1a1a1a]"
+      "group text-[13px] text-[#888] transition",
+      selected ? "bg-[#1a1a1a]" : "bg-transparent hover:bg-[#111]"
     )}
   >
-    <td className="rounded-l-2xl border-y border-l border-[#222] px-4 py-4">
+    <td className="rounded-l-xl border-y border-l border-[#222] px-4 py-4">
       <AdminCheckbox checked={selected} onChange={onToggle} />
     </td>
-    <td className="border-y border-[#222] px-4 py-4 font-semibold text-white/62">
+    <td className="border-y border-[#222] px-4 py-4 font-semibold text-[#888]">
       {row.user_id.slice(0, 8)}
     </td>
     <td className="border-y border-[#222] px-4 py-4">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#242424] text-[12px] font-bold text-white">
+        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#222] text-[12px] font-bold text-white">
           {row.avatar_url ? (
             <img src={row.avatar_url} alt={row.name ?? "Usuário"} className="h-full w-full object-cover" />
           ) : (
@@ -569,23 +572,20 @@ const UserTableRow = ({
         </div>
         <div>
           <p className="font-bold text-white">{row.name || row.email || "Usuário"}</p>
-          <p className="mt-0.5 text-[11px] text-white/35">{formatStatus(row.subscription_status)}</p>
+          <p className="mt-0.5 text-[11px] text-[#888]">{formatPlan(row.plan)}</p>
         </div>
       </div>
     </td>
-    <td className="border-y border-[#222] px-4 py-4 text-white/52">{row.email || "Email indisponível"}</td>
-    <td className="border-y border-[#222] px-4 py-4 text-white/52">{formatDate(row.created_at)}</td>
+    <td className="border-y border-[#222] px-4 py-4 text-[#888]">{row.email || "Email indisponível"}</td>
+    <td className="border-y border-[#222] px-4 py-4 text-[#888]">{formatDate(row.created_at)}</td>
     <td className="border-y border-[#222] px-4 py-4">
-      <PlanBadge plan={row.plan} />
+      <StatusBadge status={row.subscription_status} />
     </td>
     <td className="border-y border-[#222] px-4 py-4">
-      <span className={cn("inline-flex items-center gap-2 font-bold", row.ml_connected ? "text-[#00C853]" : "text-white/42")}>
-        {row.ml_connected ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-        {row.ml_connected ? "Sim" : "Não"}
-      </span>
+      <ConnectionBadge connected={row.ml_connected} />
     </td>
     <td className="border-y border-[#222] px-4 py-4 font-bold text-white">{row.orders_count ?? 0}</td>
-    <td className="relative rounded-r-2xl border-y border-r border-[#222] px-4 py-4 text-right">
+    <td className="relative rounded-r-xl border-y border-r border-[#222] px-4 py-4 text-right">
       <button
         type="button"
         onClick={onToggleActions}
@@ -608,7 +608,7 @@ const UserTableRow = ({
             className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-red-300 transition hover:bg-red-500/10 hover:text-red-200"
           >
             <UserX size={14} />
-            Banir usuário
+            Suspender conta
           </button>
         </div>
       )}
