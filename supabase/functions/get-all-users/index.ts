@@ -75,18 +75,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Busca emails via auth admin (paginado)
+    // Busca emails via auth admin (paginado). perPage máx ~200.
     const emailByUser = new Map<string, string | null>();
     let page = 1;
-    const perPage = 1000;
+    const perPage = 200;
     while (true) {
       const { data: list, error: listErr } = await adminClient.auth.admin.listUsers({ page, perPage });
-      if (listErr || !list?.users) break;
+      if (listErr) {
+        console.error("[get-all-users] listUsers error:", listErr);
+        break;
+      }
+      if (!list?.users || list.users.length === 0) break;
       for (const u of list.users) emailByUser.set(u.id, u.email ?? null);
       if (list.users.length < perPage) break;
       page += 1;
-      if (page > 20) break; // safety
+      if (page > 50) break; // safety
     }
+    console.log("[get-all-users] emails carregados:", emailByUser.size);
 
     const users = (profiles ?? []).map((p) => {
       const sub = subsByUser.get(p.user_id) ?? null;
