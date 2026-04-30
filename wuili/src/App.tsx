@@ -33,6 +33,7 @@ import Docs from "./pages/Docs";
 import ClientesPage from "./pages/dashboard/ClientesPage";
 import AdminSupportPage from "./pages/admin/AdminSupportPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +61,7 @@ const App = () => (
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/docs" element={<Docs />} />
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+          <Route path="/admin/usuarios" element={<AdminUsersPage />} />
           <Route path="/admin/suporte" element={<AdminSupportPage />} />
           <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
