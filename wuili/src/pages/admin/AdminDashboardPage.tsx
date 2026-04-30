@@ -12,7 +12,6 @@ import {
   Search,
   Settings,
   ShieldCheck,
-  TrendingDown,
   TrendingUp,
   UserCheck,
   Users,
@@ -26,7 +25,7 @@ type AdminMetrics = {
   total_users: number;
   paid_users: number;
   mrr: number;
-  churn_rate: number;
+  total_orders: number;
 };
 
 type AdminUserRow = {
@@ -62,11 +61,170 @@ const emptyPayload: AdminDashboardPayload = {
     total_users: 0,
     paid_users: 0,
     mrr: 0,
-    churn_rate: 0,
+    total_orders: 0,
   },
   users: [],
   transactions: [],
 };
+
+type ProfileRow = {
+  id: string;
+  user_id?: string | null;
+  full_name?: string | null;
+  display_name?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+  created_at: string;
+};
+
+type SubscriptionRow = {
+  id: string;
+  user_id: string;
+  plan: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+const getProfileUserId = (profile: ProfileRow) => profile.user_id ?? profile.id;
+
+async function loadProfiles(): Promise<ProfileRow[]> {
+  const fullSelect = await (supabase as any)
+    .from("profiles")
+    .select("id,user_id,full_name,display_name,email,avatar_url,created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (!fullSelect.error) return (fullSelect.data ?? []) as ProfileRow[];
+
+  const fallback = await (supabase as any)
+    .from("profiles")
+    .select("id,user_id,display_name,avatar_url,created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (fallback.error) throw fallback.error;
+  return (fallback.data ?? []) as ProfileRow[];
+}
+
+async function fetchAdminDashboard(): Promise<AdminDashboardPayload> {
+  const [totalUsersRes, paidUsersRes, activeSubsRes, totalOrdersRes] = await Promise.all([
+    (supabase as any).from("profiles").select("id", { count: "exact", head: true }),
+    (supabase as any).from("subscriptions").select("id", { count: "exact", head: true }).eq("status", "active"),
+    (supabase as any).from("subscriptions").select("amount").eq("status", "active"),
+    (supabase as any).from("orders").select("id", { count: "exact", head: true }),
+  ]);
+
+  const metricsError = totalUsersRes.error ?? paidUsersRes.error ?? activeSubsRes.error ?? totalOrdersRes.error;
+  if (metricsError) throw metricsError;
+
+  const profiles = await loadProfiles();
+  const userIds = profiles.map(getProfileUserId).filter(Boolean);
+
+  const [subsRes, integrationsRes, ordersRes, transactionsRes] = await Promise.all([
+    userIds.length
+      ? (supabase as any)
+          .from("subscriptions")
+          .select("id,user_id,plan,amount,status,created_at,updated_at")
+          .in("user_id", userIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    userIds.length
+      ? (supabase as any)
+          .from("user_integrations")
+          .select("user_id,platform")
+          .in("user_id", userIds)
+          .eq("platform", "mercadolivre")
+      : Promise.resolve({ data: [], error: null }),
+    userIds.length
+      ? (supabase as any)
+          .from("orders")
+          .select("user_id")
+          .in("user_id", userIds)
+      : Promise.resolve({ data: [], error: null }),
+    (supabase as any)
+      .from("subscriptions")
+      .select("id,user_id,plan,amount,status,created_at,updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(20),
+  ]);
+
+  const listError = subsRes.error ?? integrationsRes.error ?? ordersRes.error ?? transactionsRes.error;
+  if (listError) throw listError;
+
+  const subscriptions = (subsRes.data ?? []) as SubscriptionRow[];
+  const latestSubByUser = new Map<string, SubscriptionRow>();
+  for (const subscription of subscriptions) {
+    if (!latestSubByUser.has(subscription.user_id)) {
+      latestSubByUser.set(subscription.user_id, subscription);
+    }
+  }
+
+  const mlConnectedUsers = new Set<string>(
+    ((integrationsRes.data ?? []) as Array<{ user_id: string | null }>)
+      .map((item) => item.user_id)
+      .filter(Boolean) as string[]
+  );
+
+  const ordersByUser = new Map<string, number>();
+  for (const order of (ordersRes.data ?? []) as Array<{ user_id: string | null }>) {
+    if (!order.user_id) continue;
+    ordersByUser.set(order.user_id, (ordersByUser.get(order.user_id) ?? 0) + 1);
+  }
+
+  const profilesByUser = new Map<string, ProfileRow>();
+  for (const profile of profiles) {
+    profilesByUser.set(getProfileUserId(profile), profile);
+  }
+
+  const users: AdminUserRow[] = profiles.map((profile) => {
+    const profileUserId = getProfileUserId(profile);
+    const subscription = latestSubByUser.get(profileUserId);
+
+    return {
+      user_id: profileUserId,
+      name: profile.full_name ?? profile.display_name ?? profile.email ?? null,
+      email: profile.email ?? null,
+      avatar_url: profile.avatar_url ?? null,
+      plan: subscription?.plan ?? null,
+      created_at: profile.created_at,
+      ml_connected: mlConnectedUsers.has(profileUserId),
+      orders_count: ordersByUser.get(profileUserId) ?? 0,
+    };
+  });
+
+  const transactions: AdminTransaction[] = ((transactionsRes.data ?? []) as SubscriptionRow[]).map((subscription) => {
+    const profile = profilesByUser.get(subscription.user_id);
+
+    return {
+      id: subscription.id,
+      user_id: subscription.user_id,
+      user_name: profile?.full_name ?? profile?.display_name ?? profile?.email ?? null,
+      email: profile?.email ?? null,
+      plan: subscription.plan,
+      amount: Number(subscription.amount ?? 0),
+      status: subscription.status,
+      created_at: subscription.updated_at ?? subscription.created_at,
+    };
+  });
+
+  const mrr = ((activeSubsRes.data ?? []) as Array<{ amount: number | null }>).reduce(
+    (sum, subscription) => sum + Number(subscription.amount ?? 0),
+    0
+  );
+
+  return {
+    metrics: {
+      total_users: totalUsersRes.count ?? 0,
+      paid_users: paidUsersRes.count ?? 0,
+      mrr,
+      total_orders: totalOrdersRes.count ?? 0,
+    },
+    users,
+    transactions,
+  };
+}
 
 const adminRoleChecks = (userId: string) => [
   { _role: "admin" },
@@ -155,11 +313,7 @@ const AdminDashboardPage = () => {
   const { data: dashboard = emptyPayload, isLoading: loadingDashboard, isError } = useQuery({
     queryKey: ["admin-dashboard-data"],
     enabled: !!user?.id && isAdmin,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("get_admin_dashboard");
-      if (error) throw error;
-      return data as AdminDashboardPayload;
-    },
+    queryFn: fetchAdminDashboard,
   });
 
   const metrics = dashboard.metrics ?? emptyPayload.metrics;
@@ -205,7 +359,7 @@ const AdminDashboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black p-3 font-['Manrope'] text-white md:p-5">
+    <div className="min-h-screen bg-black p-3 text-white md:p-5">
       <div className="mx-auto grid min-h-[calc(100vh-24px)] max-w-[1500px] gap-5 overflow-hidden rounded-[26px] border border-[#181818] bg-black p-3 md:min-h-[calc(100vh-40px)] md:grid-cols-[260px_minmax(0,1fr)] md:p-4">
         <aside className="flex flex-col rounded-[22px] border border-[#333] bg-[#0a0a0a] p-5">
           <div className="flex items-center justify-between">
@@ -276,7 +430,7 @@ const AdminDashboardPage = () => {
               <p className="text-[12px] font-bold uppercase tracking-[0.25em] text-white/35">
                 Velo Admin
               </p>
-              <h1 className="mt-2 text-[36px] font-black tracking-[-0.05em] text-white md:text-[46px]">
+              <h1 className="mt-2 font-sans text-[36px] font-bold tracking-normal text-white md:text-[46px]">
                 Dashboard
               </h1>
               <p className="mt-3 max-w-[560px] text-[14px] leading-6 text-white/50">
@@ -304,7 +458,7 @@ const AdminDashboardPage = () => {
             <div className="mt-8 rounded-[24px] border border-[#333] bg-[#111] p-8 text-white">
               <p className="text-[18px] font-bold">Não foi possível carregar o dashboard admin.</p>
               <p className="mt-2 text-[14px] text-white/50">
-                Verifique se a migration da RPC foi aplicada no Supabase.
+                Verifique as permissões de leitura das tabelas profiles, subscriptions, orders e user_integrations.
               </p>
             </div>
           ) : loadingDashboard ? (
@@ -334,10 +488,10 @@ const AdminDashboardPage = () => {
                   positive
                 />
                 <MetricCard
-                  icon={TrendingDown}
-                  label="Churn do mês"
-                  value={`${Number(metrics.churn_rate ?? 0).toFixed(1)}%`}
-                  hint="Cancelamentos no mês"
+                  icon={BarChart3}
+                  label="Total de pedidos"
+                  value={String(metrics.total_orders)}
+                  hint="Pedidos registrados na Velo"
                 />
               </section>
 
