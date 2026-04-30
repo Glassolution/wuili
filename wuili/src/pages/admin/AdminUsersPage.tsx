@@ -7,6 +7,7 @@ import {
   Loader2,
   Lock,
   MoreVertical,
+  Pencil,
   Search,
   UserX,
 } from "lucide-react";
@@ -25,6 +26,14 @@ type AdminUserRow = {
   created_at: string;
   ml_connected: boolean;
   orders_count: number;
+};
+
+type AdminUserDetails = {
+  email: string | null;
+  phone: string | null;
+  total_pago: number;
+  total_transacoes: number;
+  ultima_transacao: string | null;
 };
 
 type ProfileRow = {
@@ -138,6 +147,22 @@ async function fetchAdminUsers(): Promise<AdminUserRow[]> {
   });
 }
 
+async function fetchAdminUserDetails(userId: string): Promise<AdminUserDetails> {
+  const { data, error } = await supabase.functions.invoke("get-user-details", {
+    body: { user_id: userId },
+  });
+
+  if (error) throw error;
+
+  return {
+    email: data?.email ?? null,
+    phone: data?.phone ?? null,
+    total_pago: Number(data?.total_pago ?? 0),
+    total_transacoes: Number(data?.total_transacoes ?? 0),
+    ultima_transacao: data?.ultima_transacao ?? null,
+  };
+}
+
 const adminRoleChecks = (userId: string) => [
   { _role: "admin" },
   { role: "admin" },
@@ -169,6 +194,13 @@ const formatDate = (value: string | null) => {
     year: "numeric",
   }).format(new Date(value));
 };
+
+const formatBRL = (value: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 2,
+  }).format(Number(value ?? 0));
 
 const formatPlan = (plan?: string | null) => {
   const normalized = (plan ?? "free").toLowerCase();
@@ -224,12 +256,19 @@ const getUserSortValue = (row: AdminUserRow, key: UserSortKey) => {
   return "";
 };
 
+const getWhatsAppHref = (phone?: string | null) => {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  if (!digits) return null;
+  return `https://wa.me/${digits}`;
+};
+
 const AdminUsersPage = () => {
   const { user, loading } = useAuth();
   const [userTab, setUserTab] = useState<UserPlanFilter>("all");
   const [userSearch, setUserSearch] = useState("");
   const [userPage, setUserPage] = useState(1);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(() => new Set());
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: UserSortKey; direction: SortDirection }>({
     key: "created_at",
     direction: "desc",
@@ -246,6 +285,12 @@ const AdminUsersPage = () => {
     queryKey: ["admin-users-table"],
     enabled: !!user?.id && isAdmin,
     queryFn: fetchAdminUsers,
+  });
+
+  const { data: expandedDetails, isLoading: loadingExpandedDetails } = useQuery({
+    queryKey: ["admin-user-details", expandedUserId],
+    enabled: !!expandedUserId && isAdmin,
+    queryFn: () => fetchAdminUserDetails(expandedUserId!),
   });
 
   const filteredUsers = useMemo(() => {
@@ -432,6 +477,12 @@ const AdminUsersPage = () => {
                         row={row}
                         selected={selectedUsers.has(row.user_id)}
                         onToggle={() => toggleUser(row.user_id)}
+                        expanded={expandedUserId === row.user_id}
+                        details={expandedUserId === row.user_id ? expandedDetails : undefined}
+                        loadingDetails={expandedUserId === row.user_id && loadingExpandedDetails}
+                        onToggleExpand={() =>
+                          setExpandedUserId((current) => current === row.user_id ? null : row.user_id)
+                        }
                         actionsOpen={openActionUserId === row.user_id}
                         onToggleActions={() => setOpenActionUserId((current) => current === row.user_id ? null : row.user_id)}
                       />
@@ -478,7 +529,10 @@ const AdminUsersPage = () => {
 const AdminCheckbox = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
   <button
     type="button"
-    onClick={onChange}
+    onClick={(event) => {
+      event.stopPropagation();
+      onChange();
+    }}
     className={cn(
       "flex h-5 w-5 items-center justify-center rounded-md border transition",
       checked ? "border-[#00C853] bg-[#00C853] text-white" : "border-[#444] bg-transparent text-transparent hover:border-white/70"
@@ -540,80 +594,173 @@ const UserTableRow = ({
   row,
   selected,
   onToggle,
+  expanded,
+  details,
+  loadingDetails,
+  onToggleExpand,
   actionsOpen,
   onToggleActions,
 }: {
   row: AdminUserRow;
   selected: boolean;
   onToggle: () => void;
+  expanded: boolean;
+  details?: AdminUserDetails;
+  loadingDetails: boolean;
+  onToggleExpand: () => void;
   actionsOpen: boolean;
   onToggleActions: () => void;
 }) => (
-  <tr
-    className={cn(
-      "group text-[13px] text-[#888] transition",
-      selected ? "bg-[#1a1a1a]" : "bg-transparent hover:bg-[#111]"
-    )}
-  >
-    <td className="rounded-l-xl border-y border-l border-[#222] px-4 py-4">
-      <AdminCheckbox checked={selected} onChange={onToggle} />
-    </td>
-    <td className="border-y border-[#222] px-4 py-4 font-semibold text-[#888]">
-      {row.user_id.slice(0, 8)}
-    </td>
-    <td className="border-y border-[#222] px-4 py-4">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#222] text-[12px] font-bold text-white">
-          {row.avatar_url ? (
-            <img src={row.avatar_url} alt={row.name ?? "Usuário"} className="h-full w-full object-cover" />
-          ) : (
-            getInitials(row.name, row.email)
-          )}
-        </div>
-        <div>
-          <p className="font-bold text-white">{row.name || row.email || "Usuário"}</p>
-          <p className="mt-0.5 text-[11px] text-[#888]">{formatPlan(row.plan)}</p>
-        </div>
-      </div>
-    </td>
-    <td className="border-y border-[#222] px-4 py-4 text-[#888]">{row.email || "Email indisponível"}</td>
-    <td className="border-y border-[#222] px-4 py-4 text-[#888]">{formatDate(row.created_at)}</td>
-    <td className="border-y border-[#222] px-4 py-4">
-      <StatusBadge status={row.subscription_status} />
-    </td>
-    <td className="border-y border-[#222] px-4 py-4">
-      <ConnectionBadge connected={row.ml_connected} />
-    </td>
-    <td className="border-y border-[#222] px-4 py-4 font-bold text-white">{row.orders_count ?? 0}</td>
-    <td className="relative rounded-r-xl border-y border-r border-[#222] px-4 py-4 text-right">
-      <button
-        type="button"
-        onClick={onToggleActions}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/60 transition hover:bg-[#2a2a2a] hover:text-white"
-        aria-label="Abrir ações"
-      >
-        <MoreVertical size={18} />
-      </button>
-      {actionsOpen && (
-        <div className="absolute right-4 top-12 z-20 w-44 overflow-hidden rounded-2xl border border-[#333] bg-black p-1 text-left shadow-2xl">
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-white/75 transition hover:bg-[#1a1a1a] hover:text-white"
-          >
-            <Eye size={14} />
-            Ver detalhes
-          </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-red-300 transition hover:bg-red-500/10 hover:text-red-200"
-          >
-            <UserX size={14} />
-            Suspender conta
-          </button>
-        </div>
+  <>
+    <tr
+      onClick={onToggleExpand}
+      className={cn(
+        "group cursor-pointer text-[13px] text-[#888] transition",
+        expanded || selected ? "bg-[#1a1a1a]" : "bg-transparent hover:bg-[#111]"
       )}
-    </td>
-  </tr>
+    >
+      <td className="rounded-l-xl border-y border-l border-[#222] px-4 py-4">
+        <AdminCheckbox checked={selected} onChange={onToggle} />
+      </td>
+      <td className="border-y border-[#222] px-4 py-4 font-semibold text-[#888]">
+        {row.user_id.slice(0, 8)}
+      </td>
+      <td className="border-y border-[#222] px-4 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#222] text-[12px] font-bold text-white">
+            {row.avatar_url ? (
+              <img src={row.avatar_url} alt={row.name ?? "Usuário"} className="h-full w-full object-cover" />
+            ) : (
+              getInitials(row.name, row.email)
+            )}
+          </div>
+          <div>
+            <p className="font-bold text-white">{row.name || row.email || "Usuário"}</p>
+            <p className="mt-0.5 text-[11px] text-[#888]">{formatPlan(row.plan)}</p>
+          </div>
+        </div>
+      </td>
+      <td className="border-y border-[#222] px-4 py-4 text-[#888]">{row.email || "Email indisponível"}</td>
+      <td className="border-y border-[#222] px-4 py-4 text-[#888]">{formatDate(row.created_at)}</td>
+      <td className="border-y border-[#222] px-4 py-4">
+        <StatusBadge status={row.subscription_status} />
+      </td>
+      <td className="border-y border-[#222] px-4 py-4">
+        <ConnectionBadge connected={row.ml_connected} />
+      </td>
+      <td className="border-y border-[#222] px-4 py-4 font-bold text-white">{row.orders_count ?? 0}</td>
+      <td className="relative rounded-r-xl border-y border-r border-[#222] px-4 py-4 text-right">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleActions();
+          }}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/60 transition hover:bg-[#2a2a2a] hover:text-white"
+          aria-label="Abrir ações"
+        >
+          <MoreVertical size={18} />
+        </button>
+        {actionsOpen && (
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="absolute right-4 top-12 z-20 w-44 overflow-hidden rounded-2xl border border-[#333] bg-black p-1 text-left shadow-2xl"
+          >
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-white/75 transition hover:bg-[#1a1a1a] hover:text-white"
+            >
+              <Eye size={14} />
+              Ver detalhes
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-red-300 transition hover:bg-red-500/10 hover:text-red-200"
+            >
+              <UserX size={14} />
+              Suspender conta
+            </button>
+          </div>
+        )}
+      </td>
+    </tr>
+    {expanded && (
+      <tr className="bg-[#1a1a1a] text-[13px]">
+        <td colSpan={9} className="rounded-b-xl border-x border-b border-[#222] px-8 py-6">
+          <div className="flex items-start justify-between gap-5">
+            {loadingDetails ? (
+              <div className="flex min-h-[120px] flex-1 items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
+              </div>
+            ) : (
+              <div className="grid flex-1 gap-6 md:grid-cols-2">
+                <div className="space-y-3">
+                  <DetailItem label="Email" value={details?.email ?? row.email ?? "Não informado"} />
+                  <DetailItem
+                    label="WhatsApp"
+                    value={details?.phone ?? "Não informado"}
+                    href={getWhatsAppHref(details?.phone)}
+                  />
+                  <DetailItem label="Cadastro" value={formatDate(row.created_at)} />
+                </div>
+                <div className="space-y-3">
+                  <DetailItem label="Total pago" value={formatBRL(details?.total_pago ?? 0)} highlight />
+                  <DetailItem label="Transações" value={String(details?.total_transacoes ?? 0)} />
+                  <DetailItem label="Última transação" value={formatDate(details?.ultima_transacao ?? null)} />
+                </div>
+              </div>
+            )}
+            <div className="flex shrink-0 flex-col items-end gap-4">
+              <button
+                type="button"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#333] text-white/65 transition hover:border-white/70 hover:text-white"
+                aria-label="Editar usuário"
+              >
+                <Pencil size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={onToggleExpand}
+                className="text-[12px] font-semibold text-[#888] transition hover:text-white"
+              >
+                ▲ Ocultar
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    )}
+  </>
+);
+
+const DetailItem = ({
+  label,
+  value,
+  href,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  href?: string | null;
+  highlight?: boolean;
+}) => (
+  <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-4">
+    <span className="text-[#888]">{label}</span>
+    {href ? (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className={cn("break-words font-semibold transition hover:text-white", highlight ? "text-[#00C853]" : "text-white")}
+      >
+        {value}
+      </a>
+    ) : (
+      <span className={cn("break-words font-semibold", highlight ? "text-[#00C853]" : "text-white")}>
+        {value}
+      </span>
+    )}
+  </div>
 );
 
 export default AdminUsersPage;
