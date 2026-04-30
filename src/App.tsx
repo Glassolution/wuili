@@ -115,6 +115,7 @@ const App = () => (
             <Route path="chat-fornecedores" element={<ChatFornecedoresPage />} />
           </Route>
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/admin/usuarios" element={<AdminUsersPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
