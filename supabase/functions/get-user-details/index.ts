@@ -61,8 +61,8 @@ Deno.serve(async (req) => {
 
     const { data: profile } = await adminClient
       .from("profiles")
-      .select("phone")
-      .eq("id", userId)
+      .select("whatsapp")
+      .eq("user_id", userId)
       .maybeSingle();
 
     const { data: subscriptions } = await adminClient
