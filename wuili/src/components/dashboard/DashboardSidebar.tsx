@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutGrid, Users, BarChart3, Settings, Wallet, Package,
   ArrowLeftRight, CreditCard, Clapperboard, MessageSquare,
   ShoppingCart, Star, ChevronDown, Sun, Moon, Store,
-  Banknote, LogOut,
+  Banknote, LogOut, ShieldCheck,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { VeloLogo } from "@/components/VeloLogo";
@@ -46,14 +48,44 @@ const nav: NavGroup[] = [
   { kind: "link",  to: "/dashboard/chat-fornecedores", icon: MessageSquare,label: "Chat"        },
 ];
 
+const adminRoleChecks = (userId: string) => [
+  { _role: "admin" },
+  { role: "admin" },
+  { _user_id: userId, _role: "admin" },
+  { user_id: userId, role: "admin" },
+];
+
+async function checkAdminAccess(userId: string) {
+  for (const params of adminRoleChecks(userId)) {
+    const { data, error } = await (supabase as any).rpc("has_role", params);
+    if (!error && data === true) return true;
+  }
+
+  const { data, error } = await (supabase as any)
+    .from("profiles")
+    .select("role")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) return false;
+  return data?.role === "admin";
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const DashboardSidebar = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
   const { nome, foto } = useProfile();
-  const { signOut }    = useAuth();
+  const { user, signOut } = useAuth();
   const { theme, resolvedTheme, setTheme } = useTheme();
+
+  const { data: isAdmin = false } = useQuery({
+    queryKey: ["sidebar-admin-access", user?.id],
+    enabled: !!user?.id,
+    queryFn: () => checkAdminAccess(user!.id),
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Track which groups are open
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -196,6 +228,21 @@ const DashboardSidebar = () => {
             </div>
           );
         })}
+
+        {isAdmin && (
+          <Link
+            to="/admin/dashboard"
+            className={cn(
+              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-all",
+              location.pathname.startsWith("/admin")
+                ? "bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
+                : "text-[#737373] hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
+            )}
+          >
+            <ShieldCheck size={16} strokeWidth={1.9} className="shrink-0" />
+            Admin
+          </Link>
+        )}
       </div>
 
       {/* ── Bottom ───────────────────────────────────────────────────────── */}
