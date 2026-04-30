@@ -61,8 +61,8 @@ Deno.serve(async (req) => {
 
     const { data: profile } = await adminClient
       .from("profiles")
-      .select("phone")
-      .eq("id", userId)
+      .select("whatsapp")
+      .eq("user_id", userId)
       .maybeSingle();
 
     const { data: subscriptions } = await adminClient
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({
       email: authUserData?.user?.email ?? null,
-      phone: profile?.phone ?? null,
+      whatsapp: profile?.whatsapp ?? null,
       total_pago: totals.total_pago,
       total_transacoes: totals.total_transacoes,
       ultima_transacao: totals.ultima_transacao,
