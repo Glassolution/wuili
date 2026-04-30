@@ -28,6 +28,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import CriarVideoPage from "./pages/dashboard/CriarVideoPage";
 import ChatFornecedoresPage from "./pages/dashboard/ChatFornecedoresPage";
 import Docs from "./pages/Docs";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
 
 const queryClient = new QueryClient();
 
@@ -114,6 +115,7 @@ const App = () => (
             <Route path="chat-fornecedores" element={<ChatFornecedoresPage />} />
           </Route>
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/admin/usuarios" element={<AdminUsersPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
