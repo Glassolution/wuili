@@ -175,11 +175,25 @@ serve(async (req) => {
 
   try {
     console.log('=== ml-publish START ===')
+
+    // === AUTH (JWT obrigatório) ===
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const token = authHeader.replace('Bearer ', '')
+    if (!token) return json({ error: 'Não autenticado.' }, 401)
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    })
+    const { data: userData, error: userErr } = await userClient.auth.getUser()
+    if (userErr || !userData.user) return json({ error: 'Token inválido.' }, 401)
+    const user_id = userData.user.id
+
     const body = await req.json()
-    const { user_id, product } = body
+    const { product } = body
 
     // === VALIDATION ===
-    if (!user_id) return json({ error: 'user_id é obrigatório.' }, 400)
     if (!product) return json({ error: 'Dados do produto ausentes.' }, 400)
     if (!product.title?.trim()) return json({ error: 'Título do produto é obrigatório.' }, 400)
     if (!product.price || product.price <= 0) return json({ error: 'Preço do produto é obrigatório e deve ser maior que zero.' }, 400)
