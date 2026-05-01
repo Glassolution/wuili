@@ -216,9 +216,8 @@ serve(async (req) => {
     console.log('price:', product.price)
     console.log('images (public):', publicImages.length)
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!serviceRoleKey) {
       return json({ error: 'Configuração do servidor incompleta.' }, 500)
     }
 
