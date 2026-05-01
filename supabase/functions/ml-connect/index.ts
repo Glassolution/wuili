@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,16 +11,30 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const url = new URL(req.url);
-  const userId = url.searchParams.get("user_id");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-  if (!userId) {
-    return new Response(JSON.stringify({ error: "user_id is required" }), {
-      status: 400,
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.replace("Bearer ", "");
+  if (!token) {
+    return new Response(JSON.stringify({ error: "Missing token" }), {
+      status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data: userData, error: userErr } = await userClient.auth.getUser();
+  if (userErr || !userData.user) {
+    return new Response(JSON.stringify({ error: "Invalid token" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const userId = userData.user.id;
   const clientId = Deno.env.get("ML_CLIENT_ID")!;
   const redirectUri = Deno.env.get("ML_REDIRECT_URI")!;
 
@@ -32,8 +47,8 @@ serve(async (req) => {
 
   const authUrl = `https://auth.mercadolivre.com.br/authorization?${params}`;
 
-  return new Response(null, {
-    status: 302,
-    headers: { ...corsHeaders, Location: authUrl },
+  return new Response(JSON.stringify({ auth_url: authUrl }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });

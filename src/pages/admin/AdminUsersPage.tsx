@@ -67,7 +67,7 @@ const AdminUsersPage = () => {
       }
       setIsAdmin(true);
 
-      const { data, error: fnErr } = await supabase.functions.invoke("get-all-users");
+      const { data, error: fnErr } = await supabase.functions.invoke("admin-users");
       if (fnErr) {
         setError(fnErr.message ?? "Falha ao carregar usuários");
         setLoading(false);
