@@ -42,10 +42,14 @@ const IntegracoesPage = () => {
     })();
   }, [user]);
 
-  const handleConnect = (platformId: string) => {
+  const handleConnect = async (platformId: string) => {
     if (platformId === "mercadolivre" && user) {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
+      const { data, error } = await supabase.functions.invoke("ml-connect");
+      if (error || !data?.auth_url) {
+        console.error("ml-connect error:", error);
+        return;
+      }
+      window.location.href = data.auth_url;
     }
   };
 
