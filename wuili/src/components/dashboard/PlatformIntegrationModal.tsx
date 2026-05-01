@@ -63,7 +63,7 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
       .finally(() => setLoadingML(false));
   }, [open, user]);
 
-  const connectML = () => {
+  const connectML = async () => {
     if (!user) return;
 
     if (!planLimits.loading && !connectedML && !planLimits.canConnectMarketplace) {
@@ -71,8 +71,13 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
       return;
     }
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
+    const { data, error } = await supabase.functions.invoke("ml-connect");
+    const authUrl = data?.authUrl ?? data?.auth_url;
+    if (error || !authUrl) {
+      toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+      return;
+    }
+    window.location.href = authUrl;
   };
 
   const disconnectML = async () => {

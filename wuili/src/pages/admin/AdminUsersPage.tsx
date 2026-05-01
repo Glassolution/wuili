@@ -80,6 +80,15 @@ async function loadProfiles(): Promise<ProfileRow[]> {
 }
 
 async function fetchAdminUsers(): Promise<AdminUserRow[]> {
+  const { data, error } = await supabase.functions.invoke("admin-users");
+  if (error) {
+    if (import.meta.env.DEV) return fetchAdminUsersDevFallback();
+    throw error;
+  }
+  return (data ?? []) as AdminUserRow[];
+}
+
+async function fetchAdminUsersDevFallback(): Promise<AdminUserRow[]> {
   const profiles = await loadProfiles();
   const userIds = profiles.map(getProfileUserId).filter(Boolean);
 
@@ -99,19 +108,15 @@ async function fetchAdminUsers(): Promise<AdminUserRow[]> {
           .eq("platform", "mercadolivre")
       : Promise.resolve({ data: [], error: null }),
     userIds.length
-      ? (supabase as any)
-          .from("orders")
-          .select("user_id")
-          .in("user_id", userIds)
+      ? (supabase as any).from("orders").select("user_id").in("user_id", userIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
   const error = subsRes.error ?? integrationsRes.error ?? ordersRes.error;
   if (error) throw error;
 
-  const subscriptions = (subsRes.data ?? []) as SubscriptionRow[];
   const latestSubByUser = new Map<string, SubscriptionRow>();
-  for (const subscription of subscriptions) {
+  for (const subscription of (subsRes.data ?? []) as SubscriptionRow[]) {
     if (!latestSubByUser.has(subscription.user_id)) {
       latestSubByUser.set(subscription.user_id, subscription);
     }
@@ -179,7 +184,7 @@ async function checkAdminAccess(userId: string) {
   const { data, error } = await (supabase as any)
     .from("profiles")
     .select("role")
-    .eq("user_id", userId)
+    .or(`id.eq.${userId},user_id.eq.${userId}`)
     .maybeSingle();
 
   if (error) return false;

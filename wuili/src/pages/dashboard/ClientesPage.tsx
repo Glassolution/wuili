@@ -163,7 +163,7 @@ const ClientesPage = () => {
   );
 
   const handleResendToCJ = async (orderId: string) => {
-    const { data, error } = await supabase.functions.invoke("cj-fulfill", {
+    const { data, error } = await supabase.functions.invoke("cj-fulfill-request", {
       body: { order_id: orderId },
     });
 

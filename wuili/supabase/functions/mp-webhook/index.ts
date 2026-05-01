@@ -116,12 +116,14 @@ Deno.serve(async (req) => {
       try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const internalSecret = Deno.env.get("INTERNAL_SECRET")!;
         const fulfillResponse = await fetch(`${supabaseUrl}/functions/v1/cj-fulfill`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${serviceRoleKey}`,
             apikey: serviceRoleKey,
+            "x-internal-secret": internalSecret,
           },
           body: JSON.stringify({ order_id: maybeOrderId }),
         });

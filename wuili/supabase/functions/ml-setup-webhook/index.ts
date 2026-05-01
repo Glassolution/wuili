@@ -2,6 +2,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 serve(async (req) => {
   try {
+    const internalSecret = Deno.env.get("INTERNAL_SECRET");
+    const requestSecret = req.headers.get("x-internal-secret");
+    if (!internalSecret || requestSecret !== internalSecret) {
+      return new Response(
+        JSON.stringify({ error: "Acesso negado" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const ML_APP_ID = Deno.env.get("ML_APP_ID") || Deno.env.get("ML_CLIENT_ID");
     const ML_CLIENT_ID = Deno.env.get("ML_CLIENT_ID");
     const ML_CLIENT_SECRET = Deno.env.get("ML_CLIENT_SECRET");

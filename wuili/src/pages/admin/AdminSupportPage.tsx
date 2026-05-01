@@ -52,7 +52,7 @@ const AdminSupportPage = () => {
       const { data, error } = await (supabase as any)
         .from("profiles")
         .select("role, display_name")
-        .eq("user_id", user!.id)
+        .or(`id.eq.${user!.id},user_id.eq.${user!.id}`)
         .maybeSingle();
 
       if (error) throw error;

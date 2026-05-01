@@ -118,7 +118,7 @@ async function checkAdminAccess(userId: string) {
   const { data, error } = await (supabase as any)
     .from("profiles")
     .select("role")
-    .eq("user_id", userId)
+    .or(`id.eq.${userId},user_id.eq.${userId}`)
     .maybeSingle();
 
   if (error) return false;

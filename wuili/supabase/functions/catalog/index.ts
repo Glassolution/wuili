@@ -23,7 +23,29 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from("catalog_products")
-      .select("*", { count: "exact" })
+      .select(
+        [
+          "id",
+          "source",
+          "external_id",
+          "title",
+          "description",
+          "images",
+          "cost_price",
+          "original_price",
+          "suggested_price",
+          "margin_percent",
+          "category",
+          "supplier_name",
+          "stock_quantity",
+          "is_active",
+          "weight",
+          "variants",
+          "rating",
+          "orders_count",
+        ].join(","),
+        { count: "exact" }
+      )
       .eq("is_active", true)
       .gt("stock_quantity", 0)
       .order("orders_count", { ascending: false })

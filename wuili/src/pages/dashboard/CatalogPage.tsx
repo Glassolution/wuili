@@ -7,6 +7,7 @@ import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
 import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { supabase } from "@/integrations/supabase/client";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
@@ -76,17 +77,14 @@ const CatalogPage = () => {
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const url = `https://${projectId}.supabase.co/functions/v1/cj-sync`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
-      });
-      const json = await res.json();
-      // Throw so onError is triggered with the real message
-      if (!res.ok) {
-        throw new Error(json?.error || `Erro ${res.status}`);
+      const { data, error } = await supabase.functions.invoke("cj-sync-request");
+      if (error) {
+        throw new Error(error.message);
       }
-      return json;
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      return data;
     },
     onSuccess: (data) => {
       const count = data.synced ?? 0;

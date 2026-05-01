@@ -351,7 +351,7 @@ const OrdersPage = () => {
         throw new Error("Este pedido ainda não tem variante CJ vinculada.");
       }
 
-      const { data, error } = await supabase.functions.invoke("cj-fulfill", {
+      const { data, error } = await supabase.functions.invoke("cj-fulfill-request", {
         body: { order_id: order.id },
       });
 

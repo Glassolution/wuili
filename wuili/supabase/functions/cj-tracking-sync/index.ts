@@ -78,6 +78,7 @@ async function retryAwaitingPaymentOrders(
   adminClient: ReturnType<typeof createClient>,
   supabaseUrl: string,
   serviceRoleKey: string,
+  internalSecret: string,
   cjToken: string
 ): Promise<{ checked: number; retried: number; skipped: number }> {
   const { data: orders, error } = await adminClient
@@ -114,6 +115,7 @@ async function retryAwaitingPaymentOrders(
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${serviceRoleKey}`,
+          "x-internal-secret": internalSecret,
         },
         body: JSON.stringify({ order_id: order.id }),
       });
@@ -283,6 +285,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl    = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const internalSecret = Deno.env.get("INTERNAL_SECRET")!;
   // Hybrid deployment: DB may live on a different project than the functions
   const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
   const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
@@ -292,7 +295,11 @@ Deno.serve(async (req) => {
     // ── Get CJ token ─────────────────────────────────────────────────────────
     const authRes  = await fetch(`${supabaseUrl}/functions/v1/cj-auth`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "x-internal-secret": internalSecret,
+      },
     });
     const authData = await authRes.json().catch(() => ({}));
     const cjToken: string | null = authData?.accessToken ?? null;
@@ -305,6 +312,7 @@ Deno.serve(async (req) => {
       adminClient,
       supabaseUrl,
       serviceRoleKey,
+      internalSecret,
       cjToken
     );
 

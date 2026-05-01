@@ -141,6 +141,15 @@ const calculateGrowth = (monthlyRevenue: MonthlyRevenue[]) => {
 };
 
 async function fetchAdminOverview(): Promise<AdminDashboardPayload> {
+  const { data, error } = await supabase.functions.invoke("admin-overview");
+  if (error) {
+    if (import.meta.env.DEV) return fetchAdminOverviewDevFallback();
+    throw error;
+  }
+  return data as AdminDashboardPayload;
+}
+
+async function fetchAdminOverviewDevFallback(): Promise<AdminDashboardPayload> {
   const [
     totalUsersRes,
     paidUsersRes,
@@ -177,9 +186,7 @@ async function fetchAdminOverview(): Promise<AdminDashboardPayload> {
 
   const profiles = await loadProfiles();
   const profilesByUser = new Map<string, ProfileRow>();
-  for (const profile of profiles) {
-    profilesByUser.set(getProfileUserId(profile), profile);
-  }
+  for (const profile of profiles) profilesByUser.set(getProfileUserId(profile), profile);
 
   const paidSubscriptions = (paidGrossSubsRes.data ?? []) as SubscriptionRow[];
   const monthlyRevenue = buildMonthlyRevenue(paidSubscriptions);
@@ -189,9 +196,8 @@ async function fetchAdminOverview(): Promise<AdminDashboardPayload> {
     0
   );
 
-  const transactions: AdminTransaction[] = ((transactionsRes.data ?? []) as SubscriptionRow[]).map((subscription) => {
+  const transactions = ((transactionsRes.data ?? []) as SubscriptionRow[]).map((subscription) => {
     const profile = profilesByUser.get(subscription.user_id);
-
     return {
       id: subscription.id,
       user_id: subscription.user_id,
@@ -236,7 +242,7 @@ async function checkAdminAccess(userId: string) {
   const { data, error } = await (supabase as any)
     .from("profiles")
     .select("role")
-    .eq("user_id", userId)
+    .or(`id.eq.${userId},user_id.eq.${userId}`)
     .maybeSingle();
 
   if (error) return false;

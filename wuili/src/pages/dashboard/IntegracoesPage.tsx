@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { toast } from "sonner";
 
 type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
 
@@ -46,7 +47,7 @@ const IntegracoesPage = () => {
     })();
   }, [user]);
 
-  const handleConnect = (platformId: string) => {
+  const handleConnect = async (platformId: string) => {
     if (planLimits.loading) return;
 
     if (!planLimits.canConnectMarketplace && statuses[platformId] !== "connected") {
@@ -55,8 +56,13 @@ const IntegracoesPage = () => {
     }
 
     if (platformId === "mercadolivre" && user) {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
+      const { data, error } = await supabase.functions.invoke("ml-connect");
+      const authUrl = data?.authUrl ?? data?.auth_url;
+      if (error || !authUrl) {
+        toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+        return;
+      }
+      window.location.href = authUrl;
     }
   };
 

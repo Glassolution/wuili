@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
 };
 
 type FulfillRequest = {
@@ -118,6 +118,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    const internalSecret = Deno.env.get("INTERNAL_SECRET");
+    const requestSecret = req.headers.get("x-internal-secret");
+    if (!internalSecret || requestSecret !== internalSecret) {
+      return new Response(JSON.stringify({ success: false, error: "Acesso negado" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { order_id }: FulfillRequest = await req.json();
     if (!order_id) {
       return new Response(JSON.stringify({ success: false, error: "order_id é obrigatório" }), {
@@ -144,6 +153,7 @@ Deno.serve(async (req) => {
       headers: {
         "Content-Type": "application/json",
         Authorization:  `Bearer ${serviceRoleKey}`,
+        "x-internal-secret": internalSecret,
       },
     });
     const authData = await authRes.json().catch(() => ({}));

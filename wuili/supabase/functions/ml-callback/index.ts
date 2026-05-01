@@ -3,19 +3,57 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const userId = url.searchParams.get("state");
+  const state = url.searchParams.get("state");
 
   const appUrl = Deno.env.get("APP_URL") || "https://wuili.lovable.app";
   const dashboardUrl = `${appUrl}/dashboard/integracoes`;
 
-  if (!code || !userId) {
+  if (!code || !state) {
     return new Response(null, {
       status: 302,
       headers: { Location: `${dashboardUrl}?ml_error=missing_params` },
     });
   }
 
-  // Exchange code for tokens
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
+  const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
+  const supabase = createClient(dbUrl, dbKey);
+
+  const { data: oauthState, error: stateError } = await supabase
+    .from("ml_oauth_states")
+    .select("state,user_id,expires_at,consumed_at")
+    .eq("state", state)
+    .maybeSingle();
+
+  if (
+    stateError ||
+    !oauthState ||
+    oauthState.consumed_at ||
+    new Date(oauthState.expires_at).getTime() <= Date.now()
+  ) {
+    console.error("[ml-callback] invalid state:", stateError?.message ?? state);
+    return new Response(null, {
+      status: 302,
+      headers: { Location: `${dashboardUrl}?ml_error=invalid_state` },
+    });
+  }
+
+  const { error: consumeError } = await supabase
+    .from("ml_oauth_states")
+    .update({ consumed_at: new Date().toISOString() })
+    .eq("state", state)
+    .is("consumed_at", null);
+
+  if (consumeError) {
+    console.error("[ml-callback] state consume error:", consumeError.message);
+    return new Response(null, {
+      status: 302,
+      headers: { Location: `${dashboardUrl}?ml_error=invalid_state` },
+    });
+  }
+
   let tokens: Record<string, any>;
   try {
     const tokenRes = await fetch("https://api.mercadolibre.com/oauth/token", {
@@ -45,17 +83,9 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Save to Supabase
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  // Hybrid deployment: DB may live on a different project than the functions
-  const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
-  const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
-  const supabase = createClient(dbUrl, dbKey);
-
   const { error } = await supabase.from("user_integrations").upsert(
     {
-      user_id: userId,
+      user_id: oauthState.user_id,
       platform: "mercadolivre",
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token ?? null,

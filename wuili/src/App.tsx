@@ -12,6 +12,7 @@ import LoginPage from "./pages/LoginPage";
 import CadastroPage from "./pages/CadastroPage";
 import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
+import AdminRoute from "./components/AdminRoute";
 import { Navigate } from "react-router-dom";
 import CatalogPage from "./pages/dashboard/CatalogPage";
 import OrdersPage from "./pages/dashboard/OrdersPage";
@@ -60,9 +61,9 @@ const App = () => (
           <Route path="/cadastro" element={<CadastroPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/docs" element={<Docs />} />
-          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-          <Route path="/admin/usuarios" element={<AdminUsersPage />} />
-          <Route path="/admin/suporte" element={<AdminSupportPage />} />
+          <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+          <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+          <Route path="/admin/suporte" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
           <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<DashboardHomePage />} />

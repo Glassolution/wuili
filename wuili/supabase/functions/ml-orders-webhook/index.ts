@@ -56,10 +56,14 @@ function extractBalance(payload: unknown): number {
   return 0;
 }
 
-async function getCjAccessToken(supabaseUrl: string, serviceRoleKey: string): Promise<string | null> {
+async function getCjAccessToken(supabaseUrl: string, serviceRoleKey: string, internalSecret: string): Promise<string | null> {
   const authRes = await fetch(`${supabaseUrl}/functions/v1/cj-auth`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceRoleKey}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "x-internal-secret": internalSecret,
+    },
   });
   const authData = await authRes.json().catch(() => ({}));
   return authData?.accessToken ?? null;
@@ -106,6 +110,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl    = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const internalSecret = Deno.env.get("INTERNAL_SECRET")!;
   // Hybrid deployment: DB may live on a different project than the functions
   const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
   const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
@@ -255,7 +260,7 @@ Deno.serve(async (req) => {
 
     if (cjVariantId && Number(costPrice ?? 0) > 0) {
       try {
-        const cjToken = await getCjAccessToken(supabaseUrl, serviceRoleKey);
+        const cjToken = await getCjAccessToken(supabaseUrl, serviceRoleKey, internalSecret);
         if (cjToken) {
           const availableBalance = await getCjBalance(cjToken);
           const requiredBalance = Number(costPrice ?? 0);
@@ -336,6 +341,7 @@ Deno.serve(async (req) => {
         headers: {
           "Content-Type": "application/json",
           Authorization:  `Bearer ${serviceRoleKey}`,
+          "x-internal-secret": internalSecret,
         },
         body: JSON.stringify({ order_id: internalOrderId }),
       }).catch((e) => console.error("[ml-orders-webhook] cj-fulfill invoke error:", e));

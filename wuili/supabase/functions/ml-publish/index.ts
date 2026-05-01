@@ -99,8 +99,28 @@ Deno.serve(async (req) => {
 
   try {
     console.log('=== ml-publish START ===')
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return json({ error: 'Nao autorizado.' }, 401)
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+      return json({ error: 'Configuracao do servidor incompleta.' }, 500)
+    }
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: userData, error: userError } = await userClient.auth.getUser()
+    if (userError || !userData.user) {
+      return json({ error: 'Token invalido.' }, 401)
+    }
+    const user_id = userData.user.id
     const body = await req.json()
-    const { user_id, product } = body
+    const { product } = body
 
     // === VALIDATION ===
     if (!user_id) return json({ error: 'user_id é obrigatório.' }, 400)
@@ -126,8 +146,6 @@ Deno.serve(async (req) => {
     console.log('price:', product.price)
     console.log('images (public):', publicImages.length)
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     if (!supabaseUrl || !serviceRoleKey) {
       return json({ error: 'Configuração do servidor incompleta.' }, 500)
     }

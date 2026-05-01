@@ -202,10 +202,15 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     setTimeout(onClose, 160);
   };
 
-  const handleConnectML = () => {
+  const handleConnectML = async () => {
     if (!user) return;
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    window.location.href = `${supabaseUrl}/functions/v1/ml-connect?user_id=${user.id}`;
+    const { data, error } = await supabase.functions.invoke("ml-connect");
+    const authUrl = data?.authUrl ?? data?.auth_url;
+    if (error || !authUrl) {
+      toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+      return;
+    }
+    window.location.href = authUrl;
   };
 
   const handleTranslate = async () => {
@@ -325,7 +330,6 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       const { data, error } = await supabase.functions.invoke("ml-publish", {
         body: {
-          user_id: user.id,
           product: {
             id: product?.id,
             external_id: product?.external_id,
