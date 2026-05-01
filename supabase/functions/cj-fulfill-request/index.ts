@@ -14,6 +14,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
+    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceKey;
     const internalSecret = Deno.env.get("INTERNAL_SECRET")!;
 
     const authHeader = req.headers.get("Authorization") ?? "";
@@ -46,7 +48,7 @@ Deno.serve(async (req) => {
     }
 
     // Verify the order belongs to the caller (or caller is admin)
-    const admin = createClient(supabaseUrl, serviceKey);
+    const admin = createClient(dbUrl, dbKey);
     const { data: roleRow } = await admin
       .from("user_roles")
       .select("role")
