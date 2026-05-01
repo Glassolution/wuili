@@ -14,6 +14,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
+    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceKey;
 
     // Validate caller is admin via JWT
     const authHeader = req.headers.get("Authorization") ?? "";
@@ -36,7 +38,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const admin = createClient(supabaseUrl, serviceKey);
+    const admin = createClient(dbUrl, dbKey);
     const { data: roleRow } = await admin
       .from("user_roles")
       .select("role")

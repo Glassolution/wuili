@@ -2,14 +2,30 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://dropvelo.vercel.app",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
 };
+
+function getDbClient() {
+  const url = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+  const key = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return createClient(url, key);
+}
+
+function checkInternalSecret(req: Request): Response | null {
+  const expected = Deno.env.get("INTERNAL_SECRET");
+  if (!expected) return new Response(JSON.stringify({ error: "Server misconfigured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  if (req.headers.get("x-internal-secret") !== expected) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  return null;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const denied = checkInternalSecret(req);
+  if (denied) return denied;
 
   try {
     const body = await req.json().catch(() => ({}));
@@ -25,9 +41,8 @@ serve(async (req) => {
       });
     }
 
+    const supabase = getDbClient();
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Resolve access token: prefer body, otherwise look up in user_integrations
     let token = bodyToken;

@@ -29,10 +29,9 @@ serve(async (req) => {
     const body = await req.json();
     console.log("[ml-orders-webhook] received body:", JSON.stringify(body));
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(dbUrl, dbKey);
 
     if (body.topic !== "orders_v2") {
       console.log("[ml-orders-webhook] ignoring topic:", body.topic);
@@ -140,9 +139,23 @@ serve(async (req) => {
       { onConflict: "ml_order_id" }
     );
 
-    await supabase.functions.invoke("cj-fulfill", {
-      body: { ml_order_id: String(order.id) },
-    });
+    // Call internal cj-fulfill with INTERNAL_SECRET (do NOT use functions.invoke — header would be lost)
+    const functionsUrl = Deno.env.get("SUPABASE_URL")!;
+    const localServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const internalSecret = Deno.env.get("INTERNAL_SECRET");
+    if (internalSecret) {
+      await fetch(`${functionsUrl}/functions/v1/cj-fulfill`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-secret": internalSecret,
+          Authorization: `Bearer ${localServiceKey}`,
+        },
+        body: JSON.stringify({ ml_order_id: String(order.id) }),
+      });
+    } else {
+      console.error("[ml-orders-webhook] INTERNAL_SECRET not set — cannot call cj-fulfill");
+    }
 
     return new Response("ok", { status: 200, headers: corsHeaders });
   } catch (e) {

@@ -2,21 +2,45 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://dropvelo.vercel.app",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
 };
+
+function getDbClient() {
+  const url = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+  const key = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return createClient(url, key);
+}
+
+function checkInternalSecret(req: Request): Response | null {
+  const expected = Deno.env.get("INTERNAL_SECRET");
+  if (!expected) {
+    return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (req.headers.get("x-internal-secret") !== expected) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  return null;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const denied = checkInternalSecret(req);
+  if (denied) return denied;
+
   try {
     const { ml_order_id } = await req.json();
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = getDbClient();
+    const functionsUrl = Deno.env.get("SUPABASE_URL")!;
+    const localServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const internalSecret = Deno.env.get("INTERNAL_SECRET")!;
 
     const { data: order } = await supabase
       .from("orders")
@@ -28,19 +52,17 @@ serve(async (req) => {
       return new Response("order not found", { status: 404, headers: corsHeaders });
     }
 
-    const loginRes = await fetch(
-      "https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: Deno.env.get("CJ_EMAIL"),
-          password: Deno.env.get("CJ_PASSWORD"),
-        }),
-      }
-    );
-    const loginData = await loginRes.json();
-    const cjToken = loginData.data?.accessToken;
+    // Get CJ token via cj-auth (internal call)
+    const authRes = await fetch(`${functionsUrl}/functions/v1/cj-auth`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": internalSecret,
+        Authorization: `Bearer ${localServiceKey}`,
+      },
+    });
+    const authData = await authRes.json();
+    const cjToken = authData?.accessToken;
 
     if (!cjToken) {
       await supabase

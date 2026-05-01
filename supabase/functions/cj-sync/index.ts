@@ -2,8 +2,29 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
 };
+
+function getDbClient() {
+  const url = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+  const key = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return createClient(url, key);
+}
+
+function checkInternalSecret(req: Request): Response | null {
+  const expected = Deno.env.get("INTERNAL_SECRET");
+  if (!expected) {
+    return new Response(JSON.stringify({ error: "Server misconfigured" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (req.headers.get("x-internal-secret") !== expected) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  return null;
+}
 
 const USD_TO_BRL = 5.0;
 const MIN_PRICE_BRL = 8;
@@ -156,16 +177,21 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+  const denied = checkInternalSecret(req);
+  if (denied) return denied;
 
-    const authRes = await fetch(`${supabaseUrl}/functions/v1/cj-auth`, {
+  try {
+    const supabase = getDbClient();
+    const functionsUrl = Deno.env.get("SUPABASE_URL")!;
+    const localServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const internalSecret = Deno.env.get("INTERNAL_SECRET")!;
+
+    const authRes = await fetch(`${functionsUrl}/functions/v1/cj-auth`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceKey}`,
+        "x-internal-secret": internalSecret,
+        Authorization: `Bearer ${localServiceKey}`,
       },
     });
     const authData = await authRes.json();
