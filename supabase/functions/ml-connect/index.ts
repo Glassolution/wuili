@@ -47,7 +47,7 @@ serve(async (req) => {
 
   const authUrl = `https://auth.mercadolivre.com.br/authorization?${params}`;
 
-  return new Response(JSON.stringify({ auth_url: authUrl }), {
+  return new Response(JSON.stringify({ auth_url: authUrl, authUrl }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
