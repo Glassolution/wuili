@@ -27,12 +27,25 @@ async function resolveLeafCategory(categoryId: string): Promise<string> {
   return current
 }
 
+// Check if a category is a leaf (no children)
+async function isLeafCategory(categoryId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.mercadolibre.com/categories/${categoryId}`)
+    if (!res.ok) return false
+    const cat = await res.json()
+    return !cat.children_categories || cat.children_categories.length === 0
+  } catch (_e) {
+    return false
+  }
+}
+
 // Predict category from title, ensuring it's a leaf
 async function predictCategory(title: string): Promise<string> {
-  const fallback = 'MLB1051' // Generic "Outros" leaf category
+  // Last-resort fallback: walk MLB1953 ("Outros") down to its first leaf
+  const fallbackRoot = 'MLB1953'
 
   try {
-    // Try category predictor first (returns leaf categories)
+    // Try category predictor first (usually returns leaf, but sometimes a parent)
     const predRes = await fetch(
       `https://api.mercadolibre.com/sites/MLB/category_predictor/predict?title=${encodeURIComponent(title)}`
     )
@@ -40,7 +53,12 @@ async function predictCategory(title: string): Promise<string> {
       const predData = await predRes.json()
       if (predData?.id) {
         console.log('Category predictor returned:', predData.id, predData.name)
-        return predData.id
+        // Validate: if not a leaf, walk children down
+        const leafId = (await isLeafCategory(predData.id))
+          ? predData.id
+          : await resolveLeafCategory(predData.id)
+        console.log('Predictor leaf:', leafId)
+        return leafId
       }
     }
   } catch (_e) { /* ignore */ }
@@ -60,8 +78,10 @@ async function predictCategory(title: string): Promise<string> {
     }
   } catch (_e) { /* ignore */ }
 
-  console.log('Using fallback category:', fallback)
-  return fallback
+  // Last resort: walk "Outros" root to a leaf
+  const fallbackLeaf = await resolveLeafCategory(fallbackRoot)
+  console.log('Using fallback leaf category:', fallbackLeaf)
+  return fallbackLeaf
 }
 
 // Map ML API errors to user-friendly messages
