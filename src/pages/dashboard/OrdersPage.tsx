@@ -74,8 +74,8 @@ const CJ_WALLET_URL = "https://cjdropshipping.com/wallet.html";
 const STATUS_COPY: Record<TabFilter, { label: string; dot: string; className: string }> = {
   all: {
     label: "All",
-    dot: "bg-[#8F2528]",
-    className: "bg-[#F8EEEE] text-[#8F2528]",
+    dot: "bg-[#000000]",
+    className: "bg-[#EFEFEF] text-[#000000]",
   },
   in_progress: {
     label: "In progress",
@@ -256,22 +256,25 @@ const OrderImage = ({ order }: { order: Order }) => {
   const extraItems = Math.max(itemCount - 1, 0);
 
   return (
-    <div className="relative h-[96px] w-[96px] shrink-0 overflow-hidden rounded-[8px] bg-[#F5F2EF] sm:h-[84px] sm:w-[84px]">
+    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[8px] bg-[#EFEFEF]">
       {order.product_image ? (
         <img
           src={order.product_image}
-          alt={order.product_title}
+          alt=""
           className="h-full w-full object-cover"
           loading="lazy"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-[#B9B2AB]">
-          <Package size={24} strokeWidth={1.6} />
+        <div className="flex h-full w-full items-center justify-center text-black">
+          <Package size={18} strokeWidth={1.8} />
         </div>
       )}
 
       {extraItems > 0 && (
-        <span className="absolute bottom-0 right-0 flex h-8 min-w-8 items-center justify-center rounded-tl-[8px] bg-black/72 px-2 text-[16px] font-semibold leading-none text-white">
+        <span className="absolute bottom-0 right-0 flex h-5 min-w-5 items-center justify-center rounded-tl-[8px] bg-black px-1.5 text-[10px] font-semibold leading-none text-white">
           +{extraItems}
         </span>
       )}
@@ -280,18 +283,15 @@ const OrderImage = ({ order }: { order: Order }) => {
 };
 
 const OrderCardSkeleton = () => (
-  <div className="rounded-[22px] border border-[#E1DDDA] bg-white px-8 py-9">
+  <div className="rounded-[12px] border border-[#EAEAEA] bg-white px-4 py-4">
     <div className="flex items-center gap-4">
-      <Skeleton className="h-9 w-36 rounded-full" />
-      <Skeleton className="h-4 w-28 rounded-full" />
-    </div>
-    <div className="mt-8 flex items-center gap-6">
-      <Skeleton className="h-[84px] w-[84px] rounded-[8px]" />
-      <div className="flex-1 space-y-3">
-        <Skeleton className="h-6 w-56 rounded-full" />
-        <Skeleton className="h-5 w-3/5 rounded-full" />
-        <Skeleton className="h-5 w-24 rounded-full" />
+      <Skeleton className="h-12 w-12 rounded-[8px]" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-64 rounded-full" />
+        <Skeleton className="h-3 w-36 rounded-full" />
       </div>
+      <Skeleton className="h-5 w-24 rounded-full" />
+      <Skeleton className="h-6 w-24 rounded-full" />
     </div>
   </div>
 );
@@ -436,22 +436,22 @@ const OrdersPage = () => {
   }
 
   return (
-    <section className="min-h-[calc(100vh-112px)] rounded-[24px] bg-white px-5 py-6 font-['Manrope'] text-[#1D1B1A] shadow-[0_1px_0_rgba(18,18,18,0.04)] dark:bg-zinc-950 dark:text-white md:px-8 md:py-8">
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-7">
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-3 text-[15px] leading-none text-[#2A2928] dark:text-zinc-200">
-          <Link to="/dashboard" className="transition hover:text-[#0A0A0A]">
+    <section className="min-h-[calc(100vh-112px)] rounded-[24px] bg-[#F7F7F7] px-4 py-5 font-sans text-black dark:bg-zinc-950 dark:text-white md:px-6 md:py-6">
+      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-5 rounded-[12px] border border-[#EAEAEA] bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 md:p-6">
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-[13px] leading-none text-[#6B6B6B] dark:text-zinc-300">
+          <Link to="/dashboard" className="font-medium transition hover:text-black">
             Home
           </Link>
-          <ChevronRight size={16} strokeWidth={2.1} className="text-[#1D1B1A] dark:text-zinc-300" />
-          <Link to="/dashboard/configuracoes" className="transition hover:text-[#0A0A0A]">
+          <ChevronRight size={14} strokeWidth={2} className="text-black dark:text-white" />
+          <Link to="/dashboard/configuracoes" className="font-medium transition hover:text-black">
             My Account
           </Link>
-          <ChevronRight size={16} strokeWidth={2.1} className="text-[#1D1B1A] dark:text-zinc-300" />
-          <span className="text-[#494746] dark:text-zinc-400">My Orders</span>
+          <ChevronRight size={14} strokeWidth={2} className="text-black dark:text-white" />
+          <span className="font-medium text-[#6B6B6B] dark:text-zinc-400">My Orders</span>
         </nav>
 
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
             {TABS.map((item) => {
               const active = tab === item.key;
 
@@ -461,10 +461,10 @@ const OrdersPage = () => {
                   type="button"
                   onClick={() => setTab(item.key)}
                   className={[
-                    "h-10 shrink-0 rounded-full border px-5 text-[14px] font-medium transition",
+                    "h-8 shrink-0 rounded-full px-4 text-[13px] font-medium transition active:scale-[0.98]",
                     active
-                      ? "border-[#0A0A0A] bg-white text-[#0A0A0A] shadow-[0_8px_18px_rgba(10,10,10,0.05)] dark:border-white dark:bg-zinc-950 dark:text-white"
-                      : "border-[#D8D3CF] bg-white text-[#494746] hover:border-[#0A0A0A] hover:text-[#0A0A0A] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-white dark:hover:text-white",
+                      ? "bg-black text-white dark:bg-white dark:text-black"
+                      : "bg-[#F1F1F1] text-black hover:bg-[#E9E9E9] dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800",
                   ].join(" ")}
                 >
                   {item.label}
@@ -473,10 +473,10 @@ const OrdersPage = () => {
             })}
           </div>
 
-          <label className="relative h-11 w-full shrink-0 lg:w-[196px]">
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-between rounded-full bg-[#F7F6F5] px-5 text-[14px] font-medium text-[#2A2928] dark:bg-zinc-900 dark:text-zinc-100">
+          <label className="relative h-9 w-full shrink-0 lg:w-[190px]">
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-between rounded-full bg-[#F1F1F1] px-4 text-[13px] font-medium text-black dark:bg-zinc-900 dark:text-zinc-100">
               {DATE_RANGE_LABEL[dateRange]}
-              <ChevronDown size={16} strokeWidth={2.1} className="text-[#0A0A0A] dark:text-white" />
+              <ChevronDown size={15} strokeWidth={2} className="text-black dark:text-white" />
             </span>
             <select
               value={dateRange}
@@ -493,20 +493,20 @@ const OrdersPage = () => {
           </label>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
           {isLoading ? (
             Array.from({ length: 3 }).map((_, index) => <OrderCardSkeleton key={index} />)
           ) : isError ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-[#E1DDDA] bg-white px-8 py-8 text-center dark:border-zinc-800 dark:bg-zinc-950">
-              <AlertCircle size={28} className="text-[#0A0A0A] dark:text-white" />
+            <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[12px] border border-[#EAEAEA] bg-white px-6 py-6 text-center dark:border-zinc-800 dark:bg-zinc-950">
+              <AlertCircle size={24} className="text-black dark:text-white" />
               <p className="mt-4 text-[17px] font-semibold">Could not load orders</p>
               <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-[#77706B] dark:text-zinc-400">
                 Refresh the page or try again in a moment.
               </p>
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-[#E1DDDA] bg-white px-8 py-8 text-center dark:border-zinc-800 dark:bg-zinc-950">
-              <Package size={31} className="text-[#B9B2AB]" strokeWidth={1.6} />
+            <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[12px] border border-[#EAEAEA] bg-white px-6 py-6 text-center dark:border-zinc-800 dark:bg-zinc-950">
+              <Package size={26} className="text-black" strokeWidth={1.8} />
               <p className="mt-4 text-[18px] font-semibold">No orders found</p>
               <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-[#77706B] dark:text-zinc-400">
                 Orders requested by your customers will appear here as soon as they are received.
@@ -536,56 +536,60 @@ const OrdersPage = () => {
                       setSelectedOrderId(order.id);
                     }
                   }}
-                  className="group relative cursor-pointer rounded-[22px] border border-[#E1DDDA] bg-white px-5 py-8 transition duration-200 hover:border-[#D2CAC4] hover:shadow-[0_18px_44px_rgba(32,22,14,0.06)] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/15 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700 sm:px-10"
+                  className="group cursor-pointer rounded-[12px] border border-[#EAEAEA] bg-white px-4 py-4 transition duration-150 hover:bg-[#FAFAFA] focus:outline-none focus:ring-2 focus:ring-black/10 active:scale-[0.997] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
                 >
-                  <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                    <span className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-[18px] font-semibold ${status.className}`}>
-                      <span className={`h-3 w-3 rounded-full ${status.dot}`} />
-                      {status.label}
-                    </span>
-                    <span className="h-7 w-px bg-[#D8D3CF] dark:bg-zinc-700" />
-                    <span className="text-[18px] text-[#2A2928] dark:text-zinc-200">
-                      {formatOrderDate(order)}
-                    </span>
-                  </div>
-
-                  <div className="mt-8 flex items-center gap-6 pr-0 sm:pr-16">
+                  <div className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-4 lg:grid-cols-[48px_minmax(0,1fr)_120px_132px_28px]">
                     <OrderImage order={order} />
 
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[22px] font-bold leading-tight text-[#8F2528] sm:text-[23px]">
-                        Order ID: {getOrderId(order)}
-                      </p>
-                      <p className="mt-2 line-clamp-2 text-[20px] leading-[1.35] text-[#151312] dark:text-zinc-100 sm:text-[22px]">
+                    <div className="min-w-0">
+                      <p className="line-clamp-1 text-[14px] font-medium leading-tight text-black dark:text-zinc-100">
                         {productCopy[0]}
-                        {productCopy[1] && <span className="font-semibold text-[#8F2528]"> {productCopy[1]}</span>}
+                        {productCopy[1] && <span className="font-medium text-[#6B6B6B]"> {productCopy[1]}</span>}
                       </p>
-                      <p className="mt-2 text-[20px] font-bold leading-none text-[#151312] dark:text-white sm:text-[22px]">
-                        {formatBRL(order.sale_price)}
+                      <p className="mt-1 text-[12px] leading-none text-[#8A8A8A]">
+                        Order ID: {getOrderId(order)} • {formatOrderDate(order)}
                       </p>
+                      <div className="mt-2 flex items-center gap-2 lg:hidden">
+                        <p className="text-[14px] font-bold text-black dark:text-white">
+                          {formatBRL(order.sale_price)}
+                        </p>
+                        <span className={`inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${status.className}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                          {status.label}
+                        </span>
+                      </div>
                       {awaitingPayment && (
-                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
                           <button
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
                               openCjWallet();
                             }}
-                            className="inline-flex h-9 items-center justify-center rounded-full bg-amber-500 px-4 text-[13px] font-bold text-white transition hover:bg-amber-600"
+                            className="inline-flex h-8 items-center justify-center rounded-full bg-black px-3 text-[12px] font-semibold text-white transition hover:bg-[#222]"
                           >
                             Recarregar CJ
                           </button>
-                          <p className="text-[13px] leading-5 text-amber-700">
+                          <p className="text-[12px] leading-5 text-[#6B6B6B]">
                             Recarregue sua conta na CJ e o pedido será processado automaticamente em até 2 horas
                           </p>
                         </div>
                       )}
                     </div>
-                  </div>
 
-                  <span className="pointer-events-none absolute right-8 top-1/2 hidden -translate-y-1/2 text-[#8F2528] transition group-hover:translate-x-1 sm:block">
-                    <ChevronRight size={42} strokeWidth={1.8} />
-                  </span>
+                    <p className="hidden text-[15px] font-bold text-black dark:text-white lg:block">
+                      {formatBRL(order.sale_price)}
+                    </p>
+
+                    <span className={`hidden h-6 w-fit items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium lg:inline-flex ${status.className}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                      {status.label}
+                    </span>
+
+                    <span className="flex justify-end text-black transition group-hover:translate-x-0.5 dark:text-white">
+                      <ChevronRight size={18} strokeWidth={2} />
+                    </span>
+                  </div>
                 </article>
               );
             })
