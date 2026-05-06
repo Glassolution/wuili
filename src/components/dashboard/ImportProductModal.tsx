@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
