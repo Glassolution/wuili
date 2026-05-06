@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -71,42 +71,63 @@ const STATUS_GROUP: Record<string, TabFilter> = {
 
 const CJ_WALLET_URL = "https://cjdropshipping.com/wallet.html";
 
+const ORDERS_COPY = {
+  breadcrumb: {
+    home: "Início",
+    account: "Minha Conta",
+    orders: "Meus Pedidos",
+    delivery: "Entrega",
+  },
+  dateRangeAria: "Selecionar período",
+  empty: {
+    title: "Nenhum pedido encontrado",
+    description: "Os pedidos solicitados pelos seus clientes aparecerão aqui assim que forem recebidos.",
+  },
+  error: {
+    title: "Não foi possível carregar os pedidos",
+    description: "Atualize a página ou tente novamente em instantes.",
+  },
+  fallbackProductTitle: "Produto sem título",
+  orderNumber: "Pedido nº",
+  noDate: "Sem data",
+};
+
 const STATUS_COPY: Record<TabFilter, { label: string; dot: string; className: string }> = {
   all: {
-    label: "All",
+    label: "Todos",
     dot: "bg-[#000000]",
     className: "bg-[#EFEFEF] text-[#000000]",
   },
   in_progress: {
-    label: "In progress",
+    label: "Em andamento",
     dot: "bg-[#E48622]",
     className: "bg-[#FFF4E6] text-[#C86911]",
   },
   delivered: {
-    label: "Delivered",
+    label: "Entregue",
     dot: "bg-[#88A72B]",
     className: "bg-[#EEF7E6] text-[#6D9335]",
   },
   cancelled: {
-    label: "Cancelled",
+    label: "Cancelado",
     dot: "bg-[#B83D3F]",
     className: "bg-[#F8EEEE] text-[#A03336]",
   },
 };
 
 const TABS: { key: TabFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "in_progress", label: "In Progress" },
-  { key: "delivered", label: "Delivered" },
-  { key: "cancelled", label: "Cancelled" },
+  { key: "all", label: "Todos" },
+  { key: "in_progress", label: "Em andamento" },
+  { key: "delivered", label: "Entregue" },
+  { key: "cancelled", label: "Cancelado" },
 ];
 
 const DATE_RANGE_LABEL: Record<DateRangeFilter, string> = {
-  all: "Select date range",
-  "7d": "Last 7 days",
-  "30d": "Last 30 days",
-  "90d": "Last 90 days",
-  month: "This month",
+  all: "Selecionar período",
+  "7d": "Últimos 7 dias",
+  "30d": "Últimos 30 dias",
+  "90d": "Últimos 90 dias",
+  month: "Este mês",
 };
 
 const formatBRL = (value: number) =>
@@ -117,9 +138,9 @@ const formatMaybeBRL = (value?: number | null) =>
 
 const formatOrderDate = (order: Order) => {
   const value = order.ordered_at ?? order.created_at;
-  if (!value) return "No date";
+  if (!value) return ORDERS_COPY.noDate;
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -208,7 +229,7 @@ const getCustomerCopyText = (order: Order) => {
     `Bairro/Cidade: ${address.cityLine}`,
     address.zipLine,
     `Telefone: ${order.buyer_phone || "Não informado"}`,
-    `Email: ${order.buyer_email || "Não informado"}`,
+    `E-mail: ${order.buyer_email || "Não informado"}`,
   ].filter(Boolean).join("\n");
 };
 
@@ -440,14 +461,14 @@ const OrdersPage = () => {
       <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-5 rounded-[12px] border border-[#EAEAEA] bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 md:p-6">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-[13px] leading-none text-[#6B6B6B] dark:text-zinc-300">
           <Link to="/dashboard" className="font-medium transition hover:text-black">
-            Home
+            {ORDERS_COPY.breadcrumb.home}
           </Link>
           <ChevronRight size={14} strokeWidth={2} className="text-black dark:text-white" />
           <Link to="/dashboard/configuracoes" className="font-medium transition hover:text-black">
-            My Account
+            {ORDERS_COPY.breadcrumb.account}
           </Link>
           <ChevronRight size={14} strokeWidth={2} className="text-black dark:text-white" />
-          <span className="font-medium text-[#6B6B6B] dark:text-zinc-400">My Orders</span>
+          <span className="font-medium text-[#6B6B6B] dark:text-zinc-400">{ORDERS_COPY.breadcrumb.orders}</span>
         </nav>
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -481,14 +502,14 @@ const OrdersPage = () => {
             <select
               value={dateRange}
               onChange={(event) => setDateRange(event.target.value as DateRangeFilter)}
-              aria-label="Select date range"
+              aria-label={ORDERS_COPY.dateRangeAria}
               className="absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0"
             >
-              <option value="all">Select date range</option>
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-              <option value="month">This month</option>
+              <option value="all">{DATE_RANGE_LABEL.all}</option>
+              <option value="7d">{DATE_RANGE_LABEL["7d"]}</option>
+              <option value="30d">{DATE_RANGE_LABEL["30d"]}</option>
+              <option value="90d">{DATE_RANGE_LABEL["90d"]}</option>
+              <option value="month">{DATE_RANGE_LABEL.month}</option>
             </select>
           </label>
         </div>
@@ -499,17 +520,17 @@ const OrdersPage = () => {
           ) : isError ? (
             <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[12px] border border-[#EAEAEA] bg-white px-6 py-6 text-center dark:border-zinc-800 dark:bg-zinc-950">
               <AlertCircle size={24} className="text-black dark:text-white" />
-              <p className="mt-4 text-[17px] font-semibold">Could not load orders</p>
+              <p className="mt-4 text-[17px] font-semibold">{ORDERS_COPY.error.title}</p>
               <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-[#77706B] dark:text-zinc-400">
-                Refresh the page or try again in a moment.
+                {ORDERS_COPY.error.description}
               </p>
             </div>
           ) : filteredOrders.length === 0 ? (
             <div className="flex min-h-[180px] flex-col items-center justify-center rounded-[12px] border border-[#EAEAEA] bg-white px-6 py-6 text-center dark:border-zinc-800 dark:bg-zinc-950">
               <Package size={26} className="text-black" strokeWidth={1.8} />
-              <p className="mt-4 text-[18px] font-semibold">No orders found</p>
+              <p className="mt-4 text-[18px] font-semibold">{ORDERS_COPY.empty.title}</p>
               <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-[#77706B] dark:text-zinc-400">
-                Orders requested by your customers will appear here as soon as they are received.
+                {ORDERS_COPY.empty.description}
               </p>
             </div>
           ) : (
@@ -520,8 +541,8 @@ const OrdersPage = () => {
               const visibleItems = items.slice(0, 3);
               const hiddenCount = Math.max(items.length - visibleItems.length, 0);
               const productCopy = [
-                visibleItems.join(" | ") || "Product without title",
-                hiddenCount > 0 ? `& ${hiddenCount} more items` : "",
+                visibleItems.join(" | ") || ORDERS_COPY.fallbackProductTitle,
+                hiddenCount > 0 ? `e mais ${hiddenCount} ${hiddenCount === 1 ? "item" : "itens"}` : "",
               ].filter(Boolean);
 
               return (
@@ -547,7 +568,7 @@ const OrdersPage = () => {
                         {productCopy[1] && <span className="font-medium text-[#6B6B6B]"> {productCopy[1]}</span>}
                       </p>
                       <p className="mt-1 text-[12px] leading-none text-[#8A8A8A]">
-                        Order ID: {getOrderId(order)} • {formatOrderDate(order)}
+                        {ORDERS_COPY.orderNumber} {getOrderId(order)} • {formatOrderDate(order)}
                       </p>
                       <div className="mt-2 flex items-center gap-2 lg:hidden">
                         <p className="text-[14px] font-bold text-black dark:text-white">
@@ -671,14 +692,14 @@ const DeliveryDetailView = ({
       <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-7">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-3 text-[15px] leading-none text-[#2A2928] dark:text-zinc-200">
           <Link to="/dashboard" className="transition hover:text-[#0A0A0A]">
-            Home
+            {ORDERS_COPY.breadcrumb.home}
           </Link>
           <ChevronRight size={16} strokeWidth={2.1} className="text-[#1D1B1A] dark:text-zinc-300" />
           <button type="button" onClick={onBack} className="transition hover:text-[#0A0A0A]">
-            My Orders
+            {ORDERS_COPY.breadcrumb.orders}
           </button>
           <ChevronRight size={16} strokeWidth={2.1} className="text-[#1D1B1A] dark:text-zinc-300" />
-          <span className="text-[#494746] dark:text-zinc-400">Entrega</span>
+          <span className="text-[#494746] dark:text-zinc-400">{ORDERS_COPY.breadcrumb.delivery}</span>
         </nav>
 
         <div className="flex flex-col gap-5 rounded-[24px] border border-[#E8E5E2] bg-[#FBFAF9] p-5 dark:border-zinc-800 dark:bg-zinc-900/60 lg:flex-row lg:items-center lg:justify-between">
@@ -702,7 +723,7 @@ const DeliveryDetailView = ({
                 {order.product_title}
               </h1>
               <p className="mt-2 text-[14px] font-medium text-[#77706B] dark:text-zinc-400">
-                Pedido #{getOrderId(order)} • {formatOrderDate(order)}
+                {ORDERS_COPY.orderNumber} {getOrderId(order)} • {formatOrderDate(order)}
               </p>
             </div>
           </div>
@@ -806,7 +827,7 @@ const DeliveryDetailView = ({
               <div className="mt-6 space-y-4">
                 <CustomerInfoRow icon={<MapPin size={16} />} label="Endereço completo" value={address.full} />
                 <CustomerInfoRow icon={<Phone size={16} />} label="Telefone" value={order.buyer_phone || "Não informado"} />
-                <CustomerInfoRow icon={<Mail size={16} />} label="Email" value={order.buyer_email || "Não informado"} />
+                <CustomerInfoRow icon={<Mail size={16} />} label="E-mail" value={order.buyer_email || "Não informado"} />
               </div>
 
               <button
@@ -840,7 +861,7 @@ type DeliveryStepProps = {
   step: {
     number: number;
     title: string;
-    icon: React.ReactNode;
+    icon: ReactNode;
     text: string;
   };
   state: "done" | "current" | "pending";
@@ -1000,7 +1021,7 @@ const SummaryRow = ({ label, value, strong = false }: { label: string; value: st
   </div>
 );
 
-const CustomerInfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
+const CustomerInfoRow = ({ icon, label, value }: { icon: ReactNode; label: string; value: string }) => (
   <div className="flex gap-3 rounded-[16px] border border-[#E8E5E2] bg-[#FBFAF9] p-4 dark:border-zinc-800 dark:bg-zinc-900">
     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#151312] dark:bg-zinc-950 dark:text-white">
       {icon}
