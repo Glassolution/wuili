@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ExternalLink, Package, ShoppingBag, Pause, Play, AlertCircle,
+  ExternalLink, Package, ShoppingBag, Pause, Play, AlertCircle, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
