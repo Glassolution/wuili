@@ -355,6 +355,10 @@ Retorne APENAS a legenda, sem títulos, introduções ou comentários.`;
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(3);
 
+      // Atualiza imediatamente a lista de publicações em qualquer tela que esteja ouvindo
+      queryClient.invalidateQueries({ queryKey: ["user-publications"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-publications"] });
+
       toast.success("Produto publicado com sucesso");
       if (data.permalink) window.open(data.permalink, '_blank', 'noopener,noreferrer');
     } catch (err: any) {
