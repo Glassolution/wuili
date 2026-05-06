@@ -330,31 +330,41 @@ Deno.serve(async (req) => {
       console.log('Descrição não enviada: texto vazio ou com menos de 20 caracteres')
     }
 
-    // === SAVE PUBLICATION ===
-    // cj_product_id and cj_variant_id come from the ImportProductModal payload
-    // so the ml-orders-webhook can map ML item → CJ variant without an extra lookup
+    // Normalize permalink → always https; fallback when ML omits it
+    const rawPermalink: string =
+      (itemData.permalink as string | undefined) ||
+      `https://produto.mercadolivre.com.br/${itemId.replace(/^MLB/, 'MLB-')}`
+    const permalink = rawPermalink.replace(/^http:\/\//i, 'https://')
+
+    // === SAVE PUBLICATION (upsert to prevent duplicates on retry) ===
     try {
-      await supabase.from('user_publications').insert({
-        user_id,
-        ml_item_id:     itemId,
-        title,
-        thumbnail:      publicImages[0] || null,
-        price:          product.price,
-        cost_price:     product.cost_price || null,
-        status:         'active',
-        permalink:      itemData.permalink,
-        published_at:   new Date().toISOString(),
-        // CJ product/variant IDs passed from frontend when importing the product
-        cj_product_id:  product.cj_product_id  ?? null,
-        cj_product_url: product.cj_product_url ?? null,
-        cj_variant_id:  product.cj_variant_id  ?? null,
-      })
+      const { error: upsertErr } = await supabase
+        .from('user_publications')
+        .upsert(
+          {
+            user_id,
+            ml_item_id:     itemId,
+            title,
+            thumbnail:      publicImages[0] || null,
+            price:          product.price,
+            cost_price:     product.cost_price || null,
+            status:         'active',
+            permalink,
+            published_at:   new Date().toISOString(),
+            cj_product_id:  product.cj_product_id  ?? null,
+            cj_product_url: product.cj_product_url ?? null,
+            cj_variant_id:  product.cj_variant_id  ?? null,
+          },
+          { onConflict: 'user_id,ml_item_id' }
+        )
+      if (upsertErr) console.error('Erro ao salvar publicação:', upsertErr)
+      else console.log('Publicação salva (upsert):', itemId)
     } catch (pubErr) {
       console.error('Erro ao salvar publicação:', pubErr)
     }
 
-    console.log('=== ml-publish SUCCESS ===', itemId)
-    return json({ success: true, permalink: itemData.permalink, item_id: itemId })
+    console.log('=== ml-publish SUCCESS ===', itemId, permalink)
+    return json({ success: true, permalink, item_id: itemId, ml_item_id: itemId })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ExternalLink, Package, ShoppingBag, Pause, Play, AlertCircle,
+  ExternalLink, Package, ShoppingBag, Pause, Play, AlertCircle, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -65,19 +65,42 @@ const PublicationsPage = () => {
   const [tab, setTab] = useState<TabFilter>("all");
 
   // ── Query ──────────────────────────────────────────────────────────────────
-  const { data: publications, isLoading } = useQuery({
+  const { data: publications, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["user-publications", user?.id],
     enabled: !!user,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_publications" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         .select("*")
         .eq("user_id", user!.id)
         .order("published_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Publication[];
+      if (error) {
+        console.error("[publications] fetch error", error);
+        throw error;
+      }
+      return (data ?? []) as unknown as Publication[];
     },
   });
+
+  // ── Realtime: atualiza a lista assim que ml-publish insere o registro ──────
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`user_publications:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_publications", filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["user-publications", user.id] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
 
   // ── Toggle status mutation ─────────────────────────────────────────────────
   const toggleMutation = useMutation({
@@ -92,6 +115,17 @@ const PublicationsPage = () => {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["user-publications", user?.id] }),
   });
+
+  // Fallback de link quando o ML demora a retornar permalink
+  const buildPermalink = (pub: Publication): string | null => {
+    if (pub.permalink) return pub.permalink.replace(/^http:\/\//i, "https://");
+    if (pub.ml_item_id) {
+      // formato MLBxxxxxxx → MLB-xxxxxxx
+      const slug = pub.ml_item_id.replace(/^MLB/, "MLB-");
+      return `https://produto.mercadolivre.com.br/${slug}`;
+    }
+    return null;
+  };
 
   const all = publications ?? [];
 
@@ -233,17 +267,30 @@ const PublicationsPage = () => {
                     {/* Ações */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {pub.permalink && (
-                          <a
-                            href={pub.permalink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
-                          >
-                            <ExternalLink size={11} />
-                            Ver anúncio
-                          </a>
-                        )}
+                        {(() => {
+                          const link = buildPermalink(pub);
+                          const syncing = !pub.permalink && !!pub.ml_item_id;
+                          if (!link) {
+                            return (
+                              <span className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground">
+                                <Loader2 size={11} className="animate-spin" />
+                                Sincronizando…
+                              </span>
+                            );
+                          }
+                          return (
+                            <a
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                              title={syncing ? "Sincronizando com o Mercado Livre…" : "Abrir anúncio"}
+                            >
+                              <ExternalLink size={11} />
+                              Ver anúncio
+                            </a>
+                          );
+                        })()}
                         <button
                           onClick={() => toggleMutation.mutate({ id: pub.id, currentStatus: status })}
                           disabled={toggleMutation.isPending || isError}

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +75,7 @@ const STEPS = [
 
 const ImportProductModal = ({ open, onClose, product }: Props) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
 
@@ -352,6 +354,10 @@ Retorne APENAS a legenda, sem títulos, introduções ou comentários.`;
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(3);
+
+      // Atualiza imediatamente a lista de publicações em qualquer tela que esteja ouvindo
+      queryClient.invalidateQueries({ queryKey: ["user-publications"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-publications"] });
 
       toast.success("Produto publicado com sucesso");
       if (data.permalink) window.open(data.permalink, '_blank', 'noopener,noreferrer');
