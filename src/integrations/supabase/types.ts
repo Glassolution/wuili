@@ -169,6 +169,183 @@ export type Database = {
           },
         ]
       }
+      ml_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          redirect_to: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          redirect_to?: string | null
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          redirect_to?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          buyer_address: string | null
+          buyer_city: string | null
+          buyer_email: string | null
+          buyer_name: string | null
+          buyer_neighborhood: string | null
+          buyer_number: string | null
+          buyer_phone: string | null
+          buyer_state: string | null
+          buyer_zip: string | null
+          cj_order_id: string | null
+          cj_product_id: string | null
+          cj_product_url: string | null
+          cj_variant_id: string | null
+          cost_price: number | null
+          created_at: string | null
+          external_order_id: string | null
+          fulfilled_at: string | null
+          fulfillment_error: string | null
+          fulfillment_status: string | null
+          id: string
+          ml_order_id: string | null
+          ml_tracking_sent: boolean | null
+          ml_tracking_sent_at: string | null
+          ml_user_id: string | null
+          ordered_at: string | null
+          platform: string
+          product_image: string | null
+          product_title: string
+          profit: number | null
+          quantity: number
+          raw: Json | null
+          sale_price: number
+          status: string
+          total_amount: number | null
+          tracking_code: string | null
+          user_id: string
+        }
+        Insert: {
+          buyer_address?: string | null
+          buyer_city?: string | null
+          buyer_email?: string | null
+          buyer_name?: string | null
+          buyer_neighborhood?: string | null
+          buyer_number?: string | null
+          buyer_phone?: string | null
+          buyer_state?: string | null
+          buyer_zip?: string | null
+          cj_order_id?: string | null
+          cj_product_id?: string | null
+          cj_product_url?: string | null
+          cj_variant_id?: string | null
+          cost_price?: number | null
+          created_at?: string | null
+          external_order_id?: string | null
+          fulfilled_at?: string | null
+          fulfillment_error?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          ml_order_id?: string | null
+          ml_tracking_sent?: boolean | null
+          ml_tracking_sent_at?: string | null
+          ml_user_id?: string | null
+          ordered_at?: string | null
+          platform?: string
+          product_image?: string | null
+          product_title?: string
+          profit?: number | null
+          quantity?: number
+          raw?: Json | null
+          sale_price?: number
+          status?: string
+          total_amount?: number | null
+          tracking_code?: string | null
+          user_id: string
+        }
+        Update: {
+          buyer_address?: string | null
+          buyer_city?: string | null
+          buyer_email?: string | null
+          buyer_name?: string | null
+          buyer_neighborhood?: string | null
+          buyer_number?: string | null
+          buyer_phone?: string | null
+          buyer_state?: string | null
+          buyer_zip?: string | null
+          cj_order_id?: string | null
+          cj_product_id?: string | null
+          cj_product_url?: string | null
+          cj_variant_id?: string | null
+          cost_price?: number | null
+          created_at?: string | null
+          external_order_id?: string | null
+          fulfilled_at?: string | null
+          fulfillment_error?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          ml_order_id?: string | null
+          ml_tracking_sent?: boolean | null
+          ml_tracking_sent_at?: string | null
+          ml_user_id?: string | null
+          ordered_at?: string | null
+          platform?: string
+          product_image?: string | null
+          product_title?: string
+          profit?: number | null
+          quantity?: number
+          raw?: Json | null
+          sale_price?: number
+          status?: string
+          total_amount?: number | null
+          tracking_code?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -391,6 +568,71 @@ export type Database = {
         }
         Relationships: []
       }
+      support_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          sender: string
+          ticket_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          sender: string
+          ticket_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          sender?: string
+          ticket_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          admin_last_seen_at: string | null
+          ai_active: boolean | null
+          created_at: string | null
+          id: string
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_last_seen_at?: string | null
+          ai_active?: boolean | null
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_last_seen_at?: string | null
+          ai_active?: boolean | null
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_integrations: {
         Row: {
           access_token: string | null
@@ -472,15 +714,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -607,6 +876,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
