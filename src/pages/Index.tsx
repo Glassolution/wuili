@@ -1,5 +1,5 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useState } from "react";
+import { type MouseEvent, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { VeloLogo } from "@/components/VeloLogo";
 import PlanBadge from "@/components/PlanBadge";
@@ -11,15 +11,20 @@ import AnywhereSection from "@/components/landing/AnywhereSection";
 import FeatureSections from "@/components/landing/FeatureSections";
 import TestimonialsSection from "@/components/landing/TestimonialsSection";
 import PricingSection from "@/components/landing/PricingSection";
+import FAQSection from "@/components/landing/FAQSection";
 import CTASection from "@/components/landing/CTASection";
 import Footer from "@/components/landing/Footer";
 import { CatalogMockup } from "@/components/landing/DashboardMockups";
 import { playSatisfyingClick } from "@/lib/uiFeedback";
 
-const NAV_LINKS = [
+type NavLink =
+  | { label: string; href: string; to?: never; forceNavigate?: never }
+  | { label: string; to: string; forceNavigate?: boolean; href?: never };
+
+const NAV_LINKS: NavLink[] = [
   { label: "Produto", href: "#" },
   { label: "Soluções", href: "#" },
-  { label: "FAQ", to: "/docs", forceNavigate: true },
+  { label: "FAQ", href: "#faq" },
   { label: "Suporte", href: "#" },
 ];
 
@@ -27,12 +32,30 @@ const Index = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
-  useSearchParams();
+  const [searchParams] = useSearchParams();
   const [signupPreparing, setSignupPreparing] = useState(false);
   const [signupTransition, setSignupTransition] = useState(false);
 
   const isLogged = Boolean(user);
   const userInitial = (user?.email ?? "U").charAt(0).toUpperCase();
+
+  useEffect(() => {
+    if (searchParams.get("section") !== "faq") return;
+
+    window.requestAnimationFrame(() => {
+      document.getElementById("faq")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [searchParams]);
+
+  const handleAnchorClick = (href?: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!href || !href.startsWith("#") || href.length <= 1) return;
+
+    const target = document.querySelector(href);
+    if (!target) return;
+
+    event.preventDefault();
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const handleStartSignup = () => {
     if (signupPreparing || signupTransition) return;
@@ -88,7 +111,12 @@ const Index = () => {
                   {item.label}
                 </button>
               ) : (
-                <a key={item.label} href={item.href} className="transition hover:text-[#0a0a0a]">
+                <a
+                  key={item.label}
+                  href={item.href}
+                  onClick={handleAnchorClick(item.href)}
+                  className="transition hover:text-[#0a0a0a]"
+                >
                   {item.label}
                 </a>
               )
@@ -248,6 +276,7 @@ const Index = () => {
         <TestimonialsSection />
 
         <PricingSection />
+        <FAQSection />
         <CTASection />
         <Footer />
       </main>

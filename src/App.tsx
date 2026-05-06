@@ -30,7 +30,6 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import CriarVideoPage from "./pages/dashboard/CriarVideoPage";
 import ChatFornecedoresPage from "./pages/dashboard/ChatFornecedoresPage";
 import DashboardHomePage from "./pages/dashboard/DashboardHomePage";
-import Docs from "./pages/Docs";
 import ClientesPage from "./pages/dashboard/ClientesPage";
 import AdminSupportPage from "./pages/admin/AdminSupportPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
@@ -60,7 +59,8 @@ const App = () => (
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<CadastroPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/docs" element={<Docs />} />
+          <Route path="/docs" element={<Navigate to="/?section=faq" replace />} />
+          <Route path="/faq" element={<Navigate to="/?section=faq" replace />} />
           <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
           <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
           <Route path="/admin/suporte" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
