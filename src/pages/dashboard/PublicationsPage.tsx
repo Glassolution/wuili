@@ -65,19 +65,42 @@ const PublicationsPage = () => {
   const [tab, setTab] = useState<TabFilter>("all");
 
   // ── Query ──────────────────────────────────────────────────────────────────
-  const { data: publications, isLoading } = useQuery({
+  const { data: publications, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["user-publications", user?.id],
     enabled: !!user,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_publications" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         .select("*")
         .eq("user_id", user!.id)
         .order("published_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Publication[];
+      if (error) {
+        console.error("[publications] fetch error", error);
+        throw error;
+      }
+      return (data ?? []) as unknown as Publication[];
     },
   });
+
+  // ── Realtime: atualiza a lista assim que ml-publish insere o registro ──────
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`user_publications:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_publications", filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["user-publications", user.id] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
 
   // ── Toggle status mutation ─────────────────────────────────────────────────
   const toggleMutation = useMutation({
@@ -92,6 +115,17 @@ const PublicationsPage = () => {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["user-publications", user?.id] }),
   });
+
+  // Fallback de link quando o ML demora a retornar permalink
+  const buildPermalink = (pub: Publication): string | null => {
+    if (pub.permalink) return pub.permalink.replace(/^http:\/\//i, "https://");
+    if (pub.ml_item_id) {
+      // formato MLBxxxxxxx → MLB-xxxxxxx
+      const slug = pub.ml_item_id.replace(/^MLB/, "MLB-");
+      return `https://produto.mercadolivre.com.br/${slug}`;
+    }
+    return null;
+  };
 
   const all = publications ?? [];
 
