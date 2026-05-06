@@ -267,17 +267,30 @@ const PublicationsPage = () => {
                     {/* Ações */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {pub.permalink && (
-                          <a
-                            href={pub.permalink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
-                          >
-                            <ExternalLink size={11} />
-                            Ver anúncio
-                          </a>
-                        )}
+                        {(() => {
+                          const link = buildPermalink(pub);
+                          const syncing = !pub.permalink && !!pub.ml_item_id;
+                          if (!link) {
+                            return (
+                              <span className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground">
+                                <Loader2 size={11} className="animate-spin" />
+                                Sincronizando…
+                              </span>
+                            );
+                          }
+                          return (
+                            <a
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                              title={syncing ? "Sincronizando com o Mercado Livre…" : "Abrir anúncio"}
+                            >
+                              <ExternalLink size={11} />
+                              Ver anúncio
+                            </a>
+                          );
+                        })()}
                         <button
                           onClick={() => toggleMutation.mutate({ id: pub.id, currentStatus: status })}
                           disabled={toggleMutation.isPending || isError}
