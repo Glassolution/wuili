@@ -249,27 +249,24 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     try {
       const price = sellPrice.toFixed(2).replace(".", ",");
       const category = product.category || "Não informada";
-      const productDescriptionPrompt = `Você é um especialista em copywriting para e-commerce brasileiro.
-Gere uma descrição de produto persuasiva e completa para o Mercado Livre
-com base nestas informações:
+      const productDescriptionPrompt = `Crie uma legenda de produto natural, persuasiva e humana para marketplace de dropshipping, com base nestas informações:
 
 Nome: ${title}
 Categoria: ${category}
 Preço: R$ ${price}
 
-A descrição deve ter:
-- 4 a 6 parágrafos
-- Parágrafo 1: apresentação do produto e principal benefício
-- Parágrafo 2: características técnicas e diferenciais
-- Parágrafo 3: para quem é indicado e situações de uso
-- Parágrafo 4: garantia de qualidade e satisfação
-- Parágrafo 5: call-to-action persuasivo
-- Tom: confiante, vendedor e acessível
-- Idioma: português brasileiro
-- Não use bullet points, escreva em parágrafos corridos
-- Mínimo 300 palavras
+Regras obrigatórias:
+- Escreva como uma marca que entende o problema do cliente e apresenta o produto como solução prática.
+- Não use emojis em hipótese alguma.
+- Não use frases genéricas como "produto incrível", "alta qualidade", "perfeito para você", "imperdível" ou clichês similares.
+- Evite tom artificial, exagerado, robótico ou de IA.
+- Foque em benefício real, uso no dia a dia, praticidade e motivo de compra.
+- Linguagem simples, direta e convincente, como um vendedor experiente falando.
+- Português brasileiro.
+- Entre 3 e 6 linhas no total (parágrafos curtos, sem bullet points).
+- Finalize com uma chamada sutil para ação (não agressiva).
 
-Retorne APENAS a descrição, sem introdução, sem comentários.`;
+Retorne APENAS a legenda, sem títulos, introduções ou comentários.`;
 
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
