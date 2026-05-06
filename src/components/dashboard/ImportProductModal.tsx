@@ -75,6 +75,7 @@ const STEPS = [
 
 const ImportProductModal = ({ open, onClose, product }: Props) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
 
