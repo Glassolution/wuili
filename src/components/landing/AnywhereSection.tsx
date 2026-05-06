@@ -1,166 +1,172 @@
-import { ArrowUpRight, Download, Store, Smartphone } from "lucide-react";
+import { ArrowUpRight, BarChart3, PackageCheck, Store } from "lucide-react";
 
 type CardDef = {
   title: string;
   cta: string;
-  ctaIcon: "download" | "arrow" | "phone";
+  href: string;
   gradient: string;
-  mockup: "desktop" | "browser" | "terminal";
+  mockup: "dashboard" | "marketplace" | "orders";
 };
 
 const cards: CardDef[] = [
   {
-    title: "Comece no app da Velo",
-    cta: "Baixar para Windows",
-    ctaIcon: "download",
+    title: "Comece pela plataforma web",
+    cta: "Acessar plataforma",
+    href: "/login",
     gradient: "linear-gradient(135deg, #111 0%, #1c1c1c 45%, #0a0a0a 100%)",
-    mockup: "desktop",
+    mockup: "dashboard",
   },
   {
-    title: "Integre aos seus marketplaces",
+    title: "Integre ao Mercado Livre",
     cta: "Conectar Mercado Livre",
-    ctaIcon: "arrow",
-    gradient: "linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #1e40af 100%)",
-    mockup: "browser",
+    href: "/login",
+    gradient: "linear-gradient(135deg, #161616 0%, #2a2a2a 52%, #0b0b0b 100%)",
+    mockup: "marketplace",
   },
   {
-    title: "Gerencie pelo mobile",
-    cta: "Baixar na App Store",
-    ctaIcon: "phone",
-    gradient: "linear-gradient(135deg, #0a0a0a 0%, #1f2937 50%, #065f46 100%)",
-    mockup: "terminal",
+    title: "Gerencie tudo em um só lugar",
+    cta: "Ver painel",
+    href: "/login",
+    gradient: "linear-gradient(135deg, #0a0a0a 0%, #171717 48%, #262626 100%)",
+    mockup: "orders",
   },
 ];
 
-const CtaIcon = ({ type }: { type: CardDef["ctaIcon"] }) => {
-  if (type === "download") return <Download size={14} strokeWidth={2.5} />;
-  if (type === "phone") return <Smartphone size={14} strokeWidth={2.5} />;
-  return <ArrowUpRight size={14} strokeWidth={2.5} />;
-};
+const Metric = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
+    <div className="text-[7px] font-medium uppercase tracking-[0.12em] text-white/35">{label}</div>
+    <div className="mt-1 text-[13px] font-bold text-white">{value}</div>
+  </div>
+);
 
-const MockupDesktop = () => (
-  <div className="w-[180px] rounded-xl border border-white/[0.12] bg-[#0a0a0a]/85 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.4)] backdrop-blur-md">
-    <div className="mb-2 flex gap-1">
-      <div className="h-[5px] w-[5px] rounded-full bg-white/30" />
-      <div className="h-[5px] w-[5px] rounded-full bg-white/30" />
-      <div className="h-[5px] w-[5px] rounded-full bg-white/30" />
-    </div>
-    <div className="mb-3 text-center">
-      <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-        <span className="text-[11px] text-white/80">&gt;_</span>
+const MockupDashboard = () => (
+  <div className="w-[220px] rounded-xl border border-white/[0.12] bg-[#0a0a0a]/88 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.4)] backdrop-blur-md">
+    <div className="mb-3 flex items-center justify-between">
+      <div>
+        <div className="text-[9px] font-semibold text-white">Painel Velo</div>
+        <div className="text-[7px] text-white/38">Operação web</div>
       </div>
-      <div className="text-[9px] font-semibold text-white/85">Vamos vender</div>
-      <div className="text-[8px] text-white/40">Loja Velo ▾</div>
+      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-black">
+        <BarChart3 size={12} strokeWidth={2.4} />
+      </div>
     </div>
-    <div className="mb-2 rounded-md bg-white/[0.06] px-2 py-[6px] text-[8px] text-white/50">
-      Criar anúncio de suporte veicular
+    <div className="grid grid-cols-2 gap-2">
+      <Metric label="Vendas" value="R$ 8,4k" />
+      <Metric label="Lucro" value="R$ 2,1k" />
     </div>
-    <div className="flex justify-between">
-      <div className="text-[9px] text-white/40">+</div>
-      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] text-black">↑</div>
-    </div>
-  </div>
-);
-
-const MockupBrowser = () => (
-  <div className="w-[200px] rounded-xl border border-white/[0.12] bg-[#0a0a0a]/85 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.4)] backdrop-blur-md">
-    <div className="mb-2 text-[8px] text-white/60">
-      Publiquei 2 anúncios novos com títulos otimizados, 5 fotos
-      tratadas e preço ajustado pela concorrência.
-    </div>
-    <div className="mb-1 flex justify-between text-[8px]">
-      <span className="text-white/50">2 anúncios publicados</span>
-      <span className="text-white/40">Revisar ↗</span>
-    </div>
-    <div className="mb-[6px] flex items-center justify-between rounded bg-white/[0.04] px-2 py-[5px]">
-      <span className="text-[8px] text-white/60">Suporte Magnético</span>
-      <span className="text-[7px] font-bold text-[#4ade80]">+R$ 42</span>
-    </div>
-    <div className="mb-2 flex items-center justify-between rounded bg-white/[0.04] px-2 py-[5px]">
-      <span className="text-[8px] text-white/60">Kit Skincare 5 itens</span>
-      <span className="text-[7px] font-bold text-[#4ade80]">+R$ 89</span>
-    </div>
-    <div className="rounded-md border border-white/10 bg-white/[0.02] px-2 py-[6px] text-[8px] text-white/50">
-      Ficou ótimo, aprovar tudo
-    </div>
-    <div className="mt-2 flex justify-end">
-      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] text-black">↑</div>
+    <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-2">
+      <div className="mb-2 flex items-center justify-between text-[7px] text-white/38">
+        <span>Produtos importados</span>
+        <span>Hoje</span>
+      </div>
+      <div className="space-y-1.5">
+        <div className="h-2 rounded-full bg-white/75" />
+        <div className="h-2 w-4/5 rounded-full bg-white/35" />
+        <div className="h-2 w-2/3 rounded-full bg-white/20" />
+      </div>
     </div>
   </div>
 );
 
-const MockupTerminal = () => (
-  <div className="w-[220px] rounded-xl border border-white/[0.12] bg-[#0a0a0a]/90 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.4)] backdrop-blur-md">
-    <div className="mb-2 flex items-center gap-1.5">
-      <div className="h-[5px] w-[5px] rounded-full bg-[#ff5f57]" />
-      <div className="h-[5px] w-[5px] rounded-full bg-[#febc2e]" />
-      <div className="h-[5px] w-[5px] rounded-full bg-[#28c840]" />
+const MockupMarketplace = () => (
+  <div className="w-[220px] rounded-xl border border-white/[0.12] bg-[#0a0a0a]/88 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.4)] backdrop-blur-md">
+    <div className="mb-3 flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
+      <div>
+        <div className="text-[8px] font-semibold text-white">Mercado Livre</div>
+        <div className="text-[7px] text-white/38">Conta conectada</div>
+      </div>
+      <div className="rounded-full bg-white px-2 py-1 text-[7px] font-bold text-black">Ativo</div>
     </div>
-    <div className="mb-1 font-mono text-[8px] text-white/70">
-      &gt;_ Velo CLI <span className="text-white/30">(v1.0.4)</span>
+    <div className="mb-2 flex items-center gap-2 rounded-lg bg-white/[0.04] p-2">
+      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-black">
+        <Store size={14} strokeWidth={2.4} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[8px] font-semibold text-white">Monitor fitness</div>
+        <div className="text-[7px] text-white/38">Pronto para publicar</div>
+      </div>
+      <div className="text-[8px] font-bold text-white">R$ 74</div>
     </div>
-    <div className="mb-[2px] font-mono text-[8px] text-white/50">
-      store: <span className="text-[#4ade80]">loja-velo-sp</span>
+    <div className="rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-2 text-[8px] text-white/46">
+      Categoria, preço e descrição preparados para o marketplace.
     </div>
-    <div className="mb-2 font-mono text-[8px] text-white/50">
-      channel: mercado-livre
+  </div>
+);
+
+const MockupOrders = () => (
+  <div className="w-[220px] rounded-xl border border-white/[0.12] bg-[#0a0a0a]/88 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.4)] backdrop-blur-md">
+    <div className="mb-3 flex items-center justify-between">
+      <div>
+        <div className="text-[9px] font-semibold text-white">Pedidos</div>
+        <div className="text-[7px] text-white/38">Acompanhamento centralizado</div>
+      </div>
+      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-black">
+        <PackageCheck size={12} strokeWidth={2.4} />
+      </div>
     </div>
-    <div className="mb-2 font-mono text-[7px] text-white/40">
-      Tip: use /nicho para mudar o segmento
+    <div className="space-y-2">
+      {[
+        ["VL-00001", "Em andamento", "R$ 89,90"],
+        ["VL-00002", "Enviado", "R$ 124,50"],
+        ["VL-00003", "Entregue", "R$ 67,20"],
+      ].map(([id, status, price]) => (
+        <div key={id} className="grid grid-cols-[1fr_auto] gap-2 rounded-lg bg-white/[0.04] px-2.5 py-2">
+          <div>
+            <div className="text-[8px] font-semibold text-white">{id}</div>
+            <div className="text-[7px] text-white/38">{status}</div>
+          </div>
+          <div className="text-[8px] font-bold text-white">{price}</div>
+        </div>
+      ))}
     </div>
-    <div className="mb-1 font-mono text-[8px] text-white">
-      &gt; velo publicar suporte-veicular
-    </div>
-    <div className="font-mono text-[7px] text-white/40">97% contexto livre</div>
   </div>
 );
 
 const AnywhereSection = () => (
   <section className="bg-black px-6 py-[120px] md:px-10">
     <div className="mx-auto max-w-[1200px]">
-      {/* Headline */}
-      <h2 className="mx-auto max-w-[720px] text-center font-['Manrope'] text-[clamp(1.9rem,3.5vw,2.75rem)] font-bold leading-[1.12] tracking-[-0.025em] text-white">
-        A mesma IA em qualquer lugar<br className="hidden sm:block" /> que você vende
+      <h2 className="mx-auto max-w-[760px] text-center font-['Manrope'] text-[clamp(1.9rem,3.5vw,2.75rem)] font-bold leading-[1.12] tracking-[-0.025em] text-white">
+        Uma plataforma web para operar<br className="hidden sm:block" /> seu marketplace com clareza
       </h2>
-      <p className="mx-auto mt-5 max-w-[560px] text-center font-['Manrope'] text-[15px] leading-[1.65] text-white/50">
-        Use a Velo em várias interfaces — todas conectadas à mesma conta e à mesma operação.
+      <p className="mx-auto mt-5 max-w-[610px] text-center font-['Manrope'] text-[15px] leading-[1.65] text-white/50">
+        A Velo reúne catálogo, publicação no Mercado Livre, pedidos e indicadores em um painel online simples de acompanhar.
       </p>
       <div className="mt-8 flex justify-center">
         <a
-          href="#"
+          href="/login"
           className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-[11px] font-['Manrope'] text-[13px] font-semibold text-black transition hover:bg-white/90"
         >
-          Saiba mais na documentação
+          Entrar na plataforma
           <ArrowUpRight size={14} strokeWidth={2.5} />
         </a>
       </div>
 
-      {/* Three cards */}
       <div className="mt-16 grid grid-cols-1 gap-5 md:grid-cols-3">
         {cards.map((card) => (
           <div
             key={card.title}
             className="flex flex-col overflow-hidden rounded-[20px] border border-white/[0.06] bg-[#111]"
           >
-            {/* Gradient preview */}
             <div
               className="relative flex h-[260px] items-center justify-center overflow-hidden"
               style={{ background: card.gradient }}
             >
-              {card.mockup === "desktop" && <MockupDesktop />}
-              {card.mockup === "browser" && <MockupBrowser />}
-              {card.mockup === "terminal" && <MockupTerminal />}
+              {card.mockup === "dashboard" && <MockupDashboard />}
+              {card.mockup === "marketplace" && <MockupMarketplace />}
+              {card.mockup === "orders" && <MockupOrders />}
             </div>
 
-            {/* Title + CTA */}
             <div className="flex flex-col gap-5 p-7">
               <h3 className="font-['Manrope'] text-[16px] font-semibold tracking-[-0.01em] text-white">
                 {card.title}
               </h3>
-              <button className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-[12px] font-['Manrope'] text-[13px] font-semibold text-black transition hover:bg-white/90">
+              <a
+                href={card.href}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-[12px] font-['Manrope'] text-[13px] font-semibold text-black transition hover:bg-white/90"
+              >
                 {card.cta}
-                <CtaIcon type={card.ctaIcon} />
-              </button>
+                <ArrowUpRight size={14} strokeWidth={2.5} />
+              </a>
             </div>
           </div>
         ))}
