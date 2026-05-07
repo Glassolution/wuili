@@ -336,7 +336,7 @@ const OrdersPage = () => {
         .order("ordered_at", { ascending: false });
 
       if (error) throw error;
-      return (data ?? []) as Order[];
+      return (data ?? []) as unknown as Order[];
     },
   });
 
