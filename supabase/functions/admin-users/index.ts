@@ -34,13 +34,18 @@ const json = (body: Record<string, unknown> | unknown[], status = 200) =>
 const getProfileUserId = (profile: ProfileRow) => profile.user_id ?? profile.id;
 
 async function isAdmin(adminClient: ReturnType<typeof createClient>, userId: string) {
-  const { data } = await adminClient
-    .from("profiles")
+  const { data, error } = await adminClient
+    .from("user_roles")
     .select("role")
-    .or(`id.eq.${userId},user_id.eq.${userId}`)
+    .eq("user_id", userId)
+    .eq("role", "admin")
     .maybeSingle();
 
-  return data?.role === "admin";
+  if (error) {
+    console.error("[admin-users] isAdmin error:", error.message);
+    return false;
+  }
+  return !!data;
 }
 
 async function loadProfiles(adminClient: ReturnType<typeof createClient>): Promise<ProfileRow[]> {
