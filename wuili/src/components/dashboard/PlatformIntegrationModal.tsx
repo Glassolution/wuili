@@ -35,8 +35,8 @@ const Toggle = ({ on, onChange, disabled = false }: { on: boolean; onChange: () 
 );
 
 const PlatformLogoBadge = ({ name }: { name: string }) => (
-  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-white p-1.5 overflow-hidden dark:bg-zinc-900 dark:border-white/10">
-    <PlatformLogo platform={name} size={22} />
+  <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-2 dark:border-white/10 dark:bg-white">
+    <PlatformLogo platform={name} size={40} />
   </div>
 );
 
@@ -111,7 +111,7 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
         {/* Header */}
         <div className="flex items-start justify-between p-6 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
               <Network size={20} />
             </div>
             <div>
@@ -130,10 +130,10 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
             <p className="text-sm font-bold text-foreground mb-3">Disponível</p>
             <div className="grid grid-cols-1 gap-3">
               {available.map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded-xl border border-border p-3">
-                  <div className="flex items-center gap-2.5">
+                <div key={p.id} className="flex items-center justify-between gap-4 rounded-xl border border-border p-3">
+                  <div className="flex items-center gap-3">
                     <PlatformLogoBadge name={p.name} />
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground">{p.name}</p>
                       <p className="text-[10px] text-muted-foreground">{p.subtitle}</p>
                     </div>
@@ -160,18 +160,18 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
           {/* Coming soon */}
           <div>
             <p className="text-sm font-bold text-foreground mb-3">Em breve</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {comingSoon.map((p) => (
                 <div
                   key={p.id}
                   title="Disponível em breve"
-                  className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3 opacity-75 grayscale dark:border-zinc-800 dark:bg-zinc-900"
+                  className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900"
                 >
-                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
                     <PlatformLogoBadge name={p.name} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{p.subtitle}</p>
+                      <p className="truncate text-[10px] text-muted-foreground">{p.subtitle}</p>
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -190,7 +190,7 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
           <p className="text-xs text-muted-foreground">
             Saiba mais sobre{" "}
-            <a href="#" className="text-primary hover:underline">Plataformas</a>
+            <a href="#" className="text-foreground underline underline-offset-2 hover:text-muted-foreground">Plataformas</a>
           </p>
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="text-sm font-medium text-foreground underline hover:text-muted-foreground transition-colors">

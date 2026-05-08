@@ -436,7 +436,7 @@ const OrdersPage = () => {
   }
 
   return (
-    <section className="min-h-[calc(100vh-112px)] rounded-[24px] bg-white px-5 py-6 font-['Manrope'] text-[#1D1B1A] shadow-[0_1px_0_rgba(18,18,18,0.04)] dark:bg-zinc-950 dark:text-white md:px-8 md:py-8">
+    <section className="min-h-[calc(100vh-112px)] rounded-[24px] bg-white px-5 py-6 font-['Manrope'] text-[#1D1B1A] shadow-[0_1px_0_rgba(18,18,18,0.04)] dark:bg-zinc-900 dark:text-white md:px-8 md:py-8">
       <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-7">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-3 text-[15px] leading-none text-[#2A2928] dark:text-zinc-200">
           <Link to="/dashboard" className="transition hover:text-[#0A0A0A]">
@@ -463,8 +463,8 @@ const OrdersPage = () => {
                   className={[
                     "h-10 shrink-0 rounded-full border px-5 text-[14px] font-medium transition",
                     active
-                      ? "border-[#0A0A0A] bg-white text-[#0A0A0A] shadow-[0_8px_18px_rgba(10,10,10,0.05)] dark:border-white dark:bg-zinc-950 dark:text-white"
-                      : "border-[#D8D3CF] bg-white text-[#494746] hover:border-[#0A0A0A] hover:text-[#0A0A0A] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-white dark:hover:text-white",
+                      ? "border-[#0A0A0A] bg-white text-[#0A0A0A] shadow-[0_8px_18px_rgba(10,10,10,0.05)] dark:border-white dark:bg-white dark:text-black"
+                      : "border-[#D8D3CF] bg-white text-[#494746] hover:border-[#0A0A0A] hover:text-[#0A0A0A] dark:border-zinc-700 dark:bg-[#18181B] dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:text-white",
                   ].join(" ")}
                 >
                   {item.label}
@@ -474,7 +474,7 @@ const OrdersPage = () => {
           </div>
 
           <label className="relative h-11 w-full shrink-0 lg:w-[196px]">
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-between rounded-full bg-[#F7F6F5] px-5 text-[14px] font-medium text-[#2A2928] dark:bg-zinc-900 dark:text-zinc-100">
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-between rounded-full bg-[#F7F6F5] px-5 text-[14px] font-medium text-[#2A2928] dark:bg-[#18181B] dark:text-zinc-100">
               {DATE_RANGE_LABEL[dateRange]}
               <ChevronDown size={16} strokeWidth={2.1} className="text-[#0A0A0A] dark:text-white" />
             </span>
@@ -497,7 +497,7 @@ const OrdersPage = () => {
           {isLoading ? (
             Array.from({ length: 3 }).map((_, index) => <OrderCardSkeleton key={index} />)
           ) : isError ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-[#E1DDDA] bg-white px-8 py-8 text-center dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-[#E1DDDA] bg-white px-8 py-8 text-center dark:border-zinc-800 dark:bg-[#18181B]">
               <AlertCircle size={28} className="text-[#0A0A0A] dark:text-white" />
               <p className="mt-4 text-[17px] font-semibold">Could not load orders</p>
               <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-[#77706B] dark:text-zinc-400">
@@ -505,7 +505,7 @@ const OrdersPage = () => {
               </p>
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-[#E1DDDA] bg-white px-8 py-8 text-center dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-[#E1DDDA] bg-white px-8 py-8 text-center dark:border-zinc-800 dark:bg-[#18181B]">
               <Package size={31} className="text-[#B9B2AB]" strokeWidth={1.6} />
               <p className="mt-4 text-[18px] font-semibold">No orders found</p>
               <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-[#77706B] dark:text-zinc-400">
@@ -536,7 +536,7 @@ const OrdersPage = () => {
                       setSelectedOrderId(order.id);
                     }
                   }}
-                  className="group relative cursor-pointer rounded-[22px] border border-[#E1DDDA] bg-white px-5 py-8 transition duration-200 hover:border-[#D2CAC4] hover:shadow-[0_18px_44px_rgba(32,22,14,0.06)] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/15 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700 sm:px-10"
+                  className="group relative cursor-pointer rounded-[22px] border border-[#E1DDDA] bg-white px-5 py-8 transition duration-200 hover:border-[#D2CAC4] hover:shadow-[0_18px_44px_rgba(32,22,14,0.06)] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/15 dark:border-zinc-800 dark:bg-[#18181B] dark:hover:border-zinc-600 sm:px-10"
                 >
                   <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                     <span className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-[18px] font-semibold ${status.className}`}>
@@ -663,7 +663,7 @@ const DeliveryDetailView = ({
   ];
 
   return (
-    <section className="min-h-[calc(100vh-112px)] rounded-[24px] bg-white px-5 py-6 font-['Manrope'] text-[#151312] shadow-[0_1px_0_rgba(18,18,18,0.04)] dark:bg-zinc-950 dark:text-white md:px-8 md:py-8">
+    <section className="min-h-[calc(100vh-112px)] rounded-[24px] bg-white px-5 py-6 font-['Manrope'] text-[#151312] shadow-[0_1px_0_rgba(18,18,18,0.04)] dark:bg-zinc-900 dark:text-white md:px-8 md:py-8">
       <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-7">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-3 text-[15px] leading-none text-[#2A2928] dark:text-zinc-200">
           <Link to="/dashboard" className="transition hover:text-[#0A0A0A]">
@@ -677,12 +677,12 @@ const DeliveryDetailView = ({
           <span className="text-[#494746] dark:text-zinc-400">Entrega</span>
         </nav>
 
-        <div className="flex flex-col gap-5 rounded-[24px] border border-[#E8E5E2] bg-[#FBFAF9] p-5 dark:border-zinc-800 dark:bg-zinc-900/60 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-5 rounded-[24px] border border-[#E8E5E2] bg-[#FBFAF9] p-5 dark:border-zinc-800 dark:bg-[#18181B] lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             <button
               type="button"
               onClick={onBack}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E1DDDA] bg-white text-[#151312] transition hover:border-[#151312] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E1DDDA] bg-white text-[#151312] transition hover:border-[#151312] dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
               aria-label="Voltar para pedidos"
             >
               <ArrowLeft size={18} />
@@ -691,7 +691,7 @@ const DeliveryDetailView = ({
             <OrderImage order={order} />
 
             <div className="min-w-0">
-              <div className="mb-2 inline-flex rounded-full border border-[#D8D3CF] bg-white px-3 py-1 text-[12px] font-semibold text-[#494746] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
+              <div className="mb-2 inline-flex rounded-full border border-[#D8D3CF] bg-white px-3 py-1 text-[12px] font-semibold text-[#494746] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
                 Entrega do pedido
               </div>
               <h1 className="line-clamp-2 text-[24px] font-bold leading-tight tracking-[-0.02em] text-[#151312] dark:text-white md:text-[30px]">
@@ -735,7 +735,7 @@ const DeliveryDetailView = ({
         )}
 
         <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="rounded-[24px] border border-[#E8E5E2] bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 md:p-7">
+          <div className="rounded-[24px] border border-[#E8E5E2] bg-white p-5 dark:border-zinc-800 dark:bg-[#18181B] md:p-7">
             <div className="mb-7 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-[22px] font-bold tracking-[-0.02em]">Próximos passos da entrega</h2>
@@ -779,7 +779,7 @@ const DeliveryDetailView = ({
           </div>
 
           <aside className="flex flex-col gap-5">
-            <div className="rounded-[24px] border border-[#E8E5E2] bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="rounded-[24px] border border-[#E8E5E2] bg-white p-6 dark:border-zinc-800 dark:bg-[#18181B]">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#77706B] dark:text-zinc-500">
@@ -815,7 +815,7 @@ const DeliveryDetailView = ({
               </button>
             </div>
 
-            <div className="rounded-[24px] border border-[#E8E5E2] bg-[#FBFAF9] p-6 dark:border-zinc-800 dark:bg-zinc-900/60">
+            <div className="rounded-[24px] border border-[#E8E5E2] bg-[#FBFAF9] p-6 dark:border-zinc-800 dark:bg-[#18181B]">
               <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#77706B] dark:text-zinc-500">
                 Resumo financeiro
               </p>
@@ -874,10 +874,10 @@ const DeliveryStep = ({
       labelClass: "bg-emerald-50 text-emerald-700 border-emerald-100",
     },
     current: {
-      icon: "border-blue-200 bg-blue-50 text-blue-700",
-      card: "border-blue-200 bg-blue-50/35 shadow-[0_18px_44px_rgba(37,99,235,0.08)]",
+      icon: "border-zinc-300 bg-zinc-100 text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white",
+      card: "border-zinc-300 bg-zinc-50 shadow-[0_18px_44px_rgba(32,32,36,0.06)] dark:border-zinc-700 dark:bg-zinc-900",
       label: "Em andamento",
-      labelClass: "bg-blue-50 text-blue-700 border-blue-100",
+      labelClass: "bg-zinc-100 text-zinc-800 border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white",
     },
     pending: {
       icon: "border-zinc-200 bg-zinc-50 text-zinc-500",
@@ -931,7 +931,7 @@ const DeliveryStep = ({
                 type="button"
                 onClick={onSendToCj}
                 disabled={isSendingToCj}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-blue-600 px-5 text-[13px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition hover:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-100"
               >
                 {isSendingToCj ? <Loader2 size={15} className="animate-spin" /> : <Truck size={15} />}
                 Enviar pela CJ

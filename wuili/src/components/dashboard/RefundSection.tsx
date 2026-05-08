@@ -104,16 +104,16 @@ const RefundSection = () => {
   };
 
   return (
-    <div className="mt-8 pt-8 border-t border-[#F0F0F0]">
-      <h3 className="text-[18px] font-bold text-[#0A0A0A] mb-1">Solicitar reembolso</h3>
-      <p className="text-[13px] text-[#737373] mb-5">
+    <div className="mt-8 pt-8 border-t border-[#F0F0F0] dark:border-white/10">
+      <h3 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Solicitar reembolso</h3>
+      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">
         Reembolso disponível em até 7 dias após o pagamento.
       </p>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-[#737373]"><Loader2 size={14} className="animate-spin" /> Carregando...</div>
+        <div className="flex items-center gap-2 text-sm text-[#737373] dark:text-zinc-400"><Loader2 size={14} className="animate-spin" /> Carregando...</div>
       ) : subs.length === 0 ? (
-        <div className="rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] p-5 text-[13px] text-[#737373] text-center">
+        <div className="rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] p-5 text-[13px] text-[#737373] text-center dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
           Você ainda não possui pagamentos.
         </div>
       ) : (
@@ -125,27 +125,27 @@ const RefundSection = () => {
               s.status === "pending" ? "Pendente" :
               s.status === "cancelled" ? "Cancelado" : s.status;
             const statusCls =
-              s.status === "active" ? "bg-black text-white" :
-              s.status === "pending" ? "bg-amber-100 text-amber-800" :
-              "bg-[#F0F0F0] text-[#737373]";
+              s.status === "active" ? "bg-black text-white dark:bg-white dark:text-black" :
+              s.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300" :
+              "bg-[#F0F0F0] text-[#737373] dark:bg-zinc-800 dark:text-zinc-300";
             return (
-              <div key={s.id} className="flex items-center justify-between p-4 rounded-xl border border-[#E5E5E5]">
+              <div key={s.id} className="flex items-center justify-between p-4 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[14px] font-semibold text-[#0A0A0A]">Plano {PLAN_LABEL[s.plan] || s.plan}</span>
+                    <span className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white">Plano {PLAN_LABEL[s.plan] || s.plan}</span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusCls}`}>{statusLabel}</span>
                   </div>
-                  <p className="text-[12px] text-[#737373] mt-0.5">{fmtDate(s.created_at)} • {fmtMoney(s.amount)}</p>
+                  <p className="text-[12px] text-[#737373] dark:text-zinc-400 mt-0.5">{fmtDate(s.created_at)} • {fmtMoney(s.amount)}</p>
                 </div>
                 {eligible ? (
                   <button
                     onClick={() => setActive(s)}
-                    className="text-[12px] px-3.5 py-1.5 rounded-full border border-black text-black hover:bg-black hover:text-white transition-colors font-medium"
+                    className="text-[12px] px-3.5 py-1.5 rounded-full border border-black text-black hover:bg-black hover:text-white transition-colors font-medium dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
                   >
                     Solicitar reembolso
                   </button>
                 ) : (
-                  <span className="text-[11px] text-[#A3A3A3]">
+                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500">
                     {s.status === "active" ? "Prazo expirado" : "—"}
                   </span>
                 )}
@@ -158,14 +158,14 @@ const RefundSection = () => {
       {/* Modal */}
       {active && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={closeModal}>
-          <div className="bg-white rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 dark:border dark:border-zinc-800 dark:bg-zinc-900" onClick={(e) => e.stopPropagation()}>
             {/* Step indicator */}
             <div className="flex items-center gap-1.5 mb-5">
               {(["reason", "confirm", "result"] as const).map((s, i) => (
                 <div
                   key={s}
                   className={`h-1 flex-1 rounded-full ${
-                    step === s || (i < ["reason", "confirm", "result"].indexOf(step)) ? "bg-black" : "bg-[#E5E5E5]"
+                    step === s || (i < ["reason", "confirm", "result"].indexOf(step)) ? "bg-black dark:bg-white" : "bg-[#E5E5E5] dark:bg-zinc-700"
                   }`}
                 />
               ))}
@@ -173,13 +173,13 @@ const RefundSection = () => {
 
             {step === "reason" && (
               <>
-                <h4 className="text-[18px] font-bold text-[#0A0A0A] mb-1">Motivo do reembolso</h4>
-                <p className="text-[13px] text-[#737373] mb-4">Conte por que está solicitando.</p>
+                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Motivo do reembolso</h4>
+                <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Conte por que está solicitando.</p>
                 <div className="space-y-2 mb-4">
                   {REASONS.map((r) => (
-                    <label key={r} className="flex items-center gap-3 p-3 rounded-lg border border-[#E5E5E5] cursor-pointer hover:bg-[#FAFAFA]">
+                    <label key={r} className="flex items-center gap-3 p-3 rounded-lg border border-[#E5E5E5] cursor-pointer hover:bg-[#FAFAFA] dark:border-zinc-800 dark:hover:bg-zinc-800">
                       <input type="radio" name="reason" checked={reason === r} onChange={() => setReason(r)} className="accent-black" />
-                      <span className="text-[14px] text-[#0A0A0A]">{r}</span>
+                      <span className="text-[14px] text-[#0A0A0A] dark:text-white">{r}</span>
                     </label>
                   ))}
                 </div>
@@ -189,15 +189,15 @@ const RefundSection = () => {
                     onChange={(e) => setDetails(e.target.value)}
                     placeholder="Conte mais sobre o motivo..."
                     rows={3}
-                    className="w-full p-3 rounded-lg border border-[#E5E5E5] text-[14px] outline-none focus:border-black resize-none mb-4"
+                    className="w-full p-3 rounded-lg border border-[#E5E5E5] text-[14px] outline-none focus:border-black resize-none mb-4 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white"
                   />
                 )}
                 <div className="flex gap-2 justify-end">
-                  <button onClick={closeModal} className="px-5 py-2.5 rounded-full border border-[#E5E5E5] text-[14px] font-medium text-[#737373]">Cancelar</button>
+                  <button onClick={closeModal} className="px-5 py-2.5 rounded-full border border-[#E5E5E5] text-[14px] font-medium text-[#737373] dark:border-zinc-700 dark:text-zinc-300">Cancelar</button>
                   <button
                     onClick={() => setStep("confirm")}
                     disabled={reason === "Outro" && !details.trim()}
-                    className="px-5 py-2.5 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 disabled:opacity-40"
+                    className="px-5 py-2.5 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 disabled:opacity-40 dark:bg-white dark:text-black"
                   >
                     Continuar
                   </button>
@@ -207,8 +207,8 @@ const RefundSection = () => {
 
             {step === "confirm" && (
               <>
-                <h4 className="text-[18px] font-bold text-[#0A0A0A] mb-1">Confirmar reembolso</h4>
-                <p className="text-[13px] text-[#737373] mb-4">Última etapa antes de processar.</p>
+                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Confirmar reembolso</h4>
+                <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Última etapa antes de processar.</p>
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-4 flex gap-3">
                   <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                   <div className="text-[13px] text-amber-900">
@@ -218,14 +218,14 @@ const RefundSection = () => {
                 </div>
                 <label className="flex items-start gap-3 mb-5 cursor-pointer">
                   <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1 accent-black" />
-                  <span className="text-[13px] text-[#0A0A0A]">Entendo que perderei o acesso ao plano e quero prosseguir.</span>
+                  <span className="text-[13px] text-[#0A0A0A] dark:text-white">Entendo que perderei o acesso ao plano e quero prosseguir.</span>
                 </label>
                 <div className="flex gap-2 justify-end">
-                  <button onClick={() => setStep("reason")} className="px-5 py-2.5 rounded-full border border-[#E5E5E5] text-[14px] font-medium text-[#737373]">Voltar</button>
+                  <button onClick={() => setStep("reason")} className="px-5 py-2.5 rounded-full border border-[#E5E5E5] text-[14px] font-medium text-[#737373] dark:border-zinc-700 dark:text-zinc-300">Voltar</button>
                   <button
                     onClick={submitRefund}
                     disabled={!confirmed}
-                    className="px-5 py-2.5 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 disabled:opacity-40"
+                    className="px-5 py-2.5 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 disabled:opacity-40 dark:bg-white dark:text-black"
                   >
                     Confirmar reembolso
                   </button>
@@ -237,8 +237,8 @@ const RefundSection = () => {
               <div className="text-center py-4">
                 {processing && (
                   <>
-                    <Loader2 size={42} className="mx-auto animate-spin text-black mb-4" />
-                    <p className="text-[14px] text-[#737373]">Processando reembolso...</p>
+                    <Loader2 size={42} className="mx-auto animate-spin text-black dark:text-white mb-4" />
+                    <p className="text-[14px] text-[#737373] dark:text-zinc-400">Processando reembolso...</p>
                   </>
                 )}
                 {!processing && result?.kind === "success" && (
@@ -247,8 +247,8 @@ const RefundSection = () => {
                       <CheckCircle2 size={32} className="text-emerald-600" />
                     </div>
                     <h4 className="text-[18px] font-bold text-emerald-700 mb-1">Reembolso aprovado</h4>
-                    <p className="text-[13px] text-[#737373] mb-5">{result.message}</p>
-                    <button onClick={closeModal} className="px-6 py-2.5 rounded-full bg-black text-white text-[14px] font-medium">Fechar</button>
+                    <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">{result.message}</p>
+                    <button onClick={closeModal} className="px-6 py-2.5 rounded-full bg-black text-white text-[14px] font-medium dark:bg-white dark:text-black">Fechar</button>
                   </>
                 )}
                 {!processing && result?.kind === "error" && (
@@ -257,11 +257,11 @@ const RefundSection = () => {
                       <XCircle size={32} className="text-red-600" />
                     </div>
                     <h4 className="text-[18px] font-bold text-red-700 mb-1">Não foi possível processar</h4>
-                    <p className="text-[13px] text-[#737373] mb-2">{result.message}</p>
-                    <p className="text-[12px] text-[#737373] mb-5">
-                      Entre em contato: <a href="mailto:contato@velo.com.br" className="underline text-black">contato@velo.com.br</a>
+                    <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-2">{result.message}</p>
+                    <p className="text-[12px] text-[#737373] dark:text-zinc-400 mb-5">
+                      Entre em contato: <a href="mailto:contato@velo.com.br" className="underline text-black dark:text-white">contato@velo.com.br</a>
                     </p>
-                    <button onClick={closeModal} className="px-6 py-2.5 rounded-full bg-black text-white text-[14px] font-medium">Fechar</button>
+                    <button onClick={closeModal} className="px-6 py-2.5 rounded-full bg-black text-white text-[14px] font-medium dark:bg-white dark:text-black">Fechar</button>
                   </>
                 )}
               </div>

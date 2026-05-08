@@ -29,8 +29,8 @@ type Order = {
 const ACTIVE_STATUSES = ["paid", "delivered", "shipped", "approved", "completed"];
 const MONTH_LABELS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 const PIE_COLORS = [
-  "hsl(243,100%,68%)", "hsl(25,95%,53%)", "hsl(167,100%,42%)",
-  "hsl(200,80%,50%)", "hsl(340,80%,55%)", "hsl(60,80%,45%)", "hsl(280,70%,55%)",
+  "hsl(0,0%,10%)", "hsl(0,0%,35%)", "hsl(0,0%,55%)",
+  "hsl(0,0%,72%)", "hsl(0,0%,24%)", "hsl(0,0%,46%)", "hsl(0,0%,64%)",
 ];
 
 const fmt = (v: number) =>
@@ -169,7 +169,7 @@ const ReportsPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 opacity-45 blur-[1px] pointer-events-none lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 opacity-60 pointer-events-none lg:grid-cols-4">
           {["Ticket médio", "Total pedidos", "Receita total", "Lucro total"].map((label) => (
             <div key={label} className="card-wuili p-5">
               <p className="text-xs font-medium text-muted-foreground">{label}</p>
@@ -216,12 +216,12 @@ const ReportsPage = () => {
                   <AreaChart data={revenueData}>
                     <defs>
                       <linearGradient id="gFat" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="hsl(243,100%,68%)" stopOpacity={0.1} />
-                        <stop offset="95%" stopColor="hsl(243,100%,68%)" stopOpacity={0} />
+                        <stop offset="5%"  stopColor="hsl(0,0%,85%)" stopOpacity={0.12} />
+                        <stop offset="95%" stopColor="hsl(0,0%,85%)" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="gLuc" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="hsl(167,100%,42%)" stopOpacity={0.1} />
-                        <stop offset="95%" stopColor="hsl(167,100%,42%)" stopOpacity={0} />
+                        <stop offset="5%"  stopColor="hsl(0,0%,50%)" stopOpacity={0.12} />
+                        <stop offset="95%" stopColor="hsl(0,0%,50%)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(216,30%,91%)" />
@@ -229,8 +229,8 @@ const ReportsPage = () => {
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R${(v/1000).toFixed(0)}k`} />
                     <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmt(v)} />
                     <Legend />
-                    <Area type="monotone" dataKey="faturamento" stroke="hsl(243,100%,68%)" fill="url(#gFat)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="lucro"       stroke="hsl(167,100%,42%)" fill="url(#gLuc)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="faturamento" stroke="hsl(0,0%,85%)" fill="url(#gFat)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="lucro"       stroke="hsl(0,0%,50%)" fill="url(#gLuc)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
@@ -248,7 +248,7 @@ const ReportsPage = () => {
                     <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="ml" name="Pedidos" fill="hsl(243,100%,68%)" radius={[4,4,0,0]} />
+                    <Bar dataKey="ml" name="Pedidos" fill="hsl(0,0%,85%)" radius={[4,4,0,0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -267,11 +267,11 @@ const ReportsPage = () => {
                     <div key={p.name}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium truncate max-w-[70%]">{i + 1}. {p.name}</span>
-                        <span className="text-sm font-bold text-primary">{p.sales} vendas</span>
+                        <span className="text-sm font-bold text-foreground">{p.sales} vendas</span>
                       </div>
                       <div className="h-2 bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-primary rounded-full transition-all"
+                          className="h-full bg-black rounded-full transition-all dark:bg-white"
                           style={{ width: `${(p.sales / p.max) * 100}%` }}
                         />
                       </div>

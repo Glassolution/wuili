@@ -39,7 +39,7 @@ const DashboardInfoPage = ({ title, description, primaryAction, stats, items, su
           <h2 className="text-2xl font-black text-foreground">{title}</h2>
           <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>
         </div>
-        <button className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
+        <button className="rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-85 dark:bg-white dark:text-black">
           {primaryAction}
         </button>
       </div>

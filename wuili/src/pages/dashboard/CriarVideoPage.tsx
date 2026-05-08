@@ -140,14 +140,14 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
     return (
       <>
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F5F5F5]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F5F5F5] dark:bg-zinc-900">
             <Package size={22} className="text-[#737373]" />
           </div>
           <div>
-            <h2 className="font-['Manrope'] text-[17px] font-semibold text-[#0A0A0A]">
+            <h2 className="font-['Manrope'] text-[17px] font-semibold text-[#0A0A0A] dark:text-white">
               Nenhum produto selecionado
             </h2>
-            <p className="mt-1 text-[13px] text-[#737373]">
+            <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">
               Escolha um produto do catálogo para gerar o prompt e baixar as imagens.
             </p>
           </div>
@@ -171,30 +171,30 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
   // ── Product selected — full page ────────────────────────────────────────────
   return (
     <>
-      <div className="mx-auto max-w-[680px] px-6 py-10">
+      <div className="mx-auto max-w-[680px] px-3 py-6 sm:px-6 sm:py-10">
 
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0A0A0A]">
             <span className="text-white text-[18px]">✦</span>
           </div>
-          <h1 className="font-['Manrope'] text-[22px] font-bold text-[#0A0A0A]">
+          <h1 className="font-['Manrope'] text-[22px] font-bold text-[#0A0A0A] dark:text-white">
             Criar vídeo do produto
           </h1>
-          <p className="mt-1 text-[13px] text-[#737373]">
+          <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">
             Gere um prompt otimizado para criar o vídeo com IA
           </p>
         </div>
 
         {/* Product card */}
-        <div className="mb-8 rounded-2xl border border-[#E5E5E5] bg-[#FAFAFA] p-4 shadow-sm">
+        <div className="mb-8 rounded-2xl border border-[#E5E5E5] bg-[#FAFAFA] p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="mb-3 flex items-center justify-between">
-            <p className="inline-flex rounded-full border border-[#E5E5E5] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#525252]">
+            <p className="inline-flex rounded-full border border-[#E5E5E5] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#525252] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
               Produto selecionado
             </p>
             <button
               onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1 rounded-lg border border-[#E5E5E5] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[#737373] transition hover:border-[#0A0A0A] hover:text-[#0A0A0A]"
+              className="flex items-center gap-1 rounded-lg border border-[#E5E5E5] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[#737373] transition hover:border-[#0A0A0A] hover:text-[#0A0A0A] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-white dark:hover:text-white"
             >
               Alterar
               <ChevronDown size={11} />
@@ -205,22 +205,22 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
               <img
                 src={state.product_image}
                 alt={state.product_title}
-                className="h-[72px] w-[72px] shrink-0 rounded-xl border border-[#E5E5E5] object-cover"
+                className="h-[72px] w-[72px] shrink-0 rounded-xl border border-[#E5E5E5] object-cover dark:border-zinc-800"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
             ) : (
-              <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-xl bg-[#E5E5E5]">
+              <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-xl bg-[#E5E5E5] dark:bg-zinc-800">
                 <Package size={20} className="text-[#A3A3A3]" />
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate font-['Manrope'] text-[14px] font-semibold text-[#0A0A0A]">
+              <p className="truncate font-['Manrope'] text-[14px] font-semibold text-[#0A0A0A] dark:text-white">
                 {state.product_title}
               </p>
-              <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[12px] text-[#737373]">
-                <span>Custo: <span className="font-medium text-[#0A0A0A]">R$ {state.cost_price.toFixed(2)}</span></span>
+              <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[12px] text-[#737373] dark:text-zinc-400">
+                <span>Custo: <span className="font-medium text-[#0A0A0A] dark:text-white">R$ {state.cost_price.toFixed(2)}</span></span>
                 <span className="text-[#D4D4D4]">·</span>
-                <span>Venda: <span className="font-medium text-[#0A0A0A]">R$ {state.sale_price.toFixed(2)}</span></span>
+                <span>Venda: <span className="font-medium text-[#0A0A0A] dark:text-white">R$ {state.sale_price.toFixed(2)}</span></span>
                 <span className="text-[#D4D4D4]">·</span>
                 <span className="font-semibold text-[#16A34A]">+R$ {state.profit.toFixed(2)} lucro</span>
               </div>
@@ -255,11 +255,11 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
           <p className="inline-flex items-center justify-center rounded-full border border-[#FED7AA] bg-[#FFF7ED] px-2.5 py-1 text-[10px] font-semibold text-[#C2410C]">
             Alta conversão
           </p>
-          <p className="text-[11px] text-[#737373]">
+          <p className="text-[11px] text-[#737373] dark:text-zinc-400">
             Prompt otimizado para alta conversão em anúncios
           </p>
         </div>
-        <p className="mb-8 text-center text-[11px] text-[#A3A3A3]">
+        <p className="mb-8 text-center text-[11px] text-[#A3A3A3] dark:text-zinc-500">
           Powered by Velo IA · Resultado em segundos
         </p>
 
@@ -271,24 +271,24 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
             style={{ animation: "slideUp 300ms ease" }}
           >
             <div className="space-y-0.5 pb-1">
-              <p className="font-['Manrope'] text-[15px] font-semibold text-[#0A0A0A]">Prompt gerado</p>
-              <p className="text-[12px] text-[#737373]">Copie e use na ferramenta de IA</p>
+              <p className="font-['Manrope'] text-[15px] font-semibold text-[#0A0A0A] dark:text-white">Prompt gerado</p>
+              <p className="text-[12px] text-[#737373] dark:text-zinc-400">Copie e use na ferramenta de IA</p>
             </div>
 
             {/* Prompt card */}
-            <div className="relative rounded-xl border border-[#E5E5E5] bg-[#F5F5F5] p-6 shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
-              <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#E5E5E5] bg-white px-2.5 py-1 text-[11px] font-medium text-[#404040]">
-                <Sparkles size={12} className="text-[#0A0A0A]" />
+            <div className="relative rounded-xl border border-[#E5E5E5] bg-[#F5F5F5] p-4 shadow-[0_6px_16px_rgba(0,0,0,0.06)] dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
+              <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#E5E5E5] bg-white px-2.5 py-1 text-[11px] font-medium text-[#404040] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
+                <Sparkles size={12} className="text-[#0A0A0A] dark:text-white" />
                 IA pronta
               </div>
               <button
                 onClick={handleCopy}
-                className="absolute right-4 top-4 flex items-center gap-1.5 rounded-lg border border-[#E5E5E5] bg-white px-3 py-1.5 text-[11px] font-medium text-[#737373] transition hover:-translate-y-0.5 hover:border-[#0A0A0A] hover:text-[#0A0A0A]"
+                className="absolute right-4 top-4 flex items-center gap-1.5 rounded-lg border border-[#E5E5E5] bg-white px-3 py-1.5 text-[11px] font-medium text-[#737373] transition hover:-translate-y-0.5 hover:border-[#0A0A0A] hover:text-[#0A0A0A] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-white dark:hover:text-white"
               >
                 <Copy size={11} />
                 {copied ? "Copiado ✓" : "Copiar"}
               </button>
-              <p className="pr-20 font-['Manrope'] text-[15px] leading-[1.7] text-[#0A0A0A] whitespace-pre-wrap">
+              <p className="pt-3 font-['Manrope'] text-[14px] leading-[1.7] text-[#0A0A0A] whitespace-pre-wrap dark:text-white sm:pr-20 sm:pt-0 sm:text-[15px]">
                 {promptGerado}
               </p>
             </div>
@@ -301,7 +301,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
               />
             </div>
 
-            <p className="pt-2 font-['Manrope'] text-[13px] font-semibold text-[#0A0A0A]">Abrir ferramenta</p>
+            <p className="pt-2 font-['Manrope'] text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Abrir ferramenta</p>
 
             <div
               className="flex cursor-pointer items-center gap-4 rounded-2xl border border-[#0A0A0A] bg-[#0A0A0A] p-4 shadow-sm transition hover:-translate-y-0.5 hover:bg-[#1a1a1a] hover:shadow-md"

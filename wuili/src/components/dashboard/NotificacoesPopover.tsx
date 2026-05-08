@@ -80,7 +80,7 @@ const icones: Record<NotifType, typeof Bell> = {
 const iconeCls: Record<NotifType, string> = {
   warning: "bg-warning/10 text-warning",
   error:   "bg-destructive/10 text-destructive",
-  info:    "bg-primary/10 text-primary",
+  info:    "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200",
   success: "bg-success-light text-success",
 };
 
@@ -182,7 +182,7 @@ const NotificacoesPopover = () => {
       <button onClick={() => setOpen((v) => !v)} className="relative">
         <Bell size={18} className="text-muted-foreground" />
         {naoLidas > 0 && (
-          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-primary-foreground text-[9px] font-bold flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-white text-[9px] font-bold flex items-center justify-center">
             {naoLidas > 9 ? "9+" : naoLidas}
           </span>
         )}
@@ -250,7 +250,7 @@ const NotificacoesPopover = () => {
                         {n.titulo}
                       </p>
                       {!n.lida && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-black shrink-0 dark:bg-white" />
                       )}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">

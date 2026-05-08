@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import {
   Package, ShoppingCart,
-  ChevronRight, ArrowUpRight, ArrowDownRight, AlertTriangle,
+  ChevronRight, ArrowUpRight,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,7 +56,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 const STATUS_STYLE: Record<string, string> = {
   pending:   "bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30",
-  paid:      "bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30",
+  paid:      "bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700",
   shipped:   "bg-[#F0F0F0] text-[#525252] border border-[#E5E5E5] dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700",
   delivered: "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
   cancelled: "bg-red-50 text-red-500 border border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30",
@@ -307,24 +307,36 @@ export default function DashboardHomePage() {
 
         {/* Published products — only render when there are real publications */}
         {(loadingPubs || hasPublications) && (
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm flex flex-col dark:border-zinc-800 dark:bg-zinc-900">
-          {/* Header */}
-          <div className="mb-4">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0A0A0A] mb-3">
-              <AlertTriangle size={17} className="text-white" strokeWidth={2.2} />
-            </span>
-            <p className="text-[15px] font-bold text-[#0A0A0A] dark:text-white leading-tight">Produtos Publicados</p>
-            <p className="text-[11.5px] text-[#A3A3A3] dark:text-zinc-400 mt-0.5">análise de desempenho</p>
+        <div className="flex flex-col rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0A0A0A] dark:bg-white">
+                <Package size={17} className="text-white dark:text-[#0A0A0A]" strokeWidth={2.2} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[15px] font-bold leading-tight text-[#0A0A0A] dark:text-white">Publicações ativas</p>
+                <p className="mt-0.5 text-[11.5px] text-[#A3A3A3] dark:text-zinc-400">
+                  {loadingStats ? "Carregando anúncios" : `${totalPubs.toLocaleString("pt-BR")} anúncios em acompanhamento`}
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/dashboard/publicacoes"
+              aria-label="Ver publicações"
+              className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F5F5] text-[#737373] transition hover:bg-[#EBEBEB] dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 sm:flex"
+            >
+              <ChevronRight size={14} />
+            </Link>
           </div>
 
-          <div className="flex-1 space-y-1">
+          <div className="flex-1 space-y-2">
             {loadingPubs
               ? Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl p-2.5">
-                    <Skeleton className="h-12 w-12 rounded-xl shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3 w-3/4 rounded" />
-                      <Skeleton className="h-2.5 w-1/2 rounded" />
+                  <div key={i} className="flex items-center gap-3 rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-2.5 dark:border-zinc-800 dark:bg-zinc-800/50">
+                    <Skeleton className="h-14 w-14 shrink-0 rounded-xl" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-5/6 rounded" />
+                      <Skeleton className="h-3 w-1/2 rounded" />
                     </div>
                   </div>
                 ))
@@ -332,20 +344,25 @@ export default function DashboardHomePage() {
                   <Link
                     key={pub.id}
                     to="/dashboard/publicacoes"
-                    className="flex items-center gap-3.5 rounded-xl p-2.5 transition hover:bg-[#F7F7F7] dark:hover:bg-zinc-800 group"
+                    className="group flex items-center gap-3 rounded-2xl border border-transparent bg-[#FAFAFA] p-2.5 transition hover:border-[#E5E5E5] hover:bg-white dark:bg-zinc-800/50 dark:hover:border-zinc-700 dark:hover:bg-zinc-800"
                   >
-                    <span className="relative flex h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[#F0F0F0] bg-[#F7F7F7]">
+                    <span className="relative flex h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-[#F0F0F0] bg-[#F7F7F7] dark:border-zinc-700 dark:bg-zinc-800">
                       {pub.thumbnail
                         ? <img src={pub.thumbnail} alt={pub.title} className="h-full w-full object-cover" loading="lazy" />
-                        : <Package size={16} className="m-auto text-[#C0C0C0]" />}
+                        : <Package size={17} className="m-auto text-[#C0C0C0] dark:text-zinc-500" />}
                     </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-[13.5px] font-semibold text-[#0A0A0A] dark:text-white">{pub.title}</p>
-                      <p className="text-[11.5px] text-[#A3A3A3] dark:text-zinc-400">
-                        {pub.price != null ? fmt(pub.price) : "—"} · ativo
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-[#0A0A0A] dark:text-white">{pub.title}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                          ativo
+                        </span>
+                        <span className="text-[11.5px] font-semibold text-[#525252] dark:text-zinc-300">
+                          {pub.price != null ? fmt(pub.price) : "—"}
+                        </span>
+                      </div>
                     </div>
-                    <ChevronRight size={14} className="shrink-0 text-[#D4D4D4] group-hover:text-[#A3A3A3] transition-colors" />
+                    <ChevronRight size={14} className="hidden shrink-0 text-[#D4D4D4] transition-colors group-hover:text-[#A3A3A3] sm:block" />
                   </Link>
                 ))
             }
@@ -353,9 +370,9 @@ export default function DashboardHomePage() {
 
           <Link
             to="/dashboard/publicacoes"
-            className="mt-4 flex items-center justify-center gap-1 rounded-xl border border-[#F0F0F0] dark:border-zinc-800 py-2.5 text-[12.5px] font-medium text-[#A3A3A3] dark:text-zinc-400 transition hover:border-[#D4D4D4] dark:hover:border-zinc-700 hover:text-[#0A0A0A] dark:hover:text-white"
+            className="mt-3 flex min-h-10 items-center justify-center gap-1 rounded-xl border border-[#F0F0F0] py-2.5 text-[12.5px] font-semibold text-[#737373] transition hover:border-[#D4D4D4] hover:text-[#0A0A0A] dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-white"
           >
-            Ver todas as publicações <ChevronRight size={12} />
+            Ver publicações <ChevronRight size={12} />
           </Link>
         </div>
         )}

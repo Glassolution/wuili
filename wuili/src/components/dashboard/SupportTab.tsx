@@ -497,7 +497,7 @@ Como posso te ajudar hoje?`;
               )}
 
               {ticket?.ai_active && !supportClosed && (
-                <div className="rounded-full bg-blue-50 px-4 py-2 text-center text-[12px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                <div className="rounded-full bg-zinc-100 px-4 py-2 text-center text-[12px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                   IA ativa neste atendimento. Você receberá respostas automáticas enquanto o suporte humano acompanha.
                 </div>
               )}
@@ -609,14 +609,14 @@ const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
     <div className="flex items-start gap-2">
       <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
         isAi
-          ? "bg-blue-600 text-white"
+          ? "bg-zinc-800 text-white dark:bg-white dark:text-black"
           : "bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
       }`}>
         {isAi ? <Cloud size={14} strokeWidth={2.2} /> : <UserRound size={14} strokeWidth={2.2} />}
       </div>
       <div className={`max-w-[75%] rounded-[4px_16px_16px_16px] px-4 py-2.5 text-[14px] leading-[1.6] shadow-sm whitespace-pre-wrap ${
         isAi
-          ? "bg-blue-50 text-blue-950 dark:bg-blue-500/10 dark:text-blue-100"
+          ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
           : "bg-white text-[#0A0A0A] dark:bg-zinc-800 dark:text-white"
       }`}>
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#737373] dark:text-zinc-400">

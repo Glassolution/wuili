@@ -127,11 +127,11 @@ const ProductsPage = () => {
   });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-foreground tracking-tight">Dropshipping</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <h2 className="truncate text-[22px] font-bold tracking-tight text-foreground sm:text-2xl">Dropshipping</h2>
           <button className="text-muted-foreground hover:text-foreground transition-colors">
             <MoreHorizontal size={18} />
           </button>
@@ -139,23 +139,23 @@ const ProductsPage = () => {
             <RefreshCw size={15} />
           </button>
         </div>
-        <button className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors">
+        <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:w-auto">
           Integração de Plataforma
           <ArrowRight size={14} />
         </button>
       </div>
 
       {/* Subtitle */}
-      <p className="text-sm text-muted-foreground -mt-3">Encontre produtos e importe para sua loja</p>
+      <p className="-mt-1 text-sm text-muted-foreground sm:-mt-3">Encontre produtos e importe para sua loja</p>
 
       {/* Filters row */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0" style={{ scrollbarWidth: "none" }}>
           {/* Search */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-44 rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-[210px] rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 sm:w-56"
               placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -163,30 +163,30 @@ const ProductsPage = () => {
           </div>
 
           {/* Date range pill */}
-          <button className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-2 text-sm font-medium text-background hover:opacity-80 transition-opacity">
+          <button className="flex shrink-0 items-center gap-1.5 rounded-full bg-foreground px-3 py-2 text-sm font-medium text-background transition-opacity hover:opacity-80">
             2 Fev - 14 Abr
             <ChevronDown size={13} />
           </button>
 
           {/* Filter buttons */}
-          <button className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
+          <button className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted">
             Status de Pagamento <ChevronDown size={13} />
           </button>
-          <button className="flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
+          <button className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted">
             Categoria <ChevronDown size={13} />
           </button>
 
           {/* Hide button */}
           <button
             onClick={() => setShowHidden(!showHidden)}
-            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Ocultar
           </button>
         </div>
 
         {/* Category pills */}
-        <div className="hidden items-center gap-1.5 lg:flex">
+        <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0" style={{ scrollbarWidth: "none" }}>
           {categories.map((cat) => (
             <button
               key={cat}
@@ -211,7 +211,7 @@ const ProductsPage = () => {
             className="group overflow-hidden rounded-2xl border border-border bg-background transition-shadow hover:shadow-md"
           >
             {/* Product image */}
-            <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#f5f5f5] dark:bg-muted/50 p-6">
+            <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#f5f5f5] p-4 dark:bg-muted/50 sm:p-6">
               <img
                 src={p.image}
                 alt={p.name}
@@ -221,9 +221,9 @@ const ProductsPage = () => {
             </div>
 
             {/* Card body */}
-            <div className="px-4 pb-4 pt-3">
+            <div className="px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
               {/* Source + Rating */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5">
                   <PlatformLogo platform={p.source} color={p.sourceColor.replace("bg-[", "").replace("]", "")} size={22} />
                   <span className="text-[13px] font-semibold text-foreground">{p.source}</span>
@@ -241,7 +241,7 @@ const ProductsPage = () => {
               </p>
 
               {/* Price + Min Order */}
-              <div className="mt-3 flex items-baseline justify-between">
+              <div className="mt-3 flex items-baseline justify-between gap-3">
                 <div>
                   <p className="text-[11px] leading-none text-muted-foreground">Preço</p>
                   <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{p.price}</p>

@@ -83,7 +83,7 @@ const DashboardLayoutInner = () => {
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-black border-t-transparent dark:border-white dark:border-t-transparent" />
       </div>
     );
   }
@@ -99,7 +99,7 @@ const DashboardLayoutInner = () => {
       </div>
       <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <DashboardTopbar />
-        <main className="page-fade-in min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 bg-[#F7F7F7] dark:bg-background">
+        <main className="page-fade-in min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#F7F7F7] p-3 dark:bg-background sm:p-4 md:p-8">
           <PageErrorBoundary>
             <Outlet />
           </PageErrorBoundary>

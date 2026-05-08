@@ -194,12 +194,12 @@ const PlansPage = () => {
               key={plan.id}
               className={`card-wuili p-6 relative ${
                 plan.highlight
-                  ? "ring-2 ring-primary"
+                  ? "ring-2 ring-black dark:ring-white"
                   : ""
               }`}
             >
               {plan.highlight && (
-                <span className="absolute -top-3 left-4 rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">
+                <span className="absolute -top-3 left-4 rounded-full bg-black px-3 py-1 text-xs font-bold text-white dark:bg-white dark:text-black">
                   Recomendado
                 </span>
               )}
@@ -213,13 +213,13 @@ const PlansPage = () => {
               <ul className="space-y-2 mb-6">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check size={14} className="text-primary shrink-0" />
+                    <Check size={14} className="text-black shrink-0 dark:text-white" />
                     {f}
                   </li>
                 ))}
               </ul>
               {isCurrentPlan ? (
-                <div className="flex items-center gap-2 rounded-xl bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary">
+                <div className="flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2.5 text-sm font-semibold text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100">
                   <CheckCircle2 size={16} /> Plano atual
                 </div>
               ) : plan.id !== "gratis" ? (
@@ -251,7 +251,7 @@ const PlansPage = () => {
               onClick={() => setSelectedMethod("pix")}
               className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
                 selectedMethod === "pix"
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-black bg-zinc-100 text-black dark:border-white dark:bg-zinc-800 dark:text-white"
                   : "border-border bg-background text-muted-foreground hover:bg-muted"
               }`}
             >
@@ -261,7 +261,7 @@ const PlansPage = () => {
               onClick={() => setSelectedMethod("credit_card")}
               className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
                 selectedMethod === "credit_card"
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-black bg-zinc-100 text-black dark:border-white dark:bg-zinc-800 dark:text-white"
                   : "border-border bg-background text-muted-foreground hover:bg-muted"
               }`}
             >
@@ -279,7 +279,7 @@ const PlansPage = () => {
                   placeholder="0000 0000 0000 0000"
                   value={cardNumber}
                   onChange={(e) => setCardNumber(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
                   maxLength={19}
                 />
               </div>
@@ -290,7 +290,7 @@ const PlansPage = () => {
                   placeholder="NOME COMPLETO"
                   value={cardHolder}
                   onChange={(e) => setCardHolder(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
                 />
               </div>
               <div>
@@ -300,7 +300,7 @@ const PlansPage = () => {
                   placeholder="MM/AA"
                   value={cardExpiry}
                   onChange={(e) => setCardExpiry(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
                   maxLength={5}
                 />
               </div>
@@ -311,7 +311,7 @@ const PlansPage = () => {
                   placeholder="123"
                   value={cardCvc}
                   onChange={(e) => setCardCvc(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
                   maxLength={4}
                 />
               </div>
@@ -338,7 +338,7 @@ const PlansPage = () => {
             onClick={copyPix}
             className="mx-auto flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted transition-colors"
           >
-            {copied ? <CheckCircle2 size={16} className="text-primary" /> : <Copy size={16} />}
+            {copied ? <CheckCircle2 size={16} className="text-black dark:text-white" /> : <Copy size={16} />}
             {copied ? "Copiado!" : "Copiar código Pix"}
           </button>
           <p className="text-xs text-muted-foreground">
@@ -350,7 +350,7 @@ const PlansPage = () => {
       {/* Success state */}
       {checkoutState === "success" && (
         <div className="card-wuili p-6 text-center space-y-2">
-          <CheckCircle2 size={48} className="mx-auto text-primary" />
+          <CheckCircle2 size={48} className="mx-auto text-black dark:text-white" />
           <h3 className="text-lg font-bold text-foreground">Pagamento aprovado!</h3>
           <p className="text-sm text-muted-foreground">Seu plano está ativo. Aproveite!</p>
         </div>

@@ -790,7 +790,7 @@ function AdminSupportPanel() {
                       </span>
                       <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.04em] ${
                         ticket.ai_active
-                          ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                          ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                           : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
                       }`}>
                         IA {ticket.ai_active ? "ativa" : "pausada"}
@@ -828,7 +828,7 @@ function AdminSupportPanel() {
                   disabled={toggleAi.isPending}
                   className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[12px] font-semibold transition disabled:opacity-50 ${
                     selectedTicket.ai_active
-                      ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300"
+                      ? "border-zinc-300 bg-zinc-100 text-zinc-800 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
                       : "border-[#D4D4D4] bg-white text-[#525252] hover:border-[#0A0A0A] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-white"
                   }`}
                 >
@@ -916,7 +916,7 @@ function AdminSupportBubble({ msg }: { msg: SupportMessage }) {
         className={[
           "max-w-[74%] rounded-2xl px-4 py-2.5 text-[13.5px] leading-6 shadow-sm",
           isAdmin
-            ? "rounded-br-sm bg-blue-600 text-white dark:bg-blue-500 dark:text-white"
+            ? "rounded-br-sm bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
             : isAi
               ? "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
               : "rounded-bl-sm bg-white text-[#0A0A0A] dark:bg-zinc-900 dark:text-white",

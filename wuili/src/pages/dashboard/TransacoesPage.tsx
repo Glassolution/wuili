@@ -166,24 +166,24 @@ const TransacoesPage = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="card-wuili p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="card-wuili flex flex-col gap-4 p-4 dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none sm:p-5 md:flex-row md:items-center md:justify-between md:p-6">
         <div>
-          <h2 className="text-2xl font-black text-foreground">Transações</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="text-[22px] font-black text-foreground md:text-2xl">Transações</h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
             Histórico completo de entradas, saídas e conciliação financeira.
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">
+        <button className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A0A0A] px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-85 dark:bg-white dark:text-black dark:hover:bg-zinc-100">
           <Download size={15} /> Exportar extrato
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="card-wuili p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">
+      <div className="grid gap-3 md:grid-cols-3 md:gap-4">
+        <div className="card-wuili p-4 dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-xs sm:tracking-[0.16em]">
               Entradas
             </p>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-light text-success">
@@ -193,7 +193,7 @@ const TransacoesPage = () => {
           {isLoading ? (
             <div className="animate-pulse h-6 w-24 bg-muted rounded" />
           ) : (
-            <p className="text-2xl font-black text-foreground">
+            <p className="text-[22px] font-black leading-none text-foreground sm:text-2xl">
               R${" "}
               {totalEntradas.toLocaleString("pt-BR", {
                 minimumFractionDigits: 2,
@@ -204,9 +204,9 @@ const TransacoesPage = () => {
           <p className="mt-1 text-xs text-muted-foreground">Últimos 30 dias</p>
         </div>
 
-        <div className="card-wuili p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">
+        <div className="card-wuili p-4 dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-xs sm:tracking-[0.16em]">
               Saídas
             </p>
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
@@ -216,7 +216,7 @@ const TransacoesPage = () => {
           {isLoading ? (
             <div className="animate-pulse h-6 w-24 bg-muted rounded" />
           ) : (
-            <p className="text-2xl font-black text-foreground">
+            <p className="text-[22px] font-black leading-none text-foreground sm:text-2xl">
               R${" "}
               {totalSaidas.toLocaleString("pt-BR", {
                 minimumFractionDigits: 2,
@@ -229,19 +229,19 @@ const TransacoesPage = () => {
           </p>
         </div>
 
-        <div className="card-wuili p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">
+        <div className="card-wuili p-4 dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-xs sm:tracking-[0.16em]">
               Conciliação
             </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
               <Search size={15} />
             </div>
           </div>
           {isLoading ? (
             <div className="animate-pulse h-6 w-24 bg-muted rounded" />
           ) : (
-            <p className="text-2xl font-black text-foreground">{conciliacao}%</p>
+            <p className="text-[22px] font-black leading-none text-foreground sm:text-2xl">{conciliacao}%</p>
           )}
           <p className="mt-1 text-xs text-muted-foreground">
             Operações validadas automaticamente
@@ -250,28 +250,28 @@ const TransacoesPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1 sm:max-w-md">
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <input
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="min-h-11 w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/10 dark:focus:ring-white/10"
             placeholder="Buscar por descrição ou ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-4 gap-1 rounded-2xl border border-[#2A2A2A] bg-[#141414] p-1 shadow-sm sm:inline-flex sm:w-fit">
           {filters.map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-2 rounded-xl text-xs font-medium transition-all whitespace-nowrap ${
+              className={`min-h-10 rounded-xl px-2.5 py-2 text-[13px] font-semibold transition-all whitespace-nowrap sm:min-h-9 sm:px-3 sm:text-xs ${
                 filter === f
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background text-muted-foreground hover:bg-muted"
+                  ? "bg-white text-[#0A0A0A] shadow-sm"
+                  : "bg-transparent text-white hover:bg-white/5"
               }`}
             >
               {f}
@@ -280,8 +280,68 @@ const TransacoesPage = () => {
         </div>
       </div>
 
+      {/* Mobile cards */}
+      <div className="space-y-2.5 md:hidden">
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-28 animate-pulse rounded-2xl border border-border bg-card dark:border-zinc-800 dark:bg-[#18181B]" />
+            ))
+          : filtered.length === 0
+          ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground dark:border-zinc-800 dark:bg-[#18181B]">
+              Nenhuma transação encontrada.
+            </div>
+          )
+          : filtered.map((t) => {
+            const isEntrada = t.tipo === "entrada";
+
+            return (
+              <article key={t.id} className="rounded-2xl border border-border bg-card p-3 shadow-sm dark:border-zinc-800 dark:bg-[#18181B]">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                      isEntrada ? "bg-success-light text-success" : "bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {isEntrada ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-foreground">
+                          {t.descricao}
+                        </p>
+                        <p className="mt-1 text-[11.5px] font-medium text-muted-foreground">
+                          {t.id} · {t.canal}
+                        </p>
+                      </div>
+                      <p className={`shrink-0 text-right text-[14px] font-black ${isEntrada ? "text-success" : "text-destructive"}`}>
+                        {isEntrada ? "+" : "-"}R${t.valor}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusCls[t.status]}`}>
+                        {statusLabel[t.status]}
+                      </span>
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                        {isEntrada ? "Entrada" : "Saída"}
+                      </span>
+                      <span className="ml-auto text-[11.5px] font-medium text-muted-foreground">
+                        {t.data}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        }
+      </div>
+
       {/* Table */}
-      <div className="card-wuili overflow-hidden">
+      <div className="card-wuili hidden overflow-hidden dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

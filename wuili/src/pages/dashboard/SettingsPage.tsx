@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, User, ShoppingBag, Zap } from "lucide-react";
+import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, User } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import PlanBadge from "@/components/PlanBadge";
+import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { usePlan } from "@/hooks/usePlan";
 import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
@@ -24,14 +25,23 @@ const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
 
 const SettingsPage = () => {
   const [tab, setTab] = useState<TabId>("Perfil");
+  const mobileTabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const { nome, foto } = useProfile();
   const { user } = useAuth();
 
   const iniciais = (nome || user?.email || "U")
     .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 
+  useEffect(() => {
+    mobileTabRefs.current[tab]?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [tab]);
+
   return (
-    <div className="flex overflow-hidden rounded-2xl border border-[#EBEBEB] bg-[#F5F5F5] dark:border-white/10 dark:bg-[#111111]" style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
+    <div className="md:flex md:overflow-hidden md:rounded-2xl md:border md:border-[#EBEBEB] md:bg-[#F5F5F5] md:dark:border-white/10 md:dark:bg-[#111111]" style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
       {/* Sidebar 240px */}
       <aside className="hidden md:flex w-[240px] shrink-0 flex-col bg-white border-r border-[#E5E5E5] dark:bg-[#0f0f0f] dark:border-white/10">
         <div className="p-5 border-b border-[#F0F0F0] dark:border-white/10">
@@ -71,23 +81,43 @@ const SettingsPage = () => {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 min-w-0 p-6 md:p-8 overflow-x-hidden">
-        {/* Mobile tab pills */}
-        <div className="md:hidden mb-5 flex gap-2 overflow-x-auto pb-1">
-          {NAV.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setTab(item.id)}
-              className={`px-3.5 py-1.5 rounded-lg text-[13px] font-medium whitespace-nowrap ${
-                tab === item.id ? "bg-black text-white dark:bg-white dark:text-black" : "bg-white text-[#737373] border border-[#E5E5E5] dark:bg-[#111111] dark:text-zinc-300 dark:border-white/10"
-              }`}
-            >
-              {item.id}
-            </button>
-          ))}
+      <div className="min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:p-8">
+        <div className="mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:hidden">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-base font-bold text-white dark:bg-white dark:text-black">
+              {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : iniciais}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[16px] font-bold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
+              <div className="mt-1"><PlanBadge size="sm" /></div>
+            </div>
+          </div>
         </div>
 
-        <div className={`mx-auto ${tab === "Suporte" ? "max-w-[760px]" : "max-w-[600px]"} bg-white rounded-2xl p-6 md:p-8 shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-[#EFEFEF] dark:bg-[#121212] dark:border-white/10`}>
+        {/* Mobile tab pills */}
+        <div className="-mx-3 mb-4 overflow-x-auto px-3 pb-1 md:hidden [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+          <div className="inline-flex min-w-full gap-1 rounded-2xl border border-[#2A2A2A] bg-[#141414] p-1 shadow-sm">
+            {NAV.map((item) => {
+              const active = tab === item.id;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  ref={(node) => { mobileTabRefs.current[item.id] = node; }}
+                  onClick={() => setTab(item.id)}
+                  className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-semibold whitespace-nowrap transition-colors ${
+                    active ? "bg-white text-[#0A0A0A] shadow-sm" : "bg-transparent text-white hover:bg-white/5"
+                  }`}
+                >
+                  <Icon size={14} />
+                  {item.id}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className={`mx-auto ${tab === "Suporte" ? "max-w-[760px]" : "max-w-[600px]"} rounded-2xl border border-[#EFEFEF] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900 sm:p-5 md:p-8`}>
           {tab === "Perfil"        && <ProfileTab />}
           {tab === "Minhas Lojas"  && <StoresTab />}
           {tab === "Integrações"   && <IntegrationsTab />}
@@ -179,12 +209,12 @@ const ProfileTab = () => {
         </div>
         <button
           onClick={() => inputRef.current?.click()}
-          className="mt-3 text-[13px] text-[#737373] underline underline-offset-2 hover:text-black"
+          className="mt-3 text-[13px] text-[#737373] underline underline-offset-2 hover:text-black dark:text-zinc-400 dark:hover:text-white"
         >
           Trocar foto
         </button>
         <div className="mt-3 flex items-center gap-2.5">
-          <p className="text-[20px] font-bold text-[#0A0A0A]">{nome || "Usuário"}</p>
+          <p className="text-[20px] font-bold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
           <PlanBadge size="sm" />
         </div>
       </div>
@@ -204,7 +234,7 @@ const ProfileTab = () => {
             <input
               readOnly
               value={user?.email ?? ""}
-              className={`${inputCls} pr-10 bg-[#FAFAFA] text-[#737373] cursor-not-allowed`}
+              className={`${inputCls} pr-10 bg-[#FAFAFA] text-[#737373] cursor-not-allowed dark:bg-zinc-950 dark:text-zinc-400`}
             />
             <Lock size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#A3A3A3]" />
           </div>
@@ -233,20 +263,20 @@ const ProfileTab = () => {
 /* ══ Stores ═════════════════════════════════════════════ */
 const StoresTab = () => (
   <div className="space-y-4">
-    <h2 className="text-[18px] font-bold text-[#0A0A0A] mb-1">Minhas lojas</h2>
-    <p className="text-[13px] text-[#737373] mb-4">Gerencie as lojas conectadas à sua conta.</p>
+    <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Minhas lojas</h2>
+    <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Gerencie as lojas conectadas à sua conta.</p>
 
-    <div className="p-5 rounded-2xl border border-[#E5E5E5]">
+    <div className="p-4 rounded-2xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950 sm:p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <p className="font-bold text-[#0A0A0A]">Velo</p>
-          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold">Ativa</span>
+          <p className="font-bold text-[#0A0A0A] dark:text-white">Velo</p>
+          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Ativa</span>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-4 text-sm">
-        <div><p className="text-[#A3A3A3] text-xs uppercase tracking-wider">Template</p><p className="font-medium text-[#0A0A0A] mt-0.5">Moderno</p></div>
-        <div><p className="text-[#A3A3A3] text-xs uppercase tracking-wider">Produtos</p><p className="font-medium text-[#0A0A0A] mt-0.5">8</p></div>
-        <div><p className="text-[#A3A3A3] text-xs uppercase tracking-wider">Vendas</p><p className="font-medium text-[#0A0A0A] mt-0.5">23</p></div>
+      <div className="grid grid-cols-3 gap-2 text-sm sm:gap-4">
+        <div><p className="text-[#A3A3A3] dark:text-zinc-500 text-xs uppercase tracking-wider">Template</p><p className="font-medium text-[#0A0A0A] dark:text-white mt-0.5">Moderno</p></div>
+        <div><p className="text-[#A3A3A3] dark:text-zinc-500 text-xs uppercase tracking-wider">Produtos</p><p className="font-medium text-[#0A0A0A] dark:text-white mt-0.5">8</p></div>
+        <div><p className="text-[#A3A3A3] dark:text-zinc-500 text-xs uppercase tracking-wider">Vendas</p><p className="font-medium text-[#0A0A0A] dark:text-white mt-0.5">23</p></div>
       </div>
     </div>
     <button className={secondaryBtn}>+ Nova loja</button>
@@ -304,14 +334,6 @@ const IntegrationsTab = () => {
     }
   };
 
-  const integrationIcon = (platform: string) => {
-    if (platform === "mercadolivre") return <ShoppingBag size={14} className="text-black dark:text-white" />;
-    if (platform === "shopee") return <ShoppingBag size={14} className="text-[#EE4D2D]" />;
-    if (platform === "amazon") return <ShoppingBag size={14} className="text-[#737373]" />;
-    if (platform === "shopify") return <ShoppingBag size={14} className="text-[#95BF47]" />;
-    return <Zap size={14} className="text-black dark:text-white" />;
-  };
-
   return (
     <div>
       <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Integrações</h2>
@@ -322,13 +344,13 @@ const IntegrationsTab = () => {
           <div
             key={i.platform}
             title={i.comingSoon ? "Disponível em breve" : undefined}
-            className={`flex items-center justify-between p-4 rounded-xl border border-[#E5E5E5] dark:border-zinc-700 ${
-              i.comingSoon ? "bg-[#F7F7F7] opacity-70 grayscale dark:bg-zinc-900" : ""
+            className={`flex items-center justify-between p-4 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950 ${
+              i.comingSoon ? "bg-[#F7F7F7] dark:bg-zinc-900" : ""
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F5F5F5] dark:bg-zinc-800">
-                {integrationIcon(i.platform)}
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E5E5E5] bg-white p-1 dark:border-white/10 dark:bg-white">
+                <PlatformLogo platform={i.label} size={38} />
               </span>
               <span className="text-[14px] font-medium text-[#0A0A0A] dark:text-white">{i.label}</span>
             </div>
@@ -382,27 +404,27 @@ const PlanTab = () => {
 
   return (
     <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] mb-1">Seu plano</h2>
-      <p className="text-[13px] text-[#737373] mb-5">Gerencie sua assinatura e veja os planos disponíveis.</p>
+      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Seu plano</h2>
+      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Gerencie sua assinatura e veja os planos disponíveis.</p>
 
       {/* Current plan card */}
-      <div className="rounded-2xl border-[1.5px] border-black p-6 mb-6">
+      <div className="rounded-2xl border-[1.5px] border-black p-4 mb-6 dark:border-white dark:bg-zinc-950 sm:p-6">
         <div className="flex items-start justify-between mb-3">
           <div>
             <div className="flex items-center gap-2.5">
-              <h3 className="text-[18px] font-bold text-[#0A0A0A]">Plano {current.name}</h3>
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold">Ativo</span>
+              <h3 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white">Plano {current.name}</h3>
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Ativo</span>
             </div>
-            <p className="text-[13px] text-[#737373] mt-1">Renovação em 15 dias</p>
+            <p className="text-[13px] text-[#737373] dark:text-zinc-400 mt-1">Renovação em 15 dias</p>
           </div>
-          <p className="text-[24px] font-black text-[#0A0A0A] leading-none">
-            {current.price}<span className="text-[13px] text-[#737373] font-normal">{current.period}</span>
+          <p className="text-[24px] font-black text-[#0A0A0A] dark:text-white leading-none">
+            {current.price}<span className="text-[13px] text-[#737373] dark:text-zinc-400 font-normal">{current.period}</span>
           </p>
         </div>
         <ul className="space-y-2 mb-5">
           {current.features.map((f) => (
-            <li key={f} className="flex items-center gap-2 text-[13px] text-[#0A0A0A]">
-              <CheckCircle2 size={14} className="text-black" /> {f}
+            <li key={f} className="flex items-center gap-2 text-[13px] text-[#0A0A0A] dark:text-white">
+              <CheckCircle2 size={14} className="text-black dark:text-white" /> {f}
             </li>
           ))}
         </ul>
@@ -412,23 +434,23 @@ const PlanTab = () => {
       </div>
 
       {/* Available plans */}
-      <h3 className="text-[14px] font-bold text-[#0A0A0A] mb-3">Outros planos</h3>
+      <h3 className="text-[14px] font-bold text-[#0A0A0A] dark:text-white mb-3">Outros planos</h3>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {PLAN_DATA.map((p) => {
           const isCurrent = p.id === plan;
           return (
             <div
               key={p.id}
-              className={`rounded-xl p-4 ${isCurrent ? "border-2 border-black bg-[#FAFAFA]" : "border border-[#E5E5E5]"}`}
+              className={`rounded-xl p-4 ${isCurrent ? "border-2 border-black bg-[#FAFAFA] dark:border-white dark:bg-zinc-950" : "border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950"}`}
             >
-              <p className="text-[13px] font-bold text-[#0A0A0A]">{p.name}</p>
-              <p className="text-[20px] font-black text-[#0A0A0A] mt-1">
-                {p.price}<span className="text-[11px] text-[#737373] font-normal">{p.period}</span>
+              <p className="text-[13px] font-bold text-[#0A0A0A] dark:text-white">{p.name}</p>
+              <p className="text-[20px] font-black text-[#0A0A0A] dark:text-white mt-1">
+                {p.price}<span className="text-[11px] text-[#737373] dark:text-zinc-400 font-normal">{p.period}</span>
               </p>
               <ul className="mt-3 space-y-1.5">
                 {p.features.slice(0, 3).map((f) => (
-                  <li key={f} className="text-[11px] text-[#737373] flex items-start gap-1.5">
-                    <CheckCircle2 size={11} className="text-black mt-0.5 shrink-0" /> <span>{f}</span>
+                  <li key={f} className="text-[11px] text-[#737373] dark:text-zinc-400 flex items-start gap-1.5">
+                    <CheckCircle2 size={11} className="text-black dark:text-white mt-0.5 shrink-0" /> <span>{f}</span>
                   </li>
                 ))}
               </ul>
@@ -436,8 +458,8 @@ const PlanTab = () => {
                 disabled={isCurrent}
                 className={`mt-4 w-full py-2 rounded-full text-[12px] font-medium ${
                   isCurrent
-                    ? "bg-[#F0F0F0] text-[#A3A3A3] cursor-not-allowed"
-                    : "bg-black text-white hover:opacity-85 transition-opacity"
+                    ? "bg-[#F0F0F0] text-[#A3A3A3] cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
+                    : "bg-black text-white hover:opacity-85 transition-opacity dark:bg-white dark:text-black"
                 }`}
               >
                 {isCurrent ? "Plano atual" : "Selecionar"}
@@ -457,19 +479,19 @@ const NotificationsTab = () => {
 
   return (
     <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] mb-1">Notificações</h2>
-      <p className="text-[13px] text-[#737373] mb-5">Escolha quando quer ser avisado.</p>
+      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Notificações</h2>
+      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Escolha quando quer ser avisado.</p>
 
       <div className="space-y-2.5">
         {labels.map((l, i) => (
-          <div key={l} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5]">
-            <span className="text-[14px] font-medium text-[#0A0A0A]">{l}</span>
+          <div key={l} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
+            <span className="text-[14px] font-medium text-[#0A0A0A] dark:text-white">{l}</span>
             <button
               onClick={() => setToggles((prev) => prev.map((v, j) => (j === i ? !v : v)))}
-              className={`w-11 h-6 rounded-full transition-colors relative ${toggles[i] ? "bg-black" : "bg-[#E5E5E5]"}`}
+              className={`w-11 h-6 rounded-full transition-colors relative ${toggles[i] ? "bg-black dark:bg-white" : "bg-[#E5E5E5] dark:bg-zinc-700"}`}
               aria-label={`Toggle ${l}`}
             >
-              <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${toggles[i] ? "left-6" : "left-1"}`} />
+              <div className={`absolute top-1 w-4 h-4 rounded-full transition-all ${toggles[i] ? "left-6 bg-white dark:bg-black" : "left-1 bg-white dark:bg-zinc-300"}`} />
             </button>
           </div>
         ))}
@@ -482,8 +504,8 @@ const NotificationsTab = () => {
 const SecurityTab = () => (
   <div className="space-y-7">
     <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] mb-1">Alterar senha</h2>
-      <p className="text-[13px] text-[#737373] mb-4">Use uma senha forte que você não usa em outros lugares.</p>
+      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Alterar senha</h2>
+      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Use uma senha forte que você não usa em outros lugares.</p>
       <div className="space-y-4">
         {["Senha atual", "Nova senha", "Confirmar nova senha"].map((l) => (
           <div key={l}>
@@ -500,10 +522,10 @@ const SecurityTab = () => (
     <div className={divider} />
 
     <div>
-      <h3 className="text-[14px] font-bold text-[#0A0A0A] mb-3">Autenticação de dois fatores</h3>
-      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5]">
-        <span className="text-[14px] text-[#0A0A0A]">2FA ativado</span>
-        <div className="w-11 h-6 rounded-full bg-[#E5E5E5] relative">
+      <h3 className="text-[14px] font-bold text-[#0A0A0A] dark:text-white mb-3">Autenticação de dois fatores</h3>
+      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
+        <span className="text-[14px] text-[#0A0A0A] dark:text-white">2FA ativado</span>
+        <div className="w-11 h-6 rounded-full bg-[#E5E5E5] dark:bg-zinc-700 relative">
           <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white" />
         </div>
       </div>
@@ -512,18 +534,18 @@ const SecurityTab = () => (
     <div className={divider} />
 
     <div>
-      <h3 className="text-[14px] font-bold text-[#0A0A0A] mb-3">Sessões ativas</h3>
+      <h3 className="text-[14px] font-bold text-[#0A0A0A] dark:text-white mb-3">Sessões ativas</h3>
       <div className="space-y-2">
         {[
           { device: "Chrome — São Paulo", active: true },
           { device: "Safari — iPhone",    active: false },
         ].map((s) => (
-          <div key={s.device} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5]">
-            <span className="text-[14px] text-[#0A0A0A]">{s.device}</span>
+          <div key={s.device} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
+            <span className="text-[14px] text-[#0A0A0A] dark:text-white">{s.device}</span>
             {s.active ? (
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold">Atual</span>
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Atual</span>
             ) : (
-              <button className="text-[12px] text-[#0A0A0A] font-medium underline underline-offset-2 hover:opacity-70">Encerrar</button>
+              <button className="text-[12px] text-[#0A0A0A] dark:text-white font-medium underline underline-offset-2 hover:opacity-70">Encerrar</button>
             )}
           </div>
         ))}

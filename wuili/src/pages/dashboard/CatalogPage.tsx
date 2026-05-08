@@ -151,7 +151,7 @@ const CatalogPage = () => {
           <div className="relative">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-48 rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-48 rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
               placeholder="Buscar produto"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}

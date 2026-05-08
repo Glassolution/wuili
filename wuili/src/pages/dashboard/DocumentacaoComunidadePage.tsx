@@ -218,7 +218,7 @@ export default function DocumentacaoComunidadePage() {
 
   const getTagStyle = (tag: ChangelogItem["tag"]) => {
     if (tag === "Novo") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
-    if (tag === "Melhorado") return "border-blue-500/30 bg-blue-500/10 text-blue-300";
+    if (tag === "Melhorado") return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
     return "border-amber-500/30 bg-amber-500/10 text-amber-300";
   };
 

@@ -9,6 +9,7 @@ import {
   LayoutGrid, ShoppingCart, BookOpen, Star, Users,
   BarChart3, Settings, Wallet, ArrowLeftRight, CreditCard,
   Sparkles, Palette, User, HelpCircle, LogOut,
+  Clapperboard, MessageSquare,
 } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
@@ -38,6 +39,8 @@ const mobileItems: MobileMenuItem[] = [
   { icon: ArrowLeftRight, label: "Transações", path: "/dashboard/transacoes" },
   { icon: CreditCard, label: "Pagamentos", path: "/dashboard/pagamentos" },
   { icon: BarChart3, label: "Relatórios", path: "/dashboard/relatorios" },
+  { icon: Clapperboard, label: "Vídeos", path: "/dashboard/criar-video" },
+  { icon: MessageSquare, label: "Chat", path: "/dashboard/chat-fornecedores" },
   { icon: Settings, label: "Configurações", path: "/dashboard/configuracoes" },
 ];
 
@@ -94,10 +97,14 @@ const DashboardTopbar = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-background px-4">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background px-3 dark:border-transparent sm:gap-4 sm:px-4">
         <button className="md:hidden text-muted-foreground" onClick={() => setMobileOpen(true)}>
           <Menu size={20} />
         </button>
+
+        <div className="min-w-0 flex-1 md:hidden">
+          <p className="truncate text-[15px] font-semibold text-foreground">{pageTitle}</p>
+        </div>
 
         <div className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
           <span className="font-semibold text-foreground dark:text-white">Velo</span>
@@ -105,11 +112,11 @@ const DashboardTopbar = () => {
           <span>{pageTitle}</span>
         </div>
 
-        <div className="flex flex-1 justify-center">
+        <div className="hidden flex-1 justify-center sm:flex">
           <div className="relative w-full max-w-sm">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="w-full rounded-xl border border-border bg-muted/50 py-2 pl-8 pr-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-border bg-muted/50 py-2 pl-8 pr-4 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
               placeholder="Pesquisar ou pressione '/' para comandos"
             />
           </div>
@@ -218,7 +225,7 @@ const DashboardTopbar = () => {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-foreground/30" onClick={() => setMobileOpen(false)} />
-          <div className="absolute bottom-0 left-0 top-0 w-64 border-r border-border bg-background px-3 pb-4 pt-5">
+          <div className="absolute bottom-0 left-0 top-0 w-[82vw] max-w-[320px] border-r border-border bg-background px-3 pb-4 pt-5 dark:border-transparent">
             <div className="mb-5 flex items-center justify-between px-2">
               <span className="text-lg font-black text-foreground dark:text-white">Velo</span>
               <button onClick={() => setMobileOpen(false)}><X size={20} /></button>
@@ -231,7 +238,7 @@ const DashboardTopbar = () => {
                   onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     location.pathname === item.path
-                      ? "bg-accent text-accent-foreground"
+                      ? "bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >

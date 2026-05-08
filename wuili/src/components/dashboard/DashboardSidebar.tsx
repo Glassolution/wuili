@@ -126,10 +126,10 @@ const DashboardSidebar = () => {
     items.some((i) => location.pathname.startsWith(i.to));
 
   return (
-    <nav className="flex h-full w-[220px] shrink-0 flex-col border-r border-border bg-background">
+    <nav className="flex h-full w-[220px] shrink-0 flex-col border-r border-border bg-background dark:border-transparent">
 
       {/* ── Logo ─────────────────────────────────────────────────────────── */}
-      <div className="flex h-14 shrink-0 items-center px-5 border-b border-border">
+      <div className="flex h-14 shrink-0 items-center px-5 border-b border-border dark:border-transparent">
         <Link to="/?home=1">
           <VeloLogo size="sm" variant={resolvedTheme === "dark" ? "light" : "dark"} />
         </Link>
@@ -199,7 +199,7 @@ const DashboardSidebar = () => {
 
               {/* Sub-items */}
               {isOpen && (
-                <div className="mt-0.5 mb-1 ml-3 space-y-0.5 border-l border-[#F0F0F0] pl-4 dark:border-zinc-700">
+                <div className="mt-0.5 mb-1 ml-3 space-y-0.5 border-l border-[#F0F0F0] pl-4 dark:border-transparent">
                   {item.items.map((sub) => {
                     const subActive = location.pathname.startsWith(sub.to);
                     return (
@@ -246,7 +246,7 @@ const DashboardSidebar = () => {
       </div>
 
       {/* ── Bottom ───────────────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-border px-3 py-3 space-y-0.5">
+      <div className="shrink-0 border-t border-border px-3 py-3 space-y-0.5 dark:border-transparent">
 
         {/* Settings */}
         <Link

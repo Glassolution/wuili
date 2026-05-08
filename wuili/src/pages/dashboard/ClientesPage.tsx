@@ -60,7 +60,7 @@ const deliveryStatusUI: Record<string, { label: string; className: string }> = {
   },
   processing: {
     label: "Em produção",
-    className: "bg-blue-100 text-blue-700 border border-blue-200",
+    className: "bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700",
   },
   shipped: {
     label: "Enviado",
@@ -84,7 +84,7 @@ const refundStatusLabel: Record<string, string> = {
 };
 
 const tabButtonBase =
-  "rounded-xl px-3 py-2 text-sm font-medium transition-colors border";
+  "rounded-xl border px-3 py-2 text-sm font-semibold transition-colors";
 
 const ClientesPage = () => {
   const { user } = useAuth();
@@ -185,21 +185,21 @@ const ClientesPage = () => {
         </p>
       </div>
 
-      <div className="flex items-start gap-3 rounded-[12px] bg-[#F5F5F5] p-4">
+      <div className="flex items-start gap-3 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F7] p-4 shadow-sm dark:border-zinc-700">
         <Info size={18} className="mt-0.5 shrink-0 text-[#525252]" />
-        <p className="text-sm leading-relaxed text-[#404040]">
+        <p className="text-[13px] leading-relaxed text-[#404040] sm:text-sm">
           A entrega é feita diretamente pela CJ Dropshipping ao seu comprador. Questões sobre nota fiscal devem ser
           resolvidas pelo vendedor. Em caso de problemas com o produto, entre em contato com contato@velo.com.br
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-3 gap-1 rounded-2xl border border-[#2A2A2A] bg-[#141414] p-1 shadow-sm sm:inline-grid sm:w-fit">
         <button
           onClick={() => setActiveTab("compradores")}
           className={`${tabButtonBase} ${
             activeTab === "compradores"
-              ? "border-[#0A0A0A] bg-[#0A0A0A] text-white"
-              : "border-[#E5E5E5] bg-white text-[#525252]"
+              ? "border-white bg-white text-[#0A0A0A] shadow-sm"
+              : "border-transparent bg-transparent text-white hover:bg-white/5"
           }`}
         >
           Compradores
@@ -208,8 +208,8 @@ const ClientesPage = () => {
           onClick={() => setActiveTab("entregas")}
           className={`${tabButtonBase} ${
             activeTab === "entregas"
-              ? "border-[#0A0A0A] bg-[#0A0A0A] text-white"
-              : "border-[#E5E5E5] bg-white text-[#525252]"
+              ? "border-white bg-white text-[#0A0A0A] shadow-sm"
+              : "border-transparent bg-transparent text-white hover:bg-white/5"
           }`}
         >
           Entregas
@@ -218,8 +218,8 @@ const ClientesPage = () => {
           onClick={() => setActiveTab("devolucoes")}
           className={`${tabButtonBase} ${
             activeTab === "devolucoes"
-              ? "border-[#0A0A0A] bg-[#0A0A0A] text-white"
-              : "border-[#E5E5E5] bg-white text-[#525252]"
+              ? "border-white bg-white text-[#0A0A0A] shadow-sm"
+              : "border-transparent bg-transparent text-white hover:bg-white/5"
           }`}
         >
           Devoluções
@@ -238,7 +238,51 @@ const ClientesPage = () => {
             />
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="space-y-2.5 md:hidden">
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-24 animate-pulse rounded-2xl bg-[#F5F5F5] dark:bg-zinc-800" />
+              ))
+            ) : filteredBuyers.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#D4D4D4] px-4 py-8 text-center text-sm text-[#737373] dark:border-zinc-700 dark:text-zinc-400">
+                Nenhum comprador encontrado.
+              </div>
+            ) : (
+              filteredBuyers.map((buyer) => (
+                <article key={buyer.name} className="rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[14px] font-semibold text-[#262626] dark:text-zinc-100">{buyer.name}</p>
+                      <p className="mt-1 text-[12px] text-[#737373] dark:text-zinc-400">
+                        Último pedido: {formatDateTime(buyer.lastOrderAt)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-[#525252] dark:bg-zinc-900 dark:text-zinc-300">
+                      {buyer.totalOrders} pedidos
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
+                      <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Total gasto</p>
+                      <p className="mt-0.5 text-[13px] font-bold text-[#0A0A0A] dark:text-white">{formatBRL(buyer.totalSpent)}</p>
+                    </div>
+                    <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
+                      <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Plataforma</p>
+                      <p className="mt-0.5 truncate text-[13px] font-bold text-[#0A0A0A] dark:text-white">
+                        {Object.keys(buyer.platformCounts).map((platform) => {
+                          const label = platform === "mercadolivre" ? "ML" : platform === "shopee" ? "Shopee" : platform;
+                          return `${label} (${buyer.platformCounts[platform]})`;
+                        }).join(" · ")}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-[#F0F0F0] text-left text-xs uppercase tracking-wider text-[#A3A3A3]">
@@ -273,7 +317,82 @@ const ClientesPage = () => {
 
       {activeTab === "entregas" && (
         <section className="rounded-2xl border border-[#E5E5E5] bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="overflow-x-auto">
+          <div className="space-y-2.5 md:hidden">
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-28 animate-pulse rounded-2xl bg-[#F5F5F5] dark:bg-zinc-800" />
+              ))
+            ) : orders.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#D4D4D4] px-4 py-8 text-center text-sm text-[#737373] dark:border-zinc-700 dark:text-zinc-400">
+                Nenhuma entrega encontrada.
+              </div>
+            ) : (
+              orders.map((order) => {
+                const statusKey = getDeliveryStatus(order);
+                const statusInfo = deliveryStatusUI[statusKey];
+                const trackingLink = getTrackingLink(order.tracking_code);
+
+                return (
+                  <article key={order.id} className="rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-bold text-[#262626] dark:text-zinc-100">
+                          Pedido #{(order.external_order_id || order.id).slice(0, 12)}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-[12px] text-[#737373] dark:text-zinc-400">
+                          {order.product_title || "Produto sem título"}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-semibold ${statusInfo.className}`}>
+                        {statusInfo.label}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
+                        <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Comprador</p>
+                        <p className="mt-0.5 truncate text-[13px] font-bold text-[#0A0A0A] dark:text-white">{order.buyer_name || "—"}</p>
+                      </div>
+                      <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
+                        <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Prazo</p>
+                        <p className="mt-0.5 truncate text-[13px] font-bold text-[#0A0A0A] dark:text-white">
+                          {order.status === "delivered" ? "Concluída" : "7-20 dias úteis"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {(statusKey === "error" || trackingLink || order.fulfillment_error) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {statusKey === "error" && (
+                          <button
+                            onClick={() => handleResendToCJ(order.id)}
+                            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1 rounded-xl border border-[#E5E5E5] bg-white px-3 text-xs font-semibold text-[#262626] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                          >
+                            <RefreshCw size={12} />
+                            Reenviar
+                          </button>
+                        )}
+                        {trackingLink && (
+                          <button
+                            onClick={() => window.open(trackingLink, "_blank", "noopener,noreferrer")}
+                            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1 rounded-xl border border-[#E5E5E5] bg-white px-3 text-xs font-semibold text-[#262626] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                          >
+                            <ExternalLink size={12} />
+                            Rastreio
+                          </button>
+                        )}
+                        {order.fulfillment_error && (
+                          <p className="w-full text-xs text-red-600">{order.fulfillment_error}</p>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                );
+              })
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[980px] text-sm">
               <thead>
                 <tr className="border-b border-[#F0F0F0] text-left text-xs uppercase tracking-wider text-[#A3A3A3]">
@@ -351,7 +470,36 @@ const ClientesPage = () => {
           </div>
 
           <div className="rounded-2xl border border-[#E5E5E5] bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="overflow-x-auto">
+            <div className="space-y-2.5 md:hidden">
+              {refunds.length === 0 && !isLoading ? (
+                <div className="rounded-2xl border border-dashed border-[#D4D4D4] px-4 py-8 text-center text-sm text-[#737373] dark:border-zinc-700 dark:text-zinc-400">
+                  Nenhuma solicitação de devolução encontrada.
+                </div>
+              ) : (
+                refunds.map((order) => (
+                  <article key={order.id} className="rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-bold text-[#262626] dark:text-zinc-100">
+                          Pedido #{(order.external_order_id || order.id).slice(0, 12)}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-[12px] text-[#737373] dark:text-zinc-400">
+                          {order.product_title || "Produto sem título"}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[10.5px] font-semibold text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                        {refundStatusLabel[(order.status ?? "").toLowerCase()] ?? "—"}
+                      </span>
+                    </div>
+                    <p className="mt-3 rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-[#525252] dark:bg-zinc-900 dark:text-zinc-300">
+                      Comprador: {order.buyer_name || "—"}
+                    </p>
+                  </article>
+                ))
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-[#F0F0F0] text-left text-xs uppercase tracking-wider text-[#A3A3A3]">
