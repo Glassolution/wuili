@@ -9,7 +9,7 @@ import {
   LayoutGrid, Users, BarChart3, Settings, Wallet, Package,
   ArrowLeftRight, CreditCard, Clapperboard, MessageSquare,
   ShoppingCart, Star, ChevronDown, Sun, Moon, Store,
-  Banknote, LogOut, ShieldCheck,
+  Banknote, LogOut, ShieldCheck, Percent,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { VeloLogo } from "@/components/VeloLogo";
@@ -230,18 +230,32 @@ const DashboardSidebar = () => {
         })}
 
         {isAdmin && (
-          <Link
-            to="/admin/dashboard"
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-all",
-              location.pathname.startsWith("/admin")
-                ? "bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
-                : "text-[#737373] hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
-            )}
-          >
-            <ShieldCheck size={16} strokeWidth={1.9} className="shrink-0" />
-            Admin
-          </Link>
+          <>
+            <Link
+              to="/admin/dashboard"
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-all",
+                location.pathname.startsWith("/admin")
+                  ? "bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
+                  : "text-[#737373] hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
+              )}
+            >
+              <ShieldCheck size={16} strokeWidth={1.9} className="shrink-0" />
+              Admin
+            </Link>
+            <Link
+              to="/dashboard/comissoes"
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-all",
+                location.pathname.startsWith("/dashboard/comissoes")
+                  ? "bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
+                  : "text-[#737373] hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white"
+              )}
+            >
+              <Percent size={16} strokeWidth={1.9} className="shrink-0" />
+              Comissões
+            </Link>
+          </>
         )}
       </div>
 

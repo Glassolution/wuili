@@ -32,6 +32,7 @@ import ChatFornecedoresPage from "./pages/dashboard/ChatFornecedoresPage";
 import DashboardHomePage from "./pages/dashboard/DashboardHomePage";
 import Docs from "./pages/Docs";
 import ClientesPage from "./pages/dashboard/ClientesPage";
+import CommissionsPage from "./pages/dashboard/CommissionsPage";
 import AdminSupportPage from "./pages/admin/AdminSupportPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
@@ -69,6 +70,7 @@ const App = () => (
             <Route index element={<DashboardHomePage />} />
             <Route path="saldos" element={<SaldosPage />} />
             <Route path="transacoes" element={<TransacoesPage />} />
+            <Route path="comissoes" element={<CommissionsPage />} />
             <Route path="pagamentos" element={<PagamentosPage />} />
             <Route path="planos" element={<Navigate to="/checkout" replace />} />
             <Route
