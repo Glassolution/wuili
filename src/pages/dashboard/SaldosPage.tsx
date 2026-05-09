@@ -235,7 +235,7 @@ const SaldosPage = () => {
             {isLoading ? (
               <Skeleton className="h-9 w-44" />
             ) : (
-              <span className="text-[34px] font-bold tracking-tight text-[#0A0A0A] dark:text-white">
+              <span className="text-[34px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">
                 {fmt(summary.revenue)}
               </span>
             )}
@@ -294,7 +294,7 @@ const SaldosPage = () => {
             {isLoading ? (
               <Skeleton className="h-9 w-36" />
             ) : (
-              <span className="text-[30px] font-bold tracking-tight text-[#0A0A0A] dark:text-white">
+              <span className="text-[30px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">
                 {fmt(summary.costs)}
               </span>
             )}
@@ -308,7 +308,7 @@ const SaldosPage = () => {
             <div className="flex justify-between text-[12.5px]">
               <div className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-sm bg-[#0A0A0A]" />
-                <span className="font-semibold text-[#0A0A0A] dark:text-white">Custo de Produto</span>
+              <span className="font-normal text-[#0A0A0A] dark:text-white">Custo de Produto</span>
               </div>
               <span className="text-[#A0A0A0] dark:text-zinc-400">Taxas</span>
             </div>
@@ -334,7 +334,7 @@ const SaldosPage = () => {
             </div>
 
             {/* Bottom values */}
-            <div className="flex justify-between text-[12px] font-medium">
+            <div className="flex justify-between text-[12px] font-normal">
               {isLoading ? (
                 <>
                   <Skeleton className="h-4 w-24" />
@@ -396,7 +396,7 @@ const SaldosPage = () => {
           {isLoading ? (
             <Skeleton className="h-9 w-44 mb-3" />
           ) : (
-            <span className="text-[34px] font-bold tracking-tight text-[#0A0A0A] dark:text-white">
+            <span className="text-[34px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">
               {fmt(summary.profit)}
             </span>
           )}
@@ -469,7 +469,7 @@ const SaldosPage = () => {
                   <div key={order.id} className="flex items-center gap-3">
                     {/* Icon */}
                     <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold bg-[#0A0A0A] text-white"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[11px] font-semibold bg-[#0A0A0A] text-white"
                     >
                       {initials}
                     </div>
@@ -485,7 +485,7 @@ const SaldosPage = () => {
                     </div>
 
                     {/* Date */}
-                    <span className="shrink-0 text-[12.5px] font-medium text-[#737373] dark:text-zinc-300">
+                    <span className="shrink-0 text-[12.5px] font-normal text-[#737373] dark:text-zinc-300">
                       {dateLabel}
                     </span>
                   </div>
@@ -531,7 +531,7 @@ const SaldosPage = () => {
             {/* Table header */}
             <div className="grid grid-cols-[1fr_180px_160px_120px] gap-4 border-b border-[#F0F0F0] dark:border-zinc-800 pb-3 mb-1">
               {["Atividade", "Data", "Valor", "Status"].map((h) => (
-                <span key={h} className="text-[11.5px] font-semibold uppercase tracking-wide text-[#B0B0B0] dark:text-zinc-500">{h}</span>
+                <span key={h} className="text-[11.5px] font-normal uppercase tracking-wide text-[#B0B0B0] dark:text-zinc-500">{h}</span>
               ))}
             </div>
 
@@ -554,12 +554,12 @@ const SaldosPage = () => {
                     {/* Activity */}
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-semibold"
                         style={{ backgroundColor: platform.iconBg, color: platform.iconColor }}
                       >
                         {platform.icon}
                       </div>
-                      <span className="truncate text-[13.5px] font-medium text-[#0A0A0A] dark:text-white">
+                      <span className="truncate text-[13.5px] font-normal text-[#0A0A0A] dark:text-white">
                         {title}
                       </span>
                     </div>
