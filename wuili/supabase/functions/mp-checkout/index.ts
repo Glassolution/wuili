@@ -65,6 +65,25 @@ Deno.serve(async (req) => {
       });
     }
 
+    // === COOLDOWN ANTI-ABUSO (pós-reembolso) ===
+    {
+      const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+      const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminCd = createClient(dbUrl, dbKey);
+      const { data: profCd } = await adminCd
+        .from("profiles")
+        .select("refund_cooldown_until")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (profCd?.refund_cooldown_until && new Date(profCd.refund_cooldown_until) > new Date()) {
+        const until = new Date(profCd.refund_cooldown_until).toLocaleDateString("pt-BR");
+        return new Response(JSON.stringify({
+          error: `Reembolso recente detectado. Você poderá assinar um novo plano a partir de ${until}.`,
+          cooldown_until: profCd.refund_cooldown_until,
+        }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // Create Mercado Pago payment
     const mpPayload: Record<string, unknown> = {
       transaction_amount: selectedPlan.amount,
