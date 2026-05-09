@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, User } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,7 +25,14 @@ const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
 ];
 
 const SettingsPage = () => {
-  const [tab, setTab] = useState<TabId>("Perfil");
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get("tab") as TabId) || "Perfil";
+  const [tab, setTab] = useState<TabId>(initialTab);
+  useEffect(() => {
+    const t = searchParams.get("tab") as TabId | null;
+    if (t && t !== tab) setTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const mobileTabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const { nome, foto } = useProfile();
   const { user } = useAuth();
