@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, XCircle, AlertTriangle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { CheckCircle2, Loader2, XCircle, AlertTriangle, MessageCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,33 +15,34 @@ type Subscription = {
   created_at: string;
 };
 
-type Step = "reason" | "confirm" | "result";
+type Step = "reason" | "details" | "confirm" | "result";
 type Result = { kind: "success" | "error"; message: string } | null;
 
 const PLAN_LABEL: Record<string, string> = {
-  gratis: "Free",
-  go: "Go",
-  plus: "Pro",
-  pro: "Pro",
-  business: "Business",
+  gratis: "Free", go: "Go", plus: "Pro", pro: "Pro", business: "Business",
 };
+
 const REASONS = [
-  "Não atendeu minhas expectativas",
-  "Encontrei outra solução",
-  "Está caro para mim",
+  "Não entendi como usar a plataforma",
+  "Não era o que eu esperava",
+  "Preço muito alto",
   "Tive problemas técnicos",
-  "Outro",
+  "Vou pausar por agora",
+  "Outro motivo",
 ];
+
+const MIN_DETAILS = 30;
 
 const RefundSection = () => {
   const { user, session } = useAuth();
+  const navigate = useNavigate();
   const [subs, setSubs] = useState<Subscription[]>([]);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Subscription | null>(null);
   const [step, setStep] = useState<Step>("reason");
-  const [reason, setReason] = useState(REASONS[0]);
+  const [reason, setReason] = useState<string>("");
   const [details, setDetails] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<Result>(null);
 
@@ -53,45 +55,64 @@ const RefundSection = () => {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     setSubs(data || []);
+    const { data: pend } = await supabase
+      .from("refund_requests")
+      .select("subscription_id")
+      .eq("user_id", user.id)
+      .eq("status", "pending");
+    setPendingIds(new Set((pend || []).map((r: any) => r.subscription_id)));
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [user]);
 
   const closeModal = () => {
-    setActive(null);
-    setStep("reason");
-    setReason(REASONS[0]);
-    setDetails("");
-    setConfirmed(false);
-    setProcessing(false);
-    setResult(null);
+    setActive(null); setStep("reason"); setReason(""); setDetails("");
+    setProcessing(false); setResult(null);
   };
 
   const submitRefund = async () => {
     if (!active || !session) return;
     setStep("result");
-    setProcessing(true);
-    setResult(null);
+    setProcessing(true); setResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("process-refund", {
-        body: {
-          subscription_id: active.id,
-          reason,
-          reason_details: reason === "Outro" ? details : null,
-        },
+      const { data, error } = await supabase.functions.invoke("request-refund", {
+        body: { subscription_id: active.id, reason, reason_details: details.trim() },
       });
       if (error || !data?.success) {
-        setResult({ kind: "error", message: data?.error || data?.message || "Erro ao processar." });
+        setResult({ kind: "error", message: data?.error || data?.message || "Erro ao enviar solicitação." });
       } else {
         setResult({ kind: "success", message: data.message });
-        toast.success("Reembolso processado!");
+        toast.success("Solicitação recebida!");
         load();
       }
     } catch (e) {
       setResult({ kind: "error", message: String(e) });
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const openSupportChat = async () => {
+    if (!user || !active) return;
+    try {
+      // Cria ticket e envia primeira mensagem com contexto
+      const { data: ticket, error: tErr } = await (supabase as any)
+        .from("support_tickets")
+        .insert({ user_id: user.id, status: "open", ai_active: false })
+        .select("id")
+        .single();
+      if (tErr) throw tErr;
+      const ctx = `Olá, estou pensando em cancelar minha assinatura.\n\nMotivo: ${reason}\n\nDetalhes: ${details.trim()}`;
+      await (supabase as any).from("support_messages").insert({
+        ticket_id: ticket.id, user_id: user.id, sender: "user", message: ctx,
+      });
+      toast.success("Conectando você ao suporte...");
+      closeModal();
+      navigate("/dashboard/configuracoes?tab=Suporte");
+    } catch (e) {
+      console.error(e);
+      toast.error("Não foi possível abrir o chat de suporte.");
     }
   };
 
@@ -103,11 +124,13 @@ const RefundSection = () => {
     return days <= 7;
   };
 
+  const detailsOk = details.trim().length >= MIN_DETAILS;
+
   return (
     <div className="mt-8 pt-8 border-t border-[#F0F0F0] dark:border-white/10">
-      <h3 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Solicitar reembolso</h3>
+      <h3 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Cancelar assinatura / reembolso</h3>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">
-        Reembolso disponível em até 7 dias após o pagamento.
+        Reembolso disponível em até 7 dias após o pagamento. Toda solicitação passa por análise (até 48h).
       </p>
 
       {loading ? (
@@ -120,14 +143,12 @@ const RefundSection = () => {
         <div className="space-y-2.5">
           {subs.map((s) => {
             const eligible = isEligible(s);
-            const statusLabel =
-              s.status === "active" ? "Ativo" :
-              s.status === "pending" ? "Pendente" :
-              s.status === "cancelled" ? "Cancelado" : s.status;
+            const pending = pendingIds.has(s.id);
+            const statusLabel = s.status === "active" ? "Ativo" : s.status === "pending" ? "Pendente" : s.status === "cancelled" ? "Cancelado" : s.status;
             const statusCls =
-              s.status === "active" ? "bg-black text-white dark:bg-white dark:text-black" :
-              s.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300" :
-              "bg-[#F0F0F0] text-[#737373] dark:bg-zinc-800 dark:text-zinc-300";
+              s.status === "active" ? "bg-black text-white dark:bg-white dark:text-black"
+              : s.status === "pending" ? "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
+              : "bg-[#F0F0F0] text-[#737373] dark:bg-zinc-800 dark:text-zinc-300";
             return (
               <div key={s.id} className="flex items-center justify-between p-4 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
                 <div className="min-w-0">
@@ -137,7 +158,11 @@ const RefundSection = () => {
                   </div>
                   <p className="text-[12px] text-[#737373] dark:text-zinc-400 mt-0.5">{fmtDate(s.created_at)} • {fmtMoney(s.amount)}</p>
                 </div>
-                {eligible ? (
+                {pending ? (
+                  <span className="text-[11px] inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
+                    <Clock size={12} /> Em análise
+                  </span>
+                ) : eligible ? (
                   <button
                     onClick={() => setActive(s)}
                     className="text-[12px] px-3.5 py-1.5 rounded-full border border-black text-black hover:bg-black hover:text-white transition-colors font-medium dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
@@ -159,46 +184,56 @@ const RefundSection = () => {
       {active && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={closeModal}>
           <div className="bg-white rounded-2xl max-w-md w-full p-6 dark:border dark:border-zinc-800 dark:bg-zinc-900" onClick={(e) => e.stopPropagation()}>
-            {/* Step indicator */}
             <div className="flex items-center gap-1.5 mb-5">
-              {(["reason", "confirm", "result"] as const).map((s, i) => (
-                <div
-                  key={s}
-                  className={`h-1 flex-1 rounded-full ${
-                    step === s || (i < ["reason", "confirm", "result"].indexOf(step)) ? "bg-black dark:bg-white" : "bg-[#E5E5E5] dark:bg-zinc-700"
-                  }`}
-                />
+              {(["reason", "details", "confirm", "result"] as const).map((s, i) => (
+                <div key={s} className={`h-1 flex-1 rounded-full ${
+                  step === s || (i < ["reason","details","confirm","result"].indexOf(step)) ? "bg-black dark:bg-white" : "bg-[#E5E5E5] dark:bg-zinc-700"
+                }`} />
               ))}
             </div>
 
             {step === "reason" && (
               <>
-                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Motivo do reembolso</h4>
-                <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Conte por que está solicitando.</p>
+                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Por que está cancelando?</h4>
+                <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Selecione a opção que melhor descreve seu motivo.</p>
                 <div className="space-y-2 mb-4">
                   {REASONS.map((r) => (
-                    <label key={r} className="flex items-center gap-3 p-3 rounded-lg border border-[#E5E5E5] cursor-pointer hover:bg-[#FAFAFA] dark:border-zinc-800 dark:hover:bg-zinc-800">
+                    <label key={r} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
+                      reason === r ? "border-black bg-[#FAFAFA] dark:border-white dark:bg-zinc-800" : "border-[#E5E5E5] hover:bg-[#FAFAFA] dark:border-zinc-800 dark:hover:bg-zinc-800"
+                    }`}>
                       <input type="radio" name="reason" checked={reason === r} onChange={() => setReason(r)} className="accent-black" />
                       <span className="text-[14px] text-[#0A0A0A] dark:text-white">{r}</span>
                     </label>
                   ))}
                 </div>
-                {reason === "Outro" && (
-                  <textarea
-                    value={details}
-                    onChange={(e) => setDetails(e.target.value)}
-                    placeholder="Conte mais sobre o motivo..."
-                    rows={3}
-                    className="w-full p-3 rounded-lg border border-[#E5E5E5] text-[14px] outline-none focus:border-black resize-none mb-4 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white"
-                  />
-                )}
                 <div className="flex gap-2 justify-end">
                   <button onClick={closeModal} className="px-5 py-2.5 rounded-full border border-[#E5E5E5] text-[14px] font-medium text-[#737373] dark:border-zinc-700 dark:text-zinc-300">Cancelar</button>
-                  <button
-                    onClick={() => setStep("confirm")}
-                    disabled={reason === "Outro" && !details.trim()}
-                    className="px-5 py-2.5 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 disabled:opacity-40 dark:bg-white dark:text-black"
-                  >
+                  <button onClick={() => setStep("details")} disabled={!reason}
+                    className="px-5 py-2.5 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 disabled:opacity-40 dark:bg-white dark:text-black">
+                    Continuar
+                  </button>
+                </div>
+              </>
+            )}
+
+            {step === "details" && (
+              <>
+                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Conte-nos mais sobre o motivo</h4>
+                <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Isso nos ajuda a melhorar. Mínimo {MIN_DETAILS} caracteres.</p>
+                <textarea
+                  value={details}
+                  onChange={(e) => setDetails(e.target.value)}
+                  placeholder="Explique com suas palavras..."
+                  rows={5}
+                  className="w-full p-3 rounded-lg border border-[#E5E5E5] text-[14px] outline-none focus:border-black resize-none mb-2 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white"
+                />
+                <p className={`text-[11px] mb-4 ${detailsOk ? "text-emerald-600" : "text-[#A3A3A3]"}`}>
+                  {details.trim().length}/{MIN_DETAILS} caracteres {detailsOk ? "✓" : ""}
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setStep("reason")} className="px-5 py-2.5 rounded-full border border-[#E5E5E5] text-[14px] font-medium text-[#737373] dark:border-zinc-700 dark:text-zinc-300">Voltar</button>
+                  <button onClick={() => setStep("confirm")} disabled={!detailsOk}
+                    className="px-5 py-2.5 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 disabled:opacity-40 dark:bg-white dark:text-black">
                     Continuar
                   </button>
                 </div>
@@ -207,28 +242,26 @@ const RefundSection = () => {
 
             {step === "confirm" && (
               <>
-                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Confirmar reembolso</h4>
-                <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Última etapa antes de processar.</p>
-                <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-4 flex gap-3">
+                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Antes de confirmar...</h4>
+                <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">
+                  Talvez possamos ajudar. Que tal conversar com um humano antes de cancelar?
+                </p>
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-5 flex gap-3 dark:bg-amber-500/10 dark:border-amber-500/30">
                   <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-                  <div className="text-[13px] text-amber-900">
-                    Ao confirmar, seu acesso ao plano será encerrado imediatamente e você voltará ao plano gratuito.
-                    O valor de <strong>{fmtMoney(active.amount)}</strong> será creditado em até 7 dias úteis.
+                  <div className="text-[13px] text-amber-900 dark:text-amber-200">
+                    Ao confirmar, sua solicitação será analisada em até <strong>48 horas</strong>. Se aprovada, o valor de <strong>{fmtMoney(active.amount)}</strong> será creditado em até 7 dias úteis e suas publicações no Mercado Livre serão removidas.
                   </div>
                 </div>
-                <label className="flex items-start gap-3 mb-5 cursor-pointer">
-                  <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1 accent-black" />
-                  <span className="text-[13px] text-[#0A0A0A] dark:text-white">Entendo que perderei o acesso ao plano e quero prosseguir.</span>
-                </label>
-                <div className="flex gap-2 justify-end">
-                  <button onClick={() => setStep("reason")} className="px-5 py-2.5 rounded-full border border-[#E5E5E5] text-[14px] font-medium text-[#737373] dark:border-zinc-700 dark:text-zinc-300">Voltar</button>
-                  <button
-                    onClick={submitRefund}
-                    disabled={!confirmed}
-                    className="px-5 py-2.5 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 disabled:opacity-40 dark:bg-white dark:text-black"
-                  >
-                    Confirmar reembolso
+                <div className="flex flex-col gap-2.5">
+                  <button onClick={openSupportChat}
+                    className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-black text-white text-[14px] font-semibold hover:opacity-85 dark:bg-white dark:text-black">
+                    <MessageCircle size={16} /> Falar com suporte antes
                   </button>
+                  <button onClick={submitRefund}
+                    className="w-full px-5 py-2.5 rounded-full border border-red-200 text-red-600 text-[13px] font-medium hover:bg-red-50 dark:border-red-500/30 dark:hover:bg-red-500/10">
+                    Confirmar cancelamento mesmo assim
+                  </button>
+                  <button onClick={() => setStep("details")} className="w-full text-[12px] text-[#737373] dark:text-zinc-400 mt-1">Voltar</button>
                 </div>
               </>
             )}
@@ -238,15 +271,15 @@ const RefundSection = () => {
                 {processing && (
                   <>
                     <Loader2 size={42} className="mx-auto animate-spin text-black dark:text-white mb-4" />
-                    <p className="text-[14px] text-[#737373] dark:text-zinc-400">Processando reembolso...</p>
+                    <p className="text-[14px] text-[#737373] dark:text-zinc-400">Enviando solicitação...</p>
                   </>
                 )}
                 {!processing && result?.kind === "success" && (
                   <>
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
-                      <CheckCircle2 size={32} className="text-emerald-600" />
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+                      <Clock size={32} className="text-amber-600" />
                     </div>
-                    <h4 className="text-[18px] font-bold text-emerald-700 mb-1">Reembolso aprovado</h4>
+                    <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Solicitação recebida</h4>
                     <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">{result.message}</p>
                     <button onClick={closeModal} className="px-6 py-2.5 rounded-full bg-black text-white text-[14px] font-medium dark:bg-white dark:text-black">Fechar</button>
                   </>
@@ -256,11 +289,8 @@ const RefundSection = () => {
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
                       <XCircle size={32} className="text-red-600" />
                     </div>
-                    <h4 className="text-[18px] font-bold text-red-700 mb-1">Não foi possível processar</h4>
-                    <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-2">{result.message}</p>
-                    <p className="text-[12px] text-[#737373] dark:text-zinc-400 mb-5">
-                      Entre em contato: <a href="mailto:contato@velo.com.br" className="underline text-black dark:text-white">contato@velo.com.br</a>
-                    </p>
+                    <h4 className="text-[18px] font-bold text-red-700 mb-1">Não foi possível enviar</h4>
+                    <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">{result.message}</p>
                     <button onClick={closeModal} className="px-6 py-2.5 rounded-full bg-black text-white text-[14px] font-medium dark:bg-white dark:text-black">Fechar</button>
                   </>
                 )}
