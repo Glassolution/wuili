@@ -1,4 +1,4 @@
-﻿// MOCK DATA — substitua por chamadas reais ao Supabase no lancamento
+// MOCK DATA — substitua por chamadas reais ao Supabase no lancamento
 
 // Pedidos (5 pedidos do arquivo)
 export const mockOrders = [
