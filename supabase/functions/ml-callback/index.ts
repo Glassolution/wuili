@@ -5,7 +5,7 @@ Deno.serve(async (req) => {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
 
-  const appUrl = Deno.env.get("APP_URL") || "https://wuili.lovable.app";
+  const appUrl = Deno.env.get("APP_URL") || "https://velods.com.br";
   const dashboardUrl = `${appUrl}/dashboard/integracoes`;
 
   if (!code || !state) {
