@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: "Velo <onboarding@resend.dev>",
+            from: "Velo <noreply@velods.com.br>",
             to: [ADMIN_EMAIL],
             subject: "Novo pedido de reembolso",
             html: `<p>Motivo: <b>${reason}</b></p><p>${String(reason_details).replace(/</g, "&lt;")}</p>`,
