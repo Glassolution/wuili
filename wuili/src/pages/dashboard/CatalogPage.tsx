@@ -282,6 +282,7 @@ const CatalogPage = () => {
           {products.map((p: any) => {
             const img = getImage(p.images);
             const isBestseller = (p.orders_count || 0) > 100;
+            const outOfStock = !p.stock_quantity || p.stock_quantity <= 0;
             const lucro = Math.round((p.suggested_price - p.cost_price) * 100) / 100;
             const categoryLabel = p.category
               ? p.category.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
@@ -289,7 +290,7 @@ const CatalogPage = () => {
             return (
               <div
                 key={p.id}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-background card-hover"
+                className={`group flex flex-col overflow-hidden rounded-2xl border border-border bg-background card-hover ${outOfStock ? "opacity-80" : ""}`}
               >
                 {/* Product image */}
                 <div className="relative flex aspect-[4/3] shrink-0 items-center justify-center overflow-hidden bg-[#f5f5f5] dark:bg-muted/50">
@@ -299,7 +300,7 @@ const CatalogPage = () => {
                       alt={p.title}
                       width={400}
                       height={300}
-                      className="h-full w-full object-cover"
+                      className={`h-full w-full object-cover ${outOfStock ? "grayscale" : ""}`}
                       loading="lazy"
                       decoding="async"
                     />
@@ -307,9 +308,17 @@ const CatalogPage = () => {
                     <Package size={32} className="text-muted-foreground/30" />
                   )}
 
+                  {outOfStock && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <span className="rounded-full bg-red-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg">
+                        Sem estoque
+                      </span>
+                    </div>
+                  )}
+
                   {/* Badges row — both anchored top-3, no overlap */}
                   <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
-                    {isBestseller ? (
+                    {isBestseller && !outOfStock ? (
                       <span className="flex shrink-0 items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-[11px] font-bold text-white">
                         <Flame size={10} /> Mais vendido
                       </span>
@@ -348,13 +357,21 @@ const CatalogPage = () => {
                     Lucro estimado: {formatPrice(lucro)}
                   </p>
 
+                  {outOfStock && (
+                    <p className="mt-1.5 text-[11px] font-medium text-red-600">
+                      Produto indisponível no fornecedor
+                    </p>
+                  )}
+
                   {/* Action buttons — pushed to bottom */}
                   <div className="mt-auto pt-3 flex gap-2">
                     <button
                       onClick={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
-                      className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80"
+                      disabled={outOfStock}
+                      className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+                      title={outOfStock ? "Produto sem estoque" : undefined}
                     >
-                      Importar produto
+                      {outOfStock ? "Indisponível" : "Importar produto"}
                     </button>
                     <button
                       onClick={() => { setCompareProductId(p.id); setCompareProductTitle(p.title); }}
