@@ -357,6 +357,7 @@ export type Database = {
           id: string
           nicho: string | null
           plano: string | null
+          refund_cooldown_until: string | null
           updated_at: string
           user_id: string
           whatsapp: string | null
@@ -368,6 +369,7 @@ export type Database = {
           id?: string
           nicho?: string | null
           plano?: string | null
+          refund_cooldown_until?: string | null
           updated_at?: string
           user_id: string
           whatsapp?: string | null
@@ -379,6 +381,7 @@ export type Database = {
           id?: string
           nicho?: string | null
           plano?: string | null
+          refund_cooldown_until?: string | null
           updated_at?: string
           user_id?: string
           whatsapp?: string | null

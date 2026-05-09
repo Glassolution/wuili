@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS refund_cooldown_until timestamptz;
+CREATE INDEX IF NOT EXISTS idx_profiles_refund_cooldown ON public.profiles(refund_cooldown_until) WHERE refund_cooldown_until IS NOT NULL;
