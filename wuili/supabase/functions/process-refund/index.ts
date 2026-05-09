@@ -113,7 +113,64 @@ Deno.serve(async (req) => {
       await adminClient.from("subscriptions")
         .update({ status: "cancelled", updated_at: new Date().toISOString() })
         .eq("id", sub.id);
-      await adminClient.from("profiles").update({ plano: "gratis" }).eq("user_id", userId);
+
+      // Cooldown anti-abuso: 30 dias bloqueado para republicar/reassinar
+      const COOLDOWN_DAYS = 30;
+      const cooldownUntil = new Date(Date.now() + COOLDOWN_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      await adminClient.from("profiles").update({
+        plano: "gratis",
+        refund_cooldown_until: cooldownUntil,
+      }).eq("user_id", userId);
+
+      // Derrubar publicações ativas no Mercado Livre
+      try {
+        const { data: integration } = await adminClient
+          .from("user_integrations")
+          .select("access_token")
+          .eq("user_id", userId)
+          .eq("platform", "mercadolivre")
+          .maybeSingle();
+
+        const { data: pubs } = await adminClient
+          .from("user_publications")
+          .select("id, ml_item_id")
+          .eq("user_id", userId)
+          .eq("status", "active");
+
+        if (integration?.access_token && pubs && pubs.length > 0) {
+          for (const pub of pubs) {
+            try {
+              // Pausa e depois fecha a publicação no ML
+              await fetch(`https://api.mercadolibre.com/items/${pub.ml_item_id}`, {
+                method: "PUT",
+                headers: {
+                  Authorization: `Bearer ${integration.access_token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ status: "paused" }),
+              });
+              await fetch(`https://api.mercadolibre.com/items/${pub.ml_item_id}`, {
+                method: "PUT",
+                headers: {
+                  Authorization: `Bearer ${integration.access_token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ status: "closed" }),
+              });
+            } catch (e) {
+              console.error("ml close error", pub.ml_item_id, e);
+            }
+          }
+        }
+
+        await adminClient
+          .from("user_publications")
+          .update({ status: "closed", updated_at: new Date().toISOString() })
+          .eq("user_id", userId)
+          .eq("status", "active");
+      } catch (e) {
+        console.error("Erro ao derrubar publicações ML:", e);
+      }
     }
 
     return new Response(JSON.stringify({

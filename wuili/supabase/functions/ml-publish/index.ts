@@ -155,6 +155,17 @@ Deno.serve(async (req) => {
     const dbKey = Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey
     const supabase = createClient(dbUrl, dbKey)
 
+    // === COOLDOWN ANTI-ABUSO (pós-reembolso) ===
+    const { data: profileCd } = await supabase
+      .from('profiles')
+      .select('refund_cooldown_until')
+      .eq('user_id', user_id)
+      .maybeSingle()
+    if (profileCd?.refund_cooldown_until && new Date(profileCd.refund_cooldown_until) > new Date()) {
+      const until = new Date(profileCd.refund_cooldown_until).toLocaleDateString('pt-BR')
+      return json({ error: `Você solicitou um reembolso recentemente. Novas publicações estarão liberadas a partir de ${until}.` }, 403)
+    }
+
     // === GET ML INTEGRATION ===
     const { data: integration, error } = await supabase
       .from('user_integrations')
