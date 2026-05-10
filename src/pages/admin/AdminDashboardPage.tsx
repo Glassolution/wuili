@@ -292,12 +292,15 @@ const formatStatus = (status?: string | null) => {
 const getStatusStyle = (status?: string | null) => {
   const normalized = (status ?? "").toLowerCase();
   if (["active", "approved", "authorized", "paid"].includes(normalized)) {
-    return "bg-[#00C853]/15 text-[#00C853] border-[#00C853]/25";
+    return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100";
   }
   if (["pending", "waiting", "in_process"].includes(normalized)) {
-    return "bg-yellow-400/15 text-yellow-300 border-yellow-300/25";
+    return "bg-amber-50 text-amber-700 ring-1 ring-amber-100";
   }
-  return "bg-white/10 text-white/55 border-white/15";
+  if (["cancelled", "canceled", "refunded"].includes(normalized)) {
+    return "bg-red-50 text-red-700 ring-1 ring-red-100";
+  }
+  return "bg-neutral-100 text-neutral-600 ring-1 ring-neutral-200";
 };
 
 const getInitials = (name?: string | null, email?: string | null) => {
