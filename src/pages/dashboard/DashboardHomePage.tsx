@@ -1,543 +1,353 @@
-import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  AreaChart, Area, BarChart, Bar, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
-import {
-  Package, ShoppingCart,
-  ChevronRight, ArrowUpRight,
+  ArrowUpRight,
+  Package,
+  ShoppingCart,
+  TrendingUp,
+  Users,
+  CheckCircle,
+  Clock,
+  MoreVertical,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useTheme } from "next-themes";
 import { useFinancialData } from "@/hooks/useFinancialData";
-import { getSalesAnalytics } from "@/lib/financial";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type Publication = {
-  id: string;
-  title: string;
-  thumbnail: string | null;
-  price: number | null;
-  status: string;
-};
-
-// ── Mock / chart data ─────────────────────────────────────────────────────────
-
-const REVENUE_MINI = [
-  { m: "Jul", v: 4200 },
-  { m: "Ago", v: 5100 },
-  { m: "Set", v: 3900 },
-  { m: "Out", v: 6300 },
-  { m: "Nov", v: 9238 },
-];
-
-const RECENT_ORDERS = [
-  { id: "ORD-1024", customer: "Ana Paula Ferreira", product: "Suporte Celular Magnético", amount: 89.90,  time: "10:42", status: "delivered" },
-  { id: "ORD-1023", customer: "Carlos Lima",         product: "Fone Bluetooth TWS Pro",   amount: 149.90, time: "09:58", status: "pending"   },
-  { id: "ORD-1022", customer: "Mariana Costa",       product: "Massageador Portátil",      amount: 129.00, time: "09:30", status: "delivered" },
-  { id: "ORD-1021", customer: "Roberto Mendes",      product: "Câmera WiFi 1080p",         amount: 189.90, time: "08:55", status: "shipped"   },
-  { id: "ORD-1020", customer: "Juliana Souza",       product: "Relógio Smartwatch GPS",    amount: 249.90, time: "08:20", status: "delivered" },
-];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pendente", paid: "Pago", shipped: "Enviado",
-  delivered: "Entregue", cancelled: "Cancelado",
-};
-const STATUS_STYLE: Record<string, string> = {
-  pending:   "bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30",
-  paid:      "bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700",
-  shipped:   "bg-[#F0F0F0] text-[#525252] border border-[#E5E5E5] dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700",
-  delivered: "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
-  cancelled: "bg-red-50 text-red-500 border border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30",
-};
+const fmtNum = (v: number) =>
+  new Intl.NumberFormat("pt-BR").format(v);
 
-const CustomerAvatar = ({ name }: { name: string }) => {
-  const initials = name.split(" ").slice(0, 2).map((p) => p[0]).join("").toUpperCase();
-  const bgs = ["bg-[#1e293b]", "bg-[#292524]", "bg-[#3f3f46]", "bg-[#374151]", "bg-[#1c1917]"];
+// ── Status badge ──────────────────────────────────────────────────────────────
+const StatusBadge = ({ status }: { status: "Aprovado" | "Pendente" | "Cancelado" }) => {
+  const map = {
+    Aprovado:  { bg: "#F0FDF4", color: "#16A34A", dot: "#16A34A" },
+    Pendente:  { bg: "#FFFBEB", color: "#D97706", dot: "#D97706" },
+    Cancelado: { bg: "#FEF2F2", color: "#DC2626", dot: "#DC2626" },
+  };
+  const s = map[status];
   return (
-    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${bgs[name.charCodeAt(0) % 5]} text-[10px] font-bold text-white`}>
-      {initials}
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: "5px",
+      backgroundColor: s.bg, color: s.color,
+      fontSize: "12px", fontWeight: 600,
+      padding: "3px 10px", borderRadius: "999px"
+    }}>
+      <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: s.dot, flexShrink: 0 }} />
+      {status}
     </span>
   );
 };
 
-const ChartTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-xl border border-[#E5E5E5] bg-white px-3.5 py-2.5 shadow-lg text-[12px]">
-      <p className="mb-1.5 font-medium text-[#737373]">{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.name} className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.stroke }} />
-          <p className="font-semibold text-[#0A0A0A]">
-            {p.dataKey === "v" ? "Este período" : "Anterior"}: {fmt(p.value)}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// reference line index for the chart (e.g. Friday = index 4 on daily)
-const DAILY_REFLINE   = "Sex";
-const WEEKLY_REFLINE  = "S3";
-const MONTHLY_REFLINE = "Mar";
-
 // ── Page ──────────────────────────────────────────────────────────────────────
-
-type Period   = "Diário" | "Semanal" | "Mensal";
-type OTab     = "Hoje"   | "Esta semana";
-
 export default function DashboardHomePage() {
   const { user } = useAuth();
-  const { resolvedTheme } = useTheme();
-  const [period,    setPeriod]    = useState<Period>("Semanal");
-  const [ordersTab, setOrdersTab] = useState<OTab>("Hoje");
-  const isDark = resolvedTheme === "dark";
+  const { orders, summary, isLoading: isLoadingFinancial } = useFinancialData();
 
-  const { orders, isLoading: isLoadingFinancial } = useFinancialData();
-  // Derive total revenue directly from orders (same source as Financeiro page)
-  // For demo user, orders already contains synthetic data with exact totals
-  const revenueFromOrders = useMemo(
-    () => orders.filter(o => ["paid","approved","completed"].includes(o.status))
-                .reduce((s, o) => s + (o.total ?? 0), 0),
-    [orders]
-  );
-
-  // ── Fetch published products ──────────────────────────────────────────────
-  const { data: publications, isLoading: loadingPubs } = useQuery({
-    queryKey: ["dashboard-publications", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_publications" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-        .select("id, title, thumbnail, price, status")
-        .eq("user_id", user!.id)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(4);
-      if (error) throw error;
-      return (data ?? []) as Publication[];
-    },
-  });
-
-  // ── Fetch real stats ──────────────────────────────────────────────────────
   const { data: statsData, isLoading: loadingStats } = useQuery({
     queryKey: ["dashboard-stats", user?.id],
     enabled: !!user,
     queryFn: async () => {
       const [ordersRes, pubsRes, revenueRes] = await Promise.all([
-        // Total orders count
         supabase
-          .from("orders" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+          .from("orders" as any)
           .select("id", { count: "exact", head: true })
           .eq("user_id", user!.id),
-        // Total active publications count
         supabase
-          .from("user_publications" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+          .from("user_publications" as any)
           .select("id", { count: "exact", head: true })
           .eq("user_id", user!.id)
           .eq("status", "active"),
-        // Total revenue (sum sale_price)
         supabase
-          .from("orders" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+          .from("orders" as any)
           .select("sale_price")
           .eq("user_id", user!.id),
       ]);
       const totalOrders = ordersRes.count ?? 0;
-      const totalPubs   = pubsRes.count ?? 0;
+      const totalPubs   = pubsRes.count   ?? 0;
       const revenue     = ((revenueRes.data ?? []) as { sale_price: number }[])
         .reduce((s, o) => s + (o.sale_price ?? 0), 0);
       return { totalOrders, totalPubs, revenue };
     },
   });
 
-  const totalOrders = statsData?.totalOrders ?? 0;
-  const totalPubs   = statsData?.totalPubs   ?? 0;
-  // Use orders from the hook as single source of truth (same as Financeiro page)
-  const revenue = revenueFromOrders > 0 ? revenueFromOrders : (statsData?.revenue ?? 0);
+  const totalRevenue    = statsData?.revenue     ?? 0;
+  const totalOrders     = statsData?.totalOrders ?? 0;
+  const totalPubs       = statsData?.totalPubs   ?? 0;
 
-  const periodMap: Record<string, "daily" | "weekly" | "monthly"> = {
-    "Diário": "daily",
-    "Semanal": "weekly",
-    "Mensal": "monthly",
+  // ── Mock data ──────────────────────────────────────────────────────────────
+  const recentActivity = [
+    { id: 1, text: "Novo pedido recebido",    sub: "Pedido #4821 — R$ 189,90",  time: "2 min atrás"  },
+    { id: 2, text: "Produto publicado",        sub: "Camiseta Uniqlo Airism",    time: "18 min atrás" },
+    { id: 3, text: "Pagamento aprovado",       sub: "Pedido #4819 — R$ 342,00",  time: "1 h atrás"    },
+    { id: 4, text: "Cliente atualizado",       sub: "Dados de entrega alterados", time: "3 h atrás"   },
+  ];
+
+  const alerts = [
+    { id: 1, tag: "URGENTE", tagColor: "#DC2626", tagBg: "#FEF2F2", title: "Pedidos pendentes",       desc: "12 pedidos aguardando aprovação" },
+    { id: 2, tag: "ATENÇÃO", tagColor: "#D97706", tagBg: "#FFFBEB", title: "Produtos sem estoque",    desc: "5 produtos com estoque zerado"   },
+    { id: 3, tag: "ATENÇÃO", tagColor: "#D97706", tagBg: "#FFFBEB", title: "Pagamentos em análise",   desc: "3 pagamentos em revisão"         },
+  ];
+
+  const mockOrders = [
+    { id: "#4821", client: "Ana Souza",      status: "Aprovado"  as const, updated: "2 min atrás"  },
+    { id: "#4820", client: "Carlos Lima",    status: "Pendente"  as const, updated: "15 min atrás" },
+    { id: "#4819", client: "Beatriz Costa",  status: "Aprovado"  as const, updated: "1 h atrás"    },
+    { id: "#4818", client: "Diego Martins",  status: "Cancelado" as const, updated: "2 h atrás"    },
+    { id: "#4817", client: "Fernanda Alves", status: "Pendente"  as const, updated: "4 h atrás"    },
+  ];
+
+  // ── Shared styles ──────────────────────────────────────────────────────────
+  const card: React.CSSProperties = {
+    backgroundColor: "#FFFFFF",
+    borderRadius: "24px",
+    padding: "24px",
+    border: "1px solid #EBEBEB",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
   };
-  // Both demo and real users use the same orders array from the hook —
-  // demo orders are synthetic but distributed correctly for period filtering
-  const analyticsData = getSalesAnalytics(periodMap[period] ?? "weekly", orders);
-  const chartData = analyticsData.labels.map((label, i) => ({
-    d: label,
-    v: analyticsData.current[i],
-    p: analyticsData.previous[i],
-  }));
-  const revenueMini = REVENUE_MINI;  const chartGrid = isDark ? "#313131" : "#F5F5F5";
-  const chartTick = isDark ? "#A1A1AA" : "#C0C0C0";
-  const miniBarActive = isDark ? "#FFFFFF" : "#0A0A0A";
-  const miniBarInactive = isDark ? "#52525B" : "#E5E5E5";
-
-  const hasPublications = !!publications && publications.length > 0;
 
   return (
-    <div className="space-y-5">
+    <div style={{
+      padding: "28px",
+      backgroundColor: "#FFFFFF",
+      minHeight: "100vh",
+      fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif',
+      WebkitFontSmoothing: "antialiased",
+      display: "flex",
+      flexDirection: "column",
+      gap: "20px",
+    }}>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div>
-        <h1 className="text-[22px] font-black tracking-tight text-[#0A0A0A] dark:text-white">Dashboard</h1>
-        <p className="mt-0.5 text-[13px] text-[#A3A3A3] dark:text-zinc-400">Visão geral da sua operação.</p>
-      </div>
+      {/* ── 2. Metric cards ────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "16px", width: "100%" }}>
 
-      {/* ── Stat cards ─────────────────────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-3">
-
-        {/* Receita — mini bar chart */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-center justify-between">
-            <p className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white">Receita</p>
-            <Link to="/dashboard/relatorios" className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F5F5F5] text-[#737373] transition hover:bg-[#EBEBEB] dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
-              <ChevronRight size={13} />
-            </Link>
-          </div>
-
-          <div className="mt-3 flex items-end gap-5">
-            {/* Value + label */}
-            <div className="shrink-0">
-              <p className="text-[11px] font-medium text-[#A3A3A3] dark:text-zinc-400" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                <span className="text-[#A3A3A3] dark:text-zinc-400">$</span>
-              </p>
-              {loadingStats
-                ? <div className="mt-1 h-9 w-32 animate-pulse rounded-lg bg-[#F0F0F0]" />
-                : <p className="text-[38px] font-light leading-none tracking-tight text-[#0A0A0A] dark:text-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                    {fmt(revenue)}
-                  </p>}
-              <p className="mt-1.5 max-w-[150px] text-[11px] leading-[1.4] text-[#A3A3A3] dark:text-zinc-400">
-                Receita total acumulada das suas vendas
-              </p>
-            </div>
-
-            {/* Mini bar chart */}
-            <div className="flex-1">
-              <ResponsiveContainer width="100%" height={72}>
-                <BarChart data={revenueMini} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barSize={16} barCategoryGap="30%">
-                  <Bar dataKey="v" radius={[5, 5, 0, 0]} isAnimationActive={false}>
-                    {revenueMini.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={i === revenueMini.length - 1 ? miniBarActive : miniBarInactive}
-                      />
-                    ))}
-                  </Bar>
-                  <XAxis
-                    dataKey="m"
-                    tick={{ fontSize: 10, fill: chartTick }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+        {/* Card 1 — dark / Receita Total */}
+        <div style={{
+          background: "radial-gradient(circle at 85% 15%, rgba(255,255,255,0.14), transparent 28%), linear-gradient(135deg, #080808 0%, #141414 55%, #202020 100%)",
+          borderRadius: "22px",
+          padding: "22px 24px",
+          height: "170px",
+          border: "1px solid rgba(255,255,255,0.08)",
+          position: "relative",
+          overflow: "hidden",
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between"
+        }}>
+          <div>
+            <span style={{ fontSize: "18px", lineHeight: "22px", fontWeight: 400, letterSpacing: "-0.02em", color: "rgba(255,255,255,0.82)" }}>
+              Receita Total
+            </span>
+            <div style={{ fontSize: "44px", lineHeight: 1, fontWeight: 400, letterSpacing: "-0.06em", color: "#FFFFFF", marginTop: "24px" }}>
+              {loadingStats ? "—" : fmt(totalRevenue)}
             </div>
           </div>
-        </div>
-
-        {/* Total Produtos */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-start justify-between">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A0A0A]">
-              <Package size={18} className="text-white" strokeWidth={1.75} />
-            </span>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", height: "28px", padding: "0 12px", borderRadius: "999px", backgroundColor: "rgba(255,255,255,0.12)", alignSelf: "flex-start", marginTop: "18px" }}>
+            <span style={{ backgroundColor: "#EAF8EC", color: "#168A3A", borderRadius: "6px", padding: "2px 6px", fontSize: "12px", fontWeight: 600 }}>12%</span>
+            <span style={{ fontSize: "13px", fontWeight: 400, color: "rgba(255,255,255,0.82)", whiteSpace: "nowrap" }}>Aumentou vs mês anterior</span>
           </div>
-          <p className="mt-3 text-[13px] font-medium text-[#737373] dark:text-zinc-400" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-            Total de Produtos
-          </p>
-          {loadingStats
-            ? <div className="mt-2 h-10 w-20 animate-pulse rounded-lg bg-[#F0F0F0]" />
-            : <p className="mt-2 text-[40px] font-light leading-none tracking-tight text-[#0A0A0A] dark:text-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                {totalPubs.toLocaleString("pt-BR")}
-              </p>}
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="flex items-center gap-0.5 text-[12px] font-bold text-emerald-500">
-              <ArrowUpRight size={13} strokeWidth={2.5} />
-              publicados
-            </span>
-            <span className="text-[11px] font-medium uppercase tracking-widest text-[#C0C0C0] dark:text-zinc-500">
-              ativos agora
-            </span>
+          {/* Icon */}
+          <div style={{ position: "absolute", top: "20px", right: "20px", width: "44px", height: "44px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <TrendingUp size={20} strokeWidth={1.75} style={{ color: "#FFFFFF" }} />
           </div>
         </div>
 
-        {/* Total Pedidos */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-start justify-between">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A0A0A]">
-              <ShoppingCart size={18} className="text-white" strokeWidth={1.75} />
-            </span>
-          </div>
-          <p className="mt-3 text-[13px] font-medium text-[#737373] dark:text-zinc-400" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-            Total de Pedidos
-          </p>
-          {loadingStats
-            ? <div className="mt-2 h-10 w-20 animate-pulse rounded-lg bg-[#F0F0F0]" />
-            : <p className="mt-2 text-[40px] font-light leading-none tracking-tight text-[#0A0A0A] dark:text-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                {totalOrders.toLocaleString("pt-BR")}
-              </p>}
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="flex items-center gap-0.5 text-[12px] font-bold text-[#0A0A0A] dark:text-white">
-              <ShoppingCart size={11} strokeWidth={2.5} />
-              total
-            </span>
-            <span className="text-[11px] font-medium uppercase tracking-widest text-[#C0C0C0] dark:text-zinc-500">
-              acumulado
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Middle row ─────────────────────────────────────────────────────── */}
-      <div className={`grid gap-4 ${hasPublications || loadingPubs ? "lg:grid-cols-[300px_1fr]" : "lg:grid-cols-1"}`}>
-
-        {/* Published products — only render when there are real publications */}
-        {(loadingPubs || hasPublications) && (
-        <div className="flex flex-col rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0A0A0A] dark:bg-white">
-                <Package size={17} className="text-white dark:text-[#0A0A0A]" strokeWidth={2.2} />
+        {/* Cards 2–4 — white */}
+        {[
+          { label: "Total de Pedidos", value: loadingStats ? "—" : fmtNum(totalOrders), pct: "+3.5%", icon: <ShoppingCart size={20} strokeWidth={1.75} style={{ color: "#6B7280" }} />, sub: "vs mês anterior" },
+          { label: "Produtos Ativos",  value: loadingStats ? "—" : fmtNum(totalPubs),   pct: "+1.5%", icon: <Package      size={20} strokeWidth={1.75} style={{ color: "#6B7280" }} />, sub: "vs mês anterior" },
+          { label: "Clientes",         value: "1.284",                                   pct: "+4%",   icon: <Users        size={20} strokeWidth={1.75} style={{ color: "#6B7280" }} />, sub: "vs mês anterior" },
+        ].map((m) => (
+          <div key={m.label} style={{
+            backgroundColor: "#FFFFFF",
+            borderRadius: "22px",
+            padding: "22px 24px",
+            height: "170px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.04)",
+            position: "relative",
+            overflow: "hidden",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between"
+          }}>
+            <div>
+              <span style={{ fontSize: "18px", lineHeight: "22px", fontWeight: 400, letterSpacing: "-0.02em", color: "#111111" }}>
+                {m.label}
               </span>
-              <div className="min-w-0">
-                <p className="text-[15px] font-bold leading-tight text-[#0A0A0A] dark:text-white">Publicações ativas</p>
-                <p className="mt-0.5 text-[11.5px] text-[#A3A3A3] dark:text-zinc-400">
-                  {loadingStats ? "Carregando anúncios" : `${totalPubs.toLocaleString("pt-BR")} anúncios em acompanhamento`}
-                </p>
+              <div style={{ fontSize: "44px", lineHeight: 1, fontWeight: 400, letterSpacing: "-0.06em", color: "#111827", marginTop: "28px" }}>
+                {m.value}
               </div>
             </div>
-            <Link
-              to="/dashboard/publicacoes"
-              aria-label="Ver publicações"
-              className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F5F5] text-[#737373] transition hover:bg-[#EBEBEB] dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 sm:flex"
-            >
-              <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          <div className="flex-1 space-y-2">
-            {loadingPubs
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-2.5 dark:border-zinc-800 dark:bg-zinc-800/50">
-                    <Skeleton className="h-14 w-14 shrink-0 rounded-xl" />
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-5/6 rounded" />
-                      <Skeleton className="h-3 w-1/2 rounded" />
-                    </div>
-                  </div>
-                ))
-              : publications!.map((pub) => (
-                  <Link
-                    key={pub.id}
-                    to="/dashboard/publicacoes"
-                    className="group flex items-center gap-3 rounded-2xl border border-transparent bg-[#FAFAFA] p-2.5 transition hover:border-[#E5E5E5] hover:bg-white dark:bg-zinc-800/50 dark:hover:border-zinc-700 dark:hover:bg-zinc-800"
-                  >
-                    <span className="relative flex h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-[#F0F0F0] bg-[#F7F7F7] dark:border-zinc-700 dark:bg-zinc-800">
-                      {pub.thumbnail
-                        ? <img src={pub.thumbnail} alt={pub.title} className="h-full w-full object-cover" loading="lazy" />
-                        : <Package size={17} className="m-auto text-[#C0C0C0] dark:text-zinc-500" />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-[#0A0A0A] dark:text-white">{pub.title}</p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                          ativo
-                        </span>
-                        <span className="text-[11.5px] font-semibold text-[#525252] dark:text-zinc-300">
-                          {pub.price != null ? fmt(pub.price) : "—"}
-                        </span>
-                      </div>
-                    </div>
-                    <ChevronRight size={14} className="hidden shrink-0 text-[#D4D4D4] transition-colors group-hover:text-[#A3A3A3] sm:block" />
-                  </Link>
-                ))
-            }
-          </div>
-
-          <Link
-            to="/dashboard/publicacoes"
-            className="mt-3 flex min-h-10 items-center justify-center gap-1 rounded-xl border border-[#F0F0F0] py-2.5 text-[12.5px] font-semibold text-[#737373] transition hover:border-[#D4D4D4] hover:text-[#0A0A0A] dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-white"
-          >
-            Ver publicações <ChevronRight size={12} />
-          </Link>
-        </div>
-        )}
-
-        {/* Sales vs Time */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-[15px] font-bold text-[#0A0A0A] dark:text-white">Vendas ao longo do tempo</p>
-            {/* Text-only toggle — no pill container */}
-            <div className="flex items-center gap-5">
-              {(["Diário", "Semanal", "Mensal"] as Period[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={[
-                    "text-[13px] transition-all",
-                    period === p
-                      ? "font-bold text-[#0A0A0A] dark:text-white"
-                      : "font-medium text-[#B0B0B0] dark:text-zinc-500 hover:text-[#737373] dark:hover:text-zinc-300",
-                  ].join(" ")}
-                >
-                  {p}
-                </button>
-              ))}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "18px" }}>
+              <span style={{ backgroundColor: "#EAF8EC", color: "#168A3A", borderRadius: "6px", padding: "2px 6px", fontSize: "12px", fontWeight: 600 }}>{m.pct}</span>
+              <span style={{ fontSize: "13px", color: "#9CA3AF", whiteSpace: "nowrap" }}>{m.sub}</span>
+            </div>
+            {/* Icon */}
+            <div style={{ position: "absolute", top: "20px", right: "20px", width: "44px", height: "44px", borderRadius: "50%", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {m.icon}
             </div>
           </div>
+        ))}
+      </div>
 
-          {/* Legend */}
-          <div className="mb-4 flex items-center gap-5">
-            <span className="flex items-center gap-2 text-[11.5px] text-[#737373] dark:text-zinc-400">
-              <span className="inline-block h-[3px] w-6 rounded-full bg-indigo-500" />
-              Este período
-            </span>
-            <span className="flex items-center gap-2 text-[11.5px] text-[#737373] dark:text-zinc-400">
-              <span className="inline-block h-[3px] w-6 rounded-full bg-amber-400" />
-              Período anterior
-            </span>
+      {/* ── 3. Activity + Alerts ───────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+
+        {/* Recent Activity */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0A0A0A", margin: 0 }}>Atividade recente</h2>
+            <button style={{ fontSize: "13px", fontWeight: 600, color: "#6B7280", background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: "8px" }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            >
+              Ver tudo
+            </button>
           </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+            {recentActivity.map((item, i) => (
+              <div key={item.id} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "14px 0",
+                borderBottom: i < recentActivity.length - 1 ? "1px solid #F3F4F6" : "none"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ width: "38px", height: "38px", borderRadius: "50%", backgroundColor: "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <CheckCircle size={18} strokeWidth={1.5} style={{ color: "#0A0A0A" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#0A0A0A", marginBottom: "2px" }}>{item.text}</div>
+                    <div style={{ fontSize: "12px", color: "#9CA3AF" }}>{item.sub}</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "12px", color: "#9CA3AF", whiteSpace: "nowrap" }}>{item.time}</span>
+                  <button style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", borderRadius: "6px", display: "flex" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    <MoreVertical size={16} style={{ color: "#9CA3AF" }} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={chartData} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gCurrent" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"  stopColor="#6366F1" stopOpacity={0.22} />
-                  <stop offset="90%" stopColor="#6366F1" stopOpacity={0.03} />
-                </linearGradient>
-                <linearGradient id="gPrev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"  stopColor="#F59E0B" stopOpacity={0.15} />
-                  <stop offset="90%" stopColor="#F59E0B" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
-              <XAxis
-                dataKey="d"
-                tick={{ fontSize: 11, fill: chartTick }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: chartTick }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
-              />
-              <RTooltip content={<ChartTooltip />} cursor={false} />
-              {/* Dashed vertical reference line at current period */}
-              <ReferenceLine
-                x={period === "Diário" ? DAILY_REFLINE : period === "Semanal" ? WEEKLY_REFLINE : MONTHLY_REFLINE}
-                stroke={isDark ? "#FFFFFF" : "#0A0A0A"}
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-              />
-              {/* Previous period — amber line */}
-              <Area
-                type="monotone"
-                dataKey="p"
-                stroke="#F59E0B"
-                strokeWidth={2}
-                fill="url(#gPrev)"
-                dot={false}
-                activeDot={{ r: 5, fill: "#F59E0B", stroke: isDark ? "#111111" : "#fff", strokeWidth: 2 }}
-              />
-              {/* Current period — indigo line */}
-              <Area
-                type="monotone"
-                dataKey="v"
-                stroke="#6366F1"
-                strokeWidth={2.5}
-                fill="url(#gCurrent)"
-                dot={false}
-                activeDot={{ r: 5, fill: "#6366F1", stroke: isDark ? "#111111" : "#fff", strokeWidth: 2 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+        {/* Priority Alerts */}
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0A0A0A", margin: 0 }}>Alertas</h2>
+            <button style={{ fontSize: "13px", fontWeight: 600, color: "#6B7280", background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: "8px" }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            >
+              Ver tudo
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {alerts.map((a) => (
+              <div key={a.id} style={{
+                backgroundColor: "#FAFAFA", borderRadius: "16px", padding: "16px",
+                border: "1px solid #F0F0F0",
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px"
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: a.tagColor, backgroundColor: a.tagBg, padding: "2px 8px", borderRadius: "999px", display: "inline-block", marginBottom: "6px" }}>
+                    {a.tag}
+                  </span>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "#0A0A0A", marginBottom: "3px" }}>{a.title}</div>
+                  <div style={{ fontSize: "12px", color: "#9CA3AF" }}>{a.desc}</div>
+                </div>
+                <button style={{
+                  flexShrink: 0, backgroundColor: "#0A0A0A", color: "#FFFFFF",
+                  fontSize: "12px", fontWeight: 600, padding: "8px 14px",
+                  borderRadius: "10px", border: "none", cursor: "pointer", whiteSpace: "nowrap",
+                  transition: "opacity 0.15s"
+                }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                >
+                  Resolver
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* ── Recent orders ──────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-[#E5E5E5] bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-center justify-between border-b border-[#F5F5F5] dark:border-zinc-800 px-5 py-4">
-          <p className="text-[15px] font-bold text-[#0A0A0A] dark:text-white">Pedidos Recentes</p>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-0.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F7] dark:border-zinc-700 dark:bg-zinc-800 p-0.5">
-              {(["Hoje", "Esta semana"] as OTab[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setOrdersTab(t)}
-                  className={[
-                    "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-                    ordersTab === t
-                      ? "bg-white text-[#0A0A0A] shadow-sm font-semibold dark:bg-zinc-700 dark:text-white"
-                      : "text-[#A3A3A3] dark:text-zinc-400 hover:text-[#525252] dark:hover:text-zinc-200",
-                  ].join(" ")}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-            <Link to="/dashboard/pedidos" className="rounded-xl border border-[#E5E5E5] dark:border-zinc-700 px-3 py-1.5 text-[12px] font-medium text-[#737373] dark:text-zinc-300 transition hover:border-[#D4D4D4] dark:hover:border-zinc-600 hover:text-[#0A0A0A] dark:hover:text-white">
-              Ver todos
-            </Link>
-          </div>
+      {/* ── 4. Orders table ────────────────────────────────────────── */}
+      <div style={card}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+          <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0A0A0A", margin: 0 }}>Gerenciamento de pedidos</h2>
+          <button style={{
+            display: "inline-flex", alignItems: "center", gap: "6px",
+            fontSize: "13px", fontWeight: 600, color: "#6B7280",
+            backgroundColor: "#F5F5F5", border: "none", cursor: "pointer",
+            padding: "8px 14px", borderRadius: "10px", transition: "background-color 0.15s"
+          }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#EBEBEB")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
+          >
+            Ver todos os pedidos
+            <ArrowUpRight size={14} />
+          </button>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px]" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr className="border-b border-[#F5F5F5] dark:border-zinc-800">
-                {["ID do Pedido", "Cliente", "Produto", "Valor", "Horário", "Status", ""].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#C0C0C0] dark:text-zinc-500">
-                    {h}
-                  </th>
+              <tr style={{ borderBottom: "1px solid #F3F4F6" }}>
+                {["Pedido", "Cliente", "Status", "Última atualização", "Ação"].map((h) => (
+                  <th key={h} style={{
+                    padding: "10px 12px", textAlign: "left",
+                    fontSize: "11px", fontWeight: 600, color: "#9CA3AF",
+                    textTransform: "uppercase", letterSpacing: "0.06em"
+                  }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {RECENT_ORDERS.map((order) => (
-                <tr key={order.id} className="group border-b border-[#F7F7F7] dark:border-zinc-800 last:border-0 transition-colors hover:bg-[#FAFAFA] dark:hover:bg-zinc-800/50">
-                  <td className="px-5 py-3.5">
-                    <span className="font-mono text-[12px] text-[#737373] dark:text-zinc-400">#{order.id}</span>
+              {mockOrders.map((o) => (
+                <tr key={o.id}
+                  style={{ borderBottom: "1px solid #F9FAFB", transition: "background-color 0.12s" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FAFAFA")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                >
+                  <td style={{ padding: "16px 12px" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 700, color: "#0A0A0A" }}>{o.id}</span>
                   </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <CustomerAvatar name={order.customer} />
-                      <span className="text-[13px] font-medium text-[#0A0A0A] dark:text-white">{order.customer}</span>
+                  <td style={{ padding: "16px 12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 700, color: "#0A0A0A", flexShrink: 0 }}>
+                        {o.client.charAt(0)}
+                      </div>
+                      <span style={{ fontSize: "14px", fontWeight: 500, color: "#0A0A0A" }}>{o.client}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] text-[#525252] dark:text-zinc-300">{order.product}</span>
+                  <td style={{ padding: "16px 12px" }}>
+                    <StatusBadge status={o.status} />
                   </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{fmt(order.amount)}</span>
+                  <td style={{ padding: "16px 12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Clock size={13} style={{ color: "#9CA3AF" }} />
+                      <span style={{ fontSize: "13px", color: "#6B7280" }}>{o.updated}</span>
+                    </div>
                   </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] text-[#A3A3A3] dark:text-zinc-400">{order.time}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_STYLE[order.status]}`}>
-                      {STATUS_LABEL[order.status]}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Link to="/dashboard/pedidos" className="flex items-center justify-center opacity-0 transition group-hover:opacity-100">
-                      <ChevronRight size={15} className="text-[#C0C0C0] dark:text-zinc-500" />
-                    </Link>
+                  <td style={{ padding: "16px 12px" }}>
+                    <button style={{
+                      fontSize: "12px", fontWeight: 600, color: "#0A0A0A",
+                      backgroundColor: "#F5F5F5", border: "1px solid #EBEBEB",
+                      padding: "6px 14px", borderRadius: "8px", cursor: "pointer",
+                      transition: "background-color 0.12s"
+                    }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#EBEBEB")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#F5F5F5")}
+                    >
+                      Ver
+                    </button>
                   </td>
                 </tr>
               ))}
