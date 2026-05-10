@@ -128,7 +128,7 @@ export default function DashboardHomePage() {
         .order("created_at", { ascending: false })
         .limit(4);
       if (error) throw error;
-      return (data ?? []) as Publication[];
+      return (data ?? []) as unknown as Publication[];
     },
   });
 
@@ -157,7 +157,7 @@ export default function DashboardHomePage() {
       ]);
       const totalOrders = ordersRes.count ?? 0;
       const totalPubs   = pubsRes.count ?? 0;
-      const revenue     = ((revenueRes.data ?? []) as { sale_price: number }[])
+      const revenue     = ((revenueRes.data ?? []) as unknown as { sale_price: number }[])
         .reduce((s, o) => s + (o.sale_price ?? 0), 0);
       return { totalOrders, totalPubs, revenue };
     },

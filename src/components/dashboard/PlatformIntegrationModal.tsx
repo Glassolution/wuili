@@ -53,14 +53,19 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
     if (!open || !user) return;
 
     setLoadingML(true);
-    supabase
-      .from("user_integrations")
-      .select("access_token")
-      .eq("user_id", user.id)
-      .eq("platform", "mercadolivre")
-      .maybeSingle()
-      .then(({ data }) => setConnectedML(!!data?.access_token))
-      .finally(() => setLoadingML(false));
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("user_integrations")
+          .select("access_token")
+          .eq("user_id", user.id)
+          .eq("platform", "mercadolivre")
+          .maybeSingle();
+        setConnectedML(!!data?.access_token);
+      } finally {
+        setLoadingML(false);
+      }
+    })();
   }, [open, user]);
 
   const connectML = async () => {
