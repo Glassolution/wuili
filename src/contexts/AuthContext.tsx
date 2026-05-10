@@ -22,23 +22,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Modo offline/sem Supabase: Simula um usuário logado
-    const mockUser: User = {
-      id: "mock-user-id",
-      email: "demo@velo.app",
-      app_metadata: {},
-      user_metadata: { full_name: "Usuário Demo" },
-      aud: "authenticated",
-      created_at: new Date().toISOString(),
+    // IMPORTANT: Set up listener BEFORE checking existing session
+    // to avoid race conditions / missed auth events.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    // Then fetch the existing session (if any)
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
     };
-    
-    setUser(mockUser);
-    setLoading(false);
-    
-    return () => {};
   }, []);
 
   const signOut = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     setSession(null);
   };
