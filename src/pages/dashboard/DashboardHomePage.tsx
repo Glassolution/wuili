@@ -260,7 +260,7 @@ export default function DashboardHomePage() {
             Total de Produtos
           </p>
           {loadingStats
-            ? <div className="mt-2 h-10 w-20 animate-pulse rounded-lg bg-[#F0F0F0]" />
+            ? <div className="mt-2 h-10 w-24 animate-pulse rounded-lg bg-[#F0F0F0] dark:bg-zinc-800" />
             : <p className="mt-2 text-[40px] font-light leading-none tracking-tight text-[#0A0A0A] dark:text-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
                 {totalPubs.toLocaleString("pt-BR")}
               </p>}
@@ -286,7 +286,7 @@ export default function DashboardHomePage() {
             Total de Pedidos
           </p>
           {loadingStats
-            ? <div className="mt-2 h-10 w-20 animate-pulse rounded-lg bg-[#F0F0F0]" />
+            ? <div className="mt-2 h-10 w-24 animate-pulse rounded-lg bg-[#F0F0F0] dark:bg-zinc-800" />
             : <p className="mt-2 text-[40px] font-light leading-none tracking-tight text-[#0A0A0A] dark:text-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
                 {totalOrders.toLocaleString("pt-BR")}
               </p>}

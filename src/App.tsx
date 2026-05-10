@@ -59,6 +59,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/inicio" element={<Index />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<CadastroPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />

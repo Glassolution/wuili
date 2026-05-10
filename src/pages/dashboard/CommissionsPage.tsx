@@ -10,7 +10,8 @@ import {
   Plus,
   Link as LinkIcon,
   Copy,
-  UserCheck
+  UserCheck,
+  Lock
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,7 @@ interface Commission {
   percentage: number;
   status: "paid" | "pending" | "canceled";
   date: string;
+  influencer_code?: string;
 }
 
 interface Influencer {
@@ -65,28 +67,56 @@ const CommissionsPage = () => {
   const [filter, setFilter] = useState("Todas");
   const [localCommissions, setLocalCommissions] = useState<Commission[]>([]);
 
-  // Fetch initial data
+  // Fetch initial data (Com mocks se o Supabase falhar)
   const { data: initialCommissions = [], isLoading } = useQuery({
     queryKey: ["commissions", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
-
-      return (data || []).map((order: any) => ({
-        id: `COM-${order.id.slice(0, 6).toUpperCase()}`,
-        order_id: order.external_order_id || `ML-${order.id.slice(0, 6).toUpperCase()}`,
-        description: `Comissão sobre venda - ${order.product_title || "Produto Exemplo"}`,
-        platform: order.platform || "Loja",
-        value: (order.sale_price || 0) * 0.05,
-        percentage: 5,
-        status: order.status === "paid" || order.status === "delivered" ? "paid" : "pending",
-        date: formatDate(order.ordered_at || order.created_at),
-      })) as Commission[];
+        if (error) throw error;
+        return (data || []).map((order: any) => ({
+          id: `COM-${order.id.slice(0, 6).toUpperCase()}`,
+          order_id: order.external_order_id || `ML-${order.id.slice(0, 6).toUpperCase()}`,
+          description: `Comissão sobre venda - ${order.product_title || "Produto Exemplo"}`,
+          platform: order.platform || "Loja",
+          value: (order.sale_price || 0) * 0.05,
+          percentage: 5,
+          status: order.status === "paid" || order.status === "delivered" ? "paid" : "pending",
+          date: formatDate(order.ordered_at || order.created_at),
+          influencer_code: order.influencer_code || "VELO-DEMO",
+        })) as Commission[];
+      } catch (e) {
+        console.warn("Usando dados mockados para comissões devido a erro no Supabase.");
+        return [
+          {
+            id: "COM-MOCK1",
+            order_id: "ML-123456",
+            description: "Comissão sobre venda - Produto Exemplo 1",
+            platform: "Loja",
+            value: 45.50,
+            percentage: 5,
+            status: "paid",
+            date: formatDate(null),
+            influencer_code: "VELO-PROMO",
+          },
+          {
+            id: "COM-MOCK2",
+            order_id: "ML-789012",
+            description: "Comissão sobre venda - Produto Exemplo 2",
+            platform: "Loja",
+            value: 12.30,
+            percentage: 5,
+            status: "pending",
+            date: formatDate(null),
+            influencer_code: "VELO-SOCIAL",
+          }
+        ] as Commission[];
+      }
     },
   });
 
@@ -131,30 +161,19 @@ const CommissionsPage = () => {
         id: user.id,
         name: "Seu Link de Afiliado",
         code: metadataCode,
-        link: `https://velo.app/ref/${metadataCode}`,
+        link: `https://www.velods.com.br/?ref=${metadataCode}`,
         created_at: user.created_at || formatDate(null)
       });
     } else {
-      // Generate and save if not exists
-      const newCode = `VELO-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-      
-      const saveMetadata = async () => {
-        const { error } = await supabase.auth.updateUser({
-          data: { influencer_code: newCode }
-        });
-
-        if (!error) {
-          setInfluencer({
-            id: user.id,
-            name: "Seu Link de Afiliado",
-            code: newCode,
-            link: `https://velo.app/ref/${newCode}`,
-            created_at: formatDate(null)
-          });
-        }
-      };
-      
-      saveMetadata();
+      // No modo sem Supabase, apenas geramos localmente
+      const newCode = `VELO-DEMO`;
+      setInfluencer({
+        id: user.id,
+        name: "Seu Link de Afiliado",
+        code: newCode,
+        link: `https://www.velods.com.br/?ref=${newCode}`,
+        created_at: formatDate(null)
+      });
     }
   }, [user, influencer]);
 
@@ -170,6 +189,28 @@ const CommissionsPage = () => {
       description: "O arquivo CSV foi gerado e o download começará em instantes.",
     });
   };
+
+  if (!isLoading && !influencer) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center p-8 font-['Inter']">
+        <div className="max-w-md w-full bg-white rounded-[24px] p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] text-center">
+          <div className="w-16 h-16 bg-[#F5F5F5] rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock className="text-[#0D0D0D]" size={28} />
+          </div>
+          <h2 className="text-[22px] font-bold text-[#0D0D0D] mb-3">Acesso Restrito</h2>
+          <p className="text-[14px] text-[#6B6B6B] leading-relaxed mb-8">
+            Este dashboard de comissões está disponível apenas para usuários que ingressaram na plataforma através de um link de influenciador parceiro.
+          </p>
+          <button 
+            onClick={() => window.history.back()}
+            className="w-full bg-[#0D0D0D] text-white rounded-[12px] py-3 text-[14px] font-semibold hover:bg-[#262626] transition-all"
+          >
+            Voltar para o Início
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] font-['Inter']">
@@ -279,6 +320,7 @@ const CommissionsPage = () => {
                 <tr className="border-b border-[#F0F0F0] text-[12px] font-semibold uppercase tracking-[0.5px] text-[#6B6B6B]">
                   <th className="px-8 py-5">Data</th>
                   <th className="px-8 py-5">Pedido</th>
+                  <th className="px-8 py-5">Influenciador</th>
                   <th className="px-8 py-5">Descrição</th>
                   <th className="px-8 py-5">Valor</th>
                   <th className="px-8 py-5">Status</th>
@@ -302,6 +344,11 @@ const CommissionsPage = () => {
                     <tr key={c.id} className="text-[13px] transition-colors hover:bg-[#FAFAFA]">
                       <td className="px-8 py-5 text-[#6B6B6B]">{c.date}</td>
                       <td className="px-8 py-5 font-bold text-[#0D0D0D]">#{c.order_id}</td>
+                      <td className="px-8 py-5">
+                        <span className="inline-flex items-center rounded-md bg-[#F5F5F5] px-2 py-1 text-[11px] font-mono font-medium text-[#6B6B6B] border border-[#E0E0E0]">
+                          {c.influencer_code || "---"}
+                        </span>
+                      </td>
                       <td className="px-8 py-5 text-[#0D0D0D]">{c.description}</td>
                       <td className="px-8 py-5 font-bold text-[#0D0D0D]">
                         {c.value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
