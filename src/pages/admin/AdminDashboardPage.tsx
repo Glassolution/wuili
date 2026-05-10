@@ -344,8 +344,8 @@ const AdminDashboardPage = () => {
 
   if (loading || loadingRole) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F6F6]">
+        <Loader2 className="h-7 w-7 animate-spin text-neutral-400" />
       </div>
     );
   }
@@ -354,13 +354,13 @@ const AdminDashboardPage = () => {
 
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
-        <div className="w-full max-w-md rounded-[28px] border border-[#333] bg-[#111] p-8 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-black">
-            <Lock size={21} />
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F6F6] p-6">
+        <div className="w-full max-w-md rounded-[28px] bg-white p-8 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.04]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-900 text-white">
+            <Lock size={20} strokeWidth={1.75} />
           </div>
-          <h1 className="mt-5 text-[24px] font-bold">Acesso restrito</h1>
-          <p className="mt-2 text-[14px] leading-6 text-white/55">
+          <h1 className="mt-5 text-[22px] font-semibold text-neutral-900">Acesso restrito</h1>
+          <p className="mt-2 text-[14px] leading-6 text-neutral-500">
             Este dashboard é exclusivo para usuários com role admin.
           </p>
         </div>
@@ -370,22 +370,25 @@ const AdminDashboardPage = () => {
 
   return (
     <AdminShell active="dashboard" userId={user.id}>
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      {/* Header */}
+      <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="font-sans text-[38px] font-bold tracking-normal text-white md:text-[48px]">
+          <h1 className="text-[40px] font-bold leading-[1.05] tracking-[-0.02em] text-neutral-900 md:text-[52px]">
             Dashboard
           </h1>
-          <p className="mt-3 text-[15px] text-white/48">Visão operacional da Velo</p>
+          <p className="mt-3 text-[14px] text-neutral-500">Visão operacional da Velo</p>
         </div>
 
-        <div className="flex rounded-2xl border border-[#333] bg-[#050505] p-1">
+        <div className="flex h-11 items-center gap-1 rounded-full bg-white p-1 shadow-[0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.04]">
           {["Visão Geral", "Histórico", "Analytics"].map((tab, index) => (
             <button
               key={tab}
               type="button"
               className={cn(
-                "h-11 rounded-xl px-5 text-[13px] font-semibold transition md:px-7",
-                index === 0 ? "bg-white text-black" : "text-white/55 hover:text-white"
+                "h-9 rounded-full px-5 text-[12.5px] font-medium transition-all duration-200",
+                index === 0
+                  ? "bg-neutral-900 text-white shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-900"
               )}
             >
               {tab}
@@ -395,24 +398,26 @@ const AdminDashboardPage = () => {
       </header>
 
       {isError ? (
-        <div className="mt-8 rounded-[24px] border border-[#333] bg-[#111] p-8 text-white">
-          <p className="text-[18px] font-bold">Não foi possível carregar o dashboard admin.</p>
-          <p className="mt-2 text-[14px] text-white/50">
+        <div className="mt-8 rounded-[28px] bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.04]">
+          <p className="text-[17px] font-semibold text-neutral-900">Não foi possível carregar o dashboard.</p>
+          <p className="mt-2 text-[13.5px] text-neutral-500">
             Verifique as permissões de leitura das tabelas profiles, subscriptions e orders.
           </p>
         </div>
       ) : loadingDashboard ? (
         <div className="mt-16 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-white" />
+          <Loader2 className="h-7 w-7 animate-spin text-neutral-400" />
         </div>
       ) : (
         <>
-          <section id="receita" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {/* Metrics */}
+          <section id="receita" className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               icon={Users}
               label="Total de usuários"
               value={String(metrics.total_users)}
               hint="Cadastrados na plataforma"
+              growth={metrics.growth_rate}
             />
             <MetricCard
               icon={UserCheck}
@@ -435,82 +440,88 @@ const AdminDashboardPage = () => {
             />
           </section>
 
-          <section className="mt-5 rounded-[28px] border border-[#333] bg-[#111] p-5 md:p-7">
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.65fr)] xl:items-end">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <p className="text-[15px] font-medium text-white/72">Faturamento bruto total:</p>
-                  <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-black">
-                    {metrics.growth_rate >= 0 ? "+" : ""}
-                    {metrics.growth_rate.toFixed(0)}% este mês
-                  </span>
-                </div>
-                <p className="mt-8 break-words font-sans text-[56px] font-bold tracking-[-0.06em] text-white md:text-[86px] xl:text-[104px]">
-                  {formatBRL(metrics.gross_revenue)}
-                </p>
-                <div id="planos" className="mt-7 flex flex-wrap gap-3">
-                  <OverviewPill icon={CircleDollarSign} label="Receita ativa" value={formatBRL(metrics.mrr)} />
-                  <OverviewPill icon={CreditCard} label="Pagantes" value={String(metrics.paid_users)} />
-                  <OverviewPill icon={Users} label="Base total" value={String(metrics.total_users)} />
-                </div>
+          {/* Revenue + chart */}
+          <section className="mt-5 grid gap-5 rounded-[28px] bg-white p-7 shadow-[0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.04] md:p-9 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.7fr)] xl:items-end">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-[13.5px] font-medium text-neutral-500">Faturamento bruto total</p>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                    metrics.growth_rate >= 0
+                      ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                      : "bg-red-50 text-red-700 ring-1 ring-red-100"
+                  )}
+                >
+                  {metrics.growth_rate >= 0 ? "↑" : "↓"} {Math.abs(metrics.growth_rate).toFixed(0)}% este mês
+                </span>
               </div>
+              <p className="mt-6 break-words text-[48px] font-bold leading-[1.02] tracking-[-0.04em] text-neutral-900 md:text-[68px] xl:text-[80px]">
+                {formatBRL(metrics.gross_revenue)}
+              </p>
+              <div id="planos" className="mt-7 flex flex-wrap gap-3">
+                <OverviewPill icon={CircleDollarSign} label="Receita ativa" value={formatBRL(metrics.mrr)} />
+                <OverviewPill icon={CreditCard} label="Pagantes" value={String(metrics.paid_users)} />
+                <OverviewPill icon={Users} label="Base total" value={String(metrics.total_users)} />
+              </div>
+            </div>
 
-              <div className="rounded-[24px] border border-[#252525] bg-black p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[13px] font-bold text-white">Evolução mensal</p>
-                    <p className="mt-1 text-[12px] text-white/38">Últimos 6 meses</p>
-                  </div>
-                  <BarChart3 size={19} className="text-white/45" />
+            <div className="rounded-[22px] bg-[#FAFAFA] p-6 ring-1 ring-black/[0.04]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[13px] font-semibold text-neutral-900">Evolução mensal</p>
+                  <p className="mt-1 text-[11.5px] text-neutral-500">Últimos 6 meses</p>
                 </div>
-                <div className="mt-7 flex h-[180px] items-end gap-3">
-                  {dashboard.monthlyRevenue.map((month) => (
-                    <div key={month.key} className="flex flex-1 flex-col items-center gap-3">
-                      <div className="flex h-[136px] w-full items-end rounded-full bg-[#151515] px-1.5">
-                        <div
-                          className="w-full rounded-full bg-white transition-all"
-                          style={{ height: `${Math.max((month.value / maxMonthlyRevenue) * 100, month.value > 0 ? 8 : 0)}%` }}
-                          title={formatBRL(month.value)}
-                        />
-                      </div>
-                      <span className="text-[11px] font-semibold capitalize text-white/45">{month.label}</span>
+                <BarChart3 size={18} className="text-neutral-400" strokeWidth={1.75} />
+              </div>
+              <div className="mt-6 flex h-[160px] items-end gap-3">
+                {dashboard.monthlyRevenue.map((month) => (
+                  <div key={month.key} className="flex flex-1 flex-col items-center gap-3">
+                    <div className="flex h-[120px] w-full items-end rounded-full bg-neutral-100 px-1.5">
+                      <div
+                        className="w-full rounded-full bg-neutral-900 transition-all duration-300"
+                        style={{ height: `${Math.max((month.value / maxMonthlyRevenue) * 100, month.value > 0 ? 8 : 0)}%` }}
+                        title={formatBRL(month.value)}
+                      />
                     </div>
-                  ))}
-                </div>
+                    <span className="text-[10.5px] font-medium capitalize text-neutral-500">{month.label}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </section>
 
-          <section className="mt-5 overflow-hidden rounded-[26px] border border-[#222] bg-[#111]">
-            <div className="flex items-center justify-between border-b border-[#222] px-5 py-5">
+          {/* Transactions */}
+          <section className="mt-5 overflow-hidden rounded-[28px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.04]">
+            <div className="flex items-center justify-between px-7 py-6">
               <div>
-                <h2 className="text-[18px] font-bold">Últimas transações</h2>
-                <p className="mt-1 text-[12px] text-white/40">Assinaturas e pagamentos mais recentes.</p>
+                <h2 className="text-[18px] font-semibold tracking-[-0.01em] text-neutral-900">Últimas transações</h2>
+                <p className="mt-1 text-[12.5px] text-neutral-500">Assinaturas e pagamentos mais recentes.</p>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px]">
                 <thead>
-                  <tr className="bg-[#1a1a1a] text-left text-[12px] font-bold text-white/55">
-                    <th className="px-5 py-4">Usuário</th>
-                    <th className="px-5 py-4">Plano</th>
-                    <th className="px-5 py-4">Data</th>
-                    <th className="px-5 py-4">Horário</th>
-                    <th className="px-5 py-4">ID do pagamento</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4 text-right">Valor</th>
+                  <tr className="border-y border-neutral-100 bg-neutral-50/60 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
+                    <th className="px-7 py-3.5">Usuário</th>
+                    <th className="px-5 py-3.5">Plano</th>
+                    <th className="px-5 py-3.5">Data</th>
+                    <th className="px-5 py-3.5">Horário</th>
+                    <th className="px-5 py-3.5">ID do pagamento</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-7 py-3.5 text-right">Valor</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dashboard.transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-5 py-14 text-center text-[14px] text-white/42">
+                      <td colSpan={7} className="px-5 py-16 text-center text-[14px] text-neutral-400">
                         Nenhuma transação encontrada.
                       </td>
                     </tr>
                   ) : (
-                    dashboard.transactions.map((transaction, index) => (
-                      <TransactionRow key={transaction.id} transaction={transaction} index={index} />
+                    dashboard.transactions.map((transaction) => (
+                      <TransactionRow key={transaction.id} transaction={transaction} />
                     ))
                   )}
                 </tbody>
@@ -529,24 +540,33 @@ const MetricCard = ({
   value,
   hint,
   positive = false,
+  growth,
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
   hint: string;
   positive?: boolean;
+  growth?: number;
 }) => (
-  <div className="rounded-[22px] border border-[#333] bg-[#1a1a1a] p-5">
-    <div className="flex items-center justify-between">
-      <span className="text-[12px] font-bold uppercase tracking-[0.16em] text-white/38">{label}</span>
-      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black">
-        <Icon size={18} />
+  <div className="rounded-[28px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)] ring-1 ring-black/[0.04] transition-shadow duration-200 hover:shadow-[0_4px_16px_rgba(0,0,0,0.04)]">
+    <div className="flex items-start justify-between">
+      <span className="text-[12.5px] font-medium text-neutral-500">{label}</span>
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-100 text-neutral-700">
+        <Icon size={15} strokeWidth={1.75} />
       </span>
     </div>
-    <p className={cn("mt-7 text-[32px] font-bold tracking-[-0.05em]", positive ? "text-[#00C853]" : "text-white")}>
-      {value}
-    </p>
-    <p className="mt-2 text-[12px] text-white/42">{hint}</p>
+    <div className="mt-6 flex items-baseline gap-2.5">
+      <p className={cn("text-[38px] font-bold leading-none tracking-[-0.03em]", positive ? "text-emerald-600" : "text-neutral-900")}>
+        {value}
+      </p>
+      {typeof growth === "number" && (
+        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
+          ↑ {Math.abs(growth).toFixed(0)}%
+        </span>
+      )}
+    </div>
+    <p className="mt-3 text-[12px] text-neutral-500">{hint}</p>
   </div>
 );
 
@@ -559,22 +579,22 @@ const OverviewPill = ({
   label: string;
   value: string;
 }) => (
-  <div className="inline-flex items-center gap-3 rounded-2xl border border-[#2b2b2b] bg-[#1a1a1a] px-4 py-3">
-    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-black">
-      <Icon size={16} />
+  <div className="inline-flex items-center gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-black/[0.05]">
+    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-neutral-900 text-white">
+      <Icon size={14} strokeWidth={1.75} />
     </span>
     <span>
-      <span className="block text-[11px] font-semibold text-white/38">{label}</span>
-      <span className="block text-[13px] font-bold text-white">{value}</span>
+      <span className="block text-[10.5px] font-medium uppercase tracking-wider text-neutral-400">{label}</span>
+      <span className="block text-[13px] font-semibold text-neutral-900">{value}</span>
     </span>
   </div>
 );
 
-const TransactionRow = ({ transaction, index }: { transaction: AdminTransaction; index: number }) => (
-  <tr className={cn("text-[13px] text-white/65", index % 2 === 0 ? "bg-[#0a0a0a]" : "bg-[#111]")}>
-    <td className="px-5 py-4">
+const TransactionRow = ({ transaction }: { transaction: AdminTransaction }) => (
+  <tr className="border-b border-neutral-100 text-[13px] text-neutral-700 transition hover:bg-neutral-50/60 last:border-0">
+    <td className="px-7 py-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#252525] text-[12px] font-bold text-white">
+        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-700">
           {transaction.avatar_url ? (
             <img src={transaction.avatar_url} alt={transaction.user_name ?? "Usuário"} className="h-full w-full object-cover" />
           ) : (
@@ -582,25 +602,26 @@ const TransactionRow = ({ transaction, index }: { transaction: AdminTransaction;
           )}
         </div>
         <div className="min-w-0">
-          <p className="truncate font-bold text-white">{transaction.user_name || transaction.email || "Usuário"}</p>
-          <p className="mt-0.5 truncate text-[11px] text-white/35">{transaction.email || transaction.user_id}</p>
+          <p className="truncate font-semibold text-neutral-900">{transaction.user_name || transaction.email || "Usuário"}</p>
+          <p className="mt-0.5 truncate text-[11.5px] text-neutral-400">{transaction.email || transaction.user_id}</p>
         </div>
       </div>
     </td>
-    <td className="px-5 py-4 font-semibold text-white/70">{formatPlan(transaction.plan)}</td>
-    <td className="px-5 py-4">{formatDate(transaction.created_at)}</td>
-    <td className="px-5 py-4">{formatTime(transaction.created_at)}</td>
-    <td className="px-5 py-4">
-      <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/45">
+    <td className="px-5 py-5 font-medium text-neutral-700">{formatPlan(transaction.plan)}</td>
+    <td className="px-5 py-5 text-neutral-600">{formatDate(transaction.created_at)}</td>
+    <td className="px-5 py-5 text-neutral-600">{formatTime(transaction.created_at)}</td>
+    <td className="px-5 py-5">
+      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-600">
         {truncatePaymentId(transaction.mp_payment_id, transaction.id)}
       </span>
     </td>
-    <td className="px-5 py-4">
-      <span className={cn("rounded-full border px-3 py-1 text-[11px] font-bold", getStatusStyle(transaction.status))}>
+    <td className="px-5 py-5">
+      <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold", getStatusStyle(transaction.status))}>
+        <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current opacity-70" />
         {formatStatus(transaction.status)}
       </span>
     </td>
-    <td className="px-5 py-4 text-right text-[15px] font-bold text-[#00C853]">
+    <td className="px-7 py-5 text-right text-[14px] font-semibold text-neutral-900">
       {formatBRL(transaction.amount)}
     </td>
   </tr>
