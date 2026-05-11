@@ -1,4 +1,4 @@
-import { Component, useEffect, useState, type ReactNode } from "react";
+import { Component, useEffect, type ReactNode } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
@@ -6,6 +6,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StartModeBanner from "@/components/dashboard/StartModeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
+import { useStartMode } from "@/hooks/useStartMode";
 
 // ── Error Boundary ─────────────────────────────────────────────────────────
 type EBState = { error: Error | null };
@@ -58,30 +59,8 @@ const DashboardLayoutInner = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
 
-  // Check if user is in Start Mode (free plan)
-  const [isStartMode, setIsStartMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("velo-start-mode") !== "false";
-    }
-    return true;
-  });
-
-  // Listen to localStorage changes
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setIsStartMode(localStorage.getItem("velo-start-mode") !== "false");
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    
-    // Also check periodically in case of same-tab changes
-    const interval = setInterval(handleStorageChange, 500);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
-    };
-  }, []);
+  // Start Mode: ativo para usuários gratuitos, desativado para pagos
+  const { isStartMode } = useStartMode();
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);

@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import StartModeModal from "./StartModeModal";
+import { useStartMode } from "@/hooks/useStartMode";
 
 // ── Icon helper — className="sidebar-icon" is what index.css targets for the draw-on animation ──
 const IconSpan = ({
@@ -530,35 +531,17 @@ const DashboardSidebar = () => {
 
   const [collapsed, setCollapsed] = useState(false);
 
-  const [startMode, setStartMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("velo-start-mode") !== "false";
-    }
-    return true;
-  });
+  // Start Mode: controlado pelo plano real do usuário (não localStorage)
+  const { isStartMode: startMode, hasActivePlan } = useStartMode();
 
   const [showStartModeModal, setShowStartModeModal] = useState(false);
 
-  // TODO: Implementar lógica real para verificar se usuário tem plano ativo
-  // Por enquanto, sempre considera que não tem plano ativo (sempre em Start Mode)
-  const hasActivePlan = false;
-
   const toggleStartMode = () => {
-    // Se está tentando DESATIVAR o Start Mode (startMode === true)
-    if (startMode) {
-      // Verificar se tem plano ativo
-      if (!hasActivePlan) {
-        // Não tem plano: mostrar modal e manter Start Mode ativo
-        setShowStartModeModal(true);
-        return;
-      }
-      // Tem plano: permitir desativar
+    // Usuários gratuitos não podem desligar o Start Mode — mostrar modal explicativo
+    if (!hasActivePlan) {
+      setShowStartModeModal(true);
     }
-    
-    // Alternar Start Mode normalmente
-    const next = !startMode;
-    setStartMode(next);
-    localStorage.setItem("velo-start-mode", String(next));
+    // Usuários pagos nunca chegam aqui pois startMode já é false para eles
   };
 
   const isAdmin = role === "admin";
@@ -741,11 +724,12 @@ const DashboardSidebar = () => {
           </>
         )}
       </div>
-
-      {/* ── Footer items (Admin, Comissões, Start Mode, Suporte) ─────────── */}
       {collapsed && (
         <div className="flex flex-col items-center gap-1.5 px-0 pb-1" style={{ flexShrink: 0 }}>
-          <FooterButtonRow icon={Code2} label="Start Mode" color="#FFA640" collapsed={collapsed} onClick={toggleStartMode} />
+          {/* Start Mode: só aparece para usuários gratuitos */}
+          {!hasActivePlan && (
+            <FooterButtonRow icon={Code2} label="Start Mode" color="#FFA640" collapsed={collapsed} onClick={toggleStartMode} />
+          )}
           <FooterAnchorRow href="https://wa.me/" icon={MessageCircle} label="Suporte" color="#25D366" collapsed={collapsed} />
         </div>
       )}
@@ -757,9 +741,13 @@ const DashboardSidebar = () => {
         {isInfluencer && (
           <FooterLinkRow to="/dashboard/comissoes" icon={Percent} label="Comissões" active={location.pathname.startsWith("/dashboard/comissoes")} collapsed={collapsed} />
         )}
-        <FooterButtonRow icon={Code2} label="Start Mode" color="#FFA640" collapsed={collapsed} onClick={toggleStartMode}>
-          <ToggleSwitch checked={startMode} onChange={toggleStartMode} />
-        </FooterButtonRow>
+        {/* Start Mode: só aparece para usuários gratuitos */}
+        {!hasActivePlan && (
+          <FooterButtonRow icon={Code2} label="Start Mode" color="#FFA640" collapsed={collapsed} onClick={toggleStartMode}>
+            {/* Toggle sempre ligado para gratuitos — clicar abre modal explicativo */}
+            <ToggleSwitch checked={true} onChange={toggleStartMode} />
+          </FooterButtonRow>
+        )}
         <FooterAnchorRow href="https://wa.me/" icon={MessageCircle} label="Suporte" color="#25D366" collapsed={collapsed} />
       </div>}
 
