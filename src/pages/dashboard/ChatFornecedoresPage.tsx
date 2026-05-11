@@ -256,7 +256,7 @@ function Bubble({ msg, prevMsg, supplierName, color, initials }: {
         {/* Supplier avatar */}
         {!isUser && (
           <div
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white transition-opacity ${showAvatar ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white transition-opacity ${showAvatar ? "opacity-100" : "opacity-0 pointer-events-none"}`}
             style={{ backgroundColor: color }}
           >
             {initials}
@@ -265,7 +265,7 @@ function Bubble({ msg, prevMsg, supplierName, color, initials }: {
 
         <div className={`flex max-w-[68%] flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
           {showAvatar && (
-            <span className="px-1 text-[11.5px] font-semibold text-[#525252] dark:text-zinc-300">
+            <span className="px-1 text-[11.5px] font-normal text-[#525252] dark:text-zinc-300">
               {supplierName}
             </span>
           )}
@@ -370,12 +370,12 @@ function ChatWindow({
             <ArrowLeft size={17} />
           </button>
         )}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
           style={{ backgroundColor: color }}>
           {initials}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-bold text-[#0A0A0A] dark:text-white">{supplierName}</p>
+          <p className="truncate text-[14px] font-semibold text-[#0A0A0A] dark:text-white">{supplierName}</p>
           <p className="text-[11.5px] text-[#A3A3A3] dark:text-zinc-400">Fornecedor</p>
         </div>
       </div>
@@ -490,7 +490,7 @@ function ConversationList({
   return (
     <div className="flex h-full flex-col border-r border-[#EBEBEB] dark:border-zinc-800 bg-white dark:bg-zinc-900">
       <div className="border-b border-[#EBEBEB] dark:border-zinc-800 px-4 pb-3 pt-4">
-        <h2 className="mb-3 text-[15px] font-bold text-[#0A0A0A] dark:text-white">Fornecedores</h2>
+        <h2 className="mb-3 text-[15px] font-semibold text-[#0A0A0A] dark:text-white">Fornecedores</h2>
         <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3A3A3] dark:text-zinc-500" />
           <input
@@ -534,7 +534,7 @@ function ConversationList({
                 className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${isActive ? "bg-[#F5F5F5] dark:bg-zinc-800" : "hover:bg-[#FAFAFA] dark:hover:bg-zinc-800/70"}`}
               >
                 <div className="relative shrink-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full text-[11px] font-semibold text-white"
                     style={{ backgroundColor: color }}>
                     {initials}
                   </div>
@@ -723,11 +723,11 @@ function AdminSupportPanel() {
         <div className="border-b border-[#EBEBEB] px-4 py-4 dark:border-zinc-800">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-[15px] font-bold text-[#0A0A0A] dark:text-white">Suporte ao Cliente</h2>
+              <h2 className="text-[15px] font-semibold text-[#0A0A0A] dark:text-white">Suporte ao Cliente</h2>
               <p className="mt-0.5 text-[12px] text-[#737373] dark:text-zinc-400">Tickets abertos em tempo real</p>
             </div>
             {unansweredCount > 0 && (
-              <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-red-600 px-2 text-[12px] font-bold text-white">
+              <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-red-600 px-2 text-[12px] font-semibold text-white">
                 {unansweredCount}
               </span>
             )}
@@ -766,7 +766,7 @@ function AdminSupportPanel() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[13.5px] font-bold text-[#0A0A0A] dark:text-white">
+                        <p className="truncate text-[13.5px] font-normal text-[#0A0A0A] dark:text-white">
                           {ticket.user_email || ticket.user_name || `Usuário ${ticket.user_id.slice(0, 8)}`}
                         </p>
                         <p className="mt-1 text-[11px] text-[#A3A3A3] dark:text-zinc-500">
@@ -774,7 +774,7 @@ function AdminSupportPanel() {
                         </p>
                       </div>
                       {needsReply && (
-                        <span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-normal text-white">
                           Novo
                         </span>
                       )}
@@ -785,10 +785,10 @@ function AdminSupportPanel() {
                     </p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-[#0A0A0A] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.04em] text-white dark:bg-white dark:text-black">
+                      <span className="rounded-full bg-[#0A0A0A] px-2.5 py-1 text-[10px] font-normal uppercase tracking-[0.04em] text-white dark:bg-white dark:text-black">
                         {ticket.status}
                       </span>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.04em] ${
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-normal uppercase tracking-[0.04em] ${
                         ticket.ai_active
                           ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                           : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
@@ -813,7 +813,7 @@ function AdminSupportPanel() {
                   <UserRound size={18} />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] font-bold text-[#0A0A0A] dark:text-white">
+                  <p className="truncate text-[14px] font-semibold text-[#0A0A0A] dark:text-white">
                     {selectedTicket.user_email || selectedTicket.user_name || `Usuário ${selectedTicket.user_id.slice(0, 8)}`}
                   </p>
                   <p className="text-[11.5px] text-[#737373] dark:text-zinc-400">
@@ -922,7 +922,7 @@ function AdminSupportBubble({ msg }: { msg: SupportMessage }) {
               : "rounded-bl-sm bg-white text-[#0A0A0A] dark:bg-zinc-900 dark:text-white",
         ].join(" ")}
       >
-        <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.08em] opacity-70">
+        <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-normal uppercase tracking-[0.08em] opacity-70">
           {isAdmin ? <ShieldCheck size={11} /> : isAi ? <Bot size={11} /> : <UserRound size={11} />}
           {isAdmin ? "Admin" : isAi ? "IA" : "Usuário"}
         </div>

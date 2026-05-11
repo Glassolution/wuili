@@ -27,14 +27,18 @@ import {
   LogOut,
   Moon,
   User,
+  Landmark,
+  ArrowLeftRight,
+  CreditCard,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import StartModeModal from "./StartModeModal";
 
 // ── Icon helper — className="sidebar-icon" is what index.css targets for the draw-on animation ──
 const IconSpan = ({
   icon: Icon,
-  size = 18,
-  strokeWidth = 1.5,
+  size = 17,
+  strokeWidth = 1.8,
   color,
 }: {
   icon: React.ElementType;
@@ -59,29 +63,31 @@ const NavLinkRow = ({
   <Link
     to={item.to}
     className={cn(
-      "sidebar-item relative flex items-center transition-all duration-150",
-      collapsed ? "group w-full h-[44px] justify-center p-0 m-0" : "rounded-2xl px-6",
-      active && !collapsed ? "bg-[#111111] rounded-[12px]" : "",
-      !active && !collapsed ? "hover:bg-muted" : ""
+      "sidebar-item relative flex items-center transition-all duration-200",
+      collapsed ? "group w-full h-[44px] justify-center p-0 m-0" : "px-4",
+      active && !collapsed ? "bg-[#111111] shadow-sm" : "",
+      !active && !collapsed ? "hover:bg-black/[0.02]" : ""
     )}
     title={collapsed ? item.label : undefined}
     style={{
       fontFamily: collapsed ? undefined : '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       fontSize: collapsed ? undefined : "15px",
       fontWeight: collapsed ? undefined : 500,
-      lineHeight: collapsed ? undefined : "20px",
-      letterSpacing: collapsed ? undefined : "-0.01em",
+      lineHeight: collapsed ? undefined : "19px",
+      letterSpacing: collapsed ? undefined : "-0.02em",
       height: collapsed ? undefined : "44px",
       gap: collapsed ? undefined : "12px",
+      borderRadius: collapsed ? undefined : "12px",
+      flexShrink: 0,
     }}
   >
     {collapsed ? (
-      <div className={cn("flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors duration-150", active ? "bg-[#111111]" : "group-hover:bg-muted")}>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.5} color={active ? "#FFFFFF" : "#6B7280"} />
+      <div className={cn("flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors duration-200", active ? "bg-[#111111] shadow-sm" : "group-hover:bg-black/[0.02]")}>
+        <IconSpan icon={item.icon} size={17} strokeWidth={1.8} color={active ? "#FFFFFF" : "#6B7280"} />
       </div>
     ) : (
       <>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.5} color={active ? "#FFFFFF" : "#6B7280"} />
+        <IconSpan icon={item.icon} size={17} strokeWidth={1.8} color={active ? "#FFFFFF" : "#6B7280"} />
         <span style={{ color: active ? "#FFFFFF" : "#111111" }}>{item.label}</span>
       </>
     )}
@@ -105,31 +111,33 @@ const NavGroupRow = ({
   <button
     onClick={onToggle}
     className={cn(
-      "sidebar-item w-full relative flex items-center transition-all duration-150",
-      collapsed ? "group h-[44px] justify-center p-0 m-0" : "rounded-2xl px-6",
-      groupActiveCompact && !collapsed ? "bg-[#111111] rounded-[12px]" : "",
-      !groupActiveCompact && !collapsed ? "hover:bg-muted" : ""
+      "sidebar-item w-full relative flex items-center transition-all duration-200",
+      collapsed ? "group h-[44px] justify-center p-0 m-0" : "px-4",
+      groupActiveCompact && !collapsed ? "bg-[#111111] shadow-sm" : "",
+      !groupActiveCompact && !collapsed ? "hover:bg-black/[0.02]" : ""
     )}
     title={collapsed ? item.label : undefined}
     style={{
       fontFamily: collapsed ? undefined : '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       fontSize: collapsed ? undefined : "15px",
       fontWeight: collapsed ? undefined : 500,
-      lineHeight: collapsed ? undefined : "20px",
-      letterSpacing: collapsed ? undefined : "-0.01em",
+      lineHeight: collapsed ? undefined : "19px",
+      letterSpacing: collapsed ? undefined : "-0.02em",
       height: collapsed ? undefined : "44px",
       gap: collapsed ? undefined : "12px",
+      borderRadius: collapsed ? undefined : "12px",
+      flexShrink: 0,
     }}
   >
     {collapsed ? (
-      <div className={cn("flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors duration-150", groupActiveCompact ? "bg-[#111111]" : "group-hover:bg-muted")}>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.5} color={groupActiveCompact ? "#FFFFFF" : "#6B7280"} />
+      <div className={cn("flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors duration-200", groupActiveCompact ? "bg-[#111111] shadow-sm" : "group-hover:bg-black/[0.02]")}>
+        <IconSpan icon={item.icon} size={17} strokeWidth={1.8} color={groupActiveCompact ? "#FFFFFF" : "#6B7280"} />
       </div>
     ) : (
       <>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.5} color="#6B7280" />
+        <IconSpan icon={item.icon} size={17} strokeWidth={1.8} color="#6B7280" />
         <span className="flex-1 text-left" style={{ color: "#111111" }}>{item.label}</span>
-        <ChevronDown size={16} strokeWidth={1.5} className={cn("shrink-0 transition-transform duration-200", isOpen ? "rotate-180" : "rotate-0")} style={{ color: "#6B7280" }} />
+        <ChevronDown size={14} strokeWidth={1.8} className={cn("shrink-0 transition-transform duration-200", isOpen ? "rotate-180" : "rotate-0")} style={{ color: "#6B7280" }} />
       </>
     )}
   </button>
@@ -141,6 +149,9 @@ const subIconMap: Record<string, React.ElementType> = {
   Pedidos: ShoppingCart,
   Vídeos: Video,
   Chat: MessageSquare,
+  Saldos: Landmark,
+  Transações: ArrowLeftRight,
+  Pagamentos: CreditCard,
 };
 
 const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => {
@@ -148,10 +159,22 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
   return (
     <Link
       to={sub.to}
-      className={cn("sidebar-item relative flex items-center rounded-2xl pr-6 pl-8 transition-all duration-150", subActive ? "bg-[#111111]" : "hover:bg-muted")}
-      style={{ fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: "15px", fontWeight: 500, lineHeight: "20px", letterSpacing: "-0.01em", height: "44px", gap: "12px" }}
+      className={cn("sidebar-item relative flex items-center transition-all duration-200", subActive ? "bg-[#111111] shadow-sm" : "hover:bg-black/[0.02]")}
+      style={{ 
+        fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', 
+        fontSize: "14px", 
+        fontWeight: 500, 
+        lineHeight: "18px", 
+        letterSpacing: "-0.02em", 
+        height: "40px", 
+        gap: "10px",
+        paddingLeft: "44px",
+        paddingRight: "16px",
+        borderRadius: "10px",
+        flexShrink: 0,
+      }}
     >
-      {SubIcon && <IconSpan icon={SubIcon} size={18} strokeWidth={1.5} color={subActive ? "#FFFFFF" : "#6B7280"} />}
+      {SubIcon && <IconSpan icon={SubIcon} size={16} strokeWidth={1.8} color={subActive ? "#FFFFFF" : "#6B7280"} />}
       <span style={{ color: subActive ? "#FFFFFF" : "#111111" }}>{sub.label}</span>
     </Link>
   );
@@ -163,7 +186,7 @@ const FooterLinkRow = ({
   label,
   active,
   collapsed,
-  size = 20,
+  size = 17,
 }: {
   to: string;
   icon: React.ElementType;
@@ -174,9 +197,9 @@ const FooterLinkRow = ({
 }) => {
   if (collapsed) {
     return (
-      <Link to={to} className="sidebar-item group relative flex h-[44px] w-full items-center justify-center p-0 m-0 transition-all duration-150" title={label}>
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors duration-150", active ? "bg-[#111111]" : "group-hover:bg-muted")}>
-          <IconSpan icon={icon} size={size} strokeWidth={1.5} color={active ? "#FFFFFF" : "#6B7280"} />
+      <Link to={to} className="sidebar-item group relative flex h-[36px] w-full items-center justify-center p-0 m-0 transition-all duration-150" title={label}>
+        <div className={cn("flex h-9 w-9 items-center justify-center rounded-[10px] transition-colors duration-150", active ? "bg-[#111111]" : "group-hover:bg-muted")}>
+          <IconSpan icon={icon} size={size} strokeWidth={1.6} color={active ? "#FFFFFF" : "#6B7280"} />
         </div>
       </Link>
     );
@@ -184,10 +207,21 @@ const FooterLinkRow = ({
   return (
     <Link
       to={to}
-      className={cn("sidebar-item relative flex items-center gap-4 rounded-2xl px-6 py-3 transition-all duration-150", active ? "bg-[#111111]" : "hover:bg-muted")}
-      style={{ fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: "15px", fontWeight: 500, lineHeight: "22px", letterSpacing: "-0.01em" }}
+      className={cn("sidebar-item relative flex items-center transition-all duration-150", active ? "bg-[#111111]" : "hover:bg-muted")}
+      style={{ 
+        fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', 
+        fontSize: "15px", 
+        fontWeight: 500, 
+        lineHeight: "18px", 
+        letterSpacing: "-0.01em",
+        height: "40px",
+        gap: "10px",
+        paddingLeft: "14px",
+        paddingRight: "14px",
+        borderRadius: "10px"
+      }}
     >
-      <IconSpan icon={icon} size={size} strokeWidth={1.5} color={active ? "#FFFFFF" : "#6B7280"} />
+      <IconSpan icon={icon} size={size} strokeWidth={1.6} color={active ? "#FFFFFF" : "#6B7280"} />
       <span style={{ color: active ? "#FFFFFF" : "#111111" }}>{label}</span>
     </Link>
   );
@@ -210,18 +244,29 @@ const FooterButtonRow = ({
 }) => {
   if (collapsed) {
     return (
-      <button onClick={onClick} className="sidebar-item w-full h-[44px] flex items-center justify-center p-0 m-0" title={label}>
-        <IconSpan icon={icon} size={20} strokeWidth={1.5} color={color} />
+      <button onClick={onClick} className="sidebar-item w-full h-[40px] flex items-center justify-center p-0 m-0" title={label}>
+        <IconSpan icon={icon} size={17} strokeWidth={1.8} color={color} />
       </button>
     );
   }
   return (
     <button
       onClick={onClick}
-      className="sidebar-item relative flex w-full items-center gap-4 rounded-2xl px-6 py-3 transition-all duration-150 hover:bg-muted"
-      style={{ fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: "15px", fontWeight: 500, lineHeight: "22px", letterSpacing: "-0.01em" }}
+      className="sidebar-item relative flex w-full items-center transition-all duration-150 hover:bg-black/[0.02]"
+      style={{ 
+        fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', 
+        fontSize: "15px", 
+        fontWeight: 500, 
+        lineHeight: "19px", 
+        letterSpacing: "-0.02em",
+        height: "40px",
+        gap: "10px",
+        paddingLeft: "14px",
+        paddingRight: "14px",
+        borderRadius: "10px"
+      }}
     >
-      <IconSpan icon={icon} size={20} strokeWidth={1.5} color={color} />
+      <IconSpan icon={icon} size={17} strokeWidth={1.8} color={color} />
       <span className="flex-1 text-left" style={{ color: "#111111" }}>{label}</span>
       {children}
     </button>
@@ -243,8 +288,8 @@ const FooterAnchorRow = ({
 }) => {
   if (collapsed) {
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className="sidebar-item w-full h-[44px] flex items-center justify-center p-0 m-0" title={label}>
-        <IconSpan icon={icon} size={20} strokeWidth={1.5} color={color} />
+      <a href={href} target="_blank" rel="noopener noreferrer" className="sidebar-item w-full h-[40px] flex items-center justify-center p-0 m-0" title={label}>
+        <IconSpan icon={icon} size={17} strokeWidth={1.8} color={color} />
       </a>
     );
   }
@@ -253,10 +298,21 @@ const FooterAnchorRow = ({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="sidebar-item relative flex items-center gap-4 rounded-2xl px-6 py-3 transition-all duration-150 hover:bg-muted"
-      style={{ fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: "15px", fontWeight: 500, lineHeight: "22px", letterSpacing: "-0.01em" }}
+      className="sidebar-item relative flex items-center transition-all duration-150 hover:bg-black/[0.02]"
+      style={{ 
+        fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', 
+        fontSize: "15px", 
+        fontWeight: 500, 
+        lineHeight: "19px", 
+        letterSpacing: "-0.02em",
+        height: "40px",
+        gap: "10px",
+        paddingLeft: "14px",
+        paddingRight: "14px",
+        borderRadius: "10px"
+      }}
     >
-      <IconSpan icon={icon} size={20} strokeWidth={1.5} color={color} />
+      <IconSpan icon={icon} size={17} strokeWidth={1.8} color={color} />
       <span className="whitespace-nowrap" style={{ color: "#111111" }}>{label}</span>
     </a>
   );
@@ -310,15 +366,17 @@ const ToggleSwitch = ({ checked, onChange }: { checked: boolean; onChange: () =>
   <div
     onClick={onChange}
     className={cn(
-      "relative h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200",
+      "relative shrink-0 cursor-pointer rounded-full transition-colors duration-200",
       checked ? "bg-[#111111]" : "bg-[#D1D5DB]"
     )}
+    style={{ height: "24px", width: "42px" }}
   >
     <div
       className={cn(
-        "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-        checked ? "translate-x-[18px]" : "translate-x-0.5"
+        "absolute top-0.5 rounded-full bg-white shadow-sm transition-transform duration-200",
+        checked ? "translate-x-[20px]" : "translate-x-0.5"
       )}
+      style={{ height: "20px", width: "20px" }}
     />
   </div>
 );
@@ -351,41 +409,79 @@ const UserFooter = ({ nome, foto, iniciais, collapsed, onLogout }: UserFooterPro
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
+  if (collapsed) {
+    return (
+      <div className="relative shrink-0 px-0" style={{ paddingTop: "8px", paddingBottom: "14px" }}>
+        <div className="flex items-center justify-center">
+          <span 
+            className="flex shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-semibold text-white"
+            style={{ 
+              width: "36px",
+              height: "36px",
+              backgroundColor: "#C2185B" 
+            }}
+          >
+            {foto ? <img src={foto} alt="avatar" className="h-full w-full object-cover" /> : iniciais || "VL"}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
-      className={cn(
-        "relative shrink-0",
-        collapsed ? "px-0 py-3" : "px-5 py-3"
-      )}
+      className="relative shrink-0"
+      style={{ padding: "8px 16px 14px 16px" }}
     >
-      <div className={cn("flex items-center", collapsed ? "justify-center" : "gap-3")}>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#E0E0E0] text-[11px] font-semibold text-[#111111]">
+      <div 
+        className="flex items-center w-full"
+        style={{ 
+          height: "48px",
+          minHeight: "48px",
+          gap: "12px",
+          padding: "0 6px",
+          flexShrink: 0,
+          overflow: "hidden"
+        }}
+      >
+        <span 
+          className="flex shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-semibold text-white"
+          style={{ 
+            width: "36px",
+            height: "36px",
+            backgroundColor: "#C2185B",
+            flexShrink: 0
+          }}
+        >
           {foto ? <img src={foto} alt="avatar" className="h-full w-full object-cover" /> : iniciais || "VL"}
         </span>
-        {!collapsed && (
-          <>
-            <span 
-              className="min-w-0 flex-1 truncate text-left" 
-              style={{ 
-                fontSize: "15px", 
-                fontWeight: 600, 
-                color: "#111111" 
-              }}
-            >
-              {nome || "Velo"}
-            </span>
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="flex h-8 w-8 items-center justify-center rounded-2xl transition-colors duration-200 hover:bg-muted"
-            >
-              <MoreHorizontal size={18} strokeWidth={1.5} style={{ color: "#6B7280" }} />
-            </button>
-          </>
-        )}
+        <div className="min-w-0 flex-1">
+          <div 
+            style={{ 
+              fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              fontSize: "15px", 
+              fontWeight: 500, 
+              color: "#111111",
+              lineHeight: "19px",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis"
+            }}
+          >
+            {nome || "Velo"}
+          </div>
+        </div>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex shrink-0 items-center justify-center rounded-xl transition-colors duration-200 hover:bg-muted"
+          style={{ width: "26px", height: "26px", flexShrink: 0 }}
+        >
+          <MoreHorizontal size={16} strokeWidth={1.6} style={{ color: "#8A8FA3" }} />
+        </button>
       </div>
 
-      {!collapsed && isOpen && (
+      {isOpen && (
         <div className="absolute bottom-full left-5 right-5 mb-2 rounded-3xl bg-card p-2 shadow-card">
           <button
             onClick={() => { navigate("/dashboard/perfil"); setIsOpen(false); }}
@@ -434,17 +530,35 @@ const DashboardSidebar = () => {
 
   const [collapsed, setCollapsed] = useState(false);
 
-  const [devMode, setDevMode] = useState(() => {
+  const [startMode, setStartMode] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("velo-dev-mode") === "true";
+      return localStorage.getItem("velo-start-mode") !== "false";
     }
-    return false;
+    return true;
   });
 
-  const toggleDevMode = () => {
-    const next = !devMode;
-    setDevMode(next);
-    localStorage.setItem("velo-dev-mode", String(next));
+  const [showStartModeModal, setShowStartModeModal] = useState(false);
+
+  // TODO: Implementar lógica real para verificar se usuário tem plano ativo
+  // Por enquanto, sempre considera que não tem plano ativo (sempre em Start Mode)
+  const hasActivePlan = false;
+
+  const toggleStartMode = () => {
+    // Se está tentando DESATIVAR o Start Mode (startMode === true)
+    if (startMode) {
+      // Verificar se tem plano ativo
+      if (!hasActivePlan) {
+        // Não tem plano: mostrar modal e manter Start Mode ativo
+        setShowStartModeModal(true);
+        return;
+      }
+      // Tem plano: permitir desativar
+    }
+    
+    // Alternar Start Mode normalmente
+    const next = !startMode;
+    setStartMode(next);
+    localStorage.setItem("velo-start-mode", String(next));
   };
 
   const isAdmin = role === "admin";
@@ -490,89 +604,104 @@ const DashboardSidebar = () => {
   return (
     <nav
       className={cn(
-        "flex h-screen shrink-0 flex-col bg-sidebar text-foreground transition-[width] duration-200 ease-out",
-        collapsed ? "w-[64px] min-w-[64px]" : "w-[300px] min-w-[300px]"
+        "flex shrink-0 flex-col text-foreground transition-[width] duration-200 ease-out",
+        collapsed ? "w-[64px] min-w-[64px]" : "w-[268px] min-w-[268px]"
       )}
+      style={{
+        height: startMode ? "calc(100vh - 48px)" : "100vh",
+        transition: "height 280ms ease, width 200ms ease-out",
+        overflow: "hidden",
+        backgroundColor: "#F4F4F5",
+        borderRight: "none"
+      }}
     >
       {/* ── Header: Logo mark + Colapsar ─────────────────────────────────── */}
-      <div className={cn("flex shrink-0 flex-col items-center", collapsed ? "px-2 pt-4 pb-2 gap-2" : "px-5 pt-4 pb-4")}>
+      <div className={cn("flex shrink-0 flex-col items-center", collapsed ? "px-2 pt-4 pb-2 gap-2" : "px-5 pt-4 pb-3")}>
         {!collapsed ? (
           <div className="flex w-full items-center justify-between">
             <Link to="/?home=1" className="flex items-center">
-              <VeloMark size={28} />
+              <VeloMark size={26} />
             </Link>
             <button
               onClick={() => setCollapsed(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-2xl text-[#6B7280] transition-colors duration-200 hover:bg-muted hover:text-foreground"
+              className="flex h-7 w-7 items-center justify-center rounded-xl text-[#6B7280] transition-colors duration-200 hover:bg-muted hover:text-foreground"
               title="Colapsar"
             >
-              <PanelLeft size={18} strokeWidth={1.5} />
+              <PanelLeft size={17} strokeWidth={1.5} />
             </button>
           </div>
         ) : (
           <div className="flex w-full flex-col items-center gap-2">
             <Link to="/?home=1" className="flex items-center justify-center">
-              <VeloMark size={28} />
+              <VeloMark size={26} />
             </Link>
             <button
               onClick={() => setCollapsed(false)}
               className="flex w-full items-center justify-center py-2 text-[#6B7280] transition-colors duration-200 hover:text-foreground"
               title="Expandir"
             >
-              <PanelLeft size={20} strokeWidth={1.5} />
+              <PanelLeft size={19} strokeWidth={1.5} />
             </button>
           </div>
         )}
       </div>
 
       {/* Divisória 1 */}
-      <div style={{ height: "1px", backgroundColor: "#DDE3EE", marginLeft: "20px", marginRight: "20px", marginTop: "22px", marginBottom: "0" }} />
+      <div style={{ height: "1px", backgroundColor: "#DDE3EE", margin: "12px 16px" }} />
 
       {/* ── Workspace Selector ─────────────────────────────────────────── */}
       {!collapsed && (
-        <div style={{ margin: "22px 20px 0 20px" }}>
+        <div style={{ margin: "8px 16px 0 16px" }}>
           <button style={{
             display: "flex",
             width: "100%",
-            height: "56px",
+            height: "44px",
             alignItems: "center",
             justifyContent: "space-between",
-            borderRadius: "14px",
-            border: "1px solid #E5E7EB",
-            backgroundColor: "var(--card)",
-            paddingLeft: "16px",
-            paddingRight: "16px",
+            borderRadius: "12px",
+            border: "1px solid rgba(0,0,0,0.08)",
+            backgroundColor: "#FFFFFF",
+            paddingLeft: "14px",
+            paddingRight: "14px",
             textAlign: "left",
-            transition: "background-color 0.2s",
+            transition: "background-color 0.15s ease",
             boxSizing: "border-box",
             cursor: "pointer"
           }}
-          className="hover:bg-muted"
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F9FAFB")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#FFFFFF")}
           >
-            <span style={{ fontSize: "16px", fontWeight: 500, color: "var(--foreground)" }}>Velo</span>
-            <ChevronDown size={14} strokeWidth={1.5} style={{ color: "#6B7280" }} />
+            <span style={{ 
+              fontSize: "15px", 
+              fontWeight: 600, 
+              color: "#111111",
+              letterSpacing: "-0.02em"
+            }}>Velo</span>
+            <ChevronDown size={17} strokeWidth={2} style={{ color: "#6B7280" }} />
           </button>
         </div>
       )}
 
       {/* Divisória 2 - Abaixo do seletor Velo */}
       {!collapsed && (
-        <div style={{ height: "1px", backgroundColor: "#DDE3EE", marginLeft: "20px", marginRight: "20px", marginTop: "22px", marginBottom: "0" }} />
+        <div style={{ height: "1px", backgroundColor: "#DDE3EE", margin: "12px 16px" }} />
       )}
 
       {/* ── Nav items ────────────────────────────────────────────────────── */}
       <div
         className={cn(
-          "flex flex-1 flex-col overflow-y-auto pb-4",
-          collapsed ? "items-center gap-2 pt-2 px-0" : "gap-1 px-5"
+          "flex flex-1 flex-col overflow-y-auto",
+          collapsed ? "items-center gap-1.5 pt-2 px-0" : "gap-1.5 px-4"
         )}
-        style={!collapsed ? { paddingTop: "22px" } : undefined}
+        style={!collapsed ? { paddingTop: "8px", paddingBottom: "8px", minHeight: 0 } : { minHeight: 0 }}
       >
         {nav.map((item) => {
           if (item.kind === "link") {
             const active = isLinkActive(item.to);
             return (
-              <NavLinkRow key={item.to} item={item} active={active} collapsed={collapsed} />
+              <div key={item.to} style={{ flexShrink: 0 }}>
+                <NavLinkRow item={item} active={active} collapsed={collapsed} />
+              </div>
             );
           }
 
@@ -580,7 +709,7 @@ const DashboardSidebar = () => {
           const groupActiveCompact = collapsed && isGroupActive(item.items);
 
           return (
-            <div key={item.label}>
+            <div key={item.label} style={{ flexShrink: 0 }}>
               <NavGroupRow
                 item={item}
                 isOpen={isOpen}
@@ -590,7 +719,7 @@ const DashboardSidebar = () => {
                 pathname={location.pathname}
               />
               {!collapsed && isOpen && (
-                <div className="mt-2 space-y-2 pl-4">
+                <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "0" }}>
                   {item.items.map((sub) => (
                     <NavSubRow key={sub.to} sub={sub} subActive={location.pathname.startsWith(sub.to)} />
                   ))}
@@ -613,39 +742,45 @@ const DashboardSidebar = () => {
         )}
       </div>
 
-      {/* ── Footer items (Admin, Comissões, Dev Mode, Suporte) ─────────── */}
+      {/* ── Footer items (Admin, Comissões, Start Mode, Suporte) ─────────── */}
       {collapsed && (
-        <div className="mt-auto flex flex-col items-center gap-2 px-0 pb-2">
-          <FooterButtonRow icon={Code2} label="Dev Mode" color="#6B7280" collapsed={collapsed} onClick={toggleDevMode} />
+        <div className="flex flex-col items-center gap-1.5 px-0 pb-1" style={{ flexShrink: 0 }}>
+          <FooterButtonRow icon={Code2} label="Start Mode" color="#FFA640" collapsed={collapsed} onClick={toggleStartMode} />
           <FooterAnchorRow href="https://wa.me/" icon={MessageCircle} label="Suporte" color="#25D366" collapsed={collapsed} />
         </div>
       )}
 
-      {!collapsed && <div className="flex flex-col gap-1 px-5 pb-4 mt-auto">
+      {!collapsed && <div className="flex flex-col" style={{ paddingLeft: "16px", paddingRight: "16px", paddingBottom: "0", gap: "6px", flexShrink: 0 }}>
         {isAdmin && (
           <FooterLinkRow to="/admin/dashboard" icon={ShieldCheck} label="Admin" active={location.pathname.startsWith("/admin")} collapsed={collapsed} />
         )}
         {isInfluencer && (
           <FooterLinkRow to="/dashboard/comissoes" icon={Percent} label="Comissões" active={location.pathname.startsWith("/dashboard/comissoes")} collapsed={collapsed} />
         )}
-        <FooterButtonRow icon={Code2} label="Dev Mode" color="#6B7280" collapsed={collapsed} onClick={toggleDevMode}>
-          <ToggleSwitch checked={devMode} onChange={toggleDevMode} />
+        <FooterButtonRow icon={Code2} label="Start Mode" color="#FFA640" collapsed={collapsed} onClick={toggleStartMode}>
+          <ToggleSwitch checked={startMode} onChange={toggleStartMode} />
         </FooterButtonRow>
         <FooterAnchorRow href="https://wa.me/" icon={MessageCircle} label="Suporte" color="#25D366" collapsed={collapsed} />
       </div>}
 
-      {/* Divisória 3 */}
-      <div className={cn("shrink-0 mt-auto", collapsed ? "px-2" : "px-5")}>
+      {/* Divisória 3 - Acima da conta do usuário */}
+      <div className={cn("shrink-0", collapsed ? "px-2" : "px-4")} style={{ margin: "12px 0" }}>
         <div className="h-[1px] w-full" style={{ backgroundColor: "#DDE3EE" }} />
       </div>
 
-      {/* ── Footer ───────────────────────────────────────────────────────── */}
+      {/* ── Footer - Conta do Usuário ───────────────────────────────────────────────────────── */}
       <UserFooter
         nome={nome}
         foto={foto}
         iniciais={iniciais}
         collapsed={collapsed}
         onLogout={handleSignOut}
+      />
+
+      {/* Modal Start Mode */}
+      <StartModeModal
+        isOpen={showStartModeModal}
+        onClose={() => setShowStartModeModal(false)}
       />
     </nav>
   );

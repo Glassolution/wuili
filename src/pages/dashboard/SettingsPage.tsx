@@ -54,11 +54,11 @@ const SettingsPage = () => {
       <aside className="hidden md:flex w-[240px] shrink-0 flex-col bg-white border-r border-[#E5E5E5] dark:bg-[#0f0f0f] dark:border-white/10">
         <div className="p-5 border-b border-[#F0F0F0] dark:border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-base font-bold overflow-hidden">
+            <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-base font-semibold overflow-hidden">
               {foto ? <img src={foto} alt="" className="w-full h-full object-cover" /> : iniciais}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-bold text-[#0A0A0A] dark:text-white truncate">{nome || "Usuário"}</p>
+              <p className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white truncate">{nome || "Usuário"}</p>
               <div className="mt-1"><PlanBadge size="sm" /></div>
             </div>
           </div>
@@ -92,11 +92,11 @@ const SettingsPage = () => {
       <div className="min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:p-8">
         <div className="mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:hidden">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-base font-bold text-white dark:bg-white dark:text-black">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-base font-semibold text-white dark:bg-white dark:text-black">
               {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : iniciais}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[16px] font-bold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
+              <p className="truncate text-[16px] font-semibold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
               <div className="mt-1"><PlanBadge size="sm" /></div>
             </div>
           </div>
@@ -140,7 +140,7 @@ const SettingsPage = () => {
 };
 
 /* ──── shared field styles ──── */
-const labelCls = "block text-[12px] font-medium text-[#737373] dark:text-zinc-400 uppercase tracking-[0.05em] mb-2";
+const labelCls = "block text-[12px] font-normal text-[#737373] dark:text-zinc-400 uppercase tracking-[0.05em] mb-2";
 const inputCls =
   "w-full h-11 px-3.5 rounded-[10px] border border-[#E5E5E5] bg-white text-[15px] text-[#0A0A0A] placeholder:text-[#A3A3A3] outline-none transition focus:border-black focus:shadow-[0_0_0_3px_rgba(0,0,0,0.06)] dark:border-white/10 dark:bg-[#0f0f0f] dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white dark:focus:shadow-[0_0_0_3px_rgba(255,255,255,0.14)]";
 const primaryBtn =
@@ -203,7 +203,7 @@ const ProfileTab = () => {
       {/* Avatar header */}
       <div className="flex flex-col items-center text-center pb-2">
         <div className="relative">
-          <div className="w-[72px] h-[72px] rounded-full bg-black text-white flex items-center justify-center text-[24px] font-bold overflow-hidden">
+          <div className="w-[72px] h-[72px] rounded-full bg-black text-white flex items-center justify-center text-[24px] font-semibold overflow-hidden">
             {avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" /> : iniciais}
           </div>
           <button
@@ -222,7 +222,7 @@ const ProfileTab = () => {
           Trocar foto
         </button>
         <div className="mt-3 flex items-center gap-2.5">
-          <p className="text-[20px] font-bold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
+          <p className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
           <PlanBadge size="sm" />
         </div>
       </div>
@@ -271,13 +271,13 @@ const ProfileTab = () => {
 /* ══ Stores ═════════════════════════════════════════════ */
 const StoresTab = () => (
   <div className="space-y-4">
-    <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Minhas lojas</h2>
+    <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Minhas lojas</h2>
     <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Gerencie as lojas conectadas à sua conta.</p>
 
     <div className="p-4 rounded-2xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950 sm:p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <p className="font-bold text-[#0A0A0A] dark:text-white">Velo</p>
+          <p className="font-normal text-[#0A0A0A] dark:text-white">Velo</p>
           <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Ativa</span>
         </div>
       </div>
@@ -344,7 +344,7 @@ const IntegrationsTab = () => {
 
   return (
     <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Integrações</h2>
+      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Integrações</h2>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Conecte suas plataformas de venda.</p>
 
       <div className="space-y-2.5">
@@ -360,12 +360,12 @@ const IntegrationsTab = () => {
               <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E5E5E5] bg-white p-1 dark:border-white/10 dark:bg-white">
                 <PlatformLogo platform={i.label} size={38} />
               </span>
-              <span className="text-[14px] font-medium text-[#0A0A0A] dark:text-white">{i.label}</span>
+              <span className="text-[14px] font-normal text-[#0A0A0A] dark:text-white">{i.label}</span>
             </div>
             {i.loading ? (
               <Loader2 size={16} className="animate-spin text-[#A3A3A3] dark:text-zinc-400" />
             ) : i.comingSoon ? (
-              <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-[#E5E5E5] text-[#737373] dark:bg-zinc-800 dark:text-zinc-400 font-semibold">
+              <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-[#E5E5E5] text-[#737373] dark:bg-zinc-800 dark:text-zinc-400 font-normal">
                 Em breve
               </span>
             ) : i.connected ? (
@@ -412,7 +412,7 @@ const PlanTab = () => {
 
   return (
     <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Seu plano</h2>
+      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Seu plano</h2>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Gerencie sua assinatura e veja os planos disponíveis.</p>
 
       {/* Current plan card */}
@@ -420,12 +420,12 @@ const PlanTab = () => {
         <div className="flex items-start justify-between mb-3">
           <div>
             <div className="flex items-center gap-2.5">
-              <h3 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white">Plano {current.name}</h3>
+              <h3 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white">Plano {current.name}</h3>
               <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Ativo</span>
             </div>
             <p className="text-[13px] text-[#737373] dark:text-zinc-400 mt-1">Renovação em 15 dias</p>
           </div>
-          <p className="text-[24px] font-black text-[#0A0A0A] dark:text-white leading-none">
+          <p className="text-[24px] font-semibold text-[#0A0A0A] dark:text-white leading-none">
             {current.price}<span className="text-[13px] text-[#737373] dark:text-zinc-400 font-normal">{current.period}</span>
           </p>
         </div>
@@ -442,7 +442,7 @@ const PlanTab = () => {
       </div>
 
       {/* Available plans */}
-      <h3 className="text-[14px] font-bold text-[#0A0A0A] dark:text-white mb-3">Outros planos</h3>
+      <h3 className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white mb-3">Outros planos</h3>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {PLAN_DATA.map((p) => {
           const isCurrent = p.id === plan;
@@ -451,8 +451,8 @@ const PlanTab = () => {
               key={p.id}
               className={`rounded-xl p-4 ${isCurrent ? "border-2 border-black bg-[#FAFAFA] dark:border-white dark:bg-zinc-950" : "border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950"}`}
             >
-              <p className="text-[13px] font-bold text-[#0A0A0A] dark:text-white">{p.name}</p>
-              <p className="text-[20px] font-black text-[#0A0A0A] dark:text-white mt-1">
+              <p className="text-[13px] font-normal text-[#0A0A0A] dark:text-white">{p.name}</p>
+              <p className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white mt-1">
                 {p.price}<span className="text-[11px] text-[#737373] dark:text-zinc-400 font-normal">{p.period}</span>
               </p>
               <ul className="mt-3 space-y-1.5">
@@ -487,13 +487,13 @@ const NotificationsTab = () => {
 
   return (
     <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Notificações</h2>
+      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Notificações</h2>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Escolha quando quer ser avisado.</p>
 
       <div className="space-y-2.5">
         {labels.map((l, i) => (
           <div key={l} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
-            <span className="text-[14px] font-medium text-[#0A0A0A] dark:text-white">{l}</span>
+            <span className="text-[14px] font-normal text-[#0A0A0A] dark:text-white">{l}</span>
             <button
               onClick={() => setToggles((prev) => prev.map((v, j) => (j === i ? !v : v)))}
               className={`w-11 h-6 rounded-full transition-colors relative ${toggles[i] ? "bg-black dark:bg-white" : "bg-[#E5E5E5] dark:bg-zinc-700"}`}
@@ -512,7 +512,7 @@ const NotificationsTab = () => {
 const SecurityTab = () => (
   <div className="space-y-7">
     <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Alterar senha</h2>
+      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Alterar senha</h2>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Use uma senha forte que você não usa em outros lugares.</p>
       <div className="space-y-4">
         {["Senha atual", "Nova senha", "Confirmar nova senha"].map((l) => (
@@ -530,7 +530,7 @@ const SecurityTab = () => (
     <div className={divider} />
 
     <div>
-      <h3 className="text-[14px] font-bold text-[#0A0A0A] dark:text-white mb-3">Autenticação de dois fatores</h3>
+      <h3 className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white mb-3">Autenticação de dois fatores</h3>
       <div className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
         <span className="text-[14px] text-[#0A0A0A] dark:text-white">2FA ativado</span>
         <div className="w-11 h-6 rounded-full bg-[#E5E5E5] dark:bg-zinc-700 relative">
@@ -542,7 +542,7 @@ const SecurityTab = () => (
     <div className={divider} />
 
     <div>
-      <h3 className="text-[14px] font-bold text-[#0A0A0A] dark:text-white mb-3">Sessões ativas</h3>
+      <h3 className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white mb-3">Sessões ativas</h3>
       <div className="space-y-2">
         {[
           { device: "Chrome — São Paulo", active: true },

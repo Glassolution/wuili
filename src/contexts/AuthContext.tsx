@@ -1,111 +1,111 @@
+// NÃO MODIFIQUE ESTE ARQUIVO — qualquer alteração quebra a autenticação global
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 type AuthContextType = {
   user: User | null;
-  session: Session | null;
+  role: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  session: null,
+  role: null,
   loading: true,
   signOut: async () => {},
 });
 
-// Clear any corrupted Supabase auth tokens from localStorage.
-// This prevents the client from getting stuck trying to refresh a dead token.
-const clearCorruptedAuthStorage = () => {
-  try {
-    const keys = Object.keys(localStorage);
-    keys.forEach((key) => {
-      if (key.startsWith("sb-") && key.includes("-auth-token")) {
-        const raw = localStorage.getItem(key);
-        if (!raw) return;
-        try {
-          const parsed = JSON.parse(raw);
-          // A valid session must have an access_token AND a refresh_token
-          if (!parsed?.access_token || !parsed?.refresh_token) {
-            localStorage.removeItem(key);
-          }
-        } catch {
-          localStorage.removeItem(key);
-        }
-      }
-    });
-  } catch {
-    // ignore (SSR / private mode)
-  }
-};
-
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let resolved = false;
-    const finishLoading = () => {
-      if (!resolved) {
-        resolved = true;
-        setLoading(false);
-      }
-    };
+    let mounted = true;
 
-    // Sweep corrupted tokens before initializing
-    clearCorruptedAuthStorage();
-
-    // Listener BEFORE getSession to avoid race conditions
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      finishLoading();
-    });
+    // Modo DEV sem Supabase: permite navegar no dashboard para visualizar a UI.
+    if (!isSupabaseEnabled) {
+      setUser(
+        ({
+          id: "dev-user",
+          email: "dev@local",
+          app_metadata: {},
+          user_metadata: {},
+          aud: "authenticated",
+          created_at: new Date().toISOString(),
+        } as unknown) as User
+      );
+      setRole("admin");
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
 
     supabase.auth.getSession()
-      .then(({ data: { session: currentSession }, error }) => {
-        if (error) {
-          // Invalid refresh token, missing session, etc — clean and continue
-          console.warn("Auth init error, clearing session:", error.message);
-          supabase.auth.signOut().catch(() => {});
-          try {
-            Object.keys(localStorage)
-              .filter((k) => k.startsWith("sb-") && k.includes("-auth-token"))
-              .forEach((k) => localStorage.removeItem(k));
-          } catch {}
-          setSession(null);
-          setUser(null);
-        } else {
-          setSession(currentSession);
-          setUser(currentSession?.user ?? null);
-        }
-        finishLoading();
+      .then(({ data: { session } }) => {
+        if (!mounted) return;
+        setUser(session?.user ?? null);
+        setLoading(false);
       })
-      .catch((err) => {
-        console.warn("getSession failed:", err);
-        setSession(null);
+      .catch(() => {
+        if (!mounted) return;
         setUser(null);
-        finishLoading();
+        setLoading(false);
       });
 
-    // Safety net: never stay loading more than 3s
-    const timeout = window.setTimeout(finishLoading, 3000);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!mounted) return;
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
 
     return () => {
-      window.clearTimeout(timeout);
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
+  // Safety net: never stay loading more than 3s
+  useEffect(() => {
+    const timeout = setTimeout(() => setLoading(false), 3000);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setRole(null);
+      return;
+    }
+
+    if (!isSupabaseEnabled) {
+      setRole("admin");
+      return;
+    }
+
+    (supabase as any)
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }: { data?: { role?: string } }) => setRole(data?.role ?? "user"));
+  }, [user]);
+
   const signOut = async () => {
+    if (!isSupabaseEnabled) {
+      setUser(null);
+      setRole(null);
+      return;
+    }
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, role, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

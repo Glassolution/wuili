@@ -88,7 +88,7 @@ const IntegracoesPage = () => {
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground font-[Sora]">Integrações</h1>
+        <h1 className="text-2xl font-semibold text-foreground font-[Sora]">Integrações</h1>
         <p className="text-sm text-muted-foreground mt-1">Conecte suas contas para publicar e gerenciar produtos.</p>
       </div>
 
@@ -110,7 +110,7 @@ const IntegracoesPage = () => {
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold"
+                    className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-semibold"
                     style={{ backgroundColor: p.color, color: p.color === "#FFE600" || status === "coming_soon" ? "#333" : "#fff" }}
                   >
                     {p.initials}

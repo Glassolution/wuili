@@ -178,7 +178,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
           <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0A0A0A]">
             <span className="text-white text-[18px]">✦</span>
           </div>
-          <h1 className="font-['Manrope'] text-[22px] font-bold text-[#0A0A0A] dark:text-white">
+          <h1 className="font-['Manrope'] text-[22px] font-semibold text-[#0A0A0A] dark:text-white">
             Criar vídeo do produto
           </h1>
           <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">

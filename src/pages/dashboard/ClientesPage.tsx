@@ -179,7 +179,7 @@ const ClientesPage = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-[22px] font-black tracking-tight text-[#0A0A0A] dark:text-white">Clientes</h1>
+        <h1 className="text-[22px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">Clientes</h1>
         <p className="text-sm text-[#737373] dark:text-zinc-400">
           Central de compradores, entregas e devoluções.
         </p>
@@ -257,7 +257,7 @@ const ClientesPage = () => {
                         Último pedido: {formatDateTime(buyer.lastOrderAt)}
                       </p>
                     </div>
-                    <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-[#525252] dark:bg-zinc-900 dark:text-zinc-300">
+                    <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-normal text-[#525252] dark:bg-zinc-900 dark:text-zinc-300">
                       {buyer.totalOrders} pedidos
                     </span>
                   </div>
@@ -265,11 +265,11 @@ const ClientesPage = () => {
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
                       <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Total gasto</p>
-                      <p className="mt-0.5 text-[13px] font-bold text-[#0A0A0A] dark:text-white">{formatBRL(buyer.totalSpent)}</p>
+                      <p className="mt-0.5 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{formatBRL(buyer.totalSpent)}</p>
                     </div>
                     <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
                       <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Plataforma</p>
-                      <p className="mt-0.5 truncate text-[13px] font-bold text-[#0A0A0A] dark:text-white">
+                      <p className="mt-0.5 truncate text-[13px] font-normal text-[#0A0A0A] dark:text-white">
                         {Object.keys(buyer.platformCounts).map((platform) => {
                           const label = platform === "mercadolivre" ? "ML" : platform === "shopee" ? "Shopee" : platform;
                           return `${label} (${buyer.platformCounts[platform]})`;
@@ -297,7 +297,7 @@ const ClientesPage = () => {
                 {!isLoading &&
                   filteredBuyers.map((buyer) => (
                     <tr key={buyer.name} className="border-b border-[#F5F5F5] last:border-0">
-                      <td className="px-2 py-3 font-medium text-[#262626] dark:text-zinc-100">{buyer.name}</td>
+                      <td className="px-2 py-3 font-normal text-[#262626] dark:text-zinc-100">{buyer.name}</td>
                       <td className="px-2 py-3 text-[#525252] dark:text-zinc-300">
                         {Object.keys(buyer.platformCounts).map((platform) => {
                           const label = platform === "mercadolivre" ? "ML" : platform === "shopee" ? "Shopee" : platform;
@@ -336,7 +336,7 @@ const ClientesPage = () => {
                   <article key={order.id} className="rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-bold text-[#262626] dark:text-zinc-100">
+                        <p className="truncate text-[13px] font-normal text-[#262626] dark:text-zinc-100">
                           Pedido #{(order.external_order_id || order.id).slice(0, 12)}
                         </p>
                         <p className="mt-1 line-clamp-2 text-[12px] text-[#737373] dark:text-zinc-400">
@@ -351,11 +351,11 @@ const ClientesPage = () => {
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
                         <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Comprador</p>
-                        <p className="mt-0.5 truncate text-[13px] font-bold text-[#0A0A0A] dark:text-white">{order.buyer_name || "—"}</p>
+                        <p className="mt-0.5 truncate text-[13px] font-normal text-[#0A0A0A] dark:text-white">{order.buyer_name || "—"}</p>
                       </div>
                       <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
                         <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Prazo</p>
-                        <p className="mt-0.5 truncate text-[13px] font-bold text-[#0A0A0A] dark:text-white">
+                        <p className="mt-0.5 truncate text-[13px] font-normal text-[#0A0A0A] dark:text-white">
                           {order.status === "delivered" ? "Concluída" : "7-20 dias úteis"}
                         </p>
                       </div>
@@ -480,7 +480,7 @@ const ClientesPage = () => {
                   <article key={order.id} className="rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-bold text-[#262626] dark:text-zinc-100">
+                        <p className="truncate text-[13px] font-normal text-[#262626] dark:text-zinc-100">
                           Pedido #{(order.external_order_id || order.id).slice(0, 12)}
                         </p>
                         <p className="mt-1 line-clamp-2 text-[12px] text-[#737373] dark:text-zinc-400">
@@ -512,7 +512,7 @@ const ClientesPage = () => {
                 <tbody>
                   {refunds.map((order) => (
                     <tr key={order.id} className="border-b border-[#F5F5F5] last:border-0">
-                      <td className="px-2 py-3 font-medium text-[#262626] dark:text-zinc-100">
+                      <td className="px-2 py-3 font-normal text-[#262626] dark:text-zinc-100">
                         {order.external_order_id || order.id}
                       </td>
                       <td className="px-2 py-3 text-[#525252] dark:text-zinc-300">{order.buyer_name || "—"}</td>

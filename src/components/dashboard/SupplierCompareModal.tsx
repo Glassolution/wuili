@@ -21,7 +21,7 @@ export default function SupplierCompareModal({ open, onClose, productId, product
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold">Fornecedores disponíveis</DialogTitle>
+          <DialogTitle className="text-base font-semibold">Fornecedores disponíveis</DialogTitle>
           <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{productTitle}</p>
         </DialogHeader>
 
@@ -54,7 +54,7 @@ export default function SupplierCompareModal({ open, onClose, productId, product
                   }`}
                 >
                   {isBest && (
-                    <span className="absolute -top-2.5 left-3 flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                    <span className="absolute -top-2.5 left-3 flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white">
                       <Trophy size={10} /> Melhor opção
                     </span>
                   )}
@@ -69,7 +69,7 @@ export default function SupplierCompareModal({ open, onClose, productId, product
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-foreground">{formatPrice(totalCost)}</p>
+                      <p className="text-sm font-semibold text-foreground">{formatPrice(totalCost)}</p>
                       <p className="text-[10px] text-muted-foreground">custo total</p>
                     </div>
                   </div>

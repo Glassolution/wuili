@@ -179,7 +179,7 @@ const PlansPage = () => {
   return (
     <div className="space-y-6">
       <div className="card-wuili p-6">
-        <h2 className="text-2xl font-black text-foreground">Planos</h2>
+        <h2 className="text-2xl font-semibold text-foreground">Planos</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Escolha o plano ideal para o seu negócio.
         </p>
@@ -199,14 +199,14 @@ const PlansPage = () => {
               }`}
             >
               {plan.highlight && (
-                <span className="absolute -top-3 left-4 rounded-full bg-black px-3 py-1 text-xs font-bold text-white dark:bg-white dark:text-black">
+                <span className="absolute -top-3 left-4 rounded-full bg-black px-3 py-1 text-xs font-normal text-white dark:bg-white dark:text-black">
                   Recomendado
                 </span>
               )}
               <div className="mb-4">
-                <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-foreground">{plan.price}</span>
+                  <span className="text-3xl font-semibold text-foreground">{plan.price}</span>
                   <span className="text-sm text-muted-foreground">{plan.period}</span>
                 </div>
               </div>
@@ -245,7 +245,7 @@ const PlansPage = () => {
       {/* Payment method selector */}
       {currentPlan === "gratis" && (
         <div className="card-wuili p-6 space-y-4">
-          <h3 className="text-lg font-bold text-foreground">Forma de pagamento</h3>
+          <h3 className="text-lg font-semibold text-foreground">Forma de pagamento</h3>
           <div className="flex gap-3">
             <button
               onClick={() => setSelectedMethod("pix")}
@@ -323,7 +323,7 @@ const PlansPage = () => {
       {/* PIX QR Code modal */}
       {checkoutState === "pix_pending" && pixData && (
         <div className="card-wuili p-6 space-y-4 text-center">
-          <h3 className="text-lg font-bold text-foreground">Escaneie o QR Code para pagar</h3>
+          <h3 className="text-lg font-semibold text-foreground">Escaneie o QR Code para pagar</h3>
           <p className="text-sm text-muted-foreground">Abra o app do seu banco e escaneie o código abaixo</p>
           {pixData.qr_code_base64 && (
             <div className="flex justify-center">
@@ -351,7 +351,7 @@ const PlansPage = () => {
       {checkoutState === "success" && (
         <div className="card-wuili p-6 text-center space-y-2">
           <CheckCircle2 size={48} className="mx-auto text-black dark:text-white" />
-          <h3 className="text-lg font-bold text-foreground">Pagamento aprovado!</h3>
+          <h3 className="text-lg font-semibold text-foreground">Pagamento aprovado!</h3>
           <p className="text-sm text-muted-foreground">Seu plano está ativo. Aproveite!</p>
         </div>
       )}

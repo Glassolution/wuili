@@ -14,7 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        manrope: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -87,6 +88,7 @@ export default {
         "wuili-md": "0 8px 24px rgba(10, 37, 64, 0.1)",
         "wuili-lg": "0 24px 72px rgba(10, 37, 64, 0.14)",
         "wuili-primary": "0 4px 14px 0 rgba(99, 91, 255, 0.39)",
+        card: "0 1px 2px rgba(0,0,0,.02), 0 8px 24px rgba(0,0,0,.03)",
       },
       keyframes: {
         "accordion-down": {

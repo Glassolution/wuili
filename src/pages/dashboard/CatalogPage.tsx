@@ -133,7 +133,7 @@ const CatalogPage = () => {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground tracking-tight">Dropshipping</h2>
+        <h2 className="text-2xl font-semibold text-foreground tracking-tight">Dropshipping</h2>
         <button
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending}
@@ -310,7 +310,7 @@ const CatalogPage = () => {
 
                   {outOfStock && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                      <span className="rounded-full bg-red-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg">
+                      <span className="rounded-full bg-red-600 px-3 py-1 text-[11px] font-normal uppercase tracking-wide text-white shadow-lg">
                         Sem estoque
                       </span>
                     </div>
@@ -319,7 +319,7 @@ const CatalogPage = () => {
                   {/* Badges row — both anchored top-3, no overlap */}
                   <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
                     {isBestseller && !outOfStock ? (
-                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-[11px] font-semibold text-white">
                         <Flame size={10} /> Mais vendido
                       </span>
                     ) : (
@@ -344,11 +344,11 @@ const CatalogPage = () => {
                   <div className="mt-3 flex items-start justify-between">
                     <div>
                       <p className="text-[11px] text-muted-foreground">Custo</p>
-                      <p className="mt-0.5 text-[13.5px] font-bold text-foreground">{formatPrice(p.cost_price)}</p>
+                      <p className="mt-0.5 text-[13.5px] font-semibold text-foreground">{formatPrice(p.cost_price)}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-[11px] text-muted-foreground">Venda sugerida</p>
-                      <p className="mt-0.5 text-[13.5px] font-bold text-foreground">{formatPrice(p.suggested_price)}</p>
+                      <p className="mt-0.5 text-[13.5px] font-semibold text-foreground">{formatPrice(p.suggested_price)}</p>
                     </div>
                   </div>
 

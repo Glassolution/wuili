@@ -51,19 +51,68 @@ Deno.serve(async (req) => {
 
     const userId = payment.metadata?.user_id;
     const plan = payment.metadata?.plan;
-
-    if (!userId) {
-      console.log("No user_id in metadata, skipping");
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const affiliateRef = payment.metadata?.affiliate_ref ?? payment.external_reference;
 
     // Hybrid deployment: DB may live on a different project than the functions
     const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
     const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(dbUrl, dbKey);
+
+    // ── Affiliate sales tracking (influencer commissions) ───────────────────
+    // If this payment has an affiliate ref, we register it as an affiliate sale.
+    // Payout status starts as "pending" and can be marked "paid" by admins later.
+    if (affiliateRef) {
+      try {
+        const { data: affiliateProfile } = await adminClient
+          .from("profiles")
+          .select("user_id, ref")
+          .eq("ref", String(affiliateRef))
+          .maybeSingle();
+
+        if (affiliateProfile?.user_id) {
+          const planPrice =
+            Number(payment.metadata?.plan_price ?? payment.transaction_amount ?? 147.9) || 147.9;
+          const commissionRate =
+            Number(payment.metadata?.commission_rate ?? 0.2) || 0.2;
+
+          const payerNameParts = [payment.payer?.first_name, payment.payer?.last_name].filter(Boolean);
+          const payerName = payerNameParts.length ? payerNameParts.join(" ") : null;
+          const payerEmail = payment.payer?.email ?? null;
+
+          const createdAt =
+            payment.date_approved ?? payment.date_created ?? new Date().toISOString();
+
+          await adminClient.from("affiliate_sales").upsert(
+            {
+              affiliate_user_id: affiliateProfile.user_id,
+              affiliate_ref: String(affiliateRef),
+              customer_name: payerName,
+              customer_email: payerEmail,
+              plan: String(payment.metadata?.plan ?? "mensal"),
+              plan_price: planPrice,
+              commission_rate: commissionRate,
+              commission_amount: Number((planPrice * commissionRate).toFixed(2)),
+              commission_status: "pending",
+              mp_payment_id: String(paymentId),
+              mp_preference_id: payment.preference_id ? String(payment.preference_id) : null,
+              created_at: createdAt,
+            },
+            { onConflict: "mp_payment_id" },
+          );
+        }
+      } catch (affiliateError) {
+        console.error("Affiliate sale insert failed:", affiliateError);
+      }
+    }
+
+    // If this is not a user subscription payment, we can safely stop here.
+    if (!userId) {
+      console.log("No user_id in metadata (subscription), skipping subscription update");
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const maybeOrderId =
       payment.metadata?.order_id ??

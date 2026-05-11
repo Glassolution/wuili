@@ -178,7 +178,7 @@ const SaldosPage = () => {
   // ── Error state ────────────────────────────────────────────────────────────
   if (error) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] dark:bg-background p-6 flex items-center justify-center">
+      <div className="flex min-h-0 flex-1 items-center justify-center">
         <div className="text-center">
           <p className="text-[15px] font-semibold text-[#0A0A0A] dark:text-white mb-1">
             Erro ao carregar dados financeiros
@@ -192,7 +192,7 @@ const SaldosPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-background p-6 space-y-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-5" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
 
       {/* ── TOP ROW: Earning + Spending ─────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">

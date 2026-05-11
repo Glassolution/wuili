@@ -150,10 +150,10 @@ const ReportsPage = () => {
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <span className="inline-flex rounded-full bg-black px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white dark:bg-white dark:text-black">
+              <span className="inline-flex rounded-full bg-black px-3 py-1 text-[11px] font-normal uppercase tracking-[0.12em] text-white dark:bg-white dark:text-black">
                 Disponível no plano Pro
               </span>
-              <h2 className="mt-4 text-[22px] font-bold tracking-[-0.02em] text-foreground">
+              <h2 className="mt-4 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
                 Relatórios avançados bloqueados
               </h2>
               <p className="mt-2 max-w-2xl text-[14px] leading-6 text-muted-foreground">
@@ -172,8 +172,8 @@ const ReportsPage = () => {
         <div className="grid grid-cols-2 gap-4 opacity-60 pointer-events-none lg:grid-cols-4">
           {["Ticket médio", "Total pedidos", "Receita total", "Lucro total"].map((label) => (
             <div key={label} className="card-wuili p-5">
-              <p className="text-xs font-medium text-muted-foreground">{label}</p>
-              <p className="mt-1 text-2xl font-black">R$ --</p>
+              <p className="text-xs font-normal text-muted-foreground">{label}</p>
+              <p className="mt-1 text-2xl font-semibold">R$ --</p>
             </div>
           ))}
         </div>
@@ -188,10 +188,10 @@ const ReportsPage = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k) => (
           <div key={k.label} className="card-wuili p-5">
-            <p className="text-xs text-muted-foreground font-medium">{k.label}</p>
+            <p className="text-xs text-muted-foreground font-normal">{k.label}</p>
             {isLoading
               ? <div className="mt-2 h-7 w-28 animate-pulse rounded bg-muted" />
-              : <p className="text-2xl font-black mt-1">{k.value}</p>}
+              : <p className="text-2xl font-semibold mt-1">{k.value}</p>}
           </div>
         ))}
       </div>
@@ -208,7 +208,7 @@ const ReportsPage = () => {
 
           {/* Revenue vs Profit */}
           <div className="card-wuili p-6">
-            <h3 className="text-sm font-bold mb-4">Faturamento vs Lucro</h3>
+            <h3 className="text-sm font-semibold mb-4">Faturamento vs Lucro</h3>
             {isLoading
               ? <Skeleton className="h-60 w-full rounded-xl" />
               : (
@@ -238,7 +238,7 @@ const ReportsPage = () => {
 
           {/* Orders by platform */}
           <div className="card-wuili p-6">
-            <h3 className="text-sm font-bold mb-4">Pedidos por plataforma</h3>
+            <h3 className="text-sm font-semibold mb-4">Pedidos por plataforma</h3>
             {isLoading
               ? <Skeleton className="h-60 w-full rounded-xl" />
               : (
@@ -256,7 +256,7 @@ const ReportsPage = () => {
 
           {/* Top 5 products */}
           <div className="card-wuili p-6">
-            <h3 className="text-sm font-bold mb-4">Top 5 produtos mais vendidos</h3>
+            <h3 className="text-sm font-semibold mb-4">Top 5 produtos mais vendidos</h3>
             {isLoading
               ? <Skeleton className="h-40 w-full rounded-xl" />
               : topProducts.length === 0
@@ -266,8 +266,8 @@ const ReportsPage = () => {
                   {topProducts.map((p, i) => (
                     <div key={p.name}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium truncate max-w-[70%]">{i + 1}. {p.name}</span>
-                        <span className="text-sm font-bold text-foreground">{p.sales} vendas</span>
+                        <span className="text-sm font-normal truncate max-w-[70%]">{i + 1}. {p.name}</span>
+                        <span className="text-sm font-normal text-foreground">{p.sales} vendas</span>
                       </div>
                       <div className="h-2 bg-muted rounded-full overflow-hidden">
                         <div
@@ -283,7 +283,7 @@ const ReportsPage = () => {
 
           {/* Distribution pie */}
           <div className="card-wuili p-6">
-            <h3 className="text-sm font-bold mb-4">Distribuição por plataforma</h3>
+            <h3 className="text-sm font-semibold mb-4">Distribuição por plataforma</h3>
             {isLoading
               ? <Skeleton className="h-60 w-full rounded-xl" />
               : pieData.length === 0

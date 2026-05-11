@@ -23,7 +23,7 @@ export default function MessageBubble({
       {/* Avatar — always reserves space, invisible when not first in group */}
       {!isUser && (
         <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white transition-opacity ${
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white transition-opacity ${
             showSenderInfo ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           style={{ backgroundColor: supplierColor }}
@@ -36,7 +36,7 @@ export default function MessageBubble({
       <div className={`flex max-w-[68%] flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
         {/* Sender name — first in group only */}
         {!isUser && showSenderInfo && (
-          <span className="px-1 text-[11.5px] font-semibold text-[#525252] dark:text-zinc-300">
+          <span className="px-1 text-[11.5px] font-normal text-[#525252] dark:text-zinc-300">
             {supplierName}
           </span>
         )}

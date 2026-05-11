@@ -1,6 +1,10 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
+import { toast } from "sonner";
 
 type Product = {
   id: string;
@@ -15,111 +19,67 @@ type Product = {
   tags: string[];
 };
 
-const products: Product[] = [
-  {
-    id: "1",
-    name: "Macbook Pro M1 Pro 14\" 512GB",
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop",
-    source: "AliExpress",
-    sourceColor: "bg-[#e74c3c]",
-    rating: 4.8,
-    reviews: "1.345",
-    price: "R$950–R$1.180",
-    minOrder: "12 unid.",
-    tags: ["Apple", "Eletrônico"],
-  },
-  {
-    id: "2",
-    name: "Monitor MSI 27\" Modern MD271UL 4K",
-    image: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&h=300&fit=crop",
-    source: "Amazon",
-    sourceColor: "bg-[#ff9900]",
-    rating: 4.9,
-    reviews: "976",
-    price: "R$920–R$1.050",
-    minOrder: "11 unid.",
-    tags: ["MSI", "Eletrônico", "Monitor"],
-  },
-  {
-    id: "3",
-    name: "Macbook Pro M1 2020 13\" 512GB",
-    image: "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=400&h=300&fit=crop",
-    source: "Tokopedia",
-    sourceColor: "bg-[#42b549]",
-    rating: 4.7,
-    reviews: "1.654",
-    price: "R$950–R$1.320",
-    minOrder: "10 unid.",
-    tags: ["Apple", "Eletrônico"],
-  },
-  {
-    id: "4",
-    name: "Monitor MSI 27\" Modern MD271UL 4K",
-    image: "https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=400&h=300&fit=crop",
-    source: "Shopee",
-    sourceColor: "bg-[#ee4d2d]",
-    rating: 4.8,
-    reviews: "886",
-    price: "R$1.040–R$1.180",
-    minOrder: "8 unid.",
-    tags: ["MSI", "Eletrônico", "Monitor"],
-  },
-  {
-    id: "5",
-    name: "Macbook Pro M1 Pro 14\" 512GB",
-    image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=300&fit=crop",
-    source: "eBay",
-    sourceColor: "bg-[#86b817]",
-    rating: 4.5,
-    reviews: "1.256",
-    price: "R$950–R$1.180",
-    minOrder: "12 unid.",
-    tags: ["Apple", "Eletrônico"],
-  },
-  {
-    id: "6",
-    name: "Macbook Pro M1 Pro 14\" 512GB",
-    image: "https://images.unsplash.com/photo-1484788984921-03950022c9ef?w=400&h=300&fit=crop",
-    source: "Shopee",
-    sourceColor: "bg-[#ee4d2d]",
-    rating: 4.6,
-    reviews: "1.276",
-    price: "R$950–R$1.180",
-    minOrder: "15 unid.",
-    tags: ["Apple", "Eletrônico"],
-  },
-  {
-    id: "7",
-    name: "Macbook Air M1 2020 13\" 256GB",
-    image: "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400&h=300&fit=crop",
-    source: "Lazada",
-    sourceColor: "bg-[#0f146d]",
-    rating: 4.8,
-    reviews: "1.334",
-    price: "R$950–R$1.180",
-    minOrder: "5 unid.",
-    tags: ["Apple", "Eletrônico"],
-  },
-  {
-    id: "8",
-    name: "Apple 32\" Pro Display XDR Retina 6K",
-    image: "https://images.unsplash.com/photo-1527443195645-1133f7f28990?w=400&h=300&fit=crop",
-    source: "BigCommerce",
-    sourceColor: "bg-[#34313f]",
-    rating: 4.7,
-    reviews: "1.967",
-    price: "R$950–R$1.180",
-    minOrder: "20 unid.",
-    tags: ["Apple", "Eletrônico", "Monitor"],
-  },
-];
-
 const categories = ["Todos", "Eletrônicos", "Moda", "Beleza", "Casa"];
 
 const ProductsPage = () => {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [showHidden, setShowHidden] = useState(false);
+
+  // Log para debug
+  console.log("Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
+  console.log("User ID:", user?.id);
+
+  // Buscar produtos do Supabase
+  const { data: productsData, isLoading, error, refetch } = useQuery({
+    queryKey: ["products", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      console.log("Buscando produtos do Supabase...");
+      
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      console.log("Produtos encontrados:", data);
+      console.log("Erro produtos:", error);
+
+      if (error) {
+        console.error("Erro ao buscar produtos:", error);
+        throw error;
+      }
+
+      return data || [];
+    },
+  });
+
+  // Mapear produtos do Supabase para o formato esperado
+  const products: Product[] = (productsData || []).map((p: any) => ({
+    id: p.id,
+    name: p.name || p.title || "Produto sem nome",
+    image: p.image_url || p.image || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop",
+    source: p.source || "Velo",
+    sourceColor: p.source_color || "bg-[#111111]",
+    rating: p.rating || 0,
+    reviews: p.reviews_count?.toString() || "0",
+    price: p.price ? `R$ ${p.price}` : "Consultar",
+    minOrder: p.min_order ? `${p.min_order} unid.` : "1 unid.",
+    tags: p.tags || [],
+  }));
+
+  const handleSync = async () => {
+    toast.info("Sincronizando produtos...");
+    try {
+      // TODO: Implementar sincronização real com integrações
+      await refetch();
+      toast.success("Produtos sincronizados com sucesso!");
+    } catch (error) {
+      console.error("Erro ao sincronizar:", error);
+      toast.error("Erro ao sincronizar produtos");
+    }
+  };
 
   const filtered = products.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
@@ -131,12 +91,17 @@ const ProductsPage = () => {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <h2 className="truncate text-[22px] font-bold tracking-tight text-foreground sm:text-2xl">Dropshipping</h2>
+          <h2 className="truncate text-[22px] font-semibold tracking-tight text-foreground sm:text-2xl">Dropshipping</h2>
           <button className="text-muted-foreground hover:text-foreground transition-colors">
             <MoreHorizontal size={18} />
           </button>
-          <button className="text-muted-foreground hover:text-foreground transition-colors">
-            <RefreshCw size={15} />
+          <button 
+            onClick={handleSync}
+            disabled={isLoading}
+            className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            title="Sincronizar produtos"
+          >
+            <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
           </button>
         </div>
         <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:w-auto">
@@ -204,7 +169,45 @@ const ProductsPage = () => {
       </div>
 
       {/* Product grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <RefreshCw size={32} className="animate-spin mx-auto mb-3 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Carregando produtos...</p>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-sm text-red-500 mb-2">Erro ao carregar produtos</p>
+            <p className="text-xs text-muted-foreground mb-4">{error.message}</p>
+            <button 
+              onClick={() => refetch()}
+              className="text-sm text-foreground hover:underline"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-2">
+              {products.length === 0 ? "Nenhum produto sincronizado ainda" : "Nenhum produto encontrado"}
+            </p>
+            {products.length === 0 && (
+              <button 
+                onClick={handleSync}
+                className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-80 mx-auto"
+              >
+                <RefreshCw size={14} />
+                Sincronizar produtos
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filtered.map((p) => (
           <div
             key={p.id}
@@ -226,17 +229,17 @@ const ProductsPage = () => {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5">
                   <PlatformLogo platform={p.source} color={p.sourceColor.replace("bg-[", "").replace("]", "")} size={22} />
-                  <span className="text-[13px] font-semibold text-foreground">{p.source}</span>
+                  <span className="text-[13px] font-normal text-foreground">{p.source}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-[12px] text-amber-500">★</span>
-                  <span className="text-[13px] font-semibold text-foreground">{p.rating}</span>
+                  <span className="text-[13px] font-normal text-foreground">{p.rating}</span>
                   <span className="text-[12px] text-muted-foreground">({p.reviews})</span>
                 </div>
               </div>
 
               {/* Product name */}
-              <p className="mt-2 text-[14px] font-semibold leading-[1.35] text-foreground">
+              <p className="mt-2 text-[14px] font-normal leading-[1.35] text-foreground">
                 {p.name}
               </p>
 
@@ -244,11 +247,11 @@ const ProductsPage = () => {
               <div className="mt-3 flex items-baseline justify-between gap-3">
                 <div>
                   <p className="text-[11px] leading-none text-muted-foreground">Preço</p>
-                  <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{p.price}</p>
+                  <p className="mt-0.5 text-[14px] font-semibold leading-none text-foreground">{p.price}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[11px] leading-none text-muted-foreground">Pedido mín.</p>
-                  <p className="mt-0.5 text-[14px] font-bold leading-none text-foreground">{p.minOrder}</p>
+                  <p className="mt-0.5 text-[14px] font-semibold leading-none text-foreground">{p.minOrder}</p>
                 </div>
               </div>
 
@@ -277,6 +280,7 @@ const ProductsPage = () => {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 };

@@ -229,7 +229,7 @@ export default function DocumentacaoComunidadePage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">Hub de conhecimento</p>
-              <h1 className="mt-2 text-2xl font-black tracking-tight">Documentação + Comunidade</h1>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight">Documentação + Comunidade</h1>
               <p className="mt-2 max-w-3xl text-sm text-white/70">
                 Aprenda, acompanhe novidades e evolua sua operação com boas práticas em vídeo, anúncios e performance.
               </p>
@@ -328,7 +328,7 @@ export default function DocumentacaoComunidadePage() {
                     <Sparkles size={15} />
                     <span className="text-xs font-semibold uppercase tracking-[0.12em]">Documentação</span>
                   </div>
-                  <h2 className="text-2xl font-extrabold tracking-tight">{selectedDoc.title}</h2>
+                  <h2 className="text-2xl font-semibold tracking-tight">{selectedDoc.title}</h2>
                   <p className="mt-3 text-[15px] leading-7 text-white/75">{selectedDoc.content}</p>
                   <div className="mt-5 rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-xs text-white/70">
                     Dica rápida: combine 3 variações de gancho + 1 CTA claro para encontrar o criativo vencedor mais cedo.
@@ -353,7 +353,7 @@ export default function DocumentacaoComunidadePage() {
 
             {activeTab === "updates" && (
               <div className="mx-auto max-w-3xl">
-                <h2 className="text-xl font-extrabold tracking-tight">Atualizações</h2>
+                <h2 className="text-xl font-semibold tracking-tight">Atualizações</h2>
                 <p className="mt-1 text-sm text-white/65">Timeline de melhorias e novidades do produto.</p>
                 <div className="mt-6 space-y-5">
                   {changelog.map((item, index) => (
@@ -384,7 +384,7 @@ export default function DocumentacaoComunidadePage() {
               <div className="mx-auto max-w-3xl">
                 <div className="mb-5 flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-xl font-extrabold tracking-tight">Comunidade</h2>
+                    <h2 className="text-xl font-semibold tracking-tight">Comunidade</h2>
                     <p className="mt-1 text-sm text-white/65">Dicas de criativos, estratégias e casos reais da comunidade.</p>
                   </div>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-white/70">

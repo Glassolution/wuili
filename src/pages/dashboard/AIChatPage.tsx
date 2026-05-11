@@ -284,14 +284,14 @@ const AIChatPage = () => {
           <div className="p-3 flex flex-col flex-1 gap-1.5">
             <p className="text-[13px] font-semibold text-gray-800 line-clamp-2 leading-snug">{p.nome}</p>
             {p.margem && (
-              <span className="self-start rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold text-black">
+              <span className="self-start rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-normal text-black">
                 Margem {p.margem}
               </span>
             )}
             <div className="flex-1" />
             {p.precoVenda != null
-              ? <p className="text-sm font-bold text-black">R$ {p.precoVenda.toFixed(2).replace(".", ",")}</p>
-              : p.preco ? <p className="text-sm font-bold text-black">{p.preco}</p> : null
+              ? <p className="text-sm font-semibold text-black">R$ {p.precoVenda.toFixed(2).replace(".", ",")}</p>
+              : p.preco ? <p className="text-sm font-semibold text-black">{p.preco}</p> : null
             }
             {p.url && (
               <a href={p.url} target="_blank" rel="noopener noreferrer"
@@ -384,7 +384,7 @@ const AIChatPage = () => {
                 )}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: "#0A0A0A", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "#0A0A0A", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {selectedProduct.title}
                 </p>
                 <p style={{ fontSize: 12, color: "#737373", margin: "3px 0 0" }}>
@@ -632,7 +632,7 @@ const AIChatPage = () => {
             {/* Card header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontWeight: 700, fontSize: 14, color: "#0A0A0A" }}>Anúncio gerado</span>
+                <span style={{ fontWeight: 600, fontSize: 14, color: "#0A0A0A" }}>Anúncio gerado</span>
                 {["Mercado Livre", "Shopee"].map(platform => (
                   <span
                     key={platform}
@@ -665,7 +665,7 @@ const AIChatPage = () => {
 
             {/* Card body */}
             <div style={{ marginTop: 18 }}>
-              <p style={{ fontWeight: 700, fontSize: 14, color: "#0A0A0A", margin: "0 0 8px" }}>
+              <p style={{ fontWeight: 600, fontSize: 14, color: "#0A0A0A", margin: "0 0 8px" }}>
                 {latestAd.titulo}
               </p>
               <p style={{ fontSize: 14, lineHeight: 1.7, color: "#404040", margin: 0 }}>
@@ -674,7 +674,7 @@ const AIChatPage = () => {
               {latestAd.preco && (
                 <p style={{ marginTop: 12, fontSize: 13, color: "#737373" }}>
                   Preço sugerido:{" "}
-                  <span style={{ fontWeight: 700, color: "#0A0A0A" }}>{latestAd.preco}</span>
+                  <span style={{ fontWeight: 600, color: "#0A0A0A" }}>{latestAd.preco}</span>
                 </p>
               )}
             </div>

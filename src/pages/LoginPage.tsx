@@ -1,13 +1,14 @@
 import { type FormEvent, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Eye, EyeOff, Mail } from "lucide-react";
+import { Eye, EyeOff, Mail, ArrowLeft } from "lucide-react";
 import { VeloLogo } from "@/components/VeloLogo";
 
 const LoginPage = () => {
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,6 +60,15 @@ const LoginPage = () => {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-10">
+
+      {/* ── Back to site button ── */}
+      <button
+        onClick={() => navigate("/")}
+        className="absolute left-6 top-6 z-20 flex h-10 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 font-['Manrope'] text-[13px] font-medium text-white/70 backdrop-blur-sm transition-all hover:border-white/[0.15] hover:bg-white/[0.08] hover:text-white"
+      >
+        <ArrowLeft size={16} strokeWidth={2} />
+        Voltar ao site
+      </button>
 
       {/* ── Background layer ── */}
       <div className="absolute inset-0">

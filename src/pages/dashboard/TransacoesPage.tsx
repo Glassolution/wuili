@@ -1,417 +1,645 @@
-import { useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, Download, Search } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import { Search, Download, ChevronDown, ChevronLeft, ChevronRight, TrendingDown, TrendingUp, Menu } from "lucide-react";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-interface Order {
-  id: string;
-  user_id: string;
-  external_order_id: string | null;
-  platform: string | null;
-  product_title: string | null;
-  buyer_name: string | null;
-  sale_price: number;
-  cost_price: number | null;
-  profit: number | null;
-  status: string;
-  ordered_at: string | null;
-  created_at: string;
-  supplier: string | null;
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
+type CategoryType = "frete_pago" | "frete_pendente" | "processando" | "enviado";
 
-interface Transacao {
+type Transaction = {
   id: string;
-  descricao: string;
+  date: string;
+  pedido: string;
+  produto: string;
+  category: CategoryType;
+  method: string;
   canal: string;
-  tipo: "entrada" | "saida";
-  valor: string;
-  status: "conciliado" | "pendente" | "ajuste";
-  data: string;
-}
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-const PLATFORM_LABELS: Record<string, string> = {
-  mercadolivre: "Mercado Livre",
-  shopee: "Shopee",
-  magalu: "Magalu",
-  aliexpress: "AliExpress",
+  amount: number;
+  isPositive: boolean;
 };
 
-const statusCls: Record<string, string> = {
-  conciliado: "bg-success-light text-success",
-  pendente: "bg-warning/10 text-warning",
-  ajuste: "bg-destructive/10 text-destructive",
-};
-const statusLabel: Record<string, string> = {
-  conciliado: "Conciliado",
-  pendente: "Pendente",
-  ajuste: "Ajuste",
-};
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+const mockTransactions: Transaction[] = [
+  {
+    id: "1",
+    date: "30 abr. 2026",
+    pedido: "VL-00001",
+    produto: "Suporte Veicular",
+    category: "frete_pago",
+    method: "CJ Dropshipping",
+    canal: "Mercado Livre",
+    amount: 36.00,
+    isPositive: true,
+  },
+  {
+    id: "2",
+    date: "29 abr. 2026",
+    pedido: "VL-00002",
+    produto: "Fone Bluetooth",
+    category: "frete_pendente",
+    method: "CJ Dropshipping",
+    canal: "Mercado Livre",
+    amount: 72.25,
+    isPositive: false,
+  },
+  {
+    id: "3",
+    date: "28 abr. 2026",
+    pedido: "VL-00003",
+    produto: "Luminária LED",
+    category: "enviado",
+    method: "CJ Dropshipping",
+    canal: "Mercado Livre",
+    amount: 91.88,
+    isPositive: true,
+  },
+  {
+    id: "4",
+    date: "27 abr. 2026",
+    pedido: "VL-00004",
+    produto: "Carregador Portátil",
+    category: "enviado",
+    method: "CJ Dropshipping",
+    canal: "Mercado Livre",
+    amount: 37.80,
+    isPositive: true,
+  },
+  {
+    id: "5",
+    date: "26 abr. 2026",
+    pedido: "VL-00005",
+    produto: "Mouse Sem Fio",
+    category: "processando",
+    method: "CJ Dropshipping",
+    canal: "Mercado Livre",
+    amount: 35.00,
+    isPositive: true,
+  },
+  {
+    id: "6",
+    date: "25 abr. 2026",
+    pedido: "VL-00006",
+    produto: "Teclado Mecânico RGB",
+    category: "frete_pendente",
+    method: "CJ Dropshipping",
+    canal: "Mercado Livre",
+    amount: 131.50,
+    isPositive: false,
+  },
+];
 
-const filters = ["Todas", "Entradas", "Saídas", "Pendentes"];
+// ─── Format Currency ──────────────────────────────────────────────────────────
+const formatBRL = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function formatDate(dateStr: string | null): string {
-  const d = dateStr ? new Date(dateStr) : new Date();
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-}
+// ─── Category Badge ───────────────────────────────────────────────────────────
+const CategoryBadge = ({ category }: { category: CategoryType }) => {
+  const config = {
+    frete_pago: { bg: "#ECFDF5", color: "#10B981", label: "Frete pago", dot: "#10B981" },
+    frete_pendente: { bg: "#FFF7ED", color: "#FB923C", label: "Frete pendente", dot: "#FB923C" },
+    processando: { bg: "#EFF6FF", color: "#3B82F6", label: "Processando", dot: "#3B82F6" },
+    enviado: { bg: "#ECFDF5", color: "#10B981", label: "Enviado", dot: "#10B981" },
+  };
 
-function deriveTransactions(orders: Order[]): Transacao[] {
-  const txs: Transacao[] = [];
-  let idx = 0;
-
-  for (const order of orders) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- untyped orders table
-    const platformLabel = PLATFORM_LABELS[(order.platform ?? "").toLowerCase()] ?? order.platform ?? "Plataforma";
-    const ref = order.external_order_id ?? order.id.slice(0, 8).toUpperCase();
-    const txStatus: "conciliado" | "pendente" =
-      order.status === "delivered" || order.status === "paid" ? "conciliado" : "pendente";
-    const dateStr = formatDate(order.ordered_at ?? order.created_at);
-
-    // Entrada
-    idx += 1;
-    txs.push({
-      id: `TX-${String(idx).padStart(4, "0")}`,
-      descricao: `Pagamento ${platformLabel} - ${ref}`,
-      canal: platformLabel,
-      tipo: "entrada",
-      valor: order.sale_price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      status: txStatus,
-      data: dateStr,
-    });
-
-    // Saída (only when cost_price > 0)
-    if (order.cost_price != null && order.cost_price > 0) {
-      idx += 1;
-      txs.push({
-        id: `TX-${String(idx).padStart(4, "0")}`,
-        descricao: `Custo fornecedor - ${ref}`,
-        canal: order.supplier ?? "Fornecedor",
-        tipo: "saida",
-        valor: order.cost_price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        status: txStatus,
-        data: dateStr,
-      });
-    }
-  }
-
-  return txs;
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-const TransacoesPage = () => {
-  const { user } = useAuth();
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("Todas");
-
-  const { data: orders = [], isLoading } = useQuery<Order[]>({
-    queryKey: ["orders-transacoes", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data, error } = await (supabase.from("orders" as any) as any)
-        .select("*")
-        .eq("user_id", user!.id)
-        .order("ordered_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Order[];
-    },
-  });
-
-  const transacoes = useMemo(() => deriveTransactions(orders), [orders]);
-
-  const totalEntradas = useMemo(
-    () => orders.reduce((sum, o) => sum + (o.sale_price ?? 0), 0),
-    [orders]
-  );
-
-  const totalSaidas = useMemo(
-    () => orders.reduce((sum, o) => sum + (o.cost_price ?? 0), 0),
-    [orders]
-  );
-
-  const conciliacao = useMemo(() => {
-    if (transacoes.length === 0) return 0;
-    return Math.round(
-      (transacoes.filter((t) => t.status === "conciliado").length / transacoes.length) * 100
-    );
-  }, [transacoes]);
-
-  const filtered = useMemo(
-    () =>
-      transacoes.filter((t) => {
-        const matchSearch =
-          t.descricao.toLowerCase().includes(search.toLowerCase()) ||
-          t.id.toLowerCase().includes(search.toLowerCase());
-        const matchFilter =
-          filter === "Todas" ||
-          (filter === "Entradas" && t.tipo === "entrada") ||
-          (filter === "Saídas" && t.tipo === "saida") ||
-          (filter === "Pendentes" && t.status === "pendente");
-        return matchSearch && matchFilter;
-      }),
-    [transacoes, search, filter]
-  );
+  const { bg, color, label, dot } = config[category];
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="card-wuili flex flex-col gap-4 p-4 dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none sm:p-5 md:flex-row md:items-center md:justify-between md:p-6">
-        <div>
-          <h2 className="text-[22px] font-black text-foreground md:text-2xl">Transações</h2>
-          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
-            Histórico completo de entradas, saídas e conciliação financeira.
-          </p>
-        </div>
-        <button className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0A0A0A] px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-85 dark:bg-white dark:text-black dark:hover:bg-zinc-100">
-          <Download size={15} /> Exportar extrato
-        </button>
-      </div>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        backgroundColor: bg,
+        color: color,
+        fontSize: "13px",
+        fontWeight: 500,
+        letterSpacing: "-0.01em",
+        padding: "5px 12px",
+        borderRadius: "999px",
+      }}
+    >
+      <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: dot, flexShrink: 0 }} />
+      {label}
+    </span>
+  );
+};
 
-      {/* Stats */}
-      <div className="grid gap-3 md:grid-cols-3 md:gap-4">
-        <div className="card-wuili p-4 dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-xs sm:tracking-[0.16em]">
-              Entradas
-            </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-success-light text-success">
-              <ArrowDownLeft size={15} />
-            </div>
+// ─── Main Page ────────────────────────────────────────────────────────────────
+const TransacoesPage = () => {
+  const [filterStatus, setFilterStatus] = useState<"all" | CategoryType>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Calculate summary
+  const saldoCJ = 320.00;
+  const fretesPendentes = 240.65;
+  const lucroEstimado = 384.31;
+
+  // Filter transactions
+  const filteredTransactions = mockTransactions.filter((t) => {
+    const matchesSearch =
+      t.pedido.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.produto.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesFilter = filterStatus === "all" || t.category === filterStatus;
+
+    return matchesSearch && matchesFilter;
+  });
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "20px",
+        fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        WebkitFontSmoothing: "antialiased",
+        textRendering: "optimizeLegibility",
+      }}
+    >
+      {/* ── Summary Strip ────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "32px",
+          backgroundColor: "#FFFFFF",
+          border: "1px solid rgba(0,0,0,0.04)",
+          borderRadius: "28px",
+          padding: "24px 32px",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
+        }}
+      >
+        {/* Saldo CJ */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "50%",
+              backgroundColor: "#FAFAFA",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Menu size={20} strokeWidth={1.8} style={{ color: "#111111" }} />
           </div>
-          {isLoading ? (
-            <div className="animate-pulse h-6 w-24 bg-muted rounded" />
-          ) : (
-            <p className="text-[22px] font-black leading-none text-foreground sm:text-2xl">
-              R${" "}
-              {totalEntradas.toLocaleString("pt-BR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-muted-foreground">Últimos 30 dias</p>
-        </div>
-
-        <div className="card-wuili p-4 dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-xs sm:tracking-[0.16em]">
-              Saídas
-            </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-              <ArrowUpRight size={15} />
-            </div>
-          </div>
-          {isLoading ? (
-            <div className="animate-pulse h-6 w-24 bg-muted rounded" />
-          ) : (
-            <p className="text-[22px] font-black leading-none text-foreground sm:text-2xl">
-              R${" "}
-              {totalSaidas.toLocaleString("pt-BR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-muted-foreground">
-            Taxas, frete e custos operacionais
-          </p>
-        </div>
-
-        <div className="card-wuili p-4 dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80 sm:text-xs sm:tracking-[0.16em]">
-              Conciliação
-            </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-              <Search size={15} />
-            </div>
-          </div>
-          {isLoading ? (
-            <div className="animate-pulse h-6 w-24 bg-muted rounded" />
-          ) : (
-            <p className="text-[22px] font-black leading-none text-foreground sm:text-2xl">{conciliacao}%</p>
-          )}
-          <p className="mt-1 text-xs text-muted-foreground">
-            Operações validadas automaticamente
-          </p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1 sm:max-w-md">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            className="min-h-11 w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/10 dark:focus:ring-white/10"
-            placeholder="Buscar por descrição ou ID..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="grid grid-cols-4 gap-1 rounded-2xl border border-[#2A2A2A] bg-[#141414] p-1 shadow-sm sm:inline-flex sm:w-fit">
-          {filters.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`min-h-10 rounded-xl px-2.5 py-2 text-[13px] font-semibold transition-all whitespace-nowrap sm:min-h-9 sm:px-3 sm:text-xs ${
-                filter === f
-                  ? "bg-white text-[#0A0A0A] shadow-sm"
-                  : "bg-transparent text-white hover:bg-white/5"
-              }`}
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: "15px",
+                fontWeight: 400,
+                letterSpacing: "-0.01em",
+                color: "#737373",
+                margin: 0,
+                lineHeight: 1.4,
+              }}
             >
-              {f}
-            </button>
-          ))}
+              Saldo CJ disponível
+            </p>
+            <p
+              style={{
+                fontSize: "22px",
+                fontWeight: 600,
+                letterSpacing: "-0.03em",
+                color: "#111111",
+                margin: 0,
+                marginTop: "4px",
+                lineHeight: 1.2,
+              }}
+            >
+              {formatBRL(saldoCJ)}
+            </p>
+          </div>
+        </div>
+
+        {/* Fretes Pendentes */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "50%",
+              backgroundColor: "#FAFAFA",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <TrendingDown size={20} strokeWidth={1.8} style={{ color: "#111111" }} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: "15px",
+                fontWeight: 400,
+                letterSpacing: "-0.01em",
+                color: "#737373",
+                margin: 0,
+                lineHeight: 1.4,
+              }}
+            >
+              Fretes pendentes
+            </p>
+            <p
+              style={{
+                fontSize: "22px",
+                fontWeight: 600,
+                letterSpacing: "-0.03em",
+                color: "#111111",
+                margin: 0,
+                marginTop: "4px",
+                lineHeight: 1.2,
+              }}
+            >
+              {formatBRL(fretesPendentes)}
+            </p>
+          </div>
+        </div>
+
+        {/* Lucro Estimado */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "50%",
+              backgroundColor: "#FAFAFA",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <TrendingUp size={20} strokeWidth={1.8} style={{ color: "#111111" }} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: "15px",
+                fontWeight: 400,
+                letterSpacing: "-0.01em",
+                color: "#737373",
+                margin: 0,
+                lineHeight: 1.4,
+              }}
+            >
+              Lucro estimado
+            </p>
+            <p
+              style={{
+                fontSize: "22px",
+                fontWeight: 600,
+                letterSpacing: "-0.03em",
+                color: "#111111",
+                margin: 0,
+                marginTop: "4px",
+                lineHeight: 1.2,
+              }}
+            >
+              {formatBRL(lucroEstimado)}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Mobile cards */}
-      <div className="space-y-2.5 md:hidden">
-        {isLoading
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-2xl border border-border bg-card dark:border-zinc-800 dark:bg-[#18181B]" />
-            ))
-          : filtered.length === 0
-          ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground dark:border-zinc-800 dark:bg-[#18181B]">
-              Nenhuma transação encontrada.
-            </div>
-          )
-          : filtered.map((t) => {
-            const isEntrada = t.tipo === "entrada";
+      {/* ── Table Container ─────────────────────────────────────────────── */}
+      <div
+        style={{
+          backgroundColor: "#FFFFFF",
+          border: "1px solid rgba(0,0,0,0.04)",
+          borderRadius: "28px",
+          padding: "28px",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
+        }}
+      >
+        {/* Filters */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {/* All Transactions Dropdown */}
+            <button
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                height: "38px",
+                padding: "0 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                letterSpacing: "-0.01em",
+                color: "#111111",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "10px",
+                cursor: "pointer",
+                transition: "background-color 0.15s",
+              }}
+            >
+              Todas transações
+              <ChevronDown size={14} strokeWidth={1.8} style={{ color: "#737373" }} />
+            </button>
 
-            return (
-              <article key={t.id} className="rounded-2xl border border-border bg-card p-3 shadow-sm dark:border-zinc-800 dark:bg-[#18181B]">
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                      isEntrada ? "bg-success-light text-success" : "bg-destructive/10 text-destructive"
-                    }`}
-                  >
-                    {isEntrada ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
-                  </div>
+            {/* Date Dropdown */}
+            <button
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                height: "38px",
+                padding: "0 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                letterSpacing: "-0.01em",
+                color: "#111111",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "10px",
+                cursor: "pointer",
+                transition: "background-color 0.15s",
+              }}
+            >
+              Data
+              <ChevronDown size={14} strokeWidth={1.8} style={{ color: "#737373" }} />
+            </button>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-foreground">
-                          {t.descricao}
-                        </p>
-                        <p className="mt-1 text-[11.5px] font-medium text-muted-foreground">
-                          {t.id} · {t.canal}
-                        </p>
-                      </div>
-                      <p className={`shrink-0 text-right text-[14px] font-black ${isEntrada ? "text-success" : "text-destructive"}`}>
-                        {isEntrada ? "+" : "-"}R${t.valor}
-                      </p>
-                    </div>
+            {/* Filter Button */}
+            <button
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                height: "38px",
+                padding: "0 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                letterSpacing: "-0.01em",
+                color: "#111111",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "10px",
+                cursor: "pointer",
+                transition: "background-color 0.15s",
+              }}
+            >
+              Filtro
+            </button>
+          </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusCls[t.status]}`}>
-                        {statusLabel[t.status]}
-                      </span>
-                      <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-                        {isEntrada ? "Entrada" : "Saída"}
-                      </span>
-                      <span className="ml-auto text-[11.5px] font-medium text-muted-foreground">
-                        {t.data}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })
-        }
-      </div>
+          {/* Right Side */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {/* Search Icon */}
+            <button
+              style={{
+                width: "38px",
+                height: "38px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "10px",
+                cursor: "pointer",
+              }}
+            >
+              <Search size={16} strokeWidth={1.8} style={{ color: "#111111" }} />
+            </button>
 
-      {/* Table */}
-      <div className="card-wuili hidden overflow-hidden dark:border-zinc-800 dark:bg-[#18181B] dark:shadow-none md:block">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+            {/* Export Dropdown */}
+            <button
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                height: "38px",
+                padding: "0 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                letterSpacing: "-0.01em",
+                color: "#111111",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "10px",
+                cursor: "pointer",
+                transition: "background-color 0.15s",
+              }}
+            >
+              Exportar
+              <ChevronDown size={14} strokeWidth={1.8} style={{ color: "#737373" }} />
+            </button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr className="border-b border-border">
-                {["ID", "Descrição", "Canal", "Tipo", "Valor", "Status", "Data"].map((h) => (
+              <tr style={{ borderBottom: "1px solid #F3F4F6" }}>
+                {["Data", "Pedido / Produto", "Categoria", "Método / Canal", "Valor"].map((header) => (
                   <th
-                    key={h}
-                    className="text-left px-4 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider"
+                    key={header}
+                    style={{
+                      padding: "14px 16px",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      letterSpacing: "-0.01em",
+                      color: "#9CA3AF",
+                    }}
                   >
-                    {h}
+                    {header}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {isLoading
-                ? Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="border-b border-border last:border-0">
-                      {Array.from({ length: 7 }).map((__, j) => (
-                        <td key={j} className="px-4 py-3">
-                          <div className="animate-pulse h-4 bg-muted rounded w-full" />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                : filtered.map((t) => (
-                    <tr
-                      key={t.id}
-                      className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+              {filteredTransactions.map((transaction, index) => (
+                <tr
+                  key={transaction.id}
+                  style={{
+                    borderBottom: index < filteredTransactions.length - 1 ? "1px solid #F9FAFB" : "none",
+                    transition: "background-color 0.12s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FAFAFA")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                >
+                  {/* Date */}
+                  <td style={{ padding: "18px 16px" }}>
+                    <span
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: 400,
+                        letterSpacing: "-0.01em",
+                        color: "#737373",
+                      }}
                     >
-                      <td className="px-4 py-3 text-xs text-muted-foreground font-medium">
-                        {t.id}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-foreground">{t.descricao}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{t.canal}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`flex items-center gap-1 w-fit text-xs font-semibold ${
-                            t.tipo === "entrada" ? "text-success" : "text-destructive"
-                          }`}
-                        >
-                          {t.tipo === "entrada" ? (
-                            <ArrowDownLeft size={12} />
-                          ) : (
-                            <ArrowUpRight size={12} />
-                          )}
-                          {t.tipo === "entrada" ? "Entrada" : "Saída"}
-                        </span>
-                      </td>
-                      <td
-                        className={`px-4 py-3 font-bold ${
-                          t.tipo === "entrada" ? "text-success" : "text-destructive"
-                        }`}
+                      {transaction.date}
+                    </span>
+                  </td>
+
+                  {/* Pedido / Produto */}
+                  <td style={{ padding: "18px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      {/* Avatar */}
+                      <div
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "50%",
+                          backgroundColor: "#F5F5F5",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "#111111",
+                          flexShrink: 0,
+                        }}
                       >
-                        {t.tipo === "entrada" ? "+" : "-"}R${t.valor}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusCls[t.status]}`}
+                        {transaction.pedido.slice(-2)}
+                      </div>
+                      <div>
+                        <p
+                          style={{
+                            fontSize: "14px",
+                            fontWeight: 500,
+                            letterSpacing: "-0.01em",
+                            color: "#111111",
+                            margin: 0,
+                          }}
                         >
-                          {statusLabel[t.status]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                        {t.data}
-                      </td>
-                    </tr>
-                  ))}
+                          {transaction.pedido} · {transaction.produto}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Category */}
+                  <td style={{ padding: "18px 16px" }}>
+                    <CategoryBadge category={transaction.category} />
+                  </td>
+
+                  {/* Method / Canal */}
+                  <td style={{ padding: "18px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {/* Icon */}
+                      <div
+                        style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "50%",
+                          backgroundColor: "#111111",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          color: "#FFFFFF",
+                          flexShrink: 0,
+                        }}
+                      >
+                        CJ
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 400,
+                          letterSpacing: "-0.01em",
+                          color: "#111111",
+                        }}
+                      >
+                        {transaction.method}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Amount */}
+                  <td style={{ padding: "18px 16px", textAlign: "right" }}>
+                    <span
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 600,
+                        letterSpacing: "-0.02em",
+                        color: transaction.isPositive ? "#10B981" : "#111111",
+                      }}
+                    >
+                      {transaction.isPositive ? "+" : "−"} {formatBRL(transaction.amount)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: "24px",
+            paddingTop: "20px",
+            borderTop: "1px solid #F3F4F6",
+          }}
+        >
+          <p
+            style={{
+              fontSize: "13px",
+              fontWeight: 400,
+              letterSpacing: "-0.01em",
+              color: "#737373",
+              margin: 0,
+            }}
+          >
+            {filteredTransactions.length} transações
+          </p>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <p
+              style={{
+                fontSize: "13px",
+                fontWeight: 400,
+                letterSpacing: "-0.01em",
+                color: "#737373",
+                margin: 0,
+              }}
+            >
+              Mostrando 1-{filteredTransactions.length} de {filteredTransactions.length}
+            </p>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid #E5E7EB",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                }}
+              >
+                <ChevronLeft size={14} strokeWidth={1.8} style={{ color: "#737373" }} />
+              </button>
+              <button
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid #E5E7EB",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                }}
+              >
+                <ChevronRight size={14} strokeWidth={1.8} style={{ color: "#737373" }} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

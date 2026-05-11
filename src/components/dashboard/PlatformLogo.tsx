@@ -37,7 +37,7 @@ const PlatformLogo = ({ platform, color, size = 18 }: Props) => {
 
   return (
     <span
-      className="flex shrink-0 items-center justify-center rounded-md text-white font-black"
+      className="flex shrink-0 items-center justify-center rounded-md text-white font-semibold"
       style={{ width: size, height: size, backgroundColor: color ?? "#888", fontSize: size * 0.35 }}
     >
       {fallbackLetters}

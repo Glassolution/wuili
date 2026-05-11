@@ -128,7 +128,7 @@ const RefundSection = () => {
 
   return (
     <div className="mt-8 pt-8 border-t border-[#F0F0F0] dark:border-white/10">
-      <h3 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Cancelar assinatura / reembolso</h3>
+      <h3 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Cancelar assinatura / reembolso</h3>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">
         Reembolso disponível em até 7 dias após o pagamento. Toda solicitação passa por análise (até 48h).
       </p>
@@ -194,7 +194,7 @@ const RefundSection = () => {
 
             {step === "reason" && (
               <>
-                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Por que está cancelando?</h4>
+                <h4 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Por que está cancelando?</h4>
                 <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Selecione a opção que melhor descreve seu motivo.</p>
                 <div className="space-y-2 mb-4">
                   {REASONS.map((r) => (
@@ -218,7 +218,7 @@ const RefundSection = () => {
 
             {step === "details" && (
               <>
-                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Conte-nos mais sobre o motivo</h4>
+                <h4 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Conte-nos mais sobre o motivo</h4>
                 <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Isso nos ajuda a melhorar. Mínimo {MIN_DETAILS} caracteres.</p>
                 <textarea
                   value={details}
@@ -242,7 +242,7 @@ const RefundSection = () => {
 
             {step === "confirm" && (
               <>
-                <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Antes de confirmar...</h4>
+                <h4 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Antes de confirmar...</h4>
                 <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">
                   Talvez possamos ajudar. Que tal conversar com um humano antes de cancelar?
                 </p>
@@ -279,7 +279,7 @@ const RefundSection = () => {
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
                       <Clock size={32} className="text-amber-600" />
                     </div>
-                    <h4 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Solicitação recebida</h4>
+                    <h4 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Solicitação recebida</h4>
                     <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">{result.message}</p>
                     <button onClick={closeModal} className="px-6 py-2.5 rounded-full bg-black text-white text-[14px] font-medium dark:bg-white dark:text-black">Fechar</button>
                   </>
@@ -289,7 +289,7 @@ const RefundSection = () => {
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
                       <XCircle size={32} className="text-red-600" />
                     </div>
-                    <h4 className="text-[18px] font-bold text-red-700 mb-1">Não foi possível enviar</h4>
+                    <h4 className="text-[18px] font-semibold text-red-700 mb-1">Não foi possível enviar</h4>
                     <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">{result.message}</p>
                     <button onClick={closeModal} className="px-6 py-2.5 rounded-full bg-black text-white text-[14px] font-medium dark:bg-white dark:text-black">Fechar</button>
                   </>

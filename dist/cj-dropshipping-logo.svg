@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fundo laranja -->
+  <rect width="400" height="400" fill="#FF6B35"/>
+  
+  <!-- Letra C -->
+  <path d="M120 200 Q120 120 200 120 Q240 120 260 140" 
+        fill="none" 
+        stroke="white" 
+        stroke-width="24" 
+        stroke-linecap="round"/>
+  
+  <!-- Letra J -->
+  <path d="M300 140 L300 220 Q300 280 240 280 Q200 280 180 260" 
+        fill="none" 
+        stroke="white" 
+        stroke-width="24" 
+        stroke-linecap="round"/>
+</svg>

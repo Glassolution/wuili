@@ -435,7 +435,7 @@ Como posso te ajudar hoje?`;
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-[20px] font-bold text-[#0A0A0A] dark:text-white">Suporte Velo</h2>
+          <h2 className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white">Suporte Velo</h2>
           <p className="mt-0.5 text-[13px] text-[#737373] dark:text-zinc-400">
             {humanMode
               ? ticket?.ai_active

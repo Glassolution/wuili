@@ -180,7 +180,7 @@ const NotificacoesPopover = () => {
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} className="relative">
-        <Bell size={18} className="text-muted-foreground" />
+        <Bell size={22} strokeWidth={1.5} style={{ color: "#6B7280" }} />
         {naoLidas > 0 && (
           <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-white text-[9px] font-bold flex items-center justify-center">
             {naoLidas > 9 ? "9+" : naoLidas}

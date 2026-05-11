@@ -5,27 +5,27 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[100px] font-medium transition-all duration-[120ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0A0A0A] focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-5 text-[14px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-[#0A0A0A] text-white shadow-[0_1px_2px_rgba(0,0,0,0.10)] hover:opacity-[0.85] hover:scale-[0.98]",
+          "bg-[#111111] text-white shadow-[0_1px_2px_rgba(0,0,0,0.06)] hover:bg-black/90",
         destructive:
-          "bg-[#FEF2F2] text-[#DC2626] hover:bg-[#FEE2E2]",
+          "bg-red-50 text-red-600 hover:bg-red-100",
         outline:
-          "border-[1.5px] border-[#E5E5E5] bg-transparent text-[#0A0A0A] hover:border-[#0A0A0A] hover:bg-[#F5F5F5]",
+          "border border-border bg-white text-foreground hover:bg-muted",
         secondary:
-          "bg-[#F5F5F5] text-[#0A0A0A] hover:bg-[#EBEBEB]",
+          "bg-muted text-foreground hover:bg-muted/80",
         ghost:
-          "rounded-[8px] bg-transparent text-[#737373] hover:bg-[#F5F5F5] hover:text-[#0A0A0A]",
-        link: "rounded-none text-[#0A0A0A] underline-offset-4 hover:underline",
+          "h-11 bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
+        link: "h-11 bg-transparent px-0 text-foreground underline-offset-4 hover:underline",
       },
       size: {
-        default: "px-[22px] py-[11px] text-[14px]",
-        sm: "px-4 py-2 text-[13px]",
-        lg: "px-7 py-[14px] text-[15px]",
-        icon: "h-9 w-9 rounded-[8px]",
+        default: "",
+        sm: "h-10 rounded-[12px] px-4 text-[13px]",
+        lg: "h-12 rounded-[16px] px-6 text-[15px]",
+        icon: "h-11 w-11 rounded-[14px] px-0",
       },
     },
     defaultVariants: {

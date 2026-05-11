@@ -13,10 +13,12 @@ import CadastroPage from "./pages/CadastroPage";
 import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import AdminRoute from "./components/AdminRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { Navigate } from "react-router-dom";
 import CatalogPage from "./pages/dashboard/CatalogPage";
 import OrdersPage from "./pages/dashboard/OrdersPage";
 import PublicationsPage from "./pages/dashboard/PublicationsPage";
+import ProductDetailPage from "./pages/dashboard/ProductDetailPage";
 import ReportsPage from "./pages/dashboard/ReportsPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
 import IntegracoesPage from "./pages/dashboard/IntegracoesPage";
@@ -72,7 +74,7 @@ const App = () => (
             <Route index element={<DashboardHomePage />} />
             <Route path="saldos" element={<SaldosPage />} />
             <Route path="transacoes" element={<TransacoesPage />} />
-            <Route path="comissoes" element={<CommissionsPage />} />
+            <Route path="comissoes" element={<ProtectedRoute allowedRoles={["admin", "influencer"]}><CommissionsPage /></ProtectedRoute>} />
             <Route path="pagamentos" element={<PagamentosPage />} />
             <Route path="planos" element={<Navigate to="/checkout" replace />} />
             <Route
@@ -82,6 +84,7 @@ const App = () => (
             <Route path="produtos" element={<CatalogPage />} />
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="publicacoes" element={<PublicationsPage />} />
+            <Route path="publicacoes/:id" element={<ProductDetailPage />} />
             <Route path="relatorios" element={<ReportsPage />} />
             <Route
               path="mais"
