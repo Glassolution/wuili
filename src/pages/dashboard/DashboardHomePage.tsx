@@ -27,23 +27,9 @@ type Publication = {
   status: string;
 };
 
-// ── Mock / chart data ─────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-const REVENUE_MINI = [
-  { m: "Jul", v: 4200 },
-  { m: "Ago", v: 5100 },
-  { m: "Set", v: 3900 },
-  { m: "Out", v: 6300 },
-  { m: "Nov", v: 9238 },
-];
-
-const RECENT_ORDERS = [
-  { id: "ORD-1024", customer: "Ana Paula Ferreira", product: "Suporte Celular Magnético", amount: 89.90,  time: "10:42", status: "delivered" },
-  { id: "ORD-1023", customer: "Carlos Lima",         product: "Fone Bluetooth TWS Pro",   amount: 149.90, time: "09:58", status: "pending"   },
-  { id: "ORD-1022", customer: "Mariana Costa",       product: "Massageador Portátil",      amount: 129.00, time: "09:30", status: "delivered" },
-  { id: "ORD-1021", customer: "Roberto Mendes",      product: "Câmera WiFi 1080p",         amount: 189.90, time: "08:55", status: "shipped"   },
-  { id: "ORD-1020", customer: "Juliana Souza",       product: "Relógio Smartwatch GPS",    amount: 249.90, time: "08:20", status: "delivered" },
-];
+const MONTH_LABELS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -163,10 +149,62 @@ export default function DashboardHomePage() {
     },
   });
 
+  // ── Recent orders (real) ──────────────────────────────────────────────────
+  const { data: recentOrders = [], isLoading: loadingRecent } = useQuery({
+    queryKey: ["dashboard-recent-orders", user?.id, ordersTab],
+    enabled: !!user,
+    queryFn: async () => {
+      const since = new Date();
+      if (ordersTab === "Hoje") {
+        since.setHours(0, 0, 0, 0);
+      } else {
+        since.setDate(since.getDate() - 7);
+      }
+      const { data, error } = await supabase
+        .from("orders" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+        .select("id, external_order_id, buyer_name, product_title, sale_price, status, ordered_at, created_at")
+        .eq("user_id", user!.id)
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return (data ?? []) as unknown as Array<{
+        id: string;
+        external_order_id: string | null;
+        buyer_name: string | null;
+        product_title: string | null;
+        sale_price: number | null;
+        status: string;
+        ordered_at: string | null;
+        created_at: string;
+      }>;
+    },
+  });
+
   const totalOrders = statsData?.totalOrders ?? 0;
   const totalPubs   = statsData?.totalPubs   ?? 0;
   // Use orders from the hook as single source of truth (same as Financeiro page)
   const revenue = revenueFromOrders > 0 ? revenueFromOrders : (statsData?.revenue ?? 0);
+
+  // Mini bar chart — last 5 months of revenue from real orders
+  const revenueMini = useMemo(() => {
+    const buckets = new Map<string, number>();
+    const now = new Date();
+    const months: { key: string; label: string }[] = [];
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      months.push({ key, label: MONTH_LABELS_PT[d.getMonth()] });
+      buckets.set(key, 0);
+    }
+    for (const o of orders) {
+      if (!["paid", "approved", "completed"].includes(o.status)) continue;
+      const d = new Date(o.created_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + (o.total ?? 0));
+    }
+    return months.map((m) => ({ m: m.label, v: buckets.get(m.key) ?? 0 }));
+  }, [orders]);
 
   const periodMap: Record<string, "daily" | "weekly" | "monthly"> = {
     "Diário": "daily",
@@ -181,7 +219,7 @@ export default function DashboardHomePage() {
     v: analyticsData.current[i],
     p: analyticsData.previous[i],
   }));
-  const revenueMini = REVENUE_MINI;  const chartGrid = isDark ? "#313131" : "#F5F5F5";
+  const chartGrid = isDark ? "#313131" : "#F5F5F5";
   const chartTick = isDark ? "#A1A1AA" : "#C0C0C0";
   const miniBarActive = isDark ? "#FFFFFF" : "#0A0A0A";
   const miniBarInactive = isDark ? "#52525B" : "#E5E5E5";
@@ -509,38 +547,64 @@ export default function DashboardHomePage() {
               </tr>
             </thead>
             <tbody>
-              {RECENT_ORDERS.map((order) => (
-                <tr key={order.id} className="group border-b border-[#F7F7F7] dark:border-zinc-800 last:border-0 transition-colors hover:bg-[#FAFAFA] dark:hover:bg-zinc-800/50">
-                  <td className="px-5 py-3.5">
-                    <span className="font-mono text-[12px] text-[#737373] dark:text-zinc-400">#{order.id}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <CustomerAvatar name={order.customer} />
-                      <span className="text-[13px] font-medium text-[#0A0A0A] dark:text-white">{order.customer}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] text-[#525252] dark:text-zinc-300">{order.product}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{fmt(order.amount)}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] text-[#A3A3A3] dark:text-zinc-400">{order.time}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_STYLE[order.status]}`}>
-                      {STATUS_LABEL[order.status]}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Link to="/dashboard/pedidos" className="flex items-center justify-center opacity-0 transition group-hover:opacity-100">
-                      <ChevronRight size={15} className="text-[#C0C0C0] dark:text-zinc-500" />
-                    </Link>
+              {loadingRecent ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b border-[#F7F7F7] dark:border-zinc-800 last:border-0">
+                    {Array.from({ length: 7 }).map((__, j) => (
+                      <td key={j} className="px-5 py-3.5">
+                        <Skeleton className="h-4 w-full max-w-[120px]" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : recentOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-10 text-center text-[13px] text-[#A3A3A3] dark:text-zinc-500">
+                    Nenhum pedido {ordersTab === "Hoje" ? "hoje" : "nesta semana"}.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentOrders.map((order) => {
+                  const customer = order.buyer_name || "Cliente";
+                  const product  = order.product_title || "—";
+                  const amount   = Number(order.sale_price ?? 0);
+                  const when     = new Date(order.ordered_at || order.created_at);
+                  const time     = when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                  const idShort  = (order.external_order_id || order.id).toString().slice(0, 8).toUpperCase();
+                  return (
+                    <tr key={order.id} className="group border-b border-[#F7F7F7] dark:border-zinc-800 last:border-0 transition-colors hover:bg-[#FAFAFA] dark:hover:bg-zinc-800/50">
+                      <td className="px-5 py-3.5">
+                        <span className="font-mono text-[12px] text-[#737373] dark:text-zinc-400">#{idShort}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <CustomerAvatar name={customer} />
+                          <span className="text-[13px] font-medium text-[#0A0A0A] dark:text-white">{customer}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-[13px] text-[#525252] dark:text-zinc-300 line-clamp-1">{product}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{fmt(amount)}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-[13px] text-[#A3A3A3] dark:text-zinc-400">{time}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_STYLE[order.status] || STATUS_STYLE.pending}`}>
+                          {STATUS_LABEL[order.status] || order.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <Link to="/dashboard/pedidos" className="flex items-center justify-center opacity-0 transition group-hover:opacity-100">
+                          <ChevronRight size={15} className="text-[#C0C0C0] dark:text-zinc-500" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
