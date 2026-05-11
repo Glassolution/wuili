@@ -27,23 +27,9 @@ type Publication = {
   status: string;
 };
 
-// ── Mock / chart data ─────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-const REVENUE_MINI = [
-  { m: "Jul", v: 4200 },
-  { m: "Ago", v: 5100 },
-  { m: "Set", v: 3900 },
-  { m: "Out", v: 6300 },
-  { m: "Nov", v: 9238 },
-];
-
-const RECENT_ORDERS = [
-  { id: "ORD-1024", customer: "Ana Paula Ferreira", product: "Suporte Celular Magnético", amount: 89.90,  time: "10:42", status: "delivered" },
-  { id: "ORD-1023", customer: "Carlos Lima",         product: "Fone Bluetooth TWS Pro",   amount: 149.90, time: "09:58", status: "pending"   },
-  { id: "ORD-1022", customer: "Mariana Costa",       product: "Massageador Portátil",      amount: 129.00, time: "09:30", status: "delivered" },
-  { id: "ORD-1021", customer: "Roberto Mendes",      product: "Câmera WiFi 1080p",         amount: 189.90, time: "08:55", status: "shipped"   },
-  { id: "ORD-1020", customer: "Juliana Souza",       product: "Relógio Smartwatch GPS",    amount: 249.90, time: "08:20", status: "delivered" },
-];
+const MONTH_LABELS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
