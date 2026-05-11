@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, RefreshCw, Package, ChevronLeft, ChevronRight, Flame, Clock, PackageCheck, Check, Network, Users } from "lucide-react";
+import { Search, ChevronDown, RefreshCw, Package, ChevronLeft, ChevronRight, Check, ChevronsRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
@@ -21,28 +21,214 @@ const CATEGORIES = [
   { key: "organizacao", label: "Organização" },
 ];
 
-type QuickFilter = "all" | "best" | "recent" | "in_stock";
+// ── Platform badge config ─────────────────────────────────────────────────────
+const PLATFORM_CONFIG: Record<string, { label: string; bg: string; color: string; icon: string }> = {
+  cj:           { label: "CJ Dropshipping", bg: "#FFF3E0", color: "#E65100", icon: "CJ" },
+  aliexpress:   { label: "AliExpress",      bg: "#FFF0F0", color: "#E53935", icon: "AE" },
+  amazon:       { label: "Amazon",          bg: "#FFF8E1", color: "#F57F17", icon: "AZ" },
+  shopee:       { label: "Shopee",          bg: "#FFF3E0", color: "#EE4D2D", icon: "SP" },
+  mercadolivre: { label: "Mercado Livre",   bg: "#FFFDE7", color: "#F9A825", icon: "ML" },
+};
 
-const QUICK_FILTERS: { key: QuickFilter; label: string; icon: any }[] = [
-  { key: "all", label: "Todos", icon: null },
-  { key: "best", label: "Melhores", icon: Flame },
-  { key: "recent", label: "Recentes", icon: Clock },
-  { key: "in_stock", label: "Em estoque", icon: PackageCheck },
-];
+function getPlatform(source: string | null) {
+  if (!source) return { label: "CJ Dropshipping", bg: "#FFF3E0", color: "#E65100", icon: "CJ" };
+  return PLATFORM_CONFIG[source.toLowerCase()] ?? { label: source, bg: "#F5F5F5", color: "#555", icon: source.slice(0, 2).toUpperCase() };
+}
+
+// ── Product Card ──────────────────────────────────────────────────────────────
+interface ProductCardProps {
+  p: any;
+  onImport: () => void;
+  onCompare: () => void;
+  formatPrice: (v: number) => string;
+  getImage: (images: any) => string | null;
+}
+
+const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductCardProps) => {
+  const img = getImage(p.images);
+  const outOfStock = !p.stock_quantity || p.stock_quantity <= 0;
+  const platform = getPlatform(p.source);
+  const rating = p.rating ?? 4.5;
+  const reviewCount = p.orders_count ?? 0;
+
+  // Build category tags from p.category
+  const tags: string[] = [];
+  if (p.category) {
+    const cat = p.category.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+    tags.push(cat);
+  }
+  if (p.supplier_name) tags.push(p.supplier_name.split(" ")[0]);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "#FFFFFF",
+        borderRadius: "16px",
+        border: "1px solid rgba(0,0,0,0.06)",
+        overflow: "hidden",
+        transition: "box-shadow 200ms ease, border-color 200ms ease",
+        cursor: "default",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.10)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.06)";
+      }}
+    >
+      {/* Image area */}
+      <div style={{ position: "relative", backgroundColor: "#F7F7F8", height: "200px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        {/* Checkbox */}
+        <div style={{ position: "absolute", top: "12px", left: "12px", width: "18px", height: "18px", borderRadius: "4px", border: "1.5px solid #D1D5DB", backgroundColor: "#FFFFFF", zIndex: 1 }} />
+
+        {img ? (
+          <img
+            src={img}
+            alt={p.title}
+            style={{ width: "100%", height: "100%", objectFit: "contain", padding: "16px", opacity: outOfStock ? 0.5 : 1 }}
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <Package size={40} style={{ color: "#D1D5DB" }} />
+        )}
+
+        {outOfStock && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.35)" }}>
+            <span style={{ backgroundColor: "#DC2626", color: "#fff", fontSize: "11px", fontWeight: 600, padding: "4px 12px", borderRadius: "999px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              Sem estoque
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Card body */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "14px 16px 16px" }}>
+        {/* Platform + Rating */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+          {/* Platform badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ width: "20px", height: "20px", borderRadius: "4px", backgroundColor: platform.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", fontWeight: 700, color: platform.color, flexShrink: 0 }}>
+              {platform.icon}
+            </div>
+            <span style={{ fontSize: "13px", fontWeight: 500, color: "#111111", letterSpacing: "-0.01em" }}>
+              {platform.label}
+            </span>
+          </div>
+          {/* Rating */}
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <span style={{ color: "#F59E0B", fontSize: "13px" }}>★</span>
+            <span style={{ fontSize: "13px", fontWeight: 500, color: "#111111" }}>
+              {rating.toFixed(1)}
+            </span>
+            {reviewCount > 0 && (
+              <span style={{ fontSize: "12px", color: "#9CA3AF" }}>
+                ({reviewCount.toLocaleString("pt-BR")})
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Product title */}
+        <p style={{ fontSize: "14px", fontWeight: 600, color: "#111111", lineHeight: "1.4", letterSpacing: "-0.01em", margin: "0 0 12px 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: "40px" }}>
+          {p.title}
+        </p>
+
+        {/* Price + Min Order */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+          <div>
+            <p style={{ fontSize: "11px", color: "#9CA3AF", margin: "0 0 2px 0", letterSpacing: "-0.01em" }}>Preço</p>
+            <p style={{ fontSize: "13px", fontWeight: 600, color: "#111111", margin: 0, letterSpacing: "-0.01em" }}>
+              {formatPrice(p.cost_price)} – {formatPrice(p.suggested_price)}
+            </p>
+          </div>
+          <div>
+            <p style={{ fontSize: "11px", color: "#9CA3AF", margin: "0 0 2px 0", letterSpacing: "-0.01em" }}>Pedido mín.</p>
+            <p style={{ fontSize: "13px", fontWeight: 600, color: "#111111", margin: 0, letterSpacing: "-0.01em" }}>
+              1 unid.
+            </p>
+          </div>
+        </div>
+
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px" }}>
+            {tags.slice(0, 3).map((tag) => (
+              <span key={tag} style={{ fontSize: "11px", fontWeight: 500, color: "#6B7280", backgroundColor: "#F3F4F6", padding: "3px 8px", borderRadius: "6px", letterSpacing: "-0.01em" }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+          <button
+            onClick={onImport}
+            disabled={outOfStock}
+            style={{
+              flex: 1,
+              height: "44px",
+              backgroundColor: outOfStock ? "#D1D5DB" : "#111111",
+              color: "#FFFFFF",
+              border: "none",
+              borderRadius: "10px",
+              fontSize: "14px",
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
+              cursor: outOfStock ? "not-allowed" : "pointer",
+              transition: "background-color 150ms ease",
+              fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            }}
+            onMouseEnter={(e) => { if (!outOfStock) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#000000"; }}
+            onMouseLeave={(e) => { if (!outOfStock) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#111111"; }}
+          >
+            {outOfStock ? "Indisponível" : "Importar produto"}
+          </button>
+          <button
+            onClick={onCompare}
+            style={{
+              width: "44px",
+              height: "44px",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid rgba(0,0,0,0.10)",
+              borderRadius: "10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "background-color 150ms ease",
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#F9FAFB"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#FFFFFF"; }}
+            title="Ver fornecedores"
+          >
+            <ChevronsRight size={16} strokeWidth={2} style={{ color: "#6B7280" }} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const CatalogPage = () => {
   const [category, setCategory] = useState("todos");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
-  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
   const [compareProductId, setCompareProductId] = useState<string | null>(null);
   const [compareProductTitle, setCompareProductTitle] = useState("");
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const planLimits = usePlanLimits();
@@ -53,8 +239,6 @@ const CatalogPage = () => {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node))
-        setFilterDropdownOpen(false);
       if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node))
         setCategoryDropdownOpen(false);
     };
@@ -78,12 +262,8 @@ const CatalogPage = () => {
   const syncMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("cj-sync-request");
-      if (error) {
-        throw new Error(error.message);
-      }
-      if (data?.error) {
-        throw new Error(data.error);
-      }
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
       return data;
     },
     onSuccess: (data) => {
@@ -93,33 +273,20 @@ const CatalogPage = () => {
           ? `${count} produtos sincronizados com sucesso!`
           : "Sincronização concluída (nenhum produto novo encontrado)."
       );
-      // invalidate + force immediate refetch so the grid updates right away
       queryClient.invalidateQueries({ queryKey: ["catalog"] });
       queryClient.refetchQueries({ queryKey: ["catalog"] });
     },
-    onError: (err: Error) =>
-      toast.error(`Erro ao sincronizar: ${err.message}`),
+    onError: (err: Error) => toast.error(`Erro ao sincronizar: ${err.message}`),
   });
 
   const rawProducts = data?.products || [];
   const totalPages = data?.totalPages || 1;
-
-  const products = useMemo(() => {
-    let list = [...rawProducts];
-    if (quickFilter === "best") list = list.filter((p: any) => (p.orders_count || 0) > 50);
-    else if (quickFilter === "recent") list = list.filter((p: any) => {
-      if (!p.created_at) return false;
-      return (Date.now() - new Date(p.created_at).getTime()) / 86400000 < 30;
-    });
-    else if (quickFilter === "in_stock") list = list.filter((p: any) => p.stock_quantity && p.stock_quantity > 0);
-    // Already sorted by orders_count DESC from backend
-    return list;
-  }, [rawProducts, quickFilter]);
+  const products = useMemo(() => [...rawProducts], [rawProducts]);
 
   const formatPrice = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-  const getImage = (images: any) => {
+  const getImage = (images: any): string | null => {
     try {
       const arr = typeof images === "string" ? JSON.parse(images) : images;
       return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
@@ -127,64 +294,79 @@ const CatalogPage = () => {
   };
 
   const activeCategoryLabel = CATEGORIES.find(c => c.key === category)?.label ?? "Todos";
-  const activeFilterLabel = QUICK_FILTERS.find(f => f.key === quickFilter)?.label ?? "Todos";
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-foreground tracking-tight">Dropshipping</h2>
-        <button
-          onClick={() => syncMutation.mutate()}
-          disabled={syncMutation.isPending}
-          className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-        >
-          <RefreshCw size={13} className={syncMutation.isPending ? "animate-spin" : ""} />
-          {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
-        </button>
-      </div>
-
-      {/* Filters row */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "20px",
+        fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        WebkitFontSmoothing: "antialiased",
+      }}
+    >
+      {/* ── Filter bar ─────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+        {/* Left filters */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
           {/* Search */}
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div style={{ position: "relative" }}>
+            <Search size={14} strokeWidth={1.8} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
             <input
-              className="w-48 rounded-lg border border-border bg-background py-2 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10"
-              placeholder="Buscar produto"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Buscar"
+              style={{
+                height: "40px",
+                paddingLeft: "34px",
+                paddingRight: "12px",
+                fontSize: "13px",
+                color: "#111111",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "10px",
+                outline: "none",
+                width: "180px",
+                letterSpacing: "-0.01em",
+              }}
             />
           </div>
 
+          {/* Date range pill */}
+          <button style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 16px", fontSize: "13px", fontWeight: 600, color: "#FFFFFF", backgroundColor: "#111111", border: "none", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
+            2 fev. – 14 abr.
+            <ChevronDown size={13} strokeWidth={2} style={{ color: "rgba(255,255,255,0.7)" }} />
+          </button>
+
+          {/* Status de pagamento */}
+          <button style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
+            Status de pagamento
+            <ChevronDown size={13} strokeWidth={1.8} style={{ color: "#9CA3AF" }} />
+          </button>
+
           {/* Categoria dropdown */}
-          <div className="relative" ref={categoryDropdownRef}>
+          <div style={{ position: "relative" }} ref={categoryDropdownRef}>
             <button
               onClick={() => setCategoryDropdownOpen((v) => !v)}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                categoryDropdownOpen || category !== "todos"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-foreground hover:bg-muted"
-              }`}
+              style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: category !== "todos" ? "#FFFFFF" : "#111111", backgroundColor: category !== "todos" ? "#111111" : "#FFFFFF", border: `1px solid ${category !== "todos" ? "#111111" : "#E5E7EB"}`, borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}
             >
-              {activeCategoryLabel}
-              <ChevronDown size={13} className={`transition-transform ${categoryDropdownOpen ? "rotate-180" : ""}`} />
+              <span>
+                {activeCategoryLabel}
+              </span>
+              <ChevronDown size={13} strokeWidth={1.8} style={{ color: category !== "todos" ? "rgba(255,255,255,0.7)" : "#9CA3AF", transform: categoryDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
             </button>
             {categoryDropdownOpen && (
-              <div className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-background shadow-lg overflow-hidden py-1.5">
+              <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 50, minWidth: "160px", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.08)", padding: "6px", overflow: "hidden" }}>
                 {CATEGORIES.map((c) => {
                   const active = category === c.key;
                   return (
                     <button
                       key={c.key}
                       onClick={() => { setCategory(c.key); setPage(1); setCategoryDropdownOpen(false); }}
-                      className={`flex w-full items-center justify-between px-3.5 py-2 text-sm transition-colors ${
-                        active ? "font-semibold text-foreground bg-foreground/5" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
+                      style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", fontSize: "13px", fontWeight: active ? 600 : 400, color: "#111111", backgroundColor: active ? "#F5F5F5" : "transparent", border: "none", borderRadius: "8px", cursor: "pointer", letterSpacing: "-0.01em", textAlign: "left" }}
                     >
                       {c.label}
-                      {active && <Check size={12} />}
+                      {active && <Check size={12} strokeWidth={2.5} style={{ color: "#111111" }} />}
                     </button>
                   );
                 })}
@@ -192,217 +374,85 @@ const CatalogPage = () => {
             )}
           </div>
 
-          {/* Filtrar dropdown */}
-          <div className="relative" ref={filterDropdownRef}>
-            <button
-              onClick={() => setFilterDropdownOpen((v) => !v)}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                filterDropdownOpen || quickFilter !== "all"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-foreground hover:bg-muted"
-              }`}
-            >
-              {quickFilter !== "all" ? activeFilterLabel : "Filtrar"}
-              <ChevronDown size={13} className={`transition-transform ${filterDropdownOpen ? "rotate-180" : ""}`} />
-            </button>
-            {filterDropdownOpen && (
-              <div className="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-xl border border-border bg-background shadow-lg overflow-hidden py-1.5">
-                {QUICK_FILTERS.filter(f => f.key !== "all").map((f) => {
-                  const Icon = f.icon;
-                  const active = quickFilter === f.key;
-                  return (
-                    <button
-                      key={f.key}
-                      onClick={() => { setQuickFilter(f.key); setFilterDropdownOpen(false); }}
-                      className={`flex w-full items-center justify-between px-3.5 py-2 text-sm transition-colors ${
-                        active ? "font-semibold text-foreground bg-foreground/5" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        {Icon && <Icon size={13} />}
-                        {f.label}
-                      </span>
-                      {active && <Check size={12} />}
-                    </button>
-                  );
-                })}
-                {quickFilter !== "all" && (
-                  <>
-                    <div className="my-1 border-t border-border" />
-                    <button
-                      onClick={() => { setQuickFilter("all"); setFilterDropdownOpen(false); }}
-                      className="flex w-full items-center px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Limpar filtro
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Ocultar */}
+          <button style={{ height: "40px", padding: "0 4px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "transparent", border: "none", cursor: "pointer", letterSpacing: "-0.01em", textDecoration: "underline", textUnderlineOffset: "2px" }}>
+            Ocultar
+          </button>
         </div>
 
-        {/* Integrações */}
-        <button
-          onClick={() => setIsIntegrationModalOpen(true)}
-          className="flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-        >
-          <Network size={13} />
-          Integrações
-        </button>
+        {/* Right: Sincronizar + Integração */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: "#6B7280", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: syncMutation.isPending ? "not-allowed" : "pointer", opacity: syncMutation.isPending ? 0.6 : 1, letterSpacing: "-0.01em" }}
+          >
+            <RefreshCw size={13} strokeWidth={1.8} className={syncMutation.isPending ? "animate-spin" : ""} />
+            {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
+          </button>
+
+          <button
+            onClick={() => setIsIntegrationModalOpen(true)}
+            style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 16px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}
+          >
+            Integração da plataforma
+          </button>
+        </div>
       </div>
 
-      {/* Product Grid */}
+      {/* ── Product Grid ────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="overflow-hidden rounded-2xl border border-border bg-background">
-              <Skeleton className="aspect-[4/3] w-full" />
-              <div className="p-4 space-y-3">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-3 w-1/3" />
-                <Skeleton className="h-10 w-full rounded-xl" />
+            <div key={i} style={{ backgroundColor: "#FFFFFF", borderRadius: "16px", border: "1px solid rgba(0,0,0,0.06)", overflow: "hidden" }}>
+              <Skeleton className="h-[200px] w-full rounded-none" />
+              <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <Skeleton className="h-3.5 w-3/5 rounded-md" />
+                <Skeleton className="h-9 w-full rounded-md" />
+                <Skeleton className="h-3 w-4/5 rounded-md" />
+                <Skeleton className="h-11 w-full rounded-[10px]" />
               </div>
             </div>
           ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Package size={48} className="text-muted-foreground/40 mb-4" />
-          <p className="text-sm font-medium text-foreground">Nenhum produto encontrado</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {quickFilter !== "all"
-              ? "Nenhum produto corresponde a esse filtro. Tente outro."
-              : 'Clique em "Sincronizar" para popular o catálogo.'}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center" }}>
+          <Package size={48} strokeWidth={1.5} style={{ color: "#D1D5DB", marginBottom: "16px" }} />
+          <p style={{ fontSize: "15px", fontWeight: 600, color: "#111111", margin: "0 0 6px 0" }}>Nenhum produto encontrado</p>
+          <p style={{ fontSize: "13px", color: "#9CA3AF", margin: 0 }}>
+            Clique em "Sincronizar" para popular o catálogo com produtos da CJ Dropshipping.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((p: any) => {
-            const img = getImage(p.images);
-            const isBestseller = (p.orders_count || 0) > 100;
-            const outOfStock = !p.stock_quantity || p.stock_quantity <= 0;
-            const lucro = Math.round((p.suggested_price - p.cost_price) * 100) / 100;
-            const categoryLabel = p.category
-              ? p.category.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
-              : null;
-            return (
-              <div
-                key={p.id}
-                className={`group flex flex-col overflow-hidden rounded-2xl border border-border bg-background card-hover ${outOfStock ? "opacity-80" : ""}`}
-              >
-                {/* Product image */}
-                <div className="relative flex aspect-[4/3] shrink-0 items-center justify-center overflow-hidden bg-[#f5f5f5] dark:bg-muted/50">
-                  {img ? (
-                    <img
-                      src={img}
-                      alt={p.title}
-                      width={400}
-                      height={300}
-                      className={`h-full w-full object-cover ${outOfStock ? "grayscale" : ""}`}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <Package size={32} className="text-muted-foreground/30" />
-                  )}
-
-                  {outOfStock && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                      <span className="rounded-full bg-red-600 px-3 py-1 text-[11px] font-normal uppercase tracking-wide text-white shadow-lg">
-                        Sem estoque
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Badges row — both anchored top-3, no overlap */}
-                  <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
-                    {isBestseller && !outOfStock ? (
-                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-orange-500 px-2 py-0.5 text-[11px] font-semibold text-white">
-                        <Flame size={10} /> Mais vendido
-                      </span>
-                    ) : (
-                      <span /> /* spacer so category still aligns right */
-                    )}
-                    {categoryLabel && (
-                      <span className="max-w-[140px] truncate rounded-full border border-black/5 bg-white/90 px-2.5 py-0.5 text-[10.5px] font-medium text-foreground/80 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-zinc-900/85 dark:text-zinc-200">
-                        {categoryLabel}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Card body — flex-col so button always anchors to bottom */}
-                <div className="flex flex-1 flex-col px-4 pb-4 pt-3">
-                  {/* Title — fixed 2-line height so all cards align */}
-                  <p className="line-clamp-2 h-[37px] text-[13.5px] font-semibold leading-[1.35] text-foreground">
-                    {p.title}
-                  </p>
-
-                  {/* Custo + Venda sugerida */}
-                  <div className="mt-3 flex items-start justify-between">
-                    <div>
-                      <p className="text-[11px] text-muted-foreground">Custo</p>
-                      <p className="mt-0.5 text-[13.5px] font-semibold text-foreground">{formatPrice(p.cost_price)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[11px] text-muted-foreground">Venda sugerida</p>
-                      <p className="mt-0.5 text-[13.5px] font-semibold text-foreground">{formatPrice(p.suggested_price)}</p>
-                    </div>
-                  </div>
-
-                  {/* Lucro estimado */}
-                  <p className="mt-1.5 text-[11.5px] font-medium text-emerald-600">
-                    Lucro estimado: {formatPrice(lucro)}
-                  </p>
-
-                  {outOfStock && (
-                    <p className="mt-1.5 text-[11px] font-medium text-red-600">
-                      Produto indisponível no fornecedor
-                    </p>
-                  )}
-
-                  {/* Action buttons — pushed to bottom */}
-                  <div className="mt-auto pt-3 flex gap-2">
-                    <button
-                      onClick={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
-                      disabled={outOfStock}
-                      className="flex flex-1 items-center justify-center rounded-xl bg-foreground py-2.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
-                      title={outOfStock ? "Produto sem estoque" : undefined}
-                    >
-                      {outOfStock ? "Indisponível" : "Importar produto"}
-                    </button>
-                    <button
-                      onClick={() => { setCompareProductId(p.id); setCompareProductTitle(p.title); }}
-                      className="flex items-center justify-center rounded-xl border border-border bg-background p-2.5 text-foreground transition-colors hover:bg-muted"
-                      title="Ver fornecedores"
-                    >
-                      <Users size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "16px" }}>
+          {products.map((p: any) => (
+            <ProductCard
+              key={p.id}
+              p={p}
+              onImport={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
+              onCompare={() => { setCompareProductId(p.id); setCompareProductTitle(p.title); }}
+              formatPrice={formatPrice}
+              getImage={getImage}
+            />
+          ))}
         </div>
       )}
 
-      {/* Pagination */}
+      {/* ── Pagination ──────────────────────────────────────────────────── */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-4 pt-2">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", paddingTop: "8px" }}>
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="flex items-center gap-1 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+            style={{ display: "flex", alignItems: "center", gap: "4px", height: "38px", padding: "0 16px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: page <= 1 ? "not-allowed" : "pointer", opacity: page <= 1 ? 0.4 : 1, letterSpacing: "-0.01em" }}
           >
             <ChevronLeft size={14} /> Anterior
           </button>
-          <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
+          <span style={{ fontSize: "13px", color: "#9CA3AF" }}>{page} / {totalPages}</span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            className="flex items-center gap-1 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+            style={{ display: "flex", alignItems: "center", gap: "4px", height: "38px", padding: "0 16px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: page >= totalPages ? "not-allowed" : "pointer", opacity: page >= totalPages ? 0.4 : 1, letterSpacing: "-0.01em" }}
           >
             Próximo <ChevronRight size={14} />
           </button>
@@ -434,3 +484,4 @@ const CatalogPage = () => {
 };
 
 export default CatalogPage;
+
