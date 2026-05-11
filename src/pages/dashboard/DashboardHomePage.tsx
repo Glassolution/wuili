@@ -149,10 +149,62 @@ export default function DashboardHomePage() {
     },
   });
 
+  // ── Recent orders (real) ──────────────────────────────────────────────────
+  const { data: recentOrders = [], isLoading: loadingRecent } = useQuery({
+    queryKey: ["dashboard-recent-orders", user?.id, ordersTab],
+    enabled: !!user,
+    queryFn: async () => {
+      const since = new Date();
+      if (ordersTab === "Hoje") {
+        since.setHours(0, 0, 0, 0);
+      } else {
+        since.setDate(since.getDate() - 7);
+      }
+      const { data, error } = await supabase
+        .from("orders" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+        .select("id, external_order_id, buyer_name, product_title, sale_price, status, ordered_at, created_at")
+        .eq("user_id", user!.id)
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return (data ?? []) as unknown as Array<{
+        id: string;
+        external_order_id: string | null;
+        buyer_name: string | null;
+        product_title: string | null;
+        sale_price: number | null;
+        status: string;
+        ordered_at: string | null;
+        created_at: string;
+      }>;
+    },
+  });
+
   const totalOrders = statsData?.totalOrders ?? 0;
   const totalPubs   = statsData?.totalPubs   ?? 0;
   // Use orders from the hook as single source of truth (same as Financeiro page)
   const revenue = revenueFromOrders > 0 ? revenueFromOrders : (statsData?.revenue ?? 0);
+
+  // Mini bar chart — last 5 months of revenue from real orders
+  const revenueMini = useMemo(() => {
+    const buckets = new Map<string, number>();
+    const now = new Date();
+    const months: { key: string; label: string }[] = [];
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      months.push({ key, label: MONTH_LABELS_PT[d.getMonth()] });
+      buckets.set(key, 0);
+    }
+    for (const o of orders) {
+      if (!["paid", "approved", "completed"].includes(o.status)) continue;
+      const d = new Date(o.created_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + (o.total ?? 0));
+    }
+    return months.map((m) => ({ m: m.label, v: buckets.get(m.key) ?? 0 }));
+  }, [orders]);
 
   const periodMap: Record<string, "daily" | "weekly" | "monthly"> = {
     "Diário": "daily",
