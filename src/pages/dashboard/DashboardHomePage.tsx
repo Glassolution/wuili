@@ -547,38 +547,64 @@ export default function DashboardHomePage() {
               </tr>
             </thead>
             <tbody>
-              {RECENT_ORDERS.map((order) => (
-                <tr key={order.id} className="group border-b border-[#F7F7F7] dark:border-zinc-800 last:border-0 transition-colors hover:bg-[#FAFAFA] dark:hover:bg-zinc-800/50">
-                  <td className="px-5 py-3.5">
-                    <span className="font-mono text-[12px] text-[#737373] dark:text-zinc-400">#{order.id}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <CustomerAvatar name={order.customer} />
-                      <span className="text-[13px] font-medium text-[#0A0A0A] dark:text-white">{order.customer}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] text-[#525252] dark:text-zinc-300">{order.product}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{fmt(order.amount)}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-[13px] text-[#A3A3A3] dark:text-zinc-400">{order.time}</span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_STYLE[order.status]}`}>
-                      {STATUS_LABEL[order.status]}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <Link to="/dashboard/pedidos" className="flex items-center justify-center opacity-0 transition group-hover:opacity-100">
-                      <ChevronRight size={15} className="text-[#C0C0C0] dark:text-zinc-500" />
-                    </Link>
+              {loadingRecent ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b border-[#F7F7F7] dark:border-zinc-800 last:border-0">
+                    {Array.from({ length: 7 }).map((__, j) => (
+                      <td key={j} className="px-5 py-3.5">
+                        <Skeleton className="h-4 w-full max-w-[120px]" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : recentOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-10 text-center text-[13px] text-[#A3A3A3] dark:text-zinc-500">
+                    Nenhum pedido {ordersTab === "Hoje" ? "hoje" : "nesta semana"}.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentOrders.map((order) => {
+                  const customer = order.buyer_name || "Cliente";
+                  const product  = order.product_title || "—";
+                  const amount   = Number(order.sale_price ?? 0);
+                  const when     = new Date(order.ordered_at || order.created_at);
+                  const time     = when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                  const idShort  = (order.external_order_id || order.id).toString().slice(0, 8).toUpperCase();
+                  return (
+                    <tr key={order.id} className="group border-b border-[#F7F7F7] dark:border-zinc-800 last:border-0 transition-colors hover:bg-[#FAFAFA] dark:hover:bg-zinc-800/50">
+                      <td className="px-5 py-3.5">
+                        <span className="font-mono text-[12px] text-[#737373] dark:text-zinc-400">#{idShort}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <CustomerAvatar name={customer} />
+                          <span className="text-[13px] font-medium text-[#0A0A0A] dark:text-white">{customer}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-[13px] text-[#525252] dark:text-zinc-300 line-clamp-1">{product}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{fmt(amount)}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-[13px] text-[#A3A3A3] dark:text-zinc-400">{time}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_STYLE[order.status] || STATUS_STYLE.pending}`}>
+                          {STATUS_LABEL[order.status] || order.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <Link to="/dashboard/pedidos" className="flex items-center justify-center opacity-0 transition group-hover:opacity-100">
+                          <ChevronRight size={15} className="text-[#C0C0C0] dark:text-zinc-500" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
