@@ -219,7 +219,7 @@ export default function DashboardHomePage() {
     v: analyticsData.current[i],
     p: analyticsData.previous[i],
   }));
-  const revenueMini = REVENUE_MINI;  const chartGrid = isDark ? "#313131" : "#F5F5F5";
+  const chartGrid = isDark ? "#313131" : "#F5F5F5";
   const chartTick = isDark ? "#A1A1AA" : "#C0C0C0";
   const miniBarActive = isDark ? "#FFFFFF" : "#0A0A0A";
   const miniBarInactive = isDark ? "#52525B" : "#E5E5E5";
