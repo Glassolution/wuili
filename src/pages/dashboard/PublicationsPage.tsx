@@ -190,10 +190,6 @@ const PublicationsPage = () => {
             const status = pub.status || "pending";
             const retailPrice = pub.price ?? 0;
             const wholesalePrice = pub.cost_price ?? 0;
-            const stock = Math.floor(Math.random() * 400) + 10; // Mock stock
-            const stockLevel = stock > 200 ? "Alto" : stock > 50 ? "Médio" : "Baixo";
-            const stockColor = stock > 200 ? "#10B981" : stock > 50 ? "#F59E0B" : "#EF4444";
-            const variants = Math.floor(Math.random() * 10) + 1; // Mock variants
 
             return (
               <div
@@ -276,31 +272,11 @@ const PublicationsPage = () => {
                   </div>
                 </div>
 
-                {/* Stock */}
-                <div className="mt-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[12px] font-medium text-foreground" style={{ letterSpacing: "-0.01em" }}>
-                      {stock} em estoque · {stockLevel}
-                    </p>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min((stock / 400) * 100, 100)}%`,
-                        backgroundColor: stockColor,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Footer: Variants + Action Button */}
+                {/* Footer: Action Button */}
                 <div className="mt-4 flex items-center justify-between border-t border-black/[0.04] pt-3">
-                  <button className="flex items-center gap-1 text-[12px] font-medium text-foreground transition-colors hover:text-foreground/70" style={{ letterSpacing: "-0.01em" }}>
-                    <span>Variações ({variants})</span>
-                    <ChevronDown size={12} strokeWidth={1.8} className="-rotate-90" />
-                  </button>
-                  
+                  <span className="text-[12px] text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
+                    {pub.ml_item_id ? `ML: ${pub.ml_item_id}` : "Sem ID ML"}
+                  </span>
                   <button
                     onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
                     className="flex h-7 w-7 items-center justify-center rounded-md border border-black/[0.08] bg-white transition-colors hover:bg-black/[0.02]"

@@ -19,15 +19,34 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 
 // ── Sales Calendar Component ──────────────────────────────────────────────────
-const SalesCalendar = () => {
+const SalesCalendar = ({ userId }: { userId: string | undefined }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Mock sales data
-  const salesData: Record<number, number> = {
-    6: 89.90,
-    12: 189.90,
-    21: 342.00,
-  };
+  // Fetch real orders for the current month
+  const { data: monthOrders } = useQuery({
+    queryKey: ["calendar-orders", userId, currentMonth.getFullYear(), currentMonth.getMonth()],
+    enabled: !!userId,
+    queryFn: async () => {
+      const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString();
+      const end   = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      const { data, error } = await (supabase as any)
+        .from("orders")
+        .select("ordered_at, created_at, sale_price")
+        .eq("user_id", userId)
+        .gte("ordered_at", start)
+        .lte("ordered_at", end);
+      if (error) return [];
+      return (data ?? []) as { ordered_at: string | null; created_at: string; sale_price: number | null }[];
+    },
+  });
+
+  // Build salesData: day → total revenue
+  const salesData: Record<number, number> = {};
+  (monthOrders ?? []).forEach((o) => {
+    const d = new Date(o.ordered_at ?? o.created_at);
+    const day = d.getDate();
+    salesData[day] = (salesData[day] ?? 0) + Number(o.sale_price ?? 0);
+  });
 
   const formatMonth = (date: Date): string => {
     try {
@@ -305,21 +324,80 @@ export default function DashboardHomePage() {
   const totalOrders     = statsData?.totalOrders ?? 0;
   const totalPubs       = statsData?.totalPubs   ?? 0;
 
-  // ── Mock data ──────────────────────────────────────────────────────────────
-  const recentActivity = [
-    { id: 1, text: "Novo pedido recebido",    sub: "Pedido #4821 — R$ 189,90",  time: "2 min atrás"  },
-    { id: 2, text: "Produto publicado",        sub: "Camiseta Uniqlo Airism",    time: "18 min atrás" },
-    { id: 3, text: "Pagamento aprovado",       sub: "Pedido #4819 — R$ 342,00",  time: "1 h atrás"    },
-    { id: 4, text: "Cliente atualizado",       sub: "Dados de entrega alterados", time: "3 h atrás"   },
-  ];
+  // ── Real recent orders ────────────────────────────────────────────────────
+  const { data: recentOrdersData, isLoading: loadingRecentOrders } = useQuery({
+    queryKey: ["dashboard-recent-orders", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orders" as any)
+        .select("id, external_order_id, buyer_name, status, ordered_at, created_at, sale_price")
+        .eq("user_id", user!.id)
+        .order("ordered_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return (data ?? []) as {
+        id: string;
+        external_order_id: string | null;
+        buyer_name: string | null;
+        status: string;
+        ordered_at: string | null;
+        created_at: string;
+        sale_price: number | null;
+      }[];
+    },
+  });
 
-  const mockOrders = [
-    { id: "#4821", client: "Ana Souza",      status: "Aprovado"  as const, updated: "2 min atrás"  },
-    { id: "#4820", client: "Carlos Lima",    status: "Pendente"  as const, updated: "15 min atrás" },
-    { id: "#4819", client: "Beatriz Costa",  status: "Aprovado"  as const, updated: "1 h atrás"    },
-    { id: "#4818", client: "Diego Martins",  status: "Cancelado" as const, updated: "2 h atrás"    },
-    { id: "#4817", client: "Fernanda Alves", status: "Pendente"  as const, updated: "4 h atrás"    },
-  ];
+  // Map real orders to table rows
+  const recentOrders = (recentOrdersData ?? []).map((o) => {
+    const statusMap: Record<string, "Aprovado" | "Pendente" | "Cancelado"> = {
+      paid: "Aprovado", approved: "Aprovado", completed: "Aprovado", delivered: "Aprovado",
+      pending: "Pendente", in_process: "Pendente", processing: "Pendente",
+      cancelled: "Cancelado", canceled: "Cancelado", failed: "Cancelado", refunded: "Cancelado",
+    };
+    const mappedStatus = statusMap[o.status?.toLowerCase() ?? ""] ?? "Pendente";
+    const date = new Date(o.ordered_at ?? o.created_at);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffH = Math.floor(diffMin / 60);
+    const diffD = Math.floor(diffH / 24);
+    const updated =
+      diffMin < 1 ? "agora" :
+      diffMin < 60 ? `${diffMin} min atrás` :
+      diffH < 24 ? `${diffH} h atrás` :
+      `${diffD} d atrás`;
+    return {
+      id: o.external_order_id ?? `#${o.id.slice(0, 6)}`,
+      client: o.buyer_name ?? "Cliente",
+      status: mappedStatus as "Aprovado" | "Pendente" | "Cancelado",
+      updated,
+      sale_price: Number(o.sale_price ?? 0),
+    };
+  });
+
+  // Map real orders to activity feed
+  const recentActivity = (recentOrdersData ?? []).slice(0, 4).map((o, i) => {
+    const date = new Date(o.ordered_at ?? o.created_at);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffH = Math.floor(diffMin / 60);
+    const diffD = Math.floor(diffH / 24);
+    const time =
+      diffMin < 1 ? "agora" :
+      diffMin < 60 ? `${diffMin} min atrás` :
+      diffH < 24 ? `${diffH} h atrás` :
+      `${diffD} d atrás`;
+    const price = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(o.sale_price ?? 0));
+    const code = o.external_order_id ?? `#${o.id.slice(0, 6)}`;
+    return {
+      id: i + 1,
+      text: o.status?.toLowerCase() === "paid" || o.status?.toLowerCase() === "approved" ? "Pagamento aprovado" : "Novo pedido recebido",
+      sub: `Pedido ${code} — ${price}`,
+      time,
+    };
+  });
 
   // ── Shared styles ──────────────────────────────────────────────────────────
   const card: React.CSSProperties = {
@@ -460,16 +538,12 @@ export default function DashboardHomePage() {
             maxWidth: "calc(100% - 50px)",
             minWidth: 0
           }}>
-            <span style={{ backgroundColor: "#EAF8EC", color: "#168A3A", borderRadius: "5px", padding: "2px 5px", fontSize: "11px", fontWeight: 600, flexShrink: 0 }}>12%</span>
-            <span style={{ 
-              fontSize: "12px", 
-              fontWeight: 400, 
-              color: "rgba(255,255,255,0.82)", 
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              minWidth: 0
-            }}>Aumentou vs mês anterior</span>
+            <span style={{ backgroundColor: "#EAF8EC", color: "#168A3A", borderRadius: "5px", padding: "2px 5px", fontSize: "11px", fontWeight: 600, flexShrink: 0 }}>
+              {loadingStats ? "—" : totalOrders > 0 ? "↑" : "—"}
+            </span>
+            <span style={{ fontSize: "12px", fontWeight: 400, color: "rgba(255,255,255,0.82)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+              {loadingStats ? "Carregando..." : totalOrders > 0 ? "Receita acumulada" : "Sem pedidos ainda"}
+            </span>
           </div>
           {/* Icon */}
           <div style={{ position: "absolute", top: "16px", right: "16px", width: "38px", height: "38px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -479,9 +553,9 @@ export default function DashboardHomePage() {
 
         {/* Cards 2–4 — white */}
         {[
-          { label: "Total de Pedidos", value: loadingStats ? "—" : fmtNum(totalOrders), pct: "+3.5%", icon: <ShoppingCart size={18} strokeWidth={1.75} style={{ color: "#6B7280" }} />, sub: "vs mês anterior" },
-          { label: "Produtos Ativos",  value: loadingStats ? "—" : fmtNum(totalPubs),   pct: "+1.5%", icon: <Package      size={18} strokeWidth={1.75} style={{ color: "#6B7280" }} />, sub: "vs mês anterior" },
-          { label: "Clientes",         value: fmtCompact(1284),                          pct: "+4%",   icon: <Users        size={18} strokeWidth={1.75} style={{ color: "#6B7280" }} />, sub: "vs mês anterior" },
+          { label: "Total de Pedidos", value: loadingStats ? "—" : fmtNum(totalOrders), pct: "", icon: <ShoppingCart size={18} strokeWidth={1.75} style={{ color: "#6B7280" }} />, sub: "pedidos recebidos" },
+          { label: "Produtos Ativos",  value: loadingStats ? "—" : fmtNum(totalPubs),   pct: "", icon: <Package      size={18} strokeWidth={1.75} style={{ color: "#6B7280" }} />, sub: "publicações ativas" },
+          { label: "Clientes",         value: loadingStats ? "—" : fmtCompact(statsData?.totalOrders ?? 0),  pct: "",   icon: <Users        size={18} strokeWidth={1.75} style={{ color: "#6B7280" }} />, sub: "pedidos únicos" },
         ].map((m) => (
           <div key={m.label} style={{
             backgroundColor: "#FFFFFF",
@@ -534,7 +608,7 @@ export default function DashboardHomePage() {
               maxWidth: "calc(100% - 50px)",
               minWidth: 0
             }}>
-              <span style={{ backgroundColor: "#EAF8EC", color: "#168A3A", borderRadius: "5px", padding: "2px 5px", fontSize: "11px", fontWeight: 600, flexShrink: 0 }}>{m.pct}</span>
+              {m.pct && <span style={{ backgroundColor: "#EAF8EC", color: "#168A3A", borderRadius: "5px", padding: "2px 5px", fontSize: "11px", fontWeight: 600, flexShrink: 0 }}>{m.pct}</span>}
               <span style={{ 
                 fontSize: "12px", 
                 color: "#9CA3AF", 
@@ -652,7 +726,7 @@ export default function DashboardHomePage() {
         </div>
 
         {/* Sales Calendar */}
-        <SalesCalendar />
+        <SalesCalendar userId={user?.id} />
       </div>
 
       {/* ── 4. Orders table ────────────────────────────────────────── */}
@@ -704,7 +778,22 @@ export default function DashboardHomePage() {
               </tr>
             </thead>
             <tbody>
-              {mockOrders.map((o) => (
+              {loadingRecentOrders ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={5} style={{ padding: "10px" }}>
+                      <div style={{ height: "36px", backgroundColor: "#F5F5F5", borderRadius: "8px", animation: "pulse 1.5s ease-in-out infinite" }} />
+                    </td>
+                  </tr>
+                ))
+              ) : recentOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: "24px", textAlign: "center", fontSize: "13px", color: "#9CA3AF" }}>
+                    Nenhum pedido encontrado. Sincronize sua conta do Mercado Livre.
+                  </td>
+                </tr>
+              ) : (
+                recentOrders.map((o) => (
                 <tr key={o.id}
                   style={{ borderBottom: "1px solid #F9FAFB", transition: "background-color 0.12s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FAFAFA")}
@@ -773,7 +862,8 @@ export default function DashboardHomePage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
