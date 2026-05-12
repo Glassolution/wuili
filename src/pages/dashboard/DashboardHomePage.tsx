@@ -18,6 +18,72 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 
+const PERIODS = ["Hoje", "Esse mês", "Últimos 30 dias", "Últimos 90 dias", "Todo o período", "Personalizado"] as const;
+type Period = typeof PERIODS[number];
+
+type PeriodRange = {
+  start: Date | null;
+  end: Date | null;
+};
+
+const startOfDay = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const endOfDay = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+};
+
+const dateInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getPeriodRange = (period: Period, customStart: string, customEnd: string): PeriodRange => {
+  const now = new Date();
+
+  if (period === "Hoje") {
+    return { start: startOfDay(now), end: endOfDay(now) };
+  }
+
+  if (period === "Esse mês") {
+    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: endOfDay(now) };
+  }
+
+  if (period === "Últimos 30 dias" || period === "Últimos 90 dias") {
+    const days = period === "Últimos 30 dias" ? 30 : 90;
+    const start = startOfDay(now);
+    start.setDate(start.getDate() - (days - 1));
+    return { start, end: endOfDay(now) };
+  }
+
+  if (period === "Personalizado") {
+    return {
+      start: customStart ? startOfDay(new Date(`${customStart}T00:00:00`)) : null,
+      end: customEnd ? endOfDay(new Date(`${customEnd}T00:00:00`)) : null,
+    };
+  }
+
+  return { start: null, end: null };
+};
+
+const isInsidePeriod = (value: string | null | undefined, range: PeriodRange) => {
+  if (!range.start && !range.end) return true;
+  if (!value) return false;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  if (range.start && date < range.start) return false;
+  if (range.end && date > range.end) return false;
+  return true;
+};
+
 // ── Sales Calendar Component ──────────────────────────────────────────────────
 const SalesCalendar = ({ userId }: { userId: string | undefined }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -292,29 +358,40 @@ const StatusBadge = ({ status }: { status: "Aprovado" | "Pendente" | "Cancelado"
 export default function DashboardHomePage() {
   const { user } = useAuth();
   const { orders, summary, isLoading: isLoadingFinancial } = useFinancialData();
+  const [activePeriod, setActivePeriod] = useState<Period>("Esse mês");
+  const [customStart, setCustomStart] = useState(() => dateInputValue(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [customEnd, setCustomEnd] = useState(() => dateInputValue(new Date()));
 
   const { data: statsData, isLoading: loadingStats } = useQuery({
-    queryKey: ["dashboard-stats", user?.id],
+    queryKey: ["dashboard-stats", user?.id, activePeriod, customStart, customEnd],
     enabled: !!user,
     queryFn: async () => {
       const [ordersRes, pubsRes, revenueRes] = await Promise.all([
         supabase
           .from("orders" as any)
-          .select("id", { count: "exact", head: true })
+          .select("id, ordered_at, created_at")
           .eq("user_id", user!.id),
         supabase
           .from("user_publications" as any)
-          .select("id", { count: "exact", head: true })
+          .select("id, created_at, published_at")
           .eq("user_id", user!.id)
           .eq("status", "active"),
         supabase
           .from("orders" as any)
-          .select("sale_price")
+          .select("sale_price, ordered_at, created_at")
           .eq("user_id", user!.id),
       ]);
-      const totalOrders = ordersRes.count ?? 0;
-      const totalPubs   = pubsRes.count   ?? 0;
-      const revenue     = ((revenueRes.data ?? []) as { sale_price: number }[])
+      const range = getPeriodRange(activePeriod, customStart, customEnd);
+      const periodOrders = ((ordersRes.data ?? []) as { ordered_at: string | null; created_at: string }[])
+        .filter((o) => isInsidePeriod(o.ordered_at ?? o.created_at, range));
+      const periodPubs = ((pubsRes.data ?? []) as { created_at: string | null; published_at: string | null }[])
+        .filter((p) => isInsidePeriod(p.published_at ?? p.created_at, range));
+      const periodRevenueRows = ((revenueRes.data ?? []) as { sale_price: number | null; ordered_at: string | null; created_at: string }[])
+        .filter((o) => isInsidePeriod(o.ordered_at ?? o.created_at, range));
+
+      const totalOrders = periodOrders.length;
+      const totalPubs   = periodPubs.length;
+      const revenue     = periodRevenueRows
         .reduce((s, o) => s + (o.sale_price ?? 0), 0);
       return { totalOrders, totalPubs, revenue };
     },
@@ -326,7 +403,7 @@ export default function DashboardHomePage() {
 
   // ── Real recent orders ────────────────────────────────────────────────────
   const { data: recentOrdersData, isLoading: loadingRecentOrders } = useQuery({
-    queryKey: ["dashboard-recent-orders", user?.id],
+    queryKey: ["dashboard-recent-orders", user?.id, activePeriod, customStart, customEnd],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -334,9 +411,10 @@ export default function DashboardHomePage() {
         .select("id, external_order_id, buyer_name, status, ordered_at, created_at, sale_price")
         .eq("user_id", user!.id)
         .order("ordered_at", { ascending: false })
-        .limit(5);
+        .limit(100);
       if (error) throw error;
-      return (data ?? []) as {
+      const range = getPeriodRange(activePeriod, customStart, customEnd);
+      return ((data ?? []) as {
         id: string;
         external_order_id: string | null;
         buyer_name: string | null;
@@ -344,7 +422,9 @@ export default function DashboardHomePage() {
         ordered_at: string | null;
         created_at: string;
         sale_price: number | null;
-      }[];
+      }[])
+        .filter((o) => isInsidePeriod(o.ordered_at ?? o.created_at, range))
+        .slice(0, 5);
     },
   });
 
@@ -411,10 +491,6 @@ export default function DashboardHomePage() {
     transition: "all 200ms",
   };
 
-  const PERIODS = ["Hoje", "Esse mês", "Últimos 30 dias", "Últimos 90 dias", "Todo o período", "Personalizado"] as const;
-  type Period = typeof PERIODS[number];
-  const [activePeriod, setActivePeriod] = useState<Period>("Esse mês");
-
   return (
     <div style={{
       padding: "0",
@@ -478,6 +554,49 @@ export default function DashboardHomePage() {
           );
         })}
       </div>
+
+      {activePeriod === "Personalizado" && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          flexWrap: "wrap",
+          marginTop: "-4px",
+          marginBottom: "2px"
+        }}>
+          <input
+            type="date"
+            value={customStart}
+            onChange={(e) => setCustomStart(e.target.value)}
+            style={{
+              height: "36px",
+              border: "1px solid #E5E7EB",
+              borderRadius: "10px",
+              padding: "0 12px",
+              fontSize: "13px",
+              color: "#111111",
+              backgroundColor: "#FFFFFF",
+              outline: "none"
+            }}
+          />
+          <span style={{ fontSize: "13px", color: "#9CA3AF" }}>até</span>
+          <input
+            type="date"
+            value={customEnd}
+            onChange={(e) => setCustomEnd(e.target.value)}
+            style={{
+              height: "36px",
+              border: "1px solid #E5E7EB",
+              borderRadius: "10px",
+              padding: "0 12px",
+              fontSize: "13px",
+              color: "#111111",
+              backgroundColor: "#FFFFFF",
+              outline: "none"
+            }}
+          />
+        </div>
+      )}
 
       {/* ── 2. Metric cards ────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px", width: "100%" }}>
