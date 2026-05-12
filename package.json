@@ -1,0 +1,15 @@
+{
+  "name": "wuili",
+  "version": "1.0.0",
+  "description": "Projeto Wuili",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
