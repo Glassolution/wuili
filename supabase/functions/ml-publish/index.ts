@@ -12,6 +12,23 @@ function json(body: Record<string, unknown>, status = 200) {
   })
 }
 
+type PlanName = 'gratis' | 'go' | 'pro' | 'business'
+
+const PRODUCT_LIMITS: Record<PlanName, number | null> = {
+  gratis: 0,
+  go: 0,
+  pro: 30,
+  business: null,
+}
+
+function normalizePlanName(plan: unknown): PlanName {
+  const value = String(plan ?? 'gratis').toLowerCase()
+  if (value === 'free') return 'gratis'
+  if (value === 'plus') return 'pro'
+  if (value === 'go' || value === 'pro' || value === 'business') return value
+  return 'gratis'
+}
+
 // Resolve to a leaf category by walking children_categories until empty
 async function resolveLeafCategory(categoryId: string): Promise<string> {
   let current = categoryId
@@ -158,12 +175,52 @@ Deno.serve(async (req) => {
     // === COOLDOWN ANTI-ABUSO (pós-reembolso) ===
     const { data: profileCd } = await supabase
       .from('profiles')
-      .select('refund_cooldown_until')
+      .select('refund_cooldown_until, plano')
       .eq('user_id', user_id)
       .maybeSingle()
     if (profileCd?.refund_cooldown_until && new Date(profileCd.refund_cooldown_until) > new Date()) {
       const until = new Date(profileCd.refund_cooldown_until).toLocaleDateString('pt-BR')
       return json({ error: `Você solicitou um reembolso recentemente. Novas publicações estarão liberadas a partir de ${until}.` }, 403)
+    }
+
+    // === PLAN LIMITS ===
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('plan, status')
+      .eq('user_id', user_id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const userPlan = normalizePlanName(subscription?.plan ?? profileCd?.plano)
+    const productLimit = PRODUCT_LIMITS[userPlan]
+
+    if (productLimit === 0) {
+      return json({
+        error: 'O plano grátis é apenas para teste. Desbloqueie a operação completa para publicar produtos.',
+      }, 403)
+    }
+
+    if (typeof productLimit === 'number') {
+      const activePublicationsQuery = await supabase
+        .from('user_publications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user_id)
+        .in('status', ['active', 'published'])
+
+      let publishedProducts = activePublicationsQuery.count ?? 0
+      if (activePublicationsQuery.error) {
+        const fallbackPublicationsQuery = await supabase
+          .from('user_publications')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user_id)
+        publishedProducts = fallbackPublicationsQuery.count ?? 0
+      }
+
+      if (publishedProducts >= productLimit) {
+        return json({ error: 'Você atingiu o limite de 30 produtos do plano Pro.' }, 403)
+      }
     }
 
     // === GET ML INTEGRATION ===

@@ -84,6 +84,10 @@ const IntegracoesPage = () => {
     if (p.status === "coming_soon") return "coming_soon";
     return statuses[p.id] || "not_connected";
   };
+  const marketplaceUpgradeTargetPlan: "pro" | "business" = planLimits.plan === "pro" ? "business" : "pro";
+  const marketplaceUpgradeBenefits = marketplaceUpgradeTargetPlan === "business"
+    ? ["Marketplaces ilimitados", "Produtos ilimitados", "Analytics premium", "Processamento prioritário"]
+    : ["Até 2 marketplaces", "Publicação automática", "Monitoramento básico 24h", "Suporte prioritário"];
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
@@ -166,7 +170,9 @@ const IntegracoesPage = () => {
         onClose={() => setUpgradeModalOpen(false)}
         title="Limite de marketplaces atingido"
         message="Seu plano atual não permite conectar outro marketplace. Faça upgrade para liberar mais integrações."
-        cta="Ver planos"
+        cta={marketplaceUpgradeTargetPlan === "business" ? "Upgrade Business" : "Desbloquear operação completa"}
+        targetPlan={marketplaceUpgradeTargetPlan}
+        benefits={marketplaceUpgradeBenefits}
       />
     </div>
   );

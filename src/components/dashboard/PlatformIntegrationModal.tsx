@@ -103,6 +103,10 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
 
   const available = initialPlatforms.filter(p => p.section === "available");
   const comingSoon = initialPlatforms.filter(p => p.section === "coming_soon");
+  const marketplaceUpgradeTargetPlan: "pro" | "business" = planLimits.plan === "pro" ? "business" : "pro";
+  const marketplaceUpgradeBenefits = marketplaceUpgradeTargetPlan === "business"
+    ? ["Marketplaces ilimitados", "Produtos ilimitados", "Analytics premium", "Processamento prioritário"]
+    : ["Até 2 marketplaces", "Publicação automática", "Monitoramento básico 24h", "Suporte prioritário"];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -207,7 +211,9 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
         onClose={() => setUpgradeModalOpen(false)}
         title="Limite de marketplaces atingido"
         message="Seu plano atual não permite conectar outro marketplace. Faça upgrade para liberar mais integrações."
-        cta="Ver planos"
+        cta={marketplaceUpgradeTargetPlan === "business" ? "Upgrade Business" : "Desbloquear operação completa"}
+        targetPlan={marketplaceUpgradeTargetPlan}
+        benefits={marketplaceUpgradeBenefits}
       />
     </div>
   );

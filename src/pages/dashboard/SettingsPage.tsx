@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, User } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -341,6 +341,10 @@ const IntegrationsTab = () => {
       window.location.href = authUrl;
     }
   };
+  const marketplaceUpgradeTargetPlan: "pro" | "business" = planLimits.plan === "pro" ? "business" : "pro";
+  const marketplaceUpgradeBenefits = marketplaceUpgradeTargetPlan === "business"
+    ? ["Marketplaces ilimitados", "Produtos ilimitados", "Analytics premium", "Processamento prioritário"]
+    : ["Até 2 marketplaces", "Publicação automática", "Monitoramento básico 24h", "Suporte prioritário"];
 
   return (
     <div>
@@ -393,7 +397,9 @@ const IntegrationsTab = () => {
         onClose={() => setUpgradeModalOpen(false)}
         title="Limite de marketplaces atingido"
         message="Seu plano atual não permite conectar outro marketplace. Faça upgrade para liberar mais integrações."
-        cta="Ver planos"
+        cta={marketplaceUpgradeTargetPlan === "business" ? "Upgrade Business" : "Desbloquear operação completa"}
+        targetPlan={marketplaceUpgradeTargetPlan}
+        benefits={marketplaceUpgradeBenefits}
       />
     </div>
   );
@@ -401,12 +407,13 @@ const IntegrationsTab = () => {
 
 /* ══ Plan ════════════════════════════════════════════════ */
 const PLAN_DATA = [
-  { id: "gratis", name: "Free", price: "R$0", period: "/mês", features: ["Até 10 produtos", "1 loja conectada", "Suporte por email"] },
-  { id: "plus",   name: "Plus", price: "R$59", period: "/mês", features: ["Produtos ilimitados", "3 lojas conectadas", "IA para descrições", "Suporte prioritário"] },
-  { id: "pro",    name: "Pro",  price: "R$129", period: "/mês", features: ["Tudo do Plus", "Lojas ilimitadas", "Automação completa", "Suporte dedicado"] },
+  { id: "gratis", name: "Grátis", price: "R$0", period: "/mês", features: ["Exploração do catálogo", "Dashboard demonstrativo", "IA básica de teste", "1 marketplace conectado", "Sem publicação de produtos", "Sem automações operacionais"] },
+  { id: "pro", name: "Pro", price: "R$99,90", period: "/mês", features: ["Até 30 produtos publicados", "Até 2 marketplaces", "Até 3 agentes IA", "Automações limitadas", "Analytics básico", "Monitoramento básico 24h", "Suporte prioritário"] },
+  { id: "business", name: "Business", price: "R$149,90", period: "/mês", features: ["Produtos ilimitados", "Marketplaces ilimitados", "Agentes IA ilimitados", "Automações ilimitadas", "Analytics premium", "IA estratégica avançada", "Suporte dedicado", "Operação sem limites"] },
 ];
 
 const PlanTab = () => {
+  const navigate = useNavigate();
   const { plan } = usePlan();
   const current = PLAN_DATA.find((p) => p.id === plan) ?? PLAN_DATA[0];
 
@@ -446,10 +453,17 @@ const PlanTab = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {PLAN_DATA.map((p) => {
           const isCurrent = p.id === plan;
+          const isSelectable = !isCurrent && p.id !== "gratis";
           return (
             <div
               key={p.id}
-              className={`rounded-xl p-4 ${isCurrent ? "border-2 border-black bg-[#FAFAFA] dark:border-white dark:bg-zinc-950" : "border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950"}`}
+              className={`rounded-xl p-4 ${
+                isCurrent
+                  ? "border-2 border-black bg-[#FAFAFA] dark:border-white dark:bg-zinc-950"
+                  : p.id === "business"
+                    ? "border border-black bg-white shadow-[0_16px_45px_rgba(0,0,0,0.08)] dark:border-white dark:bg-zinc-950"
+                    : "border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950"
+              }`}
             >
               <p className="text-[13px] font-normal text-[#0A0A0A] dark:text-white">{p.name}</p>
               <p className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white mt-1">
@@ -463,14 +477,17 @@ const PlanTab = () => {
                 ))}
               </ul>
               <button
-                disabled={isCurrent}
+                disabled={!isSelectable}
+                onClick={() => {
+                  if (p.id !== "gratis") navigate(`/checkout?plan=${p.id === "business" ? "business" : "pro"}`);
+                }}
                 className={`mt-4 w-full py-2 rounded-full text-[12px] font-medium ${
-                  isCurrent
+                  !isSelectable
                     ? "bg-[#F0F0F0] text-[#A3A3A3] cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
                     : "bg-black text-white hover:opacity-85 transition-opacity dark:bg-white dark:text-black"
                 }`}
               >
-                {isCurrent ? "Plano atual" : "Selecionar"}
+                {isCurrent ? "Plano atual" : p.id === "gratis" ? "Modo teste" : "Selecionar"}
               </button>
             </div>
           );

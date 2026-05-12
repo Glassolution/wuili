@@ -316,7 +316,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       return;
     }
 
-    if (!planLimits.canPublishToMarketplace) {
+    if (!planLimits.canPublishProducts) {
       setUpgradeModalOpen(true);
       return;
     }
@@ -359,6 +359,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       setStep(3);
 
       toast.success("Produto publicado com sucesso");
+      void planLimits.refreshUsage();
       if (data.permalink) window.open(data.permalink, '_blank', 'noopener,noreferrer');
     } catch (err: any) {
       toast.error(err?.message || "Erro inesperado");
@@ -373,6 +374,20 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
   const titleLength = title.length;
   const canAdvance = step === 1 ? (hasStock && isConnectedToML && !!title.trim() && sellPrice > totalCost) : true;
   const startModeOffset = isStartMode ? 48 : 0;
+  const reachedProProductLimit = planLimits.plan === "pro" && planLimits.productLimitReached;
+  const publishUpgradeTitle = reachedProProductLimit
+    ? "Limite do Pro atingido"
+    : "Desbloqueie a operação completa";
+  const publishUpgradeMessage = reachedProProductLimit
+    ? "Você atingiu o limite de 30 produtos do plano Pro."
+    : "O plano grátis é modo teste: você pode explorar o catálogo e conectar 1 marketplace, mas publicações reais exigem um plano operacional.";
+  const publishUpgradeCta = reachedProProductLimit
+    ? "Upgrade Business"
+    : "Desbloquear operação completa";
+  const publishUpgradeTargetPlan = reachedProProductLimit ? "business" : "pro";
+  const publishUpgradeBenefits = reachedProProductLimit
+    ? ["Produtos ilimitados", "Marketplaces ilimitados", "Agentes IA ilimitados", "Operação sem limites"]
+    : ["Publicação automática", "Até 30 produtos publicados", "Monitoramento básico 24h", "Relatórios financeiros"];
 
   return createPortal(
     <div
@@ -880,9 +895,11 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       <UpgradeLimitModal
         open={upgradeModalOpen}
         onClose={() => setUpgradeModalOpen(false)}
-        title="Publicação disponível no plano Pro"
-        message="Para publicar produtos no Mercado Livre, você precisa de um plano pago. Comece agora por R$99,90/mês."
-        cta="Fazer upgrade"
+        title={publishUpgradeTitle}
+        message={publishUpgradeMessage}
+        cta={publishUpgradeCta}
+        targetPlan={publishUpgradeTargetPlan}
+        benefits={publishUpgradeBenefits}
       />
 
       {/* Animations */}
