@@ -4,7 +4,6 @@ import { Search, ChevronDown, RefreshCw, Package, ChevronLeft, ChevronRight, Che
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
-import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
 import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +18,22 @@ const CATEGORIES = [
   { key: "pet", label: "Pet" },
   { key: "bebes", label: "Bebês" },
   { key: "organizacao", label: "Organização" },
+];
+
+const DATE_FILTERS = [
+  { key: "todos", label: "Todas as datas" },
+  { key: "today", label: "Hoje" },
+  { key: "7d", label: "Últimos 7 dias" },
+  { key: "30d", label: "Últimos 30 dias" },
+  { key: "90d", label: "Últimos 90 dias" },
+];
+
+const PAYMENT_STATUS_FILTERS = [
+  { key: "todos", label: "Status de pagamento" },
+  { key: "priced", label: "Com preço" },
+  { key: "missing_price", label: "Sem preço" },
+  { key: "positive_margin", label: "Margem positiva" },
+  { key: "out_of_stock", label: "Sem estoque" },
 ];
 
 // ── Platform badge config ─────────────────────────────────────────────────────
@@ -65,9 +80,10 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
         display: "flex",
         flexDirection: "column",
         backgroundColor: "#FFFFFF",
-        borderRadius: "16px",
+        borderRadius: "14px",
         border: "1px solid rgba(0,0,0,0.06)",
         overflow: "hidden",
+        minHeight: "520px",
         transition: "box-shadow 200ms ease, border-color 200ms ease",
         cursor: "default",
       }}
@@ -81,15 +97,12 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
       }}
     >
       {/* Image area */}
-      <div style={{ position: "relative", backgroundColor: "#F7F7F8", height: "200px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        {/* Checkbox */}
-        <div style={{ position: "absolute", top: "12px", left: "12px", width: "18px", height: "18px", borderRadius: "4px", border: "1.5px solid #D1D5DB", backgroundColor: "#FFFFFF", zIndex: 1 }} />
-
+      <div style={{ position: "relative", backgroundColor: "#FAFAFA", height: "270px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
         {img ? (
           <img
             src={img}
             alt={p.title}
-            style={{ width: "100%", height: "100%", objectFit: "contain", padding: "16px", opacity: outOfStock ? 0.5 : 1 }}
+            style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", padding: "22px", opacity: outOfStock ? 0.5 : 1 }}
             loading="lazy"
             decoding="async"
           />
@@ -107,7 +120,7 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
       </div>
 
       {/* Card body */}
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "14px 16px 16px" }}>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "16px 16px 18px" }}>
         {/* Platform + Rating */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
           {/* Platform badge */}
@@ -223,10 +236,13 @@ const CatalogPage = () => {
   const [category, setCategory] = useState("todos");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("todos");
+  const [paymentStatus, setPaymentStatus] = useState("todos");
+  const [platformFilter, setPlatformFilter] = useState("todos");
+  const [hideUnavailable, setHideUnavailable] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
   const [compareProductId, setCompareProductId] = useState<string | null>(null);
   const [compareProductTitle, setCompareProductTitle] = useState("");
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -281,7 +297,65 @@ const CatalogPage = () => {
 
   const rawProducts = data?.products || [];
   const totalPages = data?.totalPages || 1;
-  const products = useMemo(() => [...rawProducts], [rawProducts]);
+  const platformOptions = useMemo(() => {
+    const sources = new Map<string, string>();
+    rawProducts.forEach((p: any) => {
+      if (!p.source) return;
+      const key = String(p.source).toLowerCase();
+      sources.set(key, getPlatform(p.source).label);
+    });
+    return [{ key: "todos", label: "Integração da plataforma" }, ...Array.from(sources, ([key, label]) => ({ key, label }))];
+  }, [rawProducts]);
+
+  const products = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    const now = new Date();
+
+    return rawProducts.filter((p: any) => {
+      const haystack = [
+        p.title,
+        p.category,
+        p.source,
+        p.supplier_name,
+        p.external_id,
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      if (normalizedSearch && !haystack.includes(normalizedSearch)) return false;
+
+      if (dateFilter !== "todos") {
+        const rawDate = p.created_at || p.updated_at;
+        if (!rawDate) return false;
+
+        const productDate = new Date(rawDate);
+        if (Number.isNaN(productDate.getTime())) return false;
+
+        if (dateFilter === "today") {
+          if (productDate.toDateString() !== now.toDateString()) return false;
+        } else {
+          const days = Number(dateFilter.replace("d", ""));
+          const cutoff = new Date(now);
+          cutoff.setDate(now.getDate() - days);
+          if (productDate < cutoff) return false;
+        }
+      }
+
+      if (paymentStatus !== "todos") {
+        const hasPrice = Number(p.cost_price) > 0 && Number(p.suggested_price) > 0;
+        const hasPositiveMargin = Number(p.margin_percent) > 0 || Number(p.suggested_price) > Number(p.cost_price);
+        const outOfStock = !p.stock_quantity || p.stock_quantity <= 0;
+
+        if (paymentStatus === "priced" && !hasPrice) return false;
+        if (paymentStatus === "missing_price" && hasPrice) return false;
+        if (paymentStatus === "positive_margin" && !hasPositiveMargin) return false;
+        if (paymentStatus === "out_of_stock" && !outOfStock) return false;
+      }
+
+      if (platformFilter !== "todos" && String(p.source || "").toLowerCase() !== platformFilter) return false;
+      if (hideUnavailable && ((!p.stock_quantity || p.stock_quantity <= 0) || p.is_active === false)) return false;
+
+      return true;
+    });
+  }, [rawProducts, search, dateFilter, paymentStatus, platformFilter, hideUnavailable]);
 
   const formatPrice = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -333,16 +407,28 @@ const CatalogPage = () => {
           </div>
 
           {/* Date range pill */}
-          <button style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 16px", fontSize: "13px", fontWeight: 600, color: "#FFFFFF", backgroundColor: "#111111", border: "none", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
-            2 fev. – 14 abr.
-            <ChevronDown size={13} strokeWidth={2} style={{ color: "rgba(255,255,255,0.7)" }} />
-          </button>
+          <div style={{ position: "relative" }}>
+            <select
+              value={dateFilter}
+              onChange={(e) => { setDateFilter(e.target.value); setPage(1); }}
+              style={{ appearance: "none", height: "40px", padding: "0 34px 0 14px", fontSize: "13px", fontWeight: 600, color: "#FFFFFF", backgroundColor: "#111111", border: "none", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none" }}
+            >
+              {DATE_FILTERS.map((filter) => <option key={filter.key} value={filter.key}>{filter.label}</option>)}
+            </select>
+            <ChevronDown size={13} strokeWidth={2} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.7)", pointerEvents: "none" }} />
+          </div>
 
           {/* Status de pagamento */}
-          <button style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
-            Status de pagamento
-            <ChevronDown size={13} strokeWidth={1.8} style={{ color: "#9CA3AF" }} />
-          </button>
+          <div style={{ position: "relative" }}>
+            <select
+              value={paymentStatus}
+              onChange={(e) => { setPaymentStatus(e.target.value); setPage(1); }}
+              style={{ appearance: "none", height: "40px", padding: "0 34px 0 14px", fontSize: "13px", fontWeight: 500, color: paymentStatus !== "todos" ? "#FFFFFF" : "#111111", backgroundColor: paymentStatus !== "todos" ? "#111111" : "#FFFFFF", border: `1px solid ${paymentStatus !== "todos" ? "#111111" : "#E5E7EB"}`, borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none" }}
+            >
+              {PAYMENT_STATUS_FILTERS.map((filter) => <option key={filter.key} value={filter.key}>{filter.label}</option>)}
+            </select>
+            <ChevronDown size={13} strokeWidth={1.8} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: paymentStatus !== "todos" ? "rgba(255,255,255,0.7)" : "#9CA3AF", pointerEvents: "none" }} />
+          </div>
 
           {/* Categoria dropdown */}
           <div style={{ position: "relative" }} ref={categoryDropdownRef}>
@@ -375,7 +461,10 @@ const CatalogPage = () => {
           </div>
 
           {/* Ocultar */}
-          <button style={{ height: "40px", padding: "0 4px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "transparent", border: "none", cursor: "pointer", letterSpacing: "-0.01em", textDecoration: "underline", textUnderlineOffset: "2px" }}>
+          <button
+            onClick={() => { setHideUnavailable((v) => !v); setPage(1); }}
+            style={{ height: "40px", padding: "0 10px", fontSize: "13px", fontWeight: 500, color: hideUnavailable ? "#FFFFFF" : "#111111", backgroundColor: hideUnavailable ? "#111111" : "transparent", border: hideUnavailable ? "1px solid #111111" : "1px solid transparent", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", textDecoration: hideUnavailable ? "none" : "underline", textUnderlineOffset: "2px" }}
+          >
             Ocultar
           </button>
         </div>
@@ -391,21 +480,25 @@ const CatalogPage = () => {
             {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
           </button>
 
-          <button
-            onClick={() => setIsIntegrationModalOpen(true)}
-            style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 16px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}
-          >
-            Integração da plataforma
-          </button>
+          <div style={{ position: "relative" }}>
+            <select
+              value={platformFilter}
+              onChange={(e) => { setPlatformFilter(e.target.value); setPage(1); }}
+              style={{ appearance: "none", height: "40px", padding: "0 34px 0 14px", fontSize: "13px", fontWeight: 500, color: platformFilter !== "todos" ? "#FFFFFF" : "#111111", backgroundColor: platformFilter !== "todos" ? "#111111" : "#FFFFFF", border: `1px solid ${platformFilter !== "todos" ? "#111111" : "#E5E7EB"}`, borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none", maxWidth: "220px" }}
+            >
+              {platformOptions.map((platform) => <option key={platform.key} value={platform.key}>{platform.label}</option>)}
+            </select>
+            <ChevronDown size={13} strokeWidth={1.8} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: platformFilter !== "todos" ? "rgba(255,255,255,0.7)" : "#9CA3AF", pointerEvents: "none" }} />
+          </div>
         </div>
       </div>
 
       {/* ── Product Grid ────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
+        <div className="catalog-products-grid">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} style={{ backgroundColor: "#FFFFFF", borderRadius: "16px", border: "1px solid rgba(0,0,0,0.06)", overflow: "hidden" }}>
-              <Skeleton className="h-[200px] w-full rounded-none" />
+              <Skeleton className="h-[270px] w-full rounded-none" />
               <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 <Skeleton className="h-3.5 w-3/5 rounded-md" />
                 <Skeleton className="h-9 w-full rounded-md" />
@@ -424,7 +517,7 @@ const CatalogPage = () => {
           </p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "16px" }}>
+        <div className="catalog-products-grid">
           {products.map((p: any) => (
             <ProductCard
               key={p.id}
@@ -468,20 +561,41 @@ const CatalogPage = () => {
         product={selectedProduct}
       />
 
-      <PlatformIntegrationModal
-        open={isIntegrationModalOpen}
-        onClose={() => setIsIntegrationModalOpen(false)}
-      />
-
       <SupplierCompareModal
         open={!!compareProductId}
         onClose={() => setCompareProductId(null)}
         productId={compareProductId || ""}
         productTitle={compareProductTitle}
       />
+
+      <style>{`
+        .catalog-products-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 20px;
+          align-items: stretch;
+        }
+
+        @media (max-width: 1280px) {
+          .catalog-products-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 900px) {
+          .catalog-products-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 620px) {
+          .catalog-products-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </div>
   );
 };
 
 export default CatalogPage;
-

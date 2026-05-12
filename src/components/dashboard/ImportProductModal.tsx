@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useStartMode } from "@/hooks/useStartMode";
 
 export type CatalogProduct = {
   id: string;
@@ -76,6 +77,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
+  const { isStartMode } = useStartMode();
 
   const [step, setStep] = useState(1); // Start at step 1 (details)
   const [title, setTitle] = useState("");
@@ -370,9 +372,13 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
   const titleLength = title.length;
   const canAdvance = step === 1 ? (hasStock && isConnectedToML && !!title.trim() && sellPrice > totalCost) : true;
+  const startModeOffset = isStartMode ? 48 : 0;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div
+      className="fixed left-0 right-0 bottom-0 z-[60] flex justify-end"
+      style={{ top: startModeOffset, height: `calc(100vh - ${startModeOffset}px)` }}
+    >
       {/* Overlay */}
       <div
         className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] transition-opacity duration-150 ${
