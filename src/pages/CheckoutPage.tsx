@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Check, QrCode, CreditCard, Copy,
-  CheckCircle2, Loader2, Package,
+  CheckCircle2, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,6 +57,9 @@ const CheckoutPage = () => {
   const [pixData, setPixData] = useState<{ qr_code_base64: string; copy_paste: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [promoCode, setPromoCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [country, setCountry] = useState("Brasil");
+  const [address, setAddress] = useState("");
 
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -64,6 +67,10 @@ const CheckoutPage = () => {
   const [cardHolder, setCardHolder] = useState("");
   const [verifying, setVerifying] = useState(false);
   const pollRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (session?.user?.email && !email) setEmail(session.user.email);
+  }, [session, email]);
 
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
@@ -203,288 +210,279 @@ const CheckoutPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA]">
-      {/* Header — logo left, back button left */}
-      <header className="bg-white border-b border-gray-100">
-        <div className="mx-auto max-w-5xl flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-5">
+    <div className="min-h-screen bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
+      <div className="mx-auto grid min-h-screen w-full max-w-[1180px] grid-cols-1 lg:grid-cols-2">
+        {/* LEFT — plan summary */}
+        <aside className="border-b border-gray-100 px-6 py-8 sm:px-10 lg:border-b-0 lg:border-r lg:px-14 lg:py-10">
+          <div className="mb-10 flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-900"
+              aria-label="Voltar"
+            >
+              <ArrowLeft size={16} />
+            </button>
             <VeloLogo size="md" variant="dark" />
           </div>
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors"
-          >
-            <ArrowLeft size={14} />
-            Voltar
-          </button>
-        </div>
-      </header>
 
-      {/* Progress stepper — centered */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="flex items-center justify-center gap-3 px-6 py-3.5 text-sm">
-          <div className="flex items-center gap-2 text-green-600 font-medium">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
-              <Check size={10} className="text-white" strokeWidth={3} />
+          <div className="max-w-[420px]">
+            <p className="mb-2 text-[13px] font-medium text-gray-500">Plano {plan.name}</p>
+            <h1 className="text-[42px] font-semibold leading-none tracking-[-0.04em] text-gray-950">
+              {plan.price} por mês
+            </h1>
+            <p className="mt-3 max-w-[320px] text-[15px] font-medium leading-6 text-gray-600">
+              Assinatura mensal do plano {plan.name}
+            </p>
+
+            <div className="mt-12 border-y border-gray-100 py-6">
+              <div className="flex items-start justify-between gap-6">
+                <div>
+                  <p className="text-[14px] font-semibold text-gray-950">{plan.name}</p>
+                  <p className="mt-1 text-[12px] text-gray-500">Cobrança mensal</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[13px] font-semibold text-gray-950">{plan.price}</p>
+                  <p className="mt-1 text-[12px] text-gray-500">/ mês</p>
+                </div>
+              </div>
+
+              <ul className="mt-5 space-y-2">
+                {plan.features.slice(0, 5).map((feature) => (
+                  <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-gray-600">
+                    <Check size={13} className="mt-0.5 shrink-0 text-gray-900" strokeWidth={2.5} />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
             </div>
-            Plano selecionado
-          </div>
-          <span className="text-gray-300">›</span>
-          <div className="flex items-center gap-2 font-semibold text-gray-900">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-[10px] font-bold text-white">
-              2
+
+            <div className="space-y-5 py-7 text-[14px]">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-gray-700">Subtotal</span>
+                <span className="font-semibold text-gray-950">{plan.price}</span>
+              </div>
+
+              <div>
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  placeholder="Adicionar código promocional"
+                  className="h-10 w-full max-w-[250px] rounded-md border border-gray-100 bg-gray-50 px-3 text-[13px] text-gray-700 placeholder:text-gray-400 outline-none transition focus:border-gray-300 focus:bg-white"
+                />
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-gray-700">Total mensal</span>
+                  <span className="font-semibold text-gray-950">{plan.price}</span>
+                </div>
+                <div className="mt-7 flex items-center justify-between">
+                  <span className="font-semibold text-gray-700">Total devido hoje</span>
+                  <span className="font-semibold text-gray-950">{plan.price}</span>
+                </div>
+              </div>
             </div>
-            Pagamento
           </div>
-          <span className="text-gray-300">›</span>
-          <div className="flex items-center gap-2 text-gray-400">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-gray-300 text-[10px] font-bold text-gray-400">
-              3
-            </div>
-            Confirmação
-          </div>
-        </div>
-      </div>
+        </aside>
 
-      {/* Two-column layout */}
-      <div className="mx-auto max-w-5xl grid gap-5 px-6 py-8 md:grid-cols-[1fr_360px]">
-
-        {/* LEFT — Payment options */}
-        <div className="space-y-4">
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <h2 className="mb-5 flex items-center gap-2 text-[15px] font-semibold text-gray-900">
-              <CreditCard size={17} className="text-gray-400" />
-              Selecione a forma de pagamento
-            </h2>
-
-            {/* PIX option */}
+        {/* RIGHT — payment form */}
+        <main className="px-6 py-8 sm:px-10 lg:px-16 lg:py-12">
+          <div className="mx-auto w-full max-w-[430px]">
             <button
               type="button"
               onClick={() => setSelectedMethod("pix")}
-              className={`mb-3 flex w-full items-center justify-between rounded-xl border px-4 py-3.5 transition-colors ${
-                selectedMethod === "pix"
-                  ? "border-gray-900 bg-gray-50"
-                  : "border-gray-200 hover:border-gray-400"
-              }`}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#00C853] px-4 text-[15px] font-semibold text-white transition hover:bg-[#00b94d]"
             >
-              <div className="flex items-center gap-3">
-                <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                  selectedMethod === "pix" ? "border-gray-900" : "border-gray-300"
-                }`}>
-                  {selectedMethod === "pix" && (
-                    <div className="h-2 w-2 rounded-full bg-gray-900" />
-                  )}
-                </div>
-                <span className="text-sm font-medium text-gray-800">PIX</span>
-              </div>
-              <QrCode size={20} className="text-green-600" />
+              Pagar com Pix
+              <QrCode size={17} />
             </button>
 
-            {/* Credit Card option */}
-            <div className={`rounded-xl border transition-colors ${
-              selectedMethod === "credit_card"
-                ? "border-gray-900 bg-gray-50"
-                : "border-gray-200"
-            }`}>
-              <button
-                type="button"
-                onClick={() => setSelectedMethod("credit_card")}
-                className="flex w-full items-center justify-between px-4 py-3.5"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                    selectedMethod === "credit_card" ? "border-gray-900" : "border-gray-300"
-                  }`}>
-                    {selectedMethod === "credit_card" && (
-                      <div className="h-2 w-2 rounded-full bg-gray-900" />
-                    )}
-                  </div>
-                  <span className="text-sm font-medium text-gray-800">Cartão de crédito</span>
+            <div className="my-6 flex items-center gap-4">
+              <div className="h-px flex-1 bg-gray-100" />
+              <span className="text-[11px] font-semibold uppercase text-gray-400">OU</span>
+              <div className="h-px flex-1 bg-gray-100" />
+            </div>
+
+            <h2 className="mb-5 text-[21px] font-semibold tracking-[-0.03em] text-gray-950">
+              Insira os dados de pagamento
+            </h2>
+
+            <div className="space-y-5">
+              <label className="block">
+                <span className="mb-1.5 block text-[13px] font-semibold text-gray-700">E-mail</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="voce@email.com"
+                  className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+                />
+              </label>
+
+              <div>
+                <p className="mb-2 text-[13px] font-semibold text-gray-700">Método de pagamento</p>
+                <div className="overflow-hidden rounded-md border border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMethod("pix")}
+                    className={`flex h-12 w-full items-center justify-between border-b border-gray-100 px-3 text-left transition ${
+                      selectedMethod === "pix" ? "bg-gray-50" : "bg-white hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 text-[14px] font-semibold text-gray-800">
+                      <QrCode size={15} className="text-green-600" />
+                      Pix
+                    </span>
+                    <span className={`h-4 w-4 rounded-full border ${selectedMethod === "pix" ? "border-gray-900 bg-gray-900 shadow-[inset_0_0_0_4px_white]" : "border-gray-300"}`} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMethod("credit_card")}
+                    className={`flex h-12 w-full items-center justify-between px-3 text-left transition ${
+                      selectedMethod === "credit_card" ? "bg-gray-50" : "bg-white hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 text-[14px] font-semibold text-gray-800">
+                      <CreditCard size={15} className="text-blue-600" />
+                      Cartão
+                    </span>
+                    <span className={`h-4 w-4 rounded-full border ${selectedMethod === "credit_card" ? "border-gray-900 bg-gray-900 shadow-[inset_0_0_0_4px_white]" : "border-gray-300"}`} />
+                  </button>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-gray-700 tracking-wide">VISA</span>
-                  <span className="rounded border border-orange-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-orange-600 tracking-wide">MC</span>
-                </div>
-              </button>
+              </div>
 
               {selectedMethod === "credit_card" && (
-                <div className="space-y-3 border-t border-gray-100 px-4 pb-4 pt-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">Número do cartão</label>
-                    <input
-                      type="text"
-                      placeholder="0000 0000 0000 0000"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                      maxLength={19}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400/20"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-500">Validade</label>
+                <div className="rounded-md border border-gray-200 p-3">
+                  <label className="block">
+                    <span className="mb-1.5 block text-[13px] font-medium text-gray-700">Número do cartão</span>
+                    <div className="relative">
                       <input
                         type="text"
-                        placeholder="MM/AA"
+                        placeholder="1234 1234 1234 1234"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value)}
+                        maxLength={19}
+                        className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 pr-20 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+                      />
+                      <div className="absolute right-2 top-1/2 flex -translate-y-1/2 gap-1">
+                        <span className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-blue-700">VISA</span>
+                        <span className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-orange-600">MC</span>
+                      </div>
+                    </div>
+                  </label>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="mb-1.5 block text-[13px] font-medium text-gray-700">Data de validade</span>
+                      <input
+                        type="text"
+                        placeholder="MM / AA"
                         value={cardExpiry}
                         onChange={(e) => setCardExpiry(e.target.value)}
                         maxLength={5}
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400/20"
+                        className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
                       />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-500">CVV/CVC</label>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-[13px] font-medium text-gray-700">Código de segurança</span>
                       <input
                         type="text"
-                        placeholder="***"
+                        placeholder="CVC"
                         value={cardCvc}
                         onChange={(e) => setCardCvc(e.target.value)}
                         maxLength={4}
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400/20"
+                        className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
                       />
-                    </div>
+                    </label>
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">Nome no cartão</label>
-                    <input
-                      type="text"
-                      placeholder="NOME COMPLETO"
-                      value={cardHolder}
-                      onChange={(e) => setCardHolder(e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400/20"
+                </div>
+              )}
+
+              <label className="block">
+                <span className="mb-1.5 block text-[13px] font-semibold text-gray-700">Nome completo</span>
+                <input
+                  type="text"
+                  value={cardHolder}
+                  onChange={(e) => setCardHolder(e.target.value)}
+                  placeholder="Seu nome completo"
+                  className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-[13px] font-semibold text-gray-700">País ou região</span>
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+                >
+                  <option>Brasil</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-[13px] font-semibold text-gray-700">Endereço</span>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Rua, número, complemento"
+                  className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+                />
+              </label>
+            </div>
+
+            {checkoutState === "pix_pending" && pixData && (
+              <div className="mt-6 rounded-md border border-gray-200 bg-white p-5 text-center">
+                <h3 className="text-[15px] font-semibold text-gray-900">Escaneie o QR Code para pagar</h3>
+                <p className="mt-1 text-[13px] text-gray-500">Abra o app do seu banco e escaneie o código abaixo.</p>
+                {pixData.qr_code_base64 && (
+                  <div className="mt-4 flex justify-center">
+                    <img
+                      src={`data:image/png;base64,${pixData.qr_code_base64}`}
+                      alt="QR Code Pix"
+                      className="h-44 w-44 rounded-md border border-gray-100"
                     />
                   </div>
+                )}
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                  <button
+                    onClick={copyPix}
+                    className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 px-4 py-2.5 text-[13px] font-semibold text-gray-700 transition hover:bg-gray-50"
+                  >
+                    {copied ? <CheckCircle2 size={15} className="text-green-500" /> : <Copy size={15} />}
+                    {copied ? "Copiado!" : "Copiar código Pix"}
+                  </button>
+                  <button
+                    onClick={handleManualVerify}
+                    disabled={verifying}
+                    className="inline-flex items-center justify-center gap-2 rounded-md bg-gray-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black disabled:opacity-60"
+                  >
+                    {verifying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                    Já paguei
+                  </button>
                 </div>
-              )}
-            </div>
-          </div>
+                <p className="mt-3 text-[12px] text-gray-400">Verificamos seu pagamento automaticamente a cada 5 segundos.</p>
+              </div>
+            )}
 
-          {/* PIX QR Code (shown after generating) */}
-          {checkoutState === "pix_pending" && pixData && (
-            <div className="rounded-2xl bg-white p-6 shadow-sm text-center space-y-4">
-              <h3 className="text-[15px] font-semibold text-gray-900">Escaneie o QR Code para pagar</h3>
-              <p className="text-sm text-gray-500">Abra o app do seu banco e escaneie o código abaixo</p>
-              {pixData.qr_code_base64 && (
-                <div className="flex justify-center">
-                  <img
-                    src={`data:image/png;base64,${pixData.qr_code_base64}`}
-                    alt="QR Code Pix"
-                    className="h-48 w-48 rounded-xl border border-gray-100"
-                  />
-                </div>
-              )}
+            {checkoutState !== "pix_pending" && (
               <button
-                onClick={copyPix}
-                className="mx-auto flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                onClick={handleCheckout}
+                disabled={checkoutState === "loading"}
+                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-gray-950 px-4 text-[15px] font-semibold text-white transition hover:bg-black disabled:cursor-wait disabled:opacity-60"
               >
-                {copied ? <CheckCircle2 size={15} className="text-green-500" /> : <Copy size={15} />}
-                {copied ? "Copiado!" : "Copiar código Pix"}
+                {checkoutState === "loading" ? (
+                  <><Loader2 size={16} className="animate-spin" /> Processando...</>
+                ) : (
+                  `Pagar ${plan.price}`
+                )}
               </button>
-              <button
-                onClick={handleManualVerify}
-                disabled={verifying}
-                className="mx-auto flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black transition-colors disabled:opacity-60"
-              >
-                {verifying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                Já paguei — verificar agora
-              </button>
-              <p className="text-xs text-gray-400">Verificamos seu pagamento automaticamente a cada 5 segundos.</p>
-            </div>
-          )}
-
-          {/* Pay button */}
-          {checkoutState !== "pix_pending" && (
-            <button
-              onClick={handleCheckout}
-              disabled={checkoutState === "loading"}
-              className="btn-primary btn-primary--md w-full"
-            >
-              {checkoutState === "loading" ? (
-                <><Loader2 size={16} className="animate-spin" /> Processando...</>
-              ) : (
-                `Pagar ${plan.price}`
-              )}
-            </button>
-          )}
-        </div>
-
-        {/* RIGHT — Order summary */}
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
-                <Check size={14} strokeWidth={3} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-emerald-900">
-                  Plano {plan.name} selecionado
-                </p>
-                <p className="mt-1 text-sm leading-6 text-emerald-800/80">
-                  Escolha a forma de pagamento para continuar com a ativação.
-                </p>
-              </div>
-            </div>
+            )}
           </div>
-
-          {/* Plan details */}
-          <div className="rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-[15px] font-semibold text-gray-900">
-              <Package size={16} className="text-gray-400" />
-              Seu plano
-            </h2>
-            <div className="mb-3 flex items-start justify-between">
-              <div>
-                <p className="text-sm font-bold text-gray-900">{plan.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Cobrança mensal</p>
-              </div>
-              <span className="text-sm font-bold text-gray-900">{plan.price}</span>
-            </div>
-            <ul className="space-y-1.5 border-t border-gray-100 pt-3">
-              {plan.features.map((f) => (
-                <li key={f} className="flex items-center gap-2 text-xs text-gray-500">
-                  <Check size={11} className="shrink-0 text-gray-700" strokeWidth={3} />
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Promo code */}
-          <div className="rounded-2xl bg-white p-5 shadow-sm">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">Código promocional</h3>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Digite o código"
-                value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value)}
-                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400/20"
-              />
-              <button className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black transition-colors">
-                Aplicar
-              </button>
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div className="rounded-2xl bg-white p-5 shadow-sm">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">Resumo</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-gray-500">
-                <span>Plano {plan.name}</span>
-                <span>{plan.price}</span>
-              </div>
-              <div className="flex justify-between text-gray-500">
-                <span>Desconto</span>
-                <span>—</span>
-              </div>
-              <div className="flex justify-between border-t border-gray-100 pt-2 text-base font-bold text-gray-900">
-                <span>Total</span>
-                <span>{plan.price}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        </main>
       </div>
     </div>
   );
