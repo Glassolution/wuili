@@ -2,11 +2,15 @@ import { useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Activity,
   BarChart3,
   CircleDollarSign,
   CreditCard,
+  LifeBuoy,
   Loader2,
   Lock,
+  ReceiptText,
+  RefreshCcw,
   TrendingUp,
   UserCheck,
   Users,
@@ -292,12 +296,12 @@ const formatStatus = (status?: string | null) => {
 const getStatusStyle = (status?: string | null) => {
   const normalized = (status ?? "").toLowerCase();
   if (["active", "approved", "authorized", "paid"].includes(normalized)) {
-    return "bg-[#00C853]/15 text-[#00C853] border-[#00C853]/25";
+    return "bg-emerald-50 text-emerald-700 border-emerald-100";
   }
   if (["pending", "waiting", "in_process"].includes(normalized)) {
-    return "bg-yellow-400/15 text-yellow-300 border-yellow-300/25";
+    return "bg-amber-50 text-amber-700 border-amber-100";
   }
-  return "bg-white/10 text-white/55 border-white/15";
+  return "bg-neutral-100 text-neutral-500 border-neutral-200";
 };
 
 const getInitials = (name?: string | null, email?: string | null) => {
@@ -333,16 +337,56 @@ const AdminDashboardPage = () => {
     queryFn: fetchAdminOverview,
   });
 
+  const { data: operationalCounts } = useQuery({
+    queryKey: ["admin-dashboard-operational-counts"],
+    enabled: !!user?.id && isAdmin,
+    queryFn: async () => {
+      const [{ count: refunds }, { count: tickets }] = await Promise.all([
+        supabase.from("refund_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
+      ]);
+      return { refunds: refunds ?? 0, tickets: tickets ?? 0 };
+    },
+  });
+
   const metrics = dashboard.metrics ?? emptyPayload.metrics;
+  const monthlyRevenue = dashboard.monthlyRevenue ?? [];
+  const transactions = dashboard.transactions ?? [];
   const maxMonthlyRevenue = useMemo(
-    () => Math.max(...dashboard.monthlyRevenue.map((month) => month.value), 1),
-    [dashboard.monthlyRevenue]
+    () => Math.max(...monthlyRevenue.map((month) => month.value), 1),
+    [monthlyRevenue]
   );
+  const planRevenue = useMemo(() => {
+    const byPlan = new Map<string, { plan: string; amount: number; count: number }>();
+    transactions.forEach((transaction) => {
+      const key = formatPlan(transaction.plan);
+      const current = byPlan.get(key) ?? { plan: key, amount: 0, count: 0 };
+      current.amount += Number(transaction.amount ?? 0);
+      current.count += 1;
+      byPlan.set(key, current);
+    });
+    return Array.from(byPlan.values()).sort((a, b) => b.amount - a.amount);
+  }, [transactions]);
+  const recentUsers = useMemo(() => {
+    const seen = new Set<string>();
+    return transactions.filter((transaction) => {
+      if (seen.has(transaction.user_id)) return false;
+      seen.add(transaction.user_id);
+      return true;
+    }).slice(0, 5);
+  }, [transactions]);
+  const activeSubscriptions = useMemo(
+    () => transactions.filter((transaction) => ["active", "approved", "authorized", "paid"].includes(transaction.status?.toLowerCase?.() ?? "")).slice(0, 5),
+    [transactions]
+  );
+  const latestRevenue = monthlyRevenue.at(-1)?.value ?? 0;
+  const previousRevenue = monthlyRevenue.at(-2)?.value ?? 0;
+  const hasGrowthComparison = previousRevenue > 0;
 
   if (loading || loadingRole) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F7F5]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#111111]" />
       </div>
     );
   }
@@ -351,13 +395,13 @@ const AdminDashboardPage = () => {
 
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
-        <div className="w-full max-w-md rounded-[28px] border border-[#333] bg-[#111] p-8 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-black">
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F7F5] p-6 text-[#111111]">
+        <div className="w-full max-w-md rounded-[28px] border border-black/[0.05] bg-white p-8 text-center shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#111111] text-white">
             <Lock size={21} />
           </div>
           <h1 className="mt-5 text-[24px] font-bold">Acesso restrito</h1>
-          <p className="mt-2 text-[14px] leading-6 text-white/55">
+          <p className="mt-2 text-[14px] leading-6 text-black/50">
             Este dashboard é exclusivo para usuários com role admin.
           </p>
         </div>
@@ -367,22 +411,23 @@ const AdminDashboardPage = () => {
 
   return (
     <AdminShell active="dashboard" userId={user.id}>
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <header className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="font-sans text-[38px] font-bold tracking-normal text-white md:text-[48px]">
-            Dashboard
+          <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-black/35">Painel administrativo</p>
+          <h1 className="mt-3 font-sans text-[48px] font-semibold tracking-[-0.06em] text-[#111111] md:text-[64px]">
+            Admin
           </h1>
-          <p className="mt-3 text-[15px] text-white/48">Visão operacional da Velo</p>
+          <p className="mt-3 text-[15px] text-black/50">Visão operacional da Velo</p>
         </div>
 
-        <div className="flex rounded-2xl border border-[#333] bg-[#050505] p-1">
+        <div className="flex rounded-full border border-black/[0.06] bg-white p-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           {["Visão Geral", "Histórico", "Analytics"].map((tab, index) => (
             <button
               key={tab}
               type="button"
               className={cn(
-                "h-11 rounded-xl px-5 text-[13px] font-semibold transition md:px-7",
-                index === 0 ? "bg-white text-black" : "text-white/55 hover:text-white"
+                "h-10 rounded-full px-5 text-[13px] font-semibold transition md:px-7",
+                index === 0 ? "bg-[#111111] text-white" : "text-black/45 hover:bg-[#F4F4F2] hover:text-[#111111]"
               )}
             >
               {tab}
@@ -392,19 +437,19 @@ const AdminDashboardPage = () => {
       </header>
 
       {isError ? (
-        <div className="mt-8 rounded-[24px] border border-[#333] bg-[#111] p-8 text-white">
+        <div className="mt-8 rounded-[28px] border border-black/[0.05] bg-white p-8 text-[#111111] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           <p className="text-[18px] font-bold">Não foi possível carregar o dashboard admin.</p>
-          <p className="mt-2 text-[14px] text-white/50">
+          <p className="mt-2 text-[14px] text-black/50">
             Verifique as permissões de leitura das tabelas profiles, subscriptions e orders.
           </p>
         </div>
       ) : loadingDashboard ? (
         <div className="mt-16 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-white" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#111111]" />
         </div>
       ) : (
         <>
-          <section id="receita" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <MetricCard
               icon={Users}
               label="Total de usuários"
@@ -430,47 +475,57 @@ const AdminDashboardPage = () => {
               value={String(metrics.total_orders)}
               hint="Pedidos registrados"
             />
+            <MetricCard
+              icon={CircleDollarSign}
+              label="Faturamento bruto"
+              value={formatBRL(metrics.gross_revenue)}
+              hint="Total confirmado"
+              positive
+            />
           </section>
 
-          <section className="mt-5 rounded-[28px] border border-[#333] bg-[#111] p-5 md:p-7">
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.65fr)] xl:items-end">
+          <section id="receita" className="mt-5 rounded-[32px] border border-black/[0.05] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] md:p-7">
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_390px] xl:items-stretch">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <p className="text-[15px] font-medium text-white/72">Faturamento bruto total:</p>
-                  <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-black">
-                    {metrics.growth_rate >= 0 ? "+" : ""}
-                    {metrics.growth_rate.toFixed(0)}% este mês
+                  <p className="text-[15px] font-semibold text-black/55">Revenue</p>
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-bold text-emerald-700">
+                    {hasGrowthComparison ? `${metrics.growth_rate >= 0 ? "+" : ""}${metrics.growth_rate.toFixed(0)}%` : "Sem comparação disponível"}
                   </span>
                 </div>
-                <p className="mt-8 break-words font-sans text-[56px] font-bold tracking-[-0.06em] text-white md:text-[86px] xl:text-[104px]">
+                <p className="mt-7 break-words font-sans text-[58px] font-semibold tracking-[-0.07em] text-[#111111] md:text-[86px] xl:text-[104px]">
                   {formatBRL(metrics.gross_revenue)}
                 </p>
-                <div id="planos" className="mt-7 flex flex-wrap gap-3">
+                <p className="mt-2 text-[14px] text-black/42">
+                  {hasGrowthComparison ? `vs período anterior ${formatBRL(previousRevenue)}` : "Sem histórico suficiente para comparar crescimento."}
+                </p>
+
+                <div id="planos" className="mt-8 flex flex-wrap gap-3">
                   <OverviewPill icon={CircleDollarSign} label="Receita ativa" value={formatBRL(metrics.mrr)} />
                   <OverviewPill icon={CreditCard} label="Pagantes" value={String(metrics.paid_users)} />
                   <OverviewPill icon={Users} label="Base total" value={String(metrics.total_users)} />
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-[#252525] bg-black p-5">
+              <div className="rounded-[28px] border border-black/[0.05] bg-[#F7F7F5] p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[13px] font-bold text-white">Evolução mensal</p>
-                    <p className="mt-1 text-[12px] text-white/38">Últimos 6 meses</p>
+                    <p className="text-[13px] font-bold text-[#111111]">Performance mensal</p>
+                    <p className="mt-1 text-[12px] text-black/38">Últimos 6 meses</p>
                   </div>
-                  <BarChart3 size={19} className="text-white/45" />
+                  <BarChart3 size={19} className="text-black/35" />
                 </div>
                 <div className="mt-7 flex h-[180px] items-end gap-3">
-                  {dashboard.monthlyRevenue.map((month) => (
+                  {monthlyRevenue.map((month) => (
                     <div key={month.key} className="flex flex-1 flex-col items-center gap-3">
-                      <div className="flex h-[136px] w-full items-end rounded-full bg-[#151515] px-1.5">
+                      <div className="flex h-[136px] w-full items-end rounded-full bg-white px-1.5">
                         <div
-                          className="w-full rounded-full bg-white transition-all"
+                          className="w-full rounded-full bg-[#111111] transition-all"
                           style={{ height: `${Math.max((month.value / maxMonthlyRevenue) * 100, month.value > 0 ? 8 : 0)}%` }}
                           title={formatBRL(month.value)}
                         />
                       </div>
-                      <span className="text-[11px] font-semibold capitalize text-white/45">{month.label}</span>
+                      <span className="text-[11px] font-semibold capitalize text-black/45">{month.label}</span>
                     </div>
                   ))}
                 </div>
@@ -478,41 +533,103 @@ const AdminDashboardPage = () => {
             </div>
           </section>
 
-          <section className="mt-5 overflow-hidden rounded-[26px] border border-[#222] bg-[#111]">
-            <div className="flex items-center justify-between border-b border-[#222] px-5 py-5">
-              <div>
-                <h2 className="text-[18px] font-bold">Últimas transações</h2>
-                <p className="mt-1 text-[12px] text-white/40">Assinaturas e pagamentos mais recentes.</p>
+          <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.75fr)]">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <PanelCard title="Receita por plano" subtitle="Baseada nas transações reais">
+                {planRevenue.length === 0 ? (
+                  <EmptyState message="Nenhuma receita por plano ainda." />
+                ) : (
+                  <div className="space-y-3">
+                    {planRevenue.map((plan) => {
+                      const pct = metrics.gross_revenue > 0 ? Math.round((plan.amount / metrics.gross_revenue) * 100) : 0;
+                      return (
+                        <div key={plan.plan} className="rounded-2xl bg-[#F7F7F5] p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[14px] font-semibold text-[#111111]">{plan.plan}</span>
+                            <span className="text-[14px] font-semibold text-[#111111]">{formatBRL(plan.amount)}</span>
+                          </div>
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                            <div className="h-full rounded-full bg-[#111111]" style={{ width: `${Math.max(pct, plan.amount > 0 ? 4 : 0)}%` }} />
+                          </div>
+                          <p className="mt-2 text-[12px] text-black/42">{plan.count} assinatura(s) · {pct}% do total</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </PanelCard>
+
+              <PanelCard title="Operação" subtitle="Reembolsos, suporte e pedidos">
+                <div className="grid gap-3">
+                  <OperationRow icon={ReceiptText} label="Pedidos" value={String(metrics.total_orders)} detail="Pedidos registrados" />
+                  <OperationRow icon={RefreshCcw} label="Reembolsos pendentes" value={String(operationalCounts?.refunds ?? 0)} detail="Solicitações em aberto" />
+                  <OperationRow icon={LifeBuoy} label="Tickets de suporte" value={String(operationalCounts?.tickets ?? 0)} detail="Conversas abertas" />
+                </div>
+              </PanelCard>
+            </div>
+
+            <PanelCard title="Usuários recentes" subtitle="Últimos clientes em transações">
+              {recentUsers.length === 0 ? (
+                <EmptyState message="Nenhum usuário recente encontrado." />
+              ) : (
+                <div className="space-y-3">
+                  {recentUsers.map((transaction) => (
+                    <CompactUserRow key={transaction.user_id} transaction={transaction} />
+                  ))}
+                </div>
+              )}
+            </PanelCard>
+          </section>
+
+          <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+            <section className="overflow-hidden rounded-[28px] border border-black/[0.05] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+              <div className="flex items-center justify-between border-b border-black/[0.05] px-5 py-5">
+                <div>
+                  <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-[#111111]">Histórico</h2>
+                  <p className="mt-1 text-[12px] text-black/40">Assinaturas e pagamentos mais recentes.</p>
+                </div>
               </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px]">
-                <thead>
-                  <tr className="bg-[#1a1a1a] text-left text-[12px] font-bold text-white/55">
-                    <th className="px-5 py-4">Usuário</th>
-                    <th className="px-5 py-4">Plano</th>
-                    <th className="px-5 py-4">Data</th>
-                    <th className="px-5 py-4">Horário</th>
-                    <th className="px-5 py-4">ID do pagamento</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4 text-right">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboard.transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-5 py-14 text-center text-[14px] text-white/42">
-                        Nenhuma transação encontrada.
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[980px]">
+                  <thead>
+                    <tr className="bg-[#F7F7F5] text-left text-[12px] font-semibold text-black/45">
+                      <th className="px-5 py-4">Usuário</th>
+                      <th className="px-5 py-4">Plano</th>
+                      <th className="px-5 py-4">Data</th>
+                      <th className="px-5 py-4">Horário</th>
+                      <th className="px-5 py-4">ID do pagamento</th>
+                      <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4 text-right">Valor</th>
                     </tr>
-                  ) : (
-                    dashboard.transactions.map((transaction, index) => (
-                      <TransactionRow key={transaction.id} transaction={transaction} index={index} />
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-5 py-14 text-center text-[14px] text-black/42">
+                          Nenhuma transação encontrada.
+                        </td>
+                      </tr>
+                    ) : (
+                      transactions.map((transaction, index) => (
+                        <TransactionRow key={transaction.id} transaction={transaction} index={index} />
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <PanelCard title="Assinaturas ativas" subtitle="Planos em estado ativo">
+              {activeSubscriptions.length === 0 ? (
+                <EmptyState message="Nenhuma assinatura ativa encontrada." />
+              ) : (
+                <div className="space-y-3">
+                  {activeSubscriptions.map((transaction) => (
+                    <CompactSubscriptionRow key={transaction.id} transaction={transaction} />
+                  ))}
+                </div>
+              )}
+            </PanelCard>
           </section>
         </>
       )}
@@ -533,17 +650,17 @@ const MetricCard = ({
   hint: string;
   positive?: boolean;
 }) => (
-  <div className="rounded-[22px] border border-[#333] bg-[#1a1a1a] p-5">
+  <div className="rounded-[28px] border border-black/[0.05] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(0,0,0,0.04)]">
     <div className="flex items-center justify-between">
-      <span className="text-[12px] font-bold uppercase tracking-[0.16em] text-white/38">{label}</span>
-      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-black/35">{label}</span>
+      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F7F7F5] text-[#111111]">
         <Icon size={18} />
       </span>
     </div>
-    <p className={cn("mt-7 text-[32px] font-bold tracking-[-0.05em]", positive ? "text-[#00C853]" : "text-white")}>
+    <p className={cn("mt-7 text-[30px] font-semibold tracking-[-0.05em]", positive ? "text-emerald-600" : "text-[#111111]")}>
       {value}
     </p>
-    <p className="mt-2 text-[12px] text-white/42">{hint}</p>
+    <p className="mt-2 text-[12px] text-black/42">{hint}</p>
   </div>
 );
 
@@ -556,39 +673,99 @@ const OverviewPill = ({
   label: string;
   value: string;
 }) => (
-  <div className="inline-flex items-center gap-3 rounded-2xl border border-[#2b2b2b] bg-[#1a1a1a] px-4 py-3">
-    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-black">
+  <div className="inline-flex items-center gap-3 rounded-2xl border border-black/[0.05] bg-[#F7F7F5] px-4 py-3">
+    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-[#111111]">
       <Icon size={16} />
     </span>
     <span>
-      <span className="block text-[11px] font-semibold text-white/38">{label}</span>
-      <span className="block text-[13px] font-bold text-white">{value}</span>
+      <span className="block text-[11px] font-semibold text-black/38">{label}</span>
+      <span className="block text-[13px] font-bold text-[#111111]">{value}</span>
     </span>
   </div>
 );
 
+const PanelCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
+  <section className="rounded-[28px] border border-black/[0.05] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+    <div className="mb-5">
+      <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-[#111111]">{title}</h2>
+      <p className="mt-1 text-[12px] text-black/40">{subtitle}</p>
+    </div>
+    {children}
+  </section>
+);
+
+const EmptyState = ({ message }: { message: string }) => (
+  <div className="flex min-h-[140px] items-center justify-center rounded-[22px] border border-dashed border-black/[0.08] bg-[#FAFAFA] px-5 text-center text-[13px] text-black/40">
+    {message}
+  </div>
+);
+
+const OperationRow = ({ icon: Icon, label, value, detail }: { icon: React.ElementType; label: string; value: string; detail: string }) => (
+  <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#F7F7F5] p-4">
+    <div className="flex items-center gap-3">
+      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#111111]">
+        <Icon size={17} />
+      </span>
+      <div>
+        <p className="text-[14px] font-semibold text-[#111111]">{label}</p>
+        <p className="mt-0.5 text-[12px] text-black/40">{detail}</p>
+      </div>
+    </div>
+    <span className="text-[22px] font-semibold tracking-[-0.04em] text-[#111111]">{value}</span>
+  </div>
+);
+
+const CompactUserRow = ({ transaction }: { transaction: AdminTransaction }) => (
+  <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#F7F7F5] p-3">
+    <div className="flex min-w-0 items-center gap-3">
+      <Avatar transaction={transaction} />
+      <div className="min-w-0">
+        <p className="truncate text-[14px] font-semibold text-[#111111]">{transaction.user_name || transaction.email || "Usuário"}</p>
+        <p className="truncate text-[12px] text-black/40">{transaction.email || transaction.user_id}</p>
+      </div>
+    </div>
+    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-black/55">{formatPlan(transaction.plan)}</span>
+  </div>
+);
+
+const CompactSubscriptionRow = ({ transaction }: { transaction: AdminTransaction }) => (
+  <div className="rounded-2xl bg-[#F7F7F5] p-4">
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="truncate text-[14px] font-semibold text-[#111111]">{transaction.user_name || transaction.email || "Usuário"}</p>
+        <p className="mt-0.5 text-[12px] text-black/40">{formatPlan(transaction.plan)} · {formatDate(transaction.created_at)}</p>
+      </div>
+      <span className="text-[14px] font-semibold text-emerald-600">{formatBRL(transaction.amount)}</span>
+    </div>
+  </div>
+);
+
+const Avatar = ({ transaction }: { transaction: AdminTransaction }) => (
+  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#111111] text-[12px] font-bold text-white">
+    {transaction.avatar_url ? (
+      <img src={transaction.avatar_url} alt={transaction.user_name ?? "Usuário"} className="h-full w-full object-cover" />
+    ) : (
+      getInitials(transaction.user_name, transaction.email)
+    )}
+  </div>
+);
+
 const TransactionRow = ({ transaction, index }: { transaction: AdminTransaction; index: number }) => (
-  <tr className={cn("text-[13px] text-white/65", index % 2 === 0 ? "bg-[#0a0a0a]" : "bg-[#111]")}>
+  <tr className={cn("text-[13px] text-black/60", index % 2 === 0 ? "bg-white" : "bg-[#FCFCFB]")}>
     <td className="px-5 py-4">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#252525] text-[12px] font-bold text-white">
-          {transaction.avatar_url ? (
-            <img src={transaction.avatar_url} alt={transaction.user_name ?? "Usuário"} className="h-full w-full object-cover" />
-          ) : (
-            getInitials(transaction.user_name, transaction.email)
-          )}
-        </div>
+        <Avatar transaction={transaction} />
         <div className="min-w-0">
-          <p className="truncate font-bold text-white">{transaction.user_name || transaction.email || "Usuário"}</p>
-          <p className="mt-0.5 truncate text-[11px] text-white/35">{transaction.email || transaction.user_id}</p>
+          <p className="truncate font-semibold text-[#111111]">{transaction.user_name || transaction.email || "Usuário"}</p>
+          <p className="mt-0.5 truncate text-[11px] text-black/35">{transaction.email || transaction.user_id}</p>
         </div>
       </div>
     </td>
-    <td className="px-5 py-4 font-semibold text-white/70">{formatPlan(transaction.plan)}</td>
+    <td className="px-5 py-4 font-semibold text-black/65">{formatPlan(transaction.plan)}</td>
     <td className="px-5 py-4">{formatDate(transaction.created_at)}</td>
     <td className="px-5 py-4">{formatTime(transaction.created_at)}</td>
     <td className="px-5 py-4">
-      <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/45">
+      <span className="rounded-full bg-[#F7F7F5] px-3 py-1 text-[11px] font-semibold text-black/45">
         {truncatePaymentId(transaction.mp_payment_id, transaction.id)}
       </span>
     </td>
@@ -597,7 +774,7 @@ const TransactionRow = ({ transaction, index }: { transaction: AdminTransaction;
         {formatStatus(transaction.status)}
       </span>
     </td>
-    <td className="px-5 py-4 text-right text-[15px] font-bold text-[#00C853]">
+    <td className="px-5 py-4 text-right text-[15px] font-bold text-emerald-600">
       {formatBRL(transaction.amount)}
     </td>
   </tr>
