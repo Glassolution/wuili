@@ -62,17 +62,13 @@ interface ProductCardProps {
 const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductCardProps) => {
   const img = getImage(p.images);
   const outOfStock = !p.stock_quantity || p.stock_quantity <= 0;
-  const platform = getPlatform(p.source);
-  const rating = p.rating ?? 4.5;
-  const reviewCount = p.orders_count ?? 0;
 
-  // Build category tags from p.category
+  // Keep product tags focused on the category; supplier/platform details stay hidden.
   const tags: string[] = [];
   if (p.category) {
     const cat = p.category.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
     tags.push(cat);
   }
-  if (p.supplier_name) tags.push(p.supplier_name.split(" ")[0]);
 
   return (
     <div
@@ -121,31 +117,6 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
 
       {/* Card body */}
       <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "16px 16px 18px" }}>
-        {/* Platform + Rating */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-          {/* Platform badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <div style={{ width: "20px", height: "20px", borderRadius: "4px", backgroundColor: platform.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", fontWeight: 700, color: platform.color, flexShrink: 0 }}>
-              {platform.icon}
-            </div>
-            <span style={{ fontSize: "13px", fontWeight: 500, color: "#111111", letterSpacing: "-0.01em" }}>
-              {platform.label}
-            </span>
-          </div>
-          {/* Rating */}
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <span style={{ color: "#F59E0B", fontSize: "13px" }}>★</span>
-            <span style={{ fontSize: "13px", fontWeight: 500, color: "#111111" }}>
-              {rating.toFixed(1)}
-            </span>
-            {reviewCount > 0 && (
-              <span style={{ fontSize: "12px", color: "#9CA3AF" }}>
-                ({reviewCount.toLocaleString("pt-BR")})
-              </span>
-            )}
-          </div>
-        </div>
-
         {/* Product title */}
         <p style={{ fontSize: "14px", fontWeight: 600, color: "#111111", lineHeight: "1.4", letterSpacing: "-0.01em", margin: "0 0 12px 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: "40px" }}>
           {p.title}
