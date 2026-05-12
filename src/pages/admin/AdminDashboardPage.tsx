@@ -434,124 +434,119 @@ const AdminDashboardPage = () => {
           <Loader2 className="h-8 w-8 animate-spin text-[#111111]" />
         </div>
       ) : (
-        <div className="mx-auto max-w-[1560px] pb-14">
-          <header className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
+        <div className="mx-auto max-w-[1420px] pb-10 text-[#22221f]">
+          <header className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
-                className="flex h-12 w-12 items-center justify-center rounded-full border border-black/[0.08] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.04)] transition hover:-translate-y-0.5"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-black/[0.075] bg-white shadow-[0_6px_18px_rgba(0,0,0,0.035)] transition hover:-translate-y-px"
                 aria-label="Adicionar relatório"
               >
-                <Plus size={22} strokeWidth={1.7} />
+                <Plus size={17} strokeWidth={1.8} />
               </button>
               {(recentUsers.length ? recentUsers.slice(0, 3) : transactions.slice(0, 3)).map((transaction) => (
                 <PersonPill key={transaction.id} transaction={transaction} />
               ))}
-              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-black/[0.08] bg-[#111111] text-[14px] font-bold text-white shadow-[0_10px_30px_rgba(0,0,0,0.10)]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-black/[0.075] bg-[#22221f] text-[11px] font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
                 VL
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="hidden rounded-full border border-black/[0.06] bg-white/80 p-1 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:flex">
+            <div className="flex items-center gap-4">
+              <div className="hidden rounded-full border border-black/[0.055] bg-white/72 p-0.5 shadow-[0_6px_18px_rgba(0,0,0,0.03)] sm:flex">
                 {["Visão geral", "Histórico", "Analytics"].map((tab, index) => (
                   <a
                     key={tab}
                     href={index === 0 ? "#overview" : index === 1 ? "#historico" : "#analytics"}
                     className={cn(
-                      "rounded-full px-5 py-2.5 text-[13px] font-semibold transition",
-                      index === 0 ? "bg-[#111111] text-white" : "text-black/45 hover:bg-[#F5F5F3] hover:text-[#111111]"
+                      "rounded-full px-4 py-1.5 text-[12px] font-semibold transition",
+                      index === 0 ? "bg-[#22221f] text-white" : "text-black/42 hover:bg-[#F5F5F3] hover:text-[#22221f]"
                     )}
                   >
                     {tab}
                   </a>
                 ))}
               </div>
-              <div className="flex items-center gap-2 text-[13px] font-semibold text-[#111111]">
-                <span className="relative h-6 w-11 rounded-full bg-[#111111]">
-                  <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
+              <div className="flex items-center gap-2 text-[13px] font-semibold text-[#22221f]">
+                <span className="relative h-5 w-9 rounded-full bg-[#22221f]">
+                  <span className="absolute right-0.5 top-0.5 h-4 w-4 rounded-full bg-white" />
                 </span>
                 Tempo real
               </div>
             </div>
           </header>
 
-          <section id="overview" className="relative mt-10 overflow-hidden rounded-[42px] border border-black/[0.04] bg-[#FAFAF8]/75 px-5 py-8 shadow-[0_30px_90px_rgba(0,0,0,0.05)] backdrop-blur-xl md:px-10 md:py-11">
-            <div className="pointer-events-none absolute -left-16 top-8 h-40 w-40 rounded-full bg-white/80 blur-2xl" />
-            <div className="pointer-events-none absolute right-12 top-8 hidden h-44 w-44 rounded-full bg-black/[0.035] blur-3xl xl:block" />
-
-            <div className="relative grid gap-8 xl:grid-cols-[minmax(0,1fr)_520px]">
-              <div>
-                <p className="text-[54px] font-semibold leading-none tracking-[-0.08em] text-black/[0.16] md:text-[86px] xl:text-[112px]">
-                  New report
-                </p>
-                <div className="mt-9 flex flex-wrap items-end gap-4">
-                  <div>
-                    <p className="text-[26px] font-semibold tracking-[-0.05em] text-[#111111] md:text-[34px]">Revenue</p>
-                    <p id="receita" className="mt-3 break-words text-[56px] font-semibold leading-[0.95] tracking-[-0.08em] text-[#111111] md:text-[86px] xl:text-[104px]">
-                      {formatBRL(metrics.gross_revenue)}
-                    </p>
-                  </div>
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white shadow-[0_10px_24px_rgba(5,150,105,0.18)]">
-                      {hasGrowthComparison ? `${metrics.growth_rate >= 0 ? "+" : ""}${metrics.growth_rate.toFixed(1)}%` : "Sem comparação"}
-                    </span>
-                    <span className="rounded-full bg-[#111111] px-4 py-2 text-[13px] font-bold text-white">
-                      {formatBRL(latestRevenue)}
-                    </span>
-                  </div>
+          <section id="overview" className="relative mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_520px]">
+            <div>
+              <p className="text-[46px] font-semibold leading-none tracking-[-0.065em] text-black/[0.14] md:text-[58px]">
+                New report
+              </p>
+              <div id="receita" className="mt-8">
+                <p className="text-[24px] font-semibold tracking-[-0.045em] text-[#22221f]">Revenue</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <p className="break-words text-[42px] font-bold leading-none tracking-[-0.07em] text-[#22221f] md:text-[56px]">
+                    {formatBRL(metrics.gross_revenue)}
+                  </p>
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-700 ring-1 ring-emerald-600/10">
+                    {hasGrowthComparison ? `${metrics.growth_rate >= 0 ? "+" : ""}${metrics.growth_rate.toFixed(1)}%` : "Sem comparação"}
+                  </span>
+                  <span className="rounded-full bg-[#F1F0ED] px-3 py-1 text-[12px] font-semibold text-black/48">
+                    {formatBRL(latestRevenue)}
+                  </span>
                 </div>
-                <p className="mt-5 text-[15px] font-medium text-black/48">
+                <p className="mt-3 text-[13px] font-medium text-black/44">
                   {hasGrowthComparison ? `vs período anterior ${formatBRL(previousRevenue)} · ${monthRangeLabel}` : `Sem comparação disponível · ${monthRangeLabel}`}
                 </p>
-
-                <DistributionStrip transactions={topTransactions} total={topTransactionTotal} />
               </div>
 
-              <div className="grid content-start gap-4 sm:grid-cols-3 xl:grid-cols-2">
-                <FloatingStat
-                  className="xl:translate-y-10"
-                  eyebrow="Top sales"
-                  value={String(metrics.total_orders)}
-                  label={bestTransaction?.user_name || bestTransaction?.email || "Sem vendas"}
-                  transaction={bestTransaction}
-                />
-                <FloatingStat
-                  dark
-                  eyebrow="Best deal"
-                  value={bestTransaction ? formatBRL(bestTransaction.amount) : formatBRL(0)}
-                  label={bestTransaction ? formatPlan(bestTransaction.plan) : "Sem dados"}
-                  transaction={bestTransaction}
-                />
-                <FloatingStat
-                  className="xl:col-span-2 xl:ml-20"
-                  eyebrow="MRR"
-                  value={formatBRL(metrics.mrr)}
-                  label={`${revenueShare}% do faturamento bruto`}
-                />
-              </div>
+              <DistributionStrip transactions={topTransactions} total={topTransactionTotal} />
+            </div>
+
+            <div className="grid content-start gap-3 sm:grid-cols-3 xl:grid-cols-2">
+              <FloatingStat
+                className="xl:translate-y-5"
+                eyebrow="Top sales"
+                value={String(metrics.total_orders)}
+                label={bestTransaction?.user_name || bestTransaction?.email || "Sem vendas"}
+                transaction={bestTransaction}
+              />
+              <FloatingStat
+                dark
+                eyebrow="Best deal"
+                value={bestTransaction ? formatBRL(bestTransaction.amount) : formatBRL(0)}
+                label={bestTransaction ? formatPlan(bestTransaction.plan) : "Sem dados"}
+                transaction={bestTransaction}
+              />
+              <FloatingStat
+                className="xl:col-span-2 xl:ml-14"
+                eyebrow="MRR"
+                value={formatBRL(metrics.mrr)}
+                label={`${revenueShare}% do faturamento bruto`}
+              />
             </div>
           </section>
 
-          <section className="mt-6 grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)_440px]">
+          <section className="mt-8 grid gap-4 xl:grid-cols-[360px_390px_minmax(0,1fr)]">
             <EditorialCard className="bg-[#ECEBE7]" title="Receita por plano" action="Filters">
               {planRevenue.length === 0 ? (
                 <EmptyState message="Nenhuma receita por plano ainda." />
               ) : (
-                <div className="mt-5 space-y-3">
+                <div className="mt-4 space-y-2.5">
                   {planRevenue.map((plan) => {
                     const pct = metrics.gross_revenue > 0 ? Math.round((plan.amount / metrics.gross_revenue) * 100) : 0;
                     return (
-                      <div key={plan.plan} className="flex items-center gap-4 rounded-[20px] bg-white px-4 py-3 shadow-[0_10px_28px_rgba(0,0,0,0.035)]">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5F5F3] text-[13px] font-bold text-[#111111]">
+                      <div key={plan.plan} className="flex items-center gap-3 rounded-[16px] bg-white px-3.5 py-2.5 shadow-[0_6px_18px_rgba(0,0,0,0.026)]">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F5F5F3] text-[11px] font-bold text-[#22221f]">
                           {plan.plan.slice(0, 2).toUpperCase()}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[15px] font-semibold text-[#111111]">{plan.plan}</p>
-                          <p className="text-[12px] font-medium text-black/38">{plan.count} assinatura(s)</p>
+                          <p className="truncate text-[13px] font-semibold text-[#22221f]">{plan.plan}</p>
+                          <p className="text-[11px] font-medium text-black/36">{plan.count} assinatura(s)</p>
                         </div>
-                        <p className="text-right text-[16px] font-semibold tracking-[-0.03em] text-[#111111]">{formatBRL(plan.amount)}</p>
-                        <span className="rounded-full bg-[#F1F1EF] px-3 py-1 text-[12px] font-semibold text-[#111111]">{pct}%</span>
+                        <div className="text-right">
+                          <p className="text-[13px] font-bold tracking-[-0.02em] text-[#22221f]">{formatBRL(plan.amount)}</p>
+                          <p className="text-[11px] font-medium text-black/34">{pct}%</p>
+                        </div>
                       </div>
                     );
                   })}
@@ -560,40 +555,38 @@ const AdminDashboardPage = () => {
             </EditorialCard>
 
             <EditorialCard id="analytics" className="bg-[#E9E8E4]" title="Revenue by month" action="Filters">
-              <div className="mt-6 flex min-h-[270px] items-end justify-center gap-4 overflow-hidden rounded-[28px] bg-[#F5F5F3] px-5 pb-7 pt-10">
+              <div className="mt-4 flex h-[210px] items-end justify-center gap-3 overflow-hidden rounded-[18px] bg-[#F5F5F3] px-4 pb-5 pt-8">
                 {monthlyRevenue.length === 0 ? (
                   <EmptyState message="Sem dados suficientes para o gráfico." />
                 ) : (
                   monthlyRevenue.map((month, index) => (
-                    <div key={month.key} className="flex h-[220px] flex-1 flex-col items-center justify-end gap-3">
-                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-black/45 shadow-[0_8px_18px_rgba(0,0,0,0.035)]">
-                        {formatBRL(month.value)}
-                      </span>
+                    <div key={month.key} className="flex h-[172px] flex-1 flex-col items-center justify-end gap-2.5">
                       <div
                         className={cn(
-                          "w-full max-w-[70px] rounded-t-[26px] transition duration-300 hover:scale-[1.03]",
-                          index % 2 === 0 ? "bg-[#111111]" : "bg-white"
+                          "w-full max-w-[42px] rounded-t-[18px] transition duration-200 hover:scale-[1.02]",
+                          index % 2 === 0 ? "bg-[#22221f]" : "bg-white"
                         )}
-                        style={{ height: `${Math.max((month.value / maxMonthlyRevenue) * 170, month.value > 0 ? 24 : 8)}px` }}
+                        style={{ height: `${Math.max((month.value / maxMonthlyRevenue) * 132, month.value > 0 ? 20 : 7)}px` }}
+                        title={formatBRL(month.value)}
                       />
-                      <span className="text-[12px] font-semibold capitalize text-black/38">{month.label}</span>
+                      <span className="text-[11px] font-semibold capitalize text-black/38">{month.label}</span>
                     </div>
                   ))
                 )}
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
                 <MicroMetric label="Usuários" value={String(metrics.total_users)} />
                 <MicroMetric label="Pagos" value={String(metrics.paid_users)} positive />
                 <MicroMetric label="Pedidos" value={String(metrics.total_orders)} />
               </div>
             </EditorialCard>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               <EditorialCard className="bg-white" title="Ranking" action="Revenue">
-                <div className="mt-5 grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-3 text-[13px]">
-                  <p className="font-semibold text-black/40">Sales</p>
-                  <p className="font-semibold text-black/40">Revenue</p>
-                  <p className="font-semibold text-black/40">Plan</p>
+                <div className="mt-4 grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-2 text-[12px]">
+                  <p className="font-medium text-black/36">Sales</p>
+                  <p className="font-medium text-black/36">Revenue</p>
+                  <p className="font-medium text-black/36">Plan</p>
                   {(topTransactions.length ? topTransactions : transactions.slice(0, 4)).map((transaction) => (
                     <DealRow key={transaction.id} transaction={transaction} />
                   ))}
@@ -606,8 +599,8 @@ const AdminDashboardPage = () => {
               </EditorialCard>
 
               <EditorialCard className="bg-white" title="Operação" action="Live">
-                <div className="mt-5 grid gap-3">
-                  <OperationRow icon={ReceiptText} label="Pedidos" value={String(metrics.total_orders)} detail="Pedidos registrados" />
+                <div className="mt-4 grid gap-2.5">
+                  <OperationRow icon={ReceiptText} label="Pedidos" value={String(metrics.total_orders)} detail="Registrados" />
                   <OperationRow icon={RefreshCcw} label="Reembolsos" value={String(operationalCounts?.refunds ?? 0)} detail="Pendentes" />
                   <OperationRow icon={LifeBuoy} label="Suporte" value={String(operationalCounts?.tickets ?? 0)} detail="Tickets abertos" />
                 </div>
@@ -615,35 +608,35 @@ const AdminDashboardPage = () => {
             </div>
           </section>
 
-          <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_430px]">
-            <section className="overflow-hidden rounded-[34px] border border-black/[0.05] bg-white shadow-[0_20px_80px_rgba(0,0,0,0.04)]">
-              <div className="flex flex-col gap-5 border-b border-black/[0.05] px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <section className="overflow-hidden rounded-[20px] border border-black/[0.04] bg-white shadow-[0_10px_36px_rgba(0,0,0,0.025)]">
+              <div className="flex flex-col gap-3 border-b border-black/[0.045] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-black/32">Histórico real</p>
-                  <h2 id="historico" className="mt-1 text-[26px] font-semibold tracking-[-0.05em] text-[#111111]">Payments feed</h2>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-black/30">Histórico real</p>
+                  <h2 id="historico" className="mt-1 text-[18px] font-semibold tracking-[-0.035em] text-[#22221f]">Payments feed</h2>
                 </div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-[#F5F5F3] px-4 py-2 text-[13px] font-semibold text-black/50">
-                  <Activity size={15} />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F5F5F3] px-3 py-1.5 text-[12px] font-semibold text-black/45">
+                  <Activity size={13} />
                   {transactions.length} registros
                 </span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[980px]">
+                <table className="w-full min-w-[860px]">
                   <thead>
-                    <tr className="text-left text-[12px] font-semibold text-black/35">
-                      <th className="px-6 py-4">Usuário</th>
-                      <th className="px-6 py-4">Plano</th>
-                      <th className="px-6 py-4">Data</th>
-                      <th className="px-6 py-4">Horário</th>
-                      <th className="px-6 py-4">Pagamento</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4 text-right">Valor</th>
+                    <tr className="text-left text-[11px] font-medium uppercase tracking-[0.11em] text-black/30">
+                      <th className="px-4 py-3">Usuário</th>
+                      <th className="px-4 py-3">Plano</th>
+                      <th className="px-4 py-3">Data</th>
+                      <th className="px-4 py-3">Hora</th>
+                      <th className="px-4 py-3">Pagamento</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 text-right">Valor</th>
                     </tr>
                   </thead>
                   <tbody>
                     {transactions.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-14 text-center text-[14px] text-black/42">
+                        <td colSpan={7} className="px-4 py-10 text-center text-[13px] text-black/42">
                           Nenhuma transação encontrada.
                         </td>
                       </tr>
@@ -657,12 +650,12 @@ const AdminDashboardPage = () => {
               </div>
             </section>
 
-            <div className="space-y-5">
-              <EditorialCard className="bg-[#111111] text-white" title="Platform value" action="MRR">
-                <div className="mt-5 rounded-[28px] bg-white/[0.08] p-5">
-                  <p className="text-[13px] font-semibold text-white/45">Receita mensal</p>
-                  <p className="mt-2 text-[42px] font-semibold tracking-[-0.07em] text-white">{formatBRL(metrics.mrr)}</p>
-                  <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
+            <div className="space-y-4">
+              <EditorialCard className="bg-[#22221f] text-white" title="Platform value" action="MRR">
+                <div className="mt-4 rounded-[18px] bg-white/[0.07] p-4">
+                  <p className="text-[12px] font-medium text-white/44">Receita mensal</p>
+                  <p className="mt-2 text-[30px] font-bold tracking-[-0.06em] text-white">{formatBRL(metrics.mrr)}</p>
+                  <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10">
                     <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(Math.max(revenueShare, metrics.mrr > 0 ? 8 : 0), 100)}%` }} />
                   </div>
                   <p className="mt-3 text-[12px] text-white/45">{revenueShare}% do faturamento bruto total</p>
@@ -673,7 +666,7 @@ const AdminDashboardPage = () => {
                 {activeSubscriptions.length === 0 ? (
                   <EmptyState message="Nenhuma assinatura ativa encontrada." />
                 ) : (
-                  <div className="mt-5 space-y-3">
+                  <div className="mt-4 space-y-2.5">
                     {activeSubscriptions.map((transaction) => (
                       <CompactSubscriptionRow key={transaction.id} transaction={transaction} />
                     ))}
@@ -689,9 +682,9 @@ const AdminDashboardPage = () => {
 };
 
 const PersonPill = ({ transaction }: { transaction: AdminTransaction }) => (
-  <span className="inline-flex h-12 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3 pr-4 text-[14px] font-semibold text-[#111111] shadow-[0_10px_30px_rgba(0,0,0,0.04)]">
+  <span className="inline-flex h-9 items-center gap-2 rounded-full border border-black/[0.07] bg-white px-2.5 pr-3.5 text-[13px] font-semibold text-[#22221f] shadow-[0_6px_18px_rgba(0,0,0,0.03)]">
     <Avatar transaction={transaction} size="sm" />
-    <span className="max-w-[120px] truncate">{transaction.user_name || transaction.email || "Usuário"}</span>
+    <span className="max-w-[112px] truncate">{transaction.user_name || transaction.email || "Usuário"}</span>
   </span>
 );
 
@@ -712,43 +705,43 @@ const FloatingStat = ({
 }) => (
   <article
     className={cn(
-      "min-h-[142px] rounded-[24px] border p-5 shadow-[0_18px_45px_rgba(0,0,0,0.08)] transition duration-300 hover:-translate-y-1",
-      dark ? "border-white/[0.08] bg-[#111111] text-white" : "border-black/[0.06] bg-white text-[#111111]",
+      "min-h-[104px] rounded-[20px] border p-4 shadow-[0_10px_28px_rgba(0,0,0,0.035)] transition duration-200 hover:-translate-y-px",
+      dark ? "border-white/[0.08] bg-[#22221f] text-white" : "border-black/[0.045] bg-white text-[#22221f]",
       className
     )}
   >
-    <div className="flex items-start justify-between gap-3">
+    <div className="flex items-start justify-between gap-2">
       <div>
-        <p className={cn("text-[14px] font-semibold", dark ? "text-white/42" : "text-black/38")}>{eyebrow}</p>
-        <p className="mt-3 text-[28px] font-semibold tracking-[-0.06em]">{value}</p>
+        <p className={cn("text-[12px] font-medium", dark ? "text-white/42" : "text-black/36")}>{eyebrow}</p>
+        <p className="mt-2 text-[22px] font-bold tracking-[-0.055em]">{value}</p>
       </div>
-      <span className={cn("flex h-8 w-8 items-center justify-center rounded-full", dark ? "bg-white text-[#111111]" : "bg-[#F4F4F2] text-[#111111]")}>
-        <ArrowRight size={16} />
+      <span className={cn("flex h-7 w-7 items-center justify-center rounded-full", dark ? "bg-white text-[#22221f]" : "bg-[#F4F4F2] text-[#22221f]")}>
+        <ArrowRight size={14} />
       </span>
     </div>
-    <div className="mt-4 flex items-center gap-2">
+    <div className="mt-3 flex items-center gap-2">
       {transaction && <Avatar transaction={transaction} size="xs" />}
-      <p className={cn("truncate text-[14px] font-semibold", dark ? "text-white/80" : "text-black/60")}>{label}</p>
+      <p className={cn("truncate text-[13px] font-semibold", dark ? "text-white/78" : "text-black/55")}>{label}</p>
     </div>
   </article>
 );
 
 const DistributionStrip = ({ transactions, total }: { transactions: AdminTransaction[]; total: number }) => (
-  <div className="mt-9 overflow-hidden rounded-full bg-white p-1 shadow-[0_18px_50px_rgba(0,0,0,0.055)]">
+  <div className="mt-7 overflow-hidden rounded-full bg-white p-1 shadow-[0_8px_28px_rgba(0,0,0,0.032)]">
     {transactions.length === 0 ? (
-      <div className="flex h-12 items-center justify-center rounded-full bg-[#F5F5F3] text-[13px] font-semibold text-black/38">
+      <div className="flex h-9 items-center justify-center rounded-full bg-[#F5F5F3] text-[12px] font-semibold text-black/36">
         Sem transações para distribuir
       </div>
     ) : (
-      <div className="flex min-h-12 gap-1">
+      <div className="flex min-h-9 gap-1">
         {transactions.map((transaction, index) => {
           const pct = total > 0 ? Math.max((transaction.amount / total) * 100, 16) : 25;
           return (
             <div
               key={transaction.id}
               className={cn(
-                "flex min-w-[120px] items-center justify-between gap-3 rounded-full px-4 text-[13px] font-semibold",
-                index % 2 === 0 ? "bg-[#F5F5F3] text-[#111111]" : "bg-white text-[#111111] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]"
+                "flex min-w-[104px] items-center justify-between gap-2 rounded-full px-3 text-[12px] font-semibold",
+                index % 2 === 0 ? "bg-[#F5F5F3] text-[#22221f]" : "bg-white text-[#22221f] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.045)]"
               )}
               style={{ width: `${pct}%` }}
             >
@@ -778,20 +771,20 @@ const EditorialCard = ({
   <section
     id={id}
     className={cn(
-      "rounded-[34px] border border-black/[0.05] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.04)] transition duration-300 hover:-translate-y-0.5 md:p-6",
+      "rounded-[20px] border border-black/[0.04] p-4 shadow-[0_10px_36px_rgba(0,0,0,0.026)] transition duration-200 hover:-translate-y-px",
       className
     )}
   >
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-[#111111] shadow-[0_8px_22px_rgba(0,0,0,0.04)]">
-          <BarChart3 size={18} />
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/78 text-[#22221f] shadow-[0_5px_14px_rgba(0,0,0,0.028)]">
+          <BarChart3 size={15} />
         </span>
-        <h2 className="text-[20px] font-semibold tracking-[-0.05em]">{title}</h2>
+        <h2 className="text-[16px] font-semibold tracking-[-0.035em]">{title}</h2>
       </div>
-      <span className="inline-flex items-center gap-2 rounded-full border border-black/[0.06] bg-white/70 px-4 py-2 text-[13px] font-semibold text-black/58">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.055] bg-white/68 px-3 py-1.5 text-[12px] font-semibold text-black/48">
         {action}
-        <Filter size={14} />
+        <Filter size={12} />
       </span>
     </div>
     {children}
@@ -799,54 +792,54 @@ const EditorialCard = ({
 );
 
 const MicroMetric = ({ label, value, positive = false }: { label: string; value: string; positive?: boolean }) => (
-  <div className="rounded-[22px] bg-white px-4 py-4 shadow-[0_12px_30px_rgba(0,0,0,0.035)]">
-    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-black/32">{label}</p>
-    <p className={cn("mt-2 text-[28px] font-semibold tracking-[-0.06em]", positive ? "text-emerald-600" : "text-[#111111]")}>{value}</p>
+  <div className="rounded-[16px] bg-white px-3 py-3 shadow-[0_6px_18px_rgba(0,0,0,0.026)]">
+    <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-black/30">{label}</p>
+    <p className={cn("mt-1.5 text-[20px] font-bold tracking-[-0.055em]", positive ? "text-emerald-600" : "text-[#22221f]")}>{value}</p>
   </div>
 );
 
 const DealRow = ({ transaction }: { transaction: AdminTransaction }) => (
   <>
-    <div className="flex min-w-0 items-center gap-2 py-2">
+    <div className="flex min-w-0 items-center gap-2 py-1.5">
       <Avatar transaction={transaction} size="xs" />
-      <span className="truncate font-semibold text-[#111111]">{transaction.user_name || transaction.email || "Usuário"}</span>
+      <span className="truncate font-semibold text-[#22221f]">{transaction.user_name || transaction.email || "Usuário"}</span>
     </div>
-    <p className="py-2 text-right text-[15px] font-semibold tracking-[-0.03em] text-[#111111]">{formatBRL(transaction.amount)}</p>
-    <p className="py-2 text-right">
-      <span className="rounded-full bg-[#F4F4F2] px-3 py-1 text-[12px] font-bold text-black/55">{formatPlan(transaction.plan)}</span>
+    <p className="py-1.5 text-right text-[13px] font-bold tracking-[-0.025em] text-[#22221f]">{formatBRL(transaction.amount)}</p>
+    <p className="py-1.5 text-right">
+      <span className="rounded-full bg-[#F4F4F2] px-2.5 py-0.5 text-[11px] font-bold text-black/50">{formatPlan(transaction.plan)}</span>
     </p>
   </>
 );
 
 const EmptyState = ({ message }: { message: string }) => (
-  <div className="flex min-h-[140px] items-center justify-center rounded-[22px] border border-dashed border-black/[0.08] bg-[#FAFAFA] px-5 text-center text-[13px] text-black/40">
+  <div className="flex min-h-[100px] items-center justify-center rounded-[16px] border border-dashed border-black/[0.07] bg-[#FAFAFA] px-4 text-center text-[12px] text-black/38">
     {message}
   </div>
 );
 
 const OperationRow = ({ icon: Icon, label, value, detail }: { icon: React.ElementType; label: string; value: string; detail: string }) => (
-  <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#F7F7F5] p-4">
-    <div className="flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#111111]">
-        <Icon size={17} />
+  <div className="flex items-center justify-between gap-3 rounded-[16px] bg-[#F7F7F5] px-3 py-2.5">
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#22221f]">
+        <Icon size={14} />
       </span>
       <div>
-        <p className="text-[14px] font-semibold text-[#111111]">{label}</p>
-        <p className="mt-0.5 text-[12px] text-black/40">{detail}</p>
+        <p className="text-[13px] font-semibold text-[#22221f]">{label}</p>
+        <p className="mt-0.5 text-[11px] text-black/36">{detail}</p>
       </div>
     </div>
-    <span className="text-[22px] font-semibold tracking-[-0.04em] text-[#111111]">{value}</span>
+    <span className="text-[18px] font-bold tracking-[-0.04em] text-[#22221f]">{value}</span>
   </div>
 );
 
 const CompactSubscriptionRow = ({ transaction }: { transaction: AdminTransaction }) => (
-  <div className="rounded-2xl bg-[#F7F7F5] p-4">
-    <div className="flex items-center justify-between gap-3">
+  <div className="rounded-[16px] bg-[#F7F7F5] px-3 py-2.5">
+    <div className="flex items-center justify-between gap-2.5">
       <div className="min-w-0">
-        <p className="truncate text-[14px] font-semibold text-[#111111]">{transaction.user_name || transaction.email || "Usuário"}</p>
-        <p className="mt-0.5 text-[12px] text-black/40">{formatPlan(transaction.plan)} · {formatDate(transaction.created_at)}</p>
+        <p className="truncate text-[13px] font-semibold text-[#22221f]">{transaction.user_name || transaction.email || "Usuário"}</p>
+        <p className="mt-0.5 text-[11px] text-black/36">{formatPlan(transaction.plan)} · {formatDate(transaction.created_at)}</p>
       </div>
-      <span className="text-[14px] font-semibold text-emerald-600">{formatBRL(transaction.amount)}</span>
+      <span className="text-[13px] font-bold text-emerald-600">{formatBRL(transaction.amount)}</span>
     </div>
   </div>
 );
@@ -854,10 +847,10 @@ const CompactSubscriptionRow = ({ transaction }: { transaction: AdminTransaction
 const Avatar = ({ transaction, size = "md" }: { transaction: AdminTransaction; size?: "xs" | "sm" | "md" }) => (
   <div
     className={cn(
-      "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#111111] font-bold text-white",
-      size === "xs" && "h-7 w-7 text-[10px]",
-      size === "sm" && "h-8 w-8 text-[10px]",
-      size === "md" && "h-10 w-10 text-[12px]"
+      "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#22221f] font-bold text-white",
+      size === "xs" && "h-6 w-6 text-[9px]",
+      size === "sm" && "h-7 w-7 text-[9px]",
+      size === "md" && "h-8 w-8 text-[10px]"
     )}
   >
     {transaction.avatar_url ? (
@@ -869,30 +862,30 @@ const Avatar = ({ transaction, size = "md" }: { transaction: AdminTransaction; s
 );
 
 const TransactionRow = ({ transaction, index }: { transaction: AdminTransaction; index: number }) => (
-  <tr className={cn("text-[13px] text-black/60", index % 2 === 0 ? "bg-white" : "bg-[#FCFCFB]")}>
-    <td className="px-5 py-4">
-      <div className="flex items-center gap-3">
+  <tr className={cn("text-[12px] text-black/56", index % 2 === 0 ? "bg-white" : "bg-[#FCFCFB]")}>
+    <td className="px-4 py-3">
+      <div className="flex items-center gap-2.5">
         <Avatar transaction={transaction} />
         <div className="min-w-0">
-          <p className="truncate font-semibold text-[#111111]">{transaction.user_name || transaction.email || "Usuário"}</p>
-          <p className="mt-0.5 truncate text-[11px] text-black/35">{transaction.email || transaction.user_id}</p>
+          <p className="truncate font-semibold text-[#22221f]">{transaction.user_name || transaction.email || "Usuário"}</p>
+          <p className="mt-0.5 truncate text-[10px] text-black/32">{transaction.email || transaction.user_id}</p>
         </div>
       </div>
     </td>
-    <td className="px-5 py-4 font-semibold text-black/65">{formatPlan(transaction.plan)}</td>
-    <td className="px-5 py-4">{formatDate(transaction.created_at)}</td>
-    <td className="px-5 py-4">{formatTime(transaction.created_at)}</td>
-    <td className="px-5 py-4">
-      <span className="rounded-full bg-[#F7F7F5] px-3 py-1 text-[11px] font-semibold text-black/45">
+    <td className="px-4 py-3 font-semibold text-black/58">{formatPlan(transaction.plan)}</td>
+    <td className="px-4 py-3">{formatDate(transaction.created_at)}</td>
+    <td className="px-4 py-3">{formatTime(transaction.created_at)}</td>
+    <td className="px-4 py-3">
+      <span className="rounded-full bg-[#F7F7F5] px-2.5 py-1 text-[10px] font-semibold text-black/42">
         {truncatePaymentId(transaction.mp_payment_id, transaction.id)}
       </span>
     </td>
-    <td className="px-5 py-4">
-      <span className={cn("rounded-full border px-3 py-1 text-[11px] font-bold", getStatusStyle(transaction.status))}>
+    <td className="px-4 py-3">
+      <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-bold", getStatusStyle(transaction.status))}>
         {formatStatus(transaction.status)}
       </span>
     </td>
-    <td className="px-5 py-4 text-right text-[15px] font-bold text-emerald-600">
+    <td className="px-4 py-3 text-right text-[13px] font-bold text-emerald-600">
       {formatBRL(transaction.amount)}
     </td>
   </tr>
