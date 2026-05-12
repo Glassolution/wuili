@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Shopify">
+  <path d="M154 126 326 74l96 72-34 270-226 52L78 422l52-270c3-14 10-22 24-26z" fill="#95BF47"/>
+  <path d="m326 74 96 72-34 270-92 21 32-363z" fill="#5E8E3E"/>
+  <path d="M172 139C193 59 239 15 287 15c46 0 72 42 74 111" fill="none" stroke="#95BF47" stroke-width="22" stroke-linecap="round"/>
+  <path d="M231 124c22-71 59-104 96-98 31 5 51 40 55 96" fill="none" stroke="#95BF47" stroke-width="20" stroke-linecap="round"/>
+  <path d="M302 189c-20-10-42-13-66-8-41 9-65 37-62 72 2 25 18 42 48 58l22 12c20 11 30 21 31 35 1 19-14 34-39 40-25 5-53-2-77-21l-20 65c27 18 64 25 101 17 54-12 87-49 83-96-3-31-20-53-58-74l-21-12c-18-10-26-18-27-31-1-15 12-27 34-32 21-5 42-1 61 10l20-62z" fill="#fff"/>
+</svg>

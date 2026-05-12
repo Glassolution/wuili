@@ -37,6 +37,7 @@ import AdminSupportPage from "./pages/admin/AdminSupportPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminRefundsPage from "./pages/admin/AdminRefundsPage";
+import StartModeOffsetManager from "@/components/StartModeOffsetManager";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +57,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner position="top-center" expand={false} style={{ width: "100vw", left: 0, top: 0, transform: "none" }} />
+      <StartModeOffsetManager />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -80,7 +82,7 @@ const App = () => (
               path="clientes"
               element={<ClientesPage />}
             />
-            <Route path="produtos" element={<CatalogPage />} />
+            <Route path="produtos" element={<ProductsPage />} />
             <Route path="pedidos" element={<OrdersPage />} />
             <Route path="publicacoes" element={<PublicationsPage />} />
             <Route path="relatorios" element={<ReportsPage />} />

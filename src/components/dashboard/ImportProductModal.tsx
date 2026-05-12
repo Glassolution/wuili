@@ -372,7 +372,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
   const canAdvance = step === 1 ? (hasStock && isConnectedToML && !!title.trim() && sellPrice > totalCost) : true;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end">
+    // Respeita o "Start Mode" via CSS var global (--velo-top-offset).
+    <div className="fixed inset-x-0 bottom-0 top-[var(--velo-top-offset,0px)] z-[70] flex h-[calc(100vh-var(--velo-top-offset,0px))] justify-end">
       {/* Overlay */}
       <div
         className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] transition-opacity duration-150 ${
