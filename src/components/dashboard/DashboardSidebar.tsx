@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { cn } from "@/lib/utils";
+import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import {
   Home,
   LayoutDashboard,
@@ -16,7 +17,7 @@ import {
   Video,
   MessageSquare,
   ShieldCheck,
-  Percent,
+  BadgeDollarSign,
   Settings,
   ChevronDown,
   ChevronRight,
@@ -110,6 +111,7 @@ const NavGroupRow = ({
   pathname: string;
 }) => (
   <button
+    type="button"
     onClick={onToggle}
     className={cn(
       "sidebar-item w-full relative flex items-center transition-all duration-200",
@@ -128,6 +130,9 @@ const NavGroupRow = ({
       gap: collapsed ? undefined : "12px",
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
+      background: (groupActiveCompact && !collapsed) ? undefined : "transparent",
+      border: "none",
+      cursor: "pointer",
     }}
   >
     {collapsed ? (
@@ -245,13 +250,14 @@ const FooterButtonRow = ({
 }) => {
   if (collapsed) {
     return (
-      <button onClick={onClick} className="sidebar-item w-full h-[40px] flex items-center justify-center p-0 m-0" title={label}>
+      <button type="button" onClick={onClick} className="sidebar-item w-full h-[40px] flex items-center justify-center p-0 m-0" style={{ background: "transparent", border: "none", cursor: "pointer" }} title={label}>
         <IconSpan icon={icon} size={17} strokeWidth={1.8} color={color} />
       </button>
     );
   }
   return (
     <button
+      type="button"
       onClick={onClick}
       className="sidebar-item relative flex w-full items-center transition-all duration-150 hover:bg-black/[0.02]"
       style={{ 
@@ -264,7 +270,10 @@ const FooterButtonRow = ({
         gap: "10px",
         paddingLeft: "14px",
         paddingRight: "14px",
-        borderRadius: "10px"
+        borderRadius: "10px",
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
       }}
     >
       <IconSpan icon={icon} size={17} strokeWidth={1.8} color={color} />
@@ -350,6 +359,8 @@ const nav: NavGroup[] = [
     ],
   },
 ];
+
+const ADMIN_EMAILS = new Set(["xavierluisfelipe12@gmail.com"]);
 
 // ── Velo Mark (logo icon only) ────────────────────────────────────────────────
 
@@ -528,8 +539,14 @@ const DashboardSidebar = () => {
   const { foto } = useProfile();
   const { user, signOut, role } = useAuth();
   const nome = user?.user_metadata?.full_name ?? user?.email ?? "Usuário";
+  const metadataRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined) ??
+    null;
+  const emailRole = user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()) ? "admin" : null;
 
   const [collapsed, setCollapsed] = useState(false);
+  const [resolvedRole, setResolvedRole] = useState<string | null>(emailRole ?? role ?? metadataRole);
 
   // Start Mode: controlado pelo plano real do usuário (não localStorage)
   const { isStartMode: startMode, hasActivePlan } = useStartMode();
@@ -544,8 +561,56 @@ const DashboardSidebar = () => {
     // Usuários pagos nunca chegam aqui pois startMode já é false para eles
   };
 
-  const isAdmin = role === "admin";
-  const isInfluencer = role === "influencer" || role === "admin";
+  useEffect(() => {
+    setResolvedRole(emailRole ?? role ?? metadataRole);
+  }, [emailRole, role, metadataRole]);
+
+  useEffect(() => {
+    if (!user || !isSupabaseEnabled) return;
+
+    let cancelled = false;
+
+    const resolveSidebarRole = async () => {
+      const candidates = [emailRole, role, metadataRole].filter(Boolean) as string[];
+
+      const [profileByUserId, userRole] = await Promise.allSettled([
+        (supabase as any)
+          .from("profiles")
+          .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        (supabase as any)
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+
+      if (profileByUserId.status === "fulfilled" && profileByUserId.value?.data?.role) {
+        candidates.push(profileByUserId.value.data.role);
+      }
+
+      if (userRole.status === "fulfilled" && userRole.value?.data?.role) {
+        candidates.push(userRole.value.data.role);
+      }
+
+      const nextRole =
+        candidates.includes("admin") ? "admin" :
+        candidates.includes("influencer") ? "influencer" :
+        candidates[0] ?? "user";
+
+      if (!cancelled) setResolvedRole(nextRole);
+    };
+
+    void resolveSidebarRole();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, emailRole, role, metadataRole]);
+
+  const isAdmin = resolvedRole === "admin";
+  const isInfluencer = resolvedRole === "influencer" || resolvedRole === "admin";
 
   // Track which groups are open
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -632,44 +697,6 @@ const DashboardSidebar = () => {
       {/* Divisória 1 */}
       <div style={{ height: "1px", backgroundColor: "#DDE3EE", margin: "12px 16px" }} />
 
-      {/* ── Workspace Selector ─────────────────────────────────────────── */}
-      {!collapsed && (
-        <div style={{ margin: "8px 16px 0 16px" }}>
-          <button style={{
-            display: "flex",
-            width: "100%",
-            height: "44px",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderRadius: "12px",
-            border: "1px solid rgba(0,0,0,0.08)",
-            backgroundColor: "#FFFFFF",
-            paddingLeft: "14px",
-            paddingRight: "14px",
-            textAlign: "left",
-            transition: "background-color 0.15s ease",
-            boxSizing: "border-box",
-            cursor: "pointer"
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F9FAFB")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#FFFFFF")}
-          >
-            <span style={{ 
-              fontSize: "15px", 
-              fontWeight: 600, 
-              color: "#111111",
-              letterSpacing: "-0.02em"
-            }}>Velo</span>
-            <ChevronDown size={17} strokeWidth={2} style={{ color: "#6B7280" }} />
-          </button>
-        </div>
-      )}
-
-      {/* Divisória 2 - Abaixo do seletor Velo */}
-      {!collapsed && (
-        <div style={{ height: "1px", backgroundColor: "#DDE3EE", margin: "12px 16px" }} />
-      )}
-
       {/* ── Nav items ────────────────────────────────────────────────────── */}
       <div
         className={cn(
@@ -682,7 +709,7 @@ const DashboardSidebar = () => {
           if (item.kind === "link") {
             const active = isLinkActive(item.to);
             return (
-              <div key={item.to} style={{ flexShrink: 0 }}>
+              <div key={item.to} style={{ flexShrink: 0, display: "flex", flexDirection: "column" }}>
                 <NavLinkRow item={item} active={active} collapsed={collapsed} />
               </div>
             );
@@ -692,7 +719,7 @@ const DashboardSidebar = () => {
           const groupActiveCompact = collapsed && isGroupActive(item.items);
 
           return (
-            <div key={item.label} style={{ flexShrink: 0 }}>
+            <div key={item.label} style={{ flexShrink: 0, display: "flex", flexDirection: "column" }}>
               <NavGroupRow
                 item={item}
                 isOpen={isOpen}
@@ -701,8 +728,8 @@ const DashboardSidebar = () => {
                 onToggle={() => toggleGroup(item.label)}
                 pathname={location.pathname}
               />
-              {!collapsed && isOpen && (
-                <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "0" }}>
+              {!collapsed && isOpen && item.items.length > 0 && (
+                <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "0", overflow: "hidden" }}>
                   {item.items.map((sub) => (
                     <NavSubRow key={sub.to} sub={sub} subActive={location.pathname.startsWith(sub.to)} />
                   ))}
@@ -712,17 +739,6 @@ const DashboardSidebar = () => {
           );
         })}
 
-        {/* Admin + Comissões no modo compacto */}
-        {collapsed && (
-          <>
-            {isAdmin && (
-              <FooterLinkRow to="/admin/dashboard" icon={ShieldCheck} label="Admin" active={location.pathname.startsWith("/admin")} collapsed={collapsed} />
-            )}
-            {isInfluencer && (
-              <FooterLinkRow to="/dashboard/comissoes" icon={Percent} label="Comissões" active={location.pathname.startsWith("/dashboard/comissoes")} collapsed={collapsed} />
-            )}
-          </>
-        )}
       </div>
       {collapsed && (
         <div className="flex flex-col items-center gap-1.5 px-0 pb-1" style={{ flexShrink: 0 }}>
@@ -731,16 +747,16 @@ const DashboardSidebar = () => {
             <FooterButtonRow icon={Code2} label="Start Mode" color="#FFA640" collapsed={collapsed} onClick={toggleStartMode} />
           )}
           <FooterAnchorRow href="https://wa.me/" icon={MessageCircle} label="Suporte" color="#25D366" collapsed={collapsed} />
+          {isAdmin && (
+            <FooterLinkRow to="/admin/dashboard" icon={ShieldCheck} label="Painel Admin" active={location.pathname.startsWith("/admin")} collapsed={collapsed} />
+          )}
+          {isInfluencer && (
+            <FooterLinkRow to="/dashboard/comissoes" icon={BadgeDollarSign} label="Painel de Comissão" active={location.pathname.startsWith("/dashboard/comissoes")} collapsed={collapsed} />
+          )}
         </div>
       )}
 
       {!collapsed && <div className="flex flex-col" style={{ paddingLeft: "16px", paddingRight: "16px", paddingBottom: "0", gap: "6px", flexShrink: 0 }}>
-        {isAdmin && (
-          <FooterLinkRow to="/admin/dashboard" icon={ShieldCheck} label="Admin" active={location.pathname.startsWith("/admin")} collapsed={collapsed} />
-        )}
-        {isInfluencer && (
-          <FooterLinkRow to="/dashboard/comissoes" icon={Percent} label="Comissões" active={location.pathname.startsWith("/dashboard/comissoes")} collapsed={collapsed} />
-        )}
         {/* Start Mode: só aparece para usuários gratuitos */}
         {!hasActivePlan && (
           <FooterButtonRow icon={Code2} label="Start Mode" color="#FFA640" collapsed={collapsed} onClick={toggleStartMode}>
@@ -749,6 +765,12 @@ const DashboardSidebar = () => {
           </FooterButtonRow>
         )}
         <FooterAnchorRow href="https://wa.me/" icon={MessageCircle} label="Suporte" color="#25D366" collapsed={collapsed} />
+        {isAdmin && (
+          <FooterLinkRow to="/admin/dashboard" icon={ShieldCheck} label="Painel Admin" active={location.pathname.startsWith("/admin")} collapsed={collapsed} />
+        )}
+        {isInfluencer && (
+          <FooterLinkRow to="/dashboard/comissoes" icon={BadgeDollarSign} label="Painel de Comissão" active={location.pathname.startsWith("/dashboard/comissoes")} collapsed={collapsed} />
+        )}
       </div>}
 
       {/* Divisória 3 - Acima da conta do usuário */}

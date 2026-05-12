@@ -1,9 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, RefreshCw, Package, ChevronLeft, ChevronRight, Check, ChevronsRight } from "lucide-react";
+import { Search, ChevronDown, RefreshCw, Package, ChevronLeft, ChevronRight, Check, ChevronsRight, Plug } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
+import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
 import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +63,7 @@ interface ProductCardProps {
 const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductCardProps) => {
   const img = getImage(p.images);
   const outOfStock = !p.stock_quantity || p.stock_quantity <= 0;
+  const estimatedProfit = Math.max(0, Number(p.suggested_price ?? 0) - Number(p.cost_price ?? 0));
 
   // Keep product tags focused on the category; supplier/platform details stay hidden.
   const tags: string[] = [];
@@ -72,6 +74,7 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
 
   return (
     <div
+      className="catalog-product-card"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -93,17 +96,20 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
       }}
     >
       {/* Image area */}
-      <div style={{ position: "relative", backgroundColor: "#FAFAFA", height: "270px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+      <div style={{ position: "relative", backgroundColor: "#F5F5F5", height: "270px", width: "100%", overflow: "hidden", flexShrink: 0, borderTopLeftRadius: "14px", borderTopRightRadius: "14px", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
         {img ? (
           <img
             src={img}
             alt={p.title}
-            style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", padding: "22px", opacity: outOfStock ? 0.5 : 1 }}
+            className="catalog-product-image"
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block", opacity: outOfStock ? 0.5 : 1 }}
             loading="lazy"
             decoding="async"
           />
         ) : (
-          <Package size={40} style={{ color: "#D1D5DB" }} />
+          <div style={{ height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Package size={40} style={{ color: "#D1D5DB" }} />
+          </div>
         )}
 
         {outOfStock && (
@@ -122,18 +128,18 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
           {p.title}
         </p>
 
-        {/* Price + Min Order */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
-          <div>
-            <p style={{ fontSize: "11px", color: "#9CA3AF", margin: "0 0 2px 0", letterSpacing: "-0.01em" }}>Preço</p>
-            <p style={{ fontSize: "13px", fontWeight: 600, color: "#111111", margin: 0, letterSpacing: "-0.01em" }}>
+        {/* Price + estimated profit */}
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(0, 0.9fr)", gap: "12px", alignItems: "start", marginBottom: "12px" }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: "11px", color: "#A3A3A3", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Preço</p>
+            <p style={{ fontSize: "13px", fontWeight: 600, color: "#111111", margin: 0, letterSpacing: "-0.01em", lineHeight: "1.35" }}>
               {formatPrice(p.cost_price)} – {formatPrice(p.suggested_price)}
             </p>
           </div>
-          <div>
-            <p style={{ fontSize: "11px", color: "#9CA3AF", margin: "0 0 2px 0", letterSpacing: "-0.01em" }}>Pedido mín.</p>
-            <p style={{ fontSize: "13px", fontWeight: 600, color: "#111111", margin: 0, letterSpacing: "-0.01em" }}>
-              1 unid.
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: "11px", color: "#A3A3A3", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Lucro estimado</p>
+            <p style={{ fontSize: "13px", fontWeight: 600, color: "#059669", margin: 0, letterSpacing: "-0.01em", lineHeight: "1.35", whiteSpace: "nowrap" }}>
+              {formatPrice(estimatedProfit)}
             </p>
           </div>
         </div>
@@ -142,7 +148,7 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
         {tags.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px" }}>
             {tags.slice(0, 3).map((tag) => (
-              <span key={tag} style={{ fontSize: "11px", fontWeight: 500, color: "#6B7280", backgroundColor: "#F3F4F6", padding: "3px 8px", borderRadius: "6px", letterSpacing: "-0.01em" }}>
+              <span key={tag} style={{ display: "inline-flex", alignItems: "center", height: "24px", fontSize: "12px", fontWeight: 500, color: "#737373", backgroundColor: "#F5F5F5", padding: "0 8px", borderRadius: "8px", letterSpacing: "-0.01em" }}>
                 {tag}
               </span>
             ))}
@@ -209,11 +215,11 @@ const CatalogPage = () => {
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("todos");
   const [paymentStatus, setPaymentStatus] = useState("todos");
-  const [platformFilter, setPlatformFilter] = useState("todos");
   const [hideUnavailable, setHideUnavailable] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
   const [compareProductId, setCompareProductId] = useState<string | null>(null);
   const [compareProductTitle, setCompareProductTitle] = useState("");
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -268,15 +274,6 @@ const CatalogPage = () => {
 
   const rawProducts = data?.products || [];
   const totalPages = data?.totalPages || 1;
-  const platformOptions = useMemo(() => {
-    const sources = new Map<string, string>();
-    rawProducts.forEach((p: any) => {
-      if (!p.source) return;
-      const key = String(p.source).toLowerCase();
-      sources.set(key, getPlatform(p.source).label);
-    });
-    return [{ key: "todos", label: "Integração da plataforma" }, ...Array.from(sources, ([key, label]) => ({ key, label }))];
-  }, [rawProducts]);
 
   const products = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -321,12 +318,11 @@ const CatalogPage = () => {
         if (paymentStatus === "out_of_stock" && !outOfStock) return false;
       }
 
-      if (platformFilter !== "todos" && String(p.source || "").toLowerCase() !== platformFilter) return false;
       if (hideUnavailable && ((!p.stock_quantity || p.stock_quantity <= 0) || p.is_active === false)) return false;
 
       return true;
     });
-  }, [rawProducts, search, dateFilter, paymentStatus, platformFilter, hideUnavailable]);
+  }, [rawProducts, search, dateFilter, paymentStatus, hideUnavailable]);
 
   const formatPrice = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -451,16 +447,21 @@ const CatalogPage = () => {
             {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
           </button>
 
-          <div style={{ position: "relative" }}>
-            <select
-              value={platformFilter}
-              onChange={(e) => { setPlatformFilter(e.target.value); setPage(1); }}
-              style={{ appearance: "none", height: "40px", padding: "0 34px 0 14px", fontSize: "13px", fontWeight: 500, color: platformFilter !== "todos" ? "#FFFFFF" : "#111111", backgroundColor: platformFilter !== "todos" ? "#111111" : "#FFFFFF", border: `1px solid ${platformFilter !== "todos" ? "#111111" : "#E5E7EB"}`, borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none", maxWidth: "220px" }}
-            >
-              {platformOptions.map((platform) => <option key={platform.key} value={platform.key}>{platform.label}</option>)}
-            </select>
-            <ChevronDown size={13} strokeWidth={1.8} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: platformFilter !== "todos" ? "rgba(255,255,255,0.7)" : "#9CA3AF", pointerEvents: "none" }} />
-          </div>
+          <button
+            onClick={() => setIsIntegrationModalOpen(true)}
+            style={{ display: "flex", alignItems: "center", gap: "8px", height: "40px", padding: "0 16px", fontSize: "14px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid rgba(0,0,0,0.06)", borderRadius: "12px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", transition: "background-color 150ms ease, border-color 150ms ease" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#FAFAFA";
+              e.currentTarget.style.borderColor = "rgba(0,0,0,0.10)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "#FFFFFF";
+              e.currentTarget.style.borderColor = "rgba(0,0,0,0.06)";
+            }}
+          >
+            <Plug size={14} strokeWidth={1.9} style={{ color: "#6B7280" }} />
+            Integrações
+          </button>
         </div>
       </div>
 
@@ -539,12 +540,26 @@ const CatalogPage = () => {
         productTitle={compareProductTitle}
       />
 
+      <PlatformIntegrationModal
+        open={isIntegrationModalOpen}
+        onClose={() => setIsIntegrationModalOpen(false)}
+      />
+
       <style>{`
         .catalog-products-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 20px;
           align-items: stretch;
+        }
+
+        .catalog-product-image {
+          transform: scale(1);
+          transition: transform 300ms ease;
+        }
+
+        .catalog-product-card:hover .catalog-product-image {
+          transform: scale(1.03);
         }
 
         @media (max-width: 1280px) {

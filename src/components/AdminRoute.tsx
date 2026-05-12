@@ -3,6 +3,8 @@ import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
+const ADMIN_EMAILS = new Set(["xavierluisfelipe12@gmail.com"]);
+
 const AdminRoute = ({ children }: { children: ReactNode }) => {
   const { user, loading, role } = useAuth();
 
@@ -14,7 +16,9 @@ const AdminRoute = ({ children }: { children: ReactNode }) => {
     );
   }
 
-  if (!user || role !== "admin") return <Navigate to="/dashboard" replace />;
+  const isAdmin = role === "admin" || (!!user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()));
+
+  if (!user || !isAdmin) return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
 };

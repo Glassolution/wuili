@@ -7,6 +7,8 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
+const ADMIN_EMAILS = new Set(["xavierluisfelipe12@gmail.com"]);
+
 const ProtectedRoute = ({ children, allowedRoles, redirectTo = "/dashboard" }: ProtectedRouteProps) => {
   const { user, loading, role } = useAuth();
 
@@ -22,7 +24,9 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo = "/dashboard" }: P
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && (!role || !allowedRoles.includes(role))) {
+  const resolvedRole = role ?? (user.email && ADMIN_EMAILS.has(user.email.toLowerCase()) ? "admin" : null);
+
+  if (allowedRoles && (!resolvedRole || !allowedRoles.includes(resolvedRole))) {
     return <Navigate to={redirectTo} replace />;
   }
 
