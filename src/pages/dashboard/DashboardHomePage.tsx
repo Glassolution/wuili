@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpRight,
@@ -17,6 +18,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const PERIODS = ["Hoje", "Esse mês", "Últimos 30 dias", "Últimos 90 dias", "Todo o período", "Personalizado"] as const;
 type Period = typeof PERIODS[number];
@@ -354,10 +356,283 @@ const StatusBadge = ({ status }: { status: "Aprovado" | "Pendente" | "Cancelado"
   );
 };
 
+type RecentActivityItem = {
+  id: number;
+  text: string;
+  sub: string;
+  time: string;
+};
+
+type RecentOrderItem = {
+  id: string;
+  client: string;
+  status: "Aprovado" | "Pendente" | "Cancelado";
+  updated: string;
+  sale_price: number;
+};
+
+const MobileDashboardHome = ({
+  activePeriod,
+  setActivePeriod,
+  customStart,
+  setCustomStart,
+  customEnd,
+  setCustomEnd,
+  totalRevenue,
+  totalOrders,
+  totalPubs,
+  loadingStats,
+  recentActivity,
+  recentOrders,
+  loadingRecentOrders,
+  userId,
+}: {
+  activePeriod: Period;
+  setActivePeriod: (period: Period) => void;
+  customStart: string;
+  setCustomStart: (value: string) => void;
+  customEnd: string;
+  setCustomEnd: (value: string) => void;
+  totalRevenue: number;
+  totalOrders: number;
+  totalPubs: number;
+  loadingStats: boolean;
+  recentActivity: RecentActivityItem[];
+  recentOrders: RecentOrderItem[];
+  loadingRecentOrders: boolean;
+  userId: string | undefined;
+}) => {
+  const navigate = useNavigate();
+
+  const metricCards = [
+    {
+      label: "Receita",
+      value: loadingStats ? "—" : fmt(totalRevenue),
+      hint: totalOrders > 0 ? "Receita acumulada" : "Sem pedidos ainda",
+      icon: TrendingUp,
+      dark: true,
+    },
+    {
+      label: "Pedidos",
+      value: loadingStats ? "—" : fmtNum(totalOrders),
+      hint: "Recebidos no período",
+      icon: ShoppingCart,
+    },
+    {
+      label: "Publicações",
+      value: loadingStats ? "—" : fmtNum(totalPubs),
+      hint: "Ativas na loja",
+      icon: Package,
+    },
+    {
+      label: "Clientes",
+      value: loadingStats ? "—" : fmtCompact(totalOrders),
+      hint: "Base de pedidos",
+      icon: Users,
+    },
+  ];
+
+  const quickActions = [
+    { label: "Sincronizar produtos", to: "/dashboard/produtos", icon: Package },
+    { label: "Ver pedidos", to: "/dashboard/pedidos", icon: ShoppingCart },
+    { label: "Adicionar saldo CJ", to: "/dashboard/saldos", icon: TrendingUp },
+    { label: "Publicações", to: "/dashboard/publicacoes", icon: ArrowUpRight },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <section className="overflow-hidden rounded-[28px] bg-[#111111] p-5 text-white shadow-[0_18px_44px_rgba(0,0,0,0.12)]">
+        <p className="text-[12px] font-medium text-white/48">Visão do período</p>
+        <div className="mt-3 flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="truncate text-[34px] font-semibold leading-none tracking-[-0.06em]">{loadingStats ? "—" : fmt(totalRevenue)}</p>
+            <p className="mt-2 text-[13px] font-medium text-white/60">{totalOrders} pedido(s) no período</p>
+          </div>
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/12">
+            <TrendingUp size={22} strokeWidth={1.8} />
+          </span>
+        </div>
+      </section>
+
+      <section className="overflow-x-auto pb-1 mobile-hide-scrollbar">
+        <div className="flex min-w-max gap-2.5">
+          {PERIODS.map((period) => {
+            const active = period === activePeriod;
+            return (
+              <button
+                key={period}
+                type="button"
+                onClick={() => setActivePeriod(period)}
+                className="h-10 shrink-0 rounded-full border px-4 text-[13px] font-semibold transition active:scale-[0.98]"
+                style={{
+                  borderColor: active ? "#111111" : "rgba(0,0,0,0.06)",
+                  backgroundColor: active ? "#111111" : "#FFFFFF",
+                  color: active ? "#FFFFFF" : "#111111",
+                }}
+              >
+                {period}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {activePeriod === "Personalizado" && (
+        <section className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-3xl border border-black/[0.05] bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <input
+            type="date"
+            value={customStart}
+            onChange={(e) => setCustomStart(e.target.value)}
+            className="h-11 min-w-0 rounded-2xl border border-black/[0.06] bg-[#F6F6F4] px-3 text-[13px] font-medium text-[#111111] outline-none"
+          />
+          <span className="text-[12px] font-medium text-black/34">até</span>
+          <input
+            type="date"
+            value={customEnd}
+            onChange={(e) => setCustomEnd(e.target.value)}
+            className="h-11 min-w-0 rounded-2xl border border-black/[0.06] bg-[#F6F6F4] px-3 text-[13px] font-medium text-[#111111] outline-none"
+          />
+        </section>
+      )}
+
+      <section className="overflow-x-auto pb-1 mobile-hide-scrollbar">
+        <div className="flex gap-3">
+          {metricCards.map((metric) => {
+            const Icon = metric.icon;
+            return (
+              <article
+                key={metric.label}
+                className="min-h-[132px] w-[168px] shrink-0 rounded-3xl border p-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
+                style={{
+                  backgroundColor: metric.dark ? "#111111" : "#FFFFFF",
+                  borderColor: metric.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                  color: metric.dark ? "#FFFFFF" : "#111111",
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[12px] font-semibold" style={{ color: metric.dark ? "rgba(255,255,255,0.62)" : "rgba(0,0,0,0.44)" }}>
+                    {metric.label}
+                  </p>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl" style={{ backgroundColor: metric.dark ? "rgba(255,255,255,0.12)" : "#F6F6F4" }}>
+                    <Icon size={17} strokeWidth={1.8} />
+                  </span>
+                </div>
+                <p className="mt-5 truncate text-[28px] font-semibold leading-none tracking-[-0.06em]">{metric.value}</p>
+                <p className="mt-2 truncate text-[12px] font-medium" style={{ color: metric.dark ? "rgba(255,255,255,0.52)" : "rgba(0,0,0,0.38)" }}>
+                  {metric.hint}
+                </p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-black/[0.05] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[16px] font-semibold tracking-[-0.03em] text-[#111111]">Ações rápidas</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.label}
+                type="button"
+                onClick={() => navigate(action.to)}
+                className="flex min-h-[74px] items-center gap-3 rounded-3xl bg-[#F6F6F4] p-3 text-left transition active:scale-[0.99]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#111111]">
+                  <Icon size={18} strokeWidth={1.8} />
+                </span>
+                <span className="text-[13px] font-semibold leading-4 text-[#111111]">{action.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-black/[0.05] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[16px] font-semibold tracking-[-0.03em] text-[#111111]">Atividade recente</h2>
+          <button type="button" onClick={() => navigate("/dashboard/pedidos")} className="rounded-full bg-[#F6F6F4] px-3 py-1.5 text-[12px] font-semibold text-black/54">
+            Ver tudo
+          </button>
+        </div>
+        <div className="flex flex-col gap-2">
+          {recentActivity.length === 0 ? (
+            <div className="rounded-3xl bg-[#F6F6F4] p-4 text-center text-[13px] font-medium text-black/42">
+              Nenhuma atividade recente.
+            </div>
+          ) : (
+            recentActivity.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 rounded-3xl bg-[#F6F6F4] p-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#111111]">
+                  <CheckCircle size={17} strokeWidth={1.8} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-semibold text-[#111111]">{item.text}</p>
+                  <p className="mt-0.5 truncate text-[12px] font-medium text-black/38">{item.sub}</p>
+                </div>
+                <span className="shrink-0 text-[11px] font-semibold text-black/34">{item.time}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="mobile-calendar-card">
+        <SalesCalendar userId={userId} />
+      </section>
+
+      <section className="rounded-3xl border border-black/[0.05] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[16px] font-semibold tracking-[-0.03em] text-[#111111]">Gerenciamento de pedidos</h2>
+          <button type="button" onClick={() => navigate("/dashboard/pedidos")} className="rounded-full bg-[#111111] px-3 py-1.5 text-[12px] font-semibold text-white">
+            Abrir
+          </button>
+        </div>
+        <div className="flex flex-col gap-2.5">
+          {loadingRecentOrders ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="h-[74px] animate-pulse rounded-3xl bg-[#F6F6F4]" />
+            ))
+          ) : recentOrders.length === 0 ? (
+            <div className="rounded-3xl bg-[#F6F6F4] p-5 text-center text-[13px] font-medium text-black/42">
+              Nenhum pedido encontrado. Sincronize sua conta do Mercado Livre.
+            </div>
+          ) : (
+            recentOrders.map((order) => (
+              <button
+                key={order.id}
+                type="button"
+                onClick={() => navigate("/dashboard/pedidos")}
+                className="flex items-center gap-3 rounded-3xl bg-[#F6F6F4] p-3 text-left transition active:scale-[0.99]"
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[13px] font-bold text-[#111111]">
+                  {order.client.charAt(0)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold text-[#111111]">{order.id}</span>
+                  <span className="mt-0.5 block truncate text-[12px] font-medium text-black/38">{order.client} · {order.updated}</span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="block text-[13px] font-semibold text-[#111111]">{fmt(order.sale_price)}</span>
+                  <span className="mt-1 block text-[11px] font-semibold text-black/42">{order.status}</span>
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      </section>
+    </div>
+  );
+};
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function DashboardHomePage() {
   const { user } = useAuth();
   const { orders, summary, isLoading: isLoadingFinancial } = useFinancialData();
+  const isMobile = useIsMobile();
   const [activePeriod, setActivePeriod] = useState<Period>("Esse mês");
   const [customStart, setCustomStart] = useState(() => dateInputValue(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
   const [customEnd, setCustomEnd] = useState(() => dateInputValue(new Date()));
@@ -478,6 +753,27 @@ export default function DashboardHomePage() {
       time,
     };
   });
+
+  if (isMobile) {
+    return (
+      <MobileDashboardHome
+        activePeriod={activePeriod}
+        setActivePeriod={setActivePeriod}
+        customStart={customStart}
+        setCustomStart={setCustomStart}
+        customEnd={customEnd}
+        setCustomEnd={setCustomEnd}
+        totalRevenue={totalRevenue}
+        totalOrders={totalOrders}
+        totalPubs={totalPubs}
+        loadingStats={loadingStats}
+        recentActivity={recentActivity}
+        recentOrders={recentOrders}
+        loadingRecentOrders={loadingRecentOrders}
+        userId={user?.id}
+      />
+    );
+  }
 
   // ── Shared styles ──────────────────────────────────────────────────────────
   const card: React.CSSProperties = {

@@ -9,6 +9,7 @@ const StartModeBanner = ({ isStartMode }: StartModeBannerProps) => {
 
   return (
     <div
+      className="start-mode-banner"
       style={{
         position: "fixed",
         top: 0,
