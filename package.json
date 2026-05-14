@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "affiliates:dev": "node server/affiliates/index.js",
+    "products:dev": "node server/products/index.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -1,6 +1,7 @@
 import express from "express";
 import { pathToFileURL } from "node:url";
 import affiliateRoutes from "./routes.js";
+import productRoutes from "../products/routes.js";
 
 const port = Number(process.env.PORT ?? 3333);
 
@@ -14,6 +15,7 @@ export function createAffiliateApp() {
   });
 
   app.use(affiliateRoutes);
+  app.use(productRoutes);
 
   app.use((error, _req, res, _next) => {
     console.error("[afiliados]", error);
