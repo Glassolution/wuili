@@ -55,58 +55,76 @@ const Index = () => {
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-[#0a0a0a]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
-        @keyframes velo-float {
-          0%, 100% { transform: translate(0, 0) rotate(var(--rot)); }
-          50% { transform: translate(0, -8px) rotate(calc(var(--rot) + 1deg)); }
+        @keyframes velo-scroll-up {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-50%); }
+        }
+        @keyframes velo-scroll-down {
+          0% { transform: translateY(-50%); }
+          100% { transform: translateY(0); }
         }
       `}</style>
 
       <main>
         {/* ── HERO ── */}
-        <section className="relative min-h-screen w-full overflow-hidden bg-[#0a0a0a]">
-          {/* Scattered photos background */}
-          <div className="absolute inset-0">
-            {SCATTERED.map((p, i) => (
-              <div
-                key={i}
-                className="absolute overflow-hidden"
-                style={{
-                  top: p.top,
-                  left: p.left,
-                  width: p.size,
-                  height: p.size,
-                  zIndex: p.z,
-                  borderRadius: 8,
-                  boxShadow: "0 4px 15px rgba(0,0,0,0.45)",
-                  // @ts-ignore CSS custom prop
-                  ["--rot" as any]: `${p.rotate}deg`,
-                  transform: `rotate(${p.rotate}deg)`,
-                  animation: `velo-float ${p.float}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.3}s`,
-                  background: "#1a1a1a",
-                }}
-              >
-                <img
-                  src={p.src}
-                  alt=""
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ))}
+        <section className="relative min-h-screen w-full overflow-hidden bg-white">
+          {/* 3-column product grid with 3D perspective */}
+          <div
+            className="absolute inset-0 mx-auto grid max-w-[1400px] grid-cols-3 gap-6 px-6 py-6"
+            style={{ perspective: "1500px" }}
+          >
+            {COLUMNS.map((col, colIdx) => {
+              const goesUp = colIdx % 2 === 0;
+              const duration = 55 + colIdx * 8;
+              // Outer columns tilt inward; middle column stays flat.
+              const rotateY =
+                colIdx === 0 ? -5 : colIdx === COLUMNS.length - 1 ? 5 : 0;
+              return (
+                <div
+                  key={colIdx}
+                  className="relative h-full overflow-hidden"
+                  style={{
+                    transform: `perspective(1000px) rotateY(${rotateY}deg)`,
+                    transformStyle: "preserve-3d",
+                  }}
+                >
+                  <div
+                    className="flex flex-col gap-6"
+                    style={{
+                      animation: `${goesUp ? "velo-scroll-up" : "velo-scroll-down"} ${duration}s linear infinite`,
+                    }}
+                  >
+                    {[...col, ...col].map((src, i) => (
+                      <div
+                        key={`${colIdx}-${i}`}
+                        className="w-full shrink-0 overflow-hidden bg-white"
+                        style={{
+                          aspectRatio: "1 / 1",
+                          borderRadius: 12,
+                        }}
+                      >
+                        <img
+                          src={src}
+                          alt=""
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Vignette wash for legibility */}
-          <div
-            className="absolute inset-0"
-            style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)" }}
-          />
+          {/* Soft white wash so the card pops */}
+          <div className="absolute inset-0 bg-white/40" />
 
           {/* Centered card */}
           <div className="relative mx-auto flex min-h-screen max-w-[1200px] items-center justify-center px-6 py-20">
             <div
               className="w-full max-w-[600px] rounded-[28px] bg-white p-10 text-center md:p-14"
-              style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
+              style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
             >
               <div className="mb-7 flex justify-center">
                 <VeloLogo size="sm" variant="dark" />
