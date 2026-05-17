@@ -564,7 +564,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                           background: `linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb 100%)`
                         }}
                       />
-                      <style jsx>{`
+                      <style>{`
                         .slider::-webkit-slider-thumb {
                           appearance: none;
                           height: 18px;
