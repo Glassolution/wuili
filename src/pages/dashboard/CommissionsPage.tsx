@@ -260,7 +260,7 @@ const CommissionsPage = () => {
       const d = new Date(now.getFullYear(), now.getMonth() - (23 - idx), 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const stats = monthly.get(key) ?? { paid: 0, pending: 0, count: 0, customers: new Set<string>() };
-      return (stats.paid + stats.pending) ?? 0;
+      return stats.paid + stats.pending;
     });
     return prev.reduce((s, v) => s + v, 0);
   }, [monthly]);
