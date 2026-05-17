@@ -312,18 +312,18 @@ const CommissionsPage = () => {
 
   const [influencer, setInfluencer] = useState<Influencer | null>(null);
 
-  // Influencer link: based on profiles.ref
+  // Influencer link: based on affiliates table
   useEffect(() => {
     if (!user) return;
-    if (!affiliateRef) return;
+    if (!affiliateRow?.code) return;
     setInfluencer({
       id: user.id,
       name: "Seu Link de Afiliado",
-      code: affiliateRef,
-      link: `https://velo.app/ref/${affiliateRef}`,
+      code: affiliateRow.code,
+      link: affiliateRow.link || `https://velods.com.br/ref/${affiliateRow.code}`,
       created_at: user.created_at || formatDate(null),
     });
-  }, [user, affiliateRef]);
+  }, [user, affiliateRow]);
 
   const deltaBadgeText = (currCount: number) => {
     if (!prevMonthHasData && currCount > 0) return "Primeiro mês";
