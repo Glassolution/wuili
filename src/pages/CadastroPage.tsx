@@ -86,9 +86,9 @@ function isDuplicateEmailAuthResponse(user: { identities?: unknown[] } | null | 
 
 async function checkEmailAlreadyExists(email: string): Promise<boolean | null> {
   try {
-    const { data, error } = await supabase.functions.invoke<EmailExistsResponse>("auth-email-exists", {
+    const { data, error } = (await supabase.functions.invoke("auth-email-exists", {
       body: { email },
-    });
+    })) as { data: EmailExistsResponse | null; error: any };
 
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
