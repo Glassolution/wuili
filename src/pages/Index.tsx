@@ -30,12 +30,38 @@ const PRODUCT_IMAGES = [
   "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400",
 ];
 
-// Build a row offset by N for variety.
-const buildRow = (offset: number) => {
-  const arr = [...PRODUCT_IMAGES];
-  return [...arr.slice(offset), ...arr.slice(0, offset)];
+// Scattered photo layout — each photo positioned around the edges,
+// leaving the center free for the card. Coordinates use % so they scale.
+type ScatteredPhoto = {
+  src: string;
+  top: string;
+  left: string;
+  size: number; // px width
+  rotate: number; // deg
+  z: number;
+  float: number; // animation duration seconds
 };
-const ROWS = [buildRow(0), buildRow(4), buildRow(8), buildRow(12), buildRow(16)];
+const SCATTERED: ScatteredPhoto[] = [
+  // Top-left cluster
+  { src: PRODUCT_IMAGES[0], top: "2%", left: "1%", size: 190, rotate: -12, z: 2, float: 9 },
+  { src: PRODUCT_IMAGES[1], top: "4%", left: "16%", size: 170, rotate: 8, z: 3, float: 11 },
+  { src: PRODUCT_IMAGES[2], top: "22%", left: "5%", size: 210, rotate: -6, z: 1, float: 10 },
+  // Top-right cluster
+  { src: PRODUCT_IMAGES[3], top: "3%", left: "70%", size: 200, rotate: 11, z: 2, float: 12 },
+  { src: PRODUCT_IMAGES[4], top: "6%", left: "85%", size: 175, rotate: -9, z: 3, float: 8 },
+  { src: PRODUCT_IMAGES[5], top: "25%", left: "78%", size: 220, rotate: 6, z: 1, float: 13 },
+  // Bottom-left cluster
+  { src: PRODUCT_IMAGES[6], top: "62%", left: "2%", size: 200, rotate: 10, z: 2, float: 11 },
+  { src: PRODUCT_IMAGES[7], top: "78%", left: "12%", size: 180, rotate: -14, z: 3, float: 9 },
+  { src: PRODUCT_IMAGES[8], top: "70%", left: "26%", size: 160, rotate: 5, z: 1, float: 12 },
+  // Bottom-right cluster
+  { src: PRODUCT_IMAGES[9], top: "65%", left: "72%", size: 210, rotate: -8, z: 2, float: 10 },
+  { src: PRODUCT_IMAGES[10], top: "80%", left: "85%", size: 175, rotate: 12, z: 3, float: 13 },
+  { src: PRODUCT_IMAGES[11], top: "72%", left: "60%", size: 165, rotate: -5, z: 1, float: 8 },
+  // Side fillers
+  { src: PRODUCT_IMAGES[12], top: "45%", left: "0%", size: 170, rotate: 7, z: 1, float: 11 },
+  { src: PRODUCT_IMAGES[13], top: "48%", left: "88%", size: 165, rotate: -10, z: 1, float: 9 },
+];
 
 const STEPS = [
   { n: "01", title: "Escolha um produto", desc: "Navegue por milhares de produtos prontos com alta margem de lucro.", emoji: "🛍️" },
@@ -55,55 +81,58 @@ const Index = () => {
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-[#0a0a0a]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
-        @keyframes velo-scroll-left {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
+        @keyframes velo-float {
+          0%, 100% { transform: translate(0, 0) rotate(var(--rot)); }
+          50% { transform: translate(0, -8px) rotate(calc(var(--rot) + 1deg)); }
         }
       `}</style>
 
       <main>
         {/* ── HERO ── */}
-        <section className="relative min-h-screen w-full overflow-hidden bg-white">
-          {/* Mosaic background — horizontal scrolling rows */}
-          <div className="absolute inset-0 flex flex-col gap-3 p-3">
-            {ROWS.map((row, rowIdx) => {
-              const duration = 60 + rowIdx * 8; // staggered speeds
-              return (
-                <div key={rowIdx} className="relative flex-1 overflow-hidden">
-                  <div
-                    className="flex h-full gap-3"
-                    style={{
-                      width: "max-content",
-                      animation: `velo-scroll-left ${duration}s linear infinite`,
-                    }}
-                  >
-                    {[...row, ...row].map((src, i) => (
-                      <div
-                        key={`${rowIdx}-${i}`}
-                        className="h-full w-[260px] shrink-0 overflow-hidden rounded-2xl bg-[#F5F5F5]"
-                      >
-                        <img
-                          src={src}
-                          alt=""
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+        <section className="relative min-h-screen w-full overflow-hidden bg-[#0a0a0a]">
+          {/* Scattered photos background */}
+          <div className="absolute inset-0">
+            {SCATTERED.map((p, i) => (
+              <div
+                key={i}
+                className="absolute overflow-hidden"
+                style={{
+                  top: p.top,
+                  left: p.left,
+                  width: p.size,
+                  height: p.size,
+                  zIndex: p.z,
+                  borderRadius: 8,
+                  boxShadow: "0 4px 15px rgba(0,0,0,0.45)",
+                  // @ts-ignore CSS custom prop
+                  ["--rot" as any]: `${p.rotate}deg`,
+                  transform: `rotate(${p.rotate}deg)`,
+                  animation: `velo-float ${p.float}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.3}s`,
+                  background: "#1a1a1a",
+                }}
+              >
+                <img
+                  src={p.src}
+                  alt=""
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ))}
           </div>
 
-          {/* Soft white wash for legibility */}
-          <div className="absolute inset-0 bg-white/30" />
+          {/* Vignette wash for legibility */}
+          <div
+            className="absolute inset-0"
+            style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)" }}
+          />
 
           {/* Centered card */}
           <div className="relative mx-auto flex min-h-screen max-w-[1200px] items-center justify-center px-6 py-20">
             <div
               className="w-full max-w-[600px] rounded-[28px] bg-white p-10 text-center md:p-14"
-              style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
+              style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
             >
               <div className="mb-7 flex justify-center">
                 <VeloLogo size="sm" variant="dark" />
