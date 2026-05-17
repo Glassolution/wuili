@@ -1,52 +1,48 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, FormEvent } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { VeloLogo } from "@/components/VeloLogo";
+
 import Footer from "@/components/landing/Footer";
 
 const ACCENT = "#2563EB";
 
 // Real product photos from Unsplash for the hero mosaic background.
 const PRODUCT_IMAGES = [
-  "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300",
-  "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=300",
-  "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=300",
-  "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=300",
-  "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=300",
-  "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=300",
-  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300",
-  "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=300",
-  "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300",
-  "https://images.unsplash.com/photo-1560343090-f0409e92791a?w=300",
-  "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=300",
-  "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=300",
+  "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400",
+  "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=400",
+  "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=400",
+  "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400",
+  "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400",
+  "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400",
+  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
+  "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=400",
+  "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400",
+  "https://images.unsplash.com/photo-1560343090-f0409e92791a?w=400",
+  "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400",
+  "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=400",
+  "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400",
+  "https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?w=400",
+  "https://images.unsplash.com/photo-1542219550-37153d387c27?w=400",
+  "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=400",
+  "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=400",
+  "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=400",
+  "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400",
+  "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400",
 ];
-// Repeat to fill a 4-col grid covering the full hero.
-const MOSAIC_TILES = [...PRODUCT_IMAGES, ...PRODUCT_IMAGES];
+
+// Split into 4 columns, each shuffled differently.
+const buildColumn = (offset: number) => {
+  const arr = [...PRODUCT_IMAGES];
+  return [...arr.slice(offset), ...arr.slice(0, offset)];
+};
+const COLUMNS = [buildColumn(0), buildColumn(5), buildColumn(10), buildColumn(15)];
 
 const STEPS = [
-  {
-    n: "01",
-    title: "Escolha um produto",
-    desc: "Navegue por milhares de produtos prontos com alta margem de lucro.",
-    emoji: "🛍️",
-  },
-  {
-    n: "02",
-    title: "Publique no Mercado Livre",
-    desc: "Nossa IA cria título, fotos e descrição otimizadas em segundos.",
-    emoji: "🚀",
-  },
-  {
-    n: "03",
-    title: "Receba e a gente envia",
-    desc: "Quando vender, o fornecedor envia direto pro seu cliente. Você só recebe.",
-    emoji: "💰",
-  },
+  { n: "01", title: "Escolha um produto", desc: "Navegue por milhares de produtos prontos com alta margem de lucro.", emoji: "🛍️" },
+  { n: "02", title: "Publique no Mercado Livre", desc: "Nossa IA cria título, fotos e descrição otimizadas em segundos.", emoji: "🚀" },
+  { n: "03", title: "Receba e a gente envia", desc: "Quando vender, o fornecedor envia direto pro seu cliente. Você só recebe.", emoji: "💰" },
 ];
 
 const Index = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
 
@@ -57,94 +53,68 @@ const Index = () => {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-[#0a0a0a]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-      {/* ── NAVBAR ── */}
-      <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-white/90 backdrop-blur-[12px]">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-[14px] md:px-8">
-          <Link to="/" className="flex items-center">
-            <VeloLogo size="md" variant="dark" />
-          </Link>
-
-          <nav className="hidden items-center gap-8 text-[14px] font-medium text-[#0a0a0a]/70 md:flex">
-            <a href="#como-funciona" className="transition hover:text-[#0a0a0a]">Como funciona</a>
-            <a href="#precos" className="transition hover:text-[#0a0a0a]">Preços</a>
-            <a href="#blog" className="transition hover:text-[#0a0a0a]">Blog</a>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            {user ? (
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center rounded-full px-5 py-[10px] text-[13.5px] font-semibold text-white transition hover:brightness-110"
-                style={{ background: ACCENT, borderRadius: 50 }}
-              >
-                Ir para o dashboard
-              </Link>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center border border-[#0a0a0a]/15 px-5 py-[9px] text-[13.5px] font-semibold text-[#0a0a0a] transition hover:bg-[#0a0a0a]/[0.04]"
-                  style={{ borderRadius: 50 }}
-                >
-                  Entrar
-                </Link>
-                <Link
-                  to="/cadastro"
-                  className="inline-flex items-center px-5 py-[10px] text-[13.5px] font-semibold text-white transition hover:brightness-110"
-                  style={{ background: ACCENT, borderRadius: 50 }}
-                >
-                  Começar grátis
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      {/* Keyframes for infinite vertical scroll */}
+      <style>{`
+        @keyframes velo-scroll-up {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-50%); }
+        }
+        @keyframes velo-scroll-down {
+          0% { transform: translateY(-50%); }
+          100% { transform: translateY(0); }
+        }
+      `}</style>
 
       <main>
         {/* ── HERO ── */}
-        <section className="relative overflow-hidden">
-          {/* Mosaic background */}
-          <div className="absolute inset-0">
-            <div
-              className="grid h-full w-full gap-3 p-3"
-              style={{
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gridAutoRows: "minmax(180px, 1fr)",
-              }}
-            >
-              {MOSAIC_TILES.map((src, i) => (
-                <div
-                  key={i}
-                  className="overflow-hidden rounded-2xl bg-[#F5F5F5] flex items-center justify-center"
-                >
-                  <img
-                    src={src}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
+        <section className="relative min-h-screen w-full overflow-hidden bg-[#1a1a1a]">
+          {/* Mosaic background — 4 animated columns */}
+          <div className="absolute inset-0 grid grid-cols-2 gap-3 p-3 md:grid-cols-4">
+            {COLUMNS.map((col, colIdx) => {
+              const goesUp = colIdx % 2 === 0;
+              const duration = 50 + colIdx * 6; // 50s, 56s, 62s, 68s
+              return (
+                <div key={colIdx} className="relative h-full overflow-hidden">
+                  <div
+                    className="flex flex-col gap-3"
+                    style={{
+                      animation: `${goesUp ? "velo-scroll-up" : "velo-scroll-down"} ${duration}s linear infinite`,
+                    }}
+                  >
+                    {/* Duplicate the column for seamless loop */}
+                    {[...col, ...col].map((src, i) => (
+                      <div
+                        key={`${colIdx}-${i}`}
+                        className="h-[260px] w-full shrink-0 overflow-hidden rounded-2xl bg-[#1a1a1a]"
+                      >
+                        <img
+                          src={src}
+                          alt=""
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-            {/* soft white wash so card pops */}
-            <div className="absolute inset-0 bg-white/30" />
+              );
+            })}
           </div>
 
-          {/* Centered card */}
-          <div className="relative mx-auto flex max-w-[1200px] items-center justify-center px-6 py-20 md:py-28">
-            <div
-              className="w-full max-w-[560px] rounded-[28px] bg-white p-8 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.25),0_8px_24px_-8px_rgba(0,0,0,0.15)] md:p-12"
-            >
-              <div className="mb-7 flex justify-center">
-                <VeloLogo size="md" variant="dark" />
-              </div>
+          {/* Soft dark wash for legibility */}
+          <div className="absolute inset-0 bg-black/20" />
 
-              <h1 className="mb-4 text-[clamp(2rem,4.5vw,2.85rem)] font-bold leading-[1.08] tracking-[-0.03em] text-[#0a0a0a]">
+          {/* Centered card */}
+          <div className="relative mx-auto flex min-h-screen max-w-[1200px] items-center justify-center px-6 py-20">
+            <div
+              className="w-full max-w-[600px] rounded-[28px] bg-white p-10 text-center md:p-14"
+              style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
+            >
+              <h1 className="mb-5 font-bold leading-[1.05] tracking-[-0.035em] text-[#0a0a0a]" style={{ fontSize: "clamp(2.5rem, 5.5vw, 3.5rem)" }}>
                 Sua renda extra<br />começa aqui
               </h1>
 
-              <p className="mb-8 text-[15.5px] leading-[1.55] text-[#525252]">
+              <p className="mb-9 text-[16px] leading-[1.55] text-[#525252]">
                 Venda no Mercado Livre sem ter estoque.<br />Comece grátis hoje.
               </p>
 
