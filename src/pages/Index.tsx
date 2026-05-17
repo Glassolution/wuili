@@ -30,38 +30,12 @@ const PRODUCT_IMAGES = [
   "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400",
 ];
 
-// Scattered photo layout — each photo positioned around the edges,
-// leaving the center free for the card. Coordinates use % so they scale.
-type ScatteredPhoto = {
-  src: string;
-  top: string;
-  left: string;
-  size: number; // px width
-  rotate: number; // deg
-  z: number;
-  float: number; // animation duration seconds
+// Three vertical columns of products. Each column offset to vary content.
+const buildColumn = (offset: number) => {
+  const arr = [...PRODUCT_IMAGES];
+  return [...arr.slice(offset), ...arr.slice(0, offset)];
 };
-const SCATTERED: ScatteredPhoto[] = [
-  // Top-left cluster
-  { src: PRODUCT_IMAGES[0], top: "2%", left: "1%", size: 190, rotate: -12, z: 2, float: 9 },
-  { src: PRODUCT_IMAGES[1], top: "4%", left: "16%", size: 170, rotate: 8, z: 3, float: 11 },
-  { src: PRODUCT_IMAGES[2], top: "22%", left: "5%", size: 210, rotate: -6, z: 1, float: 10 },
-  // Top-right cluster
-  { src: PRODUCT_IMAGES[3], top: "3%", left: "70%", size: 200, rotate: 11, z: 2, float: 12 },
-  { src: PRODUCT_IMAGES[4], top: "6%", left: "85%", size: 175, rotate: -9, z: 3, float: 8 },
-  { src: PRODUCT_IMAGES[5], top: "25%", left: "78%", size: 220, rotate: 6, z: 1, float: 13 },
-  // Bottom-left cluster
-  { src: PRODUCT_IMAGES[6], top: "62%", left: "2%", size: 200, rotate: 10, z: 2, float: 11 },
-  { src: PRODUCT_IMAGES[7], top: "78%", left: "12%", size: 180, rotate: -14, z: 3, float: 9 },
-  { src: PRODUCT_IMAGES[8], top: "70%", left: "26%", size: 160, rotate: 5, z: 1, float: 12 },
-  // Bottom-right cluster
-  { src: PRODUCT_IMAGES[9], top: "65%", left: "72%", size: 210, rotate: -8, z: 2, float: 10 },
-  { src: PRODUCT_IMAGES[10], top: "80%", left: "85%", size: 175, rotate: 12, z: 3, float: 13 },
-  { src: PRODUCT_IMAGES[11], top: "72%", left: "60%", size: 165, rotate: -5, z: 1, float: 8 },
-  // Side fillers
-  { src: PRODUCT_IMAGES[12], top: "45%", left: "0%", size: 170, rotate: 7, z: 1, float: 11 },
-  { src: PRODUCT_IMAGES[13], top: "48%", left: "88%", size: 165, rotate: -10, z: 1, float: 9 },
-];
+const COLUMNS = [buildColumn(0), buildColumn(7), buildColumn(13)];
 
 const STEPS = [
   { n: "01", title: "Escolha um produto", desc: "Navegue por milhares de produtos prontos com alta margem de lucro.", emoji: "🛍️" },
