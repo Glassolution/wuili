@@ -119,10 +119,6 @@ const Index = () => {
                 Venda no Mercado Livre sem ter estoque.<br />Comece grátis hoje.
               </p>
 
-              <p className="mb-8 text-[15.5px] leading-[1.55] text-[#525252]">
-                Venda no Mercado Livre sem ter estoque.<br />Comece grátis hoje.
-              </p>
-
               <form
                 onSubmit={handleEmailSubmit}
                 className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-0 sm:rounded-full sm:border sm:border-[#0a0a0a]/15 sm:bg-white sm:p-1 sm:focus-within:border-[#0a0a0a]/40"
