@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, FormEvent } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+
 import Footer from "@/components/landing/Footer";
 
 const ACCENT = "#2563EB";
