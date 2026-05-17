@@ -35,12 +35,13 @@ const getProfileUserId = (profile: ProfileRow) => profile.user_id ?? profile.id;
 
 async function isAdmin(adminClient: ReturnType<typeof createClient>, userId: string) {
   const { data } = await adminClient
-    .from("profiles")
+    .from("user_roles")
     .select("role")
-    .or(`id.eq.${userId},user_id.eq.${userId}`)
+    .eq("user_id", userId)
+    .eq("role", "admin")
     .maybeSingle();
 
-  return data?.role === "admin";
+  return !!data;
 }
 
 async function loadProfiles(adminClient: ReturnType<typeof createClient>): Promise<ProfileRow[]> {
