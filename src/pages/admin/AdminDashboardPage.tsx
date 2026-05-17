@@ -675,6 +675,8 @@ const AdminDashboardPage = () => {
               </EditorialCard>
             </div>
           </section>
+
+          <AffiliateTrackingSection />
         </div>
       )}
     </AdminShell>
