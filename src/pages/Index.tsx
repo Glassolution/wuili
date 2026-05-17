@@ -43,7 +43,6 @@ const STEPS = [
 ];
 
 const Index = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
 
