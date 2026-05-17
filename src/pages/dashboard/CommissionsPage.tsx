@@ -320,7 +320,7 @@ const CommissionsPage = () => {
       id: user.id,
       name: "Seu Link de Afiliado",
       code: affiliateRow.code,
-      link: affiliateRow.link || `https://velods.com.br/ref/${affiliateRow.code}`,
+      link: `https://velods.com.br/ref/${affiliateRow.code}`,
       created_at: user.created_at || formatDate(null),
     });
   }, [user, affiliateRow]);
