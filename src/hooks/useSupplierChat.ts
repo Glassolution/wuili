@@ -53,9 +53,9 @@ export function useSupplierThreads() {
 
       if (ordErr) throw ordErr;
 
-      const supplierNames: string[] = [
-        ...new Set((orders ?? []).map((o: any) => o.supplier as string).filter(Boolean)),
-      ];
+      const supplierNames: string[] = Array.from(
+        new Set((orders ?? []).map((o: any) => o.supplier as string).filter(Boolean))
+      );
 
       if (supplierNames.length === 0) return [];
 
