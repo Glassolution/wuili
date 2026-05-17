@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, FormEvent } from "react";
+import { VeloLogo } from "@/components/VeloLogo";
 
 import Footer from "@/components/landing/Footer";
 
@@ -29,12 +30,12 @@ const PRODUCT_IMAGES = [
   "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400",
 ];
 
-// Split into 4 columns, each shuffled differently.
-const buildColumn = (offset: number) => {
+// Build a row offset by N for variety.
+const buildRow = (offset: number) => {
   const arr = [...PRODUCT_IMAGES];
   return [...arr.slice(offset), ...arr.slice(0, offset)];
 };
-const COLUMNS = [buildColumn(0), buildColumn(5), buildColumn(10), buildColumn(15)];
+const ROWS = [buildRow(0), buildRow(4), buildRow(8), buildRow(12), buildRow(16)];
 
 const STEPS = [
   { n: "01", title: "Escolha um produto", desc: "Navegue por milhares de produtos prontos com alta margem de lucro.", emoji: "🛍️" },
@@ -53,39 +54,33 @@ const Index = () => {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-[#0a0a0a]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-      {/* Keyframes for infinite vertical scroll */}
       <style>{`
-        @keyframes velo-scroll-up {
-          0% { transform: translateY(0); }
-          100% { transform: translateY(-50%); }
-        }
-        @keyframes velo-scroll-down {
-          0% { transform: translateY(-50%); }
-          100% { transform: translateY(0); }
+        @keyframes velo-scroll-left {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
         }
       `}</style>
 
       <main>
         {/* ── HERO ── */}
-        <section className="relative min-h-screen w-full overflow-hidden bg-[#1a1a1a]">
-          {/* Mosaic background — 4 animated columns */}
-          <div className="absolute inset-0 grid grid-cols-2 gap-3 p-3 md:grid-cols-4">
-            {COLUMNS.map((col, colIdx) => {
-              const goesUp = colIdx % 2 === 0;
-              const duration = 50 + colIdx * 6; // 50s, 56s, 62s, 68s
+        <section className="relative min-h-screen w-full overflow-hidden bg-white">
+          {/* Mosaic background — horizontal scrolling rows */}
+          <div className="absolute inset-0 flex flex-col gap-3 p-3">
+            {ROWS.map((row, rowIdx) => {
+              const duration = 60 + rowIdx * 8; // staggered speeds
               return (
-                <div key={colIdx} className="relative h-full overflow-hidden">
+                <div key={rowIdx} className="relative flex-1 overflow-hidden">
                   <div
-                    className="flex flex-col gap-3"
+                    className="flex h-full gap-3"
                     style={{
-                      animation: `${goesUp ? "velo-scroll-up" : "velo-scroll-down"} ${duration}s linear infinite`,
+                      width: "max-content",
+                      animation: `velo-scroll-left ${duration}s linear infinite`,
                     }}
                   >
-                    {/* Duplicate the column for seamless loop */}
-                    {[...col, ...col].map((src, i) => (
+                    {[...row, ...row].map((src, i) => (
                       <div
-                        key={`${colIdx}-${i}`}
-                        className="h-[260px] w-full shrink-0 overflow-hidden rounded-2xl bg-[#1a1a1a]"
+                        key={`${rowIdx}-${i}`}
+                        className="h-full w-[260px] shrink-0 overflow-hidden rounded-2xl bg-[#F5F5F5]"
                       >
                         <img
                           src={src}
@@ -101,8 +96,8 @@ const Index = () => {
             })}
           </div>
 
-          {/* Soft dark wash for legibility */}
-          <div className="absolute inset-0 bg-black/20" />
+          {/* Soft white wash for legibility */}
+          <div className="absolute inset-0 bg-white/30" />
 
           {/* Centered card */}
           <div className="relative mx-auto flex min-h-screen max-w-[1200px] items-center justify-center px-6 py-20">
@@ -110,6 +105,10 @@ const Index = () => {
               className="w-full max-w-[600px] rounded-[28px] bg-white p-10 text-center md:p-14"
               style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
             >
+              <div className="mb-7 flex justify-center">
+                <VeloLogo size="sm" variant="dark" />
+              </div>
+
               <h1 className="mb-5 font-bold leading-[1.05] tracking-[-0.035em] text-[#0a0a0a]" style={{ fontSize: "clamp(2.5rem, 5.5vw, 3.5rem)" }}>
                 Sua renda extra<br />começa aqui
               </h1>
