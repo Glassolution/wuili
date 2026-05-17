@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { resolveAfter } from "@/lib/requestTimeout";
 
 const PERIODS = ["Hoje", "Esse mês", "Últimos 30 dias", "Últimos 90 dias", "Todo o período", "Personalizado"] as const;
 type Period = typeof PERIODS[number];
@@ -94,15 +95,21 @@ const SalesCalendar = ({ userId }: { userId: string | undefined }) => {
   const { data: monthOrders } = useQuery({
     queryKey: ["calendar-orders", userId, currentMonth.getFullYear(), currentMonth.getMonth()],
     enabled: !!userId,
-    queryFn: async () => {
+    staleTime: 60 * 1000,
+    retry: 1,
+    queryFn: async ({ signal }) => {
       const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString();
       const end   = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59).toISOString();
-      const { data, error } = await (supabase as any)
-        .from("orders")
-        .select("ordered_at, created_at, sale_price")
-        .eq("user_id", userId)
-        .gte("ordered_at", start)
-        .lte("ordered_at", end);
+      const { data, error } = await Promise.race([
+        (supabase as any)
+          .from("orders")
+          .select("ordered_at, created_at, sale_price")
+          .eq("user_id", userId)
+          .gte("ordered_at", start)
+          .lte("ordered_at", end)
+          .abortSignal(signal),
+        resolveAfter(5000, { data: [], error: null } as any),
+      ]);
       if (error) return [];
       return (data ?? []) as { ordered_at: string | null; created_at: string; sale_price: number | null }[];
     },
@@ -640,21 +647,35 @@ export default function DashboardHomePage() {
   const { data: statsData, isLoading: loadingStats } = useQuery({
     queryKey: ["dashboard-stats", user?.id, activePeriod, customStart, customEnd],
     enabled: !!user,
-    queryFn: async () => {
+    staleTime: 60 * 1000,
+    retry: 1,
+    queryFn: async ({ signal }) => {
       const [ordersRes, pubsRes, revenueRes] = await Promise.all([
-        supabase
-          .from("orders" as any)
-          .select("id, ordered_at, created_at")
-          .eq("user_id", user!.id),
-        supabase
-          .from("user_publications" as any)
-          .select("id, created_at, published_at")
-          .eq("user_id", user!.id)
-          .eq("status", "active"),
-        supabase
-          .from("orders" as any)
-          .select("sale_price, ordered_at, created_at")
-          .eq("user_id", user!.id),
+        Promise.race([
+          supabase
+            .from("orders" as any)
+            .select("id, ordered_at, created_at")
+            .eq("user_id", user!.id)
+            .abortSignal(signal),
+          resolveAfter(5000, { data: [], error: null } as any),
+        ]),
+        Promise.race([
+          supabase
+            .from("user_publications" as any)
+            .select("id, created_at, published_at")
+            .eq("user_id", user!.id)
+            .eq("status", "active")
+            .abortSignal(signal),
+          resolveAfter(5000, { data: [], error: null } as any),
+        ]),
+        Promise.race([
+          supabase
+            .from("orders" as any)
+            .select("sale_price, ordered_at, created_at")
+            .eq("user_id", user!.id)
+            .abortSignal(signal),
+          resolveAfter(5000, { data: [], error: null } as any),
+        ]),
       ]);
       const range = getPeriodRange(activePeriod, customStart, customEnd);
       const periodOrders = ((ordersRes.data ?? []) as { ordered_at: string | null; created_at: string }[])
@@ -680,13 +701,19 @@ export default function DashboardHomePage() {
   const { data: recentOrdersData, isLoading: loadingRecentOrders } = useQuery({
     queryKey: ["dashboard-recent-orders", user?.id, activePeriod, customStart, customEnd],
     enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders" as any)
-        .select("id, external_order_id, buyer_name, status, ordered_at, created_at, sale_price")
-        .eq("user_id", user!.id)
-        .order("ordered_at", { ascending: false })
-        .limit(100);
+    staleTime: 60 * 1000,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const { data, error } = await Promise.race([
+        supabase
+          .from("orders" as any)
+          .select("id, external_order_id, buyer_name, status, ordered_at, created_at, sale_price")
+          .eq("user_id", user!.id)
+          .order("ordered_at", { ascending: false })
+          .limit(100)
+          .abortSignal(signal),
+        resolveAfter(5000, { data: [], error: null } as any),
+      ]);
       if (error) throw error;
       const range = getPeriodRange(activePeriod, customStart, customEnd);
       return ((data ?? []) as {

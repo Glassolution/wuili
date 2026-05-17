@@ -7,7 +7,8 @@ import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
 import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, supabaseUrl } from "@/integrations/supabase/client";
+import { createTimeoutSignal } from "@/lib/requestTimeout";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
@@ -225,7 +226,7 @@ const CatalogPage = () => {
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const planLimits = usePlanLimits();
-  const limit = 20;
+  const limit = 12;
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
   const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -239,16 +240,24 @@ const CatalogPage = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["catalog", category, page, search],
-    queryFn: async () => {
+    staleTime: 60 * 1000,
+    retry: 1,
+    queryFn: async ({ signal }) => {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) });
       if (category !== "todos") params.set("category", category);
       if (search) params.set("search", search);
-      const url = `https://${projectId}.supabase.co/functions/v1/catalog?${params}`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${anonKey}` } });
-      if (!res.ok) throw new Error("Failed to fetch catalog");
-      return res.json();
+      const baseUrl = supabaseUrl || `https://${projectId}.supabase.co`;
+      const url = `${baseUrl}/functions/v1/catalog?${params}`;
+      const timeout = createTimeoutSignal(8000, signal);
+      try {
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${anonKey}` }, signal: timeout.signal });
+        if (!res.ok) throw new Error("Failed to fetch catalog");
+        return res.json();
+      } finally {
+        timeout.clear();
+      }
     },
   });
 
@@ -480,6 +489,21 @@ const CatalogPage = () => {
             </div>
           ))}
         </div>
+      ) : isError ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center" }}>
+          <Package size={48} strokeWidth={1.5} style={{ color: "#D1D5DB", marginBottom: "16px" }} />
+          <p style={{ fontSize: "15px", fontWeight: 600, color: "#111111", margin: "0 0 6px 0" }}>Nao foi possivel carregar o catalogo</p>
+          <p style={{ fontSize: "13px", color: "#9CA3AF", margin: 0 }}>
+            Verifique a conexao com o Supabase e tente novamente.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            style={{ marginTop: "20px", height: "40px", padding: "0 16px", fontSize: "13px", fontWeight: 600, color: "#FFFFFF", backgroundColor: "#111111", border: "none", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em" }}
+          >
+            Tentar novamente
+          </button>
+        </div>
       ) : products.length === 0 ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center" }}>
           <Package size={48} strokeWidth={1.5} style={{ color: "#D1D5DB", marginBottom: "16px" }} />
@@ -560,6 +584,11 @@ const CatalogPage = () => {
 
         .catalog-product-card:hover .catalog-product-image {
           transform: scale(1.03);
+        }
+
+        .catalog-product-card {
+          content-visibility: auto;
+          contain-intrinsic-size: 520px;
         }
 
         @media (max-width: 1280px) {

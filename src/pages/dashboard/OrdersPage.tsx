@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { resolveAfter } from "@/lib/requestTimeout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type OrderStatus = "active" | "success" | "delivery" | "pending";
@@ -226,16 +227,22 @@ const EmptyColumn = ({ column }: { column: typeof columns[0] }) => {
 const OrdersPage = () => {
   const { user } = useAuth();
 
-  const { data: rawOrders, isLoading } = useQuery({
+  const { data: rawOrders, isLoading, isError, refetch } = useQuery({
     queryKey: ["orders-kanban", user?.id],
     enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("id, external_order_id, product_title, product_image, quantity, sale_price, ordered_at, created_at, status")
-        .eq("user_id", user!.id)
-        .order("ordered_at", { ascending: false })
-        .limit(100);
+    staleTime: 60 * 1000,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const { data, error } = await Promise.race([
+        supabase
+          .from("orders")
+          .select("id, external_order_id, product_title, product_image, quantity, sale_price, ordered_at, created_at, status")
+          .eq("user_id", user!.id)
+          .order("ordered_at", { ascending: false })
+          .limit(100)
+          .abortSignal(signal),
+        resolveAfter(5000, { data: [], error: null } as any),
+      ]);
       if (error) throw error;
       return data ?? [];
     },
@@ -304,6 +311,21 @@ const OrdersPage = () => {
           {columns.map((col) => (
             <SkeletonColumn key={col.id} color={col.color} />
           ))}
+        </div>
+      ) : isError ? (
+        <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
+          <ShoppingBag size={48} strokeWidth={1.5} className="text-muted-foreground/30 mb-4" />
+          <p className="text-[15px] font-medium text-foreground">Nao foi possivel carregar os pedidos</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Verifique a conexao e tente novamente.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="mt-5 rounded-lg bg-[#111111] px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-black/90"
+          >
+            Tentar novamente
+          </button>
         </div>
       ) : isEmpty ? (
         <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">

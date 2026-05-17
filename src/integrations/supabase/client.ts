@@ -89,3 +89,4 @@ export const supabase = SUPABASE_DISABLED
     });
 
 export const isSupabaseEnabled = !SUPABASE_DISABLED;
+export const supabaseUrl = SUPABASE_URL?.replace(/\/$/, "") ?? "";

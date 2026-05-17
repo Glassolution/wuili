@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveAfter } from "@/lib/requestTimeout";
 import {
   getFinancialSummary,
   getCashflowData,
@@ -69,22 +70,27 @@ export function useFinancialData() {
     queryKey: ["financial-data", userId],
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("orders")
-        .select(
-          "id, sale_price, cost_price, profit, status, created_at, platform, product_title, ordered_at"
-        )
-        .eq("user_id", userId)
-        .in("status", [
-          "paid",
-          "approved",
-          "completed",
-          "refunded",
-          "pending",
-          "cancelled",
-        ])
-        .order("created_at", { ascending: false });
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const { data, error } = await Promise.race([
+        (supabase as any)
+          .from("orders")
+          .select(
+            "id, sale_price, cost_price, profit, status, created_at, platform, product_title, ordered_at"
+          )
+          .eq("user_id", userId)
+          .in("status", [
+            "paid",
+            "approved",
+            "completed",
+            "refunded",
+            "pending",
+            "cancelled",
+          ])
+          .order("created_at", { ascending: false })
+          .abortSignal(signal),
+        resolveAfter(5000, { data: [], error: null } as any),
+      ]);
 
       if (error) throw error;
       return ((data ?? []) as DbOrderRow[]).map(mapDbOrderToFinancialOrder);

@@ -10,6 +10,13 @@ import { usePlan } from "@/hooks/usePlan";
 import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import {
+  MAX_STORES_PER_USER,
+  readUserStores,
+  START_STORE_ONBOARDING_EVENT,
+  STORES_CHANGED_EVENT,
+  type VeloStore,
+} from "@/components/dashboard/FirstStoreOnboarding";
 import { toast } from "sonner";
 
 type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
@@ -269,7 +276,7 @@ const ProfileTab = () => {
 };
 
 /* ══ Stores ═════════════════════════════════════════════ */
-const StoresTab = () => (
+const LegacyStoresTab = () => (
   <div className="space-y-4">
     <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Minhas lojas</h2>
     <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Gerencie as lojas conectadas à sua conta.</p>
@@ -292,6 +299,62 @@ const StoresTab = () => (
 );
 
 /* ══ Integrations ════════════════════════════════════════ */
+const StoresTab = () => {
+  const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
+
+  useEffect(() => {
+    const syncStores = () => setStores(readUserStores());
+    syncStores();
+    window.addEventListener(STORES_CHANGED_EVENT, syncStores);
+    window.addEventListener("storage", syncStores);
+    return () => {
+      window.removeEventListener(STORES_CHANGED_EVENT, syncStores);
+      window.removeEventListener("storage", syncStores);
+    };
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <h2 className="mb-1 text-[18px] font-semibold text-[#0A0A0A] dark:text-white">Minhas lojas</h2>
+      <p className="mb-4 text-[13px] text-[#737373] dark:text-zinc-400">Gerencie as lojas criadas pela sua conta.</p>
+
+      {stores.length > 0 ? (
+        stores.map((store, index) => (
+          <div key={store.id} className="rounded-2xl border border-[#E5E5E5] p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <p className="font-normal text-[#0A0A0A] dark:text-white">{store.name}</p>
+                {index === 0 && (
+                  <span className="rounded-full bg-black px-2.5 py-0.5 text-[11px] font-semibold text-white dark:bg-white dark:text-black">
+                    Ativa
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-sm sm:gap-4">
+              <div><p className="text-xs uppercase tracking-wider text-[#A3A3A3] dark:text-zinc-500">Tipo</p><p className="mt-0.5 font-medium text-[#0A0A0A] dark:text-white">{store.businessType}</p></div>
+              <div><p className="text-xs uppercase tracking-wider text-[#A3A3A3] dark:text-zinc-500">Objetivo</p><p className="mt-0.5 font-medium text-[#0A0A0A] dark:text-white">{store.goal}</p></div>
+              <div><p className="text-xs uppercase tracking-wider text-[#A3A3A3] dark:text-zinc-500">Produtos</p><p className="mt-0.5 font-medium text-[#0A0A0A] dark:text-white">{store.publishedProducts}/{store.productLimit}</p></div>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="rounded-2xl border border-dashed border-[#D8DEE9] bg-[#F8FAFC] p-5 text-[14px] text-[#697386] dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+          Nenhuma loja criada ainda. Ao entrar pela primeira vez, o fluxo inicial vai coletar os dados para criar a primeira loja.
+        </div>
+      )}
+
+      <button
+        className={stores.length >= MAX_STORES_PER_USER ? `${secondaryBtn} cursor-not-allowed opacity-45` : secondaryBtn}
+        disabled={stores.length >= MAX_STORES_PER_USER}
+        onClick={() => window.dispatchEvent(new Event(START_STORE_ONBOARDING_EVENT))}
+      >
+        {stores.length >= MAX_STORES_PER_USER ? "Limite de 2 lojas atingido" : "+ Nova loja"}
+      </button>
+    </div>
+  );
+};
+
 type Integration = { platform: string; label: string; connected: boolean; loading?: boolean; comingSoon?: boolean };
 
 const IntegrationsTab = () => {

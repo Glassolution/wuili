@@ -8,6 +8,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
+import {
+  getActiveStore,
+  getStorePublishedCount,
+  incrementStorePublishedCount,
+} from "@/components/dashboard/FirstStoreOnboarding";
 
 export type CatalogProduct = {
   id: string;
@@ -311,6 +316,19 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
   const handlePublish = async () => {
     if (!validatePublish() || !user) return;
 
+    const activeStore = getActiveStore();
+    if (!activeStore) {
+      toast.error("Crie uma loja antes de publicar produtos");
+      return;
+    }
+
+    const publishedCount = getStorePublishedCount(activeStore.id);
+    const productLimit = activeStore.productLimit ?? 30;
+    if (publishedCount >= productLimit) {
+      toast.error(`Limite de ${productLimit} produtos atingido nesta loja`);
+      return;
+    }
+
     if (planLimits.loading) {
       toast.info("Verificando seu plano...");
       return;
@@ -357,6 +375,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(3);
+      incrementStorePublishedCount(activeStore.id);
 
       toast.success("Produto publicado com sucesso");
       if (data.permalink) window.open(data.permalink, '_blank', 'noopener,noreferrer');

@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,39 +7,39 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "./lib/profileContext";
 import { ImportedProductsProvider } from "./lib/importedProductsContext";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import LoginPage from "./pages/LoginPage";
-import CadastroPage from "./pages/CadastroPage";
-import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
-import DashboardLayout from "./components/dashboard/DashboardLayout";
 import AdminRoute from "./components/AdminRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { Navigate } from "react-router-dom";
-import CatalogPage from "./pages/dashboard/CatalogPage";
-import OrdersPage from "./pages/dashboard/OrdersPage";
-import PublicationsPage from "./pages/dashboard/PublicationsPage";
-import ProductDetailPage from "./pages/dashboard/ProductDetailPage";
-import ReportsPage from "./pages/dashboard/ReportsPage";
-import SettingsPage from "./pages/dashboard/SettingsPage";
-import IntegracoesPage from "./pages/dashboard/IntegracoesPage";
-import DashboardInfoPage from "./pages/dashboard/DashboardInfoPage";
-import SaldosPage from "./pages/dashboard/SaldosPage";
-import TransacoesPage from "./pages/dashboard/TransacoesPage";
-import ProductsPage from "./pages/dashboard/ProductsPage";
-import PagamentosPage from "./pages/dashboard/PagamentosPage";
-import CheckoutPage from "./pages/CheckoutPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import CriarVideoPage from "./pages/dashboard/CriarVideoPage";
-import ChatFornecedoresPage from "./pages/dashboard/ChatFornecedoresPage";
-import DashboardHomePage from "./pages/dashboard/DashboardHomePage";
-import Docs from "./pages/Docs";
-import ClientesPage from "./pages/dashboard/ClientesPage";
-import CommissionsPage from "./pages/dashboard/CommissionsPage";
-import AdminSupportPage from "./pages/admin/AdminSupportPage";
-import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import AdminUsersPage from "./pages/admin/AdminUsersPage";
-import AdminRefundsPage from "./pages/admin/AdminRefundsPage";
+
+const Index = lazy(() => import("./pages/Index"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const CadastroPage = lazy(() => import("./pages/CadastroPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const Docs = lazy(() => import("./pages/Docs"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
+const AliExpressCallbackPage = lazy(() => import("./pages/AliExpressCallbackPage"));
+const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout"));
+const DashboardHomePage = lazy(() => import("./pages/dashboard/DashboardHomePage"));
+const CatalogPage = lazy(() => import("./pages/dashboard/CatalogPage"));
+const OrdersPage = lazy(() => import("./pages/dashboard/OrdersPage"));
+const PublicationsPage = lazy(() => import("./pages/dashboard/PublicationsPage"));
+const ProductDetailPage = lazy(() => import("./pages/dashboard/ProductDetailPage"));
+const ReportsPage = lazy(() => import("./pages/dashboard/ReportsPage"));
+const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage"));
+const IntegracoesPage = lazy(() => import("./pages/dashboard/IntegracoesPage"));
+const DashboardInfoPage = lazy(() => import("./pages/dashboard/DashboardInfoPage"));
+const SaldosPage = lazy(() => import("./pages/dashboard/SaldosPage"));
+const TransacoesPage = lazy(() => import("./pages/dashboard/TransacoesPage"));
+const PagamentosPage = lazy(() => import("./pages/dashboard/PagamentosPage"));
+const CriarVideoPage = lazy(() => import("./pages/dashboard/CriarVideoPage"));
+const ChatFornecedoresPage = lazy(() => import("./pages/dashboard/ChatFornecedoresPage"));
+const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
+const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
+const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
+const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
+const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +51,16 @@ const queryClient = new QueryClient({
   },
 });
 
+const AppFallback = () => (
+  <div className="min-h-screen bg-background">
+    <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-6">
+      <div className="h-2 w-44 overflow-hidden rounded-full bg-muted">
+        <div className="h-full w-1/2 animate-pulse rounded-full bg-foreground" />
+      </div>
+    </div>
+  </div>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -59,6 +70,7 @@ const App = () => (
       <Toaster />
       <Sonner position="top-center" expand={false} style={{ width: "100vw", left: 0, top: 0, transform: "none" }} />
       <BrowserRouter>
+        <Suspense fallback={<AppFallback />}>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<LoginPage />} />
@@ -119,6 +131,7 @@ const App = () => (
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
     </ImportedProductsProvider>

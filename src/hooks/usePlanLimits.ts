@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan, type PlanName } from "@/hooks/usePlan";
+import { resolveAfter } from "@/lib/requestTimeout";
 
 type PlanLimits = {
   marketplaces: number | null;
@@ -52,23 +54,22 @@ const hasReachedLimit = (used: number, limit: number | null) =>
 export const usePlanLimits = () => {
   const { user, loading: authLoading } = useAuth();
   const planState = usePlan();
-  const [usage, setUsage] = useState<Usage>({ connectedMarketplaces: 0 });
-  const [usageLoading, setUsageLoading] = useState(true);
 
-  const fetchUsage = async () => {
-    if (!user) {
-      setUsage({ connectedMarketplaces: 0 });
-      setUsageLoading(false);
-      return;
-    }
-
-    setUsageLoading(true);
-
-    try {
-      const integrationsResult = await supabase
-        .from("user_integrations")
-        .select("platform, access_token")
-        .eq("user_id", user.id);
+  const usageQuery = useQuery({
+    queryKey: ["plan-usage", user?.id],
+    enabled: !authLoading && !!user,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
+    queryFn: async ({ signal }) => {
+      const integrationsResult = await Promise.race([
+        supabase
+          .from("user_integrations")
+          .select("platform, access_token")
+          .eq("user_id", user!.id)
+          .abortSignal(signal),
+        resolveAfter(4500, { data: [], error: null } as any),
+      ]);
 
       const connectedPlatforms = new Set(
         (integrationsResult.data ?? [])
@@ -76,24 +77,17 @@ export const usePlanLimits = () => {
           .map((integration) => integration.platform)
       );
 
-      setUsage({
+      return {
         connectedMarketplaces: connectedPlatforms.size,
-      });
-    } finally {
-      setUsageLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (authLoading) return;
-    void fetchUsage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user?.id]);
+      } satisfies Usage;
+    },
+  });
 
   const limits = LIMITS[planState.plan] ?? LIMITS.gratis;
+  const usage = usageQuery.data ?? { connectedMarketplaces: 0 };
 
   return useMemo(() => {
-    const loading = authLoading || planState.loading || usageLoading;
+    const loading = authLoading || planState.loading || usageQuery.isLoading;
 
     return {
       plan: planState.plan,
@@ -108,10 +102,10 @@ export const usePlanLimits = () => {
       hasApiAccess: limits.apiAccess,
       canPublishToMarketplace: planState.plan === "pro" || planState.plan === "business",
       canConnectMarketplace: !hasReachedLimit(usage.connectedMarketplaces, limits.marketplaces),
-      refreshUsage: fetchUsage,
+      refreshUsage: usageQuery.refetch,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, limits, planState.loading, planState.plan, planState.status, usage, usageLoading]);
+  }, [authLoading, limits, planState.loading, planState.plan, planState.status, usage, usageQuery.isLoading, usageQuery.refetch]);
 };
 
 export type UsePlanLimitsResult = ReturnType<typeof usePlanLimits>;
