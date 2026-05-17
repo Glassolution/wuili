@@ -118,6 +118,7 @@ const App = () => (
             <Route path="chat-fornecedores" element={<ChatFornecedoresPage />} />
           </Route>
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/ref/:code" element={<RefCapturePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
