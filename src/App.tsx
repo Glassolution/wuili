@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/LoginPage";
 import CadastroPage from "./pages/CadastroPage";
 import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
+import RefCapturePage from "./pages/RefCapturePage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import AdminRoute from "./components/AdminRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
