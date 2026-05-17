@@ -81,55 +81,58 @@ const Index = () => {
   return (
     <div className="min-h-screen overflow-x-hidden bg-white text-[#0a0a0a]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
-        @keyframes velo-scroll-left {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
+        @keyframes velo-float {
+          0%, 100% { transform: translate(0, 0) rotate(var(--rot)); }
+          50% { transform: translate(0, -8px) rotate(calc(var(--rot) + 1deg)); }
         }
       `}</style>
 
       <main>
         {/* ── HERO ── */}
-        <section className="relative min-h-screen w-full overflow-hidden bg-white">
-          {/* Mosaic background — horizontal scrolling rows */}
-          <div className="absolute inset-0 flex flex-col gap-3 p-3">
-            {ROWS.map((row, rowIdx) => {
-              const duration = 60 + rowIdx * 8; // staggered speeds
-              return (
-                <div key={rowIdx} className="relative flex-1 overflow-hidden">
-                  <div
-                    className="flex h-full gap-3"
-                    style={{
-                      width: "max-content",
-                      animation: `velo-scroll-left ${duration}s linear infinite`,
-                    }}
-                  >
-                    {[...row, ...row].map((src, i) => (
-                      <div
-                        key={`${rowIdx}-${i}`}
-                        className="h-full w-[260px] shrink-0 overflow-hidden rounded-2xl bg-[#F5F5F5]"
-                      >
-                        <img
-                          src={src}
-                          alt=""
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+        <section className="relative min-h-screen w-full overflow-hidden bg-[#0a0a0a]">
+          {/* Scattered photos background */}
+          <div className="absolute inset-0">
+            {SCATTERED.map((p, i) => (
+              <div
+                key={i}
+                className="absolute overflow-hidden"
+                style={{
+                  top: p.top,
+                  left: p.left,
+                  width: p.size,
+                  height: p.size,
+                  zIndex: p.z,
+                  borderRadius: 8,
+                  boxShadow: "0 4px 15px rgba(0,0,0,0.45)",
+                  // @ts-ignore CSS custom prop
+                  ["--rot" as any]: `${p.rotate}deg`,
+                  transform: `rotate(${p.rotate}deg)`,
+                  animation: `velo-float ${p.float}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.3}s`,
+                  background: "#1a1a1a",
+                }}
+              >
+                <img
+                  src={p.src}
+                  alt=""
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ))}
           </div>
 
-          {/* Soft white wash for legibility */}
-          <div className="absolute inset-0 bg-white/30" />
+          {/* Vignette wash for legibility */}
+          <div
+            className="absolute inset-0"
+            style={{ background: "radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)" }}
+          />
 
           {/* Centered card */}
           <div className="relative mx-auto flex min-h-screen max-w-[1200px] items-center justify-center px-6 py-20">
             <div
               className="w-full max-w-[600px] rounded-[28px] bg-white p-10 text-center md:p-14"
-              style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}
+              style={{ boxShadow: "0 30px 80px rgba(0,0,0,0.5)" }}
             >
               <div className="mb-7 flex justify-center">
                 <VeloLogo size="sm" variant="dark" />
