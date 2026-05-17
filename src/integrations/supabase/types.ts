@@ -14,6 +14,126 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_clicks: {
+        Row: {
+          affiliate_code: string
+          created_at: string
+          id: string
+          ip_hash: string | null
+          referrer: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          affiliate_code: string
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          affiliate_code?: string
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      affiliate_conversions: {
+        Row: {
+          affiliate_code: string
+          commission_rate: number
+          commission_value: number
+          created_at: string
+          id: string
+          plan_value: number
+          status: string
+          subscriber_user_id: string
+          subscription_id: string | null
+        }
+        Insert: {
+          affiliate_code: string
+          commission_rate?: number
+          commission_value?: number
+          created_at?: string
+          id?: string
+          plan_value?: number
+          status?: string
+          subscriber_user_id: string
+          subscription_id?: string | null
+        }
+        Update: {
+          affiliate_code?: string
+          commission_rate?: number
+          commission_value?: number
+          created_at?: string
+          id?: string
+          plan_value?: number
+          status?: string
+          subscriber_user_id?: string
+          subscription_id?: string | null
+        }
+        Relationships: []
+      }
+      affiliate_settings: {
+        Row: {
+          commission_rate: number
+          id: number
+          minimum_payout: number
+          updated_at: string
+        }
+        Insert: {
+          commission_rate?: number
+          id?: number
+          minimum_payout?: number
+          updated_at?: string
+        }
+        Update: {
+          commission_rate?: number
+          id?: number
+          minimum_payout?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      affiliates: {
+        Row: {
+          code: string
+          commission_rate: number | null
+          created_at: string
+          id: string
+          is_active: boolean
+          link: string | null
+          ref: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          commission_rate?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          link?: string | null
+          ref?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          commission_rate?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          link?: string | null
+          ref?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       catalog_products: {
         Row: {
           category: string | null

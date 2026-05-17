@@ -94,20 +94,37 @@ const CommissionsPage = () => {
   const [filter, setFilter] = useState("Todas");
   const [localCommissions, setLocalCommissions] = useState<Commission[]>([]);
 
-  // ── Influencer ref (profiles.ref) ───────────────────────────────────────
-  const { data: affiliateRef, isLoading: loadingRef } = useQuery({
-    queryKey: ["affiliate-ref", user?.id],
+  // ── Affiliate (public.affiliates) ───────────────────────────────────────
+  const { data: affiliateRow, isLoading: loadingRef } = useQuery({
+    queryKey: ["affiliate-row", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("ref")
+      // 1) GET — check if user already has an affiliate
+      const { data: existing, error: selErr } = await supabase
+        .from("affiliates")
+        .select("id, code, link")
         .eq("user_id", user!.id)
         .maybeSingle();
-      if (error) throw error;
-      return (data as any)?.ref as string | null;
+      if (selErr) throw selErr;
+      if (existing?.code) return existing;
+
+      // 2) POST /generate — create one automatically
+      const code = Array.from({ length: 8 }, () => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        return chars[Math.floor(Math.random() * chars.length)];
+      }).join("");
+      const link = `https://velods.com.br/ref/${code}`;
+
+      const { data: created, error: insErr } = await supabase
+        .from("affiliates")
+        .insert({ user_id: user!.id, code, link, is_active: true })
+        .select("id, code, link")
+        .single();
+      if (insErr) throw insErr;
+      return created;
     },
   });
+  const affiliateRef = affiliateRow?.code ?? null;
 
   // Fetch affiliate sales for the logged-in influencer
   const { data: initialCommissions = [], isLoading } = useQuery({
@@ -295,18 +312,18 @@ const CommissionsPage = () => {
 
   const [influencer, setInfluencer] = useState<Influencer | null>(null);
 
-  // Influencer link: based on profiles.ref
+  // Influencer link: based on affiliates table
   useEffect(() => {
     if (!user) return;
-    if (!affiliateRef) return;
+    if (!affiliateRow?.code) return;
     setInfluencer({
       id: user.id,
       name: "Seu Link de Afiliado",
-      code: affiliateRef,
-      link: `https://velo.app/ref/${affiliateRef}`,
+      code: affiliateRow.code,
+      link: affiliateRow.link || `https://velods.com.br/ref/${affiliateRow.code}`,
       created_at: user.created_at || formatDate(null),
     });
-  }, [user, affiliateRef]);
+  }, [user, affiliateRow]);
 
   const deltaBadgeText = (currCount: number) => {
     if (!prevMonthHasData && currCount > 0) return "Primeiro mês";
