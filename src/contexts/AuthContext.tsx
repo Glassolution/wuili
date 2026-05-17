@@ -1,10 +1,11 @@
 // NÃO MODIFIQUE ESTE ARQUIVO — qualquer alteração quebra a autenticação global
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import type { User, Session } from "@supabase/supabase-js";
 
 type AuthContextType = {
   user: User | null;
+  session: Session | null;
   role: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -12,6 +13,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  session: null,
   role: null,
   loading: true,
   signOut: async () => {},
@@ -19,13 +21,13 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    // Modo DEV sem Supabase: permite navegar no dashboard para visualizar a UI.
     if (!isSupabaseEnabled) {
       setUser(
         ({
@@ -47,11 +49,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         if (!mounted) return;
+        setSession(session ?? null);
         setUser(session?.user ?? null);
         setLoading(false);
       })
       .catch(() => {
         if (!mounted) return;
+        setSession(null);
         setUser(null);
         setLoading(false);
       });
@@ -59,6 +63,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (!mounted) return;
+        setSession(session ?? null);
         setUser(session?.user ?? null);
         setLoading(false);
       }
@@ -70,7 +75,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  // Safety net: never stay loading more than 3s
   useEffect(() => {
     const timeout = setTimeout(() => setLoading(false), 3000);
     return () => clearTimeout(timeout);
@@ -98,6 +102,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     if (!isSupabaseEnabled) {
       setUser(null);
+      setSession(null);
       setRole(null);
       return;
     }
@@ -105,7 +110,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
