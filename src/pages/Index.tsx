@@ -6,34 +6,23 @@ import Footer from "@/components/landing/Footer";
 
 const ACCENT = "#2563EB";
 
-// Mosaic tiles — colored gradients act as product placeholders.
-// (Easy to swap for real product images later.)
-const MOSAIC_TILES = [
-  { bg: "linear-gradient(135deg,#FCA5A5,#F87171)", emoji: "👟" },
-  { bg: "linear-gradient(135deg,#FDE68A,#FBBF24)", emoji: "🎒" },
-  { bg: "linear-gradient(135deg,#A7F3D0,#34D399)", emoji: "⌚" },
-  { bg: "linear-gradient(135deg,#BFDBFE,#60A5FA)", emoji: "🎧" },
-  { bg: "linear-gradient(135deg,#DDD6FE,#A78BFA)", emoji: "👜" },
-  { bg: "linear-gradient(135deg,#FBCFE8,#F472B6)", emoji: "💄" },
-  { bg: "linear-gradient(135deg,#FED7AA,#FB923C)", emoji: "🧢" },
-  { bg: "linear-gradient(135deg,#BAE6FD,#38BDF8)", emoji: "📱" },
-  { bg: "linear-gradient(135deg,#FECACA,#EF4444)", emoji: "👕" },
-  { bg: "linear-gradient(135deg,#D9F99D,#84CC16)", emoji: "🕶️" },
-  { bg: "linear-gradient(135deg,#FDBA74,#F97316)", emoji: "👟" },
-  { bg: "linear-gradient(135deg,#C7D2FE,#818CF8)", emoji: "🎮" },
-  { bg: "linear-gradient(135deg,#FBCFE8,#EC4899)", emoji: "💍" },
-  { bg: "linear-gradient(135deg,#A5F3FC,#22D3EE)", emoji: "⌚" },
-  { bg: "linear-gradient(135deg,#FEF08A,#EAB308)", emoji: "🧴" },
-  { bg: "linear-gradient(135deg,#FDA4AF,#F43F5E)", emoji: "👗" },
-  { bg: "linear-gradient(135deg,#BBF7D0,#22C55E)", emoji: "🍃" },
-  { bg: "linear-gradient(135deg,#E9D5FF,#C084FC)", emoji: "🎁" },
-  { bg: "linear-gradient(135deg,#FEE2E2,#FCA5A5)", emoji: "🧸" },
-  { bg: "linear-gradient(135deg,#DBEAFE,#3B82F6)", emoji: "🖥️" },
-  { bg: "linear-gradient(135deg,#FED7AA,#F59E0B)", emoji: "🍔" },
-  { bg: "linear-gradient(135deg,#CCFBF1,#14B8A6)", emoji: "🧽" },
-  { bg: "linear-gradient(135deg,#FBCFE8,#DB2777)", emoji: "👠" },
-  { bg: "linear-gradient(135deg,#FEF3C7,#F59E0B)", emoji: "🛍️" },
+// Real product photos from Unsplash for the hero mosaic background.
+const PRODUCT_IMAGES = [
+  "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300",
+  "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=300",
+  "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=300",
+  "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=300",
+  "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=300",
+  "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=300",
+  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300",
+  "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=300",
+  "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300",
+  "https://images.unsplash.com/photo-1560343090-f0409e92791a?w=300",
+  "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=300",
+  "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=300",
 ];
+// Repeat to fill a 4-col grid covering the full hero.
+const MOSAIC_TILES = [...PRODUCT_IMAGES, ...PRODUCT_IMAGES];
 
 const STEPS = [
   {
