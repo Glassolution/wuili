@@ -683,6 +683,123 @@ const AdminDashboardPage = () => {
   );
 };
 
+const AffiliateTrackingSection = () => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-affiliate-tracking"],
+    queryFn: async () => {
+      const [affRes, clicksRes, convRes] = await Promise.all([
+        (supabase as any).from("affiliates").select("code, user_id, created_at").order("created_at", { ascending: false }),
+        (supabase as any).from("affiliate_clicks").select("affiliate_code"),
+        (supabase as any).from("affiliate_conversions").select("affiliate_code, status, commission_value, subscriber_user_id"),
+      ]);
+      if (affRes.error) throw affRes.error;
+      if (clicksRes.error) throw clicksRes.error;
+      if (convRes.error) throw convRes.error;
+
+      const affiliates = (affRes.data ?? []) as Array<{ code: string; user_id: string; created_at: string }>;
+      const userIds = Array.from(new Set(affiliates.map((a) => a.user_id)));
+      const profiles = await loadProfiles();
+      const profileByUser = new Map<string, ProfileRow>();
+      for (const p of profiles) profileByUser.set(getProfileUserId(p), p);
+
+      const clicksByCode = new Map<string, number>();
+      for (const c of (clicksRes.data ?? []) as Array<{ affiliate_code: string }>) {
+        clicksByCode.set(c.affiliate_code, (clicksByCode.get(c.affiliate_code) ?? 0) + 1);
+      }
+
+      const signupsByCode = new Map<string, Set<string>>();
+      const paidByCode = new Map<string, Set<string>>();
+      const commissionByCode = new Map<string, number>();
+      for (const conv of (convRes.data ?? []) as Array<{
+        affiliate_code: string;
+        status: string;
+        commission_value: number;
+        subscriber_user_id: string;
+      }>) {
+        const signups = signupsByCode.get(conv.affiliate_code) ?? new Set<string>();
+        signups.add(conv.subscriber_user_id);
+        signupsByCode.set(conv.affiliate_code, signups);
+
+        if (["paid", "active", "approved", "authorized"].includes((conv.status ?? "").toLowerCase())) {
+          const paid = paidByCode.get(conv.affiliate_code) ?? new Set<string>();
+          paid.add(conv.subscriber_user_id);
+          paidByCode.set(conv.affiliate_code, paid);
+          commissionByCode.set(
+            conv.affiliate_code,
+            (commissionByCode.get(conv.affiliate_code) ?? 0) + Number(conv.commission_value ?? 0)
+          );
+        }
+      }
+
+      return affiliates.map((a) => {
+        const profile = profileByUser.get(a.user_id);
+        return {
+          code: a.code,
+          userName: profile?.full_name ?? profile?.display_name ?? profile?.email ?? a.user_id,
+          clicks: clicksByCode.get(a.code) ?? 0,
+          signups: signupsByCode.get(a.code)?.size ?? 0,
+          subscribers: paidByCode.get(a.code)?.size ?? 0,
+          commission: commissionByCode.get(a.code) ?? 0,
+        };
+      });
+    },
+  });
+
+  return (
+    <section id="afiliados" className="mt-10">
+      <div className="rounded-[28px] border border-black/[0.05] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[22px] font-bold tracking-[-0.04em] text-[#22221f]">Rastreamento de Afiliados</p>
+            <p className="mt-1 text-[13px] text-black/50">Cliques, cadastros, assinaturas e comissões por código.</p>
+          </div>
+        </div>
+
+        <div className="mt-5 overflow-x-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-[#111111]" />
+            </div>
+          ) : !data || data.length === 0 ? (
+            <p className="py-8 text-center text-[13px] text-black/50">Nenhum afiliado cadastrado ainda.</p>
+          ) : (
+            <table className="w-full min-w-[760px] text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-black/[0.06] text-[11px] uppercase tracking-widest text-black/40">
+                  <th className="px-4 py-3 font-semibold">Código</th>
+                  <th className="px-4 py-3 font-semibold">Afiliado</th>
+                  <th className="px-4 py-3 text-right font-semibold">Cliques</th>
+                  <th className="px-4 py-3 text-right font-semibold">Cadastros</th>
+                  <th className="px-4 py-3 text-right font-semibold">Assinantes</th>
+                  <th className="px-4 py-3 text-right font-semibold">Comissão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((row, idx) => (
+                  <tr
+                    key={row.code}
+                    className={cn(
+                      "border-b border-black/[0.04] text-black/70",
+                      idx % 2 === 0 ? "bg-white" : "bg-[#FCFCFB]"
+                    )}
+                  >
+                    <td className="px-4 py-3 font-mono text-[12px] font-semibold text-[#22221f]">{row.code}</td>
+                    <td className="px-4 py-3 font-semibold text-[#22221f]">{row.userName}</td>
+                    <td className="px-4 py-3 text-right">{row.clicks}</td>
+                    <td className="px-4 py-3 text-right">{row.signups}</td>
+                    <td className="px-4 py-3 text-right">{row.subscribers}</td>
+                    <td className="px-4 py-3 text-right font-bold text-emerald-600">{formatBRL(row.commission)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const PersonPill = ({ transaction }: { transaction: AdminTransaction }) => (
   <span className="inline-flex h-9 items-center gap-2 rounded-full border border-black/[0.07] bg-white px-2.5 pr-3.5 text-[13px] font-semibold text-[#22221f] shadow-[0_6px_18px_rgba(0,0,0,0.03)]">
     <Avatar transaction={transaction} size="sm" />
