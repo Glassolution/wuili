@@ -107,19 +107,23 @@ const Index = () => {
           {/* Mosaic background */}
           <div className="absolute inset-0">
             <div
-              className="grid h-full w-full gap-2 p-2"
+              className="grid h-full w-full gap-3 p-3"
               style={{
-                gridTemplateColumns: "repeat(8, 1fr)",
-                gridAutoRows: "minmax(110px, 1fr)",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gridAutoRows: "minmax(180px, 1fr)",
               }}
             >
-              {MOSAIC_TILES.map((tile, i) => (
+              {MOSAIC_TILES.map((src, i) => (
                 <div
                   key={i}
-                  className="rounded-2xl flex items-center justify-center text-4xl md:text-5xl"
-                  style={{ background: tile.bg }}
+                  className="overflow-hidden rounded-2xl bg-[#F5F5F5] flex items-center justify-center"
                 >
-                  <span className="opacity-90 drop-shadow-sm">{tile.emoji}</span>
+                  <img
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
                 </div>
               ))}
             </div>
