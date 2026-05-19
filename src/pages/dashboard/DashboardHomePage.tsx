@@ -132,7 +132,7 @@ export default function DashboardHomePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("display_name, ref, plano")
+        .select("display_name, ref, plano, loja_nome, objetivo, onboarding_completed")
         .eq("user_id", user!.id)
         .maybeSingle();
 
@@ -145,6 +145,9 @@ export default function DashboardHomePage() {
         display_name?: string | null;
         ref?: string | null;
         plano?: string | null;
+        loja_nome?: string | null;
+        objetivo?: string | null;
+        onboarding_completed?: boolean | null;
       } | null;
     },
   });
