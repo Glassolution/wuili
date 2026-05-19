@@ -475,7 +475,10 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          loja_nome: string | null
           nicho: string | null
+          objetivo: string | null
+          onboarding_completed: boolean
           plano: string | null
           refund_cooldown_until: string | null
           updated_at: string
@@ -487,7 +490,10 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          loja_nome?: string | null
           nicho?: string | null
+          objetivo?: string | null
+          onboarding_completed?: boolean
           plano?: string | null
           refund_cooldown_until?: string | null
           updated_at?: string
@@ -499,7 +505,10 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          loja_nome?: string | null
           nicho?: string | null
+          objetivo?: string | null
+          onboarding_completed?: boolean
           plano?: string | null
           refund_cooldown_until?: string | null
           updated_at?: string

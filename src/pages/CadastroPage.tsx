@@ -1,103 +1,18 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link, Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowUp, Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { VeloLogo } from "@/components/VeloLogo";
-import { playSendSound, playSoftTypeSound } from "@/lib/uiFeedback";
 
-type Step = "nome" | "email" | "senha" | "whatsapp" | "nicho" | "criando";
-const STEPS: Step[] = ["nome", "email", "senha", "whatsapp", "nicho", "criando"];
-type EmailExistsResponse = { exists?: boolean; error?: string };
-
-const duplicateEmailMessage = "Esse email já está cadastrado. Tente outro ou faça login.";
-
-const questions: Record<Step, string> = {
-  nome: "Qual é o seu nome completo?",
-  email: "",
-  senha: "Crie uma senha segura.",
-  whatsapp: "Qual é o seu WhatsApp?",
-  nicho: "Qual nicho você quer explorar?",
-  criando: "",
-};
-
-const placeholders: Record<Step, string> = {
-  nome: "Seu nome completo",
-  email: "seu@email.com",
-  senha: "Mínimo 8 caracteres",
-  whatsapp: "(XX) XXXXX-XXXX",
-  nicho: "Ex: moda, eletrônicos, beleza...",
-  criando: "",
-};
-
-const subtexts: Record<Step, string> = {
-  nome: "Vamos começar pelo básico.",
-  email: "Usaremos para acessar sua conta.",
-  senha: "Mínimo de 8 caracteres.",
-  whatsapp: "Para avisos sobre suas vendas.",
-  nicho: "Escolha o mercado que mais te interessa.",
-  criando: "",
-};
-
-const NICHOS = ["moda", "eletrônicos", "beleza", "casa", "pets", "esportes"];
-
-function passwordStrength(pw: string): { label: string; color: string; pct: number } {
-  if (pw.length < 4) return { label: "Fraca", color: "#ef4444", pct: 20 };
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { label: "Fraca", color: "#ef4444", pct: 25 };
-  if (score <= 2) return { label: "Razoável", color: "#f59e0b", pct: 50 };
-  if (score <= 3) return { label: "Boa", color: "#3b82f6", pct: 75 };
-  return { label: "Forte", color: "#22c55e", pct: 100 };
-}
-
-function maskWhatsApp(v: string): string {
-  const d = v.replace(/\D/g, "").slice(0, 11);
-  if (d.length <= 2) return d.length ? `(${d}` : "";
-  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-}
-
-function isValidWhatsApp(v: string): boolean {
-  return /^\(\d{2}\) \d{5}-\d{4}$/.test(v);
-}
+const duplicateEmailMessage = "Esse email já está cadastrado. Faça login.";
 
 function isDuplicateEmailAuthError(error: { message?: string; code?: string } | null): boolean {
-  const message = error?.message?.toLowerCase() ?? "";
-  const code = error?.code?.toLowerCase() ?? "";
-
-  return (
-    code === "user_already_exists" ||
-    message.includes("already registered") ||
-    message.includes("already been registered") ||
-    message.includes("user already registered") ||
-    message.includes("email already")
-  );
-}
-
-function isDuplicateEmailAuthResponse(user: { identities?: unknown[] } | null | undefined): boolean {
-  return Array.isArray(user?.identities) && user.identities.length === 0;
-}
-
-async function checkEmailAlreadyExists(email: string): Promise<boolean | null> {
-  try {
-    const { data, error } = (await supabase.functions.invoke("auth-email-exists", {
-      body: { email },
-    })) as { data: EmailExistsResponse | null; error: any };
-
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
-
-    return data?.exists === true;
-  } catch (error) {
-    console.error("[cadastro] erro ao verificar email:", error);
-    return null;
-  }
+  const m = error?.message?.toLowerCase() ?? "";
+  const c = error?.code?.toLowerCase() ?? "";
+  return c === "user_already_exists" || m.includes("already registered") || m.includes("already been registered") || m.includes("email already");
 }
 
 const CadastroPage = () => {
@@ -106,361 +21,235 @@ const CadastroPage = () => {
   const [searchParams] = useSearchParams();
   const nextPath = searchParams.get("next");
   const planParam = searchParams.get("plan");
-  const redirectTarget = nextPath
-    ? `${nextPath}${planParam ? `?plan=${planParam}` : ""}`
-    : "/dashboard";
+  const redirectTarget = nextPath ? `${nextPath}${planParam ? `?plan=${planParam}` : ""}` : "/setup";
   const { user, loading: authLoading } = useAuth();
-  const [step, setStep] = useState<Step>("nome");
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [animating, setAnimating] = useState(false);
-  const [confirmText, setConfirmText] = useState<string | null>(null);
-  const [errorText, setErrorText] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const lastTypeSoundAtRef = useRef(0);
 
+  const initialEmail = (location.state as { email?: string } | null)?.email ?? "";
   const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [senha, setSenha] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const revealFromInk = Boolean((location.state as { fromLandingInk?: boolean } | null)?.fromLandingInk);
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
-  const stepIndex = STEPS.indexOf(step);
-  const progressPct = Math.round((stepIndex / 5) * 100);
-
-  useEffect(() => {
-    if (!animating) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [step, animating]);
-
-  useEffect(() => {
-    if (!revealFromInk) return;
-
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflowX = document.documentElement.style.overflowX;
-    const previousBodyOverflowX = document.body.style.overflowX;
-
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflowX = "hidden";
-    document.body.style.overflowX = "hidden";
-
-    const timeout = window.setTimeout(() => {
-      document.documentElement.style.overflow = previousHtmlOverflow;
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflowX = previousHtmlOverflowX;
-      document.body.style.overflowX = previousBodyOverflowX;
-    }, 900);
-
-    return () => {
-      window.clearTimeout(timeout);
-      document.documentElement.style.overflow = previousHtmlOverflow;
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflowX = previousHtmlOverflowX;
-      document.body.style.overflowX = previousBodyOverflowX;
-    };
-  }, [revealFromInk]);
-
-  // Logged-in users skip signup and go to destination
   if (!authLoading && user) {
     return <Navigate to={redirectTarget} replace />;
   }
 
-  const getQuestion = () => {
-    if (step === "email") return `Prazer, ${nome.split(" ")[0]}! Qual é o seu email?`;
-    if (step === "criando") return `Criando sua conta, ${nome.split(" ")[0]}...`;
-    return questions[step];
-  };
-
-  const transitionTo = (nextStep: Step, confirmed: string) => {
-    setConfirmText(confirmed);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setErrorText(null);
-    setAnimating(true);
 
-    setTimeout(() => {
-      setConfirmText(null);
-      setStep(nextStep);
-      setInput("");
-      setTimeout(() => setAnimating(false), 50);
-    }, 600);
-  };
+    if (nome.trim().length < 2) return setErrorText("Informe seu nome completo.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setErrorText("Email inválido.");
+    if (senha.length < 8) return setErrorText("A senha precisa ter pelo menos 8 caracteres.");
 
-  const playTypeSoundThrottled = () => {
-    const now = performance.now();
-    if (now - lastTypeSoundAtRef.current < 38) return;
-    lastTypeSoundAtRef.current = now;
-    playSoftTypeSound();
-  };
+    setLoading(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: email.toLowerCase().trim(),
+      password: senha,
+      options: { data: { full_name: nome.trim() }, emailRedirectTo: window.location.origin },
+    });
+    setLoading(false);
 
-  const handleComposerSubmit = () => {
-    playSendSound();
-    void handleSend();
-  };
-
-  const handleComposerKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleComposerSubmit();
+    if (error) {
+      setErrorText(isDuplicateEmailAuthError(error) ? duplicateEmailMessage : error.message);
       return;
     }
 
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-    const isPrintable = e.key.length === 1;
-    const isEditingKey = e.key === "Backspace" || e.key === "Delete";
-
-    if (isPrintable || isEditingKey) {
-      playTypeSoundThrottled();
+    if (data.user) {
+      await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
     }
+
+    toast.success("Conta criada!");
+    navigate("/setup", { replace: true });
   };
 
-  const handleSend = async () => {
-    const val = input.trim();
-    if (!val || loading || step === "criando" || animating) return;
+  const handleGoogle = async () => {
     setErrorText(null);
-
-    if (step === "nome") {
-      if (val.length < 2) { setErrorText("Nome muito curto. Digite seu nome completo."); return; }
-      setNome(val);
-      transitionTo("email", val);
-    } else if (step === "email") {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) { setErrorText("Email inválido. Verifique e tente novamente."); return; }
-      const normalizedEmail = val.toLowerCase();
-
-      setLoading(true);
-      const emailExists = await checkEmailAlreadyExists(normalizedEmail);
-      setLoading(false);
-
-      if (emailExists === true) {
-        setErrorText(duplicateEmailMessage);
-        return;
-      }
-
-      setEmail(normalizedEmail);
-      transitionTo("senha", normalizedEmail);
-    } else if (step === "senha") {
-      if (val.length < 8) { setErrorText("A senha precisa ter pelo menos 8 caracteres."); return; }
-      setSenha(val);
-      transitionTo("whatsapp", "••••••••");
-    } else if (step === "whatsapp") {
-      if (!isValidWhatsApp(val)) { setErrorText("Formato inválido. Use (XX) XXXXX-XXXX."); return; }
-      setWhatsapp(val);
-      transitionTo("nicho", val);
-    } else if (step === "nicho") {
-      const lower = val.toLowerCase();
-      const matched = NICHOS.find(n => lower.includes(n));
-      const nicho = matched || val;
-
-      setConfirmText(val);
-      setAnimating(true);
-
-      setTimeout(async () => {
-        setConfirmText(null);
-        setStep("criando");
-        setInput("");
-        setAnimating(false);
-        setLoading(true);
-
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password: senha,
-          options: { data: { full_name: nome }, emailRedirectTo: window.location.origin },
-        });
-
-        if (error) {
-          const emailExists = isDuplicateEmailAuthError(error)
-            ? await checkEmailAlreadyExists(email).catch(() => false)
-            : false;
-
-          setLoading(false);
-
-          if (emailExists === true) {
-            setStep("email");
-            setErrorText(duplicateEmailMessage);
-          } else {
-            setStep("nicho");
-            setErrorText(
-              isDuplicateEmailAuthError(error)
-                ? "Não foi possível concluir o cadastro com esse email. Tente novamente em instantes."
-                : error.message
-            );
-          }
-          return;
-        }
-
-        if (isDuplicateEmailAuthResponse(data.user)) {
-          setLoading(false);
-          setStep("email");
-          setErrorText(duplicateEmailMessage);
-          return;
-        }
-
-        if (data.user) {
-          await supabase.from("profiles").update({
-            display_name: nome,
-            whatsapp,
-            nicho,
-          }).eq("user_id", data.user.id);
-        }
-
-        setLoading(false);
-        toast.success("Conta criada com sucesso!");
-        setTimeout(() => navigate(redirectTarget, { replace: true }), 1200);
-      }, 600);
+    setGoogleLoading(true);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}/setup`,
+    });
+    if (result.error) {
+      setGoogleLoading(false);
+      setErrorText("Não foi possível entrar com o Google. Tente novamente.");
+      return;
     }
+    if (result.redirected) return;
+    navigate("/setup", { replace: true });
   };
-
-  const str = step === "senha" ? passwordStrength(input) : null;
 
   return (
-    <div className={`relative flex min-h-screen overflow-hidden flex-col bg-[#0f0f0f] font-['Manrope'] text-white ${revealFromInk ? "signup-ink-entry" : ""}`}>
-      {/* ── Topbar ── */}
-      <header className={`flex items-center justify-between px-5 py-4 sm:px-8 ${revealFromInk ? "signup-ink-header" : ""}`}>
-        <Link to="/" className="flex items-center opacity-90 transition hover:opacity-100">
-          <VeloLogo size="md" variant="light" />
-        </Link>
-        <span className="text-[12px] font-medium tracking-wide text-white/40">
-          {Math.min(stepIndex + 1, 5)} / 5
-        </span>
-      </header>
-
-      {/* ── Thin progress bar ── */}
-      <div className={`h-[2px] w-full bg-white/[0.06] ${revealFromInk ? "signup-ink-progress" : ""}`}>
+    <div className="relative min-h-screen overflow-hidden bg-[#0a0a0c] font-['Manrope'] text-white">
+      {/* Cinematic background */}
+      <div className="pointer-events-none absolute inset-0">
         <div
-          className="h-full bg-white/70 transition-all duration-700 ease-out"
-          style={{ width: `${step === "criando" ? 100 : progressPct}%` }}
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(1200px 800px at 20% 20%, rgba(56,189,248,0.10), transparent 60%), radial-gradient(900px 700px at 85% 80%, rgba(16,185,129,0.08), transparent 60%), radial-gradient(600px 500px at 50% 50%, rgba(255,255,255,0.04), transparent 70%)",
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.035] mix-blend-overlay"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+          }}
         />
       </div>
 
-      {/* ── Chat area ── */}
-      <main className={`flex flex-1 flex-col items-center px-5 pb-48 pt-16 sm:pt-24 ${revealFromInk ? "signup-ink-main" : ""}`}>
-        <div className="flex w-full max-w-[680px] flex-col gap-6">
+      {/* Header */}
+      <header className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-10">
+        <Link to="/" className="opacity-90 transition hover:opacity-100">
+          <VeloLogo size="md" variant="light" />
+        </Link>
+        <Link to="/login" className="text-[13px] font-medium text-white/60 transition hover:text-white">
+          Já tenho conta
+        </Link>
+      </header>
 
-          {/* Assistant bubble: question */}
-          <div key={`q-${step}`} className={`flex animate-fade-in items-start gap-3 ${revealFromInk ? "signup-ink-card" : ""}`}>
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1f1f1f] ring-1 ring-white/[0.08]">
-              <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path d="M33 18 A11 11 0 1 0 33 30" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/><path d="M30 26 L34 30 L38 26" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-            </div>
-            <div className="flex max-w-[calc(100%-3rem)] flex-col gap-1 rounded-2xl rounded-tl-sm bg-[#1f1f1f] px-5 py-4">
-              <h1 className="text-[1.0625rem] font-semibold leading-snug tracking-[-0.01em] text-white sm:text-[1.1875rem]">
-                {getQuestion()}
+      {/* Main */}
+      <main className="relative z-10 mx-auto flex min-h-[calc(100vh-80px)] max-w-[1180px] items-center px-6 pb-16 pt-4 sm:px-10">
+        <div className="grid w-full grid-cols-1 overflow-hidden rounded-[24px] border border-white/[0.06] bg-white/[0.02] shadow-[0_40px_120px_-20px_rgba(0,0,0,0.6)] backdrop-blur-xl lg:grid-cols-[1.05fr_1fr]">
+          {/* LEFT — Offer */}
+          <section className="relative flex flex-col justify-between gap-10 p-10 lg:p-14">
+            <div className="flex flex-col gap-7">
+              <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/60">
+                Oferta de lançamento
+              </span>
+              <h1 className="font-['Sora'] text-[40px] font-semibold leading-[1.05] tracking-[-0.02em] text-white sm:text-[48px]">
+                Comece sua operação hoje
               </h1>
-              {subtexts[step] && (
-                <p className="text-[0.8125rem] leading-snug text-white/50">
-                  {subtexts[step]}
-                </p>
+              <p className="max-w-[460px] text-[15px] leading-relaxed text-white/60">
+                Configure sua loja, encontre produtos e comece a vender rapidamente com a Velo —
+                tudo em uma plataforma só.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6">
+              <div className="flex items-baseline justify-between gap-4 border-b border-white/[0.06] pb-4">
+                <span className="text-[13px] text-white/50">Hoje</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[13px] text-white/40 line-through">R$ 297,00</span>
+                  <span className="font-['Sora'] text-[26px] font-semibold tracking-tight text-white">R$ 149,90</span>
+                </div>
+              </div>
+              <ul className="mt-4 flex flex-col gap-3 text-[13.5px] text-white/70">
+                {[
+                  "Primeiros 2 meses inclusos",
+                  "Integração Mercado Livre, Shopee e TikTok Shop",
+                  "Catálogo CJ Dropshipping ilimitado",
+                  "Sem fidelidade — cancele quando quiser",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5">
+                    <span className="mt-[3px] flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-white/10">
+                      <Check size={10} strokeWidth={3} className="text-white" />
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <p className="text-[11.5px] leading-relaxed text-white/35">
+              Pagamento seguro processado por Mercado Pago. Você pode cancelar a qualquer momento
+              nas configurações.
+            </p>
+          </section>
+
+          {/* RIGHT — Form */}
+          <section className="relative flex flex-col gap-6 border-t border-white/[0.05] bg-white p-10 text-[#0a0a0c] lg:border-l lg:border-t-0 lg:p-14">
+            <div className="flex flex-col gap-2">
+              <h2 className="font-['Sora'] text-[26px] font-semibold tracking-[-0.01em]">
+                Criar sua conta
+              </h2>
+              <p className="text-[13.5px] text-[#0a0a0c]/55">
+                Leva menos de um minuto.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={googleLoading || loading}
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-[#0a0a0c]/12 bg-white text-[14px] font-medium text-[#0a0a0c] transition hover:bg-[#fafafa] disabled:opacity-60"
+            >
+              {googleLoading ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35 26.7 36 24 36c-5.2 0-9.6-3.3-11.2-8l-6.5 5C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.7l6.2 5.2c-.4.4 6.6-4.8 6.6-14.9 0-1.3-.1-2.4-.4-3.5z"/></svg>
               )}
-            </div>
-          </div>
+              Continuar com Google
+            </button>
 
-          {/* User confirmation bubble (appears briefly on send) */}
-          {confirmText && (
-            <div className="flex animate-fade-in justify-end">
-              <div className="flex max-w-[70%] items-center gap-2 rounded-2xl rounded-tr-sm bg-[#2a2a2a] px-4 py-[10px] text-[0.9375rem] text-white">
-                <Check size={14} className="text-white/60" strokeWidth={2.5} />
-                <span>{confirmText}</span>
-              </div>
+            <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-[#0a0a0c]/35">
+              <span className="h-px flex-1 bg-[#0a0a0c]/10" />
+              ou
+              <span className="h-px flex-1 bg-[#0a0a0c]/10" />
             </div>
-          )}
 
-          {/* Error as assistant follow-up */}
-          {errorText && (
-            <div className="flex animate-fade-in items-start gap-3">
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#1f1f1f] ring-1 ring-white/[0.08]">
-                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path d="M33 18 A11 11 0 1 0 33 30" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/><path d="M30 26 L34 30 L38 26" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-              </div>
-              <div className="rounded-2xl rounded-tl-sm bg-[#2a1515] px-5 py-3 text-[0.875rem] text-[#fca5a5]">
-                {errorText}
-              </div>
-            </div>
-          )}
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <Field label="Nome completo">
+                <input
+                  type="text"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Seu nome"
+                  autoComplete="name"
+                  className="h-12 w-full rounded-xl border border-[#0a0a0c]/12 bg-white px-4 text-[14px] outline-none transition focus:border-[#0a0a0c]/40"
+                />
+              </Field>
+              <Field label="Email">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  autoComplete="email"
+                  className="h-12 w-full rounded-xl border border-[#0a0a0c]/12 bg-white px-4 text-[14px] outline-none transition focus:border-[#0a0a0c]/40"
+                />
+              </Field>
+              <Field label="Senha">
+                <input
+                  type="password"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="Mínimo 8 caracteres"
+                  autoComplete="new-password"
+                  className="h-12 w-full rounded-xl border border-[#0a0a0c]/12 bg-white px-4 text-[14px] outline-none transition focus:border-[#0a0a0c]/40"
+                />
+              </Field>
 
-          {/* Creating state */}
-          {step === "criando" && (
-            <div className="flex animate-fade-in items-center gap-3 pl-12 text-[0.875rem] text-white/60">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-transparent" />
-              <span>Preparando tudo para você...</span>
-            </div>
-          )}
+              {errorText && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-[13px] text-red-600">{errorText}</p>
+              )}
 
-          {/* Nicho quick picks (shown above composer on step) */}
-          {step === "nicho" && !animating && (
-            <div className="flex flex-wrap gap-2 pl-12">
-              {NICHOS.map(n => (
-                <button
-                  key={n}
-                  onClick={() => { setInput(n); setTimeout(() => inputRef.current?.focus(), 0); }}
-                  className="rounded-full border border-white/[0.08] bg-[#1a1a1a] px-3 py-[7px] text-[0.8125rem] font-medium capitalize text-white/70 transition hover:border-white/20 hover:bg-[#262626] hover:text-white"
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0a0a0c] text-[14px] font-medium text-white transition hover:bg-[#1a1a1c] disabled:opacity-60"
+              >
+                {loading ? <Loader2 size={18} className="animate-spin" /> : "Criar conta"}
+              </button>
+
+              <p className="text-center text-[11.5px] text-[#0a0a0c]/45">
+                Ao continuar, você concorda com os Termos e a Política de Privacidade.
+              </p>
+            </form>
+          </section>
         </div>
       </main>
-
-      {/* ── Composer (sticky bottom, ChatGPT style) ── */}
-      {step !== "criando" && (
-        <div className={`pointer-events-none fixed inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/95 to-transparent px-5 pb-6 pt-10 sm:pb-8 ${revealFromInk ? "signup-ink-composer" : ""}`}>
-          <div className="pointer-events-auto flex w-full max-w-[680px] flex-col gap-2">
-            <div className="relative flex items-end rounded-[24px] border border-white/[0.08] bg-[#1f1f1f] shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-colors focus-within:border-white/20">
-              <input
-                ref={inputRef}
-                type={step === "senha" ? "password" : "text"}
-                value={input}
-                onChange={e => {
-                  setErrorText(null);
-                  if (step === "whatsapp") {
-                    setInput(maskWhatsApp(e.target.value));
-                  } else {
-                    setInput(e.target.value);
-                  }
-                }}
-                onKeyDown={handleComposerKeyDown}
-                placeholder={placeholders[step]}
-                disabled={loading || animating}
-                autoFocus
-                className="flex-1 bg-transparent px-5 py-[18px] text-[0.9375rem] text-white outline-none placeholder:text-white/30 disabled:opacity-50"
-              />
-              <button
-                onClick={handleComposerSubmit}
-                disabled={loading || animating || !input.trim()}
-                aria-label="Enviar"
-                className="mb-[9px] mr-[9px] flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-black transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/40"
-              >
-                <ArrowUp size={18} strokeWidth={2.5} />
-              </button>
-            </div>
-
-            {/* Password strength meter */}
-            {step === "senha" && input.length > 0 && str && (
-              <div className="flex items-center gap-3 px-2">
-                <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/[0.08]">
-                  <div
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{ width: `${str.pct}%`, backgroundColor: str.color }}
-                  />
-                </div>
-                <span className="text-[11px] font-medium" style={{ color: str.color }}>
-                  {str.label}
-                </span>
-              </div>
-            )}
-
-            <p className="text-center text-[12px] text-white/40">
-              Já tem conta?{" "}
-              <Link to="/login" className="font-semibold text-white/80 hover:text-white">
-                Fazer login
-              </Link>
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <label className="flex flex-col gap-1.5">
+    <span className="text-[12px] font-medium text-[#0a0a0c]/60">{label}</span>
+    {children}
+  </label>
+);
 
 export default CadastroPage;
