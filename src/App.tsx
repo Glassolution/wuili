@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/LoginPage";
 import CadastroPage from "./pages/CadastroPage";
+import SetupPage from "./pages/SetupPage";
 import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
 import RefCapturePage from "./pages/RefCapturePage";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
