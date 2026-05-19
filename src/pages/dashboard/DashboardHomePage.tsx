@@ -15,6 +15,15 @@ const PLAN_LABEL: Record<PlanName, string> = {
   business: "Business",
 };
 
+const OBJETIVO_LABEL: Record<string, string> = {
+  encontrar_produtos: "Encontrar produtos para vender",
+  dropshipping: "Dropshipping",
+  mercado_livre: "Mercado Livre",
+  shopee: "Shopee",
+  tiktok_shop: "TikTok Shop",
+  ecommerce_proprio: "Ecommerce próprio",
+};
+
 const getFirstName = (userName?: string | null, email?: string | null) => {
   const source = userName?.trim() || email?.split("@")[0] || "empreendedor";
   return source.split(" ")[0];
