@@ -153,10 +153,10 @@ function OperationLogo({ logo }: { logo: (typeof operationLogos)[number] }) {
         <img
           src={logo.src}
           alt={logo.name}
-        className="max-h-8 max-w-[150px] object-contain grayscale contrast-125 brightness-0 opacity-55 transition duration-300 hover:opacity-85 sm:max-h-9 sm:max-w-[178px]"
+        className="max-h-8 max-w-[150px] object-contain grayscale contrast-125 brightness-0 opacity-68 transition duration-300 hover:opacity-85 sm:max-h-9 sm:max-w-[178px]"
         />
       ) : (
-        <span className="text-[22px] font-bold leading-none tracking-[-0.055em] text-black/58 sm:text-[27px]">{logo.label}</span>
+        <span className="text-[22px] font-bold leading-none tracking-[-0.055em] text-black/70 sm:text-[27px]">{logo.label}</span>
       )}
     </div>
   );
@@ -480,10 +480,10 @@ export default function Index() {
           Integrado com as maiores plataformas do Brasil
         </h2>
 
-        <div data-reveal className="relative mt-9 -mx-8 overflow-hidden sm:mt-11">
+        <div className="relative mt-9 -mx-8 overflow-hidden sm:mt-11">
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#F6F5F1] to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#F6F5F1] to-transparent" />
-          <div className="flex w-max items-center gap-12 px-6 text-black [animation:velo-logo-marquee_36s_linear_infinite] hover:[animation-play-state:paused] sm:gap-16">
+          <div className="flex w-max items-center gap-12 px-6 text-black [animation:velo-logo-marquee_36s_linear_infinite] sm:gap-16">
             {marqueeLogos.map((brand, index) => (
               <div
                 key={`${brand.name}-${index}`}
