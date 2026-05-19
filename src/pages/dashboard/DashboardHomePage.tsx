@@ -221,10 +221,17 @@ export default function DashboardHomePage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[13px] font-medium text-[#6D7175]">Início</p>
+                <p className="text-[13px] font-medium text-[#6D7175]">
+                  {profile?.loja_nome ? profile.loja_nome : "Início"}
+                </p>
                 <h1 className="mt-1 text-[26px] font-semibold leading-[1.08] tracking-[-0.04em] text-[#1A1A1A] sm:text-[32px]">
                   {getGreeting()}, {userName}. Vamos começar.
                 </h1>
+                {profile?.objetivo && (
+                  <p className="mt-2 text-[13px] text-[#6D7175]">
+                    Foco inicial: <span className="font-medium text-[#1A1A1A]">{OBJETIVO_LABEL[profile.objetivo] ?? profile.objetivo}</span>
+                  </p>
+                )}
               </div>
               <span className="hidden rounded-full border border-black/[0.06] bg-white px-3 py-1.5 text-[12px] font-medium text-[#6D7175] sm:inline-flex">
                 Velo Admin
