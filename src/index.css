@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 @layer base {
-  /* Tipografia global (Inter Variable) */
+  /* Tipografia global (Hanken Grotesk) */
   html,
   body,
   #root {
-    font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Hanken Grotesk", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -138,7 +138,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Hanken Grotesk", sans-serif;
     font-weight: 400;
     font-feature-settings: "cv11", "ss01", "tnum";
     -webkit-font-smoothing: antialiased;
@@ -148,7 +148,7 @@
 
   h1, h2, h3, h4, h5, h6 {
     letter-spacing: -0.02em;
-    font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Hanken Grotesk", sans-serif;
     font-weight: 600;
   }
 
@@ -161,11 +161,48 @@
   }
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-16px); }
+}
+
+@keyframes velo-logo-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(30px);
+  filter: blur(8px);
+  transition:
+    opacity 760ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 760ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 760ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform, filter;
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+}
+
 @layer utilities {
-  /* Dashboard uses Inter Variable — override Syne headings and Manrope body */
+  /* Dashboard uses Hanken Grotesk across shell typography */
   .dashboard-inter,
   .dashboard-inter * {
-    font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    font-family: "Hanken Grotesk", sans-serif !important;
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
   }
@@ -175,7 +212,7 @@
   .dashboard-inter h4,
   .dashboard-inter h5,
   .dashboard-inter h6 {
-    font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    font-family: "Hanken Grotesk", sans-serif !important;
     font-weight: 600;
     letter-spacing: -0.01em;
   }
@@ -218,7 +255,7 @@
   }
 
   .sidebar-item {
-    font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Hanken Grotesk", sans-serif;
     letter-spacing: -0.01em;
   }
 
@@ -614,7 +651,7 @@
   border-radius: 100px;
   border: none;
   cursor: pointer;
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  font-family: "Hanken Grotesk", sans-serif;
   font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.01em;
