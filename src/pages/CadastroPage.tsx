@@ -3,7 +3,7 @@ import { useNavigate, Link, Navigate, useLocation, useSearchParams } from "react
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/contexts/AuthContext";
-import { Check, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { VeloLogo } from "@/components/VeloLogo";
 
@@ -81,100 +81,51 @@ const CadastroPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0a0a0c] font-['Manrope'] text-white">
-      {/* Cinematic background */}
-      <div className="pointer-events-none absolute inset-0">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(1200px 800px at 20% 20%, rgba(56,189,248,0.10), transparent 60%), radial-gradient(900px 700px at 85% 80%, rgba(16,185,129,0.08), transparent 60%), radial-gradient(600px 500px at 50% 50%, rgba(255,255,255,0.04), transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.035] mix-blend-overlay"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
-          }}
-        />
-      </div>
-
+    <div className="min-h-screen bg-black font-['Manrope'] text-white antialiased">
       {/* Header */}
-      <header className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-10">
-        <Link to="/" className="opacity-90 transition hover:opacity-100">
+      <header className="flex items-center justify-between px-6 py-5 sm:px-8">
+        <Link to="/" className="opacity-95">
           <VeloLogo size="md" variant="light" />
         </Link>
-        <Link to="/login" className="text-[13px] font-medium text-white/60 transition hover:text-white">
-          Já tenho conta
+        <Link
+          to="/login"
+          className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[13px] font-medium text-white/70 transition hover:bg-white/[0.08] hover:text-white"
+        >
+          Pular
         </Link>
       </header>
 
-      {/* Main */}
-      <main className="relative z-10 mx-auto flex min-h-[calc(100vh-80px)] max-w-[1180px] items-center px-6 pb-16 pt-4 sm:px-10">
-        <div className="grid w-full grid-cols-1 overflow-hidden rounded-[24px] border border-white/[0.06] bg-white/[0.02] shadow-[0_40px_120px_-20px_rgba(0,0,0,0.6)] backdrop-blur-xl lg:grid-cols-[1.05fr_1fr]">
+      {/* Main centered card */}
+      <main className="flex min-h-[calc(100vh-72px)] items-start justify-center px-4 pb-16 pt-6 sm:items-center sm:pt-0">
+        <div className="grid w-full max-w-[920px] grid-cols-1 overflow-hidden rounded-[10px] shadow-[0_24px_60px_rgba(0,0,0,0.5)] md:grid-cols-[1fr_1fr]">
           {/* LEFT — Offer */}
-          <section className="relative flex flex-col justify-between gap-10 p-10 lg:p-14">
-            <div className="flex flex-col gap-7">
-              <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/60">
-                Oferta de lançamento
-              </span>
-              <h1 className="font-['Sora'] text-[40px] font-semibold leading-[1.05] tracking-[-0.02em] text-white sm:text-[48px]">
-                Comece sua operação hoje
-              </h1>
-              <p className="max-w-[460px] text-[15px] leading-relaxed text-white/60">
-                Configure sua loja, encontre produtos e comece a vender rapidamente com a Velo —
-                tudo em uma plataforma só.
-              </p>
-            </div>
+          <section className="flex flex-col gap-8 bg-[#1a1a1a] p-8 sm:p-10">
+            <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.01em] text-white">
+              Comece hoje,<br />continue por R$ 1
+            </h1>
 
-            <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6">
-              <div className="flex items-baseline justify-between gap-4 border-b border-white/[0.06] pb-4">
-                <span className="text-[13px] text-white/50">Hoje</span>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[13px] text-white/40 line-through">R$ 297,00</span>
-                  <span className="font-['Sora'] text-[26px] font-semibold tracking-tight text-white">R$ 149,90</span>
-                </div>
-              </div>
-              <ul className="mt-4 flex flex-col gap-3 text-[13.5px] text-white/70">
-                {[
-                  "Primeiros 2 meses inclusos",
-                  "Integração Mercado Livre, Shopee e TikTok Shop",
-                  "Catálogo CJ Dropshipping ilimitado",
-                  "Sem fidelidade — cancele quando quiser",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5">
-                    <span className="mt-[3px] flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-white/10">
-                      <Check size={10} strokeWidth={3} className="text-white" />
-                    </span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+            <div className="flex flex-col divide-y divide-white/[0.08] text-[14px]">
+              <Row label="Hoje" value="7 dias grátis" />
+              <Row
+                label="26 de mai."
+                value={
+                  <>
+                    <span className="text-white/40 line-through">R$ 19</span>{" "}
+                    <span className="text-white">R$ 1/mês durante 3 meses</span>
+                  </>
+                }
+              />
+              <Row label="Sempre" value="Cancele a qualquer momento" />
             </div>
-
-            <p className="text-[11.5px] leading-relaxed text-white/35">
-              Pagamento seguro processado por Mercado Pago. Você pode cancelar a qualquer momento
-              nas configurações.
-            </p>
           </section>
 
           {/* RIGHT — Form */}
-          <section className="relative flex flex-col gap-6 border-t border-white/[0.05] bg-white p-10 text-[#0a0a0c] lg:border-l lg:border-t-0 lg:p-14">
-            <div className="flex flex-col gap-2">
-              <h2 className="font-['Sora'] text-[26px] font-semibold tracking-[-0.01em]">
-                Criar sua conta
-              </h2>
-              <p className="text-[13.5px] text-[#0a0a0c]/55">
-                Leva menos de um minuto.
-              </p>
-            </div>
-
+          <section className="flex flex-col gap-4 bg-white p-8 text-[#1a1a1a] sm:p-10">
             <button
               type="button"
               onClick={handleGoogle}
               disabled={googleLoading || loading}
-              className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-[#0a0a0c]/12 bg-white text-[14px] font-medium text-[#0a0a0c] transition hover:bg-[#fafafa] disabled:opacity-60"
+              className="flex h-11 w-full items-center justify-center gap-2.5 rounded-md border border-[#1a1a1a]/15 bg-white text-[14px] font-medium text-[#1a1a1a] transition hover:bg-[#fafafa] disabled:opacity-60"
             >
               {googleLoading ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -184,58 +135,31 @@ const CadastroPage = () => {
               Continuar com Google
             </button>
 
-            <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-[#0a0a0c]/35">
-              <span className="h-px flex-1 bg-[#0a0a0c]/10" />
+            <div className="flex items-center gap-3 text-[12px] text-[#1a1a1a]/45">
+              <span className="h-px flex-1 bg-[#1a1a1a]/10" />
               ou
-              <span className="h-px flex-1 bg-[#0a0a0c]/10" />
+              <span className="h-px flex-1 bg-[#1a1a1a]/10" />
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <Field label="Nome completo">
-                <input
-                  type="text"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Seu nome"
-                  autoComplete="name"
-                  className="h-12 w-full rounded-xl border border-[#0a0a0c]/12 bg-white px-4 text-[14px] outline-none transition focus:border-[#0a0a0c]/40"
-                />
-              </Field>
-              <Field label="Email">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  autoComplete="email"
-                  className="h-12 w-full rounded-xl border border-[#0a0a0c]/12 bg-white px-4 text-[14px] outline-none transition focus:border-[#0a0a0c]/40"
-                />
-              </Field>
-              <Field label="Senha">
-                <input
-                  type="password"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
-                  autoComplete="new-password"
-                  className="h-12 w-full rounded-xl border border-[#0a0a0c]/12 bg-white px-4 text-[14px] outline-none transition focus:border-[#0a0a0c]/40"
-                />
-              </Field>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              <Input value={nome} onChange={setNome} placeholder="Nome completo" autoComplete="name" />
+              <Input value={email} onChange={setEmail} placeholder="Email" type="email" autoComplete="email" />
+              <Input value={senha} onChange={setSenha} placeholder="Senha (mín. 8 caracteres)" type="password" autoComplete="new-password" />
 
               {errorText && (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-[13px] text-red-600">{errorText}</p>
+                <p className="rounded-md bg-red-50 px-3 py-2 text-[13px] text-red-600">{errorText}</p>
               )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0a0a0c] text-[14px] font-medium text-white transition hover:bg-[#1a1a1c] disabled:opacity-60"
+                className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-[#1a1a1a] text-[14px] font-medium text-white transition hover:bg-black disabled:opacity-60"
               >
                 {loading ? <Loader2 size={18} className="animate-spin" /> : "Criar conta"}
               </button>
 
-              <p className="text-center text-[11.5px] text-[#0a0a0c]/45">
-                Ao continuar, você concorda com os Termos e a Política de Privacidade.
+              <p className="mt-2 text-center text-[12px] leading-relaxed text-[#1a1a1a]/55">
+                Ao continuar, você concorda com os Termos e a<br />Política de Privacidade.
               </p>
             </form>
           </section>
@@ -245,11 +169,34 @@ const CadastroPage = () => {
   );
 };
 
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <label className="flex flex-col gap-1.5">
-    <span className="text-[12px] font-medium text-[#0a0a0c]/60">{label}</span>
-    {children}
-  </label>
+const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
+    <span className="text-white/55">{label}</span>
+    <span className="text-right text-white/90">{value}</span>
+  </div>
+);
+
+const Input = ({
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  autoComplete,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  type?: string;
+  autoComplete?: string;
+}) => (
+  <input
+    type={type}
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    placeholder={placeholder}
+    autoComplete={autoComplete}
+    className="h-11 w-full rounded-md border border-[#1a1a1a]/20 bg-white px-3 text-[14px] text-[#1a1a1a] outline-none transition placeholder:text-[#1a1a1a]/45 focus:border-[#1a1a1a] focus:ring-2 focus:ring-[#1a1a1a]/10"
+  />
 );
 
 export default CadastroPage;
