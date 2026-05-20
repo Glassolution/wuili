@@ -10,6 +10,18 @@ export function createAffiliateApp() {
 
   app.use(express.json({ limit: "1mb" }));
 
+  // /ref/:code -> salva cookie e redireciona para a home (tracking de afiliado)
+  app.get("/ref/:code", (req, res) => {
+    const code = String(req.params.code ?? "").trim().toUpperCase();
+    if (code && /^[A-Z0-9]{4,32}$/.test(code)) {
+      const maxAge = 60 * 60 * 24 * 90; // 90 dias
+      res.setHeader("Set-Cookie", `velo_ref=${encodeURIComponent(code)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`);
+    }
+    res.statusCode = 302;
+    res.setHeader("Location", "/");
+    return res.end();
+  });
+
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "velo-affiliates" });
   });

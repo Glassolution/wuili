@@ -483,6 +483,7 @@ export type Database = {
           objetivo: string | null
           onboarding_completed: boolean
           plano: string | null
+          store_name: string | null
           refund_cooldown_until: string | null
           updated_at: string
           user_id: string
@@ -501,6 +502,7 @@ export type Database = {
           objetivo?: string | null
           onboarding_completed?: boolean
           plano?: string | null
+          store_name?: string | null
           refund_cooldown_until?: string | null
           updated_at?: string
           user_id: string
@@ -519,6 +521,7 @@ export type Database = {
           objetivo?: string | null
           onboarding_completed?: boolean
           plano?: string | null
+          store_name?: string | null
           refund_cooldown_until?: string | null
           updated_at?: string
           user_id?: string

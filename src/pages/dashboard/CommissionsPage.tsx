@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+﻿import { useMemo, useState, useEffect } from "react";
 import { Search, Download, Percent, ArrowUpRight, Copy, UserCheck, MoreHorizontal, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,6 +41,11 @@ interface Influencer {
   code: string;
   link: string;
   created_at: string;
+}
+
+interface AffiliateLinkResponse {
+  code: string | null;
+  link: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,37 +99,37 @@ const CommissionsPage = () => {
   const [filter, setFilter] = useState("Todas");
   const [localCommissions, setLocalCommissions] = useState<Commission[]>([]);
 
-  // ── Affiliate (public.affiliates) ───────────────────────────────────────
-  const { data: affiliateRow, isLoading: loadingRef } = useQuery({
-    queryKey: ["affiliate-row", user?.id],
+  // -- Influencer affiliate link ------------------------------------------------
+  const { data: affiliateLink, isLoading: loadingRef, error: affiliateLinkError } = useQuery({
+    queryKey: ["affiliate-link", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      // 1) GET — check if user already has an affiliate
-      const { data: existing, error: selErr } = await supabase
-        .from("affiliates")
-        .select("id, code, link")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (selErr) throw selErr;
-      if (existing?.code) return existing;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Sessao expirada. Faca login novamente.");
 
-      // 2) POST /generate — create one automatically
-      const code = Array.from({ length: 8 }, () => {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        return chars[Math.floor(Math.random() * chars.length)];
-      }).join("");
-      const link = `https://velods.com.br/ref/${code}`;
+      const headers = { Authorization: `Bearer ${token}` };
+      const getResponse = await fetch("/api/affiliates/link", { headers });
+      const current = (await getResponse.json()) as AffiliateLinkResponse & { error?: string; message?: string };
+      if (!getResponse.ok) {
+        throw new Error(current.message || current.error || "Nao foi possivel buscar o link de afiliado.");
+      }
 
-      const { data: created, error: insErr } = await supabase
-        .from("affiliates")
-        .insert({ user_id: user!.id, code, link, is_active: true })
-        .select("id, code, link")
-        .single();
-      if (insErr) throw insErr;
-      return created;
+      if (current.code && current.link) return current;
+
+      const generateResponse = await fetch("/api/affiliates/generate", {
+        method: "POST",
+        headers,
+      });
+      const generated = (await generateResponse.json()) as AffiliateLinkResponse & { error?: string; message?: string };
+      if (!generateResponse.ok) {
+        throw new Error(generated.message || generated.error || "Nao foi possivel gerar o link de afiliado.");
+      }
+
+      return generated;
     },
+    retry: 1,
   });
-  const affiliateRef = affiliateRow?.code ?? null;
 
   // Fetch affiliate sales for the logged-in influencer
   const { data: initialCommissions = [], isLoading } = useQuery({
@@ -231,7 +236,7 @@ const CommissionsPage = () => {
   }, [localCommissions]);
 
   const chartSeries = useMemo(() => {
-    // Últimos 12 meses: 2 séries (Pagas x Pendentes)
+    // Ãšltimos 12 meses: 2 sÃ©ries (Pagas x Pendentes)
     const months = Array.from({ length: 12 }).map((_, idx) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (11 - idx), 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -255,7 +260,7 @@ const CommissionsPage = () => {
 
   const periodTotal = useMemo(() => chartSeries.reduce((s, p) => s + (p.total ?? 0), 0), [chartSeries]);
   const periodTotalPrevYear = useMemo(() => {
-    // “Ano anterior” aproximado: 12 meses imediatamente anteriores aos 12 atuais
+    // â€œAno anteriorâ€ aproximado: 12 meses imediatamente anteriores aos 12 atuais
     const prev = Array.from({ length: 12 }).map((_, idx) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (23 - idx), 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -312,22 +317,21 @@ const CommissionsPage = () => {
 
   const [influencer, setInfluencer] = useState<Influencer | null>(null);
 
-  // Influencer link: based on affiliates table
+  // Influencer link returned by /api/affiliates/*
   useEffect(() => {
     if (!user) return;
-    if (!affiliateRow?.code) return;
+    if (!affiliateLink?.code || !affiliateLink?.link) return;
     setInfluencer({
       id: user.id,
       name: "Seu Link de Afiliado",
-      code: affiliateRow.code,
-      link: `https://velods.com.br/ref/${affiliateRow.code}`,
+      code: affiliateLink.code,
+      link: affiliateLink.link,
       created_at: user.created_at || formatDate(null),
     });
-  }, [user, affiliateRow]);
-
+  }, [user, affiliateLink]);
   const deltaBadgeText = (currCount: number) => {
-    if (!prevMonthHasData && currCount > 0) return "Primeiro mês";
-    if (!prevMonthHasData && currCount === 0) return "—";
+    if (!prevMonthHasData && currCount > 0) return "Primeiro mÃªs";
+    if (!prevMonthHasData && currCount === 0) return "â€”";
     return null;
   };
 
@@ -339,18 +343,18 @@ const CommissionsPage = () => {
   };
 
   const handleExport = () => {
-    toast.success("Relatório exportado com sucesso!", {
-      description: "O arquivo CSV foi gerado e o download começará em instantes.",
+    toast.success("RelatÃ³rio exportado com sucesso!", {
+      description: "O arquivo CSV foi gerado e o download comeÃ§arÃ¡ em instantes.",
     });
   };
 
   return (
     <div className="-m-3 min-h-full bg-transparent p-3 dark:bg-background sm:-m-4 sm:p-4 md:-m-8 md:p-8">
       <div className="space-y-5">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">Comissões</h1>
+          <h1 className="text-[22px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">ComissÃµes</h1>
           <p className="mt-0.5 text-[13px] text-[#A3A3A3] dark:text-zinc-400">
             Acompanhe os valores pagos e pendentes e compartilhe seu link de afiliado.
           </p>
@@ -360,11 +364,11 @@ const CommissionsPage = () => {
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#0A0A0A] bg-transparent px-4 py-2 text-[13px] font-medium text-[#0A0A0A] transition hover:bg-[#0A0A0A] hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-[#0A0A0A]"
         >
           <Download size={15} />
-          Exportar relatório
+          Exportar relatÃ³rio
         </button>
       </div>
 
-      {/* ── Stat cards ─────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Stat cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid gap-4 lg:grid-cols-4">
         {[
           {
@@ -396,7 +400,7 @@ const CommissionsPage = () => {
           },
           {
             key: "rate",
-            title: "Taxa de comissão",
+            title: "Taxa de comissÃ£o",
             icon: Percent,
             value: "20%",
             delta: 0,
@@ -419,7 +423,7 @@ const CommissionsPage = () => {
               <button
                 type="button"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-[#A3A3A3] transition hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:hover:bg-zinc-800 dark:hover:text-white"
-                title="Ações"
+                title="AÃ§Ãµes"
               >
                 <MoreHorizontal size={18} />
               </button>
@@ -450,29 +454,29 @@ const CommissionsPage = () => {
                   "0%"
                 ) : c.up ? (
                   <>
-                    <span>↗</span>+{Math.abs(c.delta).toFixed(0)}%
+                    <span>â†—</span>+{Math.abs(c.delta).toFixed(0)}%
                   </>
                 ) : (
                   <>
-                    <span>↘</span>-{Math.abs(c.delta).toFixed(0)}%
+                    <span>â†˜</span>-{Math.abs(c.delta).toFixed(0)}%
                   </>
                 )}
               </span>
               <span className="text-[12px] text-[#A3A3A3] dark:text-zinc-400">
-                {c.key === "rate" ? "Sempre 20%" : "vs mês anterior"}
+                {c.key === "rate" ? "Sempre 20%" : "vs mÃªs anterior"}
               </span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* ── Chart + Affiliate link ─────────────────────────────────────────── */}
+      {/* â”€â”€ Chart + Affiliate link â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-[#ECECEC] bg-white p-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-zinc-800 dark:bg-zinc-900 lg:col-span-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Evolução</p>
-              <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">Pagas x Pendentes (últimos 12 meses)</p>
+              <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">EvoluÃ§Ã£o</p>
+              <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">Pagas x Pendentes (Ãºltimos 12 meses)</p>
             </div>
             <div className="flex items-center gap-2">
               <p className="text-[28px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">{formatMoney(periodTotal)}</p>
@@ -484,7 +488,7 @@ const CommissionsPage = () => {
                     : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300"
                 )}
               >
-                {chartYoY >= 0 ? "↗" : "↘"} {Math.abs(chartYoY).toFixed(0)}% <span className="text-[#A3A3A3] dark:text-zinc-400 font-medium">vs ano anterior</span>
+                {chartYoY >= 0 ? "â†—" : "â†˜"} {Math.abs(chartYoY).toFixed(0)}% <span className="text-[#A3A3A3] dark:text-zinc-400 font-medium">vs ano anterior</span>
               </span>
             </div>
           </div>
@@ -528,7 +532,7 @@ const CommissionsPage = () => {
                     return (
                       <div className="rounded-xl border border-[#E5E5E5] bg-white px-3.5 py-2.5 shadow-lg text-[12px] dark:border-zinc-800 dark:bg-zinc-950">
                         <p className="mb-2 font-medium text-[#737373] dark:text-zinc-400">
-                          Comissões — {label}
+                          ComissÃµes â€” {label}
                         </p>
                         <div className="space-y-1">
                           <div className="flex items-center justify-between gap-6">
@@ -563,12 +567,12 @@ const CommissionsPage = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Top planos</p>
-                <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">Distribuição de vendas</p>
+                <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">DistribuiÃ§Ã£o de vendas</p>
               </div>
               <button
                 type="button"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-[#A3A3A3] transition hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:hover:bg-zinc-800 dark:hover:text-white"
-                title="Ações"
+                title="AÃ§Ãµes"
               >
                 <MoreHorizontal size={18} />
               </button>
@@ -623,7 +627,7 @@ const CommissionsPage = () => {
               <button
                 type="button"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-[#A3A3A3] transition hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:hover:bg-zinc-800 dark:hover:text-white"
-                title="Ações"
+                title="AÃ§Ãµes"
               >
                 <MoreHorizontal size={18} />
               </button>
@@ -633,6 +637,13 @@ const CommissionsPage = () => {
               {loadingRef ? (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E5E5E5] p-6 text-center dark:border-zinc-800">
                   <p className="text-[12px] text-[#737373] dark:text-zinc-400">Carregando seu ref...</p>
+                </div>
+              ) : affiliateLinkError ? (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-red-200 bg-red-50 p-6 text-center dark:border-red-500/30 dark:bg-red-500/10">
+                  <p className="text-[12px] font-medium text-red-700 dark:text-red-300">Nao foi possivel carregar seu link.</p>
+                  <p className="mt-1 text-[11px] text-red-600/80 dark:text-red-300/80">
+                    {affiliateLinkError instanceof Error ? affiliateLinkError.message : "Tente recarregar a pagina."}
+                  </p>
                 </div>
               ) : influencer ? (
                 <div className="space-y-3">
@@ -673,13 +684,13 @@ const CommissionsPage = () => {
         </div>
       </div>
 
-      {/* ── Table ──────────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="rounded-xl border border-[#ECECEC] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-col gap-4 border-b border-[#F5F5F5] p-5 dark:border-zinc-800 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
-            <p className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white">Comissões recentes</p>
+            <p className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white">ComissÃµes recentes</p>
             <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">
-              Busque por pedido/descrição e filtre por status.
+              Busque por pedido/descriÃ§Ã£o e filtre por status.
             </p>
           </div>
 
@@ -688,7 +699,7 @@ const CommissionsPage = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3A3A3] dark:text-zinc-400" size={16} />
               <input
                 type="text"
-                placeholder="Buscar por descrição ou número do pedido..."
+                placeholder="Buscar por descriÃ§Ã£o ou nÃºmero do pedido..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full rounded-xl border border-[#E5E5E5] bg-white py-2 pl-10 pr-3 text-[13px] text-[#0A0A0A] outline-none transition focus:border-[#D4D4D4] dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-zinc-700"
@@ -718,7 +729,7 @@ const CommissionsPage = () => {
           <table className="w-full min-w-[980px] text-left" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
             <thead>
               <tr className="border-b border-[#F5F5F5] dark:border-zinc-800">
-                {["Data", "ID do pedido", "Nome do cliente", "Plano assinado", "Valor do plano", "Comissão gerada", "Status"].map((h) => (
+                {["Data", "ID do pedido", "Nome do cliente", "Plano assinado", "Valor do plano", "ComissÃ£o gerada", "Status"].map((h) => (
                   <th
                     key={h}
                     className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#C0C0C0] dark:text-zinc-500"
@@ -732,13 +743,13 @@ const CommissionsPage = () => {
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-10 text-center text-[13px] text-[#737373] dark:text-zinc-400">
-                    Carregando comissões...
+                    Carregando comissÃµes...
                   </td>
                 </tr>
               ) : filteredCommissions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-10 text-center text-[13px] text-[#737373] dark:text-zinc-400">
-                    Nenhuma comissão encontrada.
+                    Nenhuma comissÃ£o encontrada.
                   </td>
                 </tr>
               ) : (
@@ -785,3 +796,5 @@ const CommissionsPage = () => {
 };
 
 export default CommissionsPage;
+
+

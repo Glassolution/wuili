@@ -96,6 +96,7 @@ const SetupPage = () => {
         .from("profiles")
         .update({
           loja_nome: trimmed,
+          store_name: trimmed,
           objetivo: objective,
           categorias: selectedCategories,
           disponibilidade_semanal: availability,

@@ -547,7 +547,7 @@ const DashboardSidebar = () => {
 
   const [collapsed, setCollapsed] = useState(false);
   const [resolvedRole, setResolvedRole] = useState<string | null>(emailRole ?? role ?? metadataRole);
-
+  const [storeName, setStoreName] = useState("Minha Loja");
   // Start Mode: controlado pelo plano real do usuário (não localStorage)
   const { isStartMode: startMode, hasActivePlan } = useStartMode();
 
@@ -564,6 +564,38 @@ const DashboardSidebar = () => {
   useEffect(() => {
     setResolvedRole(emailRole ?? role ?? metadataRole);
   }, [emailRole, role, metadataRole]);
+
+  useEffect(() => {
+    if (!user || !isSupabaseEnabled) {
+      setStoreName("Minha Loja");
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadStoreName = async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("store_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[sidebar] Falha ao buscar store_name", error);
+        return;
+      }
+
+      if (!cancelled) {
+        setStoreName(data?.store_name?.trim() || "Minha Loja");
+      }
+    };
+
+    void loadStoreName();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user || !isSupabaseEnabled) return;
@@ -697,6 +729,21 @@ const DashboardSidebar = () => {
       {/* Divisória 1 */}
       <div style={{ height: "1px", backgroundColor: "#DDE3EE", margin: "12px 16px" }} />
 
+      {!collapsed && (
+        <div className="mx-3 mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer hover:bg-gray-50">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-md bg-black flex items-center justify-center shrink-0">
+              <span className="text-white text-xs font-bold">
+                {storeName?.charAt(0).toUpperCase() || "M"}
+              </span>
+            </div>
+            <span className="text-sm font-semibold text-gray-900 truncate">
+              {storeName || "Minha Loja"}
+            </span>
+          </div>
+          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+        </div>
+      )}
       {/* ── Nav items ────────────────────────────────────────────────────── */}
       <div
         className={cn(
