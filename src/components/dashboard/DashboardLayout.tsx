@@ -503,26 +503,15 @@ const DashboardLayoutInner = () => {
           {/* Header - no shell cinza */}
           <DashboardHeader />
           
-          {/* Main content area - moldura branca arredondada */}
-          <main className="flex min-h-0 flex-1 overflow-hidden" style={{ backgroundColor: "#F4F4F5", padding: "0 24px 24px 24px" }}>
-            <div 
-              className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white" 
-              style={{ 
-                borderRadius: "28px",
-                overflow: "hidden",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
-              }}
-            >
-              {/* Área rolável interna */}
-              <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" style={{ padding: "24px" }}>
-                <div className="mx-auto w-full max-w-[1280px]">
-                  <PageErrorBoundary>
-                    <Outlet />
-                  </PageErrorBoundary>
-                </div>
-              </div>
+          {/* Main content area - sem moldura, ocupa 100% */}
+          <main className="flex min-h-0 flex-1 overflow-hidden" style={{ backgroundColor: "#F4F4F5" }}>
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+              <PageErrorBoundary>
+                <Outlet />
+              </PageErrorBoundary>
             </div>
           </main>
+
         </div>
       </div>
     </div>
