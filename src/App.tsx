@@ -9,6 +9,7 @@ import { ImportedProductsProvider } from "./lib/importedProductsContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/LoginPage";
+import AuthEntryPage from "./pages/AuthEntryPage";
 import CadastroPage from "./pages/CadastroPage";
 import SetupPage from "./pages/SetupPage";
 import AliExpressCallbackPage from "./pages/AliExpressCallbackPage";
@@ -63,6 +64,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<AuthEntryPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<CadastroPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />

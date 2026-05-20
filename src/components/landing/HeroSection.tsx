@@ -31,7 +31,7 @@ const HeroSection = () => {
   const handleCTA = () => {
     if (loading) return;
     setLoading(true);
-    setTimeout(() => navigate("/cadastro"), 2000);
+    setTimeout(() => navigate("/auth"), 2000);
   };
 
   return (
@@ -116,7 +116,7 @@ const HeroSection = () => {
               ) : "Criar minha loja"}
             </button>
             <button
-              onClick={() => navigate("/cadastro")}
+              onClick={() => navigate("/auth")}
               className="text-[15px] font-[400] text-[#737373] transition-all duration-[150ms] hover:text-[#0A0A0A] hover:underline underline-offset-2"
             >
               Ver demonstração

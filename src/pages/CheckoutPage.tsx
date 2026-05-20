@@ -220,45 +220,48 @@ const CheckoutPage = () => {
 
   return (
     <div className="min-h-screen bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
-      <div className="mx-auto grid min-h-screen w-full max-w-[1180px] grid-cols-1 lg:grid-cols-2">
+      <div className="grid min-h-screen w-full grid-cols-1 lg:grid-cols-2">
         {/* LEFT — plan summary */}
-        <aside className="border-b border-gray-100 px-6 py-8 sm:px-10 lg:border-b-0 lg:border-r lg:px-14 lg:py-10">
-          <div className="mb-10 flex items-center gap-3">
+        <aside className="relative overflow-hidden border-b border-white/[0.08] bg-[#080808] px-6 py-8 text-white sm:px-10 lg:flex lg:min-h-screen lg:items-start lg:justify-end lg:border-b-0 lg:border-r lg:border-white/[0.08] lg:px-16 lg:py-12">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,0.08),transparent_32%),linear-gradient(145deg,rgba(255,255,255,0.045),transparent_42%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-[0.045] [background-image:radial-gradient(circle,rgba(255,255,255,0.65)_0.7px,transparent_0.7px)] [background-size:5px_5px]" />
+          <div className="relative w-full max-w-[440px]">
+          <div className="mb-12 flex items-center gap-3">
             <button
               onClick={() => navigate(-1)}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-900"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-white/42 transition-colors hover:bg-white/[0.06] hover:text-white"
               aria-label="Voltar"
             >
               <ArrowLeft size={16} />
             </button>
-            <VeloLogo size="md" variant="dark" />
+            <VeloLogo size="md" variant="light" />
           </div>
 
-          <div className="max-w-[420px]">
-            <p className="mb-2 text-[13px] font-medium text-gray-500">Plano {plan.name}</p>
-            <h1 className="text-[42px] font-semibold leading-none tracking-[-0.04em] text-gray-950">
+          <div>
+            <p className="mb-3 text-[13px] font-medium text-white/45">Assinar plano {plan.name}</p>
+            <h1 className="text-[44px] font-semibold leading-none tracking-[-0.045em] text-white sm:text-[52px]">
               {plan.price} por mês
             </h1>
-            <p className="mt-3 max-w-[320px] text-[15px] font-medium leading-6 text-gray-600">
+            <p className="mt-4 max-w-[320px] text-[15px] font-medium leading-6 text-white/54">
               Assinatura mensal do plano {plan.name}
             </p>
 
-            <div className="mt-12 border-y border-gray-100 py-6">
+            <div className="mt-12 border-y border-white/[0.08] py-6">
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <p className="text-[14px] font-semibold text-gray-950">{plan.name}</p>
-                  <p className="mt-1 text-[12px] text-gray-500">Cobrança mensal</p>
+                  <p className="text-[14px] font-semibold text-white">{plan.name}</p>
+                  <p className="mt-1 text-[12px] text-white/42">Cobrança mensal</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[13px] font-semibold text-gray-950">{plan.price}</p>
-                  <p className="mt-1 text-[12px] text-gray-500">/ mês</p>
+                  <p className="text-[13px] font-semibold text-white">{plan.price}</p>
+                  <p className="mt-1 text-[12px] text-white/42">/ mês</p>
                 </div>
               </div>
 
               <ul className="mt-5 space-y-2">
                 {plan.features.slice(0, 5).map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-gray-600">
-                    <Check size={13} className="mt-0.5 shrink-0 text-gray-900" strokeWidth={2.5} />
+                  <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-white/58">
+                    <Check size={13} className="mt-0.5 shrink-0 text-white/86" strokeWidth={2.5} />
                     {feature}
                   </li>
                 ))}
@@ -267,8 +270,8 @@ const CheckoutPage = () => {
 
             <div className="space-y-5 py-7 text-[14px]">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-gray-700">Subtotal</span>
-                <span className="font-semibold text-gray-950">{plan.price}</span>
+                <span className="font-semibold text-white/66">Subtotal</span>
+                <span className="font-semibold text-white">{plan.price}</span>
               </div>
 
               <div>
@@ -277,26 +280,27 @@ const CheckoutPage = () => {
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
                   placeholder="Adicionar código promocional"
-                  className="h-10 w-full max-w-[250px] rounded-md border border-gray-100 bg-gray-50 px-3 text-[13px] text-gray-700 placeholder:text-gray-400 outline-none transition focus:border-gray-300 focus:bg-white"
+                  className="h-10 w-full max-w-[250px] rounded-md border border-white/[0.08] bg-white/[0.045] px-3 text-[13px] text-white placeholder:text-white/32 outline-none transition focus:border-white/18 focus:bg-white/[0.07]"
                 />
               </div>
 
-              <div className="border-t border-gray-100 pt-6">
+              <div className="border-t border-white/[0.08] pt-6">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-gray-700">Total mensal</span>
-                  <span className="font-semibold text-gray-950">{plan.price}</span>
+                  <span className="font-semibold text-white/66">Total mensal</span>
+                  <span className="font-semibold text-white">{plan.price}</span>
                 </div>
                 <div className="mt-7 flex items-center justify-between">
-                  <span className="font-semibold text-gray-700">Total devido hoje</span>
-                  <span className="font-semibold text-gray-950">{plan.price}</span>
+                  <span className="font-semibold text-white/66">Total devido hoje</span>
+                  <span className="font-semibold text-white">{plan.price}</span>
                 </div>
               </div>
             </div>
           </div>
+          </div>
         </aside>
 
         {/* RIGHT — payment form */}
-        <main className="px-6 py-8 sm:px-10 lg:px-16 lg:py-12">
+        <main className="bg-white px-6 py-8 sm:px-10 lg:flex lg:min-h-screen lg:items-start lg:px-16 lg:py-12">
           <div className="mx-auto w-full max-w-[430px]">
             <button
               type="button"

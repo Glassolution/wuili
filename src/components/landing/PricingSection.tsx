@@ -119,11 +119,11 @@ const PricingSection = () => {
 
     setTimeout(() => {
       if (planId === "gratis") {
-        navigate(user ? "/checkout?plan=pro" : "/cadastro?next=/checkout&plan=pro");
+        navigate(user ? "/checkout?plan=pro" : "/auth");
       } else if (user) {
         navigate(`/checkout?plan=${planId}`);
       } else {
-        navigate(`/cadastro?next=/checkout&plan=${planId}`);
+        navigate("/auth");
       }
     }, 3000);
   };

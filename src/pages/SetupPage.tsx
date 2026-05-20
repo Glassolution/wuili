@@ -1,157 +1,271 @@
-import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Check, Search, Boxes, Store, ShoppingBag, Music2, Globe } from "lucide-react";
-import { toast } from "sonner";
 import { VeloLogo } from "@/components/VeloLogo";
+import { toast } from "sonner";
 
-const GOALS = [
-  { id: "encontrar_produtos", label: "Encontrar produtos para vender", icon: Search },
-  { id: "dropshipping", label: "Dropshipping", icon: Boxes },
-  { id: "mercado_livre", label: "Mercado Livre", icon: Store },
-  { id: "shopee", label: "Shopee", icon: ShoppingBag },
-  { id: "tiktok_shop", label: "TikTok Shop", icon: Music2 },
-  { id: "ecommerce_proprio", label: "Ecommerce próprio", icon: Globe },
+const categories = ["Moda", "Eletrônicos", "Casa", "Beleza", "Fitness", "Geral"];
+const channels = ["Mercado Livre", "Shopee", "TikTok Shop", "Loja própria", "Ainda não sei"];
+const loadingMessages = [
+  "Analisando oportunidades",
+  "Configurando seu painel",
+  "Organizando produtos",
+  "Conectando marketplaces",
 ];
+
+const enter = {
+  initial: { opacity: 0, y: 14, filter: "blur(6px)" },
+  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+};
+
+const smooth = { duration: 0.64, ease: [0.22, 1, 0.36, 1] as const };
+const chipTransition = { duration: 0.46, ease: [0.22, 1, 0.36, 1] as const };
 
 const SetupPage = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [lojaNome, setLojaNome] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [category, setCategory] = useState("");
+  const [channel, setChannel] = useState("");
+  const [finishing, setFinishing] = useState(false);
+  const [loadingIndex, setLoadingIndex] = useState(0);
 
-  if (!authLoading && !user) return <Navigate to="/cadastro" replace />;
+  useEffect(() => {
+    if (!finishing) return;
 
-  const toggle = (id: string) => {
-    setSelected((curr) => (curr.includes(id) ? curr.filter((x) => x !== id) : [...curr, id]));
-  };
+    const messageTimer = window.setInterval(() => {
+      setLoadingIndex((current) => (current + 1) % loadingMessages.length);
+    }, 620);
+
+    const finishTimer = window.setTimeout(() => {
+      navigate("/cadastro?offer=1", { replace: true });
+    }, 2600);
+
+    return () => {
+      window.clearInterval(messageTimer);
+      window.clearTimeout(finishTimer);
+    };
+  }, [finishing, navigate]);
 
   const handleContinue = () => {
-    if (selected.length === 0) {
-      toast.error("Escolha pelo menos uma opção.");
+    if (!category) {
+      toast.error("Escolha uma categoria para continuar.");
       return;
     }
     setStep(2);
   };
 
   const handleFinish = async () => {
-    if (!user) return;
-    setSaving(true);
-    const primary = selected[0] ?? null;
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        objetivo: primary,
-        loja_nome: lojaNome.trim() || null,
-        onboarding_completed: true,
-      })
-      .eq("user_id", user.id);
-    setSaving(false);
-
-    if (error) {
-      toast.error("Não foi possível salvar. Tente novamente.");
+    if (!channel) {
+      toast.error("Escolha onde você quer vender.");
       return;
     }
-    toast.success("Tudo pronto!");
-    navigate("/dashboard", { replace: true });
+
+    const payload = {
+      category,
+      channel,
+      completedAt: new Date().toISOString(),
+    };
+    localStorage.setItem("velo_setup_profile", JSON.stringify(payload));
+
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({
+          objetivo: category,
+          onboarding_completed: true,
+        })
+        .eq("user_id", user.id);
+    }
+
+    setFinishing(true);
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] font-['Manrope'] text-white">
-      <header className="flex items-center justify-between px-6 py-5 sm:px-10">
-        <VeloLogo size="md" variant="light" />
-        <button
-          onClick={handleFinish}
-          className="text-[13px] font-medium text-white/50 transition hover:text-white"
-        >
-          Fazer isso depois
-        </button>
+    <main className="relative min-h-screen overflow-hidden bg-[#030807] text-white antialiased [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(28,57,52,0.12),transparent_42%),radial-gradient(circle_at_50%_10%,rgba(255,255,255,0.025),transparent_24%),#030807]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.2)_62%,rgba(0,0,0,0.62)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.018] [background-image:radial-gradient(circle,rgba(255,255,255,0.78)_0.7px,transparent_0.7px)] [background-size:6px_6px]" />
+
+      <header className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-8">
+        <motion.div {...enter} transition={{ ...smooth, delay: 0.08 }}>
+          <VeloLogo size="md" variant="light" />
+        </motion.div>
       </header>
 
-      <main className="mx-auto flex min-h-[calc(100vh-80px)] max-w-[720px] flex-col items-center justify-center px-6 pb-20">
-        <div className="mb-10 text-center">
-          <h1 className="font-['Sora'] text-[34px] font-semibold leading-tight tracking-[-0.02em] sm:text-[40px]">
-            Vamos começar
-          </h1>
-          <p className="mt-2 text-[14.5px] text-white/55">
-            Algumas informações para personalizar sua experiência.
-          </p>
-        </div>
-
-        <div className="w-full rounded-[20px] border border-white/[0.07] bg-white/[0.02] p-8 backdrop-blur-md sm:p-10">
-          {step === 1 ? (
-            <>
-              <h2 className="text-[15px] font-semibold text-white">O que você deseja fazer?</h2>
-              <p className="mt-1 text-[13px] text-white/45">Selecione uma ou mais opções.</p>
-
-              <div className="mt-6 flex flex-wrap gap-2.5">
-                {GOALS.map(({ id, label, icon: Icon }) => {
-                  const isOn = selected.includes(id);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => toggle(id)}
-                      className={`group inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[13.5px] font-medium transition ${
-                        isOn
-                          ? "border-white bg-white text-[#0a0a0c]"
-                          : "border-white/12 bg-white/[0.03] text-white/75 hover:border-white/30 hover:bg-white/[0.06] hover:text-white"
-                      }`}
-                    >
-                      {isOn ? <Check size={14} strokeWidth={3} /> : <Icon size={14} />}
-                      {label}
-                    </button>
-                  );
-                })}
+      <section className="relative z-10 flex min-h-[calc(100vh-82px)] items-start justify-center px-5 pb-16 pt-[6vh] sm:pt-[7vh]">
+        <AnimatePresence mode="wait">
+          {finishing ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -18, filter: "blur(8px)" }}
+              transition={smooth}
+              className="text-center"
+            >
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-white/[0.08] bg-white/[0.035] shadow-[0_0_48px_rgba(151,197,166,0.12)]">
+                <Loader2 className="h-5 w-5 animate-spin text-white/72" strokeWidth={1.6} />
               </div>
-
-              <button
-                onClick={handleContinue}
-                className="mt-10 flex h-12 w-full items-center justify-center rounded-xl bg-white text-[14px] font-medium text-[#0a0a0c] transition hover:bg-white/90"
-              >
-                Continuar
-              </button>
-            </>
+              <h1 className="mt-6 text-[25px] font-[380] leading-tight tracking-[-0.04em]">
+                Preparando sua operação...
+              </h1>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={loadingMessages[loadingIndex]}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.38, ease: "easeOut" }}
+                  className="mt-2.5 text-[13px] font-[350] text-white/44"
+                >
+                  {loadingMessages[loadingIndex]}
+                </motion.p>
+              </AnimatePresence>
+            </motion.div>
           ) : (
-            <>
-              <h2 className="text-[15px] font-semibold text-white">Qual será o nome da sua loja?</h2>
-              <p className="mt-1 text-[13px] text-white/45">Você pode mudar isso depois.</p>
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, y: 16, filter: "blur(7px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -14, filter: "blur(7px)" }}
+              transition={smooth}
+              className="w-full max-w-[470px]"
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 10, filter: "blur(5px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ ...smooth, delay: 0.06 }}
+                className="mb-5 text-center"
+              >
+                <p className="text-[10px] font-[500] uppercase tracking-[0.16em] text-white/30">
+                  Passo {step} de 2
+                </p>
+                <h1 className="mt-3 text-[25px] font-[390] leading-[1.05] tracking-[-0.04em] text-white sm:text-[28px]">
+                  {step === 1 ? "Vamos começar" : "Quase pronto"}
+                </h1>
+                <p className="mt-2 text-[13px] font-[350] tracking-[-0.01em] text-white/45">
+                  Adicione algumas informações para personalizar sua configuração.
+                </p>
+              </motion.div>
 
-              <input
-                type="text"
-                autoFocus
-                value={lojaNome}
-                onChange={(e) => setLojaNome(e.target.value)}
-                placeholder="Minha loja (opcional)"
-                className="mt-6 h-12 w-full rounded-xl border border-white/12 bg-white/[0.03] px-4 text-[14px] text-white outline-none transition placeholder:text-white/30 focus:border-white/30"
-              />
+              <div className="relative">
+                {step === 2 && (
+                  <motion.button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    initial={{ opacity: 0, x: 8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ ...smooth, delay: 0.12 }}
+                    className="absolute -left-12 top-0 hidden h-9 w-9 items-center justify-center rounded-[10px] border border-white/[0.05] bg-white/[0.08] text-[18px] text-white/58 transition hover:bg-white/[0.12] hover:text-white sm:flex"
+                    aria-label="Voltar"
+                  >
+                    ←
+                  </motion.button>
+                )}
 
-              <div className="mt-8 flex items-center justify-between gap-3">
-                <button
-                  onClick={() => setStep(1)}
-                  className="text-[13px] text-white/55 transition hover:text-white"
+                <motion.div
+                  initial={{ opacity: 0, y: 12, filter: "blur(6px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{ ...smooth, delay: 0.14 }}
+                  className="rounded-[10px] bg-[#fbfaf7] p-5 text-[#111] shadow-[0_18px_70px_rgba(0,0,0,0.28)] ring-1 ring-black/[0.04] sm:p-6"
                 >
-                  Voltar
-                </button>
-                <button
-                  onClick={handleFinish}
-                  disabled={saving}
-                  className="flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-8 text-[14px] font-medium text-[#0a0a0c] transition hover:bg-white/90 disabled:opacity-60"
-                >
-                  {saving ? <Loader2 size={18} className="animate-spin" /> : "Concluir"}
-                </button>
+                  {step === 1 ? (
+                    <>
+                      <p className="text-[13px] font-[430] tracking-[-0.01em] text-[#111]">
+                        O que você quer vender?
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {categories.map((item, index) => (
+                          <OptionPill
+                            key={item}
+                            label={item}
+                            selected={category === item}
+                            onClick={() => setCategory(item)}
+                            index={index}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        onClick={handleContinue}
+                        className="mt-6 flex h-10 w-full items-center justify-center rounded-[8px] bg-[#06100f] text-[13px] font-[430] tracking-[-0.01em] text-white transition duration-300 hover:bg-[#111b19]"
+                      >
+                        Continuar
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[13px] font-[430] tracking-[-0.01em] text-[#111]">
+                        Onde você quer vender?
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {channels.map((item, index) => (
+                          <OptionPill
+                            key={item}
+                            label={item}
+                            selected={channel === item}
+                            onClick={() => setChannel(item)}
+                            index={index}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-6 grid gap-2 sm:grid-cols-[0.34fr_0.66fr]">
+                        <button
+                          onClick={() => setStep(1)}
+                          className="h-10 rounded-[8px] border border-black/[0.08] bg-black/[0.025] text-[13px] font-[390] tracking-[-0.01em] text-black/62 transition hover:bg-black/[0.045] hover:text-black sm:hidden"
+                        >
+                          Voltar
+                        </button>
+                        <button
+                          onClick={handleFinish}
+                          className="flex h-10 items-center justify-center rounded-[8px] bg-[#06100f] text-[13px] font-[430] tracking-[-0.01em] text-white transition duration-300 hover:bg-[#111b19] sm:col-span-2"
+                        >
+                          Finalizar configuração
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </motion.div>
               </div>
-            </>
+            </motion.div>
           )}
-        </div>
-
-        <p className="mt-8 text-[12px] text-white/35">Etapa {step} de 2</p>
-      </main>
-    </div>
+        </AnimatePresence>
+      </section>
+    </main>
   );
 };
+
+const OptionPill = ({
+  label,
+  selected,
+  onClick,
+  index,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+  index: number;
+}) => (
+  <motion.button
+    type="button"
+    onClick={onClick}
+    initial={{ opacity: 0, y: 7 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ ...chipTransition, delay: 0.2 + index * 0.04 }}
+    whileHover={{ y: -1 }}
+    whileTap={{ scale: 0.985 }}
+    className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-[430] tracking-[-0.006em] transition duration-300 ${
+      selected
+        ? "border-[#06100f] bg-[#06100f] text-white shadow-[0_5px_16px_rgba(0,0,0,0.1)]"
+        : "border-transparent bg-[#f1f2f0] text-black/70 hover:bg-[#e9ebe8] hover:text-black"
+    }`}
+  >
+    {selected ? <Check size={12} strokeWidth={2.1} /> : <span className="text-[14px] leading-none text-current">+</span>}
+    {label}
+  </motion.button>
+);
 
 export default SetupPage;

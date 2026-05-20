@@ -60,7 +60,7 @@ const Navbar = ({ transparentAtTop = false }: NavbarProps) => {
 
         <button
           type="button"
-          onClick={() => navigate("/cadastro")}
+          onClick={() => navigate("/auth")}
           className="inline-flex h-12 items-center justify-center rounded-full bg-[#101f5c] px-6 text-[14px] font-semibold text-white shadow-[0_10px_22px_rgba(16,31,92,0.24)] transition-transform hover:-translate-y-0.5"
         >
           Criar conta

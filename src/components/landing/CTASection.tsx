@@ -22,7 +22,7 @@ const CTASection = () => {
             <button
               onClick={() => {
                 playSatisfyingClick();
-                navigate("/cadastro");
+                navigate("/auth");
               }}
               className="landing-button-inverse group inline-flex cursor-pointer items-center gap-[10px] rounded-[100px] border-none bg-white px-8 py-4 font-['Manrope'] text-[16px] font-[500] text-black shadow-[0_1px_2px_rgba(0,0,0,0.10)]"
             >

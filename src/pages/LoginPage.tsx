@@ -106,7 +106,7 @@ const LoginPage = () => {
                 Login
               </div>
               <Link
-                to="/cadastro"
+                to="/auth"
                 className="flex-1 rounded-full py-[7px] text-center font-['Manrope'] text-[12px] font-medium text-white/40 transition hover:text-white/70"
               >
                 Sign Up

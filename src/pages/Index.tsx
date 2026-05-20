@@ -307,9 +307,9 @@ function SimpleIcon({ name }: { name: string }) {
 
 function StoreMockup() {
   return (
-    <div className="relative mx-auto w-full max-w-[520px] lg:translate-x-1">
+    <div className="relative mx-auto w-full max-w-[510px] lg:translate-x-1">
       <svg
-        className="pointer-events-none absolute -left-12 -top-12 hidden h-[380px] w-[660px] text-black/18 lg:block"
+        className="pointer-events-none absolute -left-12 -top-12 hidden h-[380px] w-[660px] text-black/12 lg:block"
         viewBox="0 0 880 520"
         fill="none"
         aria-hidden="true"
@@ -319,7 +319,7 @@ function StoreMockup() {
         <path d="M104 288C282 420 581 480 812 315" stroke="currentColor" strokeWidth="1.5" />
       </svg>
 
-      <div className="relative ml-auto w-full max-w-[500px] overflow-hidden rounded-[12px] bg-white shadow-[0_18px_44px_rgba(0,0,0,0.085)] ring-1 ring-black/[0.045]">
+      <div className="relative ml-auto w-full max-w-[490px] overflow-hidden rounded-[12px] bg-white shadow-[0_22px_58px_rgba(0,0,0,0.065)] ring-1 ring-black/[0.035]">
         <div className="flex h-7 items-center justify-between px-5">
           <div className="h-1.5 w-14 rounded-full bg-black/8" />
           <div className="text-[15px] font-semibold italic tracking-[-0.03em] text-[#56613f]">velo</div>
@@ -334,8 +334,9 @@ function StoreMockup() {
           <PremiumImage
             src="https://images.unsplash.com/photo-1622597467836-f3285f2131b8?auto=format&fit=crop&w=1200&q=90"
             alt="Loja natural de sucos"
+            className="saturate-[0.9] contrast-[0.96]"
           />
-          <div className="absolute inset-0 bg-black/18" />
+          <div className="absolute inset-0 bg-black/12" />
           <div className="absolute bottom-5 left-6 text-white">
             <div className="text-[31px] font-semibold leading-none tracking-[-0.06em]">Zest</div>
             <div className="mt-1.5 text-[9px] text-white/78">Sabores inspiradores, qualidade incomparável</div>
@@ -346,7 +347,7 @@ function StoreMockup() {
           {productTiles.map((tile) => (
             <div key={tile.src}>
               <div className="h-[70px] overflow-hidden rounded-[3px] bg-[#f3f1e9] md:h-[92px]">
-                <PremiumImage src={tile.src} alt="Produto natural" />
+                <PremiumImage src={tile.src} alt="Produto natural" className="saturate-[0.88] contrast-[0.96]" />
               </div>
               <div className="mt-3 h-1.5 w-14 rounded-full bg-black/7" />
               <div className="mt-2 h-1.5 w-20 rounded-full bg-black/5" />
@@ -355,7 +356,7 @@ function StoreMockup() {
         </div>
       </div>
 
-      <div className="absolute -right-1 top-[76px] hidden w-[158px] rounded-[10px] bg-white p-3 shadow-[0_18px_38px_rgba(0,0,0,0.09)] ring-1 ring-black/[0.045] md:block xl:-right-7">
+      <div className="absolute -right-1 top-[76px] hidden w-[158px] rounded-[10px] bg-white p-3 shadow-[0_20px_46px_rgba(0,0,0,0.07)] ring-1 ring-black/[0.035] md:block xl:-right-7">
         <div className="h-[78px] overflow-hidden rounded-[8px] bg-[#f7f3ed]">
           <PremiumImage
             src="https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=520&q=85"
@@ -376,7 +377,7 @@ function StoreMockup() {
         </button>
       </div>
 
-      <div className="absolute -right-2 bottom-[54px] hidden items-center gap-2 rounded-[9px] bg-white px-3 py-2 shadow-[0_14px_30px_rgba(0,0,0,0.075)] ring-1 ring-black/[0.045] md:flex xl:-right-7">
+      <div className="absolute -right-2 bottom-[54px] hidden items-center gap-2 rounded-[9px] bg-white px-3 py-2 shadow-[0_16px_34px_rgba(0,0,0,0.055)] ring-1 ring-black/[0.035] md:flex xl:-right-7">
         {["#f2b43d", "#2e361d", "#687356", "#f4f4ed", "#ffffff"].map((color) => (
           <span key={color} className="h-5 w-5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
         ))}
@@ -414,11 +415,15 @@ export default function Index() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    navigate("/cadastro", { state: email ? { email } : undefined });
+    const cleanEmail = email.trim();
+    if (cleanEmail) window.localStorage.setItem("velo_auth_email", cleanEmail);
+    navigate(cleanEmail ? `/auth?email=${encodeURIComponent(cleanEmail)}` : "/auth", {
+      state: cleanEmail ? { email: cleanEmail } : undefined,
+    });
   };
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#F6F5F1] font-sans text-[#050505] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
+    <main className="min-h-screen overflow-hidden bg-[#F6F5F1] font-sans text-[#141411] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
       <header className="mx-auto flex w-full max-w-[1340px] items-center justify-between px-6 py-5 sm:px-8 lg:px-12">
         <button type="button" onClick={() => navigate("/")} aria-label="Velo">
           <VeloLogo />
@@ -426,64 +431,68 @@ export default function Index() {
 
         <button
           type="button"
-          onClick={() => navigate("/cadastro")}
-          className="h-[44px] rounded-full bg-black px-5 text-[14px] font-semibold text-white transition hover:-translate-y-0.5 hover:bg-black/85 sm:h-[48px] sm:px-7 sm:text-[15px]"
+          onClick={() => navigate("/auth")}
+          className="h-[42px] rounded-full bg-[#060606] px-5 text-[14px] font-medium tracking-[-0.008em] text-white transition hover:-translate-y-0.5 hover:bg-black/85 sm:h-[46px] sm:px-7 sm:text-[15px]"
         >
-          Criar conta
+          Começar gratuitamente
         </button>
       </header>
 
-      <section className="mx-auto grid min-h-[500px] w-full max-w-[1340px] items-center gap-10 px-6 pb-5 pt-8 sm:px-8 lg:min-h-[540px] lg:grid-cols-[0.48fr_0.52fr] lg:px-12 lg:pb-4 lg:pt-10">
-        <div data-reveal className="max-w-[610px]">
-          <h1 className="max-w-[620px] text-[42px] font-[300] leading-[1.07] tracking-[-0.041em] text-[#050505] antialiased md:text-[52px] lg:text-[58px] xl:text-[64px]">
-            <span className="block">Descubra produtos</span>
-            <span className="block">para vender online</span>
+      <section className="mx-auto grid min-h-[470px] w-full max-w-[1340px] items-center gap-10 px-6 pb-3 pt-5 sm:px-8 lg:min-h-[505px] lg:grid-cols-[0.52fr_0.48fr] lg:px-12 lg:pb-2 lg:pt-6">
+        <div data-reveal className="max-w-[720px]">
+          <h1 className="max-w-[780px] text-[#12120f] antialiased [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-synthesis-weight:none] [text-rendering:geometricPrecision]">
+            <span className="block whitespace-nowrap text-[36px] font-[385] leading-[1.035] tracking-[-0.041em] sm:text-[42px] md:text-[52px] lg:text-[58px] xl:text-[64px]">
+              Comece sua loja
+            </span>
+            <span className="mt-0 block whitespace-nowrap text-[36px] font-[385] leading-[1.035] tracking-[-0.041em] sm:text-[42px] md:text-[52px] lg:text-[58px] xl:text-[64px]">
+              com produtos prontos
+            </span>
           </h1>
 
-          <p className="mt-7 max-w-[560px] text-[17px] font-[300] leading-[1.5] tracking-[-0.01em] text-[#6a6a66] antialiased md:text-[19px]">
-            A Velo ajuda você a descobrir oportunidades no ecommerce, organizar sua operação e começar a vender online.
+          <p className="mt-7 max-w-[720px] text-[20px] font-[400] leading-[1.36] tracking-[-0.021em] text-[#64635f] antialiased md:text-[22px] lg:text-[23px]">
+            A Velo encontra oportunidades para você vender online sem estoque, sem operação complexa e sem perder tempo procurando produtos.
           </p>
 
           <form
             onSubmit={handleSubmit}
-            className="mt-9 flex h-[60px] max-w-[540px] items-center rounded-full border border-black/10 bg-white p-[4px] shadow-[0_1px_0_rgba(0,0,0,0.025)]"
+            className="mt-8 flex h-[54px] max-w-[510px] items-center rounded-full border border-black/[0.075] bg-white p-[3px] shadow-[0_1px_0_rgba(0,0,0,0.014)]"
           >
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Digite seu e-mail"
-              className="min-w-0 flex-1 bg-transparent px-6 text-[17px] font-normal text-black outline-none placeholder:text-black/88"
+              className="min-w-0 flex-1 bg-transparent px-6 text-[16px] font-normal tracking-[-0.01em] text-[#141411] outline-none placeholder:text-black/56"
             />
             <button
               type="submit"
-              className="h-[50px] rounded-full bg-black px-7 text-[16px] font-semibold text-white transition hover:bg-black/85 sm:px-8"
+              className="h-[46px] rounded-full bg-[#060606] px-6 text-[15px] font-medium tracking-[-0.008em] text-white transition hover:bg-black/85 sm:px-7"
             >
-              Começar agora
+              Começar gratuitamente
             </button>
           </form>
 
-          <p className="mt-5 text-[14px] font-normal tracking-[-0.006em] text-[#7a7a76] md:text-[15px]">
-            Você concorda em receber e-mails de marketing da Velo.
+          <p className="mt-4 text-[13px] font-normal tracking-[-0.004em] text-[#77746e] md:text-[14px]">
+            Você concorda em receber e-mails da Velo.
           </p>
         </div>
 
-        <div data-reveal className="relative min-h-[320px] lg:min-h-[430px]">
+        <div data-reveal className="relative min-h-[300px] lg:min-h-[405px]">
           <div className="absolute inset-0 flex items-center justify-center">
             <StoreMockup />
           </div>
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-[1340px] px-6 pb-14 pt-4 sm:px-8 lg:px-12">
+      <section className="mx-auto w-full max-w-[1340px] px-6 pb-12 pt-1 sm:px-8 lg:px-12">
         <h2 data-reveal className="text-[20px] font-normal leading-tight tracking-[-0.04em] text-black sm:text-[23px]">
           Integrado com as maiores plataformas do Brasil
         </h2>
 
-        <div className="relative mt-9 -mx-8 overflow-hidden sm:mt-11">
+        <div className="relative mt-7 -mx-8 overflow-hidden sm:mt-8">
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#F6F5F1] to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#F6F5F1] to-transparent" />
-          <div className="flex w-max items-center gap-12 px-6 text-black [animation:velo-logo-marquee_36s_linear_infinite] sm:gap-16">
+          <div className="flex w-max items-center gap-12 px-6 text-black [animation:velo-logo-marquee_22s_linear_infinite] sm:gap-16">
             {marqueeLogos.map((brand, index) => (
               <div
                 key={`${brand.name}-${index}`}

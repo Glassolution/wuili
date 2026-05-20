@@ -277,7 +277,7 @@ export default function Docs() {
               Entrar
             </Link>
             <Link
-              to="/cadastro"
+              to="/auth"
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-[#0A0A0A] transition hover:bg-white/90"
             >
               Criar conta
@@ -412,7 +412,7 @@ export default function Docs() {
               <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5">
                 <p className="text-[14px] font-semibold text-[#0A0A0A]">Próximo passo</p>
                 <p className="mt-1.5 text-[13px] text-[#737373]">Aplique este conteúdo e teste pelo menos 3 variações no seu fluxo.</p>
-                <Link to="/cadastro" className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0A0A0A] hover:opacity-70 transition">
+                <Link to="/auth" className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0A0A0A] hover:opacity-70 transition">
                   Criar minha loja <ArrowRight size={12} />
                 </Link>
               </div>
@@ -556,7 +556,7 @@ export default function Docs() {
               <h3 className="mt-4 text-[17px] font-extrabold text-[#0A0A0A]">Faça parte da comunidade</h3>
               <p className="mt-2 text-[14px] text-[#737373]">Compartilhe resultados, aprenda com outros vendedores e cresça junto.</p>
               <Link
-                to="/cadastro"
+                to="/auth"
                 className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#0A0A0A] px-6 py-3 text-[13px] font-semibold text-white transition hover:bg-[#1a1a1a]"
               >
                 Criar workspace gratuito <ArrowRight size={13} />
@@ -576,7 +576,7 @@ export default function Docs() {
           <div className="flex gap-5">
             <Link to="/" className="transition hover:text-[#0A0A0A]">Produto</Link>
             <Link to="/login" className="transition hover:text-[#0A0A0A]">Login</Link>
-            <Link to="/cadastro" className="transition hover:text-[#0A0A0A]">Cadastro</Link>
+            <Link to="/auth" className="transition hover:text-[#0A0A0A]">Cadastro</Link>
           </div>
         </div>
       </footer>
