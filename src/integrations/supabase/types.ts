@@ -472,8 +472,11 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          categorias: string[] | null
           created_at: string
           display_name: string | null
+          disponibilidade_semanal: string | null
+          experiencia: string | null
           id: string
           loja_nome: string | null
           nicho: string | null
@@ -487,8 +490,11 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          categorias?: string[] | null
           created_at?: string
           display_name?: string | null
+          disponibilidade_semanal?: string | null
+          experiencia?: string | null
           id?: string
           loja_nome?: string | null
           nicho?: string | null
@@ -502,8 +508,11 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          categorias?: string[] | null
           created_at?: string
           display_name?: string | null
+          disponibilidade_semanal?: string | null
+          experiencia?: string | null
           id?: string
           loja_nome?: string | null
           nicho?: string | null
