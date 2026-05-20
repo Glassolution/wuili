@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUp, Edit3, Plus, Search, Tag, Type, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -9,72 +8,136 @@ const getGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return "Bom dia";
   if (hour < 18) return "Boa tarde";
-  return "Olá";
+  return "Boa noite";
 };
 
-const StoreSetupIllustration = () => (
-  <div className="relative mx-auto flex h-[264px] w-full items-center justify-center overflow-hidden rounded-[18px] bg-[#fbfbfb]">
-    <div className="absolute h-52 w-40 -translate-x-14 rotate-[-10deg] rounded-[18px] bg-[#efe9d9] shadow-[0_18px_34px_rgba(0,0,0,0.08)]">
-      <div className="absolute inset-3 rounded-[14px] bg-[url('https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=280&q=80')] bg-cover bg-center opacity-70" />
-    </div>
-    <div className="absolute h-52 w-40 translate-x-16 rotate-[12deg] rounded-[18px] bg-[#e7d7d4] shadow-[0_18px_34px_rgba(0,0,0,0.08)]">
-      <div className="absolute inset-3 rounded-[14px] bg-[url('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=280&q=80')] bg-cover bg-center opacity-75" />
-    </div>
-    <div className="relative z-10 h-[174px] w-[174px] rounded-[18px] bg-white shadow-[0_18px_38px_rgba(0,0,0,0.12)]">
-      <div className="absolute inset-4 rounded-[14px] border-2 border-dashed border-[#d7d7d7]" />
-      <Tag className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[#bdbdbd]" size={34} strokeWidth={1.8} />
-      <div className="absolute bottom-6 left-5 right-5 h-4 rounded-full bg-[#cfcfcf]" />
-    </div>
-  </div>
-);
+// ============================================================
+// MOCK DATA — substituir por dados reais do Supabase futuramente
+// ============================================================
+type ApprovalProduct = {
+  id: string;
+  name: string;
+  image: string;
+  cost: number;
+  suggestedPrice: number;
+  marginPct: number;
+};
 
-const ThemeIllustration = () => (
-  <div className="relative mx-auto flex h-[264px] w-full items-center justify-center overflow-hidden rounded-[18px] bg-[#fbfbfb]">
-    <div className="absolute h-52 w-40 -translate-x-16 rotate-[-12deg] rounded-[18px] bg-[#dbe8ef] shadow-[0_18px_34px_rgba(0,0,0,0.08)]">
-      <div className="absolute inset-3 rounded-[14px] bg-[url('https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&w=280&q=80')] bg-cover bg-center opacity-70" />
-    </div>
-    <div className="absolute h-52 w-40 translate-x-16 rotate-[12deg] rounded-[18px] bg-[#e9d4b5] shadow-[0_18px_34px_rgba(0,0,0,0.08)]">
-      <div className="absolute inset-3 rounded-[14px] bg-[url('https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=280&q=80')] bg-cover bg-center opacity-70" />
-    </div>
-    <div className="relative z-10 h-[174px] w-[230px] rounded-[18px] bg-white shadow-[0_18px_38px_rgba(0,0,0,0.12)]">
-      <div className="absolute inset-4 rounded-[14px] border-2 border-dashed border-[#d7d7d7]" />
-      <div className="absolute left-8 top-12 space-y-2">
-        <span className="block h-7 w-7 rounded bg-[#c9c9c9]" />
-        <span className="block h-7 w-7 rounded bg-[#c9c9c9]" />
-        <span className="block h-7 w-7 rounded bg-[#c9c9c9]" />
-      </div>
-      <div className="absolute bottom-8 left-8 h-10 w-10 rounded-[10px] border-2 border-dashed border-[#dedede]" />
-      <div className="absolute bottom-8 left-[86px] h-10 w-16 rounded-[10px] border-2 border-dashed border-[#dedede]" />
-      <div className="absolute bottom-8 right-8 h-10 w-12 rounded-[10px] border-2 border-dashed border-[#dedede]" />
-      <div className="absolute right-9 top-[84px] flex h-14 w-14 items-center justify-center rounded-[10px] bg-[#c9c9c9] text-[25px] font-semibold text-white">
-        <Type size={30} strokeWidth={1.5} />
-      </div>
-    </div>
-  </div>
-);
+type Metric = {
+  label: string;
+  value: string;
+  delta?: string;
+  positive?: boolean;
+};
 
-const MiniCard = ({
-  title,
-  children,
-  action,
-}: {
-  title: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) => (
-  <article className="min-h-[156px] rounded-[16px] bg-[#fbfbfb] p-6">
-    <div className="flex items-start justify-between gap-4">
-      <h3 className="max-w-[220px] text-[18px] font-[650] leading-[1.16] tracking-[-0.02em] text-[#303030]">{title}</h3>
-      {action}
-    </div>
-    <div className="mt-5">{children}</div>
-  </article>
-);
+type PublishedItem = {
+  id: string;
+  name: string;
+  image: string;
+  status: "ativo" | "pausado";
+  sales: number;
+  marginPct: number;
+};
+
+type AIActivity = {
+  id: string;
+  time: string;
+  text: string;
+};
+
+const MOCK_APPROVAL: ApprovalProduct[] = [
+  {
+    id: "1",
+    name: "Luminária LED Dobrável Recarregável",
+    image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=400&q=80",
+    cost: 24.9,
+    suggestedPrice: 79.9,
+    marginPct: 42,
+  },
+  {
+    id: "2",
+    name: "Mini Aspirador Portátil USB",
+    image: "https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=400&q=80",
+    cost: 38.5,
+    suggestedPrice: 119.9,
+    marginPct: 38,
+  },
+  {
+    id: "3",
+    name: "Suporte Magnético para Celular Carro",
+    image: "https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=400&q=80",
+    cost: 12.3,
+    suggestedPrice: 49.9,
+    marginPct: 51,
+  },
+];
+
+const MOCK_METRICS: Metric[] = [
+  { label: "Produtos no ML", value: "128", delta: "+6", positive: true },
+  { label: "Vendas hoje", value: "R$ 1.847", delta: "+12,4%", positive: true },
+  { label: "Vendas do mês", value: "R$ 38.219", delta: "+8,1%", positive: true },
+  { label: "Margem média", value: "41%", delta: "-1,2%", positive: false },
+];
+
+const MOCK_PUBLISHED: PublishedItem[] = [
+  {
+    id: "p1",
+    name: "Fone Bluetooth Esportivo Pro",
+    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=200&q=80",
+    status: "ativo",
+    sales: 42,
+    marginPct: 44,
+  },
+  {
+    id: "p2",
+    name: "Garrafa Térmica 1L Inox",
+    image: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=200&q=80",
+    status: "ativo",
+    sales: 31,
+    marginPct: 39,
+  },
+  {
+    id: "p3",
+    name: "Mochila Antifurto Impermeável",
+    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=200&q=80",
+    status: "ativo",
+    sales: 28,
+    marginPct: 47,
+  },
+  {
+    id: "p4",
+    name: "Relógio Smartwatch Série 9",
+    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=200&q=80",
+    status: "pausado",
+    sales: 19,
+    marginPct: 35,
+  },
+  {
+    id: "p5",
+    name: "Câmera de Segurança Wi-Fi",
+    image: "https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=200&q=80",
+    status: "ativo",
+    sales: 14,
+    marginPct: 52,
+  },
+];
+
+const MOCK_ACTIVITY: AIActivity[] = [
+  { id: "a1", time: "08h14", text: "47 produtos analisados no CJ Dropshipping" },
+  { id: "a2", time: "08h15", text: "3 produtos selecionados com margem acima de 35%" },
+  { id: "a3", time: "Ontem 18h22", text: "5 anúncios otimizados no Mercado Livre" },
+  { id: "a4", time: "Ontem 09h02", text: "2 produtos publicados no Mercado Livre" },
+  { id: "a5", time: "Anteontem 14h40", text: "Catálogo CJ atualizado — 312 novos itens" },
+];
+
+const formatBRL = (n: number) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// ============================================================
 
 export default function DashboardHomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [command, setCommand] = useState("");
 
   const { data: profile } = useQuery({
     queryKey: ["dashboard-home-profile", user?.id],
@@ -103,208 +166,188 @@ export default function DashboardHomePage() {
     return source ? source.split(" ")[0] : "";
   }, [profile?.display_name, user?.user_metadata]);
 
-  const submitCommand = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const normalized = command.trim().toLowerCase();
-    if (!normalized) return;
+  const approvalQueue = MOCK_APPROVAL;
+  const metrics = MOCK_METRICS;
+  const published = MOCK_PUBLISHED;
+  const activity = MOCK_ACTIVITY;
 
-    if (normalized.includes("produto") || normalized.includes("import")) {
-      navigate("/dashboard/produtos");
-      return;
-    }
-
-    if (normalized.includes("pedido") || normalized.includes("venda")) {
-      navigate("/dashboard/pedidos");
-      return;
-    }
-
-    if (normalized.includes("pagamento") || normalized.includes("plano")) {
-      navigate("/checkout?plan=pro");
-      return;
-    }
-
-    navigate("/dashboard/produtos");
-  };
+  const analyzedCount = 47;
+  const pendingCount = approvalQueue.length;
 
   return (
-    <main className="-m-3 min-h-[calc(100vh-96px)] bg-[#f1f1f1] px-4 py-6 text-[#303030] antialiased [font-family:-apple-system,BlinkMacSystemFont,'SF_Pro_Text','Helvetica_Neue',Arial,sans-serif] sm:-m-4 sm:px-6 lg:-m-6 lg:px-8 lg:py-7">
-      <div className="mx-auto w-full max-w-[960px]">
-        <section className="flex min-h-[62px] items-center justify-between rounded-[14px] bg-[#202529] px-5 text-white shadow-[0_1px_2px_rgba(0,0,0,0.14)]">
-          <p className="text-[16px] font-[520] tracking-[0.01em]">Garanta 3 meses por $ 1/mês</p>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => navigate("/checkout?plan=pro")}
-              className="hidden h-11 rounded-[9px] bg-white px-5 text-[15px] font-[650] text-[#303030] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] transition hover:bg-[#f4f4f4] sm:inline-flex sm:items-center"
-            >
-              Selecionar um plano
-            </button>
-            <button
-              type="button"
-              aria-label="Fechar promoção"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-white/86 transition hover:bg-white/10 hover:text-white"
-            >
-              <X size={20} strokeWidth={2.2} />
-            </button>
-          </div>
-        </section>
-
-        <section className="mt-10">
-          <div className="mb-4 flex items-center justify-between px-3">
-            <h1 className="text-[22px] font-[650] leading-none tracking-[-0.012em] text-[#303030]">
-              {getGreeting()}{firstName ? `, ${firstName}` : ""}, vamos começar.
-            </h1>
-            <p className="hidden text-[15px] font-[560] text-[#303030] sm:block">
-              Dúvidas? <span className="font-[680]">0800 590 0140</span>
+    <main className="-m-3 min-h-[calc(100vh-96px)] bg-[#F4F4F4] px-4 py-8 text-[#0a0a0a] antialiased [font-family:'Hanken_Grotesk',-apple-system,BlinkMacSystemFont,'Helvetica_Neue',Arial,sans-serif] sm:-m-4 sm:px-8 lg:-m-6 lg:px-12 lg:py-10">
+      <div className="mx-auto grid w-full max-w-[1200px] grid-cols-12 gap-6">
+        {/* 1. Header pessoal */}
+        <header className="col-span-12">
+          <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.02em] text-black sm:text-[48px]">
+            {getGreeting()}{firstName ? `, ${firstName}` : ""}.
+          </h1>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#16a34a] opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#16a34a]" />
+            </span>
+            <p className="text-[15px] font-medium text-[#4a4a4a]">
+              Última varredura: hoje às 08h — {analyzedCount} produtos analisados,{" "}
+              <span className="font-semibold text-black">{pendingCount} aguardando sua aprovação</span>
             </p>
           </div>
+        </header>
 
-          <form
-            onSubmit={submitCommand}
-            className="relative rounded-[14px] border border-[#d8d8d8] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-          >
-            <input
-              value={command}
-              onChange={(event) => setCommand(event.target.value)}
-              placeholder="Pergunte o que quiser..."
-              className="h-9 w-full border-0 bg-transparent pr-20 text-[17px] font-[430] text-[#303030] outline-none placeholder:text-[#858585]"
-            />
-            <div className="mt-5 flex items-center justify-between">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#5e28d8] text-[14px] text-white">
-                ◉
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  aria-label="Adicionar"
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-[#303030] transition hover:bg-[#f2f2f2]"
-                >
-                  <Plus size={20} strokeWidth={2.2} />
-                </button>
-                <button
-                  type="submit"
-                  aria-label="Enviar"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f1f1f1] text-[#b8b8b8] transition hover:bg-[#e7e7e7] hover:text-[#303030]"
-                >
-                  <ArrowUp size={19} strokeWidth={2.4} />
-                </button>
-              </div>
+        {/* 2. Card de destaque — Fila de Aprovação */}
+        <section className="col-span-12 rounded-[16px] bg-[#111] p-7 text-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:p-9">
+          <div className="mb-7 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-[24px] font-semibold tracking-[-0.01em] sm:text-[28px]">
+                Produtos encontrados pela IA hoje
+              </h2>
+              <p className="mt-1.5 text-[14px] text-white/60">
+                Revise e aprove para publicar automaticamente no Mercado Livre.
+              </p>
             </div>
-          </form>
+          </div>
+
+          {approvalQueue.length === 0 ? (
+            <div className="rounded-[12px] border border-white/10 bg-white/[0.03] px-6 py-12 text-center text-[15px] text-white/70">
+              A IA está varrendo o catálogo. Novos produtos em breve.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {approvalQueue.map((p) => (
+                <article
+                  key={p.id}
+                  className="flex flex-col overflow-hidden rounded-[14px] bg-white text-[#0a0a0a]"
+                >
+                  <div
+                    className="aspect-[4/3] w-full bg-[#f4f4f4] bg-cover bg-center"
+                    style={{ backgroundImage: `url(${p.image})` }}
+                  />
+                  <div className="flex flex-1 flex-col p-5">
+                    <h3 className="line-clamp-2 min-h-[44px] text-[15px] font-semibold leading-snug">
+                      {p.name}
+                    </h3>
+                    <dl className="mt-4 space-y-1.5 text-[13px]">
+                      <div className="flex justify-between text-[#6b6b6b]">
+                        <dt>Custo</dt>
+                        <dd className="font-medium text-[#0a0a0a]">{formatBRL(p.cost)}</dd>
+                      </div>
+                      <div className="flex justify-between text-[#6b6b6b]">
+                        <dt>Sugerido</dt>
+                        <dd className="font-medium text-[#0a0a0a]">{formatBRL(p.suggestedPrice)}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-[#6b6b6b]">Margem</dt>
+                        <dd className="font-semibold text-[#16a34a]">{p.marginPct}%</dd>
+                      </div>
+                    </dl>
+                    <div className="mt-5 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        className="h-10 rounded-[8px] bg-black text-[14px] font-semibold text-white transition hover:bg-[#1f1f1f]"
+                      >
+                        Aprovar e Publicar
+                      </button>
+                      <button
+                        type="button"
+                        className="h-9 rounded-[8px] text-[13px] font-medium text-[#6b6b6b] transition hover:text-[#0a0a0a]"
+                      >
+                        Ignorar
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
-        <section className="mt-5 rounded-[14px] border border-[#d8d8d8] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.07)]">
-          <div className="mb-7 flex items-center gap-3">
-            <h2 className="text-[18px] font-[680] tracking-[-0.01em] text-[#303030]">
-              {profile?.loja_nome ? profile.loja_nome : "Adicionar nome da loja"}
-            </h2>
-            <button type="button" className="rounded-full text-[#303030] transition hover:text-black" aria-label="Editar nome da loja">
-              <Edit3 size={18} strokeWidth={2.2} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <article className="rounded-[18px] bg-[#fbfbfb] p-5">
-              <StoreSetupIllustration />
-              <div className="px-1 pb-1 pt-7">
-                <h3 className="text-[18px] font-[680] tracking-[-0.01em] text-[#303030]">Adicione seu primeiro produto</h3>
-                <p className="mt-3 max-w-[390px] text-[15px] font-[430] leading-[1.45] text-[#6b6b6b]">
-                  Comece adicionando um produto e alguns detalhes principais. Não está pronto?{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate("/dashboard/produtos")}
-                    className="font-[520] text-[#275fd7] underline underline-offset-2"
-                  >
-                    Comece com um produto de amostra
-                  </button>
-                </p>
-                <div className="mt-6 flex flex-wrap items-center gap-5">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/dashboard/produtos")}
-                    className="h-10 rounded-[8px] bg-[#303030] px-4 text-[15px] font-[650] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18),0_1px_0_rgba(0,0,0,0.35)] transition hover:bg-[#1f1f1f]"
-                  >
-                    Adicionar produto
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/dashboard/produtos")}
-                    className="text-[15px] font-[560] text-[#303030] transition hover:text-black"
-                  >
-                    Importar
-                  </button>
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-[18px] bg-[#fbfbfb] p-5">
-              <ThemeIllustration />
-              <div className="px-1 pb-1 pt-7">
-                <h3 className="text-[18px] font-[680] tracking-[-0.01em] text-[#303030]">Personalize sua loja virtual</h3>
-                <p className="mt-3 max-w-[390px] text-[15px] font-[430] leading-[1.45] text-[#6b6b6b]">
-                  Adicione seu logo, cores e imagens para dar vida à sua marca.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate("/dashboard/configuracoes")}
-                  className="mt-7 h-10 rounded-[8px] border border-[#d6d6d6] bg-white px-4 text-[15px] font-[560] text-[#303030] shadow-[0_1px_1px_rgba(0,0,0,0.04)] transition hover:bg-[#f7f7f7]"
-                >
-                  Personalizar tema
-                </button>
-              </div>
-            </article>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <MiniCard title="Configurar um provedor de pagamento">
-              <div className="mb-4 flex items-center gap-2">
-                <span className="rounded-[6px] border border-[#dedede] bg-white px-2 py-1 text-[11px] font-[700] text-[#174ea6]">VISA</span>
-                <span className="rounded-[6px] border border-[#dedede] bg-white px-2 py-1 text-[11px] font-[700] text-[#eb001b]">MC</span>
-                <span className="rounded-[6px] border border-[#dedede] bg-white px-2 py-1 text-[11px] font-[700] text-[#00a650]">Pix</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate("/checkout?plan=pro")}
-                className="h-8 rounded-[7px] border border-[#d6d6d6] bg-white px-3 text-[13px] font-[560] text-[#303030] transition hover:bg-[#f7f7f7]"
-              >
-                Ativar
-              </button>
-            </MiniCard>
-
-            <MiniCard title="Analise suas taxas de frete">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#19a463] shadow-sm">
-                <span className="h-4 w-4 rotate-45 rounded-[3px] bg-[#f6d34f]" />
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard/pedidos")}
-                className="h-8 rounded-[7px] border border-[#d6d6d6] bg-white px-3 text-[13px] font-[560] text-[#303030] transition hover:bg-[#f7f7f7]"
-              >
-                Analisar
-              </button>
-            </MiniCard>
-
-            <MiniCard
-              title="Personalizar domínio"
-              action={
-                <span className="rounded-full bg-[#e2e2e2] px-3 py-1 text-[13px] font-[650] text-[#303030]">
-                  Ganhe $ 20
-                </span>
-              }
+        {/* 3. Métricas rápidas */}
+        <section className="col-span-12 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {metrics.map((m) => (
+            <article
+              key={m.label}
+              className="rounded-[16px] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
             >
-              <div className="mb-4 flex h-9 items-center justify-between rounded-[8px] border border-[#dedede] bg-white px-3 text-[13px] text-[#6b6b6b]">
-                velods.com.br
-                <Search size={14} />
+              <div className="flex items-baseline gap-2">
+                <span className="text-[28px] font-semibold tracking-[-0.02em] text-black">
+                  {m.value}
+                </span>
+                {m.delta && (
+                  <span
+                    className={`text-[13px] font-semibold ${
+                      m.positive ? "text-[#16a34a]" : "text-[#dc2626]"
+                    }`}
+                  >
+                    {m.delta}
+                  </span>
+                )}
               </div>
+              <p className="mt-1 text-[13px] text-[#6b6b6b]">{m.label}</p>
+            </article>
+          ))}
+        </section>
+
+        {/* 4 + 5. Publicados recentemente + Atividade IA */}
+        <section className="col-span-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Publicados recentemente */}
+          <article className="rounded-[16px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:col-span-2">
+            <header className="mb-5 flex items-center justify-between">
+              <h2 className="text-[18px] font-semibold tracking-[-0.01em] text-black">
+                Publicados recentemente
+              </h2>
               <button
                 type="button"
-                onClick={() => navigate("/dashboard/configuracoes")}
-                className="h-8 rounded-[7px] border border-[#d6d6d6] bg-white px-3 text-[13px] font-[560] text-[#303030] transition hover:bg-[#f7f7f7]"
+                onClick={() => navigate("/dashboard/publicacoes")}
+                className="text-[13px] font-medium text-[#6b6b6b] transition hover:text-black"
               >
-                Personalizar
+                Ver tudo
               </button>
-            </MiniCard>
-          </div>
+            </header>
+
+            <ul className="divide-y divide-[#f1f1f1]">
+              {published.map((item) => (
+                <li key={item.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                  <div
+                    className="h-12 w-12 flex-shrink-0 rounded-[8px] bg-[#f4f4f4] bg-cover bg-center"
+                    style={{ backgroundImage: `url(${item.image})` }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[14px] font-medium text-black">{item.name}</p>
+                    <p className="mt-0.5 text-[12px] text-[#6b6b6b]">
+                      {item.sales} vendas · margem {item.marginPct}%
+                    </p>
+                  </div>
+                  <span
+                    className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      item.status === "ativo"
+                        ? "bg-[#e8f5ec] text-[#16a34a]"
+                        : "bg-[#f4f4f4] text-[#6b6b6b]"
+                    }`}
+                  >
+                    {item.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          {/* Atividade da IA */}
+          <article className="rounded-[16px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <h2 className="mb-5 text-[18px] font-semibold tracking-[-0.01em] text-black">
+              Atividade da IA
+            </h2>
+            <ol className="relative space-y-5 border-l border-[#ececec] pl-5">
+              {activity.map((a) => (
+                <li key={a.id} className="relative">
+                  <span className="absolute -left-[23px] top-1.5 h-2 w-2 rounded-full bg-black" />
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#9a9a9a]">
+                    {a.time}
+                  </p>
+                  <p className="mt-1 text-[13px] leading-snug text-[#0a0a0a]">{a.text}</p>
+                </li>
+              ))}
+            </ol>
+          </article>
         </section>
       </div>
     </main>
