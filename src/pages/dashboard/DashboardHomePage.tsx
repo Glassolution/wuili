@@ -444,8 +444,8 @@ export default function DashboardHomePage() {
 
   return (
     <>
-    <main className="-m-3 min-h-[calc(100vh-96px)] bg-[#F4F4F4] px-4 py-5 text-[#0a0a0a] antialiased [font-family:'Hanken_Grotesk',-apple-system,BlinkMacSystemFont,'Helvetica_Neue',Arial,sans-serif] sm:-m-4 sm:px-6 sm:py-6 lg:-m-6 lg:px-8 lg:py-7">
-      <div className="mx-auto grid w-full max-w-[1120px] grid-cols-12 gap-4">
+    <main className="min-h-full w-full bg-[#F4F4F4] text-[#0a0a0a] antialiased [font-family:'Hanken_Grotesk',-apple-system,BlinkMacSystemFont,'Helvetica_Neue',Arial,sans-serif]">
+      <div className="grid w-full grid-cols-12 gap-4">
         <header className="col-span-12 flex flex-col gap-2 rounded-[14px] bg-white/70 px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] text-black">
             {getGreeting()}{firstName ? `, ${firstName}` : ""}.

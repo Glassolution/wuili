@@ -647,7 +647,7 @@ const DashboardLayoutInner = () => {
           {/* Header - no shell cinza */}
           <DashboardHeader />
           {/* Main content area - sem moldura externa */}
-          <main className="flex min-h-0 flex-1 overflow-y-auto overflow-x-hidden" style={{ backgroundColor: "#F4F4F5" }}>
+          <main className="flex min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ backgroundColor: "#F4F4F5" }}>
             <PageErrorBoundary>
               <Outlet />
             </PageErrorBoundary>
