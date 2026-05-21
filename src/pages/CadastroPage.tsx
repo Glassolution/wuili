@@ -37,7 +37,7 @@ const CadastroPage = () => {
   const smooth = { duration: 0.68, ease: [0.22, 1, 0.36, 1] as const };
 
   if (!authLoading && user && !isOfferStep) {
-    return <Navigate to="/setup" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

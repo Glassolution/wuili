@@ -386,7 +386,7 @@ export async function getPersonalizedProducts(userId, filters = {}) {
   }
 
   const curatedProducts = filterDismissedProducts(
-    await getCuratedProducts(baseFilters),
+    await getCuratedProducts({ ...baseFilters, userId }),
     profile.dismissedProducts,
   );
   let products;

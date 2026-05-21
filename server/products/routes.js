@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { getCuratedProducts, productCurationConfig, scoreProduct } from "./productCurationService.js";
+import { productCurationConfig, scoreProduct } from "./productCurationService.js";
 import { requireAuthenticatedUser } from "./authMiddleware.js";
-import { getPersonalizedProducts } from "./personalizedProductService.js";
+import { getPersonalizedProducts, invalidateUserRecommendations } from "./personalizedProductService.js";
 import { trackEventFireAndForget } from "./feedbackService.js";
 import {
   OnboardingError,
@@ -15,6 +15,55 @@ import {
 } from "./mlWebhookService.js";
 
 const router = Router();
+
+const SUPABASE_FUNCTIONS_URL = "https://nqzpoioxvbqavrtphtoa.supabase.co/functions/v1";
+
+function getAuthorizationHeader(req) {
+  return req.headers?.authorization ?? req.headers?.Authorization ?? null;
+}
+
+async function requestCatalogSync(req) {
+  const authorization = getAuthorizationHeader(req);
+  if (!authorization) return { ok: false, reason: "missing_authorization" };
+
+  try {
+    const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/cj-sync-request`, {
+      method: "POST",
+      headers: {
+        Authorization: authorization,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const text = await response.text();
+    let payload = null;
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      payload = text;
+    }
+
+    if (!response.ok) {
+      console.warn("[product-curation] sync CJ não concluiu:", response.status, payload);
+      return { ok: false, status: response.status, payload };
+    }
+
+    console.log("[product-curation] sync CJ concluído:", payload);
+    return { ok: true, status: response.status, payload };
+  } catch (error) {
+    console.error("[product-curation] erro ao solicitar sync CJ:", error);
+    return { ok: false, error: error?.message ?? String(error) };
+  }
+}
+
+async function loadCuratedProducts(userId, filters) {
+  const recommendations = await getPersonalizedProducts(userId, filters);
+  const products = Array.isArray(recommendations?.products)
+    ? recommendations.products.slice(0, 3)
+    : [];
+
+  return { recommendations, products };
+}
 const VALID_FEEDBACK_EVENTS = new Set([
   "product_viewed",
   "product_clicked_buy",
@@ -28,22 +77,36 @@ function parseNumberQuery(value, fallback = undefined) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-router.get("/api/products/curated", async (req, res) => {
+router.get("/api/products/curated", requireAuthenticatedUser, async (req, res) => {
   try {
     const filters = {
       category: typeof req.query.category === "string" ? req.query.category : undefined,
       minScore: parseNumberQuery(req.query.minScore, 0),
       minMargin: parseNumberQuery(req.query.minMargin),
       maxShippingDays: parseNumberQuery(req.query.maxShippingDays),
-      limit: parseNumberQuery(req.query.limit, 30),
+      limit: parseNumberQuery(req.query.limit, 3),
     };
 
-    const products = await getCuratedProducts(filters);
+    let { recommendations, products } = await loadCuratedProducts(req.user.id, filters);
+    let sync = null;
+
+    if (products.length === 0) {
+      console.warn("[product-curation] curadoria vazia; solicitando sync do catálogo CJ.");
+      sync = await requestCatalogSync(req);
+
+      if (sync?.ok) {
+        await invalidateUserRecommendations(req.user.id);
+        ({ recommendations, products } = await loadCuratedProducts(req.user.id, filters));
+      }
+    }
 
     return res.json({
       products,
       total: products.length,
       filters,
+      profile: recommendations.profile,
+      rule: recommendations.rule,
+      sync,
       scoring: {
         weights: productCurationConfig.activeWeights(),
         cacheTtlSeconds: productCurationConfig.cacheTtlSeconds,
@@ -53,6 +116,7 @@ router.get("/api/products/curated", async (req, res) => {
     console.error("[product-curation] erro no endpoint /api/products/curated:", error);
     return res.status(500).json({
       error: "Não foi possível carregar produtos curados agora.",
+      details: error?.message ?? String(error),
       products: [],
     });
   }

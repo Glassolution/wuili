@@ -44,7 +44,7 @@ const AuthEntryPage = () => {
     }
   }, [initialEmail]);
 
-  if (!authLoading && user) return <Navigate to="/setup" replace />;
+  if (!authLoading && user) return <Navigate to="/dashboard" replace />;
 
   const handleGoogle = async () => {
     setGoogleLoading(true);

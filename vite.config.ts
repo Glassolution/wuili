@@ -1,4 +1,4 @@
-﻿import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { pathToFileURL } from "url";
@@ -30,6 +30,8 @@ function affiliateApiDevMiddleware() {
         const handlerByPath = {
           "/api/affiliates/generate": "api/affiliates/generate.js",
           "/api/affiliates/link": "api/affiliates/link.js",
+          "/api/products/curated": "api/products/curated.js",
+          "/api/products/recommended": "api/products/recommended.js",
         };
         const handlerPath = handlerByPath[requestUrl.pathname];
 
@@ -37,6 +39,7 @@ function affiliateApiDevMiddleware() {
           return next();
         }
 
+        req.query = Object.fromEntries(requestUrl.searchParams.entries());
         const moduleUrl = pathToFileURL(path.resolve(__dirname, handlerPath)).href;
         const { default: handler } = await import(`${moduleUrl}?t=${Date.now()}`);
         const chunks = [];

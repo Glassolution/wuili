@@ -1,5 +1,6 @@
 import { FormEvent, ImgHTMLAttributes, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const operationLogos = [
   { name: "Mercado Livre", label: "Mercado Livre", src: "/brand/mercado-livre.svg" },
@@ -413,8 +414,17 @@ export default function Index() {
     return () => observer.disconnect();
   }, []);
 
+  const authTarget = !authLoading && user ? "/dashboard" : "/auth";
+  const ctaLabel = !authLoading && user ? "Entrar no dashboard" : "Começar gratuitamente";
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!authLoading && user) {
+      navigate("/dashboard");
+      return;
+    }
+
     const cleanEmail = email.trim();
     if (cleanEmail) window.localStorage.setItem("velo_auth_email", cleanEmail);
     navigate(cleanEmail ? `/auth?email=${encodeURIComponent(cleanEmail)}` : "/auth", {
@@ -431,10 +441,10 @@ export default function Index() {
 
         <button
           type="button"
-          onClick={() => navigate("/auth")}
+          onClick={() => navigate(authTarget)}
           className="h-[42px] rounded-full bg-[#060606] px-5 text-[14px] font-medium tracking-[-0.008em] text-white transition hover:-translate-y-0.5 hover:bg-black/85 sm:h-[46px] sm:px-7 sm:text-[15px]"
         >
-          Começar gratuitamente
+          {ctaLabel}
         </button>
       </header>
 
@@ -468,7 +478,7 @@ export default function Index() {
               type="submit"
               className="h-[46px] rounded-full bg-[#060606] px-6 text-[15px] font-medium tracking-[-0.008em] text-white transition hover:bg-black/85 sm:px-7"
             >
-              Começar gratuitamente
+              {ctaLabel}
             </button>
           </form>
 
@@ -625,7 +635,7 @@ export default function Index() {
               type="submit"
               className="h-[52px] rounded-full bg-black px-7 text-[17px] font-semibold text-white transition hover:bg-black/85"
             >
-              Começar agora
+              {!authLoading && user ? "Entrar no dashboard" : "Começar agora"}
             </button>
           </form>
           <p className="mt-5 text-[15px] tracking-[-0.01em] text-black/48">

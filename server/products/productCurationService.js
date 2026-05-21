@@ -9,6 +9,8 @@ const MAX_LIMIT = 100;
 const MIN_PUBLISHABLE_SCORE = 40;
 const ML_SEARCH_URL = "https://api.mercadolibre.com/sites/MLB/search";
 const CJ_PRODUCT_QUERY_URL = "https://developers.cjdropshipping.com/api2.0/v1/product/query";
+const DEFAULT_SUPABASE_URL = "https://nqzpoioxvbqavrtphtoa.supabase.co";
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xenBvaW94dmJxYXZydHBodG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNDMyNDgsImV4cCI6MjA5MDgxOTI0OH0.G1VlS8doiHQtooC2tyiiHbWl4h9kqoMSuirShDhhjzk";
 
 const DEFAULT_WEIGHTS = {
   margin: 0.3,
@@ -189,12 +191,13 @@ export function getProductCurationCache() {
 export function getProductCurationSupabase() {
   if (supabaseClient) return supabaseClient;
 
-  const supabaseUrl = process.env.DB_URL ?? process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+  const supabaseUrl = process.env.DB_URL ?? process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? DEFAULT_SUPABASE_URL;
   const supabaseKey =
     process.env.DB_SERVICE_ROLE_KEY ??
     process.env.SUPABASE_SERVICE_ROLE_KEY ??
     process.env.SUPABASE_ANON_KEY ??
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+    DEFAULT_SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     console.warn("[product-curation] Supabase não configurado; catálogo curado retornará vazio.");
@@ -205,6 +208,28 @@ export function getProductCurationSupabase() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   return supabaseClient;
+}
+export async function logAiActivity(userId, message, metadata = {}) {
+  if (!userId || !message) return null;
+
+  const supabase = getProductCurationSupabase();
+  if (!supabase) return null;
+
+  try {
+    const { error } = await supabase
+      .from("ai_activity_logs")
+      .insert({
+        user_id: userId,
+        message,
+        metadata,
+      });
+
+    if (error) throw error;
+  } catch (error) {
+    console.warn("[product-curation] não foi possível registrar atividade da IA:", error.message);
+  }
+
+  return null;
 }
 
 function getScoreWeights() {
@@ -679,10 +704,27 @@ export async function getCuratedProducts(filters = {}) {
     }
   });
 
-  return scoredProducts
+  const curated = scoredProducts
     .filter(Boolean)
     .sort((a, b) => b.curation.score - a.curation.score)
     .slice(0, limit);
+
+  if (filters.userId) {
+    await logAiActivity(
+      filters.userId,
+      `${curated.length} produtos selecionados pela IA no CJ Dropshipping`,
+      {
+        source: "product_curation",
+        analyzed: scoredProducts.length,
+        selected: curated.length,
+        limit,
+        minScore: filters.minScore ?? null,
+        category: filters.category ?? null,
+      },
+    );
+  }
+
+  return curated;
 }
 
 export const productCurationConfig = {
