@@ -22,14 +22,13 @@ const loadingMessages = [
 const smooth = { duration: 0.64, ease: [0.22, 1, 0.36, 1] as const };
 const chipTransition = { duration: 0.46, ease: [0.22, 1, 0.36, 1] as const };
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4;
 
 const stepTitles: Record<Step, string> = {
   1: "Qual é o seu objetivo?",
   2: "O que você quer vender?",
   3: "Quanto tempo você tem por semana?",
   4: "Qual é a sua experiência com vendas online?",
-  5: "Como você quer chamar sua loja?",
 };
 
 const SetupPage = () => {
@@ -40,7 +39,6 @@ const SetupPage = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [availability, setAvailability] = useState("");
   const [experience, setExperience] = useState("");
-  const [storeName, setStoreName] = useState("");
   const [saving, setSaving] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [loadingIndex, setLoadingIndex] = useState(0);
@@ -70,22 +68,16 @@ const SetupPage = () => {
     if (step === 2 && selectedCategories.length === 0) return toast.error("Escolha ao menos uma categoria.");
     if (step === 3 && !availability) return toast.error("Selecione sua disponibilidade.");
     if (step === 4 && !experience) return toast.error("Selecione sua experiência.");
-    setStep((s) => (s < 5 ? ((s + 1) as Step) : s));
+    if (step === 4) return handleFinish();
+    setStep((s) => (s < 4 ? ((s + 1) as Step) : s));
   };
 
   const handleFinish = async () => {
-    const trimmed = storeName.trim();
-    if (!trimmed) {
-      toast.error("Dê um nome para sua loja.");
-      return;
-    }
-
     const payload = {
       objective,
       categories: selectedCategories,
       availability,
       experience,
-      storeName: trimmed,
       completedAt: new Date().toISOString(),
     };
     localStorage.setItem("velo_setup_profile", JSON.stringify(payload));
@@ -95,8 +87,6 @@ const SetupPage = () => {
       const { error } = await supabase
         .from("profiles")
         .update({
-          loja_nome: trimmed,
-          store_name: trimmed,
           objetivo: objective,
           categorias: selectedCategories,
           disponibilidade_semanal: availability,
@@ -108,7 +98,7 @@ const SetupPage = () => {
 
       if (error) {
         console.error("[setup] erro ao salvar perfil:", error);
-        toast.error("Não foi possível salvar o nome da loja. Tente novamente.");
+        toast.error("Não foi possível salvar seu perfil. Tente novamente.");
         return;
       }
     }
@@ -116,80 +106,6 @@ const SetupPage = () => {
     setFinishing(true);
   };
 
-  // ============ Special step 5: Store foundation ============
-  if (step === 5 && !finishing) {
-    return (
-      <main className="relative min-h-screen overflow-hidden bg-black text-white antialiased [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04),transparent_55%)]" />
-        <header className="relative z-10 flex items-center justify-between px-6 py-5 sm:px-8">
-          <VeloLogo size="md" variant="light" />
-          <button
-            type="button"
-            onClick={() => setStep(4)}
-            className="text-[12px] font-[400] tracking-[-0.01em] text-white/50 transition hover:text-white"
-          >
-            ← Voltar
-          </button>
-        </header>
-
-        <section className="relative z-10 flex min-h-[calc(100vh-82px)] items-center justify-center px-6 pb-16">
-          <motion.div
-            initial={{ opacity: 0, y: 22, filter: "blur(10px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={smooth}
-            className="w-full max-w-[640px] text-center"
-          >
-            <p className="text-[10px] font-[500] uppercase tracking-[0.2em] text-white/30">
-              Passo 5 de 5
-            </p>
-            <h1 className="mt-5 text-[40px] font-[350] leading-[1.02] tracking-[-0.045em] text-white sm:text-[52px]">
-              Como você quer chamar sua loja?
-            </h1>
-            <p className="mt-4 text-[14px] font-[350] tracking-[-0.01em] text-white/55">
-              Esse é o nome que aparecerá na sua operação.
-            </p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...smooth, delay: 0.18 }}
-              className="mx-auto mt-10 w-full max-w-[520px]"
-            >
-              <input
-                type="text"
-                autoFocus
-                value={storeName}
-                onChange={(e) => setStoreName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !saving) handleFinish();
-                }}
-                placeholder="Minha Loja"
-                className="w-full border-0 border-b border-white/40 bg-transparent pb-3 text-center text-[28px] font-[350] tracking-[-0.03em] text-white placeholder:text-white/20 focus:border-white focus:outline-none sm:text-[34px]"
-              />
-
-              <button
-                type="button"
-                onClick={handleFinish}
-                disabled={saving}
-                className="mt-10 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-8 text-[13px] font-[500] tracking-[-0.01em] text-black transition hover:bg-white/90 disabled:opacity-60"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Criando...
-                  </>
-                ) : (
-                  <>Criar minha loja →</>
-                )}
-              </button>
-            </motion.div>
-          </motion.div>
-        </section>
-      </main>
-    );
-  }
-
-  // ============ Loading ============
   if (finishing) {
     return (
       <main className="relative grid min-h-screen place-items-center bg-[#030807] text-white antialiased">
@@ -222,7 +138,6 @@ const SetupPage = () => {
     );
   }
 
-  // ============ Steps 1-4 (shared layout) ============
   const currentOptions =
     step === 1 ? objectives : step === 2 ? categories : step === 3 ? availabilities : experiences;
   const isSelected = (item: string) => {
@@ -259,7 +174,7 @@ const SetupPage = () => {
           >
             <div className="mb-5 text-center">
               <p className="text-[10px] font-[500] uppercase tracking-[0.16em] text-white/30">
-                Passo {step} de 5
+                Passo {step} de 4
               </p>
               <h1 className="mt-3 text-[25px] font-[390] leading-[1.05] tracking-[-0.04em] text-white sm:text-[28px]">
                 {stepTitles[step]}
@@ -312,11 +227,11 @@ const SetupPage = () => {
                   )}
                   <button
                     onClick={handleNext}
-                    className={`flex h-10 items-center justify-center rounded-[8px] bg-[#06100f] text-[13px] font-[430] tracking-[-0.01em] text-white transition duration-300 hover:bg-[#111b19] ${
-                      step === 1 ? "sm:col-span-2" : "sm:col-span-2"
-                    }`}
+                    disabled={saving}
+                    className="flex h-10 items-center justify-center gap-2 rounded-[8px] bg-[#06100f] text-[13px] font-[430] tracking-[-0.01em] text-white transition duration-300 hover:bg-[#111b19] disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
                   >
-                    Continuar
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {step === 4 ? "Concluir" : "Continuar"}
                   </button>
                 </div>
               </motion.div>

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, Loader2, Mail } from "lucide-react";
 import { VeloLogo } from "@/components/VeloLogo";
 
-const showcaseTabs = ["Product Research", "IA Listings", "Auto Publish", "Marketplace", "Analytics"];
+const showcaseTabs = ["Pesquisa de produtos", "Listagens com IA", "PublicaÃ§Ã£o automÃ¡tica", "Marketplace", "AnÃ¡lises"];
 const trustedBrands = ["Mercado Livre", "CJ", "Shopee", "Mercado Pago"];
 
 const LoginPage = () => {
@@ -60,7 +60,7 @@ const LoginPage = () => {
       return;
     }
 
-    toast.success("Email de recuperação enviado! Verifique sua caixa de entrada.");
+    toast.success("Email de recuperaÃ§Ã£o enviado! Verifique sua caixa de entrada.");
     setResetMode(false);
   };
 
@@ -83,7 +83,7 @@ const LoginPage = () => {
         <section className="relative hidden min-h-screen overflow-hidden bg-black text-white lg:block">
           <img
             src="https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=1500&q=85"
-            alt="Operação digital automatizada"
+            alt="OperaÃ§Ã£o digital automatizada"
             className="absolute inset-0 h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.36),rgba(0,0,0,0.18)),linear-gradient(180deg,rgba(0,0,0,0.12),rgba(0,0,0,0.72))]" />
@@ -106,7 +106,7 @@ const LoginPage = () => {
                 Produtos prontos para vender em segundos
               </h1>
               <p className="mt-5 max-w-[590px] text-[22px] font-normal leading-[1.35] tracking-[-0.02em] text-white/88">
-                Encontre oportunidades, gere anúncios com IA e publique nos marketplaces sem depender de planilhas.
+                Encontre oportunidades, gere anÃºncios com IA e publique nos marketplaces sem depender de planilhas.
               </p>
             </div>
           </div>
@@ -151,8 +151,8 @@ const LoginPage = () => {
                     </h1>
                     <p className="mt-4 text-[17px] leading-[1.5] tracking-[-0.015em] text-[#777987]">
                       {resetMode
-                        ? "Digite seu email para receber um link seguro de redefinição."
-                        : "Acesse seu painel para continuar sua operação de vendas."}
+                        ? "Digite seu email para receber um link seguro de redefiniÃ§Ã£o."
+                        : "Acesse seu painel para continuar sua operaÃ§Ã£o de vendas."}
                     </p>
                   </div>
 
@@ -245,7 +245,7 @@ const LoginPage = () => {
                       </button>
 
                       <p className="mt-8 text-center text-[15px] text-[#7c808e]">
-                        Ainda não tem conta?{" "}
+                        Ainda nÃ£o tem conta?{" "}
                         <Link to="/auth" className="font-semibold text-black underline-offset-4 hover:underline">
                           Criar conta
                         </Link>
@@ -268,7 +268,7 @@ const LoginPage = () => {
           </div>
 
           <div className="pb-6 text-center lg:text-left">
-            <p className="text-[16px] text-[#b5b8c2]">Trusted by teams at</p>
+            <p className="text-[16px] text-[#b5b8c2]">Usado por operaÃ§Ãµes conectadas a</p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-8 text-[24px] font-semibold tracking-[-0.05em] text-[#d4d6dd] lg:justify-start">
               {trustedBrands.map((brand) => (
                 <span key={brand}>{brand}</span>
