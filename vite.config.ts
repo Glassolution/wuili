@@ -104,6 +104,23 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [react(), affiliateApiDevMiddleware(), mode === "development" && componentTagger()].filter(Boolean),
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return undefined;
+            if (id.includes("@supabase")) return "vendor-supabase";
+            if (id.includes("@tanstack")) return "vendor-query";
+            if (id.includes("framer-motion")) return "vendor-motion";
+            if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
+            if (id.includes("@radix-ui")) return "vendor-radix";
+            if (id.includes("lucide-react")) return "vendor-icons";
+            if (/node_modules[/\\](react|react-dom|scheduler)[/\\]/.test(id)) return "vendor-react";
+            return "vendor";
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

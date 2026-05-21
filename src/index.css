@@ -152,7 +152,7 @@
     font-weight: 600;
   }
 
-  /* Números e valores monetários */
+  /* Numeros e valores monetarios */
   input[type="number"],
   .numeric-value,
   [data-numeric="true"] {
@@ -174,26 +174,22 @@
 [data-reveal] {
   opacity: 0;
   transform: translateY(30px);
-  filter: blur(8px);
   transition:
     opacity 760ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 760ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 760ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: var(--reveal-delay, 0ms);
-  will-change: opacity, transform, filter;
+  will-change: opacity, transform;
 }
 
 [data-reveal].is-visible {
   opacity: 1;
   transform: translateY(0);
-  filter: blur(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-reveal] {
     opacity: 1;
     transform: none;
-    filter: none;
     transition: none;
   }
 }
@@ -266,14 +262,12 @@
   }
 
   /* Sidebar icon draw-on-hover (Lucide SVG stroke animation) */
-  /* Estado padrão — ícone sempre visível e completo */
+  /* Estado padrao: icone sempre visivel e completo */
   .sidebar-item .sidebar-icon path,
   .sidebar-item .sidebar-icon circle,
   .sidebar-item .sidebar-icon rect,
   .sidebar-item .sidebar-icon line,
   .sidebar-item .sidebar-icon polyline {
-    stroke-dasharray: 1000;
-    stroke-dashoffset: 0;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.5;
@@ -281,13 +275,12 @@
     stroke-linejoin: round;
   }
 
-  /* Hover — reinicia a animação do zero */
   .sidebar-item:hover .sidebar-icon path,
   .sidebar-item:hover .sidebar-icon circle,
   .sidebar-item:hover .sidebar-icon rect,
   .sidebar-item:hover .sidebar-icon line,
   .sidebar-item:hover .sidebar-icon polyline {
-    animation: draw-icon 18s cubic-bezier(0.1, 0.0, 0.3, 1) forwards;
+    animation: none;
   }
 
   @media (max-width: 767px) {
@@ -631,12 +624,7 @@
     landing-button-preparing-sheen 1.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
-/* ─────────────────────────────────────────────────────────
-   Liquid glass primary button system
-   .btn-primary           — base (md: 14px 32px / 15px)
-   .btn-primary--lg       — hero size (20px 56px / 17px)
-   .btn-primary--md       — explicit md alias
-   ───────────────────────────────────────────────────────── */
+/* Liquid glass primary button system */
 @keyframes btn-spin {
   0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
@@ -906,7 +894,7 @@
 .animate-orb-drift-c { animation: orb-drift-c 20s ease-in-out infinite alternate; }
 .animate-speck-float { animation: speck-float 6s ease-in-out infinite; }
 
-/* Dashboard — page content fade-in (opacity only — transform quebraria fixed positioning) */
+/* Dashboard page content fade-in (opacity only; transform quebraria fixed positioning) */
 @keyframes pageFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -916,7 +904,7 @@
   animation: pageFadeIn 120ms ease both;
 }
 
-/* Dashboard card hover — GPU-accelerated only */
+/* Dashboard card hover: GPU-accelerated only */
 .card-hover {
   transition: transform 120ms ease, box-shadow 120ms ease;
   will-change: transform;
