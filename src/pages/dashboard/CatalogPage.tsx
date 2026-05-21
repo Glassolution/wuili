@@ -7,7 +7,8 @@ import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
 import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, supabaseUrl } from "@/integrations/supabase/client";
+import { createTimeoutSignal } from "@/lib/requestTimeout";
 
 const CATEGORIES = [
   { key: "todos", label: "Todos" },
@@ -82,21 +83,23 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
         borderRadius: "14px",
         border: "1px solid rgba(0,0,0,0.06)",
         overflow: "hidden",
-        minHeight: "520px",
-        transition: "box-shadow 200ms ease, border-color 200ms ease",
+        minHeight: "0",
+        transition: "transform 180ms ease, box-shadow 200ms ease, border-color 200ms ease",
         cursor: "default",
       }}
       onMouseEnter={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
         (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
         (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.10)";
       }}
       onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
         (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
         (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.06)";
       }}
     >
       {/* Image area */}
-      <div style={{ position: "relative", backgroundColor: "#F5F5F5", height: "270px", width: "100%", overflow: "hidden", flexShrink: 0, borderTopLeftRadius: "14px", borderTopRightRadius: "14px", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+      <div style={{ position: "relative", backgroundColor: "#F5F5F5", height: "244px", width: "100%", overflow: "hidden", flexShrink: 0, borderTopLeftRadius: "14px", borderTopRightRadius: "14px", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
         {img ? (
           <img
             src={img}
@@ -122,22 +125,22 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
       </div>
 
       {/* Card body */}
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "16px 16px 18px" }}>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "14px 16px 16px" }}>
         {/* Product title */}
-        <p style={{ fontSize: "14px", fontWeight: 600, color: "#111111", lineHeight: "1.4", letterSpacing: "-0.01em", margin: "0 0 12px 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", minHeight: "40px" }}>
+        <p style={{ fontSize: "14px", fontWeight: 650, color: "#111111", lineHeight: "1.32", letterSpacing: "-0.01em", margin: "0 0 12px 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
           {p.title}
         </p>
 
         {/* Price + estimated profit */}
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(0, 0.9fr)", gap: "12px", alignItems: "start", marginBottom: "12px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(0, 0.9fr)", gap: "10px", alignItems: "start", marginBottom: "10px" }}>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: "11px", color: "#A3A3A3", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Preço</p>
+            <p style={{ fontSize: "12px", color: "#8A8A8A", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Preço</p>
             <p style={{ fontSize: "13px", fontWeight: 600, color: "#111111", margin: 0, letterSpacing: "-0.01em", lineHeight: "1.35" }}>
               {formatPrice(p.cost_price)} – {formatPrice(p.suggested_price)}
             </p>
           </div>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: "11px", color: "#A3A3A3", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Lucro estimado</p>
+            <p style={{ fontSize: "12px", color: "#8A8A8A", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Lucro estimado</p>
             <p style={{ fontSize: "13px", fontWeight: 600, color: "#059669", margin: 0, letterSpacing: "-0.01em", lineHeight: "1.35", whiteSpace: "nowrap" }}>
               {formatPrice(estimatedProfit)}
             </p>
@@ -146,26 +149,23 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
 
         {/* Tags */}
         {tags.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
             {tags.slice(0, 3).map((tag) => (
-              <span key={tag} style={{ display: "inline-flex", alignItems: "center", height: "24px", fontSize: "12px", fontWeight: 500, color: "#737373", backgroundColor: "#F5F5F5", padding: "0 8px", borderRadius: "8px", letterSpacing: "-0.01em" }}>
+              <span key={tag} style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%", height: "23px", fontSize: "12px", fontWeight: 500, color: "#737373", backgroundColor: "#F5F5F5", padding: "0 8px", borderRadius: "8px", letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {tag}
               </span>
             ))}
           </div>
         )}
 
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
-
         {/* Action buttons */}
-        <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+        <div style={{ display: "flex", gap: "8px", marginTop: "auto", paddingTop: tags.length > 0 ? "0" : "2px" }}>
           <button
             onClick={onImport}
             disabled={outOfStock}
             style={{
               flex: 1,
-              height: "44px",
+              height: "42px",
               backgroundColor: outOfStock ? "#D1D5DB" : "#111111",
               color: "#FFFFFF",
               border: "none",
@@ -185,8 +185,8 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
           <button
             onClick={onCompare}
             style={{
-              width: "44px",
-              height: "44px",
+              width: "42px",
+              height: "42px",
               backgroundColor: "#FFFFFF",
               border: "1px solid rgba(0,0,0,0.10)",
               borderRadius: "10px",
@@ -216,22 +216,30 @@ const CatalogPage = () => {
   const [dateFilter, setDateFilter] = useState("todos");
   const [paymentStatus, setPaymentStatus] = useState("todos");
   const [hideUnavailable, setHideUnavailable] = useState(false);
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const [paymentDropdownOpen, setPaymentDropdownOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
   const [compareProductId, setCompareProductId] = useState<string | null>(null);
   const [compareProductTitle, setCompareProductTitle] = useState("");
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
+  const paymentDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const planLimits = usePlanLimits();
-  const limit = 20;
+  const limit = 12;
 
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
   const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target as Node))
+        setDateDropdownOpen(false);
+      if (paymentDropdownRef.current && !paymentDropdownRef.current.contains(e.target as Node))
+        setPaymentDropdownOpen(false);
       if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node))
         setCategoryDropdownOpen(false);
     };
@@ -239,16 +247,24 @@ const CatalogPage = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["catalog", category, page, search],
-    queryFn: async () => {
+    staleTime: 60 * 1000,
+    retry: 1,
+    queryFn: async ({ signal }) => {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) });
       if (category !== "todos") params.set("category", category);
       if (search) params.set("search", search);
-      const url = `https://${projectId}.supabase.co/functions/v1/catalog?${params}`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${anonKey}` } });
-      if (!res.ok) throw new Error("Failed to fetch catalog");
-      return res.json();
+      const baseUrl = supabaseUrl || `https://${projectId}.supabase.co`;
+      const url = `${baseUrl}/functions/v1/catalog?${params}`;
+      const timeout = createTimeoutSignal(8000, signal);
+      try {
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${anonKey}` }, signal: timeout.signal });
+        if (!res.ok) throw new Error("Failed to fetch catalog");
+        return res.json();
+      } finally {
+        timeout.clear();
+      }
     },
   });
 
@@ -335,6 +351,8 @@ const CatalogPage = () => {
   };
 
   const activeCategoryLabel = CATEGORIES.find(c => c.key === category)?.label ?? "Todos";
+  const activeDateLabel = DATE_FILTERS.find((filter) => filter.key === dateFilter)?.label ?? "Todas as datas";
+  const activePaymentLabel = PAYMENT_STATUS_FILTERS.find((filter) => filter.key === paymentStatus)?.label ?? "Status de pagamento";
 
   return (
     <div
@@ -374,27 +392,71 @@ const CatalogPage = () => {
           </div>
 
           {/* Date range pill */}
-          <div style={{ position: "relative" }}>
-            <select
-              value={dateFilter}
-              onChange={(e) => { setDateFilter(e.target.value); setPage(1); }}
-              style={{ appearance: "none", height: "40px", padding: "0 34px 0 14px", fontSize: "13px", fontWeight: 600, color: "#FFFFFF", backgroundColor: "#111111", border: "none", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none" }}
+          <div style={{ position: "relative" }} ref={dateDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setDateDropdownOpen((value) => !value)}
+              style={{ display: "flex", alignItems: "center", gap: "8px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none" }}
             >
-              {DATE_FILTERS.map((filter) => <option key={filter.key} value={filter.key}>{filter.label}</option>)}
-            </select>
-            <ChevronDown size={13} strokeWidth={2} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.7)", pointerEvents: "none" }} />
+              <span>{activeDateLabel}</span>
+              <ChevronDown size={13} strokeWidth={1.8} style={{ color: "#9CA3AF", transform: dateDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 150ms ease" }} />
+            </button>
+            {dateDropdownOpen && (
+              <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 60, minWidth: "164px", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "12px", boxShadow: "0 16px 36px rgba(15,23,42,0.12)", padding: "6px", overflow: "hidden" }}>
+                {DATE_FILTERS.map((filter) => {
+                  const active = dateFilter === filter.key;
+                  return (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={() => {
+                        setDateFilter(filter.key);
+                        setPage(1);
+                        setDateDropdownOpen(false);
+                      }}
+                      style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", fontSize: "13px", fontWeight: active ? 650 : 500, color: "#111111", backgroundColor: active ? "#F4F4F5" : "transparent", border: "none", borderRadius: "8px", cursor: "pointer", letterSpacing: "-0.01em", textAlign: "left" }}
+                    >
+                      {filter.label}
+                      {active && <Check size={12} strokeWidth={2.5} style={{ color: "#111111" }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Status de pagamento */}
-          <div style={{ position: "relative" }}>
-            <select
-              value={paymentStatus}
-              onChange={(e) => { setPaymentStatus(e.target.value); setPage(1); }}
-              style={{ appearance: "none", height: "40px", padding: "0 34px 0 14px", fontSize: "13px", fontWeight: 500, color: paymentStatus !== "todos" ? "#FFFFFF" : "#111111", backgroundColor: paymentStatus !== "todos" ? "#111111" : "#FFFFFF", border: `1px solid ${paymentStatus !== "todos" ? "#111111" : "#E5E7EB"}`, borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none" }}
+          <div style={{ position: "relative" }} ref={paymentDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setPaymentDropdownOpen((value) => !value)}
+              style={{ display: "flex", alignItems: "center", gap: "8px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: paymentStatus !== "todos" ? "#FFFFFF" : "#111111", backgroundColor: paymentStatus !== "todos" ? "#111111" : "#FFFFFF", border: `1px solid ${paymentStatus !== "todos" ? "#111111" : "#E5E7EB"}`, borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none" }}
             >
-              {PAYMENT_STATUS_FILTERS.map((filter) => <option key={filter.key} value={filter.key}>{filter.label}</option>)}
-            </select>
-            <ChevronDown size={13} strokeWidth={1.8} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: paymentStatus !== "todos" ? "rgba(255,255,255,0.7)" : "#9CA3AF", pointerEvents: "none" }} />
+              <span>{activePaymentLabel}</span>
+              <ChevronDown size={13} strokeWidth={1.8} style={{ color: paymentStatus !== "todos" ? "rgba(255,255,255,0.7)" : "#9CA3AF", transform: paymentDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 150ms ease" }} />
+            </button>
+            {paymentDropdownOpen && (
+              <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 60, minWidth: "190px", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "12px", boxShadow: "0 16px 36px rgba(15,23,42,0.12)", padding: "6px", overflow: "hidden" }}>
+                {PAYMENT_STATUS_FILTERS.map((filter) => {
+                  const active = paymentStatus === filter.key;
+                  return (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={() => {
+                        setPaymentStatus(filter.key);
+                        setPage(1);
+                        setPaymentDropdownOpen(false);
+                      }}
+                      style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", fontSize: "13px", fontWeight: active ? 650 : 500, color: "#111111", backgroundColor: active ? "#F4F4F5" : "transparent", border: "none", borderRadius: "8px", cursor: "pointer", letterSpacing: "-0.01em", textAlign: "left" }}
+                    >
+                      {filter.label}
+                      {active && <Check size={12} strokeWidth={2.5} style={{ color: "#111111" }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Categoria dropdown */}
@@ -480,6 +542,21 @@ const CatalogPage = () => {
             </div>
           ))}
         </div>
+      ) : isError ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center" }}>
+          <Package size={48} strokeWidth={1.5} style={{ color: "#D1D5DB", marginBottom: "16px" }} />
+          <p style={{ fontSize: "15px", fontWeight: 600, color: "#111111", margin: "0 0 6px 0" }}>Nao foi possivel carregar o catalogo</p>
+          <p style={{ fontSize: "13px", color: "#9CA3AF", margin: 0 }}>
+            Verifique a conexao com o Supabase e tente novamente.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            style={{ marginTop: "20px", height: "40px", padding: "0 16px", fontSize: "13px", fontWeight: 600, color: "#FFFFFF", backgroundColor: "#111111", border: "none", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em" }}
+          >
+            Tentar novamente
+          </button>
+        </div>
       ) : products.length === 0 ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center" }}>
           <Package size={48} strokeWidth={1.5} style={{ color: "#D1D5DB", marginBottom: "16px" }} />
@@ -560,6 +637,11 @@ const CatalogPage = () => {
 
         .catalog-product-card:hover .catalog-product-image {
           transform: scale(1.03);
+        }
+
+        .catalog-product-card {
+          content-visibility: auto;
+          contain-intrinsic-size: 430px;
         }
 
         @media (max-width: 1280px) {

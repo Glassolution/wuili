@@ -31,10 +31,25 @@ import {
   Landmark,
   ArrowLeftRight,
   CreditCard,
+  Plus,
+  Check,
+  Plug,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import StartModeModal from "./StartModeModal";
 import { useStartMode } from "@/hooks/useStartMode";
+import {
+  MAX_STORES_PER_USER,
+  readUserStores,
+  START_STORE_ONBOARDING_EVENT,
+  STORES_CHANGED_EVENT,
+  setActiveStore,
+  updateStoreName,
+  deleteStore,
+  type VeloStore,
+} from "@/components/dashboard/FirstStoreOnboarding";
 
 // ── Icon helper — className="sidebar-icon" is what index.css targets for the draw-on animation ──
 const IconSpan = ({
@@ -374,6 +389,227 @@ const VeloMark = ({ size = 28 }: { size?: number }) => (
 
 // ── Toggle Switch ─────────────────────────────────────────────────────────────
 
+const StoreSwitcher = ({
+  collapsed,
+  stores,
+  userEmail,
+}: {
+  collapsed: boolean;
+  stores: VeloStore[];
+  userEmail?: string | null;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const activeStore = stores.find(store => store.isActive) || stores[0];
+  const displayName = activeStore?.name ?? "Criar loja";
+  const canCreateStore = stores.length < MAX_STORES_PER_USER;
+  const storeOptions = stores.map((store) => ({
+    id: store.id,
+    name: store.name,
+    label: `${store.publishedProducts ?? 0}/${store.productLimit ?? 30} produtos`,
+    active: store.isActive || (!stores.some(s => s.isActive) && store === stores[0]),
+  }));
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  const createStore = () => {
+    setIsOpen(false);
+    window.dispatchEvent(new Event(START_STORE_ONBOARDING_EVENT));
+  };
+
+  if (collapsed) {
+    return (
+      <div ref={containerRef} className="relative flex w-full justify-center px-2">
+        <button
+          type="button"
+          onClick={() => setIsOpen((value) => !value)}
+          className="flex h-10 w-10 items-center justify-center rounded-[12px] transition-colors duration-200 hover:bg-black/[0.02]"
+          title="Minha Loja"
+        >
+          <Store size={18} strokeWidth={1.8} className="text-[#6B7280]" />
+        </button>
+        {isOpen && (
+          <div className="absolute left-[58px] top-0 z-50 w-[244px] rounded-[14px] border border-[#E1E5EC] bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
+            <StoreDropdownContent
+              stores={storeOptions}
+              userEmail={userEmail}
+              onCreate={canCreateStore ? createStore : undefined}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="relative shrink-0 px-4">
+      <button
+        type="button"
+        onClick={() => setIsOpen((value) => !value)}
+        aria-expanded={isOpen}
+        className="flex h-10 w-full items-center justify-between rounded-[8px] border border-[#E1E5EC] bg-white px-3 text-left transition-colors duration-200 hover:bg-[#FAFAFA]"
+      >
+        <span className="min-w-0 truncate text-[15px] font-medium leading-[19px] text-[#111111]">
+          {displayName}
+        </span>
+        <ChevronDown
+          size={17}
+          strokeWidth={1.6}
+          className={cn("shrink-0 text-[#A0A7B5] transition-transform duration-200", isOpen ? "rotate-180" : "")}
+        />
+      </button>
+      {isOpen && (
+        <div className="absolute left-4 right-4 top-[48px] z-50 rounded-[14px] border border-[#E1E5EC] bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
+          <StoreDropdownContent
+            stores={storeOptions}
+            userEmail={userEmail}
+            onCreate={canCreateStore ? createStore : undefined}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const StoreDropdownContent = ({
+  stores,
+  userEmail,
+  onCreate,
+}: {
+  stores: Array<{ id: string; name: string; label: string; active: boolean }>;
+  userEmail?: string | null;
+  onCreate?: () => void;
+}) => {
+  const [editingStore, setEditingStore] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const handleStoreClick = (storeId: string, isActive: boolean) => {
+    if (!isActive) {
+      setActiveStore(storeId);
+    }
+  };
+
+  const handleEditStart = (storeId: string, currentName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingStore(storeId);
+    setEditName(currentName);
+  };
+
+  const handleEditSave = (storeId: string) => {
+    if (editName.trim()) {
+      updateStoreName(storeId, editName.trim());
+    }
+    setEditingStore(null);
+    setEditName("");
+  };
+
+  const handleEditCancel = () => {
+    setEditingStore(null);
+    setEditName("");
+  };
+
+  const handleDelete = (storeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Tem certeza que deseja excluir esta loja? Esta ação não pode ser desfeita.")) {
+      deleteStore(storeId);
+    }
+  };
+
+  return (
+    <div className="flex flex-col">
+      <div className="px-2 pb-2 pt-1">
+        <p className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8A8FA3]">Lojas</p>
+        {userEmail && <p className="mt-0.5 truncate text-[12px] text-[#8A8FA3]">{userEmail}</p>}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        {stores.length > 0 ? (
+          stores.map((store) => (
+            <div
+              key={store.id}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-[10px] px-2 py-2.5 text-left transition-colors duration-150",
+                store.active ? "bg-[#F4F4F5]" : "hover:bg-[#F7F7F8] cursor-pointer"
+              )}
+              onClick={() => handleStoreClick(store.id, store.active)}
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-white text-[#6B7280] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]">
+                <Store size={16} strokeWidth={1.8} />
+              </span>
+              <div className="min-w-0 flex-1">
+                {editingStore === store.id ? (
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onBlur={() => handleEditSave(store.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleEditSave(store.id);
+                      if (e.key === "Escape") handleEditCancel();
+                    }}
+                    className="block w-full truncate text-[14px] font-medium leading-[18px] text-[#111111] bg-white border border-[#FFA640] rounded px-1 outline-none"
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span className="block truncate text-[14px] font-medium leading-[18px] text-[#111111]">{store.name}</span>
+                )}
+                <span className="block truncate text-[12px] leading-[16px] text-[#8A8FA3]">{store.label}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {store.active && <Check size={15} strokeWidth={1.8} className="shrink-0 text-[#111111]" />}
+                <button
+                  onClick={(e) => handleEditStart(store.id, store.name, e)}
+                  className="flex h-6 w-6 items-center justify-center rounded hover:bg-[#E5E5E5] transition-colors"
+                  title="Editar nome"
+                >
+                  <Edit2 size={12} strokeWidth={1.8} className="text-[#6B7280]" />
+                </button>
+                {stores.length > 1 && (
+                  <button
+                    onClick={(e) => handleDelete(store.id, e)}
+                    className="flex h-6 w-6 items-center justify-center rounded hover:bg-[#FEE2E2] transition-colors"
+                    title="Excluir loja"
+                  >
+                    <Trash2 size={12} strokeWidth={1.8} className="text-[#EF4444]" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-[10px] bg-[#F8FAFC] px-3 py-3 text-[13px] leading-[18px] text-[#697386]">
+            Nenhuma loja criada ainda.
+          </div>
+        )}
+      </div>
+
+      <div className="my-2 h-px bg-[#E6EAF0]" />
+
+      <button
+        type="button"
+        onClick={onCreate}
+        disabled={!onCreate}
+        className="flex h-10 w-full items-center gap-2 rounded-[10px] px-2 text-left text-[14px] font-medium text-[#111111] transition-colors duration-150 hover:bg-[#F7F7F8] disabled:cursor-not-allowed disabled:text-[#A0A7B5] disabled:hover:bg-transparent"
+      >
+        <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-white", onCreate ? "bg-[#111111]" : "bg-[#DDE3EE]")}>
+          <Plus size={15} strokeWidth={2} />
+        </span>
+        {onCreate ? "Criar outra loja" : "Limite de 2 lojas atingido"}
+      </button>
+    </div>
+  );
+};
+
 const ToggleSwitch = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
   <div
     onClick={onChange}
@@ -547,7 +783,8 @@ const DashboardSidebar = () => {
 
   const [collapsed, setCollapsed] = useState(false);
   const [resolvedRole, setResolvedRole] = useState<string | null>(emailRole ?? role ?? metadataRole);
-  const [storeName, setStoreName] = useState("Minha Loja");
+  const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
+
   // Start Mode: controlado pelo plano real do usuário (não localStorage)
   const { isStartMode: startMode, hasActivePlan } = useStartMode();
 
@@ -566,36 +803,15 @@ const DashboardSidebar = () => {
   }, [emailRole, role, metadataRole]);
 
   useEffect(() => {
-    if (!user || !isSupabaseEnabled) {
-      setStoreName("Minha Loja");
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadStoreName = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("store_name")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("[sidebar] Falha ao buscar store_name", error);
-        return;
-      }
-
-      if (!cancelled) {
-        setStoreName(data?.store_name?.trim() || "Minha Loja");
-      }
-    };
-
-    void loadStoreName();
-
+    const syncStores = () => setStores(readUserStores());
+    syncStores();
+    window.addEventListener(STORES_CHANGED_EVENT, syncStores);
+    window.addEventListener("storage", syncStores);
     return () => {
-      cancelled = true;
+      window.removeEventListener(STORES_CHANGED_EVENT, syncStores);
+      window.removeEventListener("storage", syncStores);
     };
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user || !isSupabaseEnabled) return;
@@ -729,21 +945,10 @@ const DashboardSidebar = () => {
       {/* Divisória 1 */}
       <div style={{ height: "1px", backgroundColor: "#DDE3EE", margin: "12px 16px" }} />
 
-      {!collapsed && (
-        <div className="mx-3 mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer hover:bg-gray-50">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-md bg-black flex items-center justify-center shrink-0">
-              <span className="text-white text-xs font-bold">
-                {storeName?.charAt(0).toUpperCase() || "M"}
-              </span>
-            </div>
-            <span className="text-sm font-semibold text-gray-900 truncate">
-              {storeName || "Minha Loja"}
-            </span>
-          </div>
-          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-        </div>
-      )}
+      <StoreSwitcher collapsed={collapsed} stores={stores} userEmail={user?.email} />
+
+      <div style={{ height: "1px", backgroundColor: "#DDE3EE", margin: "12px 16px" }} />
+
       {/* ── Nav items ────────────────────────────────────────────────────── */}
       <div
         className={cn(

@@ -6,6 +6,13 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StartModeBanner from "@/components/dashboard/StartModeBanner";
 import StartModeModal from "@/components/dashboard/StartModeModal";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
+import FirstStoreOnboarding, {
+  MAX_STORES_PER_USER,
+  readUserStores,
+  START_STORE_ONBOARDING_EVENT,
+  STORES_CHANGED_EVENT,
+  type VeloStore,
+} from "@/components/dashboard/FirstStoreOnboarding";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -396,9 +403,25 @@ const DashboardLayoutInner = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
+  const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
+  const [showStoreOnboarding, setShowStoreOnboarding] = useState(false);
 
   // Start Mode: ativo para usuários gratuitos, desativado para pagos
   const { isStartMode } = useStartMode();
+
+  useEffect(() => {
+    const syncStores = () => setStores(readUserStores());
+    const startStoreOnboarding = () => setShowStoreOnboarding(true);
+    syncStores();
+    window.addEventListener(STORES_CHANGED_EVENT, syncStores);
+    window.addEventListener("storage", syncStores);
+    window.addEventListener(START_STORE_ONBOARDING_EVENT, startStoreOnboarding);
+    return () => {
+      window.removeEventListener(STORES_CHANGED_EVENT, syncStores);
+      window.removeEventListener("storage", syncStores);
+      window.removeEventListener(START_STORE_ONBOARDING_EVENT, startStoreOnboarding);
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -461,6 +484,16 @@ const DashboardLayoutInner = () => {
           <MobileDashboardChrome>
             <Outlet />
           </MobileDashboardChrome>
+          {(stores.length === 0 || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
+            <FirstStoreOnboarding
+              defaultName={user.user_metadata?.full_name ?? user.email}
+              existingStores={stores}
+              onComplete={() => {
+                setStores(readUserStores());
+                setShowStoreOnboarding(false);
+              }}
+            />
+          )}
         </div>
       </div>
     );
@@ -503,17 +536,38 @@ const DashboardLayoutInner = () => {
           {/* Header - no shell cinza */}
           <DashboardHeader />
           
-          {/* Main content area - sem moldura, ocupa 100% */}
-          <main className="flex min-h-0 flex-1 overflow-hidden" style={{ backgroundColor: "#F4F4F5" }}>
-            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-              <PageErrorBoundary>
-                <Outlet />
-              </PageErrorBoundary>
+          {/* Main content area - moldura branca arredondada */}
+          <main className="flex min-h-0 flex-1 overflow-hidden" style={{ backgroundColor: "#F4F4F5", padding: "0 24px 24px 24px" }}>
+            <div 
+              className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white" 
+              style={{ 
+                borderRadius: "28px",
+                overflow: "hidden",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+              }}
+            >
+              {/* Área rolável interna */}
+              <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" style={{ padding: "24px" }}>
+                <div className="mx-auto w-full max-w-[1280px]">
+                  <PageErrorBoundary>
+                    <Outlet />
+                  </PageErrorBoundary>
+                </div>
+              </div>
             </div>
           </main>
-
         </div>
       </div>
+      {(stores.length === 0 || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
+        <FirstStoreOnboarding
+          defaultName={user.user_metadata?.full_name ?? user.email}
+          existingStores={stores}
+          onComplete={() => {
+            setStores(readUserStores());
+            setShowStoreOnboarding(false);
+          }}
+        />
+      )}
     </div>
   );
 };
