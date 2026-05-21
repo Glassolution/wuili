@@ -370,38 +370,34 @@ export default function DashboardHomePage() {
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: curatedProducts, isLoading: isCuratedLoading } = useQuery({
-    queryKey: ["dashboard-home-curated-products", user?.id, session?.access_token],
+  const {
+    data: curatedProducts,
+    isLoading: isCuratedLoading,
+    isError: isCuratedError,
+    refetch: refetchCurated,
+    isFetching: isCuratedFetching,
+  } = useQuery({
+    queryKey: ["dashboard-home-curated-products", user?.id],
     enabled: !!user?.id,
+    retry: 1,
     queryFn: async () => {
-      try {
-        if (!session?.access_token) return [];
-
-        const response = await fetch("/api/products/curated?limit=3&minScore=0", {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Curadoria retornou ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const products = Array.isArray(payload?.products) ? payload.products : [];
-        const mapped = products
-          .slice(0, 3)
-          .map(mapCuratedProduct)
-          .sort((a, b) => b.marginPct - a.marginPct);
-
-        return mapped;
-      } catch (error) {
-        console.warn("[DashboardHomePage] usando fallback de produtos mockados:", error);
-        return [];
-      }
+      const { data, error } = await supabase.functions.invoke("get-curated-products", {
+        body: { userId: user?.id },
+      });
+      if (error) throw error;
+      const products = Array.isArray(data?.products) ? data.products : [];
+      return products.slice(0, 3).map((p: any): ApprovalProduct => ({
+        id: String(p.id),
+        name: String(p.name ?? "Produto"),
+        image: String(p.image ?? ""),
+        cost: Number(p.cost ?? 0),
+        suggestedPrice: Number(p.suggested_price ?? 0),
+        marginPct: Number(p.margin_percent ?? 0),
+      }));
     },
     staleTime: 1000 * 60 * 15,
   });
+
 
   const firstName = useMemo(() => {
     const metadataName =
@@ -458,10 +454,23 @@ export default function DashboardHomePage() {
                 <div key={index} className="h-[300px] animate-pulse rounded-[14px] bg-white/10" />
               ))}
             </div>
+          ) : isCuratedError ? (
+            <div className="flex flex-col items-center gap-3 rounded-[12px] border border-white/10 bg-white/[0.03] px-6 py-10 text-center">
+              <p className="text-[15px] text-white/80">Erro ao buscar produtos. Tente novamente.</p>
+              <button
+                type="button"
+                onClick={() => refetchCurated()}
+                disabled={isCuratedFetching}
+                className="h-9 rounded-[8px] bg-white px-4 text-[13px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
+              >
+                {isCuratedFetching ? "Tentando..." : "Tentar novamente"}
+              </button>
+            </div>
           ) : approvalQueue.length === 0 ? (
             <div className="rounded-[12px] border border-white/10 bg-white/[0.03] px-6 py-12 text-center text-[15px] text-white/70">
-              A IA está varrendo o catálogo. Novos produtos em breve.
+              Nenhum produto com margem suficiente no momento. A IA continua varrendo.
             </div>
+
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {approvalQueue.map((p) => (
