@@ -504,12 +504,12 @@ export default function DashboardHomePage() {
               {approvalQueue.map((p) => (
                 <article
                   key={p.id}
-                  className="flex max-h-[300px] flex-col overflow-hidden rounded-[14px] bg-white text-[#0a0a0a]"
+                  className="flex max-h-[340px] flex-col overflow-hidden rounded-[14px] bg-white text-[#0a0a0a]"
                 >
                   <img
                     src={p.image}
                     alt={p.name}
-                    className="h-28 w-full bg-[#f4f4f4] object-cover"
+                    className="h-36 w-full bg-[#f4f4f4] object-contain p-2"
                     loading="lazy"
                   />
                   <div className="flex flex-1 flex-col p-4">
