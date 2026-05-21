@@ -7,8 +7,8 @@ import { componentTagger } from "lovable-tagger";
 function affiliateApiDevMiddleware() {
   return {
     name: "affiliate-api-dev-middleware",
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
+    configureServer(server: any) {
+      server.middlewares.use(async (req: any, res: any, next: any) => {
         const requestUrl = new URL(req.url ?? "/", "http://localhost");
 
         // /ref/:code -> salva cookie e redireciona para home (tracking de afiliado)
