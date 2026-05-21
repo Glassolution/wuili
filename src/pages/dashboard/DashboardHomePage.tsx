@@ -454,10 +454,23 @@ export default function DashboardHomePage() {
                 <div key={index} className="h-[300px] animate-pulse rounded-[14px] bg-white/10" />
               ))}
             </div>
+          ) : isCuratedError ? (
+            <div className="flex flex-col items-center gap-3 rounded-[12px] border border-white/10 bg-white/[0.03] px-6 py-10 text-center">
+              <p className="text-[15px] text-white/80">Erro ao buscar produtos. Tente novamente.</p>
+              <button
+                type="button"
+                onClick={() => refetchCurated()}
+                disabled={isCuratedFetching}
+                className="h-9 rounded-[8px] bg-white px-4 text-[13px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
+              >
+                {isCuratedFetching ? "Tentando..." : "Tentar novamente"}
+              </button>
+            </div>
           ) : approvalQueue.length === 0 ? (
             <div className="rounded-[12px] border border-white/10 bg-white/[0.03] px-6 py-12 text-center text-[15px] text-white/70">
-              A IA está varrendo o catálogo. Novos produtos em breve.
+              Nenhum produto com margem suficiente no momento. A IA continua varrendo.
             </div>
+
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {approvalQueue.map((p) => (
