@@ -9,6 +9,7 @@ import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import FirstStoreOnboarding, {
   MAX_STORES_PER_USER,
   readUserStores,
+  saveUserStores,
   START_STORE_ONBOARDING_EVENT,
   STORES_CHANGED_EVENT,
   type VeloStore,
@@ -404,6 +405,7 @@ const DashboardLayoutInner = () => {
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
   const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
+  const [storesHydrated, setStoresHydrated] = useState(false);
   const [showStoreOnboarding, setShowStoreOnboarding] = useState(false);
 
   // Start Mode: ativo para usuários gratuitos, desativado para pagos
@@ -423,6 +425,114 @@ const DashboardLayoutInner = () => {
     };
   }, [user?.id]);
 
+
+  useEffect(() => {
+    if (!user) {
+      setStoresHydrated(false);
+      return;
+    }
+
+    const localStores = readUserStores();
+    if (localStores.length > 0) {
+      setStores(localStores);
+      setStoresHydrated(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateStoreFromProfile = async () => {
+      if (!isSupabaseEnabled) {
+        setStoresHydrated(true);
+        return;
+      }
+
+      const buildStore = (profile: any): VeloStore | null => {
+        const storeName = String(profile?.store_name || profile?.loja_nome || "").trim();
+        const completed = Boolean(profile?.onboarding_completed || storeName);
+        if (!completed) return null;
+
+        return {
+          id: `profile-${user.id}`,
+          name: storeName || "Minha Loja",
+          ownerName: String(profile?.display_name || profile?.nome || user.user_metadata?.full_name || user.email || "").trim(),
+          cpf: String(profile?.cpf || ""),
+          phone: String(profile?.whatsapp || profile?.phone || ""),
+          source: "Perfil salvo",
+          businessType: "Loja online",
+          goal: "Publicar produtos",
+          productLimit: 30,
+          publishedProducts: 0,
+          createdAt: new Date().toISOString(),
+          isActive: true,
+        };
+      };
+
+      try {
+        const byUserId = await (supabase as any)
+          .from("profiles")
+          .select("store_name,loja_nome,display_name,nome,cpf,whatsapp,phone,onboarding_completed")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        let profile = byUserId.data;
+
+        if (!profile) {
+          const byId = await (supabase as any)
+            .from("profiles")
+            .select("store_name,loja_nome,display_name,nome,cpf,whatsapp,phone,onboarding_completed")
+            .eq("id", user.id)
+            .maybeSingle();
+          profile = byId.data;
+        }
+
+        const restoredStore = buildStore(profile);
+        if (!cancelled && restoredStore) {
+          saveUserStores([restoredStore]);
+          setStores([restoredStore]);
+        }
+      } catch (error) {
+        console.warn("[DashboardLayout] não foi possível restaurar a loja salva:", error);
+      } finally {
+        if (!cancelled) setStoresHydrated(true);
+      }
+    };
+
+    void hydrateStoreFromProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const persistCompletedStore = async (store: VeloStore) => {
+    if (!user || !isSupabaseEnabled) return;
+
+    const payload = {
+      store_name: store.name,
+      loja_nome: store.name,
+      nome: store.ownerName,
+      cpf: store.cpf,
+      whatsapp: store.phone,
+      onboarding_completed: true,
+    };
+
+    const updateByUserId = await (supabase as any)
+      .from("profiles")
+      .update(payload)
+      .eq("user_id", user.id);
+
+    if (updateByUserId.error) {
+      const updateById = await (supabase as any)
+        .from("profiles")
+        .update(payload)
+        .eq("id", user.id);
+
+      if (updateById.error) {
+        console.warn("[DashboardLayout] não foi possível salvar a loja no perfil:", updateById.error);
+      }
+    }
+  };
   useEffect(() => {
     const params = new URLSearchParams(location.search);
 
@@ -484,11 +594,12 @@ const DashboardLayoutInner = () => {
           <MobileDashboardChrome>
             <Outlet />
           </MobileDashboardChrome>
-          {(stores.length === 0 || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
+          {storesHydrated && (stores.length === 0 || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
             <FirstStoreOnboarding
               defaultName={user.user_metadata?.full_name ?? user.email}
               existingStores={stores}
-              onComplete={() => {
+              onComplete={(store) => {
+                void persistCompletedStore(store);
                 setStores(readUserStores());
                 setShowStoreOnboarding(false);
               }}
@@ -558,11 +669,12 @@ const DashboardLayoutInner = () => {
           </main>
         </div>
       </div>
-      {(stores.length === 0 || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
+      {storesHydrated && (stores.length === 0 || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
         <FirstStoreOnboarding
           defaultName={user.user_metadata?.full_name ?? user.email}
           existingStores={stores}
-          onComplete={() => {
+          onComplete={(store) => {
+            void persistCompletedStore(store);
             setStores(readUserStores());
             setShowStoreOnboarding(false);
           }}
