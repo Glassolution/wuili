@@ -370,38 +370,34 @@ export default function DashboardHomePage() {
     staleTime: 1000 * 60 * 2,
   });
 
-  const { data: curatedProducts, isLoading: isCuratedLoading } = useQuery({
-    queryKey: ["dashboard-home-curated-products", user?.id, session?.access_token],
+  const {
+    data: curatedProducts,
+    isLoading: isCuratedLoading,
+    isError: isCuratedError,
+    refetch: refetchCurated,
+    isFetching: isCuratedFetching,
+  } = useQuery({
+    queryKey: ["dashboard-home-curated-products", user?.id],
     enabled: !!user?.id,
+    retry: 1,
     queryFn: async () => {
-      try {
-        if (!session?.access_token) return [];
-
-        const response = await fetch("/api/products/curated?limit=3&minScore=0", {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Curadoria retornou ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const products = Array.isArray(payload?.products) ? payload.products : [];
-        const mapped = products
-          .slice(0, 3)
-          .map(mapCuratedProduct)
-          .sort((a, b) => b.marginPct - a.marginPct);
-
-        return mapped;
-      } catch (error) {
-        console.warn("[DashboardHomePage] usando fallback de produtos mockados:", error);
-        return [];
-      }
+      const { data, error } = await supabase.functions.invoke("get-curated-products", {
+        body: { userId: user?.id },
+      });
+      if (error) throw error;
+      const products = Array.isArray(data?.products) ? data.products : [];
+      return products.slice(0, 3).map((p: any): ApprovalProduct => ({
+        id: String(p.id),
+        name: String(p.name ?? "Produto"),
+        image: String(p.image ?? ""),
+        cost: Number(p.cost ?? 0),
+        suggestedPrice: Number(p.suggested_price ?? 0),
+        marginPct: Number(p.margin_percent ?? 0),
+      }));
     },
     staleTime: 1000 * 60 * 15,
   });
+
 
   const firstName = useMemo(() => {
     const metadataName =
