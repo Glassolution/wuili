@@ -389,6 +389,7 @@ function StoreMockup() {
 
 export default function Index() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [openFaq, setOpenFaq] = useState(0);
 
