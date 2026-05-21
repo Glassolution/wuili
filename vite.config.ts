@@ -7,8 +7,8 @@ import { componentTagger } from "lovable-tagger";
 function affiliateApiDevMiddleware() {
   return {
     name: "affiliate-api-dev-middleware",
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
+    configureServer(server: any) {
+      server.middlewares.use(async (req: any, res: any, next: any) => {
         const requestUrl = new URL(req.url ?? "/", "http://localhost");
 
         // /ref/:code -> salva cookie e redireciona para home (tracking de afiliado)
@@ -27,7 +27,7 @@ function affiliateApiDevMiddleware() {
           return;
         }
 
-        const handlerByPath = {
+        const handlerByPath: Record<string, string> = {
           "/api/affiliates/generate": "api/affiliates/generate.js",
           "/api/affiliates/link": "api/affiliates/link.js",
           "/api/products/curated": "api/products/curated.js",
@@ -42,9 +42,9 @@ function affiliateApiDevMiddleware() {
         req.query = Object.fromEntries(requestUrl.searchParams.entries());
         const moduleUrl = pathToFileURL(path.resolve(__dirname, handlerPath)).href;
         const { default: handler } = await import(`${moduleUrl}?t=${Date.now()}`);
-        const chunks = [];
+        const chunks: any[] = [];
 
-        req.on("data", (chunk) => chunks.push(chunk));
+        req.on("data", (chunk: any) => chunks.push(chunk));
         req.on("end", async () => {
           const rawBody = Buffer.concat(chunks).toString("utf8");
           if (rawBody) {
@@ -56,12 +56,12 @@ function affiliateApiDevMiddleware() {
           }
 
           const vercelRes = {
-            setHeader: (name, value) => res.setHeader(name, value),
-            status: (statusCode) => {
+            setHeader: (name: string, value: any) => res.setHeader(name, value),
+            status: (statusCode: number) => {
               res.statusCode = statusCode;
               return vercelRes;
             },
-            json: (payload) => {
+            json: (payload: any) => {
               if (!res.hasHeader("Content-Type")) {
                 res.setHeader("Content-Type", "application/json; charset=utf-8");
               }
@@ -72,7 +72,7 @@ function affiliateApiDevMiddleware() {
 
           try {
             await handler(req, vercelRes);
-          } catch (error) {
+          } catch (error: any) {
             console.error("[vite-dev] affiliate API handler failed:", error);
             res.statusCode = 500;
             res.setHeader("Content-Type", "application/json; charset=utf-8");
