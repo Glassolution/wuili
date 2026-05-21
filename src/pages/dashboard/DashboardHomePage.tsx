@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -18,6 +19,7 @@ type ApprovalProduct = {
   cost: number;
   suggestedPrice: number;
   marginPct: number;
+  catalogProduct: CatalogProduct;
 };
 
 type Metric = {
@@ -48,6 +50,15 @@ type CuratedProductPayload = {
   title?: string;
   productName?: string;
   productNameEn?: string;
+  name?: string;
+  description?: string | null;
+  category?: string | null;
+  source?: string | null;
+  cost?: number | string | null;
+  stock_quantity?: number | string | null;
+  stock?: number | string | null;
+  variants?: unknown;
+  cj_product_id?: string | null;
   images?: unknown;
   image?: string;
   image_url?: string;
@@ -193,22 +204,44 @@ const getCuratedProductImage = (product: CuratedProductPayload, index: number) =
 
 const mapCuratedProduct = (product: CuratedProductPayload, index: number): ApprovalProduct => {
   const margin = product.curation?.criteria?.margin;
-  const cost = toNumber(margin?.cjPrice ?? product.cost_price, 0);
+  const cost = toNumber(margin?.cjPrice ?? product.cost_price ?? product.cost, 0);
   const suggestedPrice = toNumber(
     margin?.mlAveragePrice ?? product.suggested_price ?? product.original_price,
-    0,
+    cost > 0 ? Math.round(cost * 2.2 * 100) / 100 : 0,
   );
   const calculatedMargin = cost > 0 && suggestedPrice > 0
     ? Math.round(((suggestedPrice - cost) / suggestedPrice) * 100)
     : 0;
+  const image = getCuratedProductImage(product, index);
+  const title = product.title || product.name || product.productName || product.productNameEn || "Produto curado pela IA";
+  const id = String(product.id ?? product.external_id ?? product.cj_product_id ?? `curated-${index}`);
+  const externalId = String(product.external_id ?? product.cj_product_id ?? product.id ?? id);
+  const images = parseImages(product.images);
+  const stockQuantity = Math.max(1, toNumber(product.stock_quantity ?? product.stock, 100));
+  const marginPct = Math.round(toNumber(margin?.estimatedMarginPercent ?? product.margin_percent, calculatedMargin));
 
   return {
-    id: String(product.id ?? product.external_id ?? `curated-${index}`),
-    name: product.title || product.productName || product.productNameEn || "Produto curado pela IA",
-    image: getCuratedProductImage(product, index),
+    id,
+    name: title,
+    image,
     cost,
     suggestedPrice,
-    marginPct: Math.round(toNumber(margin?.estimatedMarginPercent ?? product.margin_percent, calculatedMargin)),
+    marginPct,
+    catalogProduct: {
+      id,
+      title,
+      description: product.description || "Produto selecionado pela IA com potencial de margem para publicação no Mercado Livre.",
+      images: images.length ? images : [image],
+      cost_price: cost,
+      suggested_price: suggestedPrice,
+      margin_percent: marginPct,
+      category: product.category ?? null,
+      source: product.source || "cj",
+      original_url: externalId ? `https://www.cjdropshipping.com/product-detail.html?id=${encodeURIComponent(externalId)}` : undefined,
+      stock_quantity: stockQuantity,
+      external_id: externalId,
+      variants: product.variants ?? null,
+    },
   };
 };
 
@@ -259,6 +292,7 @@ const buildDashboardFallback = () => ({
 export default function DashboardHomePage() {
   const navigate = useNavigate();
   const { user, session } = useAuth();
+  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
 
   const { data: profile } = useQuery({
     queryKey: ["dashboard-home-profile", user?.id],
@@ -386,14 +420,7 @@ export default function DashboardHomePage() {
       });
       if (error) throw error;
       const products = Array.isArray(data?.products) ? data.products : [];
-      return products.slice(0, 3).map((p: any): ApprovalProduct => ({
-        id: String(p.id),
-        name: String(p.name ?? "Produto"),
-        image: String(p.image ?? ""),
-        cost: Number(p.cost ?? 0),
-        suggestedPrice: Number(p.suggested_price ?? 0),
-        marginPct: Number(p.margin_percent ?? 0),
-      }));
+      return products.slice(0, 3).map((p: CuratedProductPayload, index: number) => mapCuratedProduct(p, index));
     },
     staleTime: 1000 * 60 * 15,
   });
@@ -416,6 +443,7 @@ export default function DashboardHomePage() {
   const pendingCount = approvalQueue.length;
 
   return (
+    <>
     <main className="-m-3 min-h-[calc(100vh-96px)] bg-[#F4F4F4] px-4 py-5 text-[#0a0a0a] antialiased [font-family:'Hanken_Grotesk',-apple-system,BlinkMacSystemFont,'Helvetica_Neue',Arial,sans-serif] sm:-m-4 sm:px-6 sm:py-6 lg:-m-6 lg:px-8 lg:py-7">
       <div className="mx-auto grid w-full max-w-[1120px] grid-cols-12 gap-4">
         <header className="col-span-12 flex flex-col gap-2 rounded-[14px] bg-white/70 px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:flex-row sm:items-center sm:justify-between">
@@ -505,6 +533,7 @@ export default function DashboardHomePage() {
                     <div className="mt-3 flex flex-col gap-1">
                       <button
                         type="button"
+                        onClick={() => setSelectedProduct(p.catalogProduct)}
                         className="h-9 rounded-[8px] bg-black text-[13px] font-semibold text-white transition hover:bg-[#1f1f1f]"
                       >
                         Aprovar e Publicar
@@ -631,5 +660,11 @@ export default function DashboardHomePage() {
         </section>
       </div>
     </main>
+    <ImportProductModal
+      open={!!selectedProduct}
+      onClose={() => setSelectedProduct(null)}
+      product={selectedProduct}
+    />
+    </>
   );
 }
