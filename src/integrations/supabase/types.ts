@@ -48,6 +48,10 @@ export type Database = {
           commission_value: number
           created_at: string
           id: string
+          paid_at: string | null
+          payment_id: string | null
+          payout_status: string
+          plan_name: string | null
           plan_value: number
           status: string
           subscriber_user_id: string
@@ -59,6 +63,10 @@ export type Database = {
           commission_value?: number
           created_at?: string
           id?: string
+          paid_at?: string | null
+          payment_id?: string | null
+          payout_status?: string
+          plan_name?: string | null
           plan_value?: number
           status?: string
           subscriber_user_id: string
@@ -70,6 +78,10 @@ export type Database = {
           commission_value?: number
           created_at?: string
           id?: string
+          paid_at?: string | null
+          payment_id?: string | null
+          payout_status?: string
+          plan_name?: string | null
           plan_value?: number
           status?: string
           subscriber_user_id?: string
