@@ -180,7 +180,7 @@ const AdminCommissionsPage = () => {
             .eq("affiliate_code", code)
             .order("created_at", { ascending: false })
             .limit(200),
-          (supabase as any).from("profiles").select("id,user_id,full_name,display_name,email"),
+          (supabase as any).from("profiles").select("id,user_id,display_name"),
         ]);
         if (affRes.error) throw affRes.error;
         if (clicksRes.error) throw clicksRes.error;
