@@ -22,7 +22,7 @@ type RouteMeta = {
 };
 
 const routes: RouteMeta[] = [
-  { test: (p) => p === "/dashboard", title: "Dashboard", icon: LayoutDashboard },
+  { test: (p) => p === "/dashboard", title: "Dashboard", icon: BarChart2 },
   { test: (p) => p.startsWith("/dashboard/saldos"), title: "Saldos", icon: Wallet },
   { test: (p) => p.startsWith("/dashboard/transacoes"), title: "Transações", icon: ArrowLeftRight },
   { test: (p) => p.startsWith("/dashboard/pagamentos"), title: "Pagamentos", icon: CreditCard },
@@ -39,6 +39,7 @@ const DashboardHeader = () => {
   const location = useLocation();
   const meta = routes.find((r) => r.test(location.pathname)) ?? routes[0];
   const Icon = meta.icon;
+  const isDashboard = meta.title === "Dashboard";
 
   return (
     <header 
@@ -54,7 +55,12 @@ const DashboardHeader = () => {
       }}
     >
       <div className="flex min-w-0 items-center" style={{ gap: "8px" }}>
-        <Icon size={16} strokeWidth={1.8} className="shrink-0" style={{ color: "#8A8FA3" }} />
+        <Icon
+          size={isDashboard ? 20 : 16}
+          strokeWidth={isDashboard ? 1.5 : 1.8}
+          className="shrink-0"
+          style={{ color: "#8A8FA3" }}
+        />
         <span 
           className="truncate" 
           style={{ 

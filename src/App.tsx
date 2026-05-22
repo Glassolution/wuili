@@ -42,6 +42,7 @@ const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
 const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
 const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsPage"));
+const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,8 +106,10 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/docs" element={<Docs />} />
+              <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
               <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
               <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+              <Route path="/admin/comissoes" element={<AdminRoute><AdminCommissionsPage /></AdminRoute>} />
               <Route path="/admin/suporte" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
               <Route path="/admin/reembolsos" element={<AdminRoute><AdminRefundsPage /></AdminRoute>} />
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />

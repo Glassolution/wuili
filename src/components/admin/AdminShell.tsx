@@ -1,19 +1,28 @@
-import { ReactNode } from "react";
+import { type ElementType, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  BarChart3,
+  Bell,
   FileText,
+  HelpCircle,
+  Home,
   LayoutDashboard,
   LifeBuoy,
+  PackageSearch,
+  Percent,
+  ReceiptText,
+  Settings,
   ShieldCheck,
+  Trash2,
+  UserCircle,
   Users,
 } from "lucide-react";
-import { VeloLogo } from "@/components/VeloLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-type AdminSection = "dashboard" | "users" | "revenue" | "plans" | "support" | "refunds" | "settings";
+type AdminSection = "dashboard" | "users" | "revenue" | "plans" | "commissions" | "support" | "refunds" | "settings";
 
 type AdminShellProps = {
   active: AdminSection;
@@ -34,115 +43,149 @@ export const AdminShell = ({ active, userId, children }: AdminShellProps) => {
     refetchInterval: 10000,
   });
 
-  const railItems = [
+  const mainItems = [
     { icon: LayoutDashboard, label: "Dashboard", to: "/admin/dashboard", active: active === "dashboard" },
-    { icon: FileText, label: "Relatórios", to: "/admin/dashboard#receita", active: active === "revenue" || active === "plans" },
+    { icon: BarChart3, label: "Product Analytics", to: "/admin/dashboard#analytics", active: active === "revenue" },
+    { icon: FileText, label: "Reporting", to: "/admin/dashboard#historico", active: active === "plans" },
+    { icon: ReceiptText, label: "Order summary", to: "/admin/dashboard#orders", active: false },
+    { icon: Percent, label: "Comissões", to: "/admin/comissoes", active: active === "commissions" },
     { icon: Users, label: "Usuários", to: "/admin/usuarios", active: active === "users" },
-    { icon: LifeBuoy, label: "Suporte", to: "/admin/suporte", active: active === "support" },
+    { icon: LifeBuoy, label: "Suporte", to: "/admin/suporte", active: active === "support", badge: counts?.tickets || 0 },
+    { icon: Trash2, label: "Reembolsos", to: "/admin/reembolsos", active: active === "refunds", badge: counts?.refunds || 0 },
+  ];
+
+  const preferences = [
+    { icon: UserCircle, label: "User Account", to: "/admin/usuarios" },
+    { icon: Settings, label: "Settings", to: "/dashboard/configuracoes" },
+    { icon: HelpCircle, label: "Help and support", to: "/admin/suporte" },
   ];
 
   return (
     <div
-      className="min-h-screen overflow-hidden bg-[#F4F3F1] text-[#1d1d1b]"
+      className="h-screen overflow-hidden bg-[#111111] text-white"
       style={{
-        fontFamily: '"Inter Tight", "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        backgroundImage:
-          "radial-gradient(circle at 14% 12%, rgba(255,255,255,0.72), transparent 24%), linear-gradient(90deg, rgba(0,0,0,0.018) 0, transparent 22%)",
+        fontFamily:
+          '"Hanken Grotesk", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      <div className="grid min-h-screen grid-cols-1 md:grid-cols-[66px_236px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-black/[0.035] bg-[#F0EEEB]/78 px-3 py-8 backdrop-blur-xl md:flex md:flex-col md:items-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-[0_8px_22px_rgba(0,0,0,0.045)]">
-            <VeloLogo size="sm" variant="dark" />
-          </div>
-
-          <nav className="mt-9 flex flex-col gap-4">
-            {railItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  title={item.label}
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-full border transition duration-200",
-                    item.active
-                      ? "border-[#22221f] bg-[#22221f] text-white shadow-[0_8px_18px_rgba(0,0,0,0.10)]"
-                      : "border-black/[0.035] bg-white text-black/48 shadow-[0_6px_18px_rgba(0,0,0,0.035)] hover:text-[#22221f]"
-                  )}
-                >
-                  <Icon size={17} strokeWidth={1.75} />
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="mt-auto flex h-9 w-9 items-center justify-center rounded-full bg-[#D21F5B] text-[11px] font-semibold text-white">
-            AD
-          </div>
-        </aside>
-
-        <aside className="hidden overflow-y-auto border-r border-black/[0.045] bg-[#F7F5F2]/72 px-6 py-7 backdrop-blur-xl md:block">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#22221f] shadow-[0_6px_18px_rgba(0,0,0,0.035)]">
-              <ShieldCheck size={14} strokeWidth={1.8} />
+      <div className="flex h-full overflow-hidden bg-[#151515]">
+        <aside className="hidden h-full w-[280px] shrink-0 overflow-y-auto border-r border-white/[0.07] bg-[#111111] md:flex md:flex-col">
+          <div className="flex h-[74px] items-center justify-between border-b border-white/[0.06] px-7">
+            <Link to="/admin/dashboard" className="flex items-center gap-3">
+              <VeloMetricLogo />
+              <span className="text-[19px] font-semibold tracking-[-0.04em]">VeloMetric</span>
+            </Link>
+            <span className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-white/10 bg-white/[0.03] text-white/70">
+              <Home size={15} />
             </span>
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-black/34">Velo Admin</p>
-              <p className="mt-0.5 text-[12px] font-medium text-black/44">ID {userId.slice(0, 8).toUpperCase()}</p>
-            </div>
           </div>
 
-          <div className="mt-8 space-y-7">
-            <div>
-              <p className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-black/30">Sales list</p>
-              <TreeLink active={active === "dashboard"} to="/admin/dashboard" label="Dashboard" />
-              <TreeLink to="/admin/dashboard#receita" label="Revenue" />
-              <TreeLink to="/admin/dashboard#planos" label="Plans" />
-              <TreeLink to="/admin/usuarios" label="Users" />
-            </div>
-
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-black/30">Reports</p>
-                <span className="h-px w-9 bg-black/[0.08]" />
+          <div className="flex-1 px-5 py-6">
+            <nav className="space-y-8">
+              <div className="space-y-2">
+                <SideLink icon={PackageSearch} label="Inbox" to="/admin/dashboard" />
+                <SideLink icon={Bell} label="Notifications" to="/admin/dashboard" />
               </div>
-              <TreeLink to="/admin/dashboard#analytics" label="Analytics" />
-              <TreeLink to="/admin/reembolsos" label="Reembolsos" badge={counts?.refunds || 0} />
-              <TreeLink to="/admin/suporte" label="Suporte" badge={counts?.tickets || 0} />
-              <TreeLink to="/dashboard/configuracoes" label="Configurações" />
-            </div>
+
+              <div>
+                <p className="mb-3 px-2 text-[11px] font-medium uppercase tracking-[0.12em] text-white/58">Menu</p>
+                <div className="space-y-1.5">
+                  {mainItems.map((item) => (
+                    <SideLink key={item.label} {...item} />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-3 px-2 text-[11px] font-medium uppercase tracking-[0.12em] text-white/58">Preferences</p>
+                <div className="space-y-1.5">
+                  {preferences.map((item) => (
+                    <SideLink key={item.label} {...item} />
+                  ))}
+                </div>
+              </div>
+            </nav>
           </div>
 
-          <Link
-            to="/dashboard"
-            className="mt-11 flex items-center gap-2 text-[12px] font-medium text-black/42 transition hover:text-[#22221f]"
-          >
-            <ArrowLeft size={14} />
-            Voltar à Velo
-          </Link>
+          <div className="space-y-5 border-t border-white/[0.06] p-5">
+            <div className="rounded-[12px] border border-white/[0.08] bg-white/[0.035] p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black">
+                  <ShieldCheck size={17} />
+                </span>
+                <div>
+                  <p className="text-[13px] text-white/58">Admin ID</p>
+                  <p className="text-[14px] font-semibold tracking-[-0.02em]">{userId.slice(0, 8).toUpperCase()}</p>
+                </div>
+              </div>
+            </div>
+
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-2 rounded-[10px] px-2 py-2 text-[13px] font-medium text-white/54 transition hover:bg-white/[0.04] hover:text-white"
+            >
+              <ArrowLeft size={15} />
+              Voltar à Velo
+            </Link>
+          </div>
         </aside>
 
-        <main className="min-w-0 overflow-y-auto px-4 py-5 md:px-7 md:py-7">{children}</main>
+        <main className="h-full min-w-0 flex-1 overflow-y-auto bg-[#171717]">{children}</main>
       </div>
     </div>
   );
 };
 
-const TreeLink = ({ to, label, active = false, badge }: { to: string; label: string; active?: boolean; badge?: number }) => (
+const SideLink = ({
+  to,
+  label,
+  icon: Icon,
+  active = false,
+  badge,
+}: {
+  to: string;
+  label: string;
+  icon: ElementType;
+  active?: boolean;
+  badge?: number;
+}) => (
   <Link
     to={to}
     className={cn(
-      "group relative ml-1 flex min-h-8 items-center justify-between border-l border-black/[0.085] pl-4 text-[13px] font-semibold transition",
-      active ? "text-[#22221f]" : "text-black/52 hover:text-[#22221f]"
+      "group flex min-h-9 items-center justify-between rounded-[8px] border px-3 text-[14px] transition duration-200",
+      active
+        ? "border-white/[0.10] bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]"
+        : "border-transparent text-white/55 hover:border-white/[0.07] hover:bg-white/[0.035] hover:text-white"
     )}
   >
-    <span className="absolute -left-[4px] top-3.5 h-2 w-2 rounded-full border border-black/[0.10] bg-[#F7F5F2] transition group-hover:bg-[#22221f]" />
-    <span>{label}</span>
+    <span className="flex items-center gap-2.5">
+      <Icon size={15} strokeWidth={1.75} />
+      {label}
+    </span>
     {!!badge && (
-      <span className="ml-3 inline-flex min-w-5 items-center justify-center rounded-full bg-[#D21F5B] px-1.5 py-0.5 text-[10px] font-bold text-white">
+      <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold text-black">
         {badge > 99 ? "99+" : badge}
       </span>
     )}
   </Link>
+);
+
+const VeloMetricLogo = () => (
+  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white text-black shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+    <svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path
+        d="M33 18A11 11 0 1 0 33 30"
+        stroke="currentColor"
+        strokeWidth="5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M30 26L34 30L38 26"
+        stroke="currentColor"
+        strokeWidth="4.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  </span>
 );

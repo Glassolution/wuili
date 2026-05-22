@@ -6,11 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { VeloLogo } from "@/components/VeloLogo";
 import { toast } from "sonner";
+import { getLeadOrigin, trackOnboardingEvent, upsertOnboardingProfile } from "@/lib/onboardingAnalytics";
+import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
 
-const objectives = ["Renda extra", "Renda principal", "Escalar um negócio existente", "Só quero explorar"];
 const categories = ["Moda", "Eletrônicos", "Casa", "Beleza", "Fitness", "Geral"];
-const availabilities = ["Menos de 1h", "1 a 3h", "3 a 7h", "Mais de 7h"];
-const experiences = ["Nenhuma", "Já tentei mas não funcionou", "Tenho experiência", "Sou avançado"];
+const marketplaces = ["Mercado Livre", "Shopee", "TikTok Shop", "Loja própria", "Ainda não sei"];
+const referralSources = ["Instagram", "TikTok", "YouTube", "Google", "Indicação", "Outro"];
 
 const loadingMessages = [
   "Analisando oportunidades",
@@ -22,26 +23,39 @@ const loadingMessages = [
 const smooth = { duration: 0.64, ease: [0.22, 1, 0.36, 1] as const };
 const chipTransition = { duration: 0.46, ease: [0.22, 1, 0.36, 1] as const };
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
 
 const stepTitles: Record<Step, string> = {
-  1: "Qual é o seu objetivo?",
-  2: "O que você quer vender?",
-  3: "Quanto tempo você tem por semana?",
-  4: "Qual é a sua experiência com vendas online?",
+  1: "O que você quer vender?",
+  2: "Onde você quer vender?",
+  3: "Onde conheceu a Velo?",
 };
 
 const SetupPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [step, setStep] = useState<Step>(1);
-  const [objective, setObjective] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [availability, setAvailability] = useState("");
-  const [experience, setExperience] = useState("");
+  const [category, setCategory] = useState("");
+  const [marketplace, setMarketplace] = useState("");
+  const [referralSource, setReferralSource] = useState("");
   const [saving, setSaving] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [loadingIndex, setLoadingIndex] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    void attachReferralToCurrentUser(user.id);
+    void upsertOnboardingProfile({
+      userId: user.id,
+      fullName: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? null,
+      email: user.email ?? null,
+      onboardingStep: step,
+      onboardingCompleted: false,
+      paymentStatus: "not_started",
+      leadOrigin: getLeadOrigin(),
+      userStatus: "in_setup",
+    });
+  }, [step, user]);
 
   useEffect(() => {
     if (!finishing) return;
@@ -57,27 +71,19 @@ const SetupPage = () => {
     };
   }, [finishing, navigate]);
 
-  const toggleCategory = (item: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(item) ? prev.filter((c) => c !== item) : [...prev, item],
-    );
-  };
-
   const handleNext = () => {
-    if (step === 1 && !objective) return toast.error("Escolha um objetivo para continuar.");
-    if (step === 2 && selectedCategories.length === 0) return toast.error("Escolha ao menos uma categoria.");
-    if (step === 3 && !availability) return toast.error("Selecione sua disponibilidade.");
-    if (step === 4 && !experience) return toast.error("Selecione sua experiência.");
-    if (step === 4) return handleFinish();
-    setStep((s) => (s < 4 ? ((s + 1) as Step) : s));
+    if (step === 1 && !category) return toast.error("Escolha uma categoria para continuar.");
+    if (step === 2 && !marketplace) return toast.error("Escolha um marketplace para continuar.");
+    if (step === 3 && !referralSource) return toast.error("Informe onde conheceu a Velo.");
+    if (step === 3) return handleFinish();
+    setStep((s) => (s < 3 ? ((s + 1) as Step) : s));
   };
 
   const handleFinish = async () => {
     const payload = {
-      objective,
-      categories: selectedCategories,
-      availability,
-      experience,
+      category,
+      marketplace,
+      referralSource,
       completedAt: new Date().toISOString(),
     };
     localStorage.setItem("velo_setup_profile", JSON.stringify(payload));
@@ -87,18 +93,42 @@ const SetupPage = () => {
       const { error } = await supabase
         .from("profiles")
         .update({
-          objetivo: objective,
-          categorias: selectedCategories,
-          disponibilidade_semanal: availability,
-          experiencia: experience,
+          categorias: [category],
           onboarding_completed: true,
         })
         .eq("user_id", user.id);
-      setSaving(false);
 
       if (error) {
+        setSaving(false);
         console.error("[setup] erro ao salvar perfil:", error);
         toast.error("Não foi possível salvar seu perfil. Tente novamente.");
+        return;
+      }
+
+      const { error: profileError } = await upsertOnboardingProfile({
+        userId: user.id,
+        fullName: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? null,
+        email: user.email ?? null,
+        category,
+        marketplace,
+        referralSource,
+        onboardingStep: 3,
+        onboardingCompleted: true,
+        paymentStatus: "not_started",
+        leadOrigin: getLeadOrigin(),
+        userStatus: "setup_completed",
+      });
+
+      await trackOnboardingEvent(user.id, "completed_setup", "setup", {
+        category,
+        marketplace,
+        referral_source: referralSource,
+      });
+
+      setSaving(false);
+
+      if (profileError) {
+        toast.error("Não foi possível salvar a inteligência do onboarding. Tente novamente.");
         return;
       }
     }
@@ -139,18 +169,34 @@ const SetupPage = () => {
   }
 
   const currentOptions =
-    step === 1 ? objectives : step === 2 ? categories : step === 3 ? availabilities : experiences;
+    step === 1 ? categories : step === 2 ? marketplaces : referralSources;
   const isSelected = (item: string) => {
-    if (step === 1) return objective === item;
-    if (step === 2) return selectedCategories.includes(item);
-    if (step === 3) return availability === item;
-    return experience === item;
+    if (step === 1) return category === item;
+    if (step === 2) return marketplace === item;
+    return referralSource === item;
   };
   const handleSelect = (item: string) => {
-    if (step === 1) return setObjective(item);
-    if (step === 2) return toggleCategory(item);
-    if (step === 3) return setAvailability(item);
-    setExperience(item);
+    if (step === 1) {
+      setCategory(item);
+      if (user) {
+        void upsertOnboardingProfile({ userId: user.id, category: item, onboardingStep: 1, userStatus: "in_setup" });
+        void trackOnboardingEvent(user.id, "selected_category", item, { step: 1 });
+      }
+      return;
+    }
+    if (step === 2) {
+      setMarketplace(item);
+      if (user) {
+        void upsertOnboardingProfile({ userId: user.id, marketplace: item, onboardingStep: 2, userStatus: "in_setup" });
+        void trackOnboardingEvent(user.id, "selected_marketplace", item, { step: 2 });
+      }
+      return;
+    }
+    setReferralSource(item);
+    if (user) {
+      void upsertOnboardingProfile({ userId: user.id, referralSource: item, onboardingStep: 3, userStatus: "in_setup" });
+      void trackOnboardingEvent(user.id, "selected_referral_source", item, { step: 3 });
+    }
   };
 
   return (
@@ -174,14 +220,14 @@ const SetupPage = () => {
           >
             <div className="mb-5 text-center">
               <p className="text-[10px] font-[500] uppercase tracking-[0.16em] text-white/30">
-                Passo {step} de 4
+                Passo {step} de 3
               </p>
               <h1 className="mt-3 text-[25px] font-[390] leading-[1.05] tracking-[-0.04em] text-white sm:text-[28px]">
                 {stepTitles[step]}
               </h1>
               <p className="mt-2 text-[13px] font-[350] tracking-[-0.01em] text-white/45">
-                {step === 2
-                  ? "Você pode escolher mais de uma."
+                {step === 1
+                  ? "Escolha o ponto de partida da sua operação."
                   : "Selecione a opção que melhor descreve você."}
               </p>
             </div>
@@ -231,7 +277,7 @@ const SetupPage = () => {
                     className="flex h-10 items-center justify-center gap-2 rounded-[8px] bg-[#06100f] text-[13px] font-[430] tracking-[-0.01em] text-white transition duration-300 hover:bg-[#111b19] disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
                   >
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {step === 4 ? "Concluir" : "Continuar"}
+                    {step === 3 ? "Finalizar configuração" : "Continuar"}
                   </button>
                 </div>
               </motion.div>

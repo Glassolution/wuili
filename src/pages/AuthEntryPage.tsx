@@ -7,6 +7,7 @@ import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { VeloLogo } from "@/components/VeloLogo";
+import { getLeadOrigin, trackOnboardingEvent, upsertOnboardingProfile } from "@/lib/onboardingAnalytics";
 
 const enter = {
   initial: { opacity: 0, y: 14, filter: "blur(6px)" },
@@ -123,6 +124,20 @@ const AuthEntryPage = () => {
         },
         { onConflict: "user_id" }
       );
+      await upsertOnboardingProfile({
+        userId: data.user.id,
+        fullName: form.name.trim(),
+        email: cleanEmail,
+        onboardingStep: 0,
+        onboardingCompleted: false,
+        paymentStatus: "not_started",
+        leadOrigin: getLeadOrigin(),
+        userStatus: "registered",
+      });
+      await trackOnboardingEvent(data.user.id, "completed_registration", "email", {
+        email: cleanEmail,
+        provider: "email",
+      });
     }
 
     toast.success("Conta criada. Vamos configurar sua Velo.");

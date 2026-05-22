@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const userEmail = claimsData.claims.email as string;
 
     const body = await req.json();
-    const { plan, payment_method } = body;
+    const { plan, payment_method, affiliate_ref, plan_price } = body;
 
     if (!plan || !payment_method) {
       return new Response(JSON.stringify({ error: "plan e payment_method são obrigatórios" }), {
@@ -85,6 +85,11 @@ Deno.serve(async (req) => {
     }
 
     // Create Mercado Pago payment
+    const cleanAffiliateRef =
+      typeof affiliate_ref === "string"
+        ? affiliate_ref.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32)
+        : null;
+
     const mpPayload: Record<string, unknown> = {
       transaction_amount: selectedPlan.amount,
       description: selectedPlan.description,
@@ -92,9 +97,12 @@ Deno.serve(async (req) => {
       payer: {
         email: userEmail,
       },
+      external_reference: cleanAffiliateRef || undefined,
       metadata: {
         user_id: userId,
         plan: plan,
+        affiliate_ref: cleanAffiliateRef || undefined,
+        plan_price: typeof plan_price === "number" ? plan_price : selectedPlan.amount,
       },
     };
 

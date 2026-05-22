@@ -37,6 +37,18 @@ export const MAX_STORES_PER_USER = 2;
 
 export const getStoreProductLimit = (storeIndex: number) => (storeIndex === 0 ? 30 : storeIndex === 1 ? 15 : 15);
 
+export const getStoreOnboardingDoneKey = (userId: string) => `velo-store-onboarding-done:${userId}`;
+
+export const hasCompletedStoreOnboarding = (userId: string) => {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(getStoreOnboardingDoneKey(userId)) === "1";
+};
+
+export const markStoreOnboardingCompleted = (userId: string) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStoreOnboardingDoneKey(userId), "1");
+};
+
 export const readUserStores = (): VeloStore[] => {
   if (typeof window === "undefined") return [];
 

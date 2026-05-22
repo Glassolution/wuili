@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
 import { toast } from "sonner";
 import { VeloLogo } from "@/components/VeloLogo";
+import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
+import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
 
 type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
@@ -52,6 +54,11 @@ const PLANS_DATA: Record<string, { name: string; price: string; features: string
   },
 };
 
+const PLAN_AMOUNTS: Record<string, number> = {
+  pro: 99.9,
+  business: 149.9,
+};
+
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -81,6 +88,12 @@ const CheckoutPage = () => {
     if (session?.user?.email && !email) setEmail(session.user.email);
   }, [session, email]);
 
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    void markReachedPayment(session.user.id, { route: "/checkout", plan: planId });
+    void markAffiliateReachedPayment(session.user.id, PLAN_AMOUNTS[planId] ?? 0);
+  }, [planId, session?.user?.id]);
+
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
     if (checkoutState !== "pix_pending" || !session) return;
@@ -90,6 +103,7 @@ const CheckoutPage = () => {
         const { data } = await supabase.functions.invoke("mp-verify-payment");
         if (data?.status === "active") {
           setCheckoutState("success");
+          void markCompletedPayment(session.user.id, { route: "/checkout", plan: planId, source: "polling" });
           toast.success("🎉 Plano ativado!");
           if (pollRef.current) window.clearInterval(pollRef.current);
           setTimeout(() => navigate("/dashboard"), 1500);
@@ -112,6 +126,9 @@ const CheckoutPage = () => {
       const { data } = await supabase.functions.invoke("mp-verify-payment");
       if (data?.status === "active") {
         setCheckoutState("success");
+        if (session?.user?.id) {
+          void markCompletedPayment(session.user.id, { route: "/checkout", plan: planId, source: "manual_verify" });
+        }
         toast.success("🎉 Plano ativado!");
         setTimeout(() => navigate("/dashboard"), 1500);
       } else {
@@ -138,6 +155,11 @@ const CheckoutPage = () => {
         plan: planId,
         payment_method: selectedMethod,
       };
+      const referralCode = getReferralCode();
+      if (referralCode) {
+        payload.affiliate_ref = referralCode;
+        payload.plan_price = PLAN_AMOUNTS[planId] ?? undefined;
+      }
 
       if (selectedMethod === "credit_card") {
         if (!MP_PUBLIC_KEY || MP_PUBLIC_KEY.includes("PLACEHOLDER")) {
@@ -173,6 +195,9 @@ const CheckoutPage = () => {
 
       if (data.status === "approved") {
         setCheckoutState("success");
+        if (session?.user?.id) {
+          void markCompletedPayment(session.user.id, { route: "/checkout", plan: planId, source: "checkout" });
+        }
         toast.success("Pagamento aprovado! Plano ativado 🎉");
       } else if (data.pix_qr_code_base64) {
         setPixData({ qr_code_base64: data.pix_qr_code_base64, copy_paste: data.pix_copy_paste });

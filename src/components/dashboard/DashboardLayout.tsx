@@ -8,6 +8,8 @@ import StartModeModal from "@/components/dashboard/StartModeModal";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import FirstStoreOnboarding, {
   MAX_STORES_PER_USER,
+  hasCompletedStoreOnboarding,
+  markStoreOnboardingCompleted,
   readUserStores,
   saveUserStores,
   START_STORE_ONBOARDING_EVENT,
@@ -20,6 +22,7 @@ import { useStartMode } from "@/hooks/useStartMode";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useProfile } from "@/lib/profileContext";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
+import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -407,6 +410,12 @@ const DashboardLayoutInner = () => {
   const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
   const [storesHydrated, setStoresHydrated] = useState(false);
   const [showStoreOnboarding, setShowStoreOnboarding] = useState(false);
+  const hasOnboarded = user ? hasCompletedStoreOnboarding(user.id) : false;
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void attachReferralToCurrentUser(user.id);
+  }, [user?.id]);
 
   // Start Mode: ativo para usuários gratuitos, desativado para pagos
   const { isStartMode } = useStartMode();
@@ -424,6 +433,15 @@ const DashboardLayoutInner = () => {
       window.removeEventListener(START_STORE_ONBOARDING_EVENT, startStoreOnboarding);
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!storesHydrated) return;
+    if (stores.length !== 0) return;
+    if (hasCompletedStoreOnboarding(user.id)) return;
+    // Marcar como "visto" para não reaparecer a cada login/logout
+    markStoreOnboardingCompleted(user.id);
+  }, [user, storesHydrated, stores.length]);
 
 
   useEffect(() => {
@@ -490,6 +508,7 @@ const DashboardLayoutInner = () => {
         if (!cancelled && restoredStore) {
           saveUserStores([restoredStore]);
           setStores([restoredStore]);
+          markStoreOnboardingCompleted(user.id);
         }
       } catch (error) {
         console.warn("[DashboardLayout] não foi possível restaurar a loja salva:", error);
@@ -594,12 +613,14 @@ const DashboardLayoutInner = () => {
           <MobileDashboardChrome>
             <Outlet />
           </MobileDashboardChrome>
-          {storesHydrated && (stores.length === 0 || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
+          {storesHydrated &&
+            ((stores.length === 0 && !hasOnboarded) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
             <FirstStoreOnboarding
               defaultName={user.user_metadata?.full_name ?? user.email}
               existingStores={stores}
               onComplete={(store) => {
                 void persistCompletedStore(store);
+                markStoreOnboardingCompleted(user.id);
                 setStores(readUserStores());
                 setShowStoreOnboarding(false);
               }}
@@ -654,12 +675,14 @@ const DashboardLayoutInner = () => {
           </main>
         </div>
       </div>
-      {storesHydrated && (stores.length === 0 || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
+      {storesHydrated &&
+        ((stores.length === 0 && !hasOnboarded) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
         <FirstStoreOnboarding
           defaultName={user.user_metadata?.full_name ?? user.email}
           existingStores={stores}
           onComplete={(store) => {
             void persistCompletedStore(store);
+            markStoreOnboardingCompleted(user.id);
             setStores(readUserStores());
             setShowStoreOnboarding(false);
           }}

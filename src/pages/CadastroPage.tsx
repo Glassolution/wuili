@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link, Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { VeloLogo } from "@/components/VeloLogo";
 import { motion } from "framer-motion";
+import { markReachedPayment } from "@/lib/onboardingAnalytics";
 
 const duplicateEmailMessage = "Esse email já está cadastrado. Faça login.";
 
@@ -35,6 +36,11 @@ const CadastroPage = () => {
     animate: { opacity: 1, y: 0, filter: "blur(0px)" },
   };
   const smooth = { duration: 0.68, ease: [0.22, 1, 0.36, 1] as const };
+
+  useEffect(() => {
+    if (!isOfferStep || !user?.id) return;
+    void markReachedPayment(user.id, { route: "/cadastro", offer: "1" });
+  }, [isOfferStep, user?.id]);
 
   if (!authLoading && user && !isOfferStep) {
     return <Navigate to="/dashboard" replace />;

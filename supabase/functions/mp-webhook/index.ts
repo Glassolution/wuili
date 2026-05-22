@@ -99,6 +99,24 @@ Deno.serve(async (req) => {
             },
             { onConflict: "mp_payment_id" },
           );
+
+          // Novo funil (admin): marcar conversao como "paid" e gerar comissao pendente
+          if (userId) {
+            await adminClient.from("affiliate_conversions").upsert(
+              {
+                affiliate_code: String(affiliateRef).toUpperCase(),
+                subscriber_user_id: String(userId),
+                status: "paid",
+                plan_value: planPrice,
+                commission_rate: commissionRate,
+                commission_value: Number((planPrice * commissionRate).toFixed(2)),
+                payout_status: "pending",
+                paid_at: createdAt,
+                created_at: createdAt,
+              },
+              { onConflict: "affiliate_code,subscriber_user_id" },
+            );
+          }
         }
       } catch (affiliateError) {
         console.error("Affiliate sale insert failed:", affiliateError);
