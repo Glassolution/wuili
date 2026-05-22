@@ -139,7 +139,7 @@ const AdminCommissionsPage = () => {
           const link = String(a.link ?? `https://velods.com.br/ref/${code}`);
           return {
             affiliate_user_id: String(a.user_id),
-            affiliate_name: p?.full_name ?? p?.display_name ?? p?.email ?? String(a.user_id),
+            affiliate_name: p?.full_name ?? p?.display_name ?? p?.name ?? p?.email ?? code ?? "Afiliado sem nome",
             affiliate_email: p?.email ?? null,
             code,
             link,
