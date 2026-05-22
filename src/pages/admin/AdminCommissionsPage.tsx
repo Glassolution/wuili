@@ -77,7 +77,7 @@ const AdminCommissionsPage = () => {
           (supabase as any).from("affiliate_clicks").select("affiliate_code"),
           // select(*) para não quebrar se colunas opcionais (ex: payout_status) não existirem ainda
           (supabase as any).from("affiliate_conversions").select("*"),
-          (supabase as any).from("profiles").select("id,user_id,full_name,display_name,email,created_at"),
+          (supabase as any).from("profiles").select("id,user_id,display_name,created_at"),
         ]);
         if (affRes.error) throw affRes.error;
         if (clicksRes.error) throw clicksRes.error;
@@ -139,7 +139,7 @@ const AdminCommissionsPage = () => {
           const link = String(a.link ?? `https://velods.com.br/ref/${code}`);
           return {
             affiliate_user_id: String(a.user_id),
-            affiliate_name: p?.full_name ?? p?.display_name ?? p?.email ?? String(a.user_id),
+            affiliate_name: p?.full_name ?? p?.display_name ?? p?.name ?? p?.email ?? code ?? "Afiliado sem nome",
             affiliate_email: p?.email ?? null,
             code,
             link,
@@ -180,7 +180,7 @@ const AdminCommissionsPage = () => {
             .eq("affiliate_code", code)
             .order("created_at", { ascending: false })
             .limit(200),
-          (supabase as any).from("profiles").select("id,user_id,full_name,display_name,email"),
+          (supabase as any).from("profiles").select("id,user_id,display_name"),
         ]);
         if (affRes.error) throw affRes.error;
         if (clicksRes.error) throw clicksRes.error;
@@ -195,7 +195,7 @@ const AdminCommissionsPage = () => {
           return {
             ...c,
             subscriber_email: sp?.email ?? null,
-            subscriber_name: sp?.full_name ?? sp?.display_name ?? sp?.email ?? String(c.subscriber_user_id),
+            subscriber_name: sp?.full_name ?? sp?.display_name ?? sp?.name ?? sp?.email ?? "Usuário sem nome",
             payout_status: (c as any).payout_status ?? "pending",
           };
         });
