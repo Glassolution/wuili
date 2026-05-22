@@ -77,7 +77,7 @@ const AdminCommissionsPage = () => {
           (supabase as any).from("affiliate_clicks").select("affiliate_code"),
           // select(*) para não quebrar se colunas opcionais (ex: payout_status) não existirem ainda
           (supabase as any).from("affiliate_conversions").select("*"),
-          (supabase as any).from("profiles").select("id,user_id,full_name,display_name,email,created_at"),
+          (supabase as any).from("profiles").select("id,user_id,display_name,created_at"),
         ]);
         if (affRes.error) throw affRes.error;
         if (clicksRes.error) throw clicksRes.error;
