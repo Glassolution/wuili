@@ -195,7 +195,7 @@ const AdminCommissionsPage = () => {
           return {
             ...c,
             subscriber_email: sp?.email ?? null,
-            subscriber_name: sp?.full_name ?? sp?.display_name ?? sp?.email ?? String(c.subscriber_user_id),
+            subscriber_name: sp?.full_name ?? sp?.display_name ?? sp?.name ?? sp?.email ?? "Usuário sem nome",
             payout_status: (c as any).payout_status ?? "pending",
           };
         });
