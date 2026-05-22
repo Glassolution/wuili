@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
-const AFFILIATE_LINK_BASE_URL = "https://velods.com.br/ref";
 const COMMISSION_RATE = 0.2;
 const CODE_LENGTH = 8;
 const MAX_CODE_ATTEMPTS = 8;
@@ -15,6 +14,11 @@ function getEnv(nameList) {
   }
   return null;
 }
+
+const PUBLIC_APP_URL = (
+  getEnv(["VITE_PUBLIC_APP_URL", "PUBLIC_APP_URL", "APP_URL"]) ?? "https://velods.com.br"
+).replace(/\/+$/, "");
+const AFFILIATE_LINK_BASE_URL = `${PUBLIC_APP_URL}/ref`;
 
 function getBearerToken(req) {
   const header = req.headers?.authorization ?? req.headers?.Authorization;
@@ -129,10 +133,35 @@ async function syncProfileRef(supabase, userId, code) {
   }
 }
 
+async function syncCanonicalAffiliateLink(supabase, row) {
+  const response = makeAffiliateResponse(row);
+  if (!row?.id || !response.code || !response.link) return response;
+
+  if (row.code === response.code && row.ref === response.code && row.link === response.link) {
+    return response;
+  }
+
+  const { error } = await supabase
+    .from("affiliates")
+    .update({
+      code: response.code,
+      ref: response.code,
+      link: response.link,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", row.id);
+
+  if (error) {
+    console.warn("[affiliates] nao foi possivel sincronizar link canonico:", error);
+  }
+
+  return response;
+}
+
 export async function getAffiliateLinkForUser(req, userId) {
   const supabase = createAffiliateSupabaseClient(req);
   const existing = await getExistingAffiliate(supabase, userId);
-  return makeAffiliateResponse(existing);
+  return syncCanonicalAffiliateLink(supabase, existing);
 }
 
 export async function generateAffiliateLinkForUser(req, user) {
@@ -141,7 +170,7 @@ export async function generateAffiliateLinkForUser(req, user) {
   await ensureAffiliateSettings(supabase);
 
   const existing = await getExistingAffiliate(supabase, user.id);
-  if (existing) return makeAffiliateResponse(existing);
+  if (existing) return syncCanonicalAffiliateLink(supabase, existing);
 
   for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt += 1) {
     const code = generateCode();
@@ -173,7 +202,7 @@ export async function generateAffiliateLinkForUser(req, user) {
 
     if (isUniqueViolation(error)) {
       const afterConflict = await getExistingAffiliate(supabase, user.id);
-      if (afterConflict) return makeAffiliateResponse(afterConflict);
+      if (afterConflict) return syncCanonicalAffiliateLink(supabase, afterConflict);
       continue;
     }
 
@@ -182,4 +211,3 @@ export async function generateAffiliateLinkForUser(req, user) {
 
   throw new Error("Nao foi possivel gerar um codigo unico de afiliado apos varias tentativas.");
 }
-

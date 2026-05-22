@@ -52,6 +52,26 @@ const money = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency",
 const date = (v: string | null | undefined) => (v ? new Date(v).toLocaleDateString("pt-BR") : "-");
 const isMissingRpcError = (error: unknown) =>
   /could not find the function/i.test(String((error as any)?.message ?? error ?? ""));
+const PUBLIC_APP_URL = ((import.meta.env.VITE_PUBLIC_APP_URL as string | undefined) ?? "https://velods.com.br").replace(/\/+$/, "");
+const normalizeAffiliateCode = (value?: string | null) =>
+  String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32);
+const buildAffiliateUrl = (code: string) => `${PUBLIC_APP_URL}/ref/${normalizeAffiliateCode(code)}`;
+const canonicalizeAffiliateRow = (row: AffiliateRow): AffiliateRow => {
+  const code = normalizeAffiliateCode(row.code);
+  return { ...row, code, link: buildAffiliateUrl(code) };
+};
+const canonicalizeAffiliateDetails = (data: AffiliateDetails): AffiliateDetails => {
+  if (!data?.affiliate) return data;
+  const code = normalizeAffiliateCode(data.affiliate.code);
+  return {
+    ...data,
+    affiliate: {
+      ...data.affiliate,
+      code,
+      link: buildAffiliateUrl(code),
+    },
+  };
+};
 
 const AdminCommissionsPage = () => {
   const { user, loading: loadingAuth, role } = useAuth();
@@ -67,7 +87,7 @@ const AdminCommissionsPage = () => {
       try {
         const { data, error } = await (supabase as any).rpc("rpc_admin_affiliates_summary");
         if (error) throw error;
-        return (data ?? []) as AffiliateRow[];
+        return ((data ?? []) as AffiliateRow[]).map(canonicalizeAffiliateRow);
       } catch (e) {
         if (!isMissingRpcError(e)) throw e;
 
@@ -134,15 +154,14 @@ const AdminCommissionsPage = () => {
         }
 
         return ((affRes.data ?? []) as Array<any>).map((a) => {
-          const code = String(a.code ?? "").toUpperCase();
+          const code = normalizeAffiliateCode(a.code);
           const p = profileByUser.get(String(a.user_id));
-          const link = String(a.link ?? `https://velods.com.br/ref/${code}`);
           return {
             affiliate_user_id: String(a.user_id),
             affiliate_name: p?.full_name ?? p?.display_name ?? p?.name ?? p?.email ?? code ?? "Afiliado sem nome",
             affiliate_email: p?.email ?? null,
             code,
-            link,
+            link: buildAffiliateUrl(code),
             created_at: String(a.created_at ?? new Date().toISOString()),
             clicks: clicksByCode.get(code) ?? 0,
             signups: signupsByCode.get(code)?.size ?? 0,
@@ -165,11 +184,11 @@ const AdminCommissionsPage = () => {
           p_affiliate_code: selectedCode,
         });
         if (error) throw error;
-        return data as AffiliateDetails;
+        return canonicalizeAffiliateDetails(data as AffiliateDetails);
       } catch (e) {
         if (!isMissingRpcError(e)) throw e;
 
-        const code = String(selectedCode ?? "").toUpperCase();
+        const code = normalizeAffiliateCode(selectedCode);
         const [affRes, clicksRes, convRes, profRes] = await Promise.all([
           (supabase as any).from("affiliates").select("user_id, code, link, commission_rate, created_at").eq("code", code).maybeSingle(),
           (supabase as any).from("affiliate_clicks").select("created_at, referrer, user_agent").eq("affiliate_code", code).order("created_at", { ascending: false }).limit(200),
@@ -204,8 +223,8 @@ const AdminCommissionsPage = () => {
           affiliate: affRes.data
             ? {
                 user_id: String(affRes.data.user_id),
-                code: String(affRes.data.code),
-                link: String(affRes.data.link ?? `https://velods.com.br/ref/${code}`),
+                code: normalizeAffiliateCode(affRes.data.code ?? code),
+                link: buildAffiliateUrl(affRes.data.code ?? code),
                 commission_rate: affRes.data.commission_rate ?? null,
                 created_at: String(affRes.data.created_at ?? new Date().toISOString()),
               }

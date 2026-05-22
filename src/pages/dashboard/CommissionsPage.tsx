@@ -54,7 +54,8 @@ interface AffiliateLinkResponse {
 // ---------------------------------------------------------------------------
 const COMMISSION_RATE = 0.2;
 const PLAN_PRICE = 147.9;
-const REFERRAL_BASE_URL = "https://velods.com.br/ref";
+const PUBLIC_APP_URL = ((import.meta.env.VITE_PUBLIC_APP_URL as string | undefined) ?? "https://velods.com.br").replace(/\/+$/, "");
+const REFERRAL_BASE_URL = `${PUBLIC_APP_URL}/ref`;
 
 const statusCls: Record<Commission["status"], string> = {
   paid: "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
@@ -74,10 +75,10 @@ function formatDate(dateStr: string | null): string {
 const formatMoney = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const normalizeAffiliateCode = (value: string) =>
-  value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+const normalizeAffiliateCode = (value?: string | null) =>
+  String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
 
-const buildAffiliateUrl = (code: string) => `${REFERRAL_BASE_URL}/${code}`;
+const buildAffiliateUrl = (code: string) => `${REFERRAL_BASE_URL}/${normalizeAffiliateCode(code)}`;
 
 const buildAffiliateCode = (currentUser: { id: string; email?: string | null }) => {
   const emailPrefix = normalizeAffiliateCode(currentUser.email?.split("@")[0] ?? "").slice(0, 4);
@@ -188,10 +189,20 @@ const CommissionsPage = () => {
 
       if (existing?.code) {
         const code = normalizeAffiliateCode(existing.code);
-        const existingRef = normalizeAffiliateCode(existing.ref ?? "");
+        const canonicalLink = buildAffiliateUrl(code);
+        if (existing.ref !== code || existing.link !== canonicalLink) {
+          const { error: syncError } = await (supabase as any)
+            .from("affiliates")
+            .update({ ref: code, link: canonicalLink })
+            .eq("user_id", user.id);
+
+          if (syncError) {
+            console.warn("[CommissionsPage] nao foi possivel sincronizar link canonico", syncError);
+          }
+        }
         return {
           code,
-          link: existing.link || buildAffiliateUrl(existingRef || code),
+          link: canonicalLink,
           commissionRate: Number(existing.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
         } satisfies AffiliateLinkResponse;
       }
@@ -230,8 +241,8 @@ const CommissionsPage = () => {
         }
 
         return {
-          code: fallbackInserted?.code ?? fallbackCode,
-          link: fallbackInserted?.link ?? buildAffiliateUrl(fallbackCode),
+          code: normalizeAffiliateCode(fallbackInserted?.code ?? fallbackCode),
+          link: buildAffiliateUrl(fallbackInserted?.code ?? fallbackCode),
           commissionRate: Number(fallbackInserted?.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
         } satisfies AffiliateLinkResponse;
       }
@@ -242,8 +253,8 @@ const CommissionsPage = () => {
       }
 
       return {
-        code: inserted?.code ?? code,
-        link: inserted?.link ?? buildAffiliateUrl(code),
+        code: normalizeAffiliateCode(inserted?.code ?? code),
+        link: buildAffiliateUrl(inserted?.code ?? code),
         commissionRate: Number(inserted?.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
       } satisfies AffiliateLinkResponse;
     },
