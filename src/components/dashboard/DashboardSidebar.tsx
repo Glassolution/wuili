@@ -376,6 +376,7 @@ const nav: NavGroup[] = [
 ];
 
 const ADMIN_EMAILS = new Set(["xavierluisfelipe12@gmail.com"]);
+const AFFILIATE_EMAILS = new Set(["engelmannmatheus64@gmail.com"]);
 
 // ── Velo Mark (logo icon only) ────────────────────────────────────────────────
 
@@ -780,9 +781,10 @@ const DashboardSidebar = () => {
     (user?.user_metadata?.role as string | undefined) ??
     null;
   const emailRole = user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()) ? "admin" : null;
+  const emailAffiliateRole = user?.email && AFFILIATE_EMAILS.has(user.email.toLowerCase()) ? "affiliate" : null;
 
   const [collapsed, setCollapsed] = useState(false);
-  const [resolvedRole, setResolvedRole] = useState<string | null>(emailRole ?? role ?? metadataRole);
+  const [resolvedRole, setResolvedRole] = useState<string | null>(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
   const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
 
   // Start Mode: controlado pelo plano real do usuário (não localStorage)
@@ -799,8 +801,8 @@ const DashboardSidebar = () => {
   };
 
   useEffect(() => {
-    setResolvedRole(emailRole ?? role ?? metadataRole);
-  }, [emailRole, role, metadataRole]);
+    setResolvedRole(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
+  }, [emailAffiliateRole, emailRole, role, metadataRole]);
 
   useEffect(() => {
     const syncStores = () => setStores(readUserStores());
@@ -819,9 +821,9 @@ const DashboardSidebar = () => {
     let cancelled = false;
 
     const resolveSidebarRole = async () => {
-      const candidates = [emailRole, role, metadataRole].filter(Boolean) as string[];
+      const candidates = [emailRole, emailAffiliateRole, role, metadataRole].filter(Boolean) as string[];
 
-      const [profileByUserId, userRole] = await Promise.allSettled([
+      const [profileByUserId, userRole, affiliateRecord] = await Promise.allSettled([
         (supabase as any)
           .from("profiles")
           .select("role")
@@ -830,6 +832,11 @@ const DashboardSidebar = () => {
         (supabase as any)
           .from("user_roles")
           .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        (supabase as any)
+          .from("affiliates")
+          .select("user_id")
           .eq("user_id", user.id)
           .maybeSingle(),
       ]);
@@ -841,9 +848,13 @@ const DashboardSidebar = () => {
       if (userRole.status === "fulfilled" && userRole.value?.data?.role) {
         candidates.push(userRole.value.data.role);
       }
+      if (affiliateRecord.status === "fulfilled" && affiliateRecord.value?.data?.user_id) {
+        candidates.push("affiliate");
+      }
 
       const nextRole =
         candidates.includes("admin") ? "admin" :
+        candidates.includes("affiliate") ? "affiliate" :
         candidates.includes("influencer") ? "influencer" :
         candidates[0] ?? "user";
 
@@ -855,10 +866,10 @@ const DashboardSidebar = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, emailRole, role, metadataRole]);
+  }, [user, emailAffiliateRole, emailRole, role, metadataRole]);
 
   const isAdmin = resolvedRole === "admin";
-  const isInfluencer = resolvedRole === "influencer" || resolvedRole === "admin";
+  const canAccessCommissions = resolvedRole === "influencer" || resolvedRole === "affiliate" || resolvedRole === "admin";
 
   // Track which groups are open
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -1002,7 +1013,7 @@ const DashboardSidebar = () => {
           {isAdmin && (
             <FooterLinkRow to="/admin/dashboard" icon={ShieldCheck} label="Painel Admin" active={location.pathname.startsWith("/admin")} collapsed={collapsed} />
           )}
-          {isInfluencer && (
+          {canAccessCommissions && (
             <FooterLinkRow to="/dashboard/comissoes" icon={BadgeDollarSign} label="Painel de Comissão" active={location.pathname.startsWith("/dashboard/comissoes")} collapsed={collapsed} />
           )}
         </div>
@@ -1020,7 +1031,7 @@ const DashboardSidebar = () => {
         {isAdmin && (
           <FooterLinkRow to="/admin/dashboard" icon={ShieldCheck} label="Painel Admin" active={location.pathname.startsWith("/admin")} collapsed={collapsed} />
         )}
-        {isInfluencer && (
+        {canAccessCommissions && (
           <FooterLinkRow to="/dashboard/comissoes" icon={BadgeDollarSign} label="Painel de Comissão" active={location.pathname.startsWith("/dashboard/comissoes")} collapsed={collapsed} />
         )}
       </div>}

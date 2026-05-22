@@ -46,6 +46,7 @@ interface Influencer {
 interface AffiliateLinkResponse {
   code: string | null;
   link: string | null;
+  commissionRate?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,7 @@ interface AffiliateLinkResponse {
 // ---------------------------------------------------------------------------
 const COMMISSION_RATE = 0.2;
 const PLAN_PRICE = 147.9;
+const REFERRAL_BASE_URL = "https://velods.com.br/ref";
 
 const statusCls: Record<Commission["status"], string> = {
   paid: "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
@@ -71,6 +73,73 @@ function formatDate(dateStr: string | null): string {
 
 const formatMoney = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+const normalizeAffiliateCode = (value: string) =>
+  value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+
+const buildAffiliateUrl = (code: string) => `${REFERRAL_BASE_URL}/${code}`;
+
+const buildAffiliateCode = (currentUser: { id: string; email?: string | null }) => {
+  const emailPrefix = normalizeAffiliateCode(currentUser.email?.split("@")[0] ?? "").slice(0, 4);
+  const userSuffix = normalizeAffiliateCode(currentUser.id.replace(/-/g, "")).slice(0, 4);
+  return `${emailPrefix || "VELO"}${userSuffix || "0000"}`.slice(0, 8).padEnd(8, "X");
+};
+
+const isDuplicateAffiliateCodeError = (error: unknown) => {
+  const err = error as { code?: string; message?: string };
+  return err?.code === "23505" || String(err?.message ?? "").toLowerCase().includes("duplicate");
+};
+
+const mapAffiliateConversionToCommission = (row: any): Commission => {
+  const planPrice = Number(row.plan_value ?? row.sale_amount ?? PLAN_PRICE) || PLAN_PRICE;
+  const rate = Number(row.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE;
+  const commissionValue = Number(row.commission_value ?? planPrice * rate) || planPrice * rate;
+  const customerEmail = row.subscriber_email ?? row.referred_email ?? null;
+  const customerName = row.subscriber_name || row.referred_name || customerEmail || "Cliente indicado";
+  const customerKey = String(row.subscriber_user_id ?? row.referred_user_id ?? customerEmail ?? row.id);
+  const rawDate = row.paid_at || row.reached_payment_at || row.signup_at || row.created_at || new Date().toISOString();
+
+  return {
+    id: String(row.id),
+    order_id: String(row.payment_id ?? row.id),
+    value: Number(commissionValue.toFixed(2)),
+    percentage: Number((rate * 100).toFixed(0)),
+    status: row.commission_status === "paid" || row.payout_status === "paid" || row.status === "paid" ? "paid" : "pending",
+    date: formatDate(rawDate),
+    rawDate,
+    customerName,
+    customerEmail,
+    customerKey,
+    planName: String(row.plan_name ?? row.plan ?? "Pro"),
+    saleAmount: Number(planPrice.toFixed(2)),
+  };
+};
+
+const mapAffiliateSaleToCommission = (row: any): Commission => {
+  const planPrice = Number(row.plan_price ?? row.plan_value ?? PLAN_PRICE) || PLAN_PRICE;
+  const rate = Number(row.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE;
+  const commissionValue = Number(row.commission_amount ?? row.commission_value ?? planPrice * rate) || planPrice * rate;
+  const customerName = row.customer_name || row.referred_name || row.customer_email || "Cliente indicado";
+  const customerEmail = row.customer_email ?? row.referred_email ?? null;
+  const customerKey = String(row.customer_user_id ?? row.referred_user_id ?? customerEmail ?? row.id);
+  const rawDate = row.created_at || row.paid_at || new Date().toISOString();
+  const planRaw = String(row.plan_name ?? row.plan ?? "Pro");
+
+  return {
+    id: String(row.id),
+    order_id: String(row.mp_payment_id ?? row.payment_id ?? row.id),
+    value: Number(commissionValue.toFixed(2)),
+    percentage: Number((rate * 100).toFixed(0)),
+    status: row.commission_status === "paid" || row.status === "paid" ? "paid" : "pending",
+    date: formatDate(rawDate),
+    rawDate,
+    customerName,
+    customerEmail,
+    customerKey,
+    planName: planRaw === "mensal" ? "Mensal" : planRaw,
+    saleAmount: Number(planPrice.toFixed(2)),
+  };
+};
 
 function monthKey(dateStr: string) {
   const d = new Date(dateStr);
@@ -104,86 +173,124 @@ const CommissionsPage = () => {
     queryKey: ["affiliate-link", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) throw new Error("Sessao expirada. Faca login novamente.");
+      if (!user?.id) return { code: null, link: null };
 
-      const headers = { Authorization: `Bearer ${token}` };
-      const getResponse = await fetch("/api/affiliates/link", { headers });
-      const current = (await getResponse.json()) as AffiliateLinkResponse & { error?: string; message?: string };
-      if (!getResponse.ok) {
-        throw new Error(current.message || current.error || "Nao foi possivel buscar o link de afiliado.");
+      const { data: existing, error: readError } = await (supabase as any)
+        .from("affiliates")
+        .select("code, ref, link, commission_rate")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (readError) {
+        console.error("[CommissionsPage] affiliates query failed", readError);
+        throw new Error("Nao foi possivel buscar seu link de afiliado.");
       }
 
-      if (current.code && current.link) return current;
-
-      const generateResponse = await fetch("/api/affiliates/generate", {
-        method: "POST",
-        headers,
-      });
-      const generated = (await generateResponse.json()) as AffiliateLinkResponse & { error?: string; message?: string };
-      if (!generateResponse.ok) {
-        throw new Error(generated.message || generated.error || "Nao foi possivel gerar o link de afiliado.");
+      if (existing?.code) {
+        const code = normalizeAffiliateCode(existing.code);
+        const existingRef = normalizeAffiliateCode(existing.ref ?? "");
+        return {
+          code,
+          link: existing.link || buildAffiliateUrl(existingRef || code),
+          commissionRate: Number(existing.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
+        } satisfies AffiliateLinkResponse;
       }
 
-      return generated;
+      const code = buildAffiliateCode({ id: user.id, email: user.email });
+      const payload = {
+        user_id: user.id,
+        code,
+        ref: code,
+        link: buildAffiliateUrl(code),
+        commission_rate: COMMISSION_RATE,
+      };
+
+      const { data: inserted, error: insertError } = await (supabase as any)
+        .from("affiliates")
+        .insert(payload)
+        .select("code, link, commission_rate")
+        .maybeSingle();
+
+      if (insertError && isDuplicateAffiliateCodeError(insertError)) {
+        const fallbackCode = normalizeAffiliateCode(`${code}${user.id.replace(/-/g, "").slice(-4)}`).slice(0, 10);
+        const { data: fallbackInserted, error: fallbackError } = await (supabase as any)
+          .from("affiliates")
+          .insert({
+            ...payload,
+            code: fallbackCode,
+            ref: fallbackCode,
+            link: buildAffiliateUrl(fallbackCode),
+          })
+          .select("code, link, commission_rate")
+          .maybeSingle();
+
+        if (fallbackError) {
+          console.error("[CommissionsPage] affiliates fallback insert failed", fallbackError);
+          throw new Error("Nao foi possivel criar seu link de afiliado.");
+        }
+
+        return {
+          code: fallbackInserted?.code ?? fallbackCode,
+          link: fallbackInserted?.link ?? buildAffiliateUrl(fallbackCode),
+          commissionRate: Number(fallbackInserted?.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
+        } satisfies AffiliateLinkResponse;
+      }
+
+      if (insertError) {
+        console.error("[CommissionsPage] affiliates insert failed", insertError);
+        throw new Error("Nao foi possivel criar seu link de afiliado.");
+      }
+
+      return {
+        code: inserted?.code ?? code,
+        link: inserted?.link ?? buildAffiliateUrl(code),
+        commissionRate: Number(inserted?.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
+      } satisfies AffiliateLinkResponse;
     },
     retry: 1,
   });
 
   // Fetch affiliate sales for the logged-in influencer
   const { data: initialCommissions = [], isLoading } = useQuery({
-    queryKey: ["affiliate-sales", user?.id],
-    enabled: !!user?.id,
+    queryKey: ["affiliate-sales", user?.id, affiliateLink?.code],
+    enabled: !!user?.id && !loadingRef,
     queryFn: async () => {
-      // Primary source: affiliate_sales
-      const { data, error } = await supabase
-        .from("affiliate_sales" as any)
+      if (!user?.id) return [] as Commission[];
+
+      if (affiliateLink?.code) {
+        const { data: conversionData, error: conversionError } = await (supabase as any)
+          .from("affiliate_conversions")
+          .select("*")
+          .eq("affiliate_code", affiliateLink.code)
+          .order("created_at", { ascending: false });
+
+        if (!conversionError && Array.isArray(conversionData) && conversionData.length > 0) {
+          return conversionData.map(mapAffiliateConversionToCommission);
+        }
+
+        if (conversionError) {
+          console.warn("[CommissionsPage] affiliate_conversions query failed", conversionError);
+        }
+      }
+
+      const { data, error } = await (supabase as any)
+        .from("affiliate_sales")
         .select("*")
+        .eq("affiliate_user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) {
-        // Fallback (dev environments without the table): show empty
-        console.error("[CommissionsPage] affiliate_sales query failed", error);
+        console.warn("[CommissionsPage] affiliate_sales query failed", error);
         return [] as Commission[];
       }
 
-      return (data || []).map((row: any) => {
-        const planPrice = Number(row.plan_price ?? PLAN_PRICE) || PLAN_PRICE;
-        const rate = Number(row.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE;
-        const commissionValue = Number(row.commission_amount ?? planPrice * rate) || planPrice * rate;
-        const customerName = row.customer_name || "Cliente";
-        const customerEmail = row.customer_email ?? null;
-        const customerKey = String(row.customer_user_id ?? customerEmail ?? customerName ?? row.id);
-        const planRaw = String(row.plan ?? "mensal");
-        const planName = planRaw === "mensal" ? "Mensal" : planRaw;
-
-        const rawDate = row.created_at || new Date().toISOString();
-        const orderId = row.mp_payment_id ? String(row.mp_payment_id) : String(row.id);
-
-        return {
-          id: String(row.id),
-          order_id: orderId,
-          value: Number(commissionValue.toFixed(2)),
-          percentage: Number((rate * 100).toFixed(0)),
-          status: row.commission_status === "paid" ? "paid" : "pending",
-          date: formatDate(rawDate),
-          rawDate,
-          customerName,
-          customerEmail,
-          customerKey,
-          planName,
-          saleAmount: Number(planPrice.toFixed(2)),
-        } as Commission;
-      });
+      return (data || []).map(mapAffiliateSaleToCommission);
     },
   });
 
   // Sync local state with initial data
   useEffect(() => {
-    if (initialCommissions.length > 0 && localCommissions.length === 0) {
-      setLocalCommissions(initialCommissions);
-    }
+    setLocalCommissions(initialCommissions);
   }, [initialCommissions]);
 
   const filteredCommissions = useMemo(() => {
@@ -317,7 +424,7 @@ const CommissionsPage = () => {
 
   const [influencer, setInfluencer] = useState<Influencer | null>(null);
 
-  // Influencer link returned by /api/affiliates/*
+  // Affiliate link loaded from Supabase and scoped to the current user.
   useEffect(() => {
     if (!user) return;
     if (!affiliateLink?.code || !affiliateLink?.link) return;
@@ -796,5 +903,3 @@ const CommissionsPage = () => {
 };
 
 export default CommissionsPage;
-
-

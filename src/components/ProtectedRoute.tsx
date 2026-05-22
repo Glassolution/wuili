@@ -10,6 +10,7 @@ interface ProtectedRouteProps {
 }
 
 const ADMIN_EMAILS = new Set(["xavierluisfelipe12@gmail.com"]);
+const AFFILIATE_EMAILS = new Set(["engelmannmatheus64@gmail.com"]);
 
 const ProtectedRoute = ({ children, allowedRoles, redirectTo = "/dashboard" }: ProtectedRouteProps) => {
   const { user, loading, role } = useAuth();
@@ -18,9 +19,10 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo = "/dashboard" }: P
     (user?.user_metadata?.role as string | undefined) ??
     null;
   const emailRole = user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()) ? "admin" : null;
+  const emailAffiliateRole = user?.email && AFFILIATE_EMAILS.has(user.email.toLowerCase()) ? "affiliate" : null;
   const initialRole = useMemo(
-    () => emailRole ?? role ?? metadataRole ?? null,
-    [emailRole, role, metadataRole]
+    () => emailRole ?? emailAffiliateRole ?? role ?? metadataRole ?? null,
+    [emailRole, emailAffiliateRole, role, metadataRole]
   );
   const [resolvedRole, setResolvedRole] = useState<string | null>(initialRole);
   const [roleLoading, setRoleLoading] = useState(false);
@@ -36,9 +38,9 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo = "/dashboard" }: P
     setRoleLoading(true);
 
     const resolveRole = async () => {
-      const candidates = [emailRole, role, metadataRole].filter(Boolean) as string[];
+      const candidates = [emailRole, emailAffiliateRole, role, metadataRole].filter(Boolean) as string[];
 
-      const [profileByUserId, profileById, userRole] = await Promise.allSettled([
+      const [profileByUserId, profileById, userRole, affiliateRecord] = await Promise.allSettled([
         (supabase as any)
           .from("profiles")
           .select("role")
@@ -54,6 +56,11 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo = "/dashboard" }: P
           .select("role")
           .eq("user_id", user.id)
           .maybeSingle(),
+        (supabase as any)
+          .from("affiliates")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle(),
       ]);
 
       for (const result of [profileByUserId, profileById, userRole]) {
@@ -61,9 +68,13 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo = "/dashboard" }: P
           candidates.push(result.value.data.role);
         }
       }
+      if (affiliateRecord.status === "fulfilled" && affiliateRecord.value?.data?.user_id) {
+        candidates.push("affiliate");
+      }
 
       const nextRole =
         candidates.includes("admin") ? "admin" :
+        candidates.includes("affiliate") ? "affiliate" :
         candidates.includes("influencer") ? "influencer" :
         candidates[0] ?? "user";
 
@@ -81,7 +92,7 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo = "/dashboard" }: P
     return () => {
       cancelled = true;
     };
-  }, [allowedRoles, emailRole, metadataRole, role, user]);
+  }, [allowedRoles, emailAffiliateRole, emailRole, metadataRole, role, user]);
 
   if (loading) {
     return (

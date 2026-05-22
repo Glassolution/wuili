@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 
 const ADMIN_EMAILS = new Set(["xavierluisfelipe12@gmail.com"]);
+const AFFILIATE_EMAILS = new Set(["engelmannmatheus64@gmail.com"]);
 
 type MobileRouteMeta = {
   test: (pathname: string) => boolean;
@@ -198,7 +199,8 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
     (user?.user_metadata?.role as string | undefined) ??
     null;
   const emailRole = user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()) ? "admin" : null;
-  const [resolvedRole, setResolvedRole] = useState<string | null>(emailRole ?? role ?? metadataRole);
+  const emailAffiliateRole = user?.email && AFFILIATE_EMAILS.has(user.email.toLowerCase()) ? "affiliate" : null;
+  const [resolvedRole, setResolvedRole] = useState<string | null>(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
   const routeMeta = mobileRoutes.find((r) => r.test(location.pathname)) ?? mobileRoutes[0];
   const isRootDashboard = location.pathname === "/dashboard";
   const displayName = user?.user_metadata?.full_name ?? user?.email ?? "Velo";
@@ -211,8 +213,8 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
     .toUpperCase();
 
   useEffect(() => {
-    setResolvedRole(emailRole ?? role ?? metadataRole);
-  }, [emailRole, role, metadataRole]);
+    setResolvedRole(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
+  }, [emailAffiliateRole, emailRole, role, metadataRole]);
 
   useEffect(() => {
     if (!user || !isSupabaseEnabled) return;
@@ -220,10 +222,11 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
     let cancelled = false;
 
     const resolveRole = async () => {
-      const candidates = [emailRole, role, metadataRole].filter(Boolean) as string[];
-      const [profileByUserId, userRole] = await Promise.allSettled([
+      const candidates = [emailRole, emailAffiliateRole, role, metadataRole].filter(Boolean) as string[];
+      const [profileByUserId, userRole, affiliateRecord] = await Promise.allSettled([
         (supabase as any).from("profiles").select("role").eq("user_id", user.id).maybeSingle(),
         (supabase as any).from("user_roles").select("role").eq("user_id", user.id).maybeSingle(),
+        (supabase as any).from("affiliates").select("user_id").eq("user_id", user.id).maybeSingle(),
       ]);
 
       if (profileByUserId.status === "fulfilled" && profileByUserId.value?.data?.role) {
@@ -232,9 +235,13 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
       if (userRole.status === "fulfilled" && userRole.value?.data?.role) {
         candidates.push(userRole.value.data.role);
       }
+      if (affiliateRecord.status === "fulfilled" && affiliateRecord.value?.data?.user_id) {
+        candidates.push("affiliate");
+      }
 
       const nextRole =
         candidates.includes("admin") ? "admin" :
+        candidates.includes("affiliate") ? "affiliate" :
         candidates.includes("influencer") ? "influencer" :
         candidates[0] ?? "user";
 
@@ -246,10 +253,10 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true;
     };
-  }, [user, emailRole, role, metadataRole]);
+  }, [user, emailAffiliateRole, emailRole, role, metadataRole]);
 
   const isAdmin = resolvedRole === "admin";
-  const isInfluencer = resolvedRole === "influencer" || resolvedRole === "admin";
+  const canAccessCommissions = resolvedRole === "influencer" || resolvedRole === "affiliate" || resolvedRole === "admin";
   const closeMenu = () => setMenuOpen(false);
 
   const drawerLinks = [
@@ -388,7 +395,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
                 </a>
 
                 {isAdmin && <MobileDrawerLink to="/admin/dashboard" label="Painel Admin" icon={ShieldCheck} onClick={closeMenu} badge="Admin" />}
-                {isInfluencer && <MobileDrawerLink to="/dashboard/comissoes" label="Painel de Comissão" icon={BadgeDollarSign} onClick={closeMenu} />}
+                {canAccessCommissions && <MobileDrawerLink to="/dashboard/comissoes" label="Painel de Comissão" icon={BadgeDollarSign} onClick={closeMenu} />}
                 <MobileDrawerLink to="/dashboard/configuracoes" label="Perfil e configurações" icon={Settings} onClick={closeMenu} />
               </div>
             </div>

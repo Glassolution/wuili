@@ -90,46 +90,61 @@ const SetupPage = () => {
 
     if (user) {
       setSaving(true);
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          categorias: [category],
-          onboarding_completed: true,
-        })
-        .eq("user_id", user.id);
+      try {
+        // Dados PRINCIPAIS (não pode falhar)
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            categorias: [category],
+            onboarding_completed: true,
+          })
+          .eq("user_id", user.id);
 
-      if (error) {
+        if (error) {
+          console.error("[setup] erro ao salvar perfil:", { error, userId: user.id, payload });
+          toast.error("Não foi possível salvar seu perfil. Tente novamente.");
+          return;
+        }
+
+        // Dados secundários (analytics/inteligência) — NÃO bloquear o usuário
+        const onboardingPayload = {
+          userId: user.id,
+          fullName: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? null,
+          email: user.email ?? null,
+          category,
+          marketplace,
+          referralSource,
+          onboardingStep: 3,
+          onboardingCompleted: true,
+          paymentStatus: "not_started",
+          leadOrigin: getLeadOrigin(),
+          userStatus: "setup_completed",
+        };
+
+        const { error: profileError } = await upsertOnboardingProfile(onboardingPayload);
+        if (profileError) {
+          console.error("[setup] falha ao salvar user_profiles (não bloqueante):", {
+            table: "user_profiles",
+            error: profileError,
+            onboardingPayload,
+          });
+        }
+
+        const { error: eventError } = await trackOnboardingEvent(user.id, "completed_setup", "setup", {
+          category,
+          marketplace,
+          referral_source: referralSource,
+        });
+        if (eventError) {
+          console.error("[setup] falha ao salvar onboarding_events (não bloqueante):", {
+            table: "onboarding_events",
+            error: eventError,
+            userId: user.id,
+            payload: { category, marketplace, referral_source: referralSource },
+          });
+        }
+      } finally {
         setSaving(false);
-        console.error("[setup] erro ao salvar perfil:", error);
-        toast.error("Não foi possível salvar seu perfil. Tente novamente.");
-        return;
-      }
-
-      const { error: profileError } = await upsertOnboardingProfile({
-        userId: user.id,
-        fullName: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? null,
-        email: user.email ?? null,
-        category,
-        marketplace,
-        referralSource,
-        onboardingStep: 3,
-        onboardingCompleted: true,
-        paymentStatus: "not_started",
-        leadOrigin: getLeadOrigin(),
-        userStatus: "setup_completed",
-      });
-
-      await trackOnboardingEvent(user.id, "completed_setup", "setup", {
-        category,
-        marketplace,
-        referral_source: referralSource,
-      });
-
-      setSaving(false);
-
-      if (profileError) {
-        toast.error("Não foi possível salvar a inteligência do onboarding. Tente novamente.");
-        return;
       }
     }
 

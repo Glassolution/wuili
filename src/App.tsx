@@ -117,7 +117,7 @@ const App = () => (
                 <Route index element={<DashboardHomePage />} />
                 <Route path="saldos" element={<SaldosPage />} />
                 <Route path="transacoes" element={<TransacoesPage />} />
-                <Route path="comissoes" element={<ProtectedRoute allowedRoles={["admin", "influencer"]}><CommissionsPage /></ProtectedRoute>} />
+                <Route path="comissoes" element={<ProtectedRoute allowedRoles={["admin", "influencer", "affiliate"]}><CommissionsPage /></ProtectedRoute>} />
                 <Route path="pagamentos" element={<PagamentosPage />} />
                 <Route path="planos" element={<Navigate to="/checkout" replace />} />
                 <Route path="clientes" element={<ClientesPage />} />
