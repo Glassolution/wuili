@@ -85,18 +85,29 @@ async function predictCategory(title: string): Promise<string> {
 function mapMLError(mlData: Record<string, unknown>): string {
   const msg = (mlData?.message as string) || ''
   const causeArr = (mlData?.cause as unknown[]) || []
-  const causeStr = JSON.stringify(causeArr)
+  const causeStr = JSON.stringify(causeArr).toLowerCase()
+  const msgLower = msg.toLowerCase()
+
+  // Restrições da conta do vendedor (não é bug nosso — é a conta ML que está bloqueada)
+  if (
+    msgLower.includes('unable_to_list') ||
+    msgLower.includes('seller.unable_to_list') ||
+    causeStr.includes('restrictions_') ||
+    causeStr.includes('restriction')
+  ) {
+    return 'Sua conta do Mercado Livre está com restrições e não pode publicar anúncios no momento. Acesse mercadolivre.com.br → Minha conta → Reputação para verificar pendências (validação de identidade, documentos, política de revenda, etc.) e tente novamente após regularizar.'
+  }
 
   if (causeStr.includes('category_id')) return 'Categoria inválida. Tente editar o título para melhor detecção automática.'
   if (causeStr.includes('missing_required') || causeStr.includes('attributes'))
     return 'Atributos obrigatórios faltando (marca/modelo). O Mercado Livre exige esses dados para esta categoria.'
-  if (msg.includes('title') || causeStr.includes('title.length'))
+  if (msgLower.includes('title') || causeStr.includes('title.length'))
     return 'Título muito longo. Máximo 60 caracteres.'
-  if (msg.includes('picture') || causeStr.includes('download_error'))
+  if (msgLower.includes('picture') || causeStr.includes('download_error'))
     return 'Erro ao processar imagens. Verifique se as imagens são válidas.'
-  if (msg.includes('token') || msg.includes('unauthorized') || mlData?.status === 401)
+  if (msgLower.includes('token') || msgLower.includes('unauthorized') || mlData?.status === 401)
     return 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.'
-  if (msg.includes('price'))
+  if (msgLower.includes('price'))
     return 'Preço inválido. Verifique o valor de venda.'
   if (causeStr.includes('shipping'))
     return 'Configuração de envio necessária no Mercado Livre. Verifique suas preferências de frete na sua conta ML.'
