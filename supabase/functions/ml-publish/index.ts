@@ -314,9 +314,24 @@ Deno.serve(async (req) => {
     }
     console.log('Atributos:', allAttrs.map(a => a.id))
 
-    // === PICTURES (use source URLs directly — CJ URLs are public) ===
-    const pictures = publicImages.map(url => ({ source: url }))
-    console.log('Imagens para ML:', pictures.length)
+    // === PICTURES ===
+    // ML exige foto de capa com FUNDO BRANCO digitalizado em várias categorias
+    // (beleza, saúde, moda etc). As imagens do catálogo CJ/Velo nem sempre vêm
+    // assim — então normalizamos via proxy gratuito images.weserv.nl, que
+    // redimensiona para 1200x1200 com `fit=contain` e preenche o canvas com
+    // branco puro. Isso evita o status "Inativo para revisar" em massa.
+    const toWhiteBg = (url: string): string => {
+      try {
+        // weserv exige URL sem protocolo
+        const stripped = url.replace(/^https?:\/\//i, '')
+        const encoded = encodeURIComponent(stripped)
+        return `https://images.weserv.nl/?url=${encoded}&w=1200&h=1200&fit=contain&cbg=white&bg=white&output=jpg&q=90`
+      } catch {
+        return url
+      }
+    }
+    const pictures = publicImages.map(url => ({ source: toWhiteBg(url) }))
+    console.log('Imagens para ML (normalizadas fundo branco):', pictures.length)
 
     // === BUILD PAYLOAD ===
     const mlPayload = {
