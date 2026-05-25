@@ -368,7 +368,17 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       });
 
       if (error || data?.error) {
-        toast.error(data?.error || error?.message || "Erro ao publicar");
+        // supabase.functions.invoke esconde o body quando status != 2xx.
+        // Tentamos extrair a mensagem amigável do corpo real da resposta.
+        let friendly = data?.error as string | undefined;
+        const ctxRes = (error as any)?.context;
+        if (!friendly && ctxRes && typeof ctxRes.json === "function") {
+          try {
+            const body = await ctxRes.json();
+            friendly = body?.error || body?.message;
+          } catch { /* ignore */ }
+        }
+        toast.error(friendly || error?.message || "Erro ao publicar");
         setPublishing(false);
         return;
       }
