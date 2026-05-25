@@ -95,7 +95,7 @@ function mapMLError(mlData: Record<string, unknown>): string {
     causeStr.includes('restrictions_') ||
     causeStr.includes('restriction')
   ) {
-    return 'Sua conta do Mercado Livre está com restrições e não pode publicar anúncios no momento. Acesse mercadolivre.com.br → Minha conta → Reputação para verificar pendências (validação de identidade, documentos, política de revenda, etc.) e tente novamente após regularizar.'
+    return 'Sua conta do Mercado Livre ainda não está habilitada como VENDEDOR. Acesse mercadolivre.com.br, vá em "Minha conta → Vender" e complete o cadastro de vendedor (dados pessoais, CPF/CNPJ, endereço e dados bancários). Depois reconecte sua conta aqui em Integrações e tente publicar novamente.'
   }
 
   if (causeStr.includes('category_id')) return 'Categoria inválida. Tente editar o título para melhor detecção automática.'
