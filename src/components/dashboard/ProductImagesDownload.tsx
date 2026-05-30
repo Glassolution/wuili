@@ -134,7 +134,7 @@ export default function ProductImagesDownload({ images, productTitle }: Props) {
 
   if (images.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] py-10 text-center">
+      <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F0F0F0]">
           <ImageOff size={18} className="text-[#A3A3A3]" />
         </div>
@@ -198,7 +198,7 @@ export default function ProductImagesDownload({ images, productTitle }: Props) {
           return (
             <div
               key={url + i}
-              className="group overflow-hidden rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] transition-all duration-200 hover:border-[#D4D4D4] hover:shadow-md"
+              className="group overflow-hidden rounded-xl border border-[#E5E5E5] bg-white transition-all duration-200 hover:border-[#D4D4D4] hover:shadow-md"
             >
               {/* Image area */}
               <div className="relative aspect-square overflow-hidden bg-[#F0F0F0]">

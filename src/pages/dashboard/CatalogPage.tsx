@@ -1,11 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, RefreshCw, Package, ChevronLeft, ChevronRight, Check, ChevronsRight, Plug } from "lucide-react";
+import { Search, ChevronDown, RefreshCw, Package, ChevronLeft, ChevronRight, Check, Plug } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
-import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { supabase, supabaseUrl } from "@/integrations/supabase/client";
 import { createTimeoutSignal } from "@/lib/requestTimeout";
@@ -56,12 +55,11 @@ function getPlatform(source: string | null) {
 interface ProductCardProps {
   p: any;
   onImport: () => void;
-  onCompare: () => void;
   formatPrice: (v: number) => string;
   getImage: (images: any) => string | null;
 }
 
-const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductCardProps) => {
+const ProductCard = ({ p, onImport, formatPrice, getImage }: ProductCardProps) => {
   const img = getImage(p.images);
   const outOfStock = !p.stock_quantity || p.stock_quantity <= 0;
   const estimatedProfit = Math.max(0, Number(p.suggested_price ?? 0) - Number(p.cost_price ?? 0));
@@ -80,26 +78,28 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
         display: "flex",
         flexDirection: "column",
         backgroundColor: "#FFFFFF",
-        borderRadius: "14px",
-        border: "1px solid rgba(0,0,0,0.06)",
+        borderRadius: "13px",
+        border: "1px solid rgba(0,0,0,0.07)",
         overflow: "hidden",
+        padding: "6px",
         minHeight: "0",
+        boxShadow: "none",
         transition: "transform 180ms ease, box-shadow 200ms ease, border-color 200ms ease",
         cursor: "default",
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)";
-        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.10)";
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 20px rgba(0,0,0,0.07)";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.12)";
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
         (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
-        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.06)";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.07)";
       }}
     >
       {/* Image area */}
-      <div style={{ position: "relative", backgroundColor: "#F5F5F5", height: "244px", width: "100%", overflow: "hidden", flexShrink: 0, borderTopLeftRadius: "14px", borderTopRightRadius: "14px", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+      <div style={{ position: "relative", backgroundColor: "#F5F5F5", height: "220px", width: "100%", overflow: "hidden", flexShrink: 0, borderRadius: "9px" }}>
         {img ? (
           <img
             src={img}
@@ -125,83 +125,66 @@ const ProductCard = ({ p, onImport, onCompare, formatPrice, getImage }: ProductC
       </div>
 
       {/* Card body */}
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "14px 16px 16px" }}>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "13px 16px 10px" }}>
         {/* Product title */}
-        <p style={{ fontSize: "14px", fontWeight: 650, color: "#111111", lineHeight: "1.32", letterSpacing: "-0.01em", margin: "0 0 12px 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+        <p style={{ fontSize: "14px", fontWeight: 700, color: "#111111", lineHeight: "1.22", letterSpacing: "-0.01em", margin: "0 0 10px 0", minHeight: "34px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
           {p.title}
         </p>
 
-        {/* Price + estimated profit */}
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(0, 0.9fr)", gap: "10px", alignItems: "start", marginBottom: "10px" }}>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: "12px", color: "#8A8A8A", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Preço</p>
-            <p style={{ fontSize: "13px", fontWeight: 600, color: "#111111", margin: 0, letterSpacing: "-0.01em", lineHeight: "1.35" }}>
-              {formatPrice(p.cost_price)} – {formatPrice(p.suggested_price)}
-            </p>
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: "12px", color: "#8A8A8A", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Lucro estimado</p>
-            <p style={{ fontSize: "13px", fontWeight: 600, color: "#059669", margin: 0, letterSpacing: "-0.01em", lineHeight: "1.35", whiteSpace: "nowrap" }}>
-              {formatPrice(estimatedProfit)}
-            </p>
-          </div>
-        </div>
-
         {/* Tags */}
         {tags.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "13px" }}>
             {tags.slice(0, 3).map((tag) => (
-              <span key={tag} style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%", height: "23px", fontSize: "12px", fontWeight: 500, color: "#737373", backgroundColor: "#F5F5F5", padding: "0 8px", borderRadius: "8px", letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span key={tag} style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%", height: "21px", fontSize: "11px", fontWeight: 600, color: "#4B5563", backgroundColor: "#F2F3F5", padding: "0 8px", borderRadius: "999px", letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {tag}
               </span>
             ))}
           </div>
         )}
 
+        {/* Price + estimated profit */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "13px", borderTop: "1px solid #ECECEC", paddingTop: "12px" }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: "12px", color: "#7B7F86", margin: "0 0 3px", letterSpacing: "-0.01em", lineHeight: 1.15 }}>Lucro estimado</p>
+            <p style={{ fontSize: "22px", fontWeight: 800, color: "#10A34A", margin: "0", letterSpacing: "-0.03em", lineHeight: "1", whiteSpace: "nowrap" }}>
+              {formatPrice(estimatedProfit)}
+            </p>
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: "12px", fontWeight: 500, color: "#4B5563", margin: 0, letterSpacing: "-0.01em", lineHeight: "1.2" }}>
+              <span style={{ fontWeight: 700, color: "#374151" }}>Custo:</span> {formatPrice(p.cost_price)} - {formatPrice(p.suggested_price)}
+            </p>
+          </div>
+        </div>
+
         {/* Action buttons */}
-        <div style={{ display: "flex", gap: "8px", marginTop: "auto", paddingTop: tags.length > 0 ? "0" : "2px" }}>
+        <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
           <button
             onClick={onImport}
             disabled={outOfStock}
             style={{
               flex: 1,
-              height: "42px",
+              height: "44px",
               backgroundColor: outOfStock ? "#D1D5DB" : "#111111",
               color: "#FFFFFF",
               border: "none",
-              borderRadius: "10px",
+              borderRadius: "9px",
               fontSize: "14px",
-              fontWeight: 600,
+              fontWeight: 700,
               letterSpacing: "-0.01em",
               cursor: outOfStock ? "not-allowed" : "pointer",
               transition: "background-color 150ms ease",
               fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
             }}
             onMouseEnter={(e) => { if (!outOfStock) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#000000"; }}
             onMouseLeave={(e) => { if (!outOfStock) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#111111"; }}
           >
-            {outOfStock ? "Indisponível" : "Importar produto"}
-          </button>
-          <button
-            onClick={onCompare}
-            style={{
-              width: "42px",
-              height: "42px",
-              backgroundColor: "#FFFFFF",
-              border: "1px solid rgba(0,0,0,0.10)",
-              borderRadius: "10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "background-color 150ms ease",
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#F9FAFB"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#FFFFFF"; }}
-            title="Ver fornecedores"
-          >
-            <ChevronsRight size={16} strokeWidth={2} style={{ color: "#6B7280" }} />
+            <span>{outOfStock ? "Indisponivel" : "Importar"}</span>
+            {!outOfStock && <ChevronRight size={16} strokeWidth={2.2} />}
           </button>
         </div>
       </div>
@@ -222,8 +205,6 @@ const CatalogPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
-  const [compareProductId, setCompareProductId] = useState<string | null>(null);
-  const [compareProductTitle, setCompareProductTitle] = useState("");
   const dateDropdownRef = useRef<HTMLDivElement>(null);
   const paymentDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -571,8 +552,7 @@ const CatalogPage = () => {
             <ProductCard
               key={p.id}
               p={p}
-              onImport={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
-              onCompare={() => { setCompareProductId(p.id); setCompareProductTitle(p.title); }}
+              onImport={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
               formatPrice={formatPrice}
               getImage={getImage}
             />
@@ -608,14 +588,7 @@ const CatalogPage = () => {
           void planLimits.refreshUsage();
         }}
         product={selectedProduct}
-      />
-
-      <SupplierCompareModal
-        open={!!compareProductId}
-        onClose={() => setCompareProductId(null)}
-        productId={compareProductId || ""}
-        productTitle={compareProductTitle}
-      />
+      />
 
       <PlatformIntegrationModal
         open={isIntegrationModalOpen}
@@ -626,7 +599,8 @@ const CatalogPage = () => {
         .catalog-products-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 20px;
+          column-gap: 12px;
+          row-gap: 12px;
           align-items: stretch;
         }
 

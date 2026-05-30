@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { toast } from "sonner";
+import PlatformLogo from "@/components/dashboard/PlatformLogo";
 
 type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
 
@@ -11,16 +12,14 @@ type PlatformCard = {
   id: string;
   name: string;
   description: string;
-  color: string;
-  initials: string;
   status: IntegrationStatus;
 };
 
 const platforms: PlatformCard[] = [
-  { id: "mercadolivre", name: "Mercado Livre", description: "Publique produtos diretamente nos seus anúncios", color: "#FFE600", initials: "ML", status: "not_connected" },
-  { id: "shopee", name: "Shopee", description: "Disponível em breve", color: "#D4D4D8", initials: "S", status: "coming_soon" },
-  { id: "amazon", name: "Amazon", description: "Disponível em breve", color: "#D4D4D8", initials: "A", status: "coming_soon" },
-  { id: "shopify", name: "Shopify", description: "Disponível em breve", color: "#D4D4D8", initials: "SP", status: "coming_soon" },
+  { id: "mercadolivre", name: "Mercado Livre", description: "Publique produtos diretamente nos seus anúncios", status: "not_connected" },
+  { id: "shopee", name: "Shopee", description: "Disponível em breve", status: "coming_soon" },
+  { id: "amazon", name: "Amazon", description: "Disponível em breve", status: "coming_soon" },
+  { id: "shopify", name: "Shopify", description: "Disponível em breve", status: "coming_soon" },
 ];
 
 const IntegracoesPage = () => {
@@ -108,17 +107,14 @@ const IntegracoesPage = () => {
                 title={status === "coming_soon" ? "Disponível em breve" : undefined}
                 className={`rounded-xl border p-5 flex flex-col gap-4 ${
                   status === "coming_soon"
-                    ? "border-zinc-200 bg-zinc-50 opacity-75 grayscale"
+                    ? "border-zinc-200 bg-zinc-50 opacity-75"
                     : "border-border bg-background"
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-semibold"
-                    style={{ backgroundColor: p.color, color: p.color === "#FFE600" || status === "coming_soon" ? "#333" : "#fff" }}
-                  >
-                    {p.initials}
-                  </div>
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E5E5E5] bg-white p-1 dark:border-white/10 dark:bg-white">
+                    <PlatformLogo platform={p.name} size={35} />
+                  </span>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-foreground">{p.name}</h3>
                     <p className="text-xs text-muted-foreground">{p.description}</p>
@@ -145,7 +141,7 @@ const IntegracoesPage = () => {
                 {status === "connected" && (
                   <button
                     onClick={() => handleDisconnect(p.id)}
-                    className="w-full rounded-lg border border-border text-muted-foreground py-2 text-sm font-semibold hover:bg-muted transition-colors"
+                    className="w-full rounded-lg border border-black bg-black text-white py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
                   >
                     Desconectar
                   </button>

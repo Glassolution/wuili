@@ -139,7 +139,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
   if (!state) {
     return (
       <>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="mx-auto flex min-h-[calc(100vh-220px)] max-w-[420px] flex-col items-center justify-center gap-4 px-6 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F5F5F5] dark:bg-zinc-900">
             <Package size={22} className="text-[#737373]" />
           </div>
@@ -153,7 +153,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
           </div>
           <button
             onClick={() => setModalOpen(true)}
-            className="btn-primary btn-primary--md"
+            className="btn-primary btn-primary--md mx-auto"
           >
             Escolher produto do catálogo
           </button>
@@ -187,7 +187,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
         </div>
 
         {/* Product card */}
-        <div className="mb-8 rounded-2xl border border-[#E5E5E5] bg-[#FAFAFA] p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mb-8">
           <div className="mb-3 flex items-center justify-between">
             <p className="inline-flex rounded-full border border-[#E5E5E5] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#525252] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
               Produto selecionado

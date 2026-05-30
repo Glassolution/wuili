@@ -56,9 +56,9 @@ const SettingsPage = () => {
   }, [tab]);
 
   return (
-    <div className="md:flex md:overflow-hidden md:rounded-2xl md:border md:border-[#EBEBEB] md:bg-[#F5F5F5] md:dark:border-white/10 md:dark:bg-[#111111]" style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
+    <div className="mx-auto w-full max-w-[760px]" style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
       {/* Sidebar 240px */}
-      <aside className="hidden md:flex w-[240px] shrink-0 flex-col bg-white border-r border-[#E5E5E5] dark:bg-[#0f0f0f] dark:border-white/10">
+      <aside className="hidden w-[240px] shrink-0 flex-col bg-white border-r border-[#E5E5E5] dark:bg-[#0f0f0f] dark:border-white/10">
         <div className="p-5 border-b border-[#F0F0F0] dark:border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-base font-semibold overflow-hidden">
@@ -96,8 +96,8 @@ const SettingsPage = () => {
       </aside>
 
       {/* Main */}
-      <div className="min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:p-8">
-        <div className="mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:hidden">
+      <div className="min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:px-0 md:py-6">
+        <div className="mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-base font-semibold text-white dark:bg-white dark:text-black">
               {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : iniciais}
@@ -110,8 +110,8 @@ const SettingsPage = () => {
         </div>
 
         {/* Mobile tab pills */}
-        <div className="-mx-3 mb-4 overflow-x-auto px-3 pb-1 md:hidden [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
-          <div className="inline-flex min-w-full gap-1 rounded-2xl border border-[#2A2A2A] bg-[#141414] p-1 shadow-sm">
+        <div className="-mx-3 mb-4 overflow-x-auto px-3 pb-1 md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+          <div className="inline-flex min-w-full gap-1 rounded-2xl border border-[#E5E5E5] bg-white p-1 shadow-sm">
             {NAV.map((item) => {
               const active = tab === item.id;
               const Icon = item.icon;
@@ -121,7 +121,7 @@ const SettingsPage = () => {
                   ref={(node) => { mobileTabRefs.current[item.id] = node; }}
                   onClick={() => setTab(item.id)}
                   className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-semibold whitespace-nowrap transition-colors ${
-                    active ? "bg-white text-[#0A0A0A] shadow-sm" : "bg-transparent text-white hover:bg-white/5"
+                    active ? "bg-[#0A0A0A] text-white shadow-sm" : "bg-transparent text-[#0A0A0A] hover:bg-[#F5F5F5]"
                   }`}
                 >
                   <Icon size={14} />
@@ -132,7 +132,7 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        <div className={`mx-auto ${tab === "Suporte" ? "max-w-[760px]" : "max-w-[600px]"} rounded-2xl border border-[#EFEFEF] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900 sm:p-5 md:p-8`}>
+        <div className="mx-auto w-full max-w-[760px] rounded-2xl border border-[#EFEFEF] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900 sm:p-5 md:p-6">
           {tab === "Perfil"        && <ProfileTab />}
           {tab === "Minhas Lojas"  && <StoresTab />}
           {tab === "Integrações"   && <IntegrationsTab />}

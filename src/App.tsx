@@ -24,7 +24,6 @@ const PublicationsPage = lazy(() => import("./pages/dashboard/PublicationsPage")
 const ProductDetailPage = lazy(() => import("./pages/dashboard/ProductDetailPage"));
 const ReportsPage = lazy(() => import("./pages/dashboard/ReportsPage"));
 const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage"));
-const IntegracoesPage = lazy(() => import("./pages/dashboard/IntegracoesPage"));
 const DashboardInfoPage = lazy(() => import("./pages/dashboard/DashboardInfoPage"));
 const SaldosPage = lazy(() => import("./pages/dashboard/SaldosPage"));
 const TransacoesPage = lazy(() => import("./pages/dashboard/TransacoesPage"));
@@ -127,7 +126,7 @@ const App = () => (
                 <Route path="publicacoes/:id" element={<ProductDetailPage />} />
                 <Route path="relatorios" element={<ReportsPage />} />
                 <Route path="mais" element={<MorePage />} />
-                <Route path="integracoes" element={<IntegracoesPage />} />
+                <Route path="integracoes" element={<Navigate to="/dashboard/produtos" replace />} />
                 <Route path="configuracoes" element={<SettingsPage />} />
                 <Route path="criar-video" element={<CriarVideoPage />} />
                 <Route path="chat-fornecedores" element={<ChatFornecedoresPage />} />
