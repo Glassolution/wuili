@@ -15,7 +15,7 @@ const Footer = () => (
         <Link to="/login" className="transition-colors hover:text-white">
           Entrar
         </Link>
-        <Link to="/auth" className="transition-colors hover:text-white">
+        <Link to="/login" className="transition-colors hover:text-white">
           Começar grátis
         </Link>
         <a href="#produto" className="transition-colors hover:text-white">

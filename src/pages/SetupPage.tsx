@@ -63,7 +63,7 @@ const SetupPage = () => {
       setLoadingIndex((c) => (c + 1) % loadingMessages.length);
     }, 620);
     const finishTimer = window.setTimeout(() => {
-      navigate("/cadastro?offer=1", { replace: true });
+      navigate("/login", { replace: true });
     }, 2600);
     return () => {
       window.clearInterval(messageTimer);

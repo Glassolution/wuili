@@ -41,6 +41,10 @@ const DashboardHeader = () => {
   const Icon = meta.icon;
   const isDashboard = meta.title === "Dashboard";
 
+  if (location.pathname === "/dashboard") {
+    return null;
+  }
+
   return (
     <header 
       className="sticky top-0 z-30 flex justify-between" 

@@ -1,10 +1,26 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronDown, RefreshCw, Package, ChevronLeft, ChevronRight, Check, Plug } from "lucide-react";
+import {
+  Search,
+  ChevronDown,
+  RefreshCw,
+  Package,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Plug,
+  SlidersHorizontal,
+  Grid2X2,
+  List,
+  Heart,
+  ShoppingBag,
+  RotateCcw,
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
+import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { supabase, supabaseUrl } from "@/integrations/supabase/client";
 import { createTimeoutSignal } from "@/lib/requestTimeout";
@@ -54,141 +70,100 @@ function getPlatform(source: string | null) {
 // ── Product Card ──────────────────────────────────────────────────────────────
 interface ProductCardProps {
   p: any;
+  index: number;
   onImport: () => void;
+  onCompare: () => void;
   formatPrice: (v: number) => string;
   getImage: (images: any) => string | null;
 }
 
-const ProductCard = ({ p, onImport, formatPrice, getImage }: ProductCardProps) => {
+const ProductCard = ({ p, index, onImport, onCompare, formatPrice, getImage }: ProductCardProps) => {
   const img = getImage(p.images);
+  const [favorited, setFavorited] = useState(index === 2);
+  const [imageFailed, setImageFailed] = useState(false);
   const outOfStock = !p.stock_quantity || p.stock_quantity <= 0;
   const estimatedProfit = Math.max(0, Number(p.suggested_price ?? 0) - Number(p.cost_price ?? 0));
+  const marginPercent = Number(p.margin_percent ?? 0) || (Number(p.cost_price) > 0 ? (estimatedProfit / Number(p.cost_price)) * 100 : 0);
+  const categoryLabel = p.category
+    ? p.category.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+    : "Catálogo";
+  const primaryPrice = Number(p.suggested_price ?? 0) > 0 ? Number(p.suggested_price) : Number(p.cost_price ?? 0);
+  const badge = outOfStock ? "Sem estoque" : marginPercent >= 35 ? "Especial" : marginPercent >= 20 ? "Alta margem" : null;
 
-  // Keep product tags focused on the category; supplier/platform details stay hidden.
-  const tags: string[] = [];
-  if (p.category) {
-    const cat = p.category.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
-    tags.push(cat);
-  }
+  useEffect(() => {
+    setImageFailed(false);
+  }, [img]);
 
   return (
-    <div
-      className="catalog-product-card"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: "#FFFFFF",
-        borderRadius: "13px",
-        border: "1px solid rgba(0,0,0,0.07)",
-        overflow: "hidden",
-        padding: "6px",
-        minHeight: "0",
-        boxShadow: "none",
-        transition: "transform 180ms ease, box-shadow 200ms ease, border-color 200ms ease",
-        cursor: "default",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 20px rgba(0,0,0,0.07)";
-        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.12)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
-        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(0,0,0,0.07)";
-      }}
-    >
-      {/* Image area */}
-      <div style={{ position: "relative", backgroundColor: "#F5F5F5", height: "220px", width: "100%", overflow: "hidden", flexShrink: 0, borderRadius: "9px" }}>
-        {img ? (
+    <article className="catalog-product-card group">
+      <div className="catalog-product-media">
+        {badge && (
+          <span className={`catalog-product-badge ${outOfStock ? "is-danger" : ""}`}>
+            {badge}
+          </span>
+        )}
+
+        <button
+          type="button"
+          className={`catalog-heart-button ${favorited ? "is-active" : ""}`}
+          onClick={() => setFavorited((value) => !value)}
+          aria-label={favorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+        >
+          <Heart size={22} strokeWidth={1.9} fill={favorited ? "currentColor" : "none"} />
+        </button>
+
+        {img && !imageFailed ? (
           <img
             src={img}
             alt={p.title}
             className="catalog-product-image"
-            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block", opacity: outOfStock ? 0.5 : 1 }}
             loading="lazy"
             decoding="async"
+            onError={() => setImageFailed(true)}
           />
         ) : (
-          <div style={{ height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Package size={40} style={{ color: "#D1D5DB" }} />
-          </div>
-        )}
-
-        {outOfStock && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.35)" }}>
-            <span style={{ backgroundColor: "#DC2626", color: "#fff", fontSize: "11px", fontWeight: 600, padding: "4px 12px", borderRadius: "999px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              Sem estoque
-            </span>
+          <div className="catalog-image-fallback">
+            <Package size={44} strokeWidth={1.35} />
           </div>
         )}
       </div>
 
-      {/* Card body */}
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "13px 16px 10px" }}>
-        {/* Product title */}
-        <p style={{ fontSize: "14px", fontWeight: 700, color: "#111111", lineHeight: "1.22", letterSpacing: "-0.01em", margin: "0 0 10px 0", minHeight: "34px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+      <div className="catalog-product-body">
+        <h3 className="catalog-product-title">
           {p.title}
-        </p>
+        </h3>
+        <p className="catalog-product-category">{categoryLabel}</p>
 
-        {/* Tags */}
-        {tags.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "13px" }}>
-            {tags.slice(0, 3).map((tag) => (
-              <span key={tag} style={{ display: "inline-flex", alignItems: "center", maxWidth: "100%", height: "21px", fontSize: "11px", fontWeight: 600, color: "#4B5563", backgroundColor: "#F2F3F5", padding: "0 8px", borderRadius: "999px", letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {tag}
-              </span>
-            ))}
+        <div className="catalog-product-footer">
+          <div className="catalog-price-block">
+            <strong>{formatPrice(primaryPrice)}</strong>
+            {Number(p.cost_price ?? 0) > 0 && Number(p.cost_price) < primaryPrice && (
+              <span>{formatPrice(Number(p.cost_price))}</span>
+            )}
           </div>
-        )}
-
-        {/* Price + estimated profit */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "13px", borderTop: "1px solid #ECECEC", paddingTop: "12px" }}>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: "12px", color: "#7B7F86", margin: "0 0 3px", letterSpacing: "-0.01em", lineHeight: 1.15 }}>Lucro estimado</p>
-            <p style={{ fontSize: "22px", fontWeight: 800, color: "#10A34A", margin: "0", letterSpacing: "-0.03em", lineHeight: "1", whiteSpace: "nowrap" }}>
-              {formatPrice(estimatedProfit)}
-            </p>
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: "12px", fontWeight: 500, color: "#4B5563", margin: 0, letterSpacing: "-0.01em", lineHeight: "1.2" }}>
-              <span style={{ fontWeight: 700, color: "#374151" }}>Custo:</span> {formatPrice(p.cost_price)} - {formatPrice(p.suggested_price)}
-            </p>
+          <div className="catalog-profit-chip">
+            Lucro {formatPrice(estimatedProfit)}
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
+        <div className={`catalog-product-actions ${index === 2 ? "is-visible" : ""}`}>
           <button
             onClick={onImport}
             disabled={outOfStock}
-            style={{
-              flex: 1,
-              height: "44px",
-              backgroundColor: outOfStock ? "#D1D5DB" : "#111111",
-              color: "#FFFFFF",
-              border: "none",
-              borderRadius: "9px",
-              fontSize: "14px",
-              fontWeight: 700,
-              letterSpacing: "-0.01em",
-              cursor: outOfStock ? "not-allowed" : "pointer",
-              transition: "background-color 150ms ease",
-              fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-            }}
-            onMouseEnter={(e) => { if (!outOfStock) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#000000"; }}
-            onMouseLeave={(e) => { if (!outOfStock) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#111111"; }}
+            className="catalog-buy-button"
           >
-            <span>{outOfStock ? "Indisponivel" : "Importar"}</span>
-            {!outOfStock && <ChevronRight size={16} strokeWidth={2.2} />}
+            {outOfStock ? "Indisponível" : `Importar ${formatPrice(primaryPrice)}`}
+          </button>
+          <button
+            onClick={onCompare}
+            className="catalog-cart-button"
+            title="Ver fornecedores"
+          >
+            <ShoppingBag size={18} strokeWidth={1.9} />
           </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 };
 
@@ -199,12 +174,17 @@ const CatalogPage = () => {
   const [dateFilter, setDateFilter] = useState("todos");
   const [paymentStatus, setPaymentStatus] = useState("todos");
   const [hideUnavailable, setHideUnavailable] = useState(false);
+  const [sortOrder, setSortOrder] = useState("popular");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [paymentDropdownOpen, setPaymentDropdownOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false);
+  const [compareProductId, setCompareProductId] = useState<string | null>(null);
+  const [compareProductTitle, setCompareProductTitle] = useState("");
   const dateDropdownRef = useRef<HTMLDivElement>(null);
   const paymentDropdownRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -275,8 +255,12 @@ const CatalogPage = () => {
   const products = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     const now = new Date();
+    const parsedMin = priceMin.trim() === "" ? Number.NEGATIVE_INFINITY : Number(priceMin.replace(",", "."));
+    const parsedMax = priceMax.trim() === "" ? Number.POSITIVE_INFINITY : Number(priceMax.replace(",", "."));
+    const minPrice = Number.isFinite(parsedMin) ? parsedMin : Number.NEGATIVE_INFINITY;
+    const maxPrice = Number.isFinite(parsedMax) ? parsedMax : Number.POSITIVE_INFINITY;
 
-    return rawProducts.filter((p: any) => {
+    const filtered = rawProducts.filter((p: any) => {
       const haystack = [
         p.title,
         p.category,
@@ -286,6 +270,9 @@ const CatalogPage = () => {
       ].filter(Boolean).join(" ").toLowerCase();
 
       if (normalizedSearch && !haystack.includes(normalizedSearch)) return false;
+
+      const productPrice = Number(p.suggested_price ?? p.cost_price ?? 0);
+      if (productPrice < minPrice || productPrice > maxPrice) return false;
 
       if (dateFilter !== "todos") {
         const rawDate = p.created_at || p.updated_at;
@@ -319,7 +306,27 @@ const CatalogPage = () => {
 
       return true;
     });
-  }, [rawProducts, search, dateFilter, paymentStatus, hideUnavailable]);
+
+    return [...filtered].sort((a: any, b: any) => {
+      const priceA = Number(a.suggested_price ?? a.cost_price ?? 0);
+      const priceB = Number(b.suggested_price ?? b.cost_price ?? 0);
+      const profitA = Math.max(0, Number(a.suggested_price ?? 0) - Number(a.cost_price ?? 0));
+      const profitB = Math.max(0, Number(b.suggested_price ?? 0) - Number(b.cost_price ?? 0));
+
+      if (sortOrder === "price_asc") return priceA - priceB;
+      if (sortOrder === "price_desc") return priceB - priceA;
+      if (sortOrder === "profit_desc") return profitB - profitA;
+      if (sortOrder === "newest") {
+        return new Date(b.created_at || b.updated_at || 0).getTime() - new Date(a.created_at || a.updated_at || 0).getTime();
+      }
+
+      const stockA = Number(a.stock_quantity ?? 0) > 0 ? 1 : 0;
+      const stockB = Number(b.stock_quantity ?? 0) > 0 ? 1 : 0;
+      const marginA = Number(a.margin_percent ?? 0) || (Number(a.cost_price) > 0 ? (profitA / Number(a.cost_price)) * 100 : 0);
+      const marginB = Number(b.margin_percent ?? 0) || (Number(b.cost_price) > 0 ? (profitB / Number(b.cost_price)) * 100 : 0);
+      return (stockB - stockA) || (marginB - marginA) || (profitB - profitA);
+    });
+  }, [rawProducts, search, dateFilter, paymentStatus, hideUnavailable, priceMin, priceMax, sortOrder]);
 
   const formatPrice = (v: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -336,250 +343,362 @@ const CatalogPage = () => {
   const activePaymentLabel = PAYMENT_STATUS_FILTERS.find((filter) => filter.key === paymentStatus)?.label ?? "Status de pagamento";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "20px",
-        fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        WebkitFontSmoothing: "antialiased",
-      }}
-    >
-      {/* ── Filter bar ─────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-        {/* Left filters */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          {/* Search */}
-          <div style={{ position: "relative" }}>
-            <Search size={14} strokeWidth={1.8} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-            <input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Buscar"
-              style={{
-                height: "40px",
-                paddingLeft: "34px",
-                paddingRight: "12px",
-                fontSize: "13px",
-                color: "#111111",
-                backgroundColor: "#FFFFFF",
-                border: "1px solid #E5E7EB",
-                borderRadius: "10px",
-                outline: "none",
-                width: "180px",
-                letterSpacing: "-0.01em",
-              }}
-            />
+    <div className="catalog-page-shell">
+      <div className="catalog-board">
+        <header className="catalog-board-header">
+          <div>
+            <div className="catalog-breadcrumb">
+              <span>Main</span>
+              <span>/</span>
+              <strong>Catálogo</strong>
+            </div>
+            <div className="catalog-title-row">
+              <h1>Catálogo</h1>
+              <button
+                type="button"
+                className="catalog-filter-count"
+                onClick={() => setCategoryDropdownOpen((value) => !value)}
+                aria-label="Filtros ativos"
+              >
+                <SlidersHorizontal size={19} strokeWidth={1.8} />
+                <span>
+                  {[
+                    category !== "todos",
+                    dateFilter !== "todos",
+                    paymentStatus !== "todos",
+                    hideUnavailable,
+                    Boolean(priceMin || priceMax),
+                  ].filter(Boolean).length || 0}
+                </span>
+              </button>
+            </div>
           </div>
 
-          {/* Date range pill */}
-          <div style={{ position: "relative" }} ref={dateDropdownRef}>
+          <div className="catalog-header-actions">
+            <button type="button" className="catalog-view-button" aria-label="Lista">
+              <List size={20} strokeWidth={1.8} />
+            </button>
+            <button type="button" className="catalog-view-button is-active" aria-label="Grade">
+              <Grid2X2 size={20} strokeWidth={1.8} />
+            </button>
+            <label className="catalog-sort-select">
+              <select
+                value={sortOrder}
+                onChange={(event) => {
+                  setSortOrder(event.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="popular">Popular First</option>
+                <option value="price_asc">Menor preço</option>
+                <option value="price_desc">Maior preço</option>
+                <option value="newest">Mais recentes</option>
+              </select>
+              <ChevronDown size={17} strokeWidth={1.8} />
+            </label>
             <button
               type="button"
-              onClick={() => setDateDropdownOpen((value) => !value)}
-              style={{ display: "flex", alignItems: "center", gap: "8px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none" }}
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              className="catalog-utility-button"
             >
-              <span>{activeDateLabel}</span>
-              <ChevronDown size={13} strokeWidth={1.8} style={{ color: "#9CA3AF", transform: dateDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 150ms ease" }} />
+              <RefreshCw size={16} strokeWidth={1.8} className={syncMutation.isPending ? "animate-spin" : ""} />
+              {syncMutation.isPending ? "Sincronizando" : "Sincronizar"}
             </button>
-            {dateDropdownOpen && (
-              <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 60, minWidth: "164px", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "12px", boxShadow: "0 16px 36px rgba(15,23,42,0.12)", padding: "6px", overflow: "hidden" }}>
-                {DATE_FILTERS.map((filter) => {
-                  const active = dateFilter === filter.key;
+            <button
+              type="button"
+              onClick={() => setIsIntegrationModalOpen(true)}
+              className="catalog-utility-button"
+            >
+              <Plug size={16} strokeWidth={1.8} />
+              Integrações
+            </button>
+          </div>
+        </header>
+
+        <div className="catalog-content-layout">
+          <aside className="catalog-filter-panel">
+            <div className="catalog-filter-search">
+              <Search size={18} strokeWidth={1.8} />
+              <input
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Buscar produto"
+              />
+            </div>
+
+            <section className="catalog-filter-section" ref={categoryDropdownRef}>
+              <button
+                type="button"
+                className="catalog-section-title"
+                onClick={() => setCategoryDropdownOpen((value) => !value)}
+              >
+                <span>Category</span>
+                <ChevronDown size={16} strokeWidth={1.9} className={categoryDropdownOpen ? "is-open" : ""} />
+              </button>
+              <div className="catalog-checkbox-list">
+                {CATEGORIES.map((item) => {
+                  const active = category === item.key;
                   return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className="catalog-checkbox-row"
+                      onClick={() => {
+                        setCategory(item.key);
+                        setPage(1);
+                      }}
+                    >
+                      <span className={`catalog-checkbox-box ${active ? "is-active" : ""}`}>
+                        {active && <Check size={13} strokeWidth={2.8} />}
+                      </span>
+                      <span>{item.key === "todos" ? "All" : item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="catalog-filter-section">
+              <div className="catalog-section-title">
+                <span>Price Range</span>
+                <ChevronDown size={16} strokeWidth={1.9} />
+              </div>
+              <div className="catalog-price-inputs">
+                <input
+                  value={priceMin}
+                  onChange={(event) => {
+                    setPriceMin(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="R$ 5"
+                  inputMode="decimal"
+                />
+                <span>-</span>
+                <input
+                  value={priceMax}
+                  onChange={(event) => {
+                    setPriceMax(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="R$ 1 000"
+                  inputMode="decimal"
+                />
+              </div>
+              <div className="catalog-range-line">
+                <span />
+                <span />
+              </div>
+            </section>
+
+            <section className="catalog-filter-section" ref={dateDropdownRef}>
+              <button
+                type="button"
+                className="catalog-section-title"
+                onClick={() => setDateDropdownOpen((value) => !value)}
+              >
+                <span>Data</span>
+                <small>{activeDateLabel}</small>
+                <ChevronDown size={16} strokeWidth={1.9} className={dateDropdownOpen ? "is-open" : ""} />
+              </button>
+              {dateDropdownOpen && (
+                <div className="catalog-option-stack">
+                  {DATE_FILTERS.map((filter) => (
                     <button
                       key={filter.key}
                       type="button"
+                      className={dateFilter === filter.key ? "is-active" : ""}
                       onClick={() => {
                         setDateFilter(filter.key);
                         setPage(1);
                         setDateDropdownOpen(false);
                       }}
-                      style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", fontSize: "13px", fontWeight: active ? 650 : 500, color: "#111111", backgroundColor: active ? "#F4F4F5" : "transparent", border: "none", borderRadius: "8px", cursor: "pointer", letterSpacing: "-0.01em", textAlign: "left" }}
                     >
                       {filter.label}
-                      {active && <Check size={12} strokeWidth={2.5} style={{ color: "#111111" }} />}
+                      {dateFilter === filter.key && <Check size={13} strokeWidth={2.6} />}
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
-          {/* Status de pagamento */}
-          <div style={{ position: "relative" }} ref={paymentDropdownRef}>
-            <button
-              type="button"
-              onClick={() => setPaymentDropdownOpen((value) => !value)}
-              style={{ display: "flex", alignItems: "center", gap: "8px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: paymentStatus !== "todos" ? "#FFFFFF" : "#111111", backgroundColor: paymentStatus !== "todos" ? "#111111" : "#FFFFFF", border: `1px solid ${paymentStatus !== "todos" ? "#111111" : "#E5E7EB"}`, borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", outline: "none" }}
-            >
-              <span>{activePaymentLabel}</span>
-              <ChevronDown size={13} strokeWidth={1.8} style={{ color: paymentStatus !== "todos" ? "rgba(255,255,255,0.7)" : "#9CA3AF", transform: paymentDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 150ms ease" }} />
-            </button>
-            {paymentDropdownOpen && (
-              <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 60, minWidth: "190px", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "12px", boxShadow: "0 16px 36px rgba(15,23,42,0.12)", padding: "6px", overflow: "hidden" }}>
-                {PAYMENT_STATUS_FILTERS.map((filter) => {
-                  const active = paymentStatus === filter.key;
-                  return (
+            <section className="catalog-filter-section" ref={paymentDropdownRef}>
+              <button
+                type="button"
+                className="catalog-section-title"
+                onClick={() => setPaymentDropdownOpen((value) => !value)}
+              >
+                <span>Status</span>
+                <small>{activePaymentLabel}</small>
+                <ChevronDown size={16} strokeWidth={1.9} className={paymentDropdownOpen ? "is-open" : ""} />
+              </button>
+              {paymentDropdownOpen && (
+                <div className="catalog-option-stack">
+                  {PAYMENT_STATUS_FILTERS.map((filter) => (
                     <button
                       key={filter.key}
                       type="button"
+                      className={paymentStatus === filter.key ? "is-active" : ""}
                       onClick={() => {
                         setPaymentStatus(filter.key);
                         setPage(1);
                         setPaymentDropdownOpen(false);
                       }}
-                      style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", fontSize: "13px", fontWeight: active ? 650 : 500, color: "#111111", backgroundColor: active ? "#F4F4F5" : "transparent", border: "none", borderRadius: "8px", cursor: "pointer", letterSpacing: "-0.01em", textAlign: "left" }}
                     >
                       {filter.label}
-                      {active && <Check size={12} strokeWidth={2.5} style={{ color: "#111111" }} />}
+                      {paymentStatus === filter.key && <Check size={13} strokeWidth={2.6} />}
                     </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
-          {/* Categoria dropdown */}
-          <div style={{ position: "relative" }} ref={categoryDropdownRef}>
-            <button
-              onClick={() => setCategoryDropdownOpen((v) => !v)}
-              style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: category !== "todos" ? "#FFFFFF" : "#111111", backgroundColor: category !== "todos" ? "#111111" : "#FFFFFF", border: `1px solid ${category !== "todos" ? "#111111" : "#E5E7EB"}`, borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}
-            >
-              <span>
-                {activeCategoryLabel}
-              </span>
-              <ChevronDown size={13} strokeWidth={1.8} style={{ color: category !== "todos" ? "rgba(255,255,255,0.7)" : "#9CA3AF", transform: categoryDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
-            </button>
-            {categoryDropdownOpen && (
-              <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", zIndex: 50, minWidth: "160px", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.08)", padding: "6px", overflow: "hidden" }}>
-                {CATEGORIES.map((c) => {
-                  const active = category === c.key;
+            <section className="catalog-filter-section">
+              <div className="catalog-section-title">
+                <span>Brand</span>
+                <ChevronRight size={16} strokeWidth={1.9} />
+              </div>
+            </section>
+
+            <section className="catalog-filter-section">
+              <div className="catalog-section-title">
+                <span>Color</span>
+                <ChevronDown size={16} strokeWidth={1.9} />
+              </div>
+              <div className="catalog-checkbox-list">
+                {["All", "White", "Blue", "Black", "Silver"].map((color) => {
+                  const active = color === "Blue";
                   return (
-                    <button
-                      key={c.key}
-                      onClick={() => { setCategory(c.key); setPage(1); setCategoryDropdownOpen(false); }}
-                      style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", fontSize: "13px", fontWeight: active ? 600 : 400, color: "#111111", backgroundColor: active ? "#F5F5F5" : "transparent", border: "none", borderRadius: "8px", cursor: "pointer", letterSpacing: "-0.01em", textAlign: "left" }}
-                    >
-                      {c.label}
-                      {active && <Check size={12} strokeWidth={2.5} style={{ color: "#111111" }} />}
+                    <button key={color} type="button" className="catalog-checkbox-row">
+                      <span className={`catalog-checkbox-box ${active ? "is-active" : ""}`}>
+                        {active && <Check size={13} strokeWidth={2.8} />}
+                      </span>
+                      <span>{color}</span>
                     </button>
                   );
                 })}
               </div>
+            </section>
+
+            <div className="catalog-stock-row">
+              <button
+                type="button"
+                className={`catalog-stock-toggle ${hideUnavailable ? "is-active" : ""}`}
+                onClick={() => {
+                  setHideUnavailable((value) => !value);
+                  setPage(1);
+                }}
+                aria-pressed={hideUnavailable}
+              >
+                <span />
+              </button>
+              <span>Only in Stock</span>
+            </div>
+
+            <div className="catalog-filter-footer">
+              <button type="button" className="catalog-count-button">
+                {products.length} items
+              </button>
+              <button
+                type="button"
+                className="catalog-clear-button"
+                onClick={() => {
+                  setSearch("");
+                  setCategory("todos");
+                  setDateFilter("todos");
+                  setPaymentStatus("todos");
+                  setHideUnavailable(false);
+                  setPriceMin("");
+                  setPriceMax("");
+                  setPage(1);
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          </aside>
+
+          <main className="catalog-results-area">
+            {isLoading ? (
+              <div className="catalog-products-grid">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="catalog-skeleton-card">
+                    <Skeleton className="h-[220px] w-full rounded-[18px]" />
+                    <Skeleton className="h-5 w-4/5 rounded-md" />
+                    <Skeleton className="h-4 w-2/5 rounded-md" />
+                    <Skeleton className="h-5 w-1/3 rounded-md" />
+                  </div>
+                ))}
+              </div>
+            ) : isError ? (
+              <div className="catalog-empty-state">
+                <Package size={46} strokeWidth={1.5} />
+                <strong>Nao foi possivel carregar o catalogo</strong>
+                <span>Verifique a conexao com o Supabase e tente novamente.</span>
+                <button type="button" onClick={() => void refetch()}>
+                  Tentar novamente
+                </button>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="catalog-empty-state">
+                <Package size={46} strokeWidth={1.5} />
+                <strong>Nenhum produto encontrado</strong>
+                <span>Clique em "Sincronizar" para popular o catálogo com produtos da CJ Dropshipping.</span>
+              </div>
+            ) : (
+              <>
+                <div className="catalog-products-grid">
+                  {products.map((p: any, index: number) => (
+                    <ProductCard
+                      key={p.id}
+                      p={p}
+                      index={index}
+                      onImport={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
+                      onCompare={() => { setCompareProductId(p.id); setCompareProductTitle(p.title); }}
+                      formatPrice={formatPrice}
+                      getImage={getImage}
+                    />
+                  ))}
+                </div>
+
+                <div className="catalog-show-more-row">
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  >
+                    {page >= totalPages ? "Fim do catálogo" : "Show More"}
+                  </button>
+                  {totalPages > 1 && (
+                    <div className="catalog-page-stepper">
+                      <button
+                        type="button"
+                        onClick={() => setPage((current) => Math.max(1, current - 1))}
+                        disabled={page <= 1}
+                        aria-label="Página anterior"
+                      >
+                        <ChevronLeft size={15} />
+                      </button>
+                      <span>{page} / {totalPages}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                        disabled={page >= totalPages}
+                        aria-label="Próxima página"
+                      >
+                        <ChevronRight size={15} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
-          </div>
-
-          {/* Ocultar */}
-          <button
-            onClick={() => { setHideUnavailable((v) => !v); setPage(1); }}
-            style={{ height: "40px", padding: "0 10px", fontSize: "13px", fontWeight: 500, color: hideUnavailable ? "#FFFFFF" : "#111111", backgroundColor: hideUnavailable ? "#111111" : "transparent", border: hideUnavailable ? "1px solid #111111" : "1px solid transparent", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em", textDecoration: hideUnavailable ? "none" : "underline", textUnderlineOffset: "2px" }}
-          >
-            Ocultar
-          </button>
-        </div>
-
-        {/* Right: Sincronizar + Integração */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <button
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending}
-            style={{ display: "flex", alignItems: "center", gap: "6px", height: "40px", padding: "0 14px", fontSize: "13px", fontWeight: 500, color: "#6B7280", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: syncMutation.isPending ? "not-allowed" : "pointer", opacity: syncMutation.isPending ? 0.6 : 1, letterSpacing: "-0.01em" }}
-          >
-            <RefreshCw size={13} strokeWidth={1.8} className={syncMutation.isPending ? "animate-spin" : ""} />
-            {syncMutation.isPending ? "Sincronizando..." : "Sincronizar"}
-          </button>
-
-          <button
-            onClick={() => setIsIntegrationModalOpen(true)}
-            style={{ display: "flex", alignItems: "center", gap: "8px", height: "40px", padding: "0 16px", fontSize: "14px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid rgba(0,0,0,0.06)", borderRadius: "12px", cursor: "pointer", letterSpacing: "-0.01em", whiteSpace: "nowrap", transition: "background-color 150ms ease, border-color 150ms ease" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#FAFAFA";
-              e.currentTarget.style.borderColor = "rgba(0,0,0,0.10)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#FFFFFF";
-              e.currentTarget.style.borderColor = "rgba(0,0,0,0.06)";
-            }}
-          >
-            <Plug size={14} strokeWidth={1.9} style={{ color: "#6B7280" }} />
-            Integrações
-          </button>
+          </main>
         </div>
       </div>
-
-      {/* ── Product Grid ────────────────────────────────────────────────── */}
-      {isLoading ? (
-        <div className="catalog-products-grid">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} style={{ backgroundColor: "#FFFFFF", borderRadius: "16px", border: "1px solid rgba(0,0,0,0.06)", overflow: "hidden" }}>
-              <Skeleton className="h-[270px] w-full rounded-none" />
-              <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                <Skeleton className="h-3.5 w-3/5 rounded-md" />
-                <Skeleton className="h-9 w-full rounded-md" />
-                <Skeleton className="h-3 w-4/5 rounded-md" />
-                <Skeleton className="h-11 w-full rounded-[10px]" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : isError ? (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center" }}>
-          <Package size={48} strokeWidth={1.5} style={{ color: "#D1D5DB", marginBottom: "16px" }} />
-          <p style={{ fontSize: "15px", fontWeight: 600, color: "#111111", margin: "0 0 6px 0" }}>Nao foi possivel carregar o catalogo</p>
-          <p style={{ fontSize: "13px", color: "#9CA3AF", margin: 0 }}>
-            Verifique a conexao com o Supabase e tente novamente.
-          </p>
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            style={{ marginTop: "20px", height: "40px", padding: "0 16px", fontSize: "13px", fontWeight: 600, color: "#FFFFFF", backgroundColor: "#111111", border: "none", borderRadius: "10px", cursor: "pointer", letterSpacing: "-0.01em" }}
-          >
-            Tentar novamente
-          </button>
-        </div>
-      ) : products.length === 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center" }}>
-          <Package size={48} strokeWidth={1.5} style={{ color: "#D1D5DB", marginBottom: "16px" }} />
-          <p style={{ fontSize: "15px", fontWeight: 600, color: "#111111", margin: "0 0 6px 0" }}>Nenhum produto encontrado</p>
-          <p style={{ fontSize: "13px", color: "#9CA3AF", margin: 0 }}>
-            Clique em "Sincronizar" para popular o catálogo com produtos da CJ Dropshipping.
-          </p>
-        </div>
-      ) : (
-        <div className="catalog-products-grid">
-          {products.map((p: any) => (
-            <ProductCard
-              key={p.id}
-              p={p}
-              onImport={() => { setSelectedProduct(p); setIsImportModalOpen(true); }}
-              formatPrice={formatPrice}
-              getImage={getImage}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* ── Pagination ──────────────────────────────────────────────────── */}
-      {totalPages > 1 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", paddingTop: "8px" }}>
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            style={{ display: "flex", alignItems: "center", gap: "4px", height: "38px", padding: "0 16px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: page <= 1 ? "not-allowed" : "pointer", opacity: page <= 1 ? 0.4 : 1, letterSpacing: "-0.01em" }}
-          >
-            <ChevronLeft size={14} /> Anterior
-          </button>
-          <span style={{ fontSize: "13px", color: "#9CA3AF" }}>{page} / {totalPages}</span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            style={{ display: "flex", alignItems: "center", gap: "4px", height: "38px", padding: "0 16px", fontSize: "13px", fontWeight: 500, color: "#111111", backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: "10px", cursor: page >= totalPages ? "not-allowed" : "pointer", opacity: page >= totalPages ? 0.4 : 1, letterSpacing: "-0.01em" }}
-          >
-            Próximo <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
 
       <ImportProductModal
         open={isImportModalOpen}
@@ -588,7 +707,14 @@ const CatalogPage = () => {
           void planLimits.refreshUsage();
         }}
         product={selectedProduct}
-      />
+      />
+
+      <SupplierCompareModal
+        open={!!compareProductId}
+        onClose={() => setCompareProductId(null)}
+        productId={compareProductId || ""}
+        productTitle={compareProductTitle}
+      />
 
       <PlatformIntegrationModal
         open={isIntegrationModalOpen}
@@ -596,43 +722,863 @@ const CatalogPage = () => {
       />
 
       <style>{`
+        .catalog-page-shell {
+          min-height: 100vh;
+          background: #eaf0ff;
+          padding: 56px 28px 80px;
+          color: #0f172a;
+          font-family: "Inter", "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .catalog-board {
+          width: min(100%, 1450px);
+          margin: 0 auto;
+          background: #ffffff;
+          padding: 54px 64px 62px;
+          border: 1px solid rgba(219, 228, 245, 0.72);
+          box-shadow: 0 24px 70px rgba(90, 111, 155, 0.08);
+        }
+
+        .catalog-board-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 32px;
+          margin-bottom: 36px;
+        }
+
+        .catalog-breadcrumb {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 18px;
+          color: #73819a;
+          font-size: 14px;
+          line-height: 1;
+        }
+
+        .catalog-breadcrumb strong {
+          color: #111827;
+          font-weight: 500;
+        }
+
+        .catalog-title-row {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .catalog-title-row h1 {
+          margin: 0;
+          color: #050505;
+          font-size: 32px;
+          line-height: 1;
+          letter-spacing: -0.035em;
+          font-weight: 700;
+        }
+
+        .catalog-filter-count {
+          position: relative;
+          width: 34px;
+          height: 34px;
+          border: 0;
+          background: transparent;
+          color: #63748f;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .catalog-filter-count span {
+          position: absolute;
+          top: -5px;
+          right: -5px;
+          min-width: 20px;
+          height: 20px;
+          border-radius: 999px;
+          background: #0b6fe8;
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 3px 8px rgba(11, 111, 232, 0.3);
+        }
+
+        .catalog-header-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 12px;
+          padding-top: 26px;
+          flex-wrap: wrap;
+        }
+
+        .catalog-view-button {
+          width: 34px;
+          height: 34px;
+          border: 0;
+          border-radius: 8px;
+          background: transparent;
+          color: #6d7f98;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: 0.18s ease;
+        }
+
+        .catalog-view-button.is-active,
+        .catalog-view-button:hover {
+          color: #0b6fe8;
+          background: #f3f7ff;
+        }
+
+        .catalog-sort-select {
+          height: 48px;
+          min-width: 150px;
+          border: 1px solid #d9e5f4;
+          border-radius: 8px;
+          background: #ffffff;
+          color: #111827;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 0 14px 0 16px;
+          font-size: 15px;
+          font-weight: 500;
+          box-shadow: 0 8px 24px rgba(90, 111, 155, 0.04);
+        }
+
+        .catalog-sort-select select {
+          appearance: none;
+          border: 0;
+          outline: 0;
+          background: transparent;
+          color: inherit;
+          font: inherit;
+          min-width: 0;
+          cursor: pointer;
+        }
+
+        .catalog-utility-button {
+          height: 44px;
+          border: 1px solid #d9e5f4;
+          border-radius: 8px;
+          background: #ffffff;
+          color: #3f4c61;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 0 14px;
+          font-size: 14px;
+          font-weight: 600;
+          transition: 0.18s ease;
+        }
+
+        .catalog-utility-button:hover:not(:disabled) {
+          border-color: #0b6fe8;
+          color: #0b6fe8;
+        }
+
+        .catalog-utility-button:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+
+        .catalog-content-layout {
+          display: grid;
+          grid-template-columns: 270px minmax(0, 1fr);
+          gap: 38px;
+          align-items: start;
+        }
+
+        .catalog-filter-panel {
+          background: #ffffff;
+          color: #050505;
+        }
+
+        .catalog-filter-search {
+          position: relative;
+          margin-bottom: 28px;
+        }
+
+        .catalog-filter-search svg {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #90a0b7;
+        }
+
+        .catalog-filter-search input {
+          width: 100%;
+          height: 46px;
+          border: 1px solid #dce7f5;
+          border-radius: 7px;
+          background: #ffffff;
+          color: #0f172a;
+          outline: 0;
+          padding: 0 14px 0 42px;
+          font-size: 14px;
+        }
+
+        .catalog-filter-search input::placeholder {
+          color: #8b9ab0;
+        }
+
+        .catalog-filter-section {
+          padding: 0 0 26px;
+          margin-bottom: 26px;
+          border-bottom: 1px solid #dce7f5;
+        }
+
+        .catalog-filter-section:last-of-type {
+          margin-bottom: 20px;
+        }
+
+        .catalog-section-title {
+          width: 100%;
+          border: 0;
+          background: transparent;
+          padding: 0;
+          margin: 0 0 18px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          color: #050505;
+          font-size: 17px;
+          font-weight: 700;
+          line-height: 1.2;
+          text-align: left;
+        }
+
+        .catalog-section-title small {
+          margin-left: auto;
+          max-width: 108px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          color: #738197;
+          font-size: 12px;
+          font-weight: 500;
+        }
+
+        .catalog-section-title svg {
+          color: #60708a;
+          flex: 0 0 auto;
+          transition: transform 0.16s ease;
+        }
+
+        .catalog-section-title svg.is-open {
+          transform: rotate(180deg);
+        }
+
+        .catalog-checkbox-list {
+          display: flex;
+          flex-direction: column;
+          gap: 9px;
+        }
+
+        .catalog-checkbox-row {
+          min-height: 25px;
+          width: 100%;
+          border: 0;
+          background: transparent;
+          color: #050505;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 0;
+          font-size: 15px;
+          line-height: 1.2;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .catalog-checkbox-box {
+          width: 18px;
+          height: 18px;
+          border: 1px solid #cfe0f2;
+          border-radius: 4px;
+          background: #ffffff;
+          color: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex: 0 0 auto;
+          transition: 0.16s ease;
+        }
+
+        .catalog-checkbox-box.is-active {
+          background: #0b6fe8;
+          border-color: #0b6fe8;
+          box-shadow: 0 3px 8px rgba(11, 111, 232, 0.22);
+        }
+
+        .catalog-price-inputs {
+          display: grid;
+          grid-template-columns: 1fr 20px 1fr;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 22px;
+          color: #a1aec0;
+        }
+
+        .catalog-price-inputs input {
+          height: 50px;
+          width: 100%;
+          border: 1px solid #d9e5f4;
+          border-radius: 7px;
+          background: #ffffff;
+          color: #60708a;
+          outline: 0;
+          padding: 0 14px;
+          font-size: 15px;
+        }
+
+        .catalog-price-inputs input::placeholder {
+          color: #60708a;
+        }
+
+        .catalog-range-line {
+          height: 2px;
+          background: #cfe0f2;
+          position: relative;
+          margin: 14px 3px 0;
+        }
+
+        .catalog-range-line::before {
+          content: "";
+          position: absolute;
+          left: 3%;
+          right: 48%;
+          top: 0;
+          height: 2px;
+          background: #0b6fe8;
+        }
+
+        .catalog-range-line span {
+          position: absolute;
+          top: 50%;
+          width: 18px;
+          height: 18px;
+          border: 2px solid #0b6fe8;
+          border-radius: 999px;
+          background: #ffffff;
+          transform: translate(-50%, -50%);
+          box-shadow: 0 2px 6px rgba(11, 111, 232, 0.2);
+        }
+
+        .catalog-range-line span:first-child {
+          left: 3%;
+        }
+
+        .catalog-range-line span:last-child {
+          left: 50%;
+        }
+
+        .catalog-option-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-top: -6px;
+        }
+
+        .catalog-option-stack button {
+          width: 100%;
+          border: 0;
+          border-radius: 8px;
+          background: #f8faff;
+          color: #3f4c61;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          padding: 9px 10px;
+          font-size: 13px;
+          font-weight: 500;
+          text-align: left;
+        }
+
+        .catalog-option-stack button.is-active {
+          color: #0b6fe8;
+          background: #edf5ff;
+        }
+
+        .catalog-stock-row {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 12px;
+          margin-top: 2px;
+          color: #050505;
+          font-size: 15px;
+        }
+
+        .catalog-stock-toggle {
+          width: 38px;
+          height: 20px;
+          border: 0;
+          border-radius: 999px;
+          background: #d8e3f3;
+          position: relative;
+          transition: 0.16s ease;
+        }
+
+        .catalog-stock-toggle span {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 16px;
+          height: 16px;
+          border-radius: 999px;
+          background: #ffffff;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.16);
+          transition: 0.16s ease;
+        }
+
+        .catalog-stock-toggle.is-active {
+          background: #0b6fe8;
+        }
+
+        .catalog-stock-toggle.is-active span {
+          transform: translateX(18px);
+        }
+
+        .catalog-filter-footer {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 112px;
+          gap: 12px;
+          margin-top: 20px;
+        }
+
+        .catalog-filter-footer button {
+          height: 50px;
+          border-radius: 7px;
+          font-size: 15px;
+          font-weight: 600;
+        }
+
+        .catalog-count-button {
+          border: 0;
+          background: #0b6fe8;
+          color: #ffffff;
+          box-shadow: 0 12px 24px rgba(11, 111, 232, 0.18);
+        }
+
+        .catalog-clear-button {
+          border: 1px solid #d9e5f4;
+          background: #ffffff;
+          color: #111827;
+        }
+
+        .catalog-results-area {
+          min-width: 0;
+        }
+
         .catalog-products-grid {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          column-gap: 12px;
-          row-gap: 12px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 22px;
           align-items: stretch;
         }
 
-        .catalog-product-image {
-          transform: scale(1);
-          transition: transform 300ms ease;
+        .catalog-skeleton-card {
+          min-height: 394px;
+          border: 1px solid rgba(232, 238, 249, 0.8);
+          border-radius: 4px;
+          background: #f8faff;
+          padding: 28px;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
         }
 
-        .catalog-product-card:hover .catalog-product-image {
-          transform: scale(1.03);
+        .catalog-empty-state {
+          min-height: 320px;
+          border: 1px dashed #cfe0f2;
+          border-radius: 8px;
+          background: #fbfdff;
+          color: #66758c;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          text-align: center;
+          padding: 28px;
+        }
+
+        .catalog-empty-state strong {
+          color: #111827;
+          font-size: 20px;
+        }
+
+        .catalog-empty-state button {
+          height: 42px;
+          border: 1px solid #0b6fe8;
+          background: #ffffff;
+          color: #0b6fe8;
+          border-radius: 6px;
+          padding: 0 16px;
+          font-weight: 600;
         }
 
         .catalog-product-card {
+          min-height: 394px;
+          background: #f8faff;
+          border: 1px solid rgba(232, 238, 249, 0.8);
+          border-radius: 4px;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          overflow: hidden;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
           content-visibility: auto;
           contain-intrinsic-size: 430px;
         }
 
-        @media (max-width: 1280px) {
-          .catalog-products-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+        .catalog-product-card:hover {
+          transform: translateY(-2px);
+          border-color: #dbe8f8;
+          box-shadow: 0 18px 35px rgba(83, 105, 145, 0.09);
+        }
+
+        .catalog-product-media {
+          position: relative;
+          height: 240px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 30px 28px 12px;
+        }
+
+        .catalog-product-badge {
+          position: absolute;
+          top: 16px;
+          left: 16px;
+          z-index: 2;
+          min-height: 26px;
+          padding: 3px 10px;
+          border-radius: 6px;
+          background: #df2f72;
+          color: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          font-size: 16px;
+          line-height: 1;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+        }
+
+        .catalog-product-badge.is-danger {
+          background: #64748b;
+        }
+
+        .catalog-heart-button {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          z-index: 2;
+          width: 30px;
+          height: 30px;
+          border: 0;
+          border-radius: 999px;
+          background: transparent;
+          color: #637891;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: 0.16s ease;
+        }
+
+        .catalog-heart-button:hover,
+        .catalog-heart-button.is-active {
+          color: #df2f72;
+        }
+
+        .catalog-product-image {
+          max-width: 88%;
+          max-height: 190px;
+          width: auto;
+          height: auto;
+          object-fit: contain;
+          transition: transform 0.28s ease;
+          filter: drop-shadow(0 18px 18px rgba(52, 78, 112, 0.08));
+        }
+
+        .catalog-product-card:hover .catalog-product-image {
+          transform: scale(1.035);
+        }
+
+        .catalog-image-fallback {
+          width: 160px;
+          height: 160px;
+          border-radius: 18px;
+          background: #eef4fb;
+          color: #96a7be;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .catalog-product-body {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          padding: 18px 34px 28px;
+        }
+
+        .catalog-product-title {
+          margin: 0;
+          color: #050505;
+          font-size: 17px;
+          font-weight: 600;
+          line-height: 1.25;
+          letter-spacing: -0.02em;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .catalog-product-category {
+          margin: 10px 0 0;
+          color: #6e7d93;
+          font-size: 15px;
+          line-height: 1.2;
+        }
+
+        .catalog-product-footer {
+          margin-top: 14px;
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 10px;
+          min-height: 25px;
+        }
+
+        .catalog-price-block {
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .catalog-price-block strong {
+          color: #050505;
+          font-size: 18px;
+          font-weight: 700;
+          line-height: 1;
+          letter-spacing: -0.01em;
+          white-space: nowrap;
+        }
+
+        .catalog-price-block span {
+          color: #738197;
+          font-size: 16px;
+          text-decoration: line-through;
+          white-space: nowrap;
+        }
+
+        .catalog-profit-chip {
+          display: none;
+        }
+
+        .catalog-product-actions {
+          margin-top: 16px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 46px;
+          gap: 12px;
+          opacity: 0;
+          transform: translateY(8px);
+          pointer-events: none;
+          transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+
+        .catalog-product-card:hover .catalog-product-actions,
+        .catalog-product-actions.is-visible {
+          opacity: 1;
+          transform: translateY(0);
+          pointer-events: auto;
+        }
+
+        .catalog-buy-button {
+          height: 46px;
+          border: 0;
+          border-radius: 6px;
+          background: #0b6fe8;
+          color: #ffffff;
+          font-size: 15px;
+          font-weight: 600;
+          transition: 0.16s ease;
+        }
+
+        .catalog-buy-button:hover:not(:disabled) {
+          background: #075dcc;
+        }
+
+        .catalog-buy-button:disabled {
+          background: #cbd5e1;
+          cursor: not-allowed;
+        }
+
+        .catalog-cart-button {
+          height: 46px;
+          border: 1px solid #0b6fe8;
+          border-radius: 6px;
+          background: #ffffff;
+          color: #0b6fe8;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: 0.16s ease;
+        }
+
+        .catalog-cart-button:hover {
+          background: #eff6ff;
+        }
+
+        .catalog-show-more-row {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 18px;
+          margin-top: 38px;
+          flex-wrap: wrap;
+        }
+
+        .catalog-show-more-row > button {
+          min-width: 178px;
+          height: 48px;
+          border: 1px solid #0b6fe8;
+          background: #ffffff;
+          color: #0b6fe8;
+          border-radius: 6px;
+          font-size: 15px;
+          font-weight: 600;
+          transition: 0.16s ease;
+        }
+
+        .catalog-show-more-row > button:hover:not(:disabled) {
+          background: #0b6fe8;
+          color: #ffffff;
+        }
+
+        .catalog-show-more-row > button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .catalog-page-stepper {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: #60708a;
+          font-size: 13px;
+        }
+
+        .catalog-page-stepper button {
+          width: 34px;
+          height: 34px;
+          border: 1px solid #d9e5f4;
+          background: #ffffff;
+          color: #0b6fe8;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .catalog-page-stepper button:disabled {
+          opacity: 0.45;
+          color: #94a3b8;
+        }
+
+        @media (max-width: 1400px) {
+          .catalog-board {
+            padding: 44px 42px;
+          }
+
+          .catalog-content-layout {
+            grid-template-columns: 250px minmax(0, 1fr);
+            gap: 30px;
+          }
+
+          .catalog-product-body {
+            padding-left: 26px;
+            padding-right: 26px;
           }
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 1180px) {
+          .catalog-board-header {
+            flex-direction: column;
+          }
+
+          .catalog-header-actions {
+            padding-top: 0;
+            justify-content: flex-start;
+          }
+
+          .catalog-content-layout {
+            grid-template-columns: 1fr;
+          }
+
+          .catalog-filter-panel {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px 24px;
+          }
+
+          .catalog-filter-section {
+            margin-bottom: 0;
+          }
+
+          .catalog-filter-search,
+          .catalog-filter-footer,
+          .catalog-stock-row {
+            grid-column: 1 / -1;
+          }
+
           .catalog-products-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
-        @media (max-width: 620px) {
+        @media (max-width: 760px) {
+          .catalog-page-shell {
+            padding: 18px 12px 44px;
+          }
+
+          .catalog-board {
+            padding: 28px 18px;
+          }
+
+          .catalog-title-row h1 {
+            font-size: 28px;
+          }
+
+          .catalog-filter-panel {
+            display: block;
+          }
+
           .catalog-products-grid {
             grid-template-columns: 1fr;
+          }
+
+          .catalog-header-actions {
+            gap: 8px;
+          }
+
+          .catalog-utility-button span {
+            display: none;
+          }
+
+          .catalog-sort-select {
+            min-width: 142px;
           }
         }
       `}</style>

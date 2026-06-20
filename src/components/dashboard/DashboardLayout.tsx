@@ -269,8 +269,8 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#F6F6F4]">
-      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-black/[0.06] bg-white/96 px-4 backdrop-blur-xl">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0a0a0a]">
+      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-[#333333] bg-[#1a1a1a]/96 px-4 backdrop-blur-xl">
         <div className="flex min-w-0 items-center gap-3">
           {!isRootDashboard ? (
             <button
@@ -312,7 +312,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
         <PageErrorBoundary>{children}</PageErrorBoundary>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#333333] bg-[#1a1a1a]/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl md:hidden">
         <div className="mx-auto flex max-w-[480px] items-center gap-1">
           <MobileBottomItem to="/dashboard" label="Dashboard" icon={LayoutDashboard} active={location.pathname === "/dashboard"} />
           <MobileBottomItem to="/dashboard/produtos" label="Produtos" icon={Package} active={location.pathname.startsWith("/dashboard/produtos")} />
@@ -339,7 +339,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
             aria-label="Fechar menu"
             onClick={closeMenu}
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-hidden rounded-t-[32px] border border-black/[0.06] bg-white shadow-[0_-24px_80px_rgba(0,0,0,0.16)]">
+          <div className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-hidden rounded-t-[32px] border border-[#333333] bg-[#1a1a1a] shadow-[0_-24px_80px_rgba(0,0,0,0.16)]">
             <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-black/12" />
             <div className="flex items-center justify-between px-5 pb-4 pt-4">
               <div className="flex min-w-0 items-center gap-3">
@@ -347,11 +347,11 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
                   {foto ? <img src={foto} alt="Avatar" className="h-full w-full object-cover" /> : initials || "VL"}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-[15px] font-semibold text-[#111111]">{displayName}</p>
-                  <p className="truncate text-[12px] font-medium text-black/40">{user?.email ?? "Conta Velo"}</p>
+                  <p className="truncate text-[15px] font-semibold text-[#ffffff]">{displayName}</p>
+                  <p className="truncate text-[12px] font-medium text-[#888888]">{user?.email ?? "Conta Velo"}</p>
                 </div>
               </div>
-              <button type="button" onClick={closeMenu} className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F4F4F2] text-[#111111]">
+              <button type="button" onClick={closeMenu} className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#2a2a2a] text-[#ffffff]">
                 <X size={18} />
               </button>
             </div>
@@ -599,7 +599,7 @@ const DashboardLayoutInner = () => {
       <div
         className="dashboard-inter flex h-screen min-h-0 w-full max-w-full overflow-x-hidden flex-col"
         style={{
-          backgroundColor: isStartMode ? "#FFA640" : "#F6F6F4",
+          backgroundColor: isStartMode ? "#FFA640" : "#f4f4f4",
           transition: "background-color 280ms ease",
         }}
       >
@@ -611,7 +611,7 @@ const DashboardLayoutInner = () => {
             minHeight: isStartMode ? "calc(100vh - 48px)" : "100vh",
             borderTopLeftRadius: isStartMode ? "24px" : "0",
             borderTopRightRadius: isStartMode ? "24px" : "0",
-            backgroundColor: "#F6F6F4",
+            backgroundColor: "#f4f4f4",
             position: "relative",
             zIndex: 2,
             transition: "margin-top 280ms ease, border-radius 280ms ease, min-height 280ms ease",
@@ -642,7 +642,7 @@ const DashboardLayoutInner = () => {
     <div 
       className="dashboard-inter flex h-screen min-h-0 w-full max-w-full overflow-x-hidden flex-col" 
       style={{ 
-        backgroundColor: isStartMode ? "#FFA640" : "#F4F4F5",
+        backgroundColor: isStartMode ? "#FFA640" : "#f4f4f4",
         paddingTop: 0,
         transition: "background-color 280ms ease"
       }}
@@ -658,7 +658,7 @@ const DashboardLayoutInner = () => {
           borderTopLeftRadius: isStartMode ? "32px" : "0",
           borderTopRightRadius: isStartMode ? "32px" : "0",
           overflow: "hidden",
-          backgroundColor: "#F4F4F5",
+          backgroundColor: "#f4f4f4",
           minHeight: isStartMode ? "calc(100vh - 48px)" : "100vh",
           position: "relative",
           zIndex: 2,
@@ -675,7 +675,7 @@ const DashboardLayoutInner = () => {
           {/* Header - no shell cinza */}
           <DashboardHeader />
           {/* Main content area - sem moldura externa */}
-          <main className="flex min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ backgroundColor: "#F4F4F5" }}>
+          <main className="flex min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ backgroundColor: "#f4f4f4" }}>
             <PageErrorBoundary>
               <Outlet />
             </PageErrorBoundary>

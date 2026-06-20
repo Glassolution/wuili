@@ -12,8 +12,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
-const AuthEntryPage = lazy(() => import("./pages/AuthEntryPage"));
-const CadastroPage = lazy(() => import("./pages/CadastroPage"));
+// AuthEntryPage removed — all auth flows consolidated in LoginPage
+// CadastroPage removed — progressive login flow handles both signup and login
 const SetupPage = lazy(() => import("./pages/SetupPage"));
 const AliExpressCallbackPage = lazy(() => import("./pages/AliExpressCallbackPage"));
 const RefCapturePage = lazy(() => import("./pages/RefCapturePage"));
@@ -99,9 +99,9 @@ const App = () => (
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<AuthEntryPage />} />
+              <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/cadastro" element={<CadastroPage />} />
+              <Route path="/cadastro" element={<Navigate to="/login" replace />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/docs" element={<Docs />} />

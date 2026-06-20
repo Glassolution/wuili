@@ -1,670 +1,461 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowUpRight,
+  Bell,
+  Box,
+  CalendarDays,
+  ChevronRight,
+  Globe2,
+  MoreHorizontal,
+  Package,
+  Search,
+  ShoppingBag,
+  X,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Bom dia";
-  if (hour < 18) return "Boa tarde";
-  return "Boa noite";
-};
-
-type ApprovalProduct = {
-  id: string;
-  name: string;
-  image: string;
-  cost: number;
-  suggestedPrice: number;
-  marginPct: number;
-  catalogProduct: CatalogProduct;
-};
-
-type Metric = {
-  label: string;
-  value: string;
-  delta?: string;
-  positive?: boolean;
-};
-
-type PublishedItem = {
-  id: string;
-  name: string;
-  image: string;
-  status: "ativo" | "pausado";
-  sales: number;
-  marginPct: number;
-};
-
-type AIActivity = {
-  id: string;
-  time: string;
-  text: string;
-};
-
-type CuratedProductPayload = {
-  id?: string;
-  external_id?: string;
-  title?: string;
-  productName?: string;
-  productNameEn?: string;
-  name?: string;
-  description?: string | null;
-  category?: string | null;
-  source?: string | null;
-  cost?: number | string | null;
-  stock_quantity?: number | string | null;
-  stock?: number | string | null;
-  variants?: unknown;
-  cj_product_id?: string | null;
-  images?: unknown;
-  image?: string;
-  image_url?: string;
-  thumbnail?: string;
-  cost_price?: number | string | null;
-  suggested_price?: number | string | null;
-  original_price?: number | string | null;
-  margin_percent?: number | string | null;
-  curation?: {
-    score?: number;
-    criteria?: {
-      margin?: {
-        cjPrice?: number | null;
-        mlAveragePrice?: number | null;
-        estimatedMarginPercent?: number | null;
-      };
-    };
-  };
+type ProfileRow = {
+  display_name: string | null;
+  loja_nome: string | null;
 };
 
 type PublicationRow = {
   id: string;
-  user_id: string;
   title: string | null;
-  thumbnail: string | null;
-  price: number | string | null;
-  cost_price: number | string | null;
   status: string | null;
-  cj_product_id?: string | null;
-  created_at: string;
+  created_at: string | null;
   published_at: string | null;
 };
 
 type OrderRow = {
   id: string;
   product_title: string | null;
-  product_image: string | null;
   sale_price: number | string | null;
-  cost_price: number | string | null;
-  profit: number | string | null;
   status: string | null;
   ordered_at: string | null;
   created_at: string | null;
-  cj_product_id?: string | null;
 };
 
 type ActivityLogRow = {
   id: string;
   message: string | null;
-  created_at: string;
+  created_at: string | null;
 };
 
-const MOCK_APPROVAL: ApprovalProduct[] = [];
-
-const MOCK_METRICS: Metric[] = [
-  { label: "Produtos no ML", value: "128", delta: "+6", positive: true },
-  { label: "Vendas hoje", value: "R$ 1.847", delta: "+12,4%", positive: true },
-  { label: "Vendas do mês", value: "R$ 38.219", delta: "+8,1%", positive: true },
-  { label: "Margem média", value: "41%", delta: "-1,2%", positive: false },
-];
-
-const MOCK_PUBLISHED: PublishedItem[] = [
-  {
-    id: "p1",
-    name: "Fone Bluetooth Esportivo Pro",
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=200&q=80",
-    status: "ativo",
-    sales: 42,
-    marginPct: 44,
-  },
-  {
-    id: "p2",
-    name: "Garrafa Térmica 1L Inox",
-    image: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=200&q=80",
-    status: "ativo",
-    sales: 31,
-    marginPct: 39,
-  },
-  {
-    id: "p3",
-    name: "Mochila Antifurto Impermeável",
-    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=200&q=80",
-    status: "ativo",
-    sales: 28,
-    marginPct: 47,
-  },
-  {
-    id: "p4",
-    name: "Relógio Smartwatch Série 9",
-    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=200&q=80",
-    status: "pausado",
-    sales: 19,
-    marginPct: 35,
-  },
-  {
-    id: "p5",
-    name: "Câmera de Segurança Wi-Fi",
-    image: "https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=200&q=80",
-    status: "ativo",
-    sales: 14,
-    marginPct: 52,
-  },
-];
-
-const MOCK_ACTIVITY: AIActivity[] = [
-  { id: "a1", time: "08h14", text: "47 produtos analisados no CJ Dropshipping" },
-  { id: "a2", time: "08h15", text: "3 produtos selecionados com margem acima de 35%" },
-  { id: "a3", time: "Ontem 18h22", text: "5 anúncios otimizados no Mercado Livre" },
-  { id: "a4", time: "Ontem 09h02", text: "2 produtos publicados no Mercado Livre" },
-  { id: "a5", time: "Anteontem 14h40", text: "Catálogo CJ atualizado — 312 novos itens" },
-];
-
-const formatBRL = (n: number) =>
-  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+type RevenuePoint = {
+  label: string;
+  value: number;
+};
 
 const toNumber = (value: unknown, fallback = 0) => {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const parseImages = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-  }
+const formatBRL = (value: number) =>
+  value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: value >= 1000 ? 0 : 2,
+  });
 
-  if (typeof value !== "string" || !value.trim()) return [];
-  if (/^https?:\/\//i.test(value.trim())) return [value.trim()];
+const formatShortDate = (value?: string | null) => {
+  if (!value) return "Agora";
 
-  try {
-    const parsed = JSON.parse(value);
-    return parseImages(parsed);
-  } catch {
-    return [];
-  }
-};
-
-const getCuratedProductImage = (product: CuratedProductPayload, index: number) =>
-  parseImages(product.images)[0] ||
-  product.image ||
-  product.image_url ||
-  product.thumbnail ||
-  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=400&q=80";
-
-const mapCuratedProduct = (product: CuratedProductPayload, index: number): ApprovalProduct => {
-  const margin = product.curation?.criteria?.margin;
-  const cost = toNumber(margin?.cjPrice ?? product.cost_price ?? product.cost, 0);
-  const suggestedPrice = toNumber(
-    margin?.mlAveragePrice ?? product.suggested_price ?? product.original_price,
-    cost > 0 ? Math.round(cost * 2.2 * 100) / 100 : 0,
-  );
-  const calculatedMargin = cost > 0 && suggestedPrice > 0
-    ? Math.round(((suggestedPrice - cost) / suggestedPrice) * 100)
-    : 0;
-  const image = getCuratedProductImage(product, index);
-  const title = product.title || product.name || product.productName || product.productNameEn || "Produto curado pela IA";
-  const id = String(product.id ?? product.external_id ?? product.cj_product_id ?? `curated-${index}`);
-  const externalId = String(product.external_id ?? product.cj_product_id ?? product.id ?? id);
-  const images = parseImages(product.images);
-  const stockQuantity = Math.max(1, toNumber(product.stock_quantity ?? product.stock, 100));
-  const marginPct = Math.round(toNumber(margin?.estimatedMarginPercent ?? product.margin_percent, calculatedMargin));
-
-  return {
-    id,
-    name: title,
-    image,
-    cost,
-    suggestedPrice,
-    marginPct,
-    catalogProduct: {
-      id,
-      title,
-      description: product.description || "Produto selecionado pela IA com potencial de margem para publicação no Mercado Livre.",
-      images: images.length ? images : [image],
-      cost_price: cost,
-      suggested_price: suggestedPrice,
-      margin_percent: marginPct,
-      category: product.category ?? null,
-      source: product.source || "cj",
-      original_url: externalId ? `https://www.cjdropshipping.com/product-detail.html?id=${encodeURIComponent(externalId)}` : undefined,
-      stock_quantity: stockQuantity,
-      external_id: externalId,
-      variants: product.variants ?? null,
-    },
-  };
-};
-
-const calculateMarginPct = (price: unknown, cost: unknown, profit?: unknown) => {
-  const salePrice = toNumber(price, 0);
-  if (salePrice <= 0) return 0;
-
-  const profitValue = profit != null ? toNumber(profit, NaN) : NaN;
-  if (Number.isFinite(profitValue)) return Math.round((profitValue / salePrice) * 100);
-
-  const costValue = toNumber(cost, 0);
-  return Math.round(((salePrice - costValue) / salePrice) * 100);
-};
-
-const sameProduct = (publication: PublicationRow, order: OrderRow) => {
-  const pubCjId = publication.cj_product_id ? String(publication.cj_product_id) : "";
-  const orderCjId = order.cj_product_id ? String(order.cj_product_id) : "";
-  if (pubCjId && orderCjId && pubCjId === orderCjId) return true;
-
-  const pubTitle = String(publication.title ?? "").trim().toLowerCase();
-  const orderTitle = String(order.product_title ?? "").trim().toLowerCase();
-  return Boolean(pubTitle && orderTitle && pubTitle === orderTitle);
-};
-
-const formatActivityTime = (iso: string) => {
-  const date = new Date(iso);
+  const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Agora";
 
-  const now = new Date();
-  const sameDay = date.toDateString() === now.toDateString();
-  if (sameDay) {
-    return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }).replace(":", "h");
-  }
-
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) return "Ontem";
-
-  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  });
 };
 
-const buildDashboardFallback = () => ({
-  metrics: MOCK_METRICS,
-  published: MOCK_PUBLISHED,
-  activity: MOCK_ACTIVITY,
-});
+const getName = (profile?: ProfileRow | null, email?: string | null) => {
+  const raw = profile?.loja_nome || profile?.display_name || email?.split("@")[0] || "Velo";
+  return raw
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 
-export default function DashboardHomePage() {
+const buildRevenueSeries = (orders: OrderRow[]): RevenuePoint[] => {
+  const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const now = new Date();
+  const months = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - 11 + index, 1);
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}`,
+      label: labels[date.getMonth()],
+      value: 0,
+    };
+  });
+
+  orders.forEach((order) => {
+    const date = new Date(order.ordered_at || order.created_at || "");
+    if (Number.isNaN(date.getTime())) return;
+
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    const point = months.find((month) => month.key === key);
+    if (point) point.value += toNumber(order.sale_price);
+  });
+
+  return months.map(({ label, value }) => ({ label, value }));
+};
+
+const MiniRevenueChart = ({ data }: { data: RevenuePoint[] }) => {
+  const maxValue = Math.max(...data.map((point) => point.value), 1);
+  const points = data
+    .map((point, index) => {
+      const x = data.length <= 1 ? 0 : (index / (data.length - 1)) * 100;
+      const y = point.value > 0 ? 86 - (point.value / maxValue) * 64 : 86;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  return (
+    <div className="mt-5 rounded-[14px] border border-black/[0.07] bg-white px-5 py-4">
+      <svg viewBox="0 0 100 46" className="h-[260px] w-full overflow-visible" preserveAspectRatio="none" aria-hidden="true">
+        {[12, 24, 36, 48, 60, 72, 84].map((y) => (
+          <line key={y} x1="0" x2="100" y1={y / 2} y2={y / 2} stroke="rgba(0,0,0,0.055)" strokeWidth="0.35" />
+        ))}
+        {data.map((point, index) => {
+          const x = data.length <= 1 ? 0 : (index / (data.length - 1)) * 100;
+          const y = point.value > 0 ? 43 - (point.value / maxValue) * 31 : 43;
+          return (
+            <line
+              key={`${point.label}-${index}`}
+              x1={x}
+              x2={x}
+              y1="43"
+              y2={y}
+              stroke="rgba(0,0,0,0.18)"
+              strokeWidth="0.45"
+            />
+          );
+        })}
+        <polyline fill="none" stroke="#1b1b1b" strokeWidth="0.7" strokeLinecap="round" strokeLinejoin="round" points={points
+          .split(" ")
+          .map((pair) => {
+            const [x, y] = pair.split(",").map(Number);
+            return `${x},${y / 2}`;
+          })
+          .join(" ")}
+        />
+        {data.some((point) => point.value > 0) && (
+          <circle
+            cx={(Math.max(0, data.findIndex((point) => point.value === maxValue)) / Math.max(data.length - 1, 1)) * 100}
+            cy={(86 - (maxValue / maxValue) * 64) / 2}
+            r="1.1"
+            fill="#ffffff"
+            stroke="#111111"
+            strokeWidth="0.45"
+          />
+        )}
+      </svg>
+      <div className="mt-2 grid grid-cols-12 text-[11px] font-medium text-neutral-500">
+        {data.map((point, index) => (
+          <span key={`${point.label}-label-${index}`} className="text-center">
+            {point.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const OverviewCell = ({ title, value, caption }: { title: string; value: string; caption: string }) => (
+  <div className="min-h-[112px] border-black/[0.06] p-5 odd:border-r [&:nth-child(-n+2)]:border-b">
+    <p className="text-[13px] font-medium text-neutral-600">{title}</p>
+    <strong className="mt-2 block text-[31px] font-normal leading-none tracking-[-0.05em] text-[#101010]">{value}</strong>
+    <p className="mt-3 text-[12px] leading-5 text-neutral-500">{caption}</p>
+  </div>
+);
+
+const SectionTitle = ({
+  title,
+  action,
+  onAction,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+}) => (
+  <div className="mb-3 flex items-center justify-between">
+    <h2 className="text-[20px] font-semibold tracking-[-0.04em] text-[#111111]">{title}</h2>
+    {action ? (
+      <button
+        type="button"
+        onClick={onAction}
+        className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#111111] transition-opacity hover:opacity-65"
+      >
+        {action}
+        <ArrowUpRight className="h-3.5 w-3.5" />
+      </button>
+    ) : null}
+  </div>
+);
+
+const ActivityAvatar = ({ label }: { label: string }) => {
+  const initials = label
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("") || "VL";
+
+  return (
+    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#f1f1f1] text-[12px] font-semibold text-[#111111]">
+      {initials}
+    </span>
+  );
+};
+
+const DashboardHomePage = () => {
   const navigate = useNavigate();
-  const { user, session } = useAuth();
-  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
+  const { user } = useAuth();
 
   const { data: profile } = useQuery({
     queryKey: ["dashboard-home-profile", user?.id],
-    enabled: !!user?.id,
+    enabled: Boolean(user?.id),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("profiles" as never)
         .select("display_name, loja_nome")
-        .eq("user_id", user!.id)
+        .eq("id", user!.id)
         .maybeSingle();
 
-      if (error) {
-        console.error("[DashboardHomePage] erro ao buscar perfil:", error);
-        return null;
-      }
-
-      return data as { display_name?: string | null; loja_nome?: string | null } | null;
-    },
-  });
-
-  const { data: dashboardData, isLoading: isDashboardLoading } = useQuery({
-    queryKey: ["dashboard-home-real-data", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      try {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-
-        const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
-
-        const [publicationsResult, ordersResult, activityResult] = await Promise.all([
-          supabase
-            .from("user_publications" as any)
-            .select("id,user_id,title,thumbnail,price,cost_price,status,cj_product_id,created_at,published_at")
-            .eq("user_id", user!.id)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("orders" as any)
-            .select("id,product_title,product_image,sale_price,cost_price,profit,status,ordered_at,created_at,cj_product_id")
-            .eq("user_id", user!.id)
-            .eq("platform", "mercadolivre")
-            .neq("status", "cancelled")
-            .order("ordered_at", { ascending: false })
-            .limit(1000),
-          supabase
-            .from("ai_activity_logs" as any)
-            .select("id,message,created_at")
-            .eq("user_id", user!.id)
-            .order("created_at", { ascending: false })
-            .limit(5),
-        ]);
-
-        if (publicationsResult.error) throw publicationsResult.error;
-        if (ordersResult.error) throw ordersResult.error;
-        if (activityResult.error) {
-          console.warn("[DashboardHomePage] logs de atividade indisponíveis; usando fallback da atividade:", activityResult.error);
-        }
-
-        const publications = (publicationsResult.data ?? []) as PublicationRow[];
-        const orders = (ordersResult.data ?? []) as OrderRow[];
-        const activePublications = publications.filter((publication) => publication.status === "active");
-        const monthOrders = orders.filter((order) => new Date(order.ordered_at ?? order.created_at ?? 0) >= monthStart);
-        const todayOrders = orders.filter((order) => new Date(order.ordered_at ?? order.created_at ?? 0) >= todayStart);
-
-        const salesToday = todayOrders.reduce((sum, order) => sum + toNumber(order.sale_price, 0), 0);
-        const salesMonth = monthOrders.reduce((sum, order) => sum + toNumber(order.sale_price, 0), 0);
-        const margins = activePublications
-          .map((publication) => calculateMarginPct(publication.price, publication.cost_price))
-          .filter((margin) => Number.isFinite(margin));
-        const averageMargin = margins.length
-          ? Math.round(margins.reduce((sum, margin) => sum + margin, 0) / margins.length)
-          : 0;
-
-        const metrics: Metric[] = [
-          { label: "Produtos no ML", value: String(activePublications.length) },
-          { label: "Vendas hoje", value: formatBRL(salesToday) },
-          { label: "Vendas do mês", value: formatBRL(salesMonth) },
-          { label: "Margem média", value: `${averageMargin}%` },
-        ];
-
-        const published: PublishedItem[] = publications.slice(0, 5).map((publication) => {
-          const publicationOrders = orders.filter((order) => sameProduct(publication, order));
-          return {
-            id: publication.id,
-            name: publication.title || "Produto publicado",
-            image: publication.thumbnail || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=200&q=80",
-            status: publication.status === "active" ? "ativo" : "pausado",
-            sales: publicationOrders.length,
-            marginPct: calculateMarginPct(publication.price, publication.cost_price),
-          };
-        });
-
-        const activity: AIActivity[] = ((activityResult.data ?? []) as ActivityLogRow[]).map((log) => ({
-          id: log.id,
-          time: formatActivityTime(log.created_at),
-          text: log.message || "Atividade registrada pela IA",
-        }));
-
-        return {
-          metrics,
-          published,
-          activity,
-        };
-      } catch (error) {
-        console.warn("[DashboardHomePage] usando fallback de dados do dashboard:", error);
-        return buildDashboardFallback();
-      }
-    },
-    staleTime: 1000 * 60 * 2,
-  });
-
-  const {
-    data: curatedProducts,
-    isLoading: isCuratedLoading,
-    isError: isCuratedError,
-    refetch: refetchCurated,
-    isFetching: isCuratedFetching,
-  } = useQuery({
-    queryKey: ["dashboard-home-curated-products", user?.id],
-    enabled: !!user?.id,
-    retry: 1,
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("get-curated-products", {
-        body: { userId: user?.id },
-      });
       if (error) throw error;
-      const products = Array.isArray(data?.products) ? data.products : [];
-      return products.slice(0, 3).map((p: CuratedProductPayload, index: number) => mapCuratedProduct(p, index));
+      return data as ProfileRow | null;
     },
-    staleTime: 1000 * 60 * 15,
   });
 
+  const { data: dashboardData } = useQuery({
+    queryKey: ["dashboard-home-wix-data", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const [publicationsResult, ordersResult, activitiesResult] = await Promise.all([
+        supabase
+          .from("user_publications" as never)
+          .select("id,title,status,created_at,published_at")
+          .eq("user_id", user!.id)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("orders" as never)
+          .select("id,product_title,sale_price,status,ordered_at,created_at")
+          .eq("user_id", user!.id)
+          .order("created_at", { ascending: false })
+          .limit(80),
+        supabase
+          .from("ai_activity_logs" as never)
+          .select("id,message,created_at")
+          .eq("user_id", user!.id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ]);
 
-  const firstName = useMemo(() => {
-    const metadataName =
-      (user?.user_metadata?.name as string | undefined) ??
-      (user?.user_metadata?.full_name as string | undefined);
-    const source = profile?.display_name?.trim() || metadataName || "";
-    return source ? source.split(" ")[0] : "";
-  }, [profile?.display_name, user?.user_metadata]);
+      if (publicationsResult.error) throw publicationsResult.error;
+      if (ordersResult.error) throw ordersResult.error;
+      if (activitiesResult.error) throw activitiesResult.error;
 
-  const approvalQueue = curatedProducts ?? [];
-  const metrics = dashboardData?.metrics ?? MOCK_METRICS;
-  const published = dashboardData?.published ?? MOCK_PUBLISHED;
-  const activity = dashboardData?.activity?.length ? dashboardData.activity : MOCK_ACTIVITY;
+      return {
+        publications: (publicationsResult.data ?? []) as PublicationRow[],
+        orders: (ordersResult.data ?? []) as OrderRow[],
+        activities: (activitiesResult.data ?? []) as ActivityLogRow[],
+      };
+    },
+  });
 
-  const analyzedCount = approvalQueue.length;
-  const pendingCount = approvalQueue.length;
+  const publications = dashboardData?.publications ?? [];
+  const orders = dashboardData?.orders ?? [];
+  const activities = dashboardData?.activities ?? [];
+
+  const name = getName(profile, user?.email);
+  const activeListings = publications.filter((item) => ["active", "ativo", "published", "publicado"].includes(String(item.status ?? "").toLowerCase())).length;
+  const expiredListings = publications.filter((item) => ["paused", "pausado", "expired", "expirado"].includes(String(item.status ?? "").toLowerCase())).length;
+  const soldOut = publications.filter((item) => ["sold_out", "esgotado"].includes(String(item.status ?? "").toLowerCase())).length;
+  const totalRevenue = orders.reduce((sum, order) => sum + toNumber(order.sale_price), 0);
+  const revenueSeries = useMemo(() => buildRevenueSeries(orders), [orders]);
+  const conversionRate = 0;
+
+  const latestOrder = orders[0];
+  const latestOrderValue = latestOrder ? formatBRL(toNumber(latestOrder.sale_price)) : formatBRL(0);
+  const latestProduct = latestOrder?.product_title || "Nenhuma venda registrada";
 
   return (
-    <>
-    <main className="min-h-full w-full bg-[#F4F4F4] text-[#0a0a0a] antialiased [font-family:'Hanken_Grotesk',-apple-system,BlinkMacSystemFont,'Helvetica_Neue',Arial,sans-serif]">
-      <div className="grid w-full grid-cols-12 gap-4">
-        <header className="col-span-12 flex flex-col gap-2 rounded-[14px] bg-white/70 px-4 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-semibold leading-tight tracking-[-0.02em] text-black">
-            {getGreeting()}{firstName ? `, ${firstName}` : ""}.
-          </h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#16a34a] opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#16a34a]" />
-            </span>
-            <p className="text-sm font-medium text-[#4a4a4a]">
-              {isCuratedLoading ? "IA buscando produtos reais..." : `Última varredura: ${analyzedCount} analisados, `}
-              {!isCuratedLoading && (
-                <span className="font-semibold text-black">{pendingCount} aguardando aprovação</span>
-              )}
-            </p>
-          </div>
+    <main className="min-h-full w-full bg-[#f4f4f4] text-[#111111]">
+      <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-5 px-1 py-1 sm:px-3 lg:px-0">
+        <header className="flex items-center justify-between gap-4">
+          <h1 className="text-[26px] font-semibold leading-none tracking-[-0.045em] text-[#111111]">Hello, {name}!</h1>
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/produtos")}
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5"
+          >
+            <Globe2 className="h-4 w-4" />
+            Open Site
+          </button>
         </header>
 
-        <section className="col-span-12 rounded-[16px] bg-[#111] p-4 text-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:p-5">
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold tracking-[-0.01em]">
-                Produtos encontrados pela IA hoje
-              </h2>
-              <p className="mt-1 text-sm text-white/60">
-                Revise e aprove para publicar automaticamente no Mercado Livre.
-              </p>
-            </div>
+        <section className="flex items-center justify-between gap-4 rounded-[14px] border border-black/[0.06] bg-white px-4 py-3">
+          <div className="flex items-center gap-2 text-[13px] font-medium text-[#222222]">
+            <Box className="h-4 w-4" />
+            <span>Upgrade your plan to unlock advanced features</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/planos")}
+              className="hidden h-8 items-center gap-1 rounded-lg border border-black/[0.08] bg-white px-3 text-[12px] font-semibold text-[#111111] transition-colors hover:bg-[#f7f7f7] sm:inline-flex"
+            >
+              Select Plan
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 transition-colors hover:bg-[#f7f7f7]">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_292px]">
+          <div className="space-y-5">
+            <section>
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <h2 className="text-[20px] font-semibold tracking-[-0.04em] text-[#111111]">Overview performance</h2>
+                <div className="hidden items-center rounded-full bg-white p-1 text-[12px] font-medium text-neutral-500 sm:flex">
+                  {["Day", "Week", "Month", "Year"].map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className={`h-8 rounded-full px-4 transition-colors ${item === "Week" ? "bg-[#f4f4f4] text-[#111111]" : "hover:text-[#111111]"}`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 overflow-hidden rounded-[16px] border border-black/[0.07] bg-white sm:grid-cols-2">
+                <OverviewCell title="Total Views" value="0" caption="No real visit data connected yet" />
+                <OverviewCell title="Visits" value="0" caption="From tracked sessions" />
+                <OverviewCell title="Orders" value={String(orders.length)} caption="Real orders in your account" />
+                <OverviewCell title="Conversion Rate" value={`${conversionRate}%`} caption="Requires visits and orders" />
+              </div>
+            </section>
+
+            <section className="rounded-[16px] border border-black/[0.07] bg-white p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-[22px] font-semibold tracking-[-0.045em] text-[#111111]">Revenue</h2>
+                  <p className="mt-5 text-[13px] font-medium text-neutral-600">Total Revenue</p>
+                  <strong className="mt-1 block text-[36px] font-semibold leading-none tracking-[-0.055em] text-[#111111]">
+                    {formatBRL(totalRevenue)}
+                  </strong>
+                  <p className="mt-2 text-[12px] text-neutral-500">Real revenue from completed orders</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-black/[0.07] px-3 text-[12px] font-semibold text-neutral-700 transition-colors hover:bg-[#f7f7f7]"
+                  >
+                    Last Year
+                    <ChevronRight className="h-3.5 w-3.5 rotate-90" />
+                  </button>
+                  <button type="button" className="grid h-8 w-8 place-items-center rounded-lg border border-black/[0.07] text-neutral-500 transition-colors hover:bg-[#f7f7f7]">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <MiniRevenueChart data={revenueSeries} />
+            </section>
           </div>
 
-          {isCuratedLoading ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="h-[300px] animate-pulse rounded-[14px] bg-white/10" />
-              ))}
-            </div>
-          ) : isCuratedError ? (
-            <div className="flex flex-col items-center gap-3 rounded-[12px] border border-white/10 bg-white/[0.03] px-6 py-10 text-center">
-              <p className="text-[15px] text-white/80">Erro ao buscar produtos. Tente novamente.</p>
-              <button
-                type="button"
-                onClick={() => refetchCurated()}
-                disabled={isCuratedFetching}
-                className="h-9 rounded-[8px] bg-white px-4 text-[13px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
-              >
-                {isCuratedFetching ? "Tentando..." : "Tentar novamente"}
-              </button>
-            </div>
-          ) : approvalQueue.length === 0 ? (
-            <div className="rounded-[12px] border border-white/10 bg-white/[0.03] px-6 py-12 text-center text-[15px] text-white/70">
-              Nenhum produto com margem suficiente no momento. A IA continua varrendo.
-            </div>
-
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {approvalQueue.map((p) => (
-                <article
-                  key={p.id}
-                  className="flex max-h-[340px] flex-col overflow-hidden rounded-[14px] bg-white text-[#0a0a0a]"
-                >
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    className="h-36 w-full bg-[#f4f4f4] object-contain p-2"
-                    loading="lazy"
-                  />
-                  <div className="flex flex-1 flex-col p-4">
-                    <h3 className="line-clamp-2 min-h-[36px] text-[14px] font-semibold leading-snug">
-                      {p.name}
-                    </h3>
-                    <dl className="mt-2 space-y-1 text-[12px]">
-                      <div className="flex justify-between text-[#6b6b6b]">
-                        <dt>Custo</dt>
-                        <dd className="font-medium text-[#0a0a0a]">{formatBRL(p.cost)}</dd>
-                      </div>
-                      <div className="flex justify-between text-[#6b6b6b]">
-                        <dt>Sugerido</dt>
-                        <dd className="font-medium text-[#0a0a0a]">{formatBRL(p.suggestedPrice)}</dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-[#6b6b6b]">Margem</dt>
-                        <dd className="font-semibold text-[#16a34a]">{p.marginPct}%</dd>
-                      </div>
-                    </dl>
-                    <div className="mt-3 flex flex-col gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedProduct(p.catalogProduct)}
-                        className="h-9 rounded-[8px] bg-black text-[13px] font-semibold text-white transition hover:bg-[#1f1f1f]"
-                      >
-                        Aprovar e Publicar
-                      </button>
-                      <button
-                        type="button"
-                        className="h-8 rounded-[8px] text-[12px] font-medium text-[#6b6b6b] transition hover:text-[#0a0a0a]"
-                      >
-                        Ignorar
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="col-span-12 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {metrics.map((m) => (
-            <article
-              key={m.label}
-              className="rounded-[16px] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-            >
-              <div className="flex items-baseline gap-2">
-                <span className="text-[28px] font-semibold tracking-[-0.02em] text-black">
-                  {isDashboardLoading ? "..." : m.value}
-                </span>
-                {!isDashboardLoading && m.delta && (
-                  <span
-                    className={`text-[13px] font-semibold ${
-                      m.positive ? "text-[#16a34a]" : "text-[#dc2626]"
-                    }`}
-                  >
-                    {m.delta}
+          <aside className="space-y-5">
+            <section>
+              <SectionTitle title="Shop Advisor" action="See All" onAction={() => navigate("/dashboard/produtos")} />
+              <div className="rounded-[16px] border border-black/[0.07] bg-white p-4">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#f7f7f7]">
+                    <Bell className="h-4 w-4 text-[#111111]" />
                   </span>
+                  <div>
+                    <p className="text-[13px] font-semibold leading-5 text-[#111111]">Your next action is ready</p>
+                    <p className="mt-1 text-[12px] leading-5 text-neutral-500">
+                      Review products and keep your store moving with real catalog data.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/dashboard/produtos")}
+                      className="mt-3 h-8 rounded-lg border border-black/[0.08] px-3 text-[12px] font-semibold transition-colors hover:bg-[#f7f7f7]"
+                    >
+                      Learn More
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <SectionTitle title="Products" action="See All" onAction={() => navigate("/dashboard/produtos")} />
+              <div className="rounded-[16px] border border-black/[0.07] bg-white p-4">
+                {[
+                  ["Active listings", activeListings],
+                  ["Expired", expiredListings],
+                  ["Sold out", soldOut],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between border-b border-black/[0.06] py-3 last:border-b-0">
+                    <span className="text-[13px] font-medium text-neutral-700">{label}</span>
+                    <strong className="text-[22px] font-normal tracking-[-0.04em] text-[#111111]">{value}</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <SectionTitle title="Recent Activities" action="See All" onAction={() => navigate("/dashboard/relatorios")} />
+              <div className="rounded-[16px] border border-black/[0.07] bg-white p-4">
+                {activities.length > 0 ? (
+                  <div className="space-y-3">
+                    {activities.map((activity) => (
+                      <div key={activity.id} className="flex items-center gap-3 border-b border-black/[0.05] pb-3 last:border-b-0 last:pb-0">
+                        <ActivityAvatar label={activity.message || "Velo"} />
+                        <div className="min-w-0">
+                          <p className="truncate text-[12px] font-semibold text-[#111111]">{activity.message || "Atividade registrada"}</p>
+                          <p className="mt-0.5 text-[11px] text-neutral-500">{formatShortDate(activity.created_at)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex min-h-[164px] flex-col items-center justify-center rounded-[12px] bg-[#fafafa] px-5 text-center">
+                    <ShoppingBag className="h-5 w-5 text-neutral-400" />
+                    <p className="mt-3 text-[13px] font-medium text-neutral-600">No recent activity yet</p>
+                    <p className="mt-1 text-[12px] leading-5 text-neutral-400">Your real actions will appear here.</p>
+                  </div>
                 )}
               </div>
-              <p className="mt-1 text-[13px] text-[#6b6b6b]">{m.label}</p>
-            </article>
-          ))}
-        </section>
+            </section>
 
-        <section className="col-span-12 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <article className="rounded-[16px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:col-span-2">
-            <header className="mb-5 flex items-center justify-between">
-              <h2 className="text-[18px] font-semibold tracking-[-0.01em] text-black">
-                Publicados recentemente
-              </h2>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard/publicacoes")}
-                className="text-[13px] font-medium text-[#6b6b6b] transition hover:text-black"
-              >
-                Ver tudo
-              </button>
-            </header>
-
-            {isDashboardLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="h-14 animate-pulse rounded-[10px] bg-[#f4f4f4]" />
-                ))}
+            <section className="rounded-[16px] border border-black/[0.07] bg-white p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-semibold text-neutral-600">Latest sale</p>
+                <Package className="h-4 w-4 text-neutral-400" />
               </div>
-            ) : published.length === 0 ? (
-              <div className="rounded-[12px] bg-[#f7f7f7] px-4 py-8 text-center text-[13px] text-[#6b6b6b]">
-                Nenhum produto publicado ainda.
-              </div>
-            ) : (
-              <ul className="divide-y divide-[#f1f1f1]">
-                {published.map((item) => (
-                  <li key={item.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="h-12 w-12 flex-shrink-0 rounded-[8px] bg-[#f4f4f4] object-cover"
-                      loading="lazy"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14px] font-medium text-black">{item.name}</p>
-                      <p className="mt-0.5 text-[12px] text-[#6b6b6b]">
-                        {item.sales} vendas · margem {item.marginPct}%
-                      </p>
-                    </div>
-                    <span
-                      className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                        item.status === "ativo"
-                          ? "bg-[#e8f5ec] text-[#16a34a]"
-                          : "bg-[#f4f4f4] text-[#6b6b6b]"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </article>
-
-          <article className="rounded-[16px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-            <h2 className="mb-5 text-[18px] font-semibold tracking-[-0.01em] text-black">
-              Atividade da IA
-            </h2>
-            {isDashboardLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={index} className="h-10 animate-pulse rounded-[10px] bg-[#f4f4f4]" />
-                ))}
-              </div>
-            ) : (
-              <ol className="relative space-y-5 border-l border-[#ececec] pl-5">
-                {activity.map((a) => (
-                  <li key={a.id} className="relative">
-                    <span className="absolute -left-[23px] top-1.5 h-2 w-2 rounded-full bg-black" />
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#9a9a9a]">
-                      {a.time}
-                    </p>
-                    <p className="mt-1 text-[13px] leading-snug text-[#0a0a0a]">{a.text}</p>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </article>
-        </section>
+              <strong className="mt-3 block text-[28px] font-semibold leading-none tracking-[-0.05em] text-[#111111]">
+                {latestOrderValue}
+              </strong>
+              <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-neutral-500">{latestProduct}</p>
+            </section>
+          </aside>
+        </div>
       </div>
     </main>
-    <ImportProductModal
-      open={!!selectedProduct}
-      onClose={() => setSelectedProduct(null)}
-      product={selectedProduct}
-    />
-    </>
   );
-}
+};
+
+export default DashboardHomePage;

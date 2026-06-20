@@ -119,11 +119,11 @@ const PricingSection = () => {
 
     setTimeout(() => {
       if (planId === "gratis") {
-        navigate(user ? "/checkout?plan=pro" : "/auth");
+        navigate(user ? "/checkout?plan=pro" : "/login");
       } else if (user) {
         navigate(`/checkout?plan=${planId}`);
       } else {
-        navigate("/auth");
+        navigate("/login");
       }
     }, 3000);
   };
