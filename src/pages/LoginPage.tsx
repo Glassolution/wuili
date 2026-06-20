@@ -79,17 +79,32 @@ const LoginPage = () => {
   const handleSignIn = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    if (error) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        toast.error(
+          error.message === "Invalid login credentials"
+            ? "Email ou senha incorretos. Tente novamente."
+            : error.message,
+        );
+        return;
+      }
+
+      if (data.session || data.user) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
+      toast.error("Não foi possível concluir o login. Tente novamente.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro inesperado ao entrar.";
+      toast.error(message);
+    } finally {
       setLoading(false);
-      toast.error(
-        error.message === "Invalid login credentials"
-          ? "Email ou senha incorretos. Tente novamente."
-          : error.message,
-      );
     }
   };
 

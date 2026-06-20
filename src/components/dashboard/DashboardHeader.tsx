@@ -23,6 +23,7 @@ type RouteMeta = {
 
 const routes: RouteMeta[] = [
   { test: (p) => p === "/dashboard", title: "Dashboard", icon: BarChart2 },
+  { test: (p) => p.startsWith("/dashboard/catalogo"), title: "Catálogo", icon: Package },
   { test: (p) => p.startsWith("/dashboard/saldos"), title: "Saldos", icon: Wallet },
   { test: (p) => p.startsWith("/dashboard/transacoes"), title: "Transações", icon: ArrowLeftRight },
   { test: (p) => p.startsWith("/dashboard/pagamentos"), title: "Pagamentos", icon: CreditCard },
@@ -40,8 +41,9 @@ const DashboardHeader = () => {
   const meta = routes.find((r) => r.test(location.pathname)) ?? routes[0];
   const Icon = meta.icon;
   const isDashboard = meta.title === "Dashboard";
+  const shouldHideHeader = location.pathname === "/dashboard" || location.pathname.startsWith("/dashboard/catalogo");
 
-  if (location.pathname === "/dashboard") {
+  if (shouldHideHeader) {
     return null;
   }
 

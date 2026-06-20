@@ -19,9 +19,11 @@ const AliExpressCallbackPage = lazy(() => import("./pages/AliExpressCallbackPage
 const RefCapturePage = lazy(() => import("./pages/RefCapturePage"));
 const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout"));
 const CatalogPage = lazy(() => import("./pages/dashboard/CatalogPage"));
+const CatalogoPage = lazy(() => import("./pages/dashboard/CatalogoPage"));
 const OrdersPage = lazy(() => import("./pages/dashboard/OrdersPage"));
 const PublicationsPage = lazy(() => import("./pages/dashboard/PublicationsPage"));
 const ProductDetailPage = lazy(() => import("./pages/dashboard/ProductDetailPage"));
+const ProdutosMLPage = lazy(() => import("./pages/dashboard/ProdutosMLPage"));
 const ReportsPage = lazy(() => import("./pages/dashboard/ReportsPage"));
 const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage"));
 const DashboardInfoPage = lazy(() => import("./pages/dashboard/DashboardInfoPage"));
@@ -114,6 +116,8 @@ const App = () => (
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
               <Route path="/dashboard" element={<DashboardShell />}>
                 <Route index element={<DashboardHomePage />} />
+                <Route path="catalogo" element={<CatalogoPage />} />
+                <Route path="produtos-ml" element={<ProdutosMLPage />} />
                 <Route path="saldos" element={<SaldosPage />} />
                 <Route path="transacoes" element={<TransacoesPage />} />
                 <Route path="comissoes" element={<ProtectedRoute allowedRoles={["admin", "influencer", "affiliate"]}><CommissionsPage /></ProtectedRoute>} />

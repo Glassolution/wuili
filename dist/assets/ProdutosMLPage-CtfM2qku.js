@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-react-DNIqRoEp.js";const s=()=>t.jsxs("div",{className:"rounded-[24px] border border-[#E5E7EB] bg-white p-6 shadow-sm",children:[t.jsx("h1",{className:"text-[24px] font-semibold tracking-[-0.03em] text-[#111827]",children:"Produtos no ML"}),t.jsx("p",{className:"mt-2 text-[14px] text-[#6B7280]",children:"Em construção."})]});export{s as default};
