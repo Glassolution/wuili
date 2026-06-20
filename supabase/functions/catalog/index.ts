@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
         { count: "exact" }
       )
       .eq("is_active", true)
+      .eq("is_blocked", false)
       .gt("stock_quantity", 0)
       .order("orders_count", { ascending: false })
       .range(offset, offset + limit - 1);
