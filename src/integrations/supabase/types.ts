@@ -156,10 +156,13 @@ export type Database = {
           id: string
           images: Json | null
           is_active: boolean | null
+          is_blocked: boolean
           margin_percent: number
           orders_count: number | null
           original_price: number | null
+          product_url: string | null
           rating: number | null
+          scraped_at: string | null
           source: string
           stock_quantity: number | null
           suggested_price: number
@@ -179,10 +182,13 @@ export type Database = {
           id?: string
           images?: Json | null
           is_active?: boolean | null
+          is_blocked?: boolean
           margin_percent: number
           orders_count?: number | null
           original_price?: number | null
+          product_url?: string | null
           rating?: number | null
+          scraped_at?: string | null
           source?: string
           stock_quantity?: number | null
           suggested_price: number
@@ -202,10 +208,13 @@ export type Database = {
           id?: string
           images?: Json | null
           is_active?: boolean | null
+          is_blocked?: boolean
           margin_percent?: number
           orders_count?: number | null
           original_price?: number | null
+          product_url?: string | null
           rating?: number | null
+          scraped_at?: string | null
           source?: string
           stock_quantity?: number | null
           suggested_price?: number
