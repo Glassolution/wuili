@@ -209,6 +209,11 @@ const CatalogoProductDetailPage = () => {
     });
   }, [relatedIndex, relatedProducts]);
 
+  const mockReviews = useMemo(() => {
+    if (!product) return [];
+    return getMockReviews(product.id);
+  }, [product?.id]);
+
   if (isLoading) {
     return (
       <div className="pt-6 min-h-screen flex items-center justify-center bg-background">
@@ -239,8 +244,6 @@ const CatalogoProductDetailPage = () => {
 
   const { rating, reviewCount } = getMockRating(product.id);
   const description = getMockDescription(product.nome, product.categoria, product.id);
-  const mockReviews = useMemo(() => getMockReviews(product.id), [product.id]);
-
   return (
     <div className="pt-4 min-h-full w-full overflow-visible pb-12" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
       {/* Breadcrumb */}
