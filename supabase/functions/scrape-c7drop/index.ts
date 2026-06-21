@@ -106,7 +106,12 @@ Deno.serve(async (req) => {
       })
       .map((p) => {
         const price = parsePriceMinor(p);
-        const image = p.images?.[0]?.src ?? p.images?.[0]?.thumbnail ?? "";
+        // Salva TODAS as imagens da galeria (a Store API já devolve o array completo).
+        // image[0] = capa, demais = imagens secundárias. Necessário para atender ao
+        // mínimo de 3 fotos exigido pelo Mercado Livre.
+        const images = (p.images ?? [])
+          .map((i) => i?.src ?? i?.thumbnail ?? "")
+          .filter((s) => !!s);
         const title = decodeHtmlEntities(p.name);
         const blockedFlag = isBlocked(title);
         if (blockedFlag) blocked++;
@@ -115,7 +120,7 @@ Deno.serve(async (req) => {
           external_id: p.slug,
           title,
           description: null,
-          images: [image].filter(Boolean),
+          images,
           cost_price: price,
           suggested_price: Math.round(price * 2 * 100) / 100,
           margin_percent: 100,
