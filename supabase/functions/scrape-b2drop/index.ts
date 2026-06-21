@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
         cost_price: p.price,
         suggested_price: Math.round(p.price * 2 * 100) / 100,
         margin_percent: 100,
-        category: null,
+        category: inferCategory(p.title),
         supplier_name: "B2Drop",
         stock_quantity: 100, // catálogo público não expõe estoque real
         is_active: true,
