@@ -22,6 +22,38 @@ export function isBlocked(title: string): boolean {
   return BLOCKLIST.some((w) => haystack.includes(w));
 }
 
+// "Anúncios em Massa - Amazon/Shopee/Mercado Livre/BLING..." são pacotes de
+// anúncios prontos que a C7 Drop vende como se fossem produtos no WooCommerce.
+// Não são produtos físicos — devem ser ignorados pelo catálogo do Velo.
+export function isFakeAdProduct(title: string, productUrl?: string | null): boolean {
+  const t = stripAccents(title).toLowerCase().trim();
+  if (t.startsWith("anuncios em massa") || t.startsWith("anuncio em massa")) return true;
+  if (productUrl && /\/anuncios?-em-massa/i.test(productUrl)) return true;
+  return false;
+}
+
+// Decodifica entidades HTML comuns (&#8211;, &amp;, &quot;, &#215;, etc.)
+// que vêm cruas da WooCommerce Store API.
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+  ndash: "–", mdash: "—", hellip: "…", laquo: "«", raquo: "»",
+  lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”", times: "×", divide: "÷",
+};
+
+export function decodeHtmlEntities(input: string): string {
+  if (!input) return input;
+  return input
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => {
+      const code = parseInt(h, 16);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&#(\d+);/g, (_, d) => {
+      const code = parseInt(d, 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+    })
+    .replace(/&([a-zA-Z]+);/g, (m, name) => NAMED_ENTITIES[name] ?? m);
+}
+
 // ORDEM IMPORTA — primeira correspondência vence.
 export const CATEGORY_KEYWORDS: Array<{ category: string; keywords: string[] }> = [
   { category: "Automotivo", keywords: ["carplay", "android auto", "automotivo", "encosto de cabeca", "turbina universal", "escapamento", "banco de carro", "para-brisa", "para brisa", "limpador parabrisa", "som automotivo", "camera veicular", "camera ré", "camera de re", "pneu", "calota", "carregador veicular", "suporte veicular", "capa de banco", "tapete carro", "tapete automotivo"] },

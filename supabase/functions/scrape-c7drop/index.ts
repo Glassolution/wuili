@@ -6,7 +6,7 @@
 //   curl -X POST https://<project>.supabase.co/functions/v1/scrape-c7drop \
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { inferCategory, isBlocked } from "../_shared/catalog-filters.ts";
+import { decodeHtmlEntities, inferCategory, isBlocked, isFakeAdProduct } from "../_shared/catalog-filters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,23 +93,33 @@ Deno.serve(async (req) => {
     let blocked = 0;
     const now = new Date().toISOString();
 
+    let skippedFakeAds = 0;
     const rows = all
-      .filter((p) => p.slug && p.name)
+      .filter((p) => {
+        if (!p.slug || !p.name) return false;
+        const decoded = decodeHtmlEntities(p.name);
+        if (isFakeAdProduct(decoded, p.permalink)) {
+          skippedFakeAds++;
+          return false;
+        }
+        return true;
+      })
       .map((p) => {
         const price = parsePriceMinor(p);
         const image = p.images?.[0]?.src ?? p.images?.[0]?.thumbnail ?? "";
-        const blockedFlag = isBlocked(p.name);
+        const title = decodeHtmlEntities(p.name);
+        const blockedFlag = isBlocked(title);
         if (blockedFlag) blocked++;
         return {
           source: SOURCE,
           external_id: p.slug,
-          title: p.name,
+          title,
           description: null,
           images: [image].filter(Boolean),
           cost_price: price,
           suggested_price: Math.round(price * 2 * 100) / 100,
           margin_percent: 100,
-          category: inferCategory(p.name),
+          category: inferCategory(title),
           supplier_name: "C7 Drop",
           stock_quantity: p.is_in_stock ? 100 : 0,
           is_active: true,
@@ -119,6 +129,7 @@ Deno.serve(async (req) => {
           updated_at: now,
         };
       });
+    console.log(`[scrape-c7drop] ${skippedFakeAds} anúncios falsos ignorados`);
 
     const BATCH = 200;
     for (let i = 0; i < rows.length; i += BATCH) {
@@ -143,6 +154,7 @@ Deno.serve(async (req) => {
       inserted,
       updated,
       blocked,
+      skipped_fake_ads: skippedFakeAds,
       ran_at: now,
     };
     console.log("[scrape-c7drop] Concluído:", JSON.stringify(summary));
