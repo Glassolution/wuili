@@ -246,7 +246,8 @@ const CatalogoProductDetailPage = () => {
   const description = getMockDescription(product.nome, product.categoria, product.id);
   return (
     <div className="pt-4 min-h-full w-full overflow-visible pb-12" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
-      {/* Breadcrumb */}
+      <div className="max-w-5xl mx-auto px-6">
+        {/* Breadcrumb */}
       <nav className="mb-6 text-[14px] text-[#6B7280] flex items-center flex-wrap gap-1">
         <Link to="/dashboard/catalogo" className="hover:text-[#111111] transition-colors">
           Catálogo
@@ -260,7 +261,7 @@ const CatalogoProductDetailPage = () => {
       </nav>
 
       {/* Main Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start bg-white p-6 rounded-[28px] border border-[#ECECEF] shadow-[0_10px_30px_rgba(17,24,39,0.02)]">
+      <div className="grid grid-cols-1 lg:grid-cols-[45%_1fr] gap-8 items-start bg-white p-6 rounded-[28px] border border-[#ECECEF] shadow-[0_10px_30px_rgba(17,24,39,0.02)]">
         {/* Left Column: Image */}
         <div className="aspect-square rounded-2xl overflow-hidden bg-[#F6F6F7] border border-[#ECECEF] flex items-center justify-center">
           <img
@@ -471,6 +472,7 @@ const CatalogoProductDetailPage = () => {
           </div>
         </section>
       )}
+      </div>
     </div>
   );
 };
