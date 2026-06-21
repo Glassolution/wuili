@@ -1,225 +1,226 @@
 import { useEffect, useState, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Heart, ArrowLeft, RefreshCw, ChevronLeft, ChevronRight, Lock, Truck, ShieldCheck, ChevronDown } from "lucide-react";
 import {
-  ProductCard,
-  getMockRating,
-  formatPrice,
-  formatReviewCount,
-  Product,
-} from "./CatalogoPage";
+  Star,
+  Heart,
+  ArrowLeft,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Lock,
+  Truck,
+  RotateCcw,
+  ShieldCheck,
+  Volume2,
+  Activity,
+  Feather,
+} from "lucide-react";
+import { getMockRating, formatPrice, formatReviewCount } from "./CatalogoPage";
 
-// MOCK: descrição genérica até termos dados reais de produto
+// ============================================================
+// MOCK helpers (descrição, reviews, FAQ) — sem dados reais ainda
+// ============================================================
 function getMockDescription(name: string, category: string, productId: string) {
   let hash = 0;
-  for (let i = 0; i < productId.length; i++) {
-    hash = (hash * 31 + productId.charCodeAt(i)) % 10000;
-  }
+  for (let i = 0; i < productId.length; i++) hash = (hash * 31 + productId.charCodeAt(i)) % 10000;
   const templates = [
-    `Conheça o ${name}, uma excelente opção da categoria ${category}. Este produto de alta qualidade é ideal para quem busca praticidade, durabilidade e um excelente custo-benefício para o dia a dia.`,
-    `Apresentamos o ${name}, projetado especialmente para atender às suas necessidades em ${category}. Uma escolha inteligente que une inovação, eficiência e um design moderno de ótima qualidade.`,
-    `O ${name} é o destaque em ${category}. Desenvolvido com materiais de alto padrão, ele oferece a versatilidade e o desempenho que você procura para elevar sua experiência diária.`
+    `Mergulhe na qualidade do ${name}. Produto da categoria ${category} com excelente custo-benefício, materiais selecionados e ótima saída no varejo nacional.`,
+    `Apresentamos o ${name}, projetado para atender às demandas em ${category}. Uma escolha inteligente que une design moderno, durabilidade e margem atrativa para revenda.`,
+    `O ${name} é destaque em ${category}: acabamento de alto padrão, versatilidade e desempenho consistente para elevar a experiência do seu cliente final.`,
   ];
   return templates[hash % templates.length];
 }
 
-// MOCK: avaliações simuladas baseadas em padrão de mercado, não são reviews reais do Velo
 function getMockReviews(productId: string) {
   let hash = 0;
-  for (let i = 0; i < productId.length; i++) {
-    hash = (hash * 31 + productId.charCodeAt(i)) % 10000;
-  }
-  
+  for (let i = 0; i < productId.length; i++) hash = (hash * 31 + productId.charCodeAt(i)) % 10000;
   const reviewers = [
-    { name: "Carlos M.", initials: "CM", rating: 5 },
-    { name: "Sandra R.", initials: "SR", rating: 5 },
-    { name: "Julio C.", initials: "JC", rating: 4 },
-    { name: "Renata F.", initials: "RF", rating: 5 },
-    { name: "Marcos T.", initials: "MT", rating: 4 },
-    { name: "Aline S.", initials: "AS", rating: 5 }
+    { name: "Carlos M.", initials: "CM" },
+    { name: "Sandra R.", initials: "SR" },
+    { name: "Julio C.", initials: "JC" },
+    { name: "Renata F.", initials: "RF" },
+    { name: "Marcos T.", initials: "MT" },
+    { name: "Aline S.", initials: "AS" },
   ];
-
   const comments = [
-    [
-      "Produto de excelente qualidade, exatamente como descrito. O material é muito resistente.",
-      "Muito bom! Veio bem embalado e a qualidade me surpreendeu positivamente.",
-      "Ótimo custo-benefício. Perfeito para revenda, margem muito boa."
-    ],
-    [
-      "Chegou super rápido no armazém e a qualidade geral do produto é excelente.",
-      "Superou as expectativas. Design moderno e acabamento muito bem feito.",
-      "Os clientes elogiaram bastante a qualidade desse item. Vale a pena importar."
-    ],
-    [
-      "Muito satisfeito com a compra. Recomendo a todos os lojistas parceiros.",
-      "Funciona perfeitamente e o acabamento é impecável. Comprarei mais unidades.",
-      "Produto bem acabado, durável e com ótima saída no mercado nacional."
-    ]
+    ["Qualidade excelente!", "Melhor compra do mês!", "Vale cada centavo!"],
+    ["Chegou rápido demais!", "Acabamento impecável.", "Recomendo para todos."],
+    ["Produto muito bom!", "Funciona perfeitamente.", "Comprarei mais unidades."],
   ];
-
-  const idx1 = hash % reviewers.length;
-  const idx2 = (hash + 1) % reviewers.length;
-  const idx3 = (hash + 2) % reviewers.length;
-
-  const commentGroup = hash % comments.length;
-
+  const g = hash % comments.length;
   return [
-    { ...reviewers[idx1], comment: comments[commentGroup][0] },
-    { ...reviewers[idx2], comment: comments[commentGroup][1] },
-    { ...reviewers[idx3], comment: comments[commentGroup][2] }
+    { ...reviewers[hash % reviewers.length], rating: 5, comment: comments[g][0] },
+    { ...reviewers[(hash + 1) % reviewers.length], rating: 5, comment: comments[g][1] },
+    { ...reviewers[(hash + 2) % reviewers.length], rating: 5, comment: comments[g][2] },
   ];
 }
 
-// MOCK: accordion simples para a seção FAQ
 const FAQItem = ({ question, answer }: { question: string; answer: string }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   return (
-    <div className="border-b border-[#ECECEF] py-4">
+    <div className="border-b border-[#E5E7EB]">
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between text-left font-semibold text-[15px] text-[#111111] hover:text-[#2563EB] transition-colors"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between text-left py-5 font-semibold text-[15px] text-[#111111]"
       >
         <span>{question}</span>
         <ChevronDown
           size={18}
-          className={`text-[#6B7280] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          className={`text-[#6B7280] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
-      <div
-        className={`overflow-hidden transition-all duration-300 ${
-          isOpen ? "max-h-40 mt-3 opacity-100" : "max-h-0 opacity-0"
-        }`}
-      >
-        <p className="text-[14px] leading-relaxed text-[#4B5563]">
-          {answer}
-        </p>
+      <div className={`overflow-hidden transition-all duration-300 ${open ? "max-h-40 pb-5 opacity-100" : "max-h-0 opacity-0"}`}>
+        <p className="text-[14px] leading-relaxed text-[#4B5563]">{answer}</p>
       </div>
     </div>
   );
 };
 
+// ============================================================
+// Tipo local — inclui galeria de imagens
+// ============================================================
+type DetailedProduct = {
+  id: string;
+  title: string;
+  category: string;
+  price: number;
+  originalPrice: number | null;
+  images: string[];
+  product_url: string | null;
+  supplier_name: string | null;
+};
+
+const FALLBACK_IMG =
+  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=800&fit=crop";
+
+function extractImages(raw: any): string[] {
+  if (!raw) return [];
+  let arr: any = raw;
+  if (typeof raw === "string") {
+    try {
+      arr = JSON.parse(raw);
+    } catch {
+      return [raw];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr.filter((u) => typeof u === "string" && !!u);
+}
+
+function mapProduct(p: any): DetailedProduct {
+  const imgs = extractImages(p.images);
+  return {
+    id: p.id,
+    title: p.title || "Produto sem nome",
+    category: p.category || "Produto",
+    price: p.suggested_price || p.cost_price || 0,
+    originalPrice:
+      p.original_price && p.original_price > (p.suggested_price || 0)
+        ? Number(p.original_price)
+        : p.suggested_price && p.cost_price && p.suggested_price > p.cost_price
+        ? null
+        : null,
+    images: imgs.length > 0 ? imgs : [FALLBACK_IMG],
+    product_url: p.product_url ?? null,
+    supplier_name: p.supplier_name ?? null,
+  };
+}
+
+// ============================================================
+// Página
+// ============================================================
 const CatalogoProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+  const [product, setProduct] = useState<DetailedProduct | null>(null);
+  const [related, setRelated] = useState<DetailedProduct[]>([]);
+  const [activeImg, setActiveImg] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [favoritedIds, setFavoritedIds] = useState<string[]>([]);
   const [relatedIndex, setRelatedIndex] = useState(0);
-
-  const toggleFavorite = (productId: string) => {
-    setFavoritedIds((prev) =>
-      prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId]
-    );
-  };
-
-  const isFavorited = id ? favoritedIds.includes(id) : false;
-
-  const mapProduct = (p: any): Product => {
-    let imgUrl = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop";
-    if (p.images) {
-      if (Array.isArray(p.images) && p.images.length > 0) {
-        imgUrl = p.images[0];
-      } else if (typeof p.images === "string") {
-        try {
-          const parsed = JSON.parse(p.images);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            imgUrl = parsed[0];
-          } else {
-            imgUrl = p.images;
-          }
-        } catch {
-          imgUrl = p.images;
-        }
-      }
-    }
-    return {
-      id: p.id,
-      nome: p.title || "Produto sem nome",
-      categoria: p.category || "Produto",
-      preco: p.suggested_price || p.cost_price || 0,
-      image_url: imgUrl,
-      product_url: p.product_url,
-    };
-  };
+  const [favorited, setFavorited] = useState(false);
 
   useEffect(() => {
-    const fetchProduct = async () => {
+    const fetchData = async () => {
       if (!id) return;
-      setIsLoading(true);
+      setLoading(true);
       setError(null);
+      setActiveImg(0);
       try {
-        const { data, error: fetchError } = await supabase
+        const { data, error: e } = await supabase
           .from("catalog_products")
           .select("*")
           .eq("id", id)
           .single();
-
-        if (fetchError) throw fetchError;
+        if (e) throw e;
         if (!data) throw new Error("Produto não encontrado.");
 
         const mapped = mapProduct(data);
         setProduct(mapped);
 
-        // Buscar produtos relacionados
-        const { data: relatedData, error: relatedError } = await supabase
+        const { data: rel } = await supabase
           .from("catalog_products")
           .select("*")
           .eq("is_blocked", false)
           .in("source", ["b2drop", "c7drop"])
           .neq("id", id)
           .eq("category", data.category || "")
-          .limit(10);
-
-        if (!relatedError && relatedData) {
-          setRelatedProducts(relatedData.map(mapProduct));
+          .limit(12);
+        if (rel && rel.length > 0) {
+          setRelated(rel.map(mapProduct));
         } else {
-          // Fallback se não houver produtos da mesma categoria: busca geral
-          const { data: fallbackData } = await supabase
+          const { data: fb } = await supabase
             .from("catalog_products")
             .select("*")
             .eq("is_blocked", false)
             .in("source", ["b2drop", "c7drop"])
             .neq("id", id)
-            .limit(10);
-          if (fallbackData) {
-            setRelatedProducts(fallbackData.map(mapProduct));
-          }
+            .limit(12);
+          if (fb) setRelated(fb.map(mapProduct));
         }
-      } catch (err: any) {
-        console.error("Erro ao buscar detalhes do produto:", err);
+      } catch (err) {
+        console.error(err);
         setError("Não foi possível carregar os detalhes do produto.");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
-
-    fetchProduct();
+    fetchData();
   }, [id]);
 
+  const { rating, reviewCount } = useMemo(
+    () => (product ? getMockRating(product.id) : { rating: "0", reviewCount: 0 }),
+    [product?.id],
+  );
+
+  const description = useMemo(
+    () => (product ? getMockDescription(product.title, product.category, product.id) : ""),
+    [product?.id],
+  );
+
+  const reviews = useMemo(() => (product ? getMockReviews(product.id) : []), [product?.id]);
+
+  const savings = useMemo(() => {
+    if (!product || !product.originalPrice) return 0;
+    return Math.max(0, product.originalPrice - product.price);
+  }, [product]);
+
   const relatedWindow = useMemo(() => {
-    if (relatedProducts.length === 0) return [];
-    return Array.from({ length: Math.min(4, relatedProducts.length) }, (_, offset) => {
-      const index = (relatedIndex + offset) % relatedProducts.length;
-      return relatedProducts[index];
-    });
-  }, [relatedIndex, relatedProducts]);
+    if (related.length === 0) return [];
+    return Array.from({ length: Math.min(3, related.length) }, (_, o) => related[(relatedIndex + o) % related.length]);
+  }, [related, relatedIndex]);
 
-  const mockReviews = useMemo(() => {
-    if (!product) return [];
-    return getMockReviews(product.id);
-  }, [product?.id]);
+  const thumbLabels = ["Visão principal", "Ângulo lateral", "Detalhe", "Em uso"];
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="pt-6 min-h-screen flex items-center justify-center bg-background">
+      <div className="pt-6 min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">
-          <RefreshCw size={24} className="animate-spin text-[#111111]" />
-          <span className="text-[14px] text-[#6B7280]">Carregando detalhes do produto...</span>
+          <RefreshCw size={22} className="animate-spin text-[#111]" />
+          <span className="text-[13px] text-[#6B7280]">Carregando produto...</span>
         </div>
       </div>
     );
@@ -232,7 +233,7 @@ const CatalogoProductDetailPage = () => {
           <p className="font-medium">{error || "Produto não encontrado."}</p>
           <Link
             to="/dashboard/catalogo"
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white"
           >
             <ArrowLeft size={14} />
             Voltar ao Catálogo
@@ -242,243 +243,346 @@ const CatalogoProductDetailPage = () => {
     );
   }
 
-  const { rating, reviewCount } = getMockRating(product.id);
-  const description = getMockDescription(product.nome, product.categoria, product.id);
-  return (
-    <div className="pt-4 min-h-full w-full overflow-visible pb-12" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
-      <div className="max-w-5xl mx-auto px-6">
-        {/* Breadcrumb */}
-        <nav className="mb-6 text-[14px] text-[#6B7280] flex items-center flex-wrap gap-1">
-          <Link to="/dashboard/catalogo" className="hover:text-[#111111] transition-colors">
-            Catálogo
-          </Link>
-          <span className="text-[#9CA3AF]">&gt;</span>
-          <span className="text-[#9CA3AF]">{product.categoria}</span>
-          <span className="text-[#9CA3AF]">&gt;</span>
-          <span className="text-[#111111] font-semibold truncate max-w-[200px] sm:max-w-xs">
-            {product.nome}
-          </span>
-        </nav>
+  const gallery = product.images.slice(0, 4);
+  while (gallery.length < 4) gallery.push(product.images[0]);
 
-        {/* Único Card Branco */}
-        <div className="bg-white rounded-[24px] border border-[#ECECEF] shadow-[0_8px_30px_rgba(17,24,39,0.02)] overflow-hidden">
-          
-          {/* Seção 1: Imagem + Info */}
-          <div className="p-8 lg:p-10">
-            <div className="grid grid-cols-1 lg:grid-cols-[45%_1fr] gap-8 items-start">
-              {/* Left Column: Image */}
-              <div className="aspect-square rounded-2xl overflow-hidden bg-[#F6F6F7] border border-[#ECECEF] flex items-center justify-center">
-                <img
-                  src={product.image_url}
-                  alt={product.nome}
-                  className="h-full w-full object-cover"
-                />
+  return (
+    <div
+      className="min-h-full w-full bg-[#F2F3F5] py-6"
+      style={{ fontFamily: 'Inter, -apple-system, "Segoe UI", sans-serif' }}
+    >
+      <div className="max-w-[760px] mx-auto px-4">
+        {/* CARD ÚNICO */}
+        <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+          {/* HEADER COM NAV */}
+          <div className="flex items-center justify-between px-8 pt-6 pb-5 border-b border-[#F1F2F4]">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/catalogo")}
+              className="flex items-center gap-2 text-[15px] font-bold text-[#111] tracking-tight"
+            >
+              <ArrowLeft size={16} strokeWidth={2.4} />
+              <span className="uppercase">Voltar ao catálogo</span>
+            </button>
+            <div className="text-[11px] font-semibold tracking-[0.18em] text-[#6B7280] uppercase">
+              {product.supplier_name ?? "Fornecedor verificado"}
+            </div>
+          </div>
+
+          {/* SEÇÃO 1 — IMAGEM + INFO */}
+          <div className="px-8 pt-7 pb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* GALERIA */}
+              <div>
+                <div className="aspect-square rounded-[14px] bg-[#F4F5F7] overflow-hidden flex items-center justify-center">
+                  <img
+                    src={gallery[activeImg]}
+                    alt={product.title}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {gallery.map((src, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setActiveImg(i)}
+                      className="flex flex-col items-center"
+                    >
+                      <div
+                        className={`aspect-square w-full rounded-[10px] bg-[#F4F5F7] overflow-hidden border-2 transition-colors ${
+                          activeImg === i ? "border-[#111]" : "border-transparent"
+                        }`}
+                      >
+                        <img src={src} alt="" className="h-full w-full object-cover" />
+                      </div>
+                      <span className="mt-1.5 text-[10.5px] text-[#6B7280] truncate w-full text-center">
+                        {thumbLabels[i]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Right Column: Info */}
-              <div className="flex flex-col h-full justify-between py-2">
-                <div>
-                  {/* Category Badge */}
-                  <span className="inline-flex rounded-full border border-[#E6E6E8] bg-[#F9FAFB] px-2.5 py-1 text-[10px] font-semibold tracking-[-0.01em] text-[#6B7280] mb-4">
-                    {product.categoria}
-                  </span>
+              {/* INFO */}
+              <div className="flex flex-col">
+                <h1 className="text-[26px] font-extrabold leading-[1.05] tracking-[-0.02em] text-[#111] uppercase">
+                  {product.title}
+                </h1>
+                <p className="mt-1.5 text-[13px] text-[#6B7280]">{product.category}</p>
 
-                  {/* Product Title */}
-                  <h1 className="text-[28px] sm:text-[34px] font-semibold leading-tight tracking-[-0.04em] text-[#111111] mb-3">
-                    {product.nome}
-                  </h1>
-
-                  {/* Rating */}
-                  <div className="flex items-center gap-1.5 text-[14px] text-[#6B7280] mb-6">
-                    <Star size={16} strokeWidth={1.8} className="fill-[#111111] text-[#111111]" />
-                    <span className="font-semibold text-[#111111]">{rating}</span>
-                    <span>({formatReviewCount(reviewCount)} avaliações)</span>
+                {/* Rating */}
+                <div className="mt-3 flex items-center gap-2 text-[12.5px]">
+                  <div className="flex items-center gap-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        size={13}
+                        className={
+                          i < Math.round(Number(rating))
+                            ? "fill-[#F5B400] text-[#F5B400]"
+                            : "text-[#E5E7EB] fill-[#E5E7EB]"
+                        }
+                      />
+                    ))}
                   </div>
-
-                  {/* Price */}
-                  <div className="text-[32px] font-bold tracking-[-0.05em] text-[#111111] mb-6">
-                    {formatPrice(product.preco)}
-                  </div>
-
-                  {/* Description */}
-                  <div className="mb-6">
-                    <h3 className="text-[14px] font-semibold uppercase tracking-[0.1em] text-[#9CA3AF] mb-2">
-                      Descrição
-                    </h3>
-                    <p className="text-[15px] leading-relaxed text-[#4B5563]">
-                      {description}
-                    </p>
-                  </div>
-
-                  {/* MOCK: Faixa de informações de confiança */}
-                  <div className="border-t border-[#ECECEF] py-4 my-2 flex flex-wrap items-center justify-between gap-4 text-[12px] text-[#4B5563]">
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <Lock size={14} className="text-[#6B7280]" />
-                      <span>Importação segura</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <Truck size={14} className="text-[#6B7280]" />
-                      <span>Fornecedor verificado</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <ShieldCheck size={14} className="text-[#6B7280]" />
-                      <span>Garantia do fornecedor</span>
-                    </div>
-                  </div>
+                  <span className="font-semibold text-[#111]">{rating}</span>
+                  <span className="text-[#6B7280]">{formatReviewCount(reviewCount)} avaliações</span>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-[#ECECEF]">
+                {/* Preço */}
+                <div className="mt-3 flex items-end gap-3">
+                  {product.originalPrice && (
+                    <span className="text-[14px] text-[#9CA3AF] line-through">
+                      {formatPrice(product.originalPrice)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[34px] font-extrabold tracking-tight text-[#F97316] leading-none">
+                    {formatPrice(product.price)}
+                  </span>
+                  {savings > 0 && (
+                    <span className="text-[11px] font-semibold text-[#0F8A4F] bg-[#E6F7EE] px-2 py-1 rounded-md">
+                      Economize {formatPrice(savings)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Descrição */}
+                <p className="mt-4 text-[13.5px] leading-[1.55] text-[#4B5563]">{description}</p>
+
+                {/* CTAs */}
+                <div className="mt-5 flex flex-col gap-2.5">
                   <button
                     type="button"
-                    className="flex-1 h-12 bg-[#111111] text-[13px] font-medium text-white rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center"
+                    className="w-full h-11 rounded-[10px] bg-[#F97316] hover:bg-[#EA6A0E] text-white text-[12.5px] font-bold tracking-[0.18em] uppercase transition-colors"
                   >
                     Importar para minha loja
                   </button>
-                  
-                  {product.product_url && (
-                    <a
-                      href={product.product_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 h-12 border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111111] rounded-xl hover:bg-[#F7F7F8] transition-colors flex items-center justify-center"
-                    >
-                      Ver no fornecedor
-                    </a>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => toggleFavorite(product.id)}
-                    className="h-12 w-12 border border-[#E5E7EB] bg-white text-[#111111] rounded-xl hover:bg-[#F7F7F8] transition-colors flex items-center justify-center shrink-0"
-                    aria-label="Favoritar"
+                  <a
+                    href={product.product_url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full h-11 rounded-[10px] bg-[#2A2D34] hover:bg-[#1f2127] text-white text-[12.5px] font-bold tracking-[0.18em] uppercase flex items-center justify-center transition-colors"
                   >
-                    <Heart
-                      size={18}
-                      strokeWidth={1.9}
-                      className={isFavorited ? "fill-red-500 text-red-500" : ""}
-                    />
-                  </button>
+                    Ver no fornecedor
+                  </a>
                 </div>
+
+                <p className="mt-2.5 text-center text-[12px] text-[#6B7280]">
+                  Frete calculado pelo fornecedor · Envio em 2 dias
+                </p>
+
+                {/* Trust badges */}
+                <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 rounded-[12px] border border-[#E5E7EB] px-4 py-3.5">
+                  {[
+                    { icon: Lock, label: "Importação segura" },
+                    { icon: Truck, label: "Envio rápido" },
+                    { icon: RotateCcw, label: "30 dias para troca" },
+                    { icon: ShieldCheck, label: "Garantia 2 anos" },
+                  ].map(({ icon: Icon, label }) => (
+                    <div key={label} className="flex items-center gap-2 text-[12px] font-medium text-[#374151]">
+                      <Icon size={14} strokeWidth={2} className="text-[#6B7280]" />
+                      <span>{label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Favoritar discreto */}
+                <button
+                  type="button"
+                  onClick={() => setFavorited((v) => !v)}
+                  className="mt-3 self-end inline-flex items-center gap-1.5 text-[11.5px] text-[#6B7280] hover:text-[#111]"
+                >
+                  <Heart
+                    size={13}
+                    className={favorited ? "fill-red-500 text-red-500" : ""}
+                  />
+                  {favorited ? "Salvo" : "Salvar para depois"}
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Seção de Avaliações (Reviews) */}
-          <div className="border-t border-[#ECECEF] p-8 lg:p-10">
-            <h2 className="text-[22px] font-semibold tracking-[-0.04em] text-[#111111] mb-6">
-              Avaliações do produto
+          {/* WHY */}
+          <div className="px-8 py-9 border-t border-[#F1F2F4]">
+            <h2 className="text-center text-[18px] font-extrabold tracking-tight text-[#111] uppercase">
+              Por que este produto?
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {mockReviews.map((review, idx) => (
-                <div
-                  key={idx}
-                  className="bg-white p-5 rounded-[22px] border border-[#ECECEF] shadow-[0_4px_20px_rgba(17,24,39,0.01)] flex flex-col justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#F3F4F6] flex items-center justify-center text-[#4B5563] text-[13px] font-bold">
-                      {review.initials}
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {[
+                {
+                  icon: Volume2,
+                  title: "Alta demanda",
+                  desc: "Categoria com alta procura e ótima taxa de conversão no varejo nacional.",
+                },
+                {
+                  icon: Activity,
+                  title: "Margem saudável",
+                  desc: "Preço de custo competitivo com espaço confortável para revenda lucrativa.",
+                },
+                {
+                  icon: Feather,
+                  title: "Envio ágil",
+                  desc: "Fornecedor verificado, com expedição rápida e logística confiável.",
+                },
+              ].map(({ icon: Icon, title, desc }) => (
+                <div key={title} className="flex gap-3">
+                  <div className="h-10 w-10 rounded-full bg-[#F4F5F7] flex items-center justify-center shrink-0">
+                    <Icon size={18} className="text-[#111]" strokeWidth={2} />
+                  </div>
+                  <div>
+                    <div className="text-[14px] font-bold text-[#111]">{title}</div>
+                    <p className="mt-1 text-[12.5px] leading-[1.5] text-[#6B7280]">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* REVIEWS */}
+          <div className="px-8 py-8 border-t border-[#F1F2F4]">
+            <h2 className="text-[18px] font-extrabold tracking-tight text-[#111] uppercase mb-5">
+              Avaliações de clientes
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {reviews.map((r, i) => (
+                <div key={i} className="rounded-[12px] border border-[#E5E7EB] p-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-[#F4F5F7] flex items-center justify-center text-[11px] font-bold text-[#4B5563]">
+                      {r.initials}
                     </div>
-                    <div>
-                      <div className="text-[14px] font-semibold text-[#111111]">{review.name}</div>
-                      <div className="flex items-center gap-0.5 mt-0.5">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            size={12}
-                            className={i < review.rating ? "fill-[#111111] text-[#111111]" : "text-[#D1D5DB]"}
-                          />
-                        ))}
-                      </div>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }).map((_, k) => (
+                        <Star
+                          key={k}
+                          size={11}
+                          className={
+                            k < r.rating
+                              ? "fill-[#F5B400] text-[#F5B400]"
+                              : "text-[#E5E7EB] fill-[#E5E7EB]"
+                          }
+                        />
+                      ))}
+                      <span className="ml-1 text-[11px] font-bold text-[#111]">{r.rating}</span>
                     </div>
                   </div>
-                  <p className="mt-3 text-[13.5px] leading-relaxed text-[#4B5563] italic">
-                    "{review.comment}"
+                  <p className="mt-2.5 text-[13px] font-semibold text-[#111] leading-snug">
+                    {r.comment}
                   </p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Seção FAQ em accordion */}
-          <div className="border-t border-[#ECECEF] p-8 lg:p-10">
-            <h2 className="text-[22px] font-semibold tracking-[-0.04em] text-[#111111] mb-2">
+          {/* FAQ */}
+          <div className="px-8 py-8 border-t border-[#F1F2F4]">
+            <h2 className="text-[18px] font-extrabold tracking-tight text-[#111] uppercase mb-2">
               Perguntas frequentes
             </h2>
-            <p className="text-[14px] text-[#6B7280] mb-6">
-              Esclareça suas dúvidas gerais sobre a importação e logística deste produto.
-            </p>
-            <div className="divide-y divide-[#ECECEF]">
+            <div>
               <FAQItem
                 question="Qual o prazo de importação para minha loja?"
-                answer="A importação é processada e concluída rapidamente. Assim que você confirma a importação, o produto é adicionado imediatamente à sua conta e fica disponível para personalização e publicação."
+                answer="A importação é processada e concluída rapidamente. Assim que confirmada, o produto fica disponível na sua conta para personalização e publicação."
               />
               <FAQItem
                 question="Esse produto tem garantia?"
-                answer="Sim. A garantia segue estritamente a política estabelecida pelo fornecedor de origem do produto (B2Drop/C7 Drop) contra defeitos de fabricação."
+                answer="Sim. A garantia segue a política do fornecedor de origem contra defeitos de fabricação."
               />
               <FAQItem
-                question="Como funciona o frete desse produto?"
-                answer="O frete varia de acordo com o fornecedor de origem e as dimensões do item. O valor estimado e as opções disponíveis serão exibidos durante a etapa de publicação do anúncio nas suas redes ou marketplaces."
+                question="Como funciona o frete?"
+                answer="Varia conforme dimensões e origem. O valor estimado é exibido durante a etapa de publicação do anúncio."
               />
             </div>
           </div>
 
-          {/* Related Products */}
-          {relatedProducts.length > 0 && (
-            <div className="border-t border-[#ECECEF] p-8 lg:p-10">
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-[22px] font-semibold tracking-[-0.045em] text-[#111111]">
-                    Produtos relacionados
-                  </h2>
-                  <p className="mt-1 text-[14px] text-[#6B7280]">
-                    Mais algumas opções recomendadas nesta mesma categoria.
-                  </p>
-                </div>
-
+          {/* RELACIONADOS */}
+          {related.length > 0 && (
+            <div className="px-8 py-8 border-t border-[#F1F2F4]">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-[18px] font-extrabold tracking-tight text-[#111] uppercase">
+                  Produtos relacionados
+                </h2>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() =>
-                      setRelatedIndex((current) =>
-                        (current - 1 + relatedProducts.length) % relatedProducts.length,
-                      )
+                      setRelatedIndex((c) => (c - 1 + related.length) % related.length)
                     }
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#111111] transition-colors hover:bg-[#F7F7F8]"
-                    aria-label="Recomendações anteriores"
+                    className="h-8 w-8 rounded-full border border-[#E5E7EB] flex items-center justify-center text-[#111] hover:bg-[#F4F5F7]"
+                    aria-label="Anterior"
                   >
-                    <ChevronLeft size={16} strokeWidth={1.9} />
+                    <ChevronLeft size={14} />
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      setRelatedIndex((current) => (current + 1) % relatedProducts.length)
-                    }
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#111111] transition-colors hover:bg-[#F7F7F8]"
-                    aria-label="Próximas recomendações"
+                    onClick={() => setRelatedIndex((c) => (c + 1) % related.length)}
+                    className="h-8 w-8 rounded-full border border-[#E5E7EB] flex items-center justify-center text-[#111] hover:bg-[#F4F5F7]"
+                    aria-label="Próximo"
                   >
-                    <ChevronRight size={16} strokeWidth={1.9} />
+                    <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 xl:grid-cols-4 md:overflow-visible">
-                {relatedWindow.map((item) => (
-                  <ProductCard
-                    key={`related-${item.id}`}
-                    product={item}
-                    categoryLabel={item.categoria}
-                    isFavorited={favoritedIds.includes(item.id)}
-                    onToggleFavorite={() => toggleFavorite(item.id)}
-                    compact
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {relatedWindow.map((p) => (
+                  <Link
+                    key={p.id}
+                    to={`/dashboard/catalogo/${p.id}`}
+                    className="group"
+                  >
+                    <div className="aspect-square rounded-[12px] bg-[#F4F5F7] overflow-hidden">
+                      <img
+                        src={p.images[0]}
+                        alt={p.title}
+                        className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform"
+                      />
+                    </div>
+                    <div className="mt-2.5">
+                      <div className="text-[13px] font-bold text-[#111] truncate">{p.title}</div>
+                      <div className="mt-0.5 flex items-center gap-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            size={10}
+                            className="fill-[#F5B400] text-[#F5B400]"
+                          />
+                        ))}
+                        <span className="ml-1 text-[10.5px] text-[#6B7280]">
+                          ({Math.floor(20 + (p.id.charCodeAt(0) % 60))})
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-[14px] font-extrabold text-[#111]">
+                          {formatPrice(p.price)}
+                        </span>
+                        {p.originalPrice && (
+                          <span className="text-[11.5px] text-[#9CA3AF] line-through">
+                            {formatPrice(p.originalPrice)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
                 ))}
               </div>
             </div>
           )}
 
-        </div> {/* Fim do Único Card Branco */}
+          {/* FOOTER MINI */}
+          <div className="px-8 py-5 border-t border-[#F1F2F4] flex items-center justify-between text-[11.5px] text-[#6B7280]">
+            <div className="flex items-center gap-4">
+              <span className="font-semibold text-[#111]">Categorias</span>
+              <span>Ajuda</span>
+              <span>Pagamentos</span>
+            </div>
+            <div className="flex items-center gap-3 text-[#9CA3AF]">
+              <span>Suporte 24/7</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
