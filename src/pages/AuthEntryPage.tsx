@@ -2,7 +2,7 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Mail, UserRound } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast as toast } from "@/components/ui/velo-toast";
 import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,13 +49,16 @@ const AuthEntryPage = () => {
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
+    const toastId = toast.loading("Conectando com o Google...");
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: `${window.location.origin}/setup`,
     });
     if (result.error) {
       setGoogleLoading(false);
+      toast.error(result.error.message, { id: toastId });
       return;
     }
+    toast.dismiss(toastId);
     if (result.redirected) return;
     navigate("/setup", { replace: true });
   };
@@ -81,6 +84,7 @@ const AuthEntryPage = () => {
     if (!validateForm()) return;
 
     setEmailLoading(true);
+    const toastId = toast.loading("Criando conta...");
     const cleanEmail = form.email.trim();
     window.localStorage.setItem("velo_auth_email", cleanEmail);
 
@@ -98,7 +102,8 @@ const AuthEntryPage = () => {
       toast.error(
         error.message === "User already registered"
           ? "Este e-mail já possui conta. Entre para continuar."
-          : error.message
+          : error.message,
+        { id: toastId }
       );
       return;
     }
@@ -111,7 +116,7 @@ const AuthEntryPage = () => {
 
       if (signInError) {
         setEmailLoading(false);
-        toast.info("Conta criada. Verifique seu e-mail para concluir o acesso.");
+        toast.info("Conta criada. Verifique seu e-mail para concluir o acesso.", { id: toastId });
         return;
       }
     }
@@ -140,7 +145,7 @@ const AuthEntryPage = () => {
       });
     }
 
-    toast.success("Conta criada. Vamos configurar sua Velo.");
+    toast.success("Conta criada. Vamos configurar sua Velo.", { id: toastId });
     navigate("/setup", { replace: true });
   };
 

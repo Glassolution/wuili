@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { VeloLogo } from "@/components/VeloLogo";

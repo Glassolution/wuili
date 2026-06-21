@@ -7,7 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
-import { toast } from "sonner";
+import { veloToast as toast } from "@/components/ui/velo-toast";
 import { VeloLogo } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
@@ -104,7 +104,7 @@ const CheckoutPage = () => {
         if (data?.status === "active") {
           setCheckoutState("success");
           void markCompletedPayment(session.user.id, { route: "/checkout", plan: planId, source: "polling" });
-          toast.success("🎉 Plano ativado!");
+          toast.success("Plano ativado com sucesso.");
           if (pollRef.current) window.clearInterval(pollRef.current);
           setTimeout(() => navigate("/dashboard"), 1500);
         }
@@ -122,6 +122,7 @@ const CheckoutPage = () => {
 
   const handleManualVerify = async () => {
     setVerifying(true);
+    const toastId = toast.loading("Verificando pagamento...");
     try {
       const { data } = await supabase.functions.invoke("mp-verify-payment");
       if (data?.status === "active") {
@@ -129,13 +130,13 @@ const CheckoutPage = () => {
         if (session?.user?.id) {
           void markCompletedPayment(session.user.id, { route: "/checkout", plan: planId, source: "manual_verify" });
         }
-        toast.success("🎉 Plano ativado!");
+        toast.success("Plano ativado com sucesso.", { id: toastId });
         setTimeout(() => navigate("/dashboard"), 1500);
       } else {
-        toast.info("Pagamento ainda não confirmado. Aguarde alguns segundos.");
+        toast.info("Pagamento ainda não confirmado. Aguarde alguns segundos.", { id: toastId });
       }
     } catch {
-      toast.error("Erro ao verificar pagamento");
+      toast.error("Erro ao verificar pagamento.", { id: toastId });
     } finally {
       setVerifying(false);
     }
@@ -149,6 +150,7 @@ const CheckoutPage = () => {
     }
 
     setCheckoutState("loading");
+    const toastId = toast.loading(selectedMethod === "pix" ? "Gerando pagamento Pix..." : "Processando pagamento...");
 
     try {
       const payload: Record<string, unknown> = {
@@ -163,7 +165,7 @@ const CheckoutPage = () => {
 
       if (selectedMethod === "credit_card") {
         if (!MP_PUBLIC_KEY || MP_PUBLIC_KEY.includes("PLACEHOLDER")) {
-          toast.error("Chave pública do Mercado Pago não configurada");
+          toast.error("Chave pública do Mercado Pago não configurada.", { id: toastId });
           setCheckoutState("idle");
           return;
         }
@@ -181,7 +183,7 @@ const CheckoutPage = () => {
         });
 
         if (!cardTokenRes?.id) {
-          toast.error("Erro ao processar cartão. Verifique os dados.");
+          toast.error("Erro ao processar cartão. Verifique os dados.", { id: toastId });
           setCheckoutState("idle");
           return;
         }
@@ -198,19 +200,19 @@ const CheckoutPage = () => {
         if (session?.user?.id) {
           void markCompletedPayment(session.user.id, { route: "/checkout", plan: planId, source: "checkout" });
         }
-        toast.success("Pagamento aprovado! Plano ativado 🎉");
+        toast.success("Pagamento aprovado. Plano ativado com sucesso.", { id: toastId });
       } else if (data.pix_qr_code_base64) {
         setPixData({ qr_code_base64: data.pix_qr_code_base64, copy_paste: data.pix_copy_paste });
         setCheckoutState("pix_pending");
-        toast.info("QR Code Pix gerado! Escaneie para pagar.");
+        toast.info("QR Code Pix gerado. Escaneie para pagar.", { id: toastId });
       } else {
         setCheckoutState("error");
-        toast.error("Pagamento não aprovado. Tente novamente.");
+        toast.error("Pagamento não aprovado. Tente novamente.", { id: toastId });
       }
     } catch (err) {
       console.error("Checkout error:", err);
       setCheckoutState("error");
-      toast.error("Erro ao processar pagamento");
+      toast.error("Erro ao processar pagamento.", { id: toastId });
     }
   };
 
@@ -218,7 +220,7 @@ const CheckoutPage = () => {
     if (pixData?.copy_paste) {
       navigator.clipboard.writeText(pixData.copy_paste);
       setCopied(true);
-      toast.success("Código Pix copiado!");
+      toast.success("Código Pix copiado.");
       setTimeout(() => setCopied(false), 3000);
     }
   };

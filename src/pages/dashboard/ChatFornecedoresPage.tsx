@@ -6,7 +6,7 @@ import {
   Headphones, Loader2, UserRound, Bot, Pause, Play,
   CheckCircle2, ShieldCheck, Inbox, UsersRound,
 } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast as toast } from "@/components/ui/velo-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";

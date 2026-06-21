@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Copy, ExternalLink, Sparkles, Package, ChevronDown } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import ProductImagesDownload from "@/components/dashboard/ProductImagesDownload";
 import SelectProductModal from "@/components/dashboard/SelectProductModal";
 
@@ -131,7 +131,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
   const handleCopy = () => {
     navigator.clipboard.writeText(promptGerado);
     setCopied(true);
-    toast.success("Copiado!");
+    veloToast.success("Copiado!");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -307,7 +307,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
               className="flex cursor-pointer items-center gap-4 rounded-2xl border border-[#0A0A0A] bg-[#0A0A0A] p-4 shadow-sm transition hover:-translate-y-0.5 hover:bg-[#1a1a1a] hover:shadow-md"
               onClick={() => {
                 navigator.clipboard.writeText(promptGerado);
-                toast.success("Prompt copiado! Abrindo ferramenta...");
+                veloToast.success("Prompt copiado! Abrindo ferramenta...");
                 window.open("https://bandy.ai/pt?utm_source=youtube&utm_medium=moon2601&utm_campaign=Nova.Riqueza", "_blank", "noopener");
               }}
             >

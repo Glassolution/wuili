@@ -8,7 +8,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Publication = {
@@ -93,6 +93,10 @@ const ProductDetailPage = () => {
 
   // ── Mutation ───────────────────────────────────────────────────────────────
   const updateMutation = useMutation({
+    onMutate: () => {
+      const toastId = veloToast.loading("Salvando produto...");
+      return { toastId };
+    },
     mutationFn: async () => {
       const { error } = await supabase
         .from("user_publications" as any)
@@ -106,13 +110,14 @@ const ProductDetailPage = () => {
         .eq("user_id", user!.id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, _variables, context) => {
       queryClient.invalidateQueries({ queryKey: ["publication", id] });
       queryClient.invalidateQueries({ queryKey: ["user-publications"] });
-      toast.success("Produto atualizado com sucesso!");
+      veloToast.success("Produto atualizado com sucesso.", { id: context?.toastId });
     },
-    onError: () => {
-      toast.error("Erro ao atualizar produto");
+    onError: (error, _variables, context) => {
+      const message = error instanceof Error ? error.message : "Erro ao atualizar produto.";
+      veloToast.error(message, { id: context?.toastId });
     },
   });
 

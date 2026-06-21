@@ -1,6 +1,6 @@
 import { Component, useEffect, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StartModeBanner from "@/components/dashboard/StartModeBanner";
@@ -563,9 +563,8 @@ const DashboardLayoutInner = () => {
     const params = new URLSearchParams(location.search);
 
     if (params.get("ml_connected") === "true") {
-      toast.success("Mercado Livre conectado com sucesso!", {
-        description: "Seus tokens foram salvos. Voce ja pode publicar anuncios.",
-        duration: 5000,
+      veloToast.success("Mercado Livre conectado com sucesso!", {
+        action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes") },
       });
       navigate(location.pathname, { replace: true });
     }
@@ -577,7 +576,7 @@ const DashboardLayoutInner = () => {
         db_failed: "Erro ao salvar a integracao. Tente novamente.",
       };
       const msg = errors[params.get("ml_error")!] ?? "Erro desconhecido na integracao.";
-      toast.error("Erro ao conectar Mercado Livre", { description: msg, duration: 6000 });
+      veloToast.error(`Erro ao conectar Mercado Livre: ${msg}`);
       navigate(location.pathname, { replace: true });
     }
   }, [location.search]);
@@ -630,6 +629,9 @@ const DashboardLayoutInner = () => {
                 markStoreOnboardingCompleted(user.id);
                 setStores(readUserStores());
                 setShowStoreOnboarding(false);
+                veloToast.success("Loja criada com sucesso.", {
+                  action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes?tab=Minhas%20Lojas") },
+                });
               }}
             />
           )}
@@ -692,6 +694,9 @@ const DashboardLayoutInner = () => {
             markStoreOnboardingCompleted(user.id);
             setStores(readUserStores());
             setShowStoreOnboarding(false);
+            veloToast.success("Loja criada com sucesso.", {
+              action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes?tab=Minhas%20Lojas") },
+            });
           }}
         />
       )}

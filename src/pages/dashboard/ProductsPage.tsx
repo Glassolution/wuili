@@ -4,7 +4,7 @@ import { Search, ChevronDown, MoreHorizontal, RefreshCw, ArrowRight, ChevronsRig
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 
 type Product = {
   id: string;
@@ -70,14 +70,14 @@ const ProductsPage = () => {
   }));
 
   const handleSync = async () => {
-    toast.info("Sincronizando produtos...");
+    const toastId = veloToast.loading("Sincronizando produtos...");
     try {
       // TODO: Implementar sincronização real com integrações
       await refetch();
-      toast.success("Produtos sincronizados com sucesso!");
+      veloToast.success("Produtos sincronizados com sucesso!", { id: toastId });
     } catch (error) {
       console.error("Erro ao sincronizar:", error);
-      toast.error("Erro ao sincronizar produtos");
+      veloToast.error("Erro ao sincronizar produtos", { id: toastId });
     }
   };
 

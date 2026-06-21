@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle2 } from "lucide-react";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
-import { toast } from "sonner";
+import { veloToast as toast } from "@/components/ui/velo-toast";
 
 const PLANS = [
   {
@@ -118,6 +118,7 @@ const PlansPage = () => {
     }
 
     setCheckoutState("loading");
+    const toastId = toast.loading(selectedMethod === "pix" ? "Gerando pagamento Pix..." : "Processando pagamento...");
 
     try {
       const payload: Record<string, unknown> = {
@@ -128,7 +129,7 @@ const PlansPage = () => {
       // For credit card, generate token via MP SDK
       if (selectedMethod === "credit_card") {
         if (!MP_PUBLIC_KEY || MP_PUBLIC_KEY.includes("PLACEHOLDER")) {
-          toast.error("Chave pública do Mercado Pago não configurada");
+          toast.error("Chave pública do Mercado Pago não configurada.", { id: toastId });
           setCheckoutState("idle");
           return;
         }
@@ -147,7 +148,7 @@ const PlansPage = () => {
         });
 
         if (!cardTokenRes?.id) {
-          toast.error("Erro ao processar cartão. Verifique os dados.");
+          toast.error("Erro ao processar cartão. Verifique os dados.", { id: toastId });
           setCheckoutState("idle");
           return;
         }
@@ -165,22 +166,22 @@ const PlansPage = () => {
       if (data.status === "approved") {
         setCheckoutState("success");
         setCurrentPlan(plan);
-        toast.success("Pagamento aprovado! Plano ativado 🎉");
+        toast.success("Pagamento aprovado. Plano ativado com sucesso.", { id: toastId });
       } else if (data.pix_qr_code_base64) {
         setPixData({
           qr_code_base64: data.pix_qr_code_base64,
           copy_paste: data.pix_copy_paste,
         });
         setCheckoutState("pix_pending");
-        toast.info("QR Code Pix gerado! Escaneie para pagar.");
+        toast.info("QR Code Pix gerado. Escaneie para pagar.", { id: toastId });
       } else {
         setCheckoutState("error");
-        toast.error("Pagamento não aprovado. Tente novamente.");
+        toast.error("Pagamento não aprovado. Tente novamente.", { id: toastId });
       }
     } catch (err: unknown) {
       console.error("Checkout error:", err);
       setCheckoutState("error");
-      toast.error("Erro ao processar pagamento");
+      toast.error("Erro ao processar pagamento.", { id: toastId });
     }
   };
 
@@ -188,7 +189,7 @@ const PlansPage = () => {
     if (pixData?.copy_paste) {
       navigator.clipboard.writeText(pixData.copy_paste);
       setCopied(true);
-      toast.success("Código Pix copiado!");
+      toast.success("Código Pix copiado.");
       setTimeout(() => setCopied(false), 3000);
     }
   };

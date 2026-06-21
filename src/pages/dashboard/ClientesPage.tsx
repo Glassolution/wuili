@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, Search, RefreshCw, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { veloToast as toast } from "@/components/ui/velo-toast";
 
 type TabKey = "compradores" | "entregas" | "devolucoes";
 
@@ -163,16 +163,17 @@ const ClientesPage = () => {
   );
 
   const handleResendToCJ = async (orderId: string) => {
+    const toastId = toast.loading("Reenviando pedido para a CJ...");
     const { data, error } = await supabase.functions.invoke("cj-fulfill-request", {
       body: { order_id: orderId },
     });
 
     if (error || data?.success === false) {
-      toast.error(data?.error ?? error?.message ?? "Falha ao reenviar pedido para CJ.");
+      toast.error(data?.error ?? error?.message ?? "Falha ao reenviar pedido para CJ.", { id: toastId });
       return;
     }
 
-    toast.success("Pedido reenviado para a CJ com sucesso.");
+    toast.success("Pedido reenviado para a CJ com sucesso.", { id: toastId });
     await queryClient.invalidateQueries({ queryKey: ["clientes-orders", user?.id] });
   };
 

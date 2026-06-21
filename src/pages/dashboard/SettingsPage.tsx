@@ -17,7 +17,7 @@ import {
   STORES_CHANGED_EVENT,
   type VeloStore,
 } from "@/components/dashboard/FirstStoreOnboarding";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 
 type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
 
@@ -190,17 +190,27 @@ const ProfileTab = () => {
   }, [user?.id]);
 
   const handleSalvar = async () => {
-    if (user?.id) {
-      await supabase
-        .from("profiles")
-        .upsert({
-          user_id: user.id,
-          display_name: nomeEditado,
-          whatsapp: telefone,
-        });
+    const toastId = veloToast.loading("Salvando configurações...");
+    try {
+      if (user?.id) {
+        const { error } = await supabase
+          .from("profiles")
+          .upsert({
+            user_id: user.id,
+            display_name: nomeEditado,
+            whatsapp: telefone,
+          });
+
+        if (error) throw error;
+      }
+
+      setNome(nomeEditado);
+      if (fotoFile) setFoto(fotoFile);
+      veloToast.success("Configurações salvas com sucesso.", { id: toastId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível salvar as configurações.";
+      veloToast.error(message, { id: toastId });
     }
-    setNome(nomeEditado);
-    if (fotoFile) setFoto(fotoFile);
   };
 
   const avatarSrc = fotoPreview ?? foto;
@@ -395,12 +405,14 @@ const IntegrationsTab = () => {
     }
 
     if (platform === "mercadolivre" && user) {
+      const toastId = veloToast.loading("Conectando com o Mercado Livre...");
       const { data, error } = await supabase.functions.invoke("ml-connect");
       const authUrl = data?.authUrl ?? data?.auth_url;
       if (error || !authUrl) {
-        toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+        veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre", { id: toastId });
         return;
       }
+      veloToast.dismiss(toastId);
       window.location.href = authUrl;
     }
   };

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { cn } from "@/lib/utils";
+import { veloToast } from "@/components/ui/velo-toast";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import {
   Home,
@@ -51,7 +52,8 @@ import {
 } from "@/components/dashboard/FirstStoreOnboarding";
 
 // ── Icon helper — className="sidebar-icon" is what index.css targets for the draw-on animation ──
-const sidebarFont = '"Inter", "Helvetica Neue", Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const sidebarDisplayFont = '"SF Pro Display", "Helvetica Neue", "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const sidebarFont = '"SF Pro Text", "Helvetica Neue", "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 const IconSpan = ({
   icon: Icon,
@@ -83,41 +85,49 @@ const NavLinkRow = ({
   <Link
     to={item.to}
     className={cn(
-      "sidebar-item relative flex items-center overflow-hidden transition-all duration-200 ease-out",
+      "sidebar-item group relative flex items-center overflow-hidden transition-all duration-300 ease-out",
       collapsed ? "group w-full h-[34px] justify-center p-0 m-0" : "px-3",
-      active && !collapsed && !animatedActive ? "bg-[rgba(15,23,42,0.05)] border-[rgba(15,23,42,0.05)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]" : "border-transparent",
-      !active && !collapsed ? "hover:bg-[rgba(15,23,42,0.03)]" : ""
+      active && !collapsed
+        ? "border-[rgba(15,23,42,0.12)] bg-[linear-gradient(180deg,rgba(243,244,246,0.95)_0%,rgba(229,231,235,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_4px_12px_rgba(15,23,42,0.05)]"
+        : "border-transparent",
+      !active && !collapsed
+        ? "hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_24px_rgba(15,23,42,0.03)]"
+        : ""
     )}
     title={collapsed ? item.label : undefined}
     style={{
-      fontFamily: collapsed ? undefined : sidebarFont,
-      fontSize: collapsed ? undefined : "14px",
-      fontWeight: collapsed ? undefined : 500,
+      fontFamily: sidebarFont,
+      fontSize: collapsed ? undefined : "13.5px",
+      fontWeight: collapsed ? undefined : 560,
       lineHeight: collapsed ? undefined : "20px",
-      letterSpacing: collapsed ? undefined : "0",
-      height: collapsed ? undefined : "36px",
-      gap: collapsed ? undefined : "10px",
-      borderRadius: collapsed ? undefined : "14px",
+      letterSpacing: collapsed ? undefined : "-0.018em",
+      height: collapsed ? undefined : "42px",
+      gap: collapsed ? undefined : "12px",
+      borderRadius: collapsed ? undefined : "18px",
       flexShrink: 0,
       borderWidth: collapsed ? undefined : 1,
       borderStyle: collapsed ? undefined : "solid",
     }}
   >
-    {!collapsed && active && animatedActive && (
-      <motion.span
-        layoutId="sidebar-active-pill"
-        className="pointer-events-none absolute inset-0 rounded-[14px] border border-[rgba(15,23,42,0.05)] bg-[rgba(15,23,42,0.05)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-        transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.85 }}
-      />
+    {active && !collapsed && (
+      <>
+        <span className="pointer-events-none absolute inset-x-[18px] top-0 h-[12px] rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.9)_0%,rgba(255,255,255,0)_100%)]" />
+        <span className="pointer-events-none absolute inset-0 rounded-[17px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.45)]" />
+      </>
     )}
     {collapsed ? (
-      <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200 ease-out", active ? "bg-[rgba(15,23,42,0.05)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]" : "group-hover:bg-[rgba(15,23,42,0.03)]")}>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={active ? "#000000" : "#6B7280"} />
+      <div className={cn(
+        "flex h-8 w-8 items-center justify-center rounded-[14px] border transition-all duration-300 ease-out",
+        active
+          ? "border-[rgba(15,23,42,0.12)] bg-[linear-gradient(180deg,rgba(243,244,246,0.95)_0%,rgba(229,231,235,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_4px_12px_rgba(15,23,42,0.05)]"
+          : "border-transparent group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
+      )}>
+        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={active ? "#0F172A" : "#6B7280"} />
       </div>
     ) : (
-      <div className="relative z-10 flex items-center gap-[10px]">
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={active ? "#000000" : "#6B7280"} />
-        <span style={{ color: active ? "#111827" : "#111827" }}>{item.label}</span>
+      <div className="relative z-10 flex items-center gap-3 pl-0.5">
+        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={active ? "#0F172A" : "#6B7280"} />
+        <span style={{ color: active ? "#0F172A" : "#172033" }}>{item.label}</span>
       </div>
     )}
   </Link>
@@ -141,22 +151,26 @@ const NavGroupRow = ({
     type="button"
     onClick={onToggle}
     className={cn(
-      "sidebar-item w-full relative flex items-center overflow-hidden transition-all duration-200 ease-out",
+      "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out",
       collapsed ? "group h-[34px] justify-center p-0 m-0" : "px-3",
-      groupActiveCompact && !collapsed ? "bg-[rgba(15,23,42,0.05)] border-[rgba(15,23,42,0.05)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]" : "border-transparent",
-      !groupActiveCompact && !collapsed ? "hover:bg-[rgba(15,23,42,0.03)]" : ""
+      groupActiveCompact && !collapsed
+        ? "border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(243,244,246,0.88)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_26px_rgba(15,23,42,0.12)]"
+        : "border-transparent",
+      !groupActiveCompact && !collapsed
+        ? "hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_24px_rgba(15,23,42,0.08)]"
+        : ""
     )}
     title={collapsed ? item.label : undefined}
     style={{
       fontFamily: collapsed ? undefined : sidebarFont,
-      fontSize: collapsed ? undefined : "14px",
-      fontWeight: collapsed ? undefined : 500,
+      fontSize: collapsed ? undefined : "13.5px",
+      fontWeight: collapsed ? undefined : 560,
       lineHeight: collapsed ? undefined : "20px",
-      letterSpacing: collapsed ? undefined : "0",
+      letterSpacing: collapsed ? undefined : "-0.018em",
       textTransform: collapsed ? undefined : "none",
-      height: collapsed ? undefined : "36px",
-      gap: collapsed ? undefined : "10px",
-      borderRadius: collapsed ? undefined : "14px",
+      height: collapsed ? undefined : "42px",
+      gap: collapsed ? undefined : "12px",
+      borderRadius: collapsed ? undefined : "18px",
       flexShrink: 0,
       background: (groupActiveCompact && !collapsed) ? undefined : "transparent",
       borderWidth: collapsed ? undefined : 1,
@@ -165,13 +179,18 @@ const NavGroupRow = ({
     }}
   >
     {collapsed ? (
-      <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200 ease-out", groupActiveCompact ? "bg-[rgba(15,23,42,0.05)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]" : "group-hover:bg-[rgba(15,23,42,0.03)]")}>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={groupActiveCompact ? "#000000" : "#6B7280"} />
+      <div className={cn(
+        "flex h-8 w-8 items-center justify-center rounded-[14px] border transition-all duration-300 ease-out",
+        groupActiveCompact
+          ? "border-[rgba(255,255,255,0.76)] bg-[linear-gradient(180deg,rgba(255,255,255,0.78)_0%,rgba(243,244,246,0.92)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_24px_rgba(15,23,42,0.16)]"
+          : "border-transparent group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
+      )}>
+        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={groupActiveCompact ? "#0F172A" : "#6B7280"} />
       </div>
     ) : (
       <>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color="#6B7280" />
-        <span className="flex-1 text-left" style={{ color: "#374151" }}>{item.label}</span>
+        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={groupActiveCompact ? "#0F172A" : "#6B7280"} />
+        <span className="flex-1 text-left" style={{ color: "#172033" }}>{item.label}</span>
         {item.trailing === "plus" ? (
           <Plus size={15} strokeWidth={1.8} className="shrink-0" style={{ color: "#6B7280" }} />
         ) : (
@@ -201,23 +220,28 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
   return (
     <Link
       to={sub.to}
-      className={cn("sidebar-item relative flex items-center border transition-all duration-200 ease-out", subActive ? "bg-[rgba(15,23,42,0.05)] border-[rgba(15,23,42,0.05)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]" : "border-transparent hover:bg-[rgba(15,23,42,0.03)]")}
+      className={cn(
+        "sidebar-item relative flex items-center border transition-all duration-300 ease-out",
+        subActive
+          ? "border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(243,244,246,0.88)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_24px_rgba(15,23,42,0.12)]"
+          : "border-transparent hover:border-[rgba(255,255,255,0.5)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.5)_100%)]"
+      )}
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "13px", 
-        fontWeight: 500, 
+        fontSize: "12.75px", 
+        fontWeight: 550, 
         lineHeight: "18px", 
-        letterSpacing: "0", 
-        height: "32px", 
-        gap: "9px",
-        paddingLeft: "36px",
+        letterSpacing: "-0.014em", 
+        height: "34px", 
+        gap: "10px",
+        paddingLeft: "34px",
         paddingRight: "12px",
-        borderRadius: "14px",
+        borderRadius: "16px",
         flexShrink: 0,
       }}
     >
-      {SubIcon && <IconSpan icon={SubIcon} size={16} strokeWidth={1.65} color={subActive ? "#000000" : "#6B7280"} />}
-      <span style={{ color: subActive ? "#111827" : "#111827" }}>{sub.label}</span>
+      {SubIcon && <IconSpan icon={SubIcon} size={16} strokeWidth={1.65} color={subActive ? "#0F172A" : "#6B7280"} />}
+      <span style={{ color: subActive ? "#0F172A" : "#172033" }}>{sub.label}</span>
     </Link>
   );
 };
@@ -237,9 +261,14 @@ const FooterLinkRow = ({
 }) => {
   if (collapsed) {
     return (
-      <Link to={to} className="sidebar-item group relative flex h-[34px] w-full items-center justify-center p-0 m-0 transition-all duration-200 ease-out" title={label}>
-        <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200 ease-out", active ? "bg-[rgba(15,23,42,0.05)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]" : "group-hover:bg-[rgba(15,23,42,0.03)]")}>
-          <IconSpan icon={icon} size={17} strokeWidth={1.65} color={active ? "#000000" : "#6B7280"} />
+      <Link to={to} className="sidebar-item group relative flex h-[34px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
+        <div className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-[14px] border transition-all duration-300 ease-out",
+          active
+            ? "border-[rgba(15,23,42,0.12)] bg-[linear-gradient(180deg,rgba(243,244,246,0.95)_0%,rgba(229,231,235,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_4px_12px_rgba(15,23,42,0.05)]"
+            : "border-transparent group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
+        )}>
+          <IconSpan icon={icon} size={17} strokeWidth={1.65} color={active ? "#0F172A" : "#6B7280"} />
         </div>
       </Link>
     );
@@ -247,22 +276,27 @@ const FooterLinkRow = ({
   return (
     <Link
       to={to}
-      className={cn("sidebar-item relative flex items-center transition-all duration-200 ease-out", active ? "bg-[rgba(15,23,42,0.05)] shadow-[0_1px_3px_rgba(0,0,0,0.04)]" : "hover:bg-[rgba(15,23,42,0.03)]")}
+      className={cn(
+        "sidebar-item relative flex items-center border transition-all duration-300 ease-out",
+        active
+          ? "border-[rgba(15,23,42,0.12)] bg-[linear-gradient(180deg,rgba(243,244,246,0.95)_0%,rgba(229,231,235,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_4px_12px_rgba(15,23,42,0.05)]"
+          : "border-transparent hover:border-[rgba(255,255,255,0.5)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.5)_100%)]"
+      )}
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "13px", 
-        fontWeight: 500, 
+        fontSize: "12.75px", 
+        fontWeight: 550, 
         lineHeight: "18px", 
-        letterSpacing: "0",
-        height: "34px",
+        letterSpacing: "-0.014em",
+        height: "36px",
         gap: "10px",
         paddingLeft: "12px",
         paddingRight: "12px",
-        borderRadius: "14px"
+        borderRadius: "16px"
       }}
     >
-      <IconSpan icon={icon} size={17} strokeWidth={1.65} color={active ? "#000000" : "#6B7280"} />
-      <span style={{ color: active ? "#111827" : "#111827" }}>{label}</span>
+      <IconSpan icon={icon} size={17} strokeWidth={1.65} color={active ? "#0F172A" : "#6B7280"} />
+      <span style={{ color: active ? "#0F172A" : "#172033" }}>{label}</span>
     </Link>
   );
 };
@@ -284,8 +318,10 @@ const FooterButtonRow = ({
 }) => {
   if (collapsed) {
     return (
-      <button type="button" onClick={onClick} className="sidebar-item w-full h-[34px] flex items-center justify-center p-0 m-0 rounded-xl transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.03)]" style={{ background: "transparent", border: "none", cursor: "pointer" }} title={label}>
-        <IconSpan icon={icon} size={17} strokeWidth={1.65} color={color} />
+      <button type="button" onClick={onClick} className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" style={{ background: "transparent", border: "none", cursor: "pointer" }} title={label}>
+        <span className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]">
+          <IconSpan icon={icon} size={17} strokeWidth={1.65} color={color} />
+        </span>
       </button>
     );
   }
@@ -293,20 +329,19 @@ const FooterButtonRow = ({
     <button
       type="button"
       onClick={onClick}
-      className="sidebar-item relative flex w-full items-center transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.03)]"
+      className="sidebar-item relative flex w-full items-center border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.5)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.5)_100%)]"
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "13px", 
-        fontWeight: 500, 
+        fontSize: "12.75px", 
+        fontWeight: 550, 
         lineHeight: "18px", 
-        letterSpacing: "0",
-        height: "34px",
+        letterSpacing: "-0.014em",
+        height: "36px",
         gap: "10px",
         paddingLeft: "12px",
         paddingRight: "12px",
-        borderRadius: "14px",
+        borderRadius: "16px",
         background: "transparent",
-        border: "none",
         cursor: "pointer",
       }}
     >
@@ -332,8 +367,10 @@ const FooterAnchorRow = ({
 }) => {
   if (collapsed) {
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className="sidebar-item w-full h-[34px] flex items-center justify-center rounded-xl p-0 m-0 transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.03)]" title={label}>
-        <IconSpan icon={icon} size={17} strokeWidth={1.65} color={color} />
+      <a href={href} target="_blank" rel="noopener noreferrer" className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
+        <span className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]">
+          <IconSpan icon={icon} size={17} strokeWidth={1.65} color={color} />
+        </span>
       </a>
     );
   }
@@ -342,18 +379,18 @@ const FooterAnchorRow = ({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="sidebar-item relative flex items-center transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.03)]"
+      className="sidebar-item relative flex items-center border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.5)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.5)_100%)]"
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "13px", 
-        fontWeight: 500, 
+        fontSize: "12.75px", 
+        fontWeight: 550, 
         lineHeight: "18px", 
-        letterSpacing: "0",
-        height: "34px",
+        letterSpacing: "-0.014em",
+        height: "36px",
         gap: "10px",
         paddingLeft: "12px",
         paddingRight: "12px",
-        borderRadius: "14px"
+        borderRadius: "16px"
       }}
     >
       <IconSpan icon={icon} size={17} strokeWidth={1.65} color={color} />
@@ -511,6 +548,8 @@ const StoreDropdownContent = ({
   const handleStoreClick = (storeId: string, isActive: boolean) => {
     if (!isActive) {
       setActiveStore(storeId);
+      const storeName = stores.find((store) => store.id === storeId)?.name ?? "Loja ativa";
+      veloToast.success(`${storeName} selecionada com sucesso.`);
     }
   };
 
@@ -522,7 +561,9 @@ const StoreDropdownContent = ({
 
   const handleEditSave = (storeId: string) => {
     if (editName.trim()) {
-      updateStoreName(storeId, editName.trim());
+      const nextName = editName.trim();
+      updateStoreName(storeId, nextName);
+      veloToast.success("Loja atualizada com sucesso.");
     }
     setEditingStore(null);
     setEditName("");
@@ -535,9 +576,17 @@ const StoreDropdownContent = ({
 
   const handleDelete = (storeId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Tem certeza que deseja excluir esta loja? Esta ação não pode ser desfeita.")) {
-      deleteStore(storeId);
-    }
+    const storeName = stores.find((store) => store.id === storeId)?.name ?? "Loja";
+    veloToast.info(`Excluir ${storeName}?`, {
+      action: {
+        label: "Excluir",
+        onClick: () => {
+          deleteStore(storeId);
+          veloToast.success("Loja excluída com sucesso.");
+        },
+      },
+      duration: 5000,
+    });
   };
 
   return (
@@ -631,7 +680,7 @@ const SidebarSearch = ({ collapsed }: { collapsed: boolean }) => {
       <div className="px-2">
         <button
           type="button"
-          className="flex h-8 w-full items-center justify-center rounded-xl border border-[#e5e7eb] bg-white text-[#6B7280] shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.03)] hover:border-[rgba(0,0,0,0.06)]"
+          className="flex h-8 w-full items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.68)] bg-[linear-gradient(180deg,rgba(255,255,255,0.68)_0%,rgba(243,244,246,0.76)_100%)] text-[#6B7280] shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_20px_rgba(15,23,42,0.05)] backdrop-blur-[16px] transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.82)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(243,244,246,0.9)_100%)]"
           title="Buscar"
         >
           <Search size={17} strokeWidth={1.7} />
@@ -642,16 +691,19 @@ const SidebarSearch = ({ collapsed }: { collapsed: boolean }) => {
 
   return (
       <div className="px-3">
-      <div className="group flex h-[38px] items-center gap-2.5 rounded-[14px] border border-[#E5E7EB] bg-white px-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.02)] hover:border-[rgba(0,0,0,0.08)] focus-within:bg-[rgba(15,23,42,0.02)] focus-within:border-[rgba(0,0,0,0.1)]">
+      <div className="group flex h-[44px] items-center gap-2.5 rounded-[18px] border border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.7)_0%,rgba(243,244,246,0.82)_100%)] px-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-[18px] transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.84)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.82)_0%,rgba(243,244,246,0.92)_100%)] focus-within:border-[rgba(255,255,255,0.86)] focus-within:bg-[linear-gradient(180deg,rgba(255,255,255,0.82)_0%,rgba(243,244,246,0.94)_100%)]">
         <Search size={16} strokeWidth={1.65} className="shrink-0 text-[#6B7280]" />
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-[17px] text-[#6B7280]">
+        <span
+          className="min-w-0 flex-1 truncate text-[13px] leading-[17px] text-[#6B7280]"
+          style={{ fontFamily: sidebarFont, fontWeight: 540, letterSpacing: "-0.014em" }}
+        >
           Buscar...
         </span>
         <div className="flex gap-1">
-          <span className="rounded-[4px] bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[#4B5563]">
+          <span className="rounded-[8px] border border-white/70 bg-white/70 px-2 py-1 text-[10px] font-semibold leading-none text-[#4B5563] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-[10px]">
             ⌘
           </span>
-          <span className="rounded-[4px] bg-[#F3F4F6] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[#4B5563]">
+          <span className="rounded-[8px] border border-white/70 bg-white/70 px-2 py-1 text-[10px] font-semibold leading-none text-[#4B5563] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-[10px]">
             F
           </span>
         </div>
@@ -840,7 +892,7 @@ const UserFooter = ({
           <button
             type="button"
             onClick={() => navigate("/dashboard/configuracoes")}
-          className="flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.03)]"
+            className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
             title="Configurações"
           >
             <Settings size={17} strokeWidth={1.65} className="text-[#888888]" />
@@ -848,7 +900,7 @@ const UserFooter = ({
           <button
             type="button"
             onClick={onLogout}
-            className="flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.03)]"
+            className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
             title="Sair"
           >
             <LogOut size={17} strokeWidth={1.65} className="text-[#888888]" />
@@ -881,15 +933,21 @@ const UserFooter = ({
   return (
     <div ref={containerRef} className="relative shrink-0 px-2.5 pb-4 pt-0">
       {isOpen && !isGlass && (
-        <div className="absolute bottom-[calc(100%+8px)] left-2.5 right-2.5 z-50 rounded-[26px] border border-[#E5E5E7] bg-[linear-gradient(180deg,#FFFFFF_0%,#FAFAFB_100%)] p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_16px_36px_rgba(17,24,39,0.10)]">
-          <div className="rounded-[18px] border border-[#ECECEF] bg-[#FDFDFD] px-4 py-3">
+        <div className="absolute bottom-[calc(100%+10px)] left-2.5 right-2.5 z-50 rounded-[28px] border border-[rgba(255,255,255,0.76)] bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(243,244,246,0.94)_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_18px_40px_rgba(15,23,42,0.05)] backdrop-blur-[22px]">
+          <div className="rounded-[20px] border border-[rgba(255,255,255,0.8)] bg-[linear-gradient(180deg,rgba(255,255,255,0.62)_0%,rgba(243,244,246,0.78)_100%)] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[13.5px] font-semibold tracking-[-0.02em] text-[#171717]">
+                <div
+                  className="truncate text-[13.5px] font-semibold tracking-[-0.02em] text-[#0f172a]"
+                  style={{ fontFamily: sidebarFont }}
+                >
                   {nome || "Usuário"}
                 </div>
                 {email && (
-                  <div className="truncate pt-0.5 text-[11.5px] text-[#7A7A83]">
+                  <div
+                    className="truncate pt-0.5 text-[11.5px] text-[#6F7787]"
+                    style={{ fontFamily: sidebarFont }}
+                  >
                     {email}
                   </div>
                 )}
@@ -911,9 +969,10 @@ const UserFooter = ({
                 navigate("/dashboard/configuracoes");
                 closeMenu();
               }}
-              className="flex h-[44px] w-full items-center gap-3 rounded-[14px] bg-[#F2F2F3] px-4 text-left text-[14px] font-medium text-[#171717]"
+              className="flex h-[44px] w-full items-center gap-3 rounded-[18px] border border-[rgba(255,255,255,0.74)] bg-[linear-gradient(180deg,rgba(255,255,255,0.78)_0%,rgba(243,244,246,0.92)_100%)] px-4 text-left text-[14px] font-medium text-[#0f172a] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_24px_rgba(15,23,42,0.05)]"
+              style={{ fontFamily: sidebarFont, letterSpacing: "-0.018em" }}
             >
-              <Settings size={16} strokeWidth={1.9} className="text-[#171717]" />
+              <Settings size={16} strokeWidth={1.9} className="text-[#0f172a]" />
               <span>Perfil</span>
             </button>
 
@@ -923,11 +982,12 @@ const UserFooter = ({
                 navigate("/docs");
                 closeMenu();
               }}
-              className="flex h-[44px] w-full items-center gap-3 rounded-[14px] px-4 text-left text-[14px] font-medium text-[#171717] transition-colors hover:bg-[#F7F7F8]"
+              className="flex h-[44px] w-full items-center gap-3 rounded-[18px] border border-transparent px-4 text-left text-[14px] font-medium text-[#172033] transition-all duration-300 hover:border-[rgba(255,255,255,0.62)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.5)_0%,rgba(243,244,246,0.7)_100%)]"
+              style={{ fontFamily: sidebarFont, letterSpacing: "-0.018em" }}
             >
-              <Users size={16} strokeWidth={1.9} className="text-[#171717]" />
+              <Users size={16} strokeWidth={1.9} className="text-[#172033]" />
               <span className="flex-1">Comunidade</span>
-              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-[#E6E6E8] bg-white text-[#61616A]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/80 bg-white/75 text-[#61616A] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                 <Plus size={13} strokeWidth={2} />
               </span>
             </button>
@@ -938,9 +998,10 @@ const UserFooter = ({
                 navigate("/checkout");
                 closeMenu();
               }}
-              className="flex h-[44px] w-full items-center gap-3 rounded-[14px] px-4 text-left text-[14px] font-medium text-[#171717] transition-colors hover:bg-[#F7F7F8]"
+              className="flex h-[44px] w-full items-center gap-3 rounded-[18px] border border-transparent px-4 text-left text-[14px] font-medium text-[#172033] transition-all duration-300 hover:border-[rgba(255,255,255,0.62)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.5)_0%,rgba(243,244,246,0.7)_100%)]"
+              style={{ fontFamily: sidebarFont, letterSpacing: "-0.018em" }}
             >
-              <CreditCard size={16} strokeWidth={1.9} className="text-[#171717]" />
+              <CreditCard size={16} strokeWidth={1.9} className="text-[#172033]" />
               <span className="flex-1">Assinatura</span>
               <span className="rounded-full bg-[#89F17F] px-2.5 py-1 text-[11px] font-semibold leading-none text-[#0B4611]">
                 PRO
@@ -953,14 +1014,15 @@ const UserFooter = ({
                 navigate("/dashboard/configuracoes");
                 closeMenu();
               }}
-              className="flex h-[44px] w-full items-center gap-3 rounded-[14px] px-4 text-left text-[14px] font-medium text-[#171717] transition-colors hover:bg-[#F7F7F8]"
+              className="flex h-[44px] w-full items-center gap-3 rounded-[18px] border border-transparent px-4 text-left text-[14px] font-medium text-[#172033] transition-all duration-300 hover:border-[rgba(255,255,255,0.62)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.5)_0%,rgba(243,244,246,0.7)_100%)]"
+              style={{ fontFamily: sidebarFont, letterSpacing: "-0.018em" }}
             >
-              <Settings size={16} strokeWidth={1.9} className="text-[#171717]" />
+              <Settings size={16} strokeWidth={1.9} className="text-[#172033]" />
               <span>Configurações</span>
             </button>
           </div>
 
-          <div className="my-3 h-px bg-[#ECECEF]" />
+          <div className="my-3 h-px bg-[rgba(214,221,232,0.9)]" />
 
           <div className="space-y-1">
             <button
@@ -969,18 +1031,20 @@ const UserFooter = ({
                 navigate("/docs");
                 closeMenu();
               }}
-              className="flex h-[42px] w-full items-center gap-3 rounded-[14px] px-4 text-left text-[14px] font-medium text-[#171717] transition-colors hover:bg-[#F7F7F8]"
+              className="flex h-[42px] w-full items-center gap-3 rounded-[18px] border border-transparent px-4 text-left text-[14px] font-medium text-[#172033] transition-all duration-300 hover:border-[rgba(255,255,255,0.62)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.5)_0%,rgba(243,244,246,0.7)_100%)]"
+              style={{ fontFamily: sidebarFont, letterSpacing: "-0.018em" }}
             >
-              <MessageCircle size={16} strokeWidth={1.9} className="text-[#171717]" />
+              <MessageCircle size={16} strokeWidth={1.9} className="text-[#172033]" />
               <span>Central de ajuda</span>
             </button>
 
             <button
               type="button"
               onClick={onLogout}
-              className="flex h-[42px] w-full items-center gap-3 rounded-[14px] px-4 text-left text-[14px] font-medium text-[#171717] transition-colors hover:bg-[#F7F7F8]"
+              className="flex h-[42px] w-full items-center gap-3 rounded-[18px] border border-transparent px-4 text-left text-[14px] font-medium text-[#172033] transition-all duration-300 hover:border-[rgba(255,255,255,0.62)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.5)_0%,rgba(243,244,246,0.7)_100%)]"
+              style={{ fontFamily: sidebarFont, letterSpacing: "-0.018em" }}
             >
-              <LogOut size={16} strokeWidth={1.9} className="text-[#171717]" />
+              <LogOut size={16} strokeWidth={1.9} className="text-[#172033]" />
               <span>Sair</span>
             </button>
           </div>
@@ -992,15 +1056,15 @@ const UserFooter = ({
           "overflow-hidden rounded-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.04),0_10px_24px_rgba(17,24,39,0.04)]",
           isGlass
             ? "border border-white/10 bg-[linear-gradient(180deg,#1A1A1C_0%,#111113_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_3px_rgba(0,0,0,0.05),0_12px_24px_rgba(0,0,0,0.10)]"
-            : "border border-[#E5E5E7] bg-[linear-gradient(180deg,#FFFFFF_0%,#FAFAFB_100%)]"
+            : "border border-[rgba(255,255,255,0.78)] bg-[linear-gradient(180deg,rgba(255,255,255,0.84)_0%,rgba(243,244,246,0.9)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-[18px]"
         )}
       >
       <button
         type="button"
         onClick={() => setIsOpen((value) => !value)}
         className={cn(
-          "flex w-full items-center text-left transition-all duration-200",
-          isGlass ? "hover:bg-[rgba(255,255,255,0.04)]" : "hover:bg-[rgba(17,24,39,0.02)]"
+          "flex w-full items-center text-left transition-all duration-300",
+          isGlass ? "hover:bg-[rgba(255,255,255,0.04)]" : "hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.52)_100%)]"
         )}
         style={{
           minHeight: "72px",
@@ -1225,10 +1289,13 @@ const DashboardSidebar = () => {
     .join("")
     .toUpperCase();
 
-  const isLinkActive = (to: string) =>
-    to === "/dashboard"
-      ? location.pathname === "/dashboard"
-      : location.pathname.startsWith(to);
+  const isLinkActive = (to: string) => {
+    const cleanPath = location.pathname.replace(/\/$/, "");
+    const cleanTo = to.replace(/\/$/, "");
+    return cleanTo === "/dashboard"
+      ? cleanPath === "/dashboard"
+      : cleanPath.startsWith(cleanTo);
+  };
 
   const isGroupActive = (items: SubItem[]) =>
     items.some((i) => isLinkActive(i.to));
@@ -1236,15 +1303,18 @@ const DashboardSidebar = () => {
   return (
     <nav
       className={cn(
-        "flex shrink-0 flex-col text-foreground transition-[width] duration-200 ease-out",
+        "flex shrink-0 flex-col text-foreground transition-[width] duration-300 ease-out",
         collapsed ? "w-[60px] min-w-[60px]" : "w-[232px] min-w-[232px]"
       )}
       style={{
         height: startMode ? "calc(100vh - 48px)" : "100vh",
-        transition: "height 280ms ease, width 200ms ease-out",
+        transition: "height 280ms ease, width 300ms ease-out",
         overflow: "hidden",
-        backgroundColor: "#ffffff",
-        borderRight: "1px solid #E5E7EB"
+        background: "linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(245,247,250,0.64) 100%)",
+        borderRight: "1px solid rgba(255,255,255,0.62)",
+        backdropFilter: "blur(22px) saturate(160%)",
+        WebkitBackdropFilter: "blur(22px) saturate(160%)",
+        boxShadow: "inset -1px 0 0 rgba(255,255,255,0.48), inset 0 1px 0 rgba(255,255,255,0.62), 22px 0 48px rgba(15,23,42,0.09)"
       }}
     >
       {/* ── Header: Logo mark + Colapsar ─────────────────────────────────── */}
@@ -1253,11 +1323,16 @@ const DashboardSidebar = () => {
           <>
             <Link to="/?home=1" className="flex items-center gap-2.5">
               <VeloMark size={28} />
-              <span className="text-[21px] font-bold leading-none tracking-[-0.045em] text-[#111827]">Velo</span>
+              <span
+                className="text-[21px] font-semibold leading-none tracking-[-0.05em] text-[#0f172a]"
+                style={{ fontFamily: sidebarDisplayFont }}
+              >
+                Velo
+              </span>
             </Link>
             <button
               onClick={() => setCollapsed(true)}
-              className="flex h-7 w-7 items-center justify-center rounded-xl border border-[rgba(0,0,0,0.06)] bg-white text-[13px] font-semibold leading-none text-[#6B7280] shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.03)] hover:text-[#111827]"
+              className="flex h-8 w-8 items-center justify-center rounded-[16px] border border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.78)_0%,rgba(243,244,246,0.9)_100%)] text-[13px] font-semibold leading-none text-[#6B7280] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-[14px] transition-all duration-300 ease-out hover:text-[#0F172A]"
               title="Colapsar"
             >
               «
@@ -1270,7 +1345,7 @@ const DashboardSidebar = () => {
             </Link>
             <button
               onClick={() => setCollapsed(false)}
-              className="flex h-7 w-7 items-center justify-center rounded-xl border border-[rgba(0,0,0,0.06)] bg-white text-[13px] font-semibold leading-none text-[#6B7280] shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-200 ease-out hover:bg-[rgba(15,23,42,0.03)] hover:text-[#111827]"
+              className="flex h-8 w-8 items-center justify-center rounded-[16px] border border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.78)_0%,rgba(243,244,246,0.9)_100%)] text-[13px] font-semibold leading-none text-[#6B7280] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-[14px] transition-all duration-300 ease-out hover:text-[#0F172A]"
               title="Expandir"
             >
               »
@@ -1292,7 +1367,10 @@ const DashboardSidebar = () => {
         style={!collapsed ? { paddingTop: "12px", paddingBottom: "8px", minHeight: 0 } : { paddingTop: "12px", minHeight: 0 }}
       >
         {!collapsed && (
-          <div className="px-1 pb-1 text-[11.5px] font-semibold leading-[15px] text-[#666666]">
+          <div
+            className="px-1 pb-1 text-[10.5px] font-semibold uppercase leading-[15px] text-[#6B7280]"
+            style={{ fontFamily: sidebarFont, letterSpacing: "0.16em" }}
+          >
             Menu
           </div>
         )}
@@ -1330,11 +1408,13 @@ const DashboardSidebar = () => {
             </div>
           );
         })}
-        </LayoutGroup>
 
         {!collapsed && (
           <>
-            <div className="px-1 pb-1 pt-4 text-[11.5px] font-semibold leading-[15px] text-[#666666]">
+            <div
+              className="px-1 pb-1 pt-4 text-[10.5px] font-semibold uppercase leading-[15px] text-[#6B7280]"
+              style={{ fontFamily: sidebarFont, letterSpacing: "0.16em" }}
+            >
               OUTROS
             </div>
             {otherNav.map((item) => {
@@ -1342,7 +1422,7 @@ const DashboardSidebar = () => {
                 const active = isLinkActive(item.to);
                 return (
                   <div key={item.to} style={{ flexShrink: 0, display: "flex", flexDirection: "column" }}>
-                    <NavLinkRow item={item} active={active} collapsed={collapsed} />
+                    <NavLinkRow item={item} active={active} collapsed={collapsed} animatedActive={!collapsed} />
                   </div>
                 );
               }
@@ -1350,6 +1430,7 @@ const DashboardSidebar = () => {
             })}
           </>
         )}
+        </LayoutGroup>
 
       </div>
       {collapsed && (

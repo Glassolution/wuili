@@ -17,7 +17,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
 import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
@@ -252,17 +252,18 @@ const CatalogPage = () => {
       if (syncData?.error) throw new Error(syncData.error);
       return syncData;
     },
-    onSuccess: (syncData) => {
+    onMutate: () => ({ toastId: veloToast.loading("Sincronizando produtos...") }),
+    onSuccess: (syncData, _vars, context) => {
       const count = syncData.synced ?? 0;
-      toast.success(
-        count > 0
-          ? `${count} produtos sincronizados com sucesso!`
-          : "Sincronização concluída (nenhum produto novo encontrado)."
+      veloToast.success(
+        count > 0 ? `${count} produtos sincronizados com sucesso!` : "Sincronização concluída (nenhum produto novo encontrado).",
+        { id: context?.toastId }
       );
       queryClient.invalidateQueries({ queryKey: ["catalog"] });
       queryClient.refetchQueries({ queryKey: ["catalog"] });
     },
-    onError: (err: Error) => toast.error(`Erro ao sincronizar: ${err.message}`),
+    onError: (err: Error, _vars, context) =>
+      veloToast.error(`Erro ao sincronizar: ${err.message}`, { id: context?.toastId }),
   });
 
   const rawProducts = data?.products || [];

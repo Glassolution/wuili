@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
@@ -214,7 +214,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     const { data, error } = await supabase.functions.invoke("ml-connect");
     const authUrl = data?.authUrl ?? data?.auth_url;
     if (error || !authUrl) {
-      toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
       return;
     }
     window.location.href = authUrl;
@@ -223,6 +223,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const handleTranslate = async () => {
     if (!product) return;
     setTranslating(true);
+    const toastId = veloToast.loading("Traduzindo título...");
     try {
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
@@ -239,12 +240,12 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
         const truncated = cleaned.length > MAX_TITLE_LENGTH ? cleaned.substring(0, MAX_TITLE_LENGTH) : cleaned;
         setTitle(truncated);
         setTranslated(true);
-        toast.success("Título traduzido");
+        veloToast.success("Título traduzido", { id: toastId });
       } else {
-        toast.error("Não foi possível traduzir");
+        veloToast.error("Não foi possível traduzir", { id: toastId });
       }
     } catch {
-      toast.error("Erro ao traduzir");
+      veloToast.error("Erro ao traduzir", { id: toastId });
     } finally {
       setTranslating(false);
     }
@@ -253,6 +254,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const handleGenerateDescription = async () => {
     if (!product) return;
     setGeneratingDesc(true);
+    const toastId = veloToast.loading("Gerando descrição com IA...");
     try {
       const price = sellPrice.toFixed(2).replace(".", ",");
       const category = product.category || "Não informada";
@@ -291,25 +293,25 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       const text = data?.response || data?.choices?.[0]?.message?.content || "";
       if (typeof text === "string" && text.trim()) {
         setDescription(text.trim());
-        toast.success("Descrição gerada");
+        veloToast.success("Descrição gerada", { id: toastId });
       } else {
-        toast.error("Não foi possível gerar a descrição");
+        veloToast.error("Não foi possível gerar a descrição", { id: toastId });
       }
     } catch {
-      toast.error("Erro ao gerar descrição");
+      veloToast.error("Erro ao gerar descrição", { id: toastId });
     } finally {
       setGeneratingDesc(false);
     }
   };
 
   const validatePublish = (): boolean => {
-    if (!title.trim()) return toast.error("Preencha o título"), false;
-    if (title.length > MAX_TITLE_LENGTH) return toast.error(`Máximo ${MAX_TITLE_LENGTH} caracteres`), false;
-    if (sellPrice <= 0) return toast.error("Defina um preço válido"), false;
-    if (sellPrice <= totalCost) return toast.error("Preço deve ser maior que o custo"), false;
-    if (!platforms.ml && !platforms.shopee && !platforms.tiktok) return toast.error("Selecione ao menos uma plataforma"), false;
-    if (platforms.ml && !isConnectedToML) return toast.error("Conecte sua conta do Mercado Livre"), false;
-    if (!hasStock) return toast.error("Produto sem estoque"), false;
+    if (!title.trim()) return veloToast.error("Preencha o título"), false;
+    if (title.length > MAX_TITLE_LENGTH) return veloToast.error(`Máximo ${MAX_TITLE_LENGTH} caracteres`), false;
+    if (sellPrice <= 0) return veloToast.error("Defina um preço válido"), false;
+    if (sellPrice <= totalCost) return veloToast.error("Preço deve ser maior que o custo"), false;
+    if (!platforms.ml && !platforms.shopee && !platforms.tiktok) return veloToast.error("Selecione ao menos uma plataforma"), false;
+    if (platforms.ml && !isConnectedToML) return veloToast.error("Conecte sua conta do Mercado Livre"), false;
+    if (!hasStock) return veloToast.error("Produto sem estoque"), false;
     return true;
   };
 
@@ -318,19 +320,19 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
     const activeStore = getActiveStore();
     if (!activeStore) {
-      toast.error("Crie uma loja antes de publicar produtos");
+      veloToast.error("Crie uma loja antes de publicar produtos");
       return;
     }
 
     const publishedCount = getStorePublishedCount(activeStore.id);
     const productLimit = activeStore.productLimit ?? 30;
     if (publishedCount >= productLimit) {
-      toast.error(`Limite de ${productLimit} produtos atingido nesta loja`);
+      veloToast.error(`Limite de ${productLimit} produtos atingido nesta loja`);
       return;
     }
 
     if (planLimits.loading) {
-      toast.info("Verificando seu plano...");
+      veloToast.info("Verificando seu plano...");
       return;
     }
 
@@ -340,6 +342,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
     }
 
     setPublishing(true);
+    const toastId = veloToast.loading("Publicando produto...");
     try {
       const images = (() => {
         try {
@@ -378,7 +381,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
             friendly = body?.error || body?.message;
           } catch { /* ignore */ }
         }
-        toast.error(friendly || error?.message || "Erro ao publicar");
+        veloToast.error(friendly || error?.message || "Erro ao publicar", { id: toastId });
         setPublishing(false);
         return;
       }
@@ -387,11 +390,14 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       setStep(3);
       incrementStorePublishedCount(activeStore.id);
 
-      toast.success("Produto publicado com sucesso");
+      veloToast.success("Produto publicado com sucesso", {
+        id: toastId,
+        action: data.permalink ? { label: "Ver", onClick: () => window.open(data.permalink, "_blank", "noopener,noreferrer") } : undefined,
+      });
       void planLimits.refreshUsage();
-      if (data.permalink) window.open(data.permalink, '_blank', 'noopener,noreferrer');
+      if (data.permalink) window.open(data.permalink, "_blank", "noopener,noreferrer");
     } catch (err: any) {
-      toast.error(err?.message || "Erro inesperado");
+      veloToast.error(err?.message || "Erro inesperado", { id: toastId });
     } finally {
       setPublishing(false);
     }
@@ -716,7 +722,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                       <button
                         onClick={() => {
                           if (!description.trim()) {
-                            toast.error("Crie uma descrição antes de fazer o vídeo");
+                            veloToast.error("Crie uma descrição antes de fazer o vídeo");
                             return;
                           }
                           const productImage = img || '';
@@ -816,7 +822,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
               )}
               {step < 2 && (
                 <button
-                  onClick={() => { if (canAdvance) setStep(step + 1); else toast.error("Conecte a conta, confira o estoque, título e preço"); }}
+                  onClick={() => { if (canAdvance) setStep(step + 1); else veloToast.error("Conecte a conta, confira o estoque, título e preço"); }}
                   disabled={!canAdvance}
                   className="btn-primary btn-primary--md"
                 >
@@ -904,21 +910,6 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           </div>
         </div>
 
-        {/* Publishing overlay */}
-        {publishing && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-[3px] animate-in fade-in duration-200">
-            <div className="flex flex-col items-center gap-3 rounded-2xl bg-white border border-gray-100 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] px-10 py-8">
-              <div className="relative h-12 w-12">
-                <div className="absolute inset-0 rounded-full border-2 border-gray-100" />
-                <div className="absolute inset-0 rounded-full border-2 border-transparent animate-spin" style={{ borderTopColor: ACCENT }} />
-              </div>
-              <div className="text-center">
-                <p className="text-[13.5px] font-semibold text-[#0A0A0A]">Aguarde um momento</p>
-                <p className="text-[11.5px] text-gray-500 mt-0.5">Publicando seu anúncio…</p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <UpgradeLimitModal

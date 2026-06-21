@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { X, Network } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import PlatformLogo from "./PlatformLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,7 +74,7 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
     const { data, error } = await supabase.functions.invoke("ml-connect");
     const authUrl = data?.authUrl ?? data?.auth_url;
     if (error || !authUrl) {
-      toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
       return;
     }
     window.location.href = authUrl;
@@ -90,13 +90,13 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
       .eq("platform", "mercadolivre");
 
     if (error) {
-      toast.error("Não foi possível desconectar o Mercado Livre");
+      veloToast.error("Não foi possível desconectar o Mercado Livre");
       return;
     }
 
     setConnectedML(false);
     void planLimits.refreshUsage();
-    toast.success("Mercado Livre desconectado");
+    veloToast.success("Mercado Livre desconectado");
   };
 
   if (!open) return null;

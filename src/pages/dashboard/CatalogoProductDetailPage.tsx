@@ -16,8 +16,11 @@ import {
   Volume2,
   Activity,
   Feather,
+  X,
 } from "lucide-react";
 import { getMockRating, formatPrice, formatReviewCount } from "./CatalogoPage";
+import ImportProductModal from "@/components/dashboard/ImportProductModal";
+import { veloToast } from "@/components/ui/velo-toast";
 
 // ============================================================
 // MOCK helpers (descrição, reviews, FAQ) — sem dados reais ainda
@@ -64,16 +67,16 @@ const FAQItem = ({ question, answer }: { question: string; answer: string }) => 
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between text-left py-5 font-semibold text-[15px] text-[#111111]"
+        className="w-full flex items-center justify-between text-left py-4 font-medium text-[14px] text-[#111]"
       >
         <span>{question}</span>
         <ChevronDown
-          size={18}
-          className={`text-[#6B7280] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          size={16}
+          className={`text-[#9CA3AF] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
-      <div className={`overflow-hidden transition-all duration-300 ${open ? "max-h-40 pb-5 opacity-100" : "max-h-0 opacity-0"}`}>
-        <p className="text-[14px] leading-relaxed text-[#4B5563]">{answer}</p>
+      <div className={`overflow-hidden transition-all duration-300 ${open ? "max-h-40 pb-4 opacity-100" : "max-h-0 opacity-0"}`}>
+        <p className="text-[13.5px] leading-relaxed text-[#6B7280]">{answer}</p>
       </div>
     </div>
   );
@@ -86,7 +89,8 @@ type DetailedProduct = {
   id: string;
   title: string;
   category: string;
-  price: number;
+  price: number; // preco de custo
+  suggestedPrice: number; // preco sugerido de venda
   originalPrice: number | null;
   images: string[];
   product_url: string | null;
@@ -112,15 +116,18 @@ function extractImages(raw: any): string[] {
 
 function mapProduct(p: any): DetailedProduct {
   const imgs = extractImages(p.images);
+  const cost = p.cost_price || 0;
+  const suggested = p.suggested_price || (cost ? cost * 2 : 0);
   return {
     id: p.id,
     title: p.title || "Produto sem nome",
     category: p.category || "Produto",
-    price: p.suggested_price || p.cost_price || 0,
+    price: cost,
+    suggestedPrice: suggested,
     originalPrice:
-      p.original_price && p.original_price > (p.suggested_price || 0)
+      p.original_price && p.original_price > suggested
         ? Number(p.original_price)
-        : p.suggested_price && p.cost_price && p.suggested_price > p.cost_price
+        : suggested && cost && suggested > cost
         ? null
         : null,
     images: imgs.length > 0 ? imgs : [FALLBACK_IMG],
@@ -140,8 +147,48 @@ const CatalogoProductDetailPage = () => {
   const [activeImg, setActiveImg] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [relatedIndex, setRelatedIndex] = useState(0);
   const [favorited, setFavorited] = useState(false);
+  const [relatedIndex, setRelatedIndex] = useState(0);
+  const [showSocialProof, setShowSocialProof] = useState(false);
+  const [rawProduct, setRawProduct] = useState<any>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // MOCK: notificação decorativa de prova social, não reflete atividade real
+  const socialProof = useMemo(() => {
+    const cities = [
+      "São Paulo",
+      "Rio de Janeiro",
+      "Belo Horizonte",
+      "Curitiba",
+      "Porto Alegre",
+      "Salvador",
+      "Fortaleza",
+      "Brasília",
+      "Goiânia",
+      "Recife",
+    ];
+    const times = ["2 min", "5 min", "12 min", "18 min", "25 min", "45 min", "1 hora"];
+    const initialsList = ["FL", "AM", "JS", "CR", "TB", "GV", "NK", "OP", "WD"];
+
+    let hash = 0;
+    if (id) {
+      for (let i = 0; i < id.length; i++) {
+        hash = (hash * 31 + id.charCodeAt(i)) % 10000;
+      }
+    }
+    const city = cities[hash % cities.length];
+    const time = times[(hash + 3) % times.length];
+    const initials = initialsList[(hash + 5) % initialsList.length];
+
+    return { city, time, initials };
+  }, [id]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSocialProof(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -160,6 +207,7 @@ const CatalogoProductDetailPage = () => {
 
         const mapped = mapProduct(data);
         setProduct(mapped);
+        setRawProduct(data);
 
         const { data: rel } = await supabase
           .from("catalog_products")
@@ -186,6 +234,7 @@ const CatalogoProductDetailPage = () => {
         setError("Não foi possível carregar os detalhes do produto.");
       } finally {
         setLoading(false);
+        veloToast.dismiss("loading-product");
       }
     };
     fetchData();
@@ -247,344 +296,412 @@ const CatalogoProductDetailPage = () => {
 
   return (
     <div
-      className="min-h-full w-full bg-[#F2F3F5] py-6"
+      className="min-h-full w-full bg-white py-6 rounded-2xl border border-black/[0.04] shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
       style={{ fontFamily: 'Inter, -apple-system, "Segoe UI", sans-serif' }}
     >
-      <div className="max-w-[760px] mx-auto px-4">
-        {/* CARD ÚNICO */}
-        <div className="bg-white rounded-[20px] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
-          {/* HEADER COM NAV */}
-          <div className="flex items-center justify-between px-8 pt-6 pb-5 border-b border-[#F1F2F4]">
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard/catalogo")}
-              className="flex items-center gap-2 text-[15px] font-bold text-[#111] tracking-tight"
-            >
-              <ArrowLeft size={16} strokeWidth={2.4} />
-              <span className="uppercase">Voltar ao catálogo</span>
-            </button>
-            <div className="text-[11px] font-semibold tracking-[0.18em] text-[#6B7280] uppercase">
-              {product.supplier_name ?? "Fornecedor verificado"}
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        
+        {/* CABEÇALHO DA PÁGINA */}
+        <div className="flex items-center justify-between pb-6 border-b border-[#F1F2F4] mb-6">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/catalogo")}
+            className="flex items-center gap-2 text-[11px] font-medium text-[#6B7280] tracking-wider transition-colors hover:text-[#111]"
+          >
+            <ArrowLeft size={14} strokeWidth={2} />
+            <span className="uppercase">Voltar ao catálogo</span>
+          </button>
+          <div className="text-[11px] font-medium tracking-wider text-[#6B7280] uppercase">
+            {product.supplier_name ?? "Fornecedor verificado"}
+          </div>
+        </div>
+
+        {/* SEÇÃO PRINCIPAL (duas colunas) */}
+        <div className="grid grid-cols-1 md:grid-cols-[45%_1fr] gap-12 items-start pb-10">
+          {/* COLUNA ESQUERDA — GALERIA */}
+          <div>
+            <div className="aspect-square rounded-2xl bg-[#F4F5F7] overflow-hidden flex items-center justify-center border border-[#ECECEF]">
+              <img
+                src={gallery[activeImg] || gallery[0] || FALLBACK_IMG}
+                alt={product.title}
+                className="h-full w-full object-cover"
+              />
             </div>
+            {gallery.length > 1 && (
+              <>
+                <div className="mt-3 flex flex-row overflow-x-auto gap-2 pb-2 scrollbar-gallery">
+                  {gallery.map((src, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setActiveImg(i)}
+                      className={`aspect-square w-16 shrink-0 rounded-lg bg-[#F4F5F7] overflow-hidden border-2 transition-all ${
+                        activeImg === i ? "border-[#111]" : "border-transparent hover:border-gray-200"
+                      }`}
+                    >
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+                <style>{`
+                  .scrollbar-gallery::-webkit-scrollbar {
+                    height: 5px;
+                  }
+                  .scrollbar-gallery::-webkit-scrollbar-track {
+                    background: #F3F4F6;
+                    border-radius: 9999px;
+                  }
+                  .scrollbar-gallery::-webkit-scrollbar-thumb {
+                    background: #111;
+                    border-radius: 9999px;
+                  }
+                  .scrollbar-gallery::-webkit-scrollbar-thumb:hover {
+                    background: #374151;
+                  }
+                `}</style>
+              </>
+            )}
           </div>
 
-          {/* SEÇÃO 1 — IMAGEM + INFO */}
-          <div className="px-8 pt-7 pb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* GALERIA */}
-              <div>
-                <div className="aspect-square rounded-[14px] bg-[#F4F5F7] overflow-hidden flex items-center justify-center border border-[#ECECEF]">
-                  <img
-                    src={gallery[activeImg] || gallery[0] || FALLBACK_IMG}
-                    alt={product.title}
-                    className="h-full w-full object-cover"
+          {/* COLUNA DIREITA — INFO */}
+          <div className="flex flex-col">
+            {/* Categoria */}
+            <span className="inline-flex items-center rounded-full bg-[#F3F4F6] text-[#4B5563] text-[11px] font-medium px-3 py-0.5 mb-2.5 self-start">
+              {product.category ? (product.category.charAt(0).toUpperCase() + product.category.slice(1).toLowerCase()) : "Produto"}
+            </span>
+
+            {/* Nome do produto */}
+            <h1 className="text-[24px] sm:text-[28px] font-bold leading-[1.2] tracking-tight text-[#111] mb-2.5">
+              {product.title}
+            </h1>
+
+            {/* Avaliação */}
+            <div className="flex items-center gap-2 text-[12.5px] mb-3">
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star
+                    key={i}
+                    size={13}
+                    className={
+                      i < Math.round(Number(rating))
+                        ? "fill-[#111] text-[#111]"
+                        : "text-[#E5E7EB] fill-[#E5E7EB]"
+                    }
                   />
+                ))}
+              </div>
+              <span className="font-semibold text-[#111]">{rating}</span>
+              <span className="text-[#6B7280]">({formatReviewCount(reviewCount)} avaliações)</span>
+            </div>
+
+            {/* Bloco de Precificação e Simulador de Lucro */}
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Card 1: Preço de Custo */}
+                <div className="flex-1 bg-[#FAFAFA] border border-[#E5E7EB] rounded-xl p-3 flex flex-col justify-between min-h-[76px]">
+                  <span className="text-[11px] font-medium text-[#6B7280]">
+                    Preço de custo
+                  </span>
+                  <span className="text-[18px] sm:text-[20px] font-bold text-[#111] leading-none mt-1">
+                    {formatPrice(product.price)}
+                  </span>
                 </div>
-                {gallery.length > 1 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {gallery.map((src, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setActiveImg(i)}
-                        className="flex flex-col items-center w-[72px]"
-                      >
-                        <div
-                          className={`aspect-square w-full rounded-[10px] bg-[#F4F5F7] overflow-hidden border-2 transition-colors ${
-                            activeImg === i ? "border-[#111]" : "border-transparent"
-                          }`}
-                        >
-                          <img src={src} alt="" className="h-full w-full object-cover" />
-                        </div>
-                        <span className="mt-1 text-[10px] text-[#6B7280] truncate w-full text-center">
-                          {i === 0 ? "Visão principal" : `Foto ${i + 1}`}
-                        </span>
-                      </button>
-                    ))}
+
+                {/* Seta indicadora */}
+                <div className="text-[#9CA3AF] shrink-0 font-medium text-base">
+                  →
+                </div>
+
+                {/* Card 2: Sugestão de Venda */}
+                <div className="flex-1 bg-[#FAFAFA] border border-[#E5E7EB] rounded-xl p-3 flex flex-col justify-between min-h-[76px]">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-medium text-[#6B7280]">
+                      Sugestão de venda
+                    </span>
+                    <span className="text-[18px] sm:text-[20px] font-bold text-[#111] leading-none mt-1">
+                      {formatPrice(product.suggestedPrice)}
+                    </span>
                   </div>
-                )}
+                  <span className="text-[10.5px] font-semibold text-[#16A34A] mt-1.5 block">
+                    + {formatPrice(Math.max(0, product.suggestedPrice - product.price))} de lucro estimado
+                  </span>
+                </div>
               </div>
 
-              {/* INFO */}
-              <div className="flex flex-col">
-                <h1 className="text-[26px] font-extrabold leading-[1.05] tracking-[-0.02em] text-[#111] uppercase">
-                  {product.title}
-                </h1>
-                <p className="mt-1.5 text-[13px] text-[#6B7280]">{product.category}</p>
+              {/* Explicação pequena */}
+              <p className="text-[11px] text-[#888888] leading-relaxed">
+                Valor sugerido com base em margem de 100%. Você pode ajustar o preço de venda ao publicar.
+              </p>
+            </div>
 
-                {/* Rating */}
-                <div className="mt-3 flex items-center gap-2 text-[12.5px]">
-                  <div className="flex items-center gap-0.5">
-                    {Array.from({ length: 5 }).map((_, i) => (
+            {/* Descrição */}
+            <p className="text-[14px] leading-relaxed text-[#4B5563] mb-5">{description}</p>
+
+            {/* CTAs */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(true)}
+                className="w-full sm:flex-1 h-11 bg-[#111] hover:bg-[#222] text-white text-[13.5px] font-semibold tracking-wide transition-colors rounded-xl"
+              >
+                Importar para minha loja
+              </button>
+              {product.product_url && (
+                <a
+                  href={product.product_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:flex-1 h-11 border border-[#D1D5DB] hover:bg-[#F9FAFB] text-[#111] text-[13.5px] font-semibold tracking-wide flex items-center justify-center transition-colors rounded-xl"
+                >
+                  Ver no fornecedor
+                </a>
+              )}
+            </div>
+
+            {/* Texto pequeno */}
+            <p className="mt-2 text-center text-[12px] text-[#6B7280]">
+              Frete calculado pelo fornecedor · Envio em 2 dias
+            </p>
+
+            {/* Salvar para depois */}
+            <div className="flex justify-end mt-2">
+              <button
+                type="button"
+                onClick={() => setFavorited((v) => !v)}
+                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#6B7280] hover:text-[#111] transition-colors"
+              >
+                <Heart
+                  size={14}
+                  className={favorited ? "fill-red-500 text-red-500" : ""}
+                />
+                <span>{favorited ? "Salvo" : "Salvar para depois"}</span>
+              </button>
+            </div>
+
+            {/* Grid 2x2 de informações de confiança */}
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-[#E5E7EB] px-4 py-3">
+              {[
+                { icon: Lock, label: "Importação segura" },
+                { icon: Truck, label: "Envio rápido" },
+                { icon: RotateCcw, label: "30 dias para troca" },
+                { icon: ShieldCheck, label: "Garantia 2 anos" },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 text-[13px] font-medium text-[#4B5563]">
+                  <Icon size={14} className="text-[#9CA3AF]" strokeWidth={2} />
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* WHY - Por que este produto? */}
+        <div className="py-8 border-t border-[#F1F2F4]">
+          <h2 className="text-center text-[16px] font-bold text-[#111]">
+            Por que este produto?
+          </h2>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Volume2,
+                title: "Alta demanda",
+                desc: "Categoria com alta procura e ótima taxa de conversão no varejo nacional.",
+              },
+              {
+                icon: Activity,
+                title: "Margem saudável",
+                desc: "Preço de custo competitivo com espaço confortável para revenda lucrativa.",
+              },
+              {
+                icon: Feather,
+                title: "Envio ágil",
+                desc: "Fornecedor verificado, com expedição rápida e logística confiável.",
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="flex gap-3">
+                <div className="h-10 w-10 rounded-full bg-[#F4F5F7] flex items-center justify-center shrink-0">
+                  <Icon size={18} className="text-[#111]" strokeWidth={2} />
+                </div>
+                <div>
+                  <div className="text-[14px] font-bold text-[#111]">{title}</div>
+                  <p className="mt-1 text-[12.5px] leading-[1.5] text-[#6B7280]">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* REVIEWS */}
+        <div className="py-8 border-t border-[#F1F2F4]">
+          <h2 className="text-[16px] font-bold text-[#111] mb-4">
+            Avaliações de clientes
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {reviews.map((r, i) => (
+              <div key={i} className="rounded-xl border border-[#E5E7EB] p-4 bg-white">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-full bg-[#F4F5F7] flex items-center justify-center text-[11px] font-medium text-[#4B5563]">
+                    {r.initials}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, k) => (
                       <Star
-                        key={i}
-                        size={13}
+                        key={k}
+                        size={11}
                         className={
-                          i < Math.round(Number(rating))
-                            ? "fill-[#F5B400] text-[#F5B400]"
+                          k < r.rating
+                            ? "fill-[#111] text-[#111]"
                             : "text-[#E5E7EB] fill-[#E5E7EB]"
                         }
                       />
                     ))}
+                    <span className="ml-1 text-[11px] font-bold text-[#111]">{r.rating}</span>
                   </div>
-                  <span className="font-semibold text-[#111]">{rating}</span>
-                  <span className="text-[#6B7280]">{formatReviewCount(reviewCount)} avaliações</span>
                 </div>
-
-                {/* Preço */}
-                <div className="mt-3 flex items-end gap-3">
-                  {product.originalPrice && (
-                    <span className="text-[14px] text-[#9CA3AF] line-through">
-                      {formatPrice(product.originalPrice)}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[34px] font-extrabold tracking-tight text-[#F97316] leading-none">
-                    {formatPrice(product.price)}
-                  </span>
-                  {savings > 0 && (
-                    <span className="text-[11px] font-semibold text-[#0F8A4F] bg-[#E6F7EE] px-2 py-1 rounded-md">
-                      Economize {formatPrice(savings)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Descrição */}
-                <p className="mt-4 text-[13.5px] leading-[1.55] text-[#4B5563]">{description}</p>
-
-                {/* CTAs */}
-                <div className="mt-5 flex flex-col gap-2.5">
-                  <button
-                    type="button"
-                    className="w-full h-11 rounded-[10px] bg-[#F97316] hover:bg-[#EA6A0E] text-white text-[12.5px] font-bold tracking-[0.18em] uppercase transition-colors"
-                  >
-                    Importar para minha loja
-                  </button>
-                  <a
-                    href={product.product_url ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full h-11 rounded-[10px] bg-[#2A2D34] hover:bg-[#1f2127] text-white text-[12.5px] font-bold tracking-[0.18em] uppercase flex items-center justify-center transition-colors"
-                  >
-                    Ver no fornecedor
-                  </a>
-                </div>
-
-                <p className="mt-2.5 text-center text-[12px] text-[#6B7280]">
-                  Frete calculado pelo fornecedor · Envio em 2 dias
+                <p className="mt-2.5 text-[13px] font-semibold text-[#111] leading-snug">
+                  {r.comment}
                 </p>
+              </div>
+            ))}
+          </div>
+        </div>
 
-                {/* Trust badges */}
-                <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 rounded-[12px] border border-[#E5E7EB] px-4 py-3.5">
-                  {[
-                    { icon: Lock, label: "Importação segura" },
-                    { icon: Truck, label: "Envio rápido" },
-                    { icon: RotateCcw, label: "30 dias para troca" },
-                    { icon: ShieldCheck, label: "Garantia 2 anos" },
-                  ].map(({ icon: Icon, label }) => (
-                    <div key={label} className="flex items-center gap-2 text-[12px] font-medium text-[#374151]">
-                      <Icon size={14} strokeWidth={2} className="text-[#6B7280]" />
-                      <span>{label}</span>
-                    </div>
-                  ))}
-                </div>
+        {/* FAQ */}
+        <div className="py-8 border-t border-[#F1F2F4]">
+          <h2 className="text-[16px] font-bold text-[#111] mb-2">
+            Perguntas frequentes
+          </h2>
+          <div>
+            <FAQItem
+              question="Qual o prazo de importação para minha loja?"
+              answer="A importação é processada e concluída rapidamente. Assim que confirmada, o produto fica disponível na sua conta para personalização e publicação."
+            />
+            <FAQItem
+              question="Esse produto tem garantia?"
+              answer="Sim. A garantia segue a política do fornecedor de origem contra defeitos de fabricação."
+            />
+            <FAQItem
+              question="Como funciona o frete?"
+              answer="Varia conforme dimensões e origem. O valor estimado é exibido durante a etapa de publicação do anúncio."
+            />
+          </div>
+        </div>
 
-                {/* Favoritar discreto */}
+        {/* RELACIONADOS */}
+        {related.length > 0 && (
+          <div className="py-8 border-t border-[#F1F2F4]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[16px] font-bold text-[#111]">
+                Produtos relacionados
+              </h2>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setFavorited((v) => !v)}
-                  className="mt-3 self-end inline-flex items-center gap-1.5 text-[11.5px] text-[#6B7280] hover:text-[#111]"
+                  onClick={() =>
+                    setRelatedIndex((c) => (c - 1 + related.length) % related.length)
+                  }
+                  className="h-8 w-8 rounded-full border border-[#E5E7EB] flex items-center justify-center text-[#111] hover:bg-[#F4F5F7]"
+                  aria-label="Anterior"
                 >
-                  <Heart
-                    size={13}
-                    className={favorited ? "fill-red-500 text-red-500" : ""}
-                  />
-                  {favorited ? "Salvo" : "Salvar para depois"}
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRelatedIndex((c) => (c + 1) % related.length)}
+                  className="h-8 w-8 rounded-full border border-[#E5E7EB] flex items-center justify-center text-[#111] hover:bg-[#F4F5F7]"
+                  aria-label="Próximo"
+                >
+                  <ChevronRight size={14} />
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* WHY */}
-          <div className="px-8 py-9 border-t border-[#F1F2F4]">
-            <h2 className="text-center text-[18px] font-extrabold tracking-tight text-[#111] uppercase">
-              Por que este produto?
-            </h2>
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {[
-                {
-                  icon: Volume2,
-                  title: "Alta demanda",
-                  desc: "Categoria com alta procura e ótima taxa de conversão no varejo nacional.",
-                },
-                {
-                  icon: Activity,
-                  title: "Margem saudável",
-                  desc: "Preço de custo competitivo com espaço confortável para revenda lucrativa.",
-                },
-                {
-                  icon: Feather,
-                  title: "Envio ágil",
-                  desc: "Fornecedor verificado, com expedição rápida e logística confiável.",
-                },
-              ].map(({ icon: Icon, title, desc }) => (
-                <div key={title} className="flex gap-3">
-                  <div className="h-10 w-10 rounded-full bg-[#F4F5F7] flex items-center justify-center shrink-0">
-                    <Icon size={18} className="text-[#111]" strokeWidth={2} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {relatedWindow.map((p) => (
+                <Link
+                  key={p.id}
+                  to={`/dashboard/catalogo/${p.id}`}
+                  className="group"
+                >
+                  <div className="aspect-square rounded-xl bg-[#F4F5F7] overflow-hidden">
+                    <img
+                      src={p.images[0]}
+                      alt={p.title}
+                      className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform"
+                    />
                   </div>
-                  <div>
-                    <div className="text-[14px] font-bold text-[#111]">{title}</div>
-                    <p className="mt-1 text-[12.5px] leading-[1.5] text-[#6B7280]">{desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* REVIEWS */}
-          <div className="px-8 py-8 border-t border-[#F1F2F4]">
-            <h2 className="text-[18px] font-extrabold tracking-tight text-[#111] uppercase mb-5">
-              Avaliações de clientes
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {reviews.map((r, i) => (
-                <div key={i} className="rounded-[12px] border border-[#E5E7EB] p-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-full bg-[#F4F5F7] flex items-center justify-center text-[11px] font-bold text-[#4B5563]">
-                      {r.initials}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: 5 }).map((_, k) => (
+                  <div className="mt-2">
+                    <div className="text-[13px] font-medium text-[#111] truncate">{p.title}</div>
+                    <div className="mt-0.5 flex items-center gap-1">
+                      {Array.from({ length: 5 }).map((_, i) => (
                         <Star
-                          key={k}
-                          size={11}
-                          className={
-                            k < r.rating
-                              ? "fill-[#F5B400] text-[#F5B400]"
-                              : "text-[#E5E7EB] fill-[#E5E7EB]"
-                          }
+                          key={i}
+                          size={10}
+                          className="fill-[#111] text-[#111]"
                         />
                       ))}
-                      <span className="ml-1 text-[11px] font-bold text-[#111]">{r.rating}</span>
+                      <span className="ml-1 text-[10.5px] text-[#6B7280]">
+                        ({Math.floor(20 + (p.id.charCodeAt(0) % 60))})
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-[14px] font-bold text-[#111]">
+                        {formatPrice(p.price)}
+                      </span>
+                      {p.originalPrice && (
+                        <span className="text-[11.5px] text-[#9CA3AF] line-through">
+                          {formatPrice(p.originalPrice)}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <p className="mt-2.5 text-[13px] font-semibold text-[#111] leading-snug">
-                    {r.comment}
-                  </p>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
+        )}
 
-          {/* FAQ */}
-          <div className="px-8 py-8 border-t border-[#F1F2F4]">
-            <h2 className="text-[18px] font-extrabold tracking-tight text-[#111] uppercase mb-2">
-              Perguntas frequentes
-            </h2>
-            <div>
-              <FAQItem
-                question="Qual o prazo de importação para minha loja?"
-                answer="A importação é processada e concluída rapidamente. Assim que confirmada, o produto fica disponível na sua conta para personalização e publicação."
-              />
-              <FAQItem
-                question="Esse produto tem garantia?"
-                answer="Sim. A garantia segue a política do fornecedor de origem contra defeitos de fabricação."
-              />
-              <FAQItem
-                question="Como funciona o frete?"
-                answer="Varia conforme dimensões e origem. O valor estimado é exibido durante a etapa de publicação do anúncio."
-              />
-            </div>
+        {/* FOOTER MINI */}
+        <div className="py-5 border-t border-[#F1F2F4] flex items-center justify-between text-[12px] text-[#6B7280]">
+          <div className="flex items-center gap-4">
+            <span className="font-medium text-[#4B5563]">Categorias</span>
+            <span>Ajuda</span>
+            <span>Pagamentos</span>
           </div>
-
-          {/* RELACIONADOS */}
-          {related.length > 0 && (
-            <div className="px-8 py-8 border-t border-[#F1F2F4]">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-[18px] font-extrabold tracking-tight text-[#111] uppercase">
-                  Produtos relacionados
-                </h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setRelatedIndex((c) => (c - 1 + related.length) % related.length)
-                    }
-                    className="h-8 w-8 rounded-full border border-[#E5E7EB] flex items-center justify-center text-[#111] hover:bg-[#F4F5F7]"
-                    aria-label="Anterior"
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRelatedIndex((c) => (c + 1) % related.length)}
-                    className="h-8 w-8 rounded-full border border-[#E5E7EB] flex items-center justify-center text-[#111] hover:bg-[#F4F5F7]"
-                    aria-label="Próximo"
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {relatedWindow.map((p) => (
-                  <Link
-                    key={p.id}
-                    to={`/dashboard/catalogo/${p.id}`}
-                    className="group"
-                  >
-                    <div className="aspect-square rounded-[12px] bg-[#F4F5F7] overflow-hidden">
-                      <img
-                        src={p.images[0]}
-                        alt={p.title}
-                        className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform"
-                      />
-                    </div>
-                    <div className="mt-2.5">
-                      <div className="text-[13px] font-bold text-[#111] truncate">{p.title}</div>
-                      <div className="mt-0.5 flex items-center gap-1">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            size={10}
-                            className="fill-[#F5B400] text-[#F5B400]"
-                          />
-                        ))}
-                        <span className="ml-1 text-[10.5px] text-[#6B7280]">
-                          ({Math.floor(20 + (p.id.charCodeAt(0) % 60))})
-                        </span>
-                      </div>
-                      <div className="mt-1 flex items-center gap-2">
-                        <span className="text-[14px] font-extrabold text-[#111]">
-                          {formatPrice(p.price)}
-                        </span>
-                        {p.originalPrice && (
-                          <span className="text-[11.5px] text-[#9CA3AF] line-through">
-                            {formatPrice(p.originalPrice)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* FOOTER MINI */}
-          <div className="px-8 py-5 border-t border-[#F1F2F4] flex items-center justify-between text-[11.5px] text-[#6B7280]">
-            <div className="flex items-center gap-4">
-              <span className="font-semibold text-[#111]">Categorias</span>
-              <span>Ajuda</span>
-              <span>Pagamentos</span>
-            </div>
-            <div className="flex items-center gap-3 text-[#9CA3AF]">
-              <span>Suporte 24/7</span>
-            </div>
+          <div className="flex items-center gap-3 text-[#9CA3AF]">
+            <span>Suporte 24/7</span>
           </div>
         </div>
+
       </div>
+
+      {/* MOCK: notificação decorativa de prova social, não reflete atividade real */}
+      {showSocialProof && (
+        <div className="fixed bottom-6 left-6 z-50 bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)] max-w-sm flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="w-10 h-10 rounded-full bg-[#F3F4F6] flex items-center justify-center text-[#4B5563] text-[13px] font-bold shrink-0">
+            {socialProof.initials}
+          </div>
+          <div className="flex-1 min-w-0 pr-4">
+            <p className="text-[12.5px] leading-snug text-[#4B5563]">
+              Lojista de <span className="font-semibold text-[#111]">{socialProof.city}</span> importou este produto há <span className="font-semibold text-[#111]">{socialProof.time}</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSocialProof(false)}
+            className="text-[#9CA3AF] hover:text-[#4B5563] transition-colors self-start"
+            aria-label="Fechar"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      <ImportProductModal
+        open={isImportModalOpen}
+        product={rawProduct}
+        onClose={() => setIsImportModalOpen(false)}
+      />
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
 
 type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
@@ -55,28 +55,39 @@ const IntegracoesPage = () => {
     }
 
     if (platformId === "mercadolivre" && user) {
+      const toastId = veloToast.loading("Conectando com o Mercado Livre...");
       const { data, error } = await supabase.functions.invoke("ml-connect");
       const authUrl = data?.authUrl ?? data?.auth_url;
       if (error || !authUrl) {
-        toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+        veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre", { id: toastId });
         return;
       }
+      veloToast.dismiss(toastId);
       window.location.href = authUrl;
     }
   };
 
   const handleDisconnect = async (platformId: string) => {
     if (!user) return;
-    await supabase
-      .from("user_integrations")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("platform", platformId);
-    setStatuses((prev) => {
-      const next = { ...prev };
-      delete next[platformId];
-      return next;
-    });
+    const toastId = veloToast.loading("Desconectando...");
+    try {
+      const { error } = await supabase
+        .from("user_integrations")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("platform", platformId);
+      
+      if (error) throw error;
+
+      setStatuses((prev) => {
+        const next = { ...prev };
+        delete next[platformId];
+        return next;
+      });
+      veloToast.success("Desconectado com sucesso.", { id: toastId });
+    } catch (err) {
+      veloToast.error("Não foi possível desconectar.", { id: toastId });
+    }
   };
 
   const getStatus = (p: PlatformCard): IntegrationStatus => {

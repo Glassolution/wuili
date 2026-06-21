@@ -1,9 +1,9 @@
-﻿import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Search, Download, Percent, ArrowUpRight, Copy, UserCheck, MoreHorizontal, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import {
@@ -455,15 +455,11 @@ const CommissionsPage = () => {
 
   const handleCopyLink = (link: string) => {
     navigator.clipboard.writeText(link);
-    toast.success("Link copiado!", {
-      description: link,
-    });
+    veloToast.success("Link copiado!");
   };
 
   const handleExport = () => {
-    toast.success("RelatÃ³rio exportado com sucesso!", {
-      description: "O arquivo CSV foi gerado e o download comeÃ§arÃ¡ em instantes.",
-    });
+    veloToast.success("Relatório exportado com sucesso!");
   };
 
   return (

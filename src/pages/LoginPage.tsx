@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, Loader2, Mail } from "lucide-react";
 
 /* ──────────────────────────────────────────────────────────
@@ -66,19 +66,23 @@ const LoginPage = () => {
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
+    const toastId = veloToast.loading("Conectando com o Google...");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/dashboard` },
     });
     if (error) {
       setGoogleLoading(false);
-      toast.error(error.message);
+      veloToast.error(error.message, { id: toastId });
+    } else {
+      veloToast.dismiss(toastId);
     }
   };
 
   const handleSignIn = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
+    const toastId = veloToast.loading("Entrando...");
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -86,23 +90,25 @@ const LoginPage = () => {
       });
 
       if (error) {
-        toast.error(
+        veloToast.error(
           error.message === "Invalid login credentials"
             ? "Email ou senha incorretos. Tente novamente."
             : error.message,
+          { id: toastId }
         );
         return;
       }
 
       if (data.session || data.user) {
+        veloToast.dismiss(toastId);
         navigate("/dashboard", { replace: true });
         return;
       }
 
-      toast.error("Não foi possível concluir o login. Tente novamente.");
+      veloToast.error("Não foi possível concluir o login. Tente novamente.", { id: toastId });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro inesperado ao entrar.";
-      toast.error(message);
+      veloToast.error(message, { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -111,14 +117,15 @@ const LoginPage = () => {
   const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
     if (nome.trim().length < 2) {
-      toast.error("Informe seu nome.");
+      veloToast.error("Informe seu nome.");
       return;
     }
     if (password.length < 8) {
-      toast.error("A senha precisa ter pelo menos 8 caracteres.");
+      veloToast.error("A senha precisa ter pelo menos 8 caracteres.");
       return;
     }
     setLoading(true);
+    const toastId = veloToast.loading("Criando conta...");
     const cleanEmail = email.trim();
     const { data, error } = await supabase.auth.signUp({
       email: cleanEmail,
@@ -130,10 +137,11 @@ const LoginPage = () => {
     });
     if (error) {
       setLoading(false);
-      toast.error(
+      veloToast.error(
         error.message === "User already registered"
           ? "Este e-mail já possui conta. Entre para continuar."
           : error.message,
+        { id: toastId }
       );
       return;
     }
@@ -142,7 +150,7 @@ const LoginPage = () => {
         .from("profiles")
         .update({ display_name: nome.trim() })
         .eq("user_id", data.user.id);
-      toast.success("Conta criada! Bem-vindo à Velo.");
+      veloToast.success("Conta criada com sucesso.", { id: toastId });
       navigate("/dashboard", { replace: true });
     }
   };
@@ -151,19 +159,20 @@ const LoginPage = () => {
     event.preventDefault();
     const cleanEmail = email.trim();
     if (!cleanEmail) {
-      toast.error("Digite seu email");
+      veloToast.error("Digite seu email");
       return;
     }
     setLoading(true);
+    const toastId = veloToast.loading("Enviando email de recuperação...");
     const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setLoading(false);
     if (error) {
-      toast.error(error.message);
+      veloToast.error(error.message, { id: toastId });
       return;
     }
-    toast.success("Email de recuperação enviado! Verifique sua caixa de entrada.");
+    veloToast.success("Email de recuperação enviado.", { id: toastId });
     setResetMode(false);
     setStep("initial");
   };
@@ -173,7 +182,7 @@ const LoginPage = () => {
   const handleEmailContinue = async () => {
     const cleanEmail = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-      toast.error("Digite um e-mail válido.");
+      veloToast.error("Digite um e-mail válido.");
       return;
     }
     setCheckingEmail(true);

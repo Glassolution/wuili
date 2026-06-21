@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   ChevronLeft,
@@ -9,6 +9,7 @@ import {
   Search,
   Star,
   AlertCircle,
+  Globe2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -130,7 +131,13 @@ export const ProductCard = ({
       }`}
     >
       <div className="relative aspect-square overflow-hidden bg-[#F6F6F7]">
-        <Link to={`/dashboard/catalogo/${product.id}`} className="block h-full w-full">
+        <Link
+          to={`/dashboard/catalogo/${product.id}`}
+          className="block h-full w-full"
+          onClick={() => {
+            veloToast.loading("Carregando produto...", { id: "loading-product" });
+          }}
+        >
           <img
             src={product.image_url}
             alt={product.nome}
@@ -160,7 +167,12 @@ export const ProductCard = ({
             compact ? "min-h-[40px] text-[14px]" : "min-h-[44px] text-[15px]"
           }`}
         >
-          <Link to={`/dashboard/catalogo/${product.id}`}>
+          <Link
+            to={`/dashboard/catalogo/${product.id}`}
+            onClick={() => {
+              veloToast.loading("Carregando produto...", { id: "loading-product" });
+            }}
+          >
             {product.nome}
           </Link>
         </h2>
@@ -249,6 +261,7 @@ const FilterDropdown = ({
 );
 
 const CatalogoPage = () => {
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("todos");
   const [currentPage, setCurrentPage] = useState(1);
   const [recommendationIndex, setRecommendationIndex] = useState(0);
@@ -313,7 +326,7 @@ const CatalogoPage = () => {
       id: p.id,
       nome: p.title || "Produto sem nome",
       categoria: p.category || "Produto",
-      preco: p.suggested_price || p.cost_price || 0,
+      preco: p.cost_price || 0,
       image_url: imgUrls[0],
       images: imgUrls,
       product_url: p.product_url,
@@ -488,15 +501,11 @@ const CatalogoPage = () => {
 
           <button
             type="button"
-            onClick={() => {
-              setCurrentPage(1);
-              setSearchQuery("");
-              setActiveCategory("todos");
-            }}
-            className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-[#D1D5DB] bg-white px-4 text-[14px] font-semibold text-[#111111] shadow-sm transition-all duration-200 hover:border-[#9CA3AF] hover:bg-[#FAFAFA] xl:ml-auto"
+            onClick={() => navigate("/dashboard/produtos")}
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5 xl:ml-auto"
           >
-            <RefreshCw size={16} strokeWidth={1.8} />
-            <span>Atualizar</span>
+            <Globe2 className="h-4 w-4" />
+            Open Site
           </button>
         </div>
 

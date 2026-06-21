@@ -1,8 +1,7 @@
 import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
+import { VeloToaster } from "@/components/ui/velo-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "@/lib/profileContext";
@@ -96,8 +95,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
-        <Toaster />
-        <Sonner position="top-center" expand={false} style={{ width: "100vw", left: 0, top: 0, transform: "none" }} />
+        <VeloToaster />
         <BrowserRouter>
           <Suspense fallback={<RouteFallback />}>
             <Routes>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, Cloud, Headphones, Loader2, UserRound } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -159,6 +159,7 @@ Como posso te ajudar hoje?`;
     }
 
     setTicketLoading(true);
+    const toastId = toast.loading("Acionando suporte humano...");
 
     try {
       if (ticket?.status === "open") {
@@ -173,7 +174,7 @@ Como posso te ajudar hoje?`;
           setTicket({ ...ticket, ai_active: false });
         }
         setHumanMode(true);
-        toast.success("Suporte humano acionado.");
+        toast.success("Suporte humano acionado.", { id: toastId });
         return ticket;
       }
 
@@ -202,7 +203,7 @@ Como posso te ajudar hoje?`;
         }
         setTicket(openTicket);
         setHumanMode(true);
-        toast.success("Suporte humano acionado.");
+        toast.success("Suporte humano acionado.", { id: toastId });
         return openTicket;
       }
 
@@ -218,11 +219,11 @@ Como posso te ajudar hoje?`;
       setTicket(newTicket);
       setSupportMessages([]);
       setHumanMode(true);
-      toast.success("Suporte humano acionado.");
+      toast.success("Suporte humano acionado.", { id: toastId });
       return newTicket;
     } catch (error) {
       console.error(error);
-      toast.error("Não foi possível abrir o suporte humano.");
+      toast.error("Não foi possível abrir o suporte humano.", { id: toastId });
       return null;
     } finally {
       setTicketLoading(false);
@@ -396,11 +397,10 @@ Como posso te ajudar hoje?`;
     else await sendAiMessage(text);
   };
 
-  const returnToAiSupport = async () => {
-    if (!ticket?.id || !user?.id || returningToAi) return;
-
+  const returnToAi = async () => {
+    if (!user || !ticket) return;
     setReturningToAi(true);
-
+    const toastId = toast.loading("Voltando ao suporte automático...");
     try {
       const { error } = await (supabase as any)
         .from("support_tickets")
@@ -418,10 +418,10 @@ Como posso te ajudar hoje?`;
         ...prev,
         { role: "assistant", content: "Você voltou ao suporte automático." },
       ]);
-      toast.success("Você voltou ao suporte automático.");
+      toast.success("Você voltou ao suporte automático.", { id: toastId });
     } catch (error) {
       console.error(error);
-      toast.error("Não foi possível voltar ao suporte automático.");
+      toast.error("Não foi possível voltar ao suporte automático.", { id: toastId });
     } finally {
       setReturningToAi(false);
     }

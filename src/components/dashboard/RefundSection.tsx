@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Loader2, XCircle, AlertTriangle, MessageCircle, Clock } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -83,7 +83,7 @@ const RefundSection = () => {
         setResult({ kind: "error", message: data?.error || data?.message || "Erro ao enviar solicitação." });
       } else {
         setResult({ kind: "success", message: data.message });
-        toast.success("Solicitação recebida!");
+        veloToast.success("Solicitação recebida!");
         load();
       }
     } catch (e) {
@@ -107,12 +107,12 @@ const RefundSection = () => {
       await (supabase as any).from("support_messages").insert({
         ticket_id: ticket.id, user_id: user.id, sender: "user", message: ctx,
       });
-      toast.success("Conectando você ao suporte...");
+      veloToast.success("Conectando você ao suporte...");
       closeModal();
       navigate("/dashboard/configuracoes?tab=Suporte");
     } catch (e) {
       console.error(e);
-      toast.error("Não foi possível abrir o chat de suporte.");
+      veloToast.error("Não foi possível abrir o chat de suporte.");
     }
   };
 

@@ -5,7 +5,7 @@ import { Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { VeloLogo } from "@/components/VeloLogo";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import { getLeadOrigin, trackOnboardingEvent, upsertOnboardingProfile } from "@/lib/onboardingAnalytics";
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
 
@@ -72,9 +72,9 @@ const SetupPage = () => {
   }, [finishing, navigate]);
 
   const handleNext = () => {
-    if (step === 1 && !category) return toast.error("Escolha uma categoria para continuar.");
-    if (step === 2 && !marketplace) return toast.error("Escolha um marketplace para continuar.");
-    if (step === 3 && !referralSource) return toast.error("Informe onde conheceu a Velo.");
+    if (step === 1 && !category) return veloToast.error("Escolha uma categoria para continuar.");
+    if (step === 2 && !marketplace) return veloToast.error("Escolha um marketplace para continuar.");
+    if (step === 3 && !referralSource) return veloToast.error("Informe onde conheceu a Velo.");
     if (step === 3) return handleFinish();
     setStep((s) => (s < 3 ? ((s + 1) as Step) : s));
   };
@@ -90,6 +90,7 @@ const SetupPage = () => {
 
     if (user) {
       setSaving(true);
+      const toastId = veloToast.loading("Salvando configurações...");
       try {
         // Dados PRINCIPAIS (não pode falhar)
         const { error } = await supabase
@@ -102,7 +103,7 @@ const SetupPage = () => {
 
         if (error) {
           console.error("[setup] erro ao salvar perfil:", { error, userId: user.id, payload });
-          toast.error("Não foi possível salvar seu perfil. Tente novamente.");
+          veloToast.error("Não foi possível salvar seu perfil. Tente novamente.", { id: toastId });
           return;
         }
 
@@ -143,6 +144,10 @@ const SetupPage = () => {
             payload: { category, marketplace, referral_source: referralSource },
           });
         }
+
+        veloToast.success("Configurações salvas com sucesso.", { id: toastId });
+      } catch (err) {
+        veloToast.error("Erro inesperado ao salvar perfil.", { id: toastId });
       } finally {
         setSaving(false);
       }
