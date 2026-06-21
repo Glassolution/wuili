@@ -385,11 +385,7 @@ const CatalogoPage = () => {
   return (
     <div className="-mt-5 min-h-full w-full overflow-visible sm:-mt-6 lg:-mt-7" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
       <section className="min-w-0 overflow-visible">
-        <div className="mb-3 flex justify-end">
-          <div className="text-[13px] text-[#6B7280]">
-            {totalCount} produtos
-          </div>
-        </div>
+
 
         <div
           ref={filterBarRef}
