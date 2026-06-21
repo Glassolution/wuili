@@ -334,6 +334,7 @@ const CatalogoPage = () => {
           .select("*", { count: "exact" })
           .in("source", ["b2drop", "c7drop"])
           .eq("is_blocked", false)
+          .gt("stock_quantity", 0)
           .order("created_at", { ascending: false })
           .range(start, end);
 
