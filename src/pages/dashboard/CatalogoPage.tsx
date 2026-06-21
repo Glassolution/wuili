@@ -381,37 +381,18 @@ const CatalogoPage = () => {
   };
 
   const getPageNumbers = () => {
-    const pages: Array<number | string> = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      pages.push(1);
-
-      if (currentPage > 3) {
-        pages.push("...");
-      }
-
-      let start = Math.max(2, currentPage - 1);
-      let end = Math.min(totalPages - 1, currentPage + 1);
-
-      if (currentPage <= 3) {
-        end = 4;
-      }
-      if (currentPage >= totalPages - 2) {
-        start = totalPages - 3;
-      }
-
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-
-      if (currentPage < totalPages - 2) {
-        pages.push("...");
-      }
-
-      pages.push(totalPages);
+    const pages: number[] = [];
+    const maxButtons = 5;
+    
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxButtons - 1);
+    
+    if (end - start + 1 < maxButtons) {
+      start = Math.max(1, end - maxButtons + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
     }
     return pages;
   };
@@ -541,33 +522,20 @@ const CatalogoPage = () => {
               <ChevronLeft size={16} strokeWidth={1.9} />
             </button>
 
-            {getPageNumbers().map((page, index) => {
-              if (page === "...") {
-                return (
-                  <span
-                    key={`ellipsis-${index}`}
-                    className="inline-flex h-10 min-w-10 items-center justify-center text-[13px] text-[#6B7280]"
-                  >
-                    ...
-                  </span>
-                );
-              }
-              const pageNumber = page as number;
-              return (
-                <button
-                  key={pageNumber}
-                  type="button"
-                  onClick={() => setCurrentPage(pageNumber)}
-                  className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full border px-3 text-[13px] font-medium transition-colors ${
-                    currentPage === pageNumber
-                      ? "border-[#D8D8DC] bg-[#F1F1F3] text-[#111111]"
-                      : "border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-[#F7F7F8] hover:text-[#111111]"
-                  }`}
-                >
-                  {pageNumber}
-                </button>
-              );
-            })}
+            {getPageNumbers().map((pageNumber) => (
+              <button
+                key={pageNumber}
+                type="button"
+                onClick={() => setCurrentPage(pageNumber)}
+                className={`inline-flex h-10 min-w-10 items-center justify-center rounded-full border px-3 text-[13px] font-medium transition-colors ${
+                  currentPage === pageNumber
+                    ? "border-[#D8D8DC] bg-[#F1F1F3] text-[#111111]"
+                    : "border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-[#F7F7F8] hover:text-[#111111]"
+                }`}
+              >
+                {pageNumber}
+              </button>
+            ))}
 
             <button
               type="button"
