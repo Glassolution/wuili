@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
       inserted,
       updated,
       blocked,
+      skipped_fake_ads: skippedFakeAds,
       ran_at: now,
     };
     console.log("[scrape-c7drop] Concluído:", JSON.stringify(summary));
