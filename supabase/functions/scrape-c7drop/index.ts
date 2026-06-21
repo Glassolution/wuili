@@ -27,13 +27,18 @@ type WCProduct = {
   prices?: {
     price?: string;            // em centavos (string)
     currency_minor_unit?: number;
+    price_range?: { min_amount?: string; max_amount?: string } | null;
   };
   images?: Array<{ src?: string; thumbnail?: string }>;
 };
 
 function parsePriceMinor(p: WCProduct): number {
-  const raw = p.prices?.price;
+  // C7Drop usa produto variável com duas opções de compra: "Atacado" (preço menor)
+  // e "Dropshipping" (preço maior). Para o modelo do Velo, sempre usamos o preço de
+  // dropshipping = max_amount do price_range. Produto simples não tem price_range,
+  // então caímos para prices.price.
   const unit = p.prices?.currency_minor_unit ?? 2;
+  const raw = p.prices?.price_range?.max_amount ?? p.prices?.price;
   if (!raw) return 0;
   const n = parseInt(raw, 10);
   if (isNaN(n)) return 0;
