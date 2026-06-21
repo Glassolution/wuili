@@ -14,7 +14,13 @@ type CategoryKey =
   | "eletronicos"
   | "moda"
   | "bijuterias"
-  | "decoracao";
+  | "decoracao"
+  | "bebe"
+  | "pet"
+  | "beleza"
+  | "saude"
+  | "esporte"
+  | "outros";
 
 interface Product {
   id: string;
@@ -36,7 +42,28 @@ const categories: Array<{
   { key: "moda", label: "Moda", shortLabel: "Moda" },
   { key: "bijuterias", label: "Bijuterias", shortLabel: "Bijuterias" },
   { key: "decoracao", label: "Decoração", shortLabel: "Decoração" },
+  { key: "bebe", label: "Bebê e Infantil", shortLabel: "Bebê" },
+  { key: "pet", label: "Pet", shortLabel: "Pet" },
+  { key: "beleza", label: "Beleza", shortLabel: "Beleza" },
+  { key: "saude", label: "Saúde e Bem-estar", shortLabel: "Saúde" },
+  { key: "esporte", label: "Esporte e Fitness", shortLabel: "Esporte" },
+  { key: "outros", label: "Outros", shortLabel: "Outros" },
 ];
+
+const categoryMap: Record<CategoryKey, string | null> = {
+  todos: null,
+  casa: "Casa",
+  eletronicos: "Eletrônicos",
+  moda: "Moda",
+  bijuterias: "Bijuterias",
+  decoracao: "Decoração",
+  bebe: "Bebê e Infantil",
+  pet: "Pet",
+  beleza: "Beleza",
+  saude: "Saúde e Bem-estar",
+  esporte: "Esporte e Fitness",
+  outros: "Outros",
+};
 
 const PRICE_OPTIONS = ["Todos os preços", "Até R$ 50", "R$ 50-150", "Acima de R$ 150"];
 const RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
@@ -230,6 +257,13 @@ const CatalogoPage = () => {
           .order("created_at", { ascending: false })
           .range(start, end);
 
+        if (activeCategory !== "todos") {
+          const dbCategory = categoryMap[activeCategory];
+          if (dbCategory) {
+            query = query.eq("category", dbCategory);
+          }
+        }
+
         if (searchQuery.trim()) {
           query = query.ilike("title", `%${searchQuery.trim()}%`);
         }
@@ -249,7 +283,7 @@ const CatalogoPage = () => {
     };
 
     fetchProducts();
-  }, [currentPage, searchQuery]);
+  }, [currentPage, searchQuery, activeCategory]);
 
   // Buscar recomendações
   useEffect(() => {
@@ -364,6 +398,7 @@ const CatalogoPage = () => {
             onClick={() => {
               setCurrentPage(1);
               setSearchQuery("");
+              setActiveCategory("todos");
             }}
             className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-2xl border border-[#D1D5DB] bg-white px-4 text-[14px] font-semibold text-[#111111] shadow-sm transition-all duration-200 hover:border-[#9CA3AF] hover:bg-[#FAFAFA] xl:ml-auto"
           >
@@ -390,7 +425,7 @@ const CatalogoPage = () => {
           </div>
         ) : products.length === 0 ? (
           <div className="flex h-40 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gray-50/30 p-6 text-center text-gray-500 w-full col-span-full">
-            <p className="font-medium">Nenhum produto encontrado.</p>
+            <p className="font-medium">Nenhum produto encontrado nesta categoria.</p>
           </div>
         ) : (
           <div className="grid h-auto grid-cols-1 gap-3 overflow-visible md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
