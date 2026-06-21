@@ -383,7 +383,7 @@ const CatalogoPage = () => {
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
 
   return (
-    <div className="-mt-5 min-h-full w-full overflow-visible sm:-mt-6 lg:-mt-7" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
+    <div className="pt-6 min-h-full w-full overflow-visible" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
       <section className="min-w-0 overflow-visible">
 
 
