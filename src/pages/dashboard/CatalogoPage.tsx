@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Search,
   Star,
+  AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -31,6 +32,7 @@ export interface Product {
   categoria: string;
   preco: number;
   image_url: string;
+  images: string[];
   product_url?: string | null;
 }
 
@@ -140,6 +142,16 @@ export const ProductCard = ({
         <span className="absolute left-4 top-4 rounded-full border border-[#E6E6E8] bg-white/95 px-2.5 py-1 text-[10px] font-semibold tracking-[-0.01em] text-[#111111] backdrop-blur-sm">
           {categoryLabel}
         </span>
+
+        {product.images && product.images.length < 3 && (
+          <span
+            title="Este produto tem menos de 3 fotos — pode ser recusado na publicação no ML"
+            className="absolute right-4 top-4 rounded-full border border-[#E6E6E8] bg-white/95 px-2 py-1 text-[9px] font-medium tracking-tight text-[#6B7280] backdrop-blur-sm flex items-center gap-1 cursor-help"
+          >
+            <AlertCircle size={10} className="text-[#6B7280]" />
+            <span>Fotos insuficientes</span>
+          </span>
+        )}
       </div>
 
       <div className={compact ? "p-3.5" : "p-4"}>
@@ -276,29 +288,34 @@ const CatalogoPage = () => {
   }, []);
 
   const mapProduct = (p: any): Product => {
-    let imgUrl = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop";
+    let imgUrls: string[] = [];
     if (p.images) {
-      if (Array.isArray(p.images) && p.images.length > 0) {
-        imgUrl = p.images[0];
+      if (Array.isArray(p.images)) {
+        imgUrls = p.images;
       } else if (typeof p.images === "string") {
         try {
           const parsed = JSON.parse(p.images);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            imgUrl = parsed[0];
+          if (Array.isArray(parsed)) {
+            imgUrls = parsed;
           } else {
-            imgUrl = p.images;
+            imgUrls = [p.images];
           }
         } catch {
-          imgUrl = p.images;
+          imgUrls = [p.images];
         }
       }
+    }
+    const defaultImage = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop";
+    if (imgUrls.length === 0) {
+      imgUrls = [defaultImage];
     }
     return {
       id: p.id,
       nome: p.title || "Produto sem nome",
       categoria: p.category || "Produto",
       preco: p.suggested_price || p.cost_price || 0,
-      image_url: imgUrl,
+      image_url: imgUrls[0],
+      images: imgUrls,
       product_url: p.product_url,
     };
   };

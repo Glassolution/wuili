@@ -213,7 +213,7 @@ const CatalogoProductDetailPage = () => {
     return Array.from({ length: Math.min(3, related.length) }, (_, o) => related[(relatedIndex + o) % related.length]);
   }, [related, relatedIndex]);
 
-  const thumbLabels = ["Visão principal", "Ângulo lateral", "Detalhe", "Em uso"];
+
 
   if (loading) {
     return (
@@ -243,8 +243,7 @@ const CatalogoProductDetailPage = () => {
     );
   }
 
-  const gallery = product.images.slice(0, 4);
-  while (gallery.length < 4) gallery.push(product.images[0]);
+  const gallery = product.images;
 
   return (
     <div
@@ -274,34 +273,36 @@ const CatalogoProductDetailPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* GALERIA */}
               <div>
-                <div className="aspect-square rounded-[14px] bg-[#F4F5F7] overflow-hidden flex items-center justify-center">
+                <div className="aspect-square rounded-[14px] bg-[#F4F5F7] overflow-hidden flex items-center justify-center border border-[#ECECEF]">
                   <img
-                    src={gallery[activeImg]}
+                    src={gallery[activeImg] || gallery[0] || FALLBACK_IMG}
                     alt={product.title}
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <div className="mt-3 grid grid-cols-4 gap-2">
-                  {gallery.map((src, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setActiveImg(i)}
-                      className="flex flex-col items-center"
-                    >
-                      <div
-                        className={`aspect-square w-full rounded-[10px] bg-[#F4F5F7] overflow-hidden border-2 transition-colors ${
-                          activeImg === i ? "border-[#111]" : "border-transparent"
-                        }`}
+                {gallery.length > 1 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {gallery.map((src, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setActiveImg(i)}
+                        className="flex flex-col items-center w-[72px]"
                       >
-                        <img src={src} alt="" className="h-full w-full object-cover" />
-                      </div>
-                      <span className="mt-1.5 text-[10.5px] text-[#6B7280] truncate w-full text-center">
-                        {thumbLabels[i]}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                        <div
+                          className={`aspect-square w-full rounded-[10px] bg-[#F4F5F7] overflow-hidden border-2 transition-colors ${
+                            activeImg === i ? "border-[#111]" : "border-transparent"
+                          }`}
+                        >
+                          <img src={src} alt="" className="h-full w-full object-cover" />
+                        </div>
+                        <span className="mt-1 text-[10px] text-[#6B7280] truncate w-full text-center">
+                          {i === 0 ? "Visão principal" : `Foto ${i + 1}`}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* INFO */}
