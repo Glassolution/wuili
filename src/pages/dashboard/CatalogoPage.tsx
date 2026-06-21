@@ -310,7 +310,7 @@ const CatalogoPage = () => {
         let query = supabase
           .from("catalog_products")
           .select("*", { count: "exact" })
-          .eq("source", "b2drop")
+          .in("source", ["b2drop", "c7drop"])
           .eq("is_blocked", false)
           .order("created_at", { ascending: false })
           .range(start, end);
@@ -350,7 +350,7 @@ const CatalogoPage = () => {
         const { data, error: fetchError } = await supabase
           .from("catalog_products")
           .select("*")
-          .eq("source", "b2drop")
+          .in("source", ["b2drop", "c7drop"])
           .eq("is_blocked", false)
           .limit(10);
 
