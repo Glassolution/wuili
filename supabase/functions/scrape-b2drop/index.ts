@@ -37,6 +37,29 @@ function isBlocked(title: string): boolean {
   return BLOCKLIST.some((w) => haystack.includes(w));
 }
 
+// Dicionário de categorias — ORDEM IMPORTA (primeira correspondência vence).
+// Palavras-chave já em minúsculas e sem acento (comparadas via stripAccents+toLowerCase).
+const CATEGORY_KEYWORDS: Array<{ category: string; keywords: string[] }> = [
+  { category: "Eletrônicos", keywords: ["fone", "bluetooth", "carregador", "cabo", "lanterna", "camera", "drone", "projetor", "caixa de som", "microfone", "ventilador eletrico", "ventilador", "umidificador", "gimbal", "mouse", "teclado", "controle", "joystick", "power bank"] },
+  { category: "Casa", keywords: ["organizador", "cesto", "sapateira", "suporte", "dispenser", "panela", "frigideira", "talher", "chaleira", "moedor", "aspirador", "esfregao", "mangueira", "porta-temperos", "porta temperos", "tabua", "descascador"] },
+  { category: "Moda", keywords: ["bolsa", "mochila", "short", "calca", "capa de chuva", "luva", "meia-calca", "meia calca", "necessaire"] },
+  { category: "Bijuterias", keywords: ["colar", "pulseira", "anel", "brinco", "porta-joias", "porta joias", "kit colares"] },
+  { category: "Decoração", keywords: ["luminaria", "cortina de led", "vela", "quadro", "enfeite", "astronauta"] },
+  { category: "Beleza", keywords: ["serum", "mousse facial", "esfoliante", "mascara facial", "creme", "body splash", "gloss", "locao", "protetor termico", "escova alisadora", "massageador facial"] },
+  { category: "Bebê e Infantil", keywords: ["infantil", "bebe", "mictorio", "mamadeira", "dosador de leite", "brinquedo", "beyblade", "boneco", "mini blocos de montar"] },
+  { category: "Saúde e Bem-estar", keywords: ["ortopedica", "joelheira", "cotoveleira", "tornozeleira", "monitor de pressao", "oximetro", "monitor fetal", "raspador de pe"] },
+  { category: "Esporte e Fitness", keywords: ["yoga", "elastico de exercicio", "hand grip", "faixa elastica", "hip resistance"] },
+  { category: "Pet", keywords: ["pet", "escova para pets", "racao", "capa banco pet"] },
+];
+
+function inferCategory(title: string): string {
+  const haystack = stripAccents(title).toLowerCase();
+  for (const { category, keywords } of CATEGORY_KEYWORDS) {
+    if (keywords.some((k) => haystack.includes(k))) return category;
+  }
+  return "Outros";
+}
+
 function parsePriceBRL(raw: string): number {
   // "R$ 1.234,56" -> 1234.56
   const cleaned = raw.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
