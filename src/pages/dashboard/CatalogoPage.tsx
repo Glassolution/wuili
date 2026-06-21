@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   ChevronDown,
   ChevronLeft,
@@ -24,7 +25,7 @@ type CategoryKey =
   | "esporte"
   | "outros";
 
-interface Product {
+export interface Product {
   id: string;
   nome: string;
   categoria: string;
@@ -70,14 +71,14 @@ const categoryMap: Record<CategoryKey, string | null> = {
 const PRICE_OPTIONS = ["Todos os preços", "Até R$ 50", "R$ 50-150", "Acima de R$ 150"];
 const RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
 
-const formatPrice = (price: number) =>
+export const formatPrice = (price: number) =>
   price.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
 
 // MOCK: avaliação simulada até termos dados reais de review
-function getMockRating(productId: string) {
+export function getMockRating(productId: string) {
   // gera um número pseudo-aleatório mas estável, baseado no id do produto
   let hash = 0;
   for (let i = 0; i < productId.length; i++) {
@@ -88,7 +89,7 @@ function getMockRating(productId: string) {
   return { rating, reviewCount };
 }
 
-const formatReviewCount = (count: number) => {
+export const formatReviewCount = (count: number) => {
   if (count >= 1000) {
     return `${(count / 1000).toFixed(1)}k`;
   }
@@ -105,7 +106,7 @@ const ProductCardSkeleton = () => (
   </div>
 );
 
-const ProductCard = ({
+export const ProductCard = ({
   product,
   categoryLabel,
   isFavorited,
@@ -127,12 +128,14 @@ const ProductCard = ({
       }`}
     >
       <div className="relative aspect-square overflow-hidden bg-[#F6F6F7]">
-        <img
-          src={product.image_url}
-          alt={product.nome}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
+        <Link to={`/dashboard/catalogo/${product.id}`} className="block h-full w-full">
+          <img
+            src={product.image_url}
+            alt={product.nome}
+            className="h-full w-full object-cover cursor-pointer"
+            loading="lazy"
+          />
+        </Link>
 
         <span className="absolute left-4 top-4 rounded-full border border-[#E6E6E8] bg-white/95 px-2.5 py-1 text-[10px] font-semibold tracking-[-0.01em] text-[#111111] backdrop-blur-sm">
           {categoryLabel}
@@ -141,11 +144,13 @@ const ProductCard = ({
 
       <div className={compact ? "p-3.5" : "p-4"}>
         <h2
-          className={`line-clamp-2 font-semibold tracking-[-0.025em] text-[#111111] ${
+          className={`line-clamp-2 font-semibold tracking-[-0.025em] text-[#111111] hover:text-[#2563EB] transition-colors ${
             compact ? "min-h-[40px] text-[14px]" : "min-h-[44px] text-[15px]"
           }`}
         >
-          {product.nome}
+          <Link to={`/dashboard/catalogo/${product.id}`}>
+            {product.nome}
+          </Link>
         </h2>
 
         <div className="mt-2 flex items-center gap-1.5 text-[12px] text-[#6B7280]">

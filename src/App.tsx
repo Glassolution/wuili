@@ -20,6 +20,7 @@ const RefCapturePage = lazy(() => import("./pages/RefCapturePage"));
 const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout"));
 const CatalogPage = lazy(() => import("./pages/dashboard/CatalogPage"));
 const CatalogoPage = lazy(() => import("./pages/dashboard/CatalogoPage"));
+const CatalogoProductDetailPage = lazy(() => import("./pages/dashboard/CatalogoProductDetailPage"));
 const OrdersPage = lazy(() => import("./pages/dashboard/OrdersPage"));
 const PublicationsPage = lazy(() => import("./pages/dashboard/PublicationsPage"));
 const ProductDetailPage = lazy(() => import("./pages/dashboard/ProductDetailPage"));
@@ -117,6 +118,7 @@ const App = () => (
               <Route path="/dashboard" element={<DashboardShell />}>
                 <Route index element={<DashboardHomePage />} />
                 <Route path="catalogo" element={<CatalogoPage />} />
+                <Route path="catalogo/:id" element={<CatalogoProductDetailPage />} />
                 <Route path="produtos-ml" element={<ProdutosMLPage />} />
                 <Route path="saldos" element={<SaldosPage />} />
                 <Route path="transacoes" element={<TransacoesPage />} />
