@@ -7,7 +7,6 @@ import {
   Box,
   CalendarDays,
   ChevronRight,
-  Globe2,
   MoreHorizontal,
   Package,
   Search,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import ProductScoutAI from "@/components/dashboard/ProductScoutAI";
 
 type ProfileRow = {
   display_name: string | null;
@@ -293,14 +293,7 @@ const DashboardHomePage = () => {
       <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-5 px-1 py-1 sm:px-3 lg:px-0">
         <header className="flex items-center justify-between gap-4">
           <h1 className="text-[26px] font-semibold leading-none tracking-[-0.045em] text-[#111111]">Hello, {name}!</h1>
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/produtos")}
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5"
-          >
-            <Globe2 className="h-4 w-4" />
-            Open Site
-          </button>
+          <ProductScoutAI onOpenProduct={(productId) => navigate(`/dashboard/catalogo/${productId}`)} />
         </header>
 
         <section className="flex items-center justify-between gap-4 rounded-[14px] border border-black/[0.06] bg-white px-4 py-3">

@@ -1,7 +1,7 @@
 import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { VeloToaster } from "@/components/ui/velo-toast";
+import { VeloLoadingPill, VeloToaster } from "@/components/ui/velo-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "@/lib/profileContext";
@@ -58,7 +58,7 @@ const queryClient = new QueryClient({
 
 const RouteFallback = () => (
   <div className="flex min-h-screen items-center justify-center bg-background">
-    <div className="h-7 w-7 animate-spin rounded-full border-4 border-black border-t-transparent" />
+    <VeloLoadingPill message="Carregando..." />
   </div>
 );
 

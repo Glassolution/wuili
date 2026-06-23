@@ -417,7 +417,7 @@ const DashboardLayoutInner = () => {
   const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
   const [storesHydrated, setStoresHydrated] = useState(false);
   const [showStoreOnboarding, setShowStoreOnboarding] = useState(false);
-  const hasOnboarded = user ? hasCompletedStoreOnboarding(user.id) : false;
+  const [shouldAutoShowStoreOnboarding, setShouldAutoShowStoreOnboarding] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -442,24 +442,16 @@ const DashboardLayoutInner = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!user) return;
-    if (!storesHydrated) return;
-    if (stores.length !== 0) return;
-    if (hasCompletedStoreOnboarding(user.id)) return;
-    // Marcar como "visto" para não reaparecer a cada login/logout
-    markStoreOnboardingCompleted(user.id);
-  }, [user, storesHydrated, stores.length]);
-
-
-  useEffect(() => {
     if (!user) {
       setStoresHydrated(false);
+      setShouldAutoShowStoreOnboarding(false);
       return;
     }
 
     const localStores = readUserStores();
     if (localStores.length > 0) {
       setStores(localStores);
+      setShouldAutoShowStoreOnboarding(false);
       setStoresHydrated(true);
       return;
     }
@@ -472,7 +464,13 @@ const DashboardLayoutInner = () => {
         return;
       }
 
-      const buildStore = (profile: any): VeloStore | null => {
+      const buildStore = (profile: {
+        store_name: string | null;
+        loja_nome: string | null;
+        display_name: string | null;
+        whatsapp: string | null;
+        onboarding_completed: boolean;
+      } | null): VeloStore | null => {
         const storeName = String(profile?.store_name || profile?.loja_nome || "").trim();
         const completed = Boolean(profile?.onboarding_completed || storeName);
         if (!completed) return null;
@@ -480,9 +478,9 @@ const DashboardLayoutInner = () => {
         return {
           id: `profile-${user.id}`,
           name: storeName || "Minha Loja",
-          ownerName: String(profile?.display_name || profile?.nome || user.user_metadata?.full_name || user.email || "").trim(),
-          cpf: String(profile?.cpf || ""),
-          phone: String(profile?.whatsapp || profile?.phone || ""),
+          ownerName: String(profile?.display_name || user.user_metadata?.full_name || user.email || "").trim(),
+          cpf: "",
+          phone: String(profile?.whatsapp || ""),
           source: "Perfil salvo",
           businessType: "Loja online",
           goal: "Publicar produtos",
@@ -494,18 +492,18 @@ const DashboardLayoutInner = () => {
       };
 
       try {
-        const byUserId = await (supabase as any)
+        const byUserId = await supabase
           .from("profiles")
-          .select("store_name,loja_nome,display_name,nome,cpf,whatsapp,phone,onboarding_completed")
+          .select("store_name,loja_nome,display_name,whatsapp,onboarding_completed")
           .eq("user_id", user.id)
           .maybeSingle();
 
         let profile = byUserId.data;
 
         if (!profile) {
-          const byId = await (supabase as any)
+          const byId = await supabase
             .from("profiles")
-            .select("store_name,loja_nome,display_name,nome,cpf,whatsapp,phone,onboarding_completed")
+            .select("store_name,loja_nome,display_name,whatsapp,onboarding_completed")
             .eq("id", user.id)
             .maybeSingle();
           profile = byId.data;
@@ -516,6 +514,20 @@ const DashboardLayoutInner = () => {
           saveUserStores([restoredStore]);
           setStores([restoredStore]);
           markStoreOnboardingCompleted(user.id);
+          setShouldAutoShowStoreOnboarding(false);
+        } else if (!cancelled) {
+          const createdAt = new Date(user.created_at).getTime();
+          const lastSignInAt = new Date(user.last_sign_in_at || "").getTime();
+          const isFirstSignIn =
+            Number.isFinite(createdAt) &&
+            Number.isFinite(lastSignInAt) &&
+            Math.abs(lastSignInAt - createdAt) <= 10 * 60 * 1000;
+          const explicitlyPending = user.user_metadata?.velo_onboarding_pending === true;
+          const alreadyHandled = hasCompletedStoreOnboarding(user.id);
+          const shouldShow = !alreadyHandled && (explicitlyPending || isFirstSignIn);
+
+          setShouldAutoShowStoreOnboarding(shouldShow);
+          if (!shouldShow) markStoreOnboardingCompleted(user.id);
         }
       } catch (error) {
         console.warn("[DashboardLayout] não foi possível restaurar a loja salva:", error);
@@ -529,7 +541,7 @@ const DashboardLayoutInner = () => {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user]);
 
   const persistCompletedStore = async (store: VeloStore) => {
     if (!user || !isSupabaseEnabled) return;
@@ -537,19 +549,18 @@ const DashboardLayoutInner = () => {
     const payload = {
       store_name: store.name,
       loja_nome: store.name,
-      nome: store.ownerName,
-      cpf: store.cpf,
+      display_name: store.ownerName,
       whatsapp: store.phone,
       onboarding_completed: true,
     };
 
-    const updateByUserId = await (supabase as any)
+    const updateByUserId = await supabase
       .from("profiles")
       .update(payload)
       .eq("user_id", user.id);
 
     if (updateByUserId.error) {
-      const updateById = await (supabase as any)
+      const updateById = await supabase
         .from("profiles")
         .update(payload)
         .eq("id", user.id);
@@ -557,6 +568,13 @@ const DashboardLayoutInner = () => {
       if (updateById.error) {
         console.warn("[DashboardLayout] não foi possível salvar a loja no perfil:", updateById.error);
       }
+    }
+
+    const { error: metadataError } = await supabase.auth.updateUser({
+      data: { velo_onboarding_pending: false },
+    });
+    if (metadataError) {
+      console.warn("[DashboardLayout] não foi possível concluir o primeiro acesso no Auth:", metadataError);
     }
   };
   useEffect(() => {
@@ -620,13 +638,14 @@ const DashboardLayoutInner = () => {
             <Outlet />
           </MobileDashboardChrome>
           {storesHydrated &&
-            ((stores.length === 0 && !hasOnboarded) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
+            ((stores.length === 0 && shouldAutoShowStoreOnboarding) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
             <FirstStoreOnboarding
               defaultName={user.user_metadata?.full_name ?? user.email}
               existingStores={stores}
               onComplete={(store) => {
                 void persistCompletedStore(store);
                 markStoreOnboardingCompleted(user.id);
+                setShouldAutoShowStoreOnboarding(false);
                 setStores(readUserStores());
                 setShowStoreOnboarding(false);
                 veloToast.success("Loja criada com sucesso.", {
@@ -685,13 +704,14 @@ const DashboardLayoutInner = () => {
         </div>
       </div>
       {storesHydrated &&
-        ((stores.length === 0 && !hasOnboarded) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
+        ((stores.length === 0 && shouldAutoShowStoreOnboarding) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
         <FirstStoreOnboarding
           defaultName={user.user_metadata?.full_name ?? user.email}
           existingStores={stores}
           onComplete={(store) => {
             void persistCompletedStore(store);
             markStoreOnboardingCompleted(user.id);
+            setShouldAutoShowStoreOnboarding(false);
             setStores(readUserStores());
             setShowStoreOnboarding(false);
             veloToast.success("Loja criada com sucesso.", {

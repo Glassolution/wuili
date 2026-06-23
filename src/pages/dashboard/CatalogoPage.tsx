@@ -9,9 +9,12 @@ import {
   Search,
   Star,
   AlertCircle,
-  Globe2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import ProductScoutAI from "@/components/dashboard/ProductScoutAI";
+import type { Database, Json } from "@/integrations/supabase/types";
+
+type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
 type CategoryKey =
   | "todos"
@@ -80,6 +83,26 @@ export const formatPrice = (price: number) =>
     currency: "BRL",
   });
 
+const getProductImages = (images: Json | null): string[] => {
+  if (!images) return [];
+  if (Array.isArray(images)) {
+    return images.filter((image): image is string => typeof image === "string");
+  }
+
+  if (typeof images === "string") {
+    try {
+      const parsed: unknown = JSON.parse(images);
+      return Array.isArray(parsed)
+        ? parsed.filter((image): image is string => typeof image === "string")
+        : [images];
+    } catch {
+      return [images];
+    }
+  }
+
+  return [];
+};
+
 // MOCK: avaliação simulada até termos dados reais de review
 export function getMockRating(productId: string) {
   // gera um número pseudo-aleatório mas estável, baseado no id do produto
@@ -135,7 +158,11 @@ export const ProductCard = ({
           to={`/dashboard/catalogo/${product.id}`}
           className="block h-full w-full"
           onClick={() => {
-            veloToast.loading("Carregando produto...", { id: "loading-product" });
+            veloToast.loading("Carregando produto...", {
+              id: `loading-product-${product.id}`,
+              fullscreen: true,
+              minDuration: 3000,
+            });
           }}
         >
           <img
@@ -170,7 +197,11 @@ export const ProductCard = ({
           <Link
             to={`/dashboard/catalogo/${product.id}`}
             onClick={() => {
-              veloToast.loading("Carregando produto...", { id: "loading-product" });
+              veloToast.loading("Carregando produto...", {
+                id: `loading-product-${product.id}`,
+                fullscreen: true,
+                minDuration: 3000,
+              });
             }}
           >
             {product.nome}
@@ -300,24 +331,8 @@ const CatalogoPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const mapProduct = (p: any): Product => {
-    let imgUrls: string[] = [];
-    if (p.images) {
-      if (Array.isArray(p.images)) {
-        imgUrls = p.images;
-      } else if (typeof p.images === "string") {
-        try {
-          const parsed = JSON.parse(p.images);
-          if (Array.isArray(parsed)) {
-            imgUrls = parsed;
-          } else {
-            imgUrls = [p.images];
-          }
-        } catch {
-          imgUrls = [p.images];
-        }
-      }
-    }
+  const mapProduct = (p: CatalogProductRow): Product => {
+    let imgUrls = getProductImages(p.images);
     const defaultImage = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop";
     if (imgUrls.length === 0) {
       imgUrls = [defaultImage];
@@ -368,7 +383,7 @@ const CatalogoPage = () => {
 
         setProducts((data || []).map(mapProduct));
         setTotalCount(count || 0);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Erro ao buscar produtos do catálogo:", err);
         setError("Não foi possível carregar o catálogo agora.");
       } finally {
@@ -422,7 +437,7 @@ const CatalogoPage = () => {
     const maxButtons = 5;
     
     let start = Math.max(1, currentPage - 2);
-    let end = Math.min(totalPages, start + maxButtons - 1);
+    const end = Math.min(totalPages, start + maxButtons - 1);
     
     if (end - start + 1 < maxButtons) {
       start = Math.max(1, end - maxButtons + 1);
@@ -499,14 +514,9 @@ const CatalogoPage = () => {
 
           <div className="hidden xl:block xl:flex-1" />
 
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/produtos")}
-            className="inline-flex h-11 items-center gap-2 rounded-full bg-[#111111] px-5 text-[13px] font-semibold text-white transition-transform duration-200 hover:-translate-y-0.5 xl:ml-auto"
-          >
-            <Globe2 className="h-4 w-4" />
-            Open Site
-          </button>
+          <div className="xl:ml-auto">
+            <ProductScoutAI onOpenProduct={(productId) => navigate(`/dashboard/catalogo/${productId}`)} />
+          </div>
         </div>
 
         {isLoading ? (

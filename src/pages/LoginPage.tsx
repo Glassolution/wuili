@@ -58,57 +58,84 @@ const LoginPage = () => {
   const passwordRef = useRef<HTMLInputElement>(null);
   const nomeRef = useRef<HTMLInputElement>(null);
 
-  if (!authLoading && user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   /* ── Auth handlers ── */
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
-    const toastId = veloToast.loading("Conectando com o Google...");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/dashboard` },
+    const toastId = veloToast.loading("Conectando com o Google...", {
+      fullscreen: true,
+      minDuration: 3000,
     });
-    if (error) {
-      setGoogleLoading(false);
-      veloToast.error(error.message, { id: toastId });
-    } else {
+
+    try {
+      const [result] = await Promise.all([
+        supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${window.location.origin}/dashboard`,
+            skipBrowserRedirect: true,
+          },
+        }),
+        veloToast.waitForMinimum(toastId),
+      ]);
+
       veloToast.dismiss(toastId);
+      if (result.error) {
+        veloToast.error(result.error.message);
+        setGoogleLoading(false);
+        return;
+      }
+
+      if (result.data.url) {
+        window.location.assign(result.data.url);
+        return;
+      }
+
+      veloToast.error("Não foi possível iniciar o acesso com o Google.");
+      setGoogleLoading(false);
+    } catch (error) {
+      await veloToast.waitForMinimum(toastId);
+      veloToast.dismiss(toastId);
+      veloToast.error(error instanceof Error ? error.message : "Erro inesperado ao entrar com o Google.");
+      setGoogleLoading(false);
     }
   };
 
   const handleSignIn = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    const toastId = veloToast.loading("Entrando...");
+    const toastId = veloToast.loading("Entrando...", { fullscreen: true, minDuration: 3000 });
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      const [{ data, error }] = await Promise.all([
+        supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        }),
+        veloToast.waitForMinimum(toastId),
+      ]);
+
+      veloToast.dismiss(toastId);
 
       if (error) {
         veloToast.error(
           error.message === "Invalid login credentials"
             ? "Email ou senha incorretos. Tente novamente."
             : error.message,
-          { id: toastId }
         );
         return;
       }
 
       if (data.session || data.user) {
-        veloToast.dismiss(toastId);
         navigate("/dashboard", { replace: true });
         return;
       }
 
-      veloToast.error("Não foi possível concluir o login. Tente novamente.", { id: toastId });
+      veloToast.error("Não foi possível concluir o login. Tente novamente.");
     } catch (error) {
+      await veloToast.waitForMinimum(toastId);
+      veloToast.dismiss(toastId);
       const message = error instanceof Error ? error.message : "Erro inesperado ao entrar.";
-      veloToast.error(message, { id: toastId });
+      veloToast.error(message);
     } finally {
       setLoading(false);
     }
@@ -125,23 +152,26 @@ const LoginPage = () => {
       return;
     }
     setLoading(true);
-    const toastId = veloToast.loading("Criando conta...");
+    const toastId = veloToast.loading("Criando conta...", { fullscreen: true, minDuration: 3000 });
     const cleanEmail = email.trim();
-    const { data, error } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password,
-      options: {
-        data: { full_name: nome.trim() },
-        emailRedirectTo: `${window.location.origin}/setup`,
-      },
-    });
+    const [{ data, error }] = await Promise.all([
+      supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: { full_name: nome.trim(), velo_onboarding_pending: true },
+          emailRedirectTo: `${window.location.origin}/setup`,
+        },
+      }),
+      veloToast.waitForMinimum(toastId),
+    ]);
+    veloToast.dismiss(toastId);
     if (error) {
       setLoading(false);
       veloToast.error(
         error.message === "User already registered"
           ? "Este e-mail já possui conta. Entre para continuar."
           : error.message,
-        { id: toastId }
       );
       return;
     }
@@ -150,7 +180,7 @@ const LoginPage = () => {
         .from("profiles")
         .update({ display_name: nome.trim() })
         .eq("user_id", data.user.id);
-      veloToast.success("Conta criada com sucesso.", { id: toastId });
+      veloToast.success("Conta criada com sucesso.");
       navigate("/dashboard", { replace: true });
     }
   };
@@ -214,6 +244,10 @@ const LoginPage = () => {
     }
   }, [step]);
 
+  if (!authLoading && user && !loading && !googleLoading) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   /* ── Render ── */
 
   return (
@@ -228,24 +262,7 @@ const LoginPage = () => {
         Voltar
       </button>
 
-      {googleLoading ? (
-        <div className="w-full max-w-[420px] rounded-2xl bg-white p-9 shadow-sm text-center">
-          <h1 className="text-[22px] font-semibold tracking-[-0.03em] text-[#111111]">
-            Entrando com Google
-          </h1>
-          <div className="mx-auto mt-10 grid h-12 w-12 place-items-center rounded-full border border-[#e5e7eb]">
-            <Loader2 className="h-6 w-6 animate-spin text-[#111111]" />
-          </div>
-          <button
-            type="button"
-            onClick={() => setGoogleLoading(false)}
-            className="mt-10 h-12 w-full rounded-xl bg-[#2a2a2a] text-[15px] font-semibold text-white transition hover:bg-[#333333]"
-          >
-            Cancelar
-          </button>
-        </div>
-      ) : (
-        <div className="w-full max-w-[420px] rounded-2xl bg-white px-8 py-10 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.04)]">
+      <div className="w-full max-w-[420px] rounded-2xl bg-white px-8 py-10 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.04)]">
           {/* Ícone preto centralizado */}
           <div className="flex justify-center mb-7">
             <div className="flex h-[56px] w-[56px] items-center justify-center rounded-[14px] bg-[#0a0a0a]">
@@ -516,8 +533,7 @@ const LoginPage = () => {
               )}
             </>
           )}
-        </div>
-      )}
+      </div>
     </main>
   );
 };
