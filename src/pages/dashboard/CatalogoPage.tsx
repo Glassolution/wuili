@@ -11,7 +11,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import ProductScoutAI from "@/components/dashboard/ProductScoutAI";
+import ProductScoutAI, { type AtlasResults } from "@/components/dashboard/ProductScoutAI";
+import { veloToast } from "@/components/ui/velo-toast";
 import type { Database, Json } from "@/integrations/supabase/types";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
