@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import {
-  Home,
+  House,
   Users,
   Store,
   Package,
@@ -37,6 +37,7 @@ import {
   Plug,
   Edit2,
   Trash2,
+  Inbox,
 } from "lucide-react";
 import StartModeModal from "./StartModeModal";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -57,9 +58,9 @@ const sidebarFont = '"SF Pro Text", "Helvetica Neue", "Inter Variable", "Inter",
 
 const IconSpan = ({
   icon: Icon,
-  size = 17,
-  strokeWidth = 1.8,
-  color,
+  size = 20,
+  strokeWidth = 1.5,
+  color = "#18181B",
 }: {
   icon: React.ElementType;
   size?: number;
@@ -85,51 +86,46 @@ const NavLinkRow = ({
   <Link
     to={item.to}
     className={cn(
-      "sidebar-item group relative flex items-center overflow-hidden transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none",
-      collapsed ? "group w-full h-[32px] justify-center p-0 m-0" : "px-2.5"
+      "sidebar-item group relative flex items-center overflow-hidden transition-all duration-300 ease-out",
+      collapsed ? "group w-full h-[32px] justify-center p-0 m-0" : "px-2.5",
+      active && !collapsed ? "bg-[#E4E4E7]" : "bg-transparent"
     )}
     title={collapsed ? item.label : undefined}
     style={{
       fontFamily: sidebarFont,
       fontSize: collapsed ? undefined : "13.5px",
-      fontWeight: collapsed ? undefined : active ? 550 : 400,
+      fontWeight: collapsed ? undefined : active ? 600 : 400,
       lineHeight: collapsed ? undefined : "20px",
       letterSpacing: collapsed ? undefined : "-0.018em",
       height: collapsed ? undefined : "38px",
       gap: collapsed ? undefined : "10px",
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
-      background: active && !collapsed ? "#F4F4F5" : "transparent",
-      border: "none",
-      outline: "none",
-      boxShadow: "none",
+      border: active && !collapsed ? "1px solid #D4D4D8" : "1px solid transparent",
+      boxShadow: active && !collapsed ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
     }}
   >
     {collapsed ? (
       <div 
-        className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out"
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
+          active ? "bg-[#E4E4E7]" : "bg-transparent"
+        )}
         style={{
-          background: active ? "#F4F4F5" : "transparent",
-          border: "none",
-          outline: "none",
+          border: active ? "1px solid #D4D4D8" : "1px solid transparent",
+          boxShadow: active ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
         }}
       >
-        <span className={cn(
-          "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
-          active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF]"
-        )}>
-          <IconSpan icon={item.icon} size={active ? 15 : 17} strokeWidth={active ? 1.6 : 1.5} color="currentColor" />
+        <span className="grid h-7 w-7 place-items-center bg-transparent">
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color="#18181B" />
         </span>
       </div>
     ) : (
       <div className="relative z-10 flex items-center gap-2.5 pl-0.5">
-        <span className={cn(
-          "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
-          active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF] group-hover:text-[#6B7280]"
-        )}>
-          <IconSpan icon={item.icon} size={active ? 15 : 17} strokeWidth={active ? 1.6 : 1.5} color="currentColor" />
+        <span className="grid h-7 w-7 place-items-center bg-transparent">
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color="#18181B" />
         </span>
-        <span style={{ color: active ? "#000000" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">
+        <span style={{ color: active ? "#18181B" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">
           {item.label}
         </span>
       </div>
@@ -155,14 +151,15 @@ const NavGroupRow = ({
     type="button"
     onClick={onToggle}
     className={cn(
-      "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none",
-      collapsed ? "group h-[32px] justify-center p-0 m-0" : "px-2.5"
+      "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out",
+      collapsed ? "group h-[32px] justify-center p-0 m-0" : "px-2.5",
+      groupActiveCompact && !collapsed ? "bg-[#E4E4E7]" : "bg-transparent"
     )}
     title={collapsed ? item.label : undefined}
     style={{
       fontFamily: collapsed ? undefined : sidebarFont,
       fontSize: collapsed ? undefined : "13.5px",
-      fontWeight: collapsed ? undefined : groupActiveCompact ? 550 : 400,
+      fontWeight: collapsed ? undefined : groupActiveCompact ? 600 : 400,
       lineHeight: collapsed ? undefined : "20px",
       letterSpacing: collapsed ? undefined : "-0.018em",
       textTransform: collapsed ? undefined : "none",
@@ -171,37 +168,31 @@ const NavGroupRow = ({
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
       cursor: "pointer",
-      background: groupActiveCompact && !collapsed ? "#F4F4F5" : "transparent",
-      border: "none",
-      outline: "none",
-      boxShadow: "none",
+      border: groupActiveCompact && !collapsed ? "1px solid #D4D4D8" : "1px solid transparent",
+      boxShadow: groupActiveCompact && !collapsed ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
     }}
   >
     {collapsed ? (
       <div 
-        className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out"
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
+          groupActiveCompact ? "bg-[#E4E4E7]" : "bg-transparent"
+        )}
         style={{
-          background: groupActiveCompact ? "#F4F4F5" : "transparent",
-          border: "none",
-          outline: "none",
+          border: groupActiveCompact ? "1px solid #D4D4D8" : "1px solid transparent",
+          boxShadow: groupActiveCompact ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
         }}
       >
-        <span className={cn(
-          "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
-          groupActiveCompact ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF]"
-        )}>
-          <IconSpan icon={item.icon} size={groupActiveCompact ? 15 : 17} strokeWidth={groupActiveCompact ? 1.6 : 1.5} color="currentColor" />
+        <span className="grid h-7 w-7 place-items-center bg-transparent">
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color="#18181B" />
         </span>
       </div>
     ) : (
       <>
-        <span className={cn(
-          "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
-          groupActiveCompact ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF] group-hover:text-[#6B7280]"
-        )}>
-          <IconSpan icon={item.icon} size={groupActiveCompact ? 15 : 17} strokeWidth={groupActiveCompact ? 1.6 : 1.5} color="currentColor" />
+        <span className="grid h-7 w-7 place-items-center bg-transparent">
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color="#18181B" />
         </span>
-        <span className="flex-1 text-left transition-colors duration-200 group-hover:text-[#111827]" style={{ color: groupActiveCompact ? "#000000" : "#4B5563" }}>
+        <span className="flex-1 text-left transition-colors duration-200 group-hover:text-[#111827]" style={{ color: groupActiveCompact ? "#18181B" : "#4B5563" }}>
           {item.label}
         </span>
         {item.trailing === "plus" ? (
@@ -233,11 +224,16 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
   return (
     <Link
       to={sub.to}
-      className="sidebar-item relative flex items-center transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none"
+      className={cn(
+        "sidebar-item relative flex items-center transition-all duration-300 ease-out",
+        subActive
+          ? "bg-[#E4E4E7]"
+          : "bg-transparent"
+      )}
       style={{ 
         fontFamily: sidebarFont, 
         fontSize: "13px", 
-        fontWeight: subActive ? 550 : 400, 
+        fontWeight: subActive ? 600 : 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em", 
         height: "32px", 
@@ -246,14 +242,12 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
         paddingRight: "10px",
         borderRadius: "10px",
         flexShrink: 0,
-        background: subActive ? "#F4F4F5" : "transparent",
-        border: "none",
-        outline: "none",
-        boxShadow: "none",
+        border: subActive ? "1px solid #D4D4D8" : "1px solid transparent",
+        boxShadow: subActive ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
       }}
     >
-      {SubIcon && <IconSpan icon={SubIcon} size={15} strokeWidth={1.5} color={subActive ? "#000000" : "#9CA3AF"} />}
-      <span style={{ color: subActive ? "#000000" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">{sub.label}</span>
+      {SubIcon && <IconSpan icon={SubIcon} size={20} strokeWidth={1.5} color="#18181B" />}
+      <span style={{ color: subActive ? "#18181B" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">{sub.label}</span>
     </Link>
   );
 };
@@ -273,20 +267,19 @@ const FooterLinkRow = ({
 }) => {
   if (collapsed) {
     return (
-      <Link to={to} className="sidebar-item group relative flex h-[32px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none" title={label}>
+      <Link to={to} className="sidebar-item group relative flex h-[32px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
         <div 
-          className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out"
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
+            active ? "bg-[#E4E4E7]" : "bg-transparent"
+          )}
           style={{
-            background: active ? "#F4F4F5" : "transparent",
-            border: "none",
-            outline: "none",
+            border: active ? "1px solid #D4D4D8" : "1px solid transparent",
+            boxShadow: active ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
           }}
         >
-          <span className={cn(
-            "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
-            active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF]"
-          )}>
-            <IconSpan icon={icon} size={active ? 15 : 17} strokeWidth={active ? 1.6 : 1.5} color="currentColor" />
+          <span className="grid h-7 w-7 place-items-center bg-transparent">
+            <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
           </span>
         </div>
       </Link>
@@ -295,11 +288,14 @@ const FooterLinkRow = ({
   return (
     <Link
       to={to}
-      className="sidebar-item relative flex items-center transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none"
+      className={cn(
+        "sidebar-item relative flex items-center transition-all duration-300 ease-out",
+        active ? "bg-[#E4E4E7]" : "bg-transparent"
+      )}
       style={{ 
         fontFamily: sidebarFont, 
         fontSize: "13.5px", 
-        fontWeight: active ? 550 : 400, 
+        fontWeight: active ? 600 : 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em",
         height: "38px",
@@ -308,19 +304,14 @@ const FooterLinkRow = ({
         paddingRight: "10px",
         borderRadius: "12px",
         flexShrink: 0,
-        background: active ? "#F4F4F5" : "transparent",
-        border: "none",
-        outline: "none",
-        boxShadow: "none",
+        border: active && !collapsed ? "1px solid #D4D4D8" : "1px solid transparent",
+        boxShadow: active && !collapsed ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
       }}
     >
-      <span className={cn(
-        "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
-        active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF] group-hover:text-[#6B7280]"
-      )}>
-        <IconSpan icon={icon} size={active ? 15 : 17} strokeWidth={active ? 1.6 : 1.5} color="currentColor" />
+      <span className="grid h-7 w-7 place-items-center bg-transparent">
+        <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
       </span>
-      <span style={{ color: active ? "#000000" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">{label}</span>
+      <span style={{ color: active ? "#18181B" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">{label}</span>
     </Link>
   );
 };
@@ -344,7 +335,7 @@ const FooterButtonRow = ({
     return (
       <button type="button" onClick={onClick} className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" style={{ background: "transparent", border: "none", cursor: "pointer" }} title={label}>
         <span className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out hover:bg-white/40">
-          <IconSpan icon={icon} size={17} strokeWidth={1.5} color="#9CA3AF" />
+          <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
         </span>
       </button>
     );
@@ -353,7 +344,7 @@ const FooterButtonRow = ({
     <button
       type="button"
       onClick={onClick}
-      className="sidebar-item relative flex w-full items-center bg-transparent transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none"
+      className="sidebar-item relative flex w-full items-center bg-transparent transition-all duration-300 ease-out"
       style={{ 
         fontFamily: sidebarFont, 
         fontSize: "13.5px", 
@@ -367,12 +358,10 @@ const FooterButtonRow = ({
         borderRadius: "12px",
         background: "transparent",
         cursor: "pointer",
-        border: "none",
-        outline: "none",
       }}
     >
-      <span className="grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300 text-[#9CA3AF] group-hover:text-[#6B7280]">
-        <IconSpan icon={icon} size={17} strokeWidth={1.5} color="currentColor" />
+      <span className="grid h-7 w-7 place-items-center rounded-[8px] text-[#18181B]">
+        <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
       </span>
       <span className="flex-1 text-left transition-colors duration-200 group-hover:text-[#111827]" style={{ color: "#4B5563" }}>{label}</span>
       {children}
@@ -397,7 +386,7 @@ const FooterAnchorRow = ({
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
         <span className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out hover:bg-white/40">
-          <IconSpan icon={icon} size={17} strokeWidth={1.5} color="#9CA3AF" />
+          <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
         </span>
       </a>
     );
@@ -407,7 +396,7 @@ const FooterAnchorRow = ({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="sidebar-item relative flex items-center transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none"
+      className="sidebar-item relative flex items-center transition-all duration-300 ease-out"
       style={{ 
         fontFamily: sidebarFont, 
         fontSize: "13.5px", 
@@ -420,12 +409,10 @@ const FooterAnchorRow = ({
         paddingRight: "10px",
         borderRadius: "12px",
         flexShrink: 0,
-        border: "none",
-        outline: "none",
       }}
     >
-      <span className="grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300 text-[#9CA3AF] group-hover:text-[#6B7280]">
-        <IconSpan icon={icon} size={17} strokeWidth={1.5} color="currentColor" />
+      <span className="grid h-7 w-7 place-items-center rounded-[8px] text-[#18181B]">
+        <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
       </span>
       <span className="whitespace-nowrap transition-colors duration-200 group-hover:text-[#111827]" style={{ color: "#4B5563" }}>{label}</span>
     </a>
@@ -443,7 +430,7 @@ type NavGroup =
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
 const nav: NavGroup[] = [
-  { kind: "link", to: "/dashboard", icon: Home, label: "Home" },
+  { kind: "link", to: "/dashboard", icon: House, label: "Home" },
   { kind: "link", to: "/dashboard/catalogo", icon: Package, label: "Catálogo" },
   { kind: "link", to: "/dashboard/produtos-ml", icon: ShoppingBag, label: "Produtos no ML" },
   { kind: "link", to: "/dashboard/configuracoes", icon: Settings, label: "Configurações" },
@@ -452,7 +439,7 @@ const nav: NavGroup[] = [
 const otherNav: NavGroup[] = [
   { kind: "link", to: "/dashboard/documentation", icon: FileText, label: "Documentação" },
   { kind: "link", to: "/dashboard/refer", icon: Users, label: "Indicar amigo" },
-  { kind: "link", to: "/dashboard/inbox", icon: MessageSquare, label: "Caixa de entrada" },
+  { kind: "link", to: "/dashboard/inbox", icon: Inbox, label: "Caixa de entrada" },
   { kind: "link", to: "/dashboard/support", icon: MessageCircle, label: "Suporte" },
 ];
 
@@ -738,15 +725,15 @@ const SidebarSearch = ({ collapsed }: { collapsed: boolean }) => {
 
   return (
     <div className="px-4">
-      <div className="group flex h-[36px] items-center gap-2 rounded-full bg-black/[0.025] px-3.5 border border-black/[0.04] transition-all duration-300 ease-out focus-within:bg-black/[0.035] focus-within:border-black/[0.08]">
-        <Search size={15} strokeWidth={1.5} className="shrink-0 text-[#9CA3AF]" />
+      <div className="group flex h-[36px] items-center gap-2 rounded-[10px] bg-black/[0.045] px-3.5 border border-[#E4E4E7] transition-all duration-300 ease-out focus-within:bg-black/[0.06] focus-within:border-[#D1D5DB]">
+        <Search size={15} strokeWidth={1.5} className="shrink-0 text-[#6B7280]" />
         <span
-          className="min-w-0 flex-1 truncate text-[13px] leading-[18px] text-[#8B95A5]"
+          className="min-w-0 flex-1 truncate text-[13px] leading-[18px] text-[#4B5563]"
           style={{ fontFamily: sidebarFont, fontWeight: 400, letterSpacing: "-0.012em" }}
         >
           Buscar...
         </span>
-        <span className="rounded-[6px] bg-black/[0.04] px-1.5 py-0.5 text-[9px] font-medium leading-none text-[#8B95A5]">
+        <span className="rounded-[4px] bg-black/[0.08] px-1.5 py-0.5 text-[9px] font-semibold leading-none text-[#1F2937] border border-black/[0.02]">
           ⌘F
         </span>
       </div>
@@ -1432,7 +1419,7 @@ const DashboardSidebar = () => {
         )}
       </div>
 
-      <div className="relative z-10 mt-1">
+      <div className="relative z-10 mt-3">
         <SidebarSearch collapsed={collapsed} />
       </div>
 
@@ -1440,9 +1427,9 @@ const DashboardSidebar = () => {
       <div
         className={cn(
           "relative z-10 flex flex-1 flex-col overflow-y-auto",
-          collapsed ? "items-center gap-2 pt-2 px-0" : "gap-2.5 px-4"
+          collapsed ? "items-center gap-1.5 pt-2 px-0" : "gap-[4px] px-4"
         )}
-        style={!collapsed ? { paddingTop: "14px", paddingBottom: "10px", minHeight: 0 } : { paddingTop: "12px", minHeight: 0 }}
+        style={!collapsed ? { paddingTop: "24px", paddingBottom: "10px", minHeight: 0 } : { paddingTop: "16px", minHeight: 0 }}
       >
         {!collapsed && (
           <div
@@ -1490,8 +1477,8 @@ const DashboardSidebar = () => {
         {!collapsed && (
           <>
             <div
-              className="px-3 pt-4 pb-0.5 text-[10px] font-semibold uppercase text-[#8A8FA3]/60"
-              style={{ fontFamily: sidebarFont, letterSpacing: "0.15em" }}
+              className="px-3 pt-0 pb-1 text-[10px] font-semibold uppercase text-[#8A8FA3]/60"
+              style={{ fontFamily: sidebarFont, letterSpacing: "0.15em", marginTop: "16px" }}
             >
               Outros
             </div>
@@ -1530,14 +1517,8 @@ const DashboardSidebar = () => {
         )}
       </div>}
 
-      {!collapsed && (
-        <div className="relative z-10 shrink-0 px-4 pt-1">
-          <SidebarBoostCard variant="white" onUpgrade={() => navigate("/checkout")} />
-        </div>
-      )}
-
       {/* Divisória 3 - Acima da conta do usuário */}
-      <div className={cn("relative z-10 shrink-0", collapsed ? "px-2" : "px-4")} style={{ margin: "10px 0 8px" }}>
+      <div className={cn("relative z-10 shrink-0", collapsed ? "px-2" : "px-4")} style={{ margin: "14px 0 8px" }}>
         <div className="h-[1px] w-full bg-white/70 shadow-[0_1px_0_rgba(15,23,42,0.05)]" />
       </div>
 
