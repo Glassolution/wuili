@@ -363,12 +363,34 @@ const CatalogoPage = () => {
     };
   };
 
-  // Buscar produtos principais paginados
+  // Buscar produtos principais paginados (ou resultados do Atlas)
   useEffect(() => {
     const fetchProducts = async () => {
       setIsLoading(true);
       setError(null);
       try {
+        // Modo Atlas: substitui o grid pelos IDs retornados, preservando a ordem
+        if (atlasResults) {
+          if (atlasResults.ids.length === 0) {
+            setProducts([]);
+            setTotalCount(0);
+            return;
+          }
+          const { data, error: fetchError } = await supabase
+            .from("catalog_products")
+            .select("*")
+            .in("id", atlasResults.ids);
+          if (fetchError) throw fetchError;
+          const byId = new Map((data || []).map((p) => [p.id, p]));
+          const ordered = atlasResults.ids
+            .map((id) => byId.get(id))
+            .filter((p): p is CatalogProductRow => Boolean(p))
+            .map(mapProduct);
+          setProducts(ordered);
+          setTotalCount(ordered.length);
+          return;
+        }
+
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
         const end = start + ITEMS_PER_PAGE - 1;
 
@@ -407,7 +429,8 @@ const CatalogoPage = () => {
     };
 
     fetchProducts();
-  }, [currentPage, searchQuery, activeCategory]);
+  }, [currentPage, searchQuery, activeCategory, atlasResults]);
+
 
   // Buscar recomendações
   useEffect(() => {
