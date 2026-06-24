@@ -86,48 +86,47 @@ const NavLinkRow = ({
     to={item.to}
     className={cn(
       "sidebar-item group relative flex items-center overflow-hidden transition-all duration-300 ease-out",
-      collapsed ? "group w-full h-[34px] justify-center p-0 m-0" : "px-3",
-      active && !collapsed
-        ? "border-[rgba(15,23,42,0.12)] bg-[linear-gradient(180deg,rgba(243,244,246,0.95)_0%,rgba(229,231,235,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_4px_12px_rgba(15,23,42,0.05)]"
-        : "border-transparent",
-      !active && !collapsed
-        ? "hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_24px_rgba(15,23,42,0.03)]"
-        : ""
+      collapsed ? "group w-full h-[32px] justify-center p-0 m-0" : "px-2.5",
+      active && !collapsed ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]" : "bg-transparent"
     )}
     title={collapsed ? item.label : undefined}
     style={{
       fontFamily: sidebarFont,
       fontSize: collapsed ? undefined : "13.5px",
-      fontWeight: collapsed ? undefined : 560,
+      fontWeight: collapsed ? undefined : active ? 550 : 400,
       lineHeight: collapsed ? undefined : "20px",
       letterSpacing: collapsed ? undefined : "-0.018em",
-      height: collapsed ? undefined : "42px",
-      gap: collapsed ? undefined : "12px",
-      borderRadius: collapsed ? undefined : "18px",
+      height: collapsed ? undefined : "38px",
+      gap: collapsed ? undefined : "10px",
+      borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
-      borderWidth: collapsed ? undefined : 1,
-      borderStyle: collapsed ? undefined : "solid",
     }}
   >
-    {active && !collapsed && (
-      <>
-        <span className="pointer-events-none absolute inset-x-[18px] top-0 h-[12px] rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.9)_0%,rgba(255,255,255,0)_100%)]" />
-        <span className="pointer-events-none absolute inset-0 rounded-[17px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.45)]" />
-      </>
-    )}
     {collapsed ? (
       <div className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-[14px] border transition-all duration-300 ease-out",
+        "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
         active
-          ? "border-[rgba(15,23,42,0.12)] bg-[linear-gradient(180deg,rgba(243,244,246,0.95)_0%,rgba(229,231,235,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_4px_12px_rgba(15,23,42,0.05)]"
-          : "border-transparent group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
+          ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]"
+          : "bg-transparent"
       )}>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={active ? "#0F172A" : "#6B7280"} />
+        <span className={cn(
+          "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
+          active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF]"
+        )}>
+          <IconSpan icon={item.icon} size={active ? 15 : 17} strokeWidth={active ? 1.6 : 1.5} color="currentColor" />
+        </span>
       </div>
     ) : (
-      <div className="relative z-10 flex items-center gap-3 pl-0.5">
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={active ? "#0F172A" : "#6B7280"} />
-        <span style={{ color: active ? "#0F172A" : "#172033" }}>{item.label}</span>
+      <div className="relative z-10 flex items-center gap-2.5 pl-0.5">
+        <span className={cn(
+          "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
+          active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF] group-hover:text-[#6B7280]"
+        )}>
+          <IconSpan icon={item.icon} size={active ? 15 : 17} strokeWidth={active ? 1.6 : 1.5} color="currentColor" />
+        </span>
+        <span style={{ color: active ? "#000000" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">
+          {item.label}
+        </span>
       </div>
     )}
   </Link>
@@ -152,49 +151,53 @@ const NavGroupRow = ({
     onClick={onToggle}
     className={cn(
       "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out",
-      collapsed ? "group h-[34px] justify-center p-0 m-0" : "px-3",
-      groupActiveCompact && !collapsed
-        ? "border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(243,244,246,0.88)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_26px_rgba(15,23,42,0.12)]"
-        : "border-transparent",
-      !groupActiveCompact && !collapsed
-        ? "hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_10px_24px_rgba(15,23,42,0.08)]"
-        : ""
+      collapsed ? "group h-[32px] justify-center p-0 m-0" : "px-2.5",
+      groupActiveCompact && !collapsed ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]" : "bg-transparent"
     )}
     title={collapsed ? item.label : undefined}
     style={{
       fontFamily: collapsed ? undefined : sidebarFont,
       fontSize: collapsed ? undefined : "13.5px",
-      fontWeight: collapsed ? undefined : 560,
+      fontWeight: collapsed ? undefined : groupActiveCompact ? 550 : 400,
       lineHeight: collapsed ? undefined : "20px",
       letterSpacing: collapsed ? undefined : "-0.018em",
       textTransform: collapsed ? undefined : "none",
-      height: collapsed ? undefined : "42px",
-      gap: collapsed ? undefined : "12px",
-      borderRadius: collapsed ? undefined : "18px",
+      height: collapsed ? undefined : "38px",
+      gap: collapsed ? undefined : "10px",
+      borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
-      background: (groupActiveCompact && !collapsed) ? undefined : "transparent",
-      borderWidth: collapsed ? undefined : 1,
-      borderStyle: collapsed ? undefined : "solid",
       cursor: "pointer",
     }}
   >
     {collapsed ? (
       <div className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-[14px] border transition-all duration-300 ease-out",
+        "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
         groupActiveCompact
-          ? "border-[rgba(255,255,255,0.76)] bg-[linear-gradient(180deg,rgba(255,255,255,0.78)_0%,rgba(243,244,246,0.92)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_24px_rgba(15,23,42,0.16)]"
-          : "border-transparent group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
+          ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]"
+          : "bg-transparent"
       )}>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={groupActiveCompact ? "#0F172A" : "#6B7280"} />
+        <span className={cn(
+          "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
+          groupActiveCompact ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF]"
+        )}>
+          <IconSpan icon={item.icon} size={groupActiveCompact ? 15 : 17} strokeWidth={groupActiveCompact ? 1.6 : 1.5} color="currentColor" />
+        </span>
       </div>
     ) : (
       <>
-        <IconSpan icon={item.icon} size={18} strokeWidth={1.65} color={groupActiveCompact ? "#0F172A" : "#6B7280"} />
-        <span className="flex-1 text-left" style={{ color: "#172033" }}>{item.label}</span>
+        <span className={cn(
+          "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
+          groupActiveCompact ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF] group-hover:text-[#6B7280]"
+        )}>
+          <IconSpan icon={item.icon} size={groupActiveCompact ? 15 : 17} strokeWidth={groupActiveCompact ? 1.6 : 1.5} color="currentColor" />
+        </span>
+        <span className="flex-1 text-left transition-colors duration-200 group-hover:text-[#111827]" style={{ color: groupActiveCompact ? "#000000" : "#4B5563" }}>
+          {item.label}
+        </span>
         {item.trailing === "plus" ? (
-          <Plus size={15} strokeWidth={1.8} className="shrink-0" style={{ color: "#6B7280" }} />
+          <Plus size={15} strokeWidth={1.5} className="shrink-0 text-[#9CA3AF] group-hover:text-[#6B7280]" />
         ) : (
-          <ChevronDown size={14} strokeWidth={1.8} className={cn("shrink-0 transition-transform duration-200", isOpen ? "rotate-180" : "rotate-0")} style={{ color: "#6B7280" }} />
+          <ChevronDown size={14} strokeWidth={1.5} className={cn("shrink-0 transition-transform duration-200 text-[#9CA3AF] group-hover:text-[#6B7280]", isOpen ? "rotate-180" : "rotate-0")} />
         )}
       </>
     )}
@@ -221,27 +224,27 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
     <Link
       to={sub.to}
       className={cn(
-        "sidebar-item relative flex items-center border transition-all duration-300 ease-out",
+        "sidebar-item relative flex items-center transition-all duration-300 ease-out",
         subActive
-          ? "border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(243,244,246,0.88)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_24px_rgba(15,23,42,0.12)]"
-          : "border-transparent hover:border-[rgba(255,255,255,0.5)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.5)_100%)]"
+          ? "bg-white shadow-[0_2px_6px_rgba(15,23,42,0.025)]"
+          : "bg-transparent"
       )}
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "12.75px", 
-        fontWeight: 550, 
+        fontSize: "13px", 
+        fontWeight: subActive ? 550 : 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em", 
-        height: "34px", 
+        height: "32px", 
         gap: "10px",
-        paddingLeft: "34px",
-        paddingRight: "12px",
-        borderRadius: "16px",
+        paddingLeft: "42px",
+        paddingRight: "10px",
+        borderRadius: "10px",
         flexShrink: 0,
       }}
     >
-      {SubIcon && <IconSpan icon={SubIcon} size={16} strokeWidth={1.65} color={subActive ? "#0F172A" : "#6B7280"} />}
-      <span style={{ color: subActive ? "#0F172A" : "#172033" }}>{sub.label}</span>
+      {SubIcon && <IconSpan icon={SubIcon} size={15} strokeWidth={1.5} color={subActive ? "#000000" : "#9CA3AF"} />}
+      <span style={{ color: subActive ? "#000000" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">{sub.label}</span>
     </Link>
   );
 };
@@ -261,14 +264,17 @@ const FooterLinkRow = ({
 }) => {
   if (collapsed) {
     return (
-      <Link to={to} className="sidebar-item group relative flex h-[34px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
+      <Link to={to} className="sidebar-item group relative flex h-[32px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
         <div className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-[14px] border transition-all duration-300 ease-out",
-          active
-            ? "border-[rgba(15,23,42,0.12)] bg-[linear-gradient(180deg,rgba(243,244,246,0.95)_0%,rgba(229,231,235,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_4px_12px_rgba(15,23,42,0.05)]"
-            : "border-transparent group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
+          "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
+          active ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]" : "bg-transparent"
         )}>
-          <IconSpan icon={icon} size={17} strokeWidth={1.65} color={active ? "#0F172A" : "#6B7280"} />
+          <span className={cn(
+            "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
+            active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF]"
+          )}>
+            <IconSpan icon={icon} size={active ? 15 : 17} strokeWidth={active ? 1.6 : 1.5} color="currentColor" />
+          </span>
         </div>
       </Link>
     );
@@ -277,26 +283,30 @@ const FooterLinkRow = ({
     <Link
       to={to}
       className={cn(
-        "sidebar-item relative flex items-center border transition-all duration-300 ease-out",
-        active
-          ? "border-[rgba(15,23,42,0.12)] bg-[linear-gradient(180deg,rgba(243,244,246,0.95)_0%,rgba(229,231,235,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_4px_12px_rgba(15,23,42,0.05)]"
-          : "border-transparent hover:border-[rgba(255,255,255,0.5)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.5)_100%)]"
+        "sidebar-item relative flex items-center transition-all duration-300 ease-out",
+        active ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]" : "bg-transparent"
       )}
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "12.75px", 
-        fontWeight: 550, 
+        fontSize: "13.5px", 
+        fontWeight: active ? 550 : 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em",
-        height: "36px",
+        height: "38px",
         gap: "10px",
-        paddingLeft: "12px",
-        paddingRight: "12px",
-        borderRadius: "16px"
+        paddingLeft: "10px",
+        paddingRight: "10px",
+        borderRadius: "12px",
+        flexShrink: 0,
       }}
     >
-      <IconSpan icon={icon} size={17} strokeWidth={1.65} color={active ? "#0F172A" : "#6B7280"} />
-      <span style={{ color: active ? "#0F172A" : "#172033" }}>{label}</span>
+      <span className={cn(
+        "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
+        active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF] group-hover:text-[#6B7280]"
+      )}>
+        <IconSpan icon={icon} size={active ? 15 : 17} strokeWidth={active ? 1.6 : 1.5} color="currentColor" />
+      </span>
+      <span style={{ color: active ? "#000000" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">{label}</span>
     </Link>
   );
 };
@@ -319,8 +329,8 @@ const FooterButtonRow = ({
   if (collapsed) {
     return (
       <button type="button" onClick={onClick} className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" style={{ background: "transparent", border: "none", cursor: "pointer" }} title={label}>
-        <span className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]">
-          <IconSpan icon={icon} size={17} strokeWidth={1.65} color={color} />
+        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out hover:bg-white/40">
+          <IconSpan icon={icon} size={17} strokeWidth={1.5} color="#9CA3AF" />
         </span>
       </button>
     );
@@ -329,24 +339,26 @@ const FooterButtonRow = ({
     <button
       type="button"
       onClick={onClick}
-      className="sidebar-item relative flex w-full items-center border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.5)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.5)_100%)]"
+      className="sidebar-item relative flex w-full items-center bg-transparent transition-all duration-300 ease-out"
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "12.75px", 
-        fontWeight: 550, 
+        fontSize: "13.5px", 
+        fontWeight: 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em",
-        height: "36px",
+        height: "38px",
         gap: "10px",
-        paddingLeft: "12px",
-        paddingRight: "12px",
-        borderRadius: "16px",
+        paddingLeft: "10px",
+        paddingRight: "10px",
+        borderRadius: "12px",
         background: "transparent",
         cursor: "pointer",
       }}
     >
-      <IconSpan icon={icon} size={17} strokeWidth={1.65} color={color} />
-      <span className="flex-1 text-left" style={{ color: "#111827" }}>{label}</span>
+      <span className="grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300 text-[#9CA3AF] group-hover:text-[#6B7280]">
+        <IconSpan icon={icon} size={17} strokeWidth={1.5} color="currentColor" />
+      </span>
+      <span className="flex-1 text-left transition-colors duration-200 group-hover:text-[#111827]" style={{ color: "#4B5563" }}>{label}</span>
       {children}
     </button>
   );
@@ -368,8 +380,8 @@ const FooterAnchorRow = ({
   if (collapsed) {
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
-        <span className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out group-hover:border-[rgba(255,255,255,0.54)] group-hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]">
-          <IconSpan icon={icon} size={17} strokeWidth={1.65} color={color} />
+        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out hover:bg-white/40">
+          <IconSpan icon={icon} size={17} strokeWidth={1.5} color="#9CA3AF" />
         </span>
       </a>
     );
@@ -379,22 +391,25 @@ const FooterAnchorRow = ({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="sidebar-item relative flex items-center border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.5)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.5)_100%)]"
+      className="sidebar-item relative flex items-center transition-all duration-300 ease-out"
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "12.75px", 
-        fontWeight: 550, 
+        fontSize: "13.5px", 
+        fontWeight: 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em",
-        height: "36px",
+        height: "38px",
         gap: "10px",
-        paddingLeft: "12px",
-        paddingRight: "12px",
-        borderRadius: "16px"
+        paddingLeft: "10px",
+        paddingRight: "10px",
+        borderRadius: "12px",
+        flexShrink: 0,
       }}
     >
-      <IconSpan icon={icon} size={17} strokeWidth={1.65} color={color} />
-      <span className="whitespace-nowrap" style={{ color: "#111827" }}>{label}</span>
+      <span className="grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300 text-[#9CA3AF] group-hover:text-[#6B7280]">
+        <IconSpan icon={icon} size={17} strokeWidth={1.5} color="currentColor" />
+      </span>
+      <span className="whitespace-nowrap transition-colors duration-200 group-hover:text-[#111827]" style={{ color: "#4B5563" }}>{label}</span>
     </a>
   );
 };
@@ -425,6 +440,20 @@ const otherNav: NavGroup[] = [
 
 const ADMIN_EMAILS = new Set(["xavierluisfelipe12@gmail.com"]);
 const AFFILIATE_EMAILS = new Set(["engelmannmatheus64@gmail.com"]);
+
+type SidebarRoleQueryResult = {
+  data?: Record<string, string | null> | null;
+};
+
+type SidebarRoleClient = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (column: string, value: string) => {
+        maybeSingle: () => Promise<SidebarRoleQueryResult>;
+      };
+    };
+  };
+};
 
 // ── Velo Mark (logo icon only) ────────────────────────────────────────────────
 
@@ -680,33 +709,28 @@ const SidebarSearch = ({ collapsed }: { collapsed: boolean }) => {
       <div className="px-2">
         <button
           type="button"
-          className="flex h-8 w-full items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.68)] bg-[linear-gradient(180deg,rgba(255,255,255,0.68)_0%,rgba(243,244,246,0.76)_100%)] text-[#6B7280] shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_20px_rgba(15,23,42,0.05)] backdrop-blur-[16px] transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.82)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(243,244,246,0.9)_100%)]"
+          className="flex h-8 w-full items-center justify-center rounded-[10px] bg-transparent text-[#9CA3AF] transition-all duration-300 ease-out hover:bg-white/60"
           title="Buscar"
         >
-          <Search size={17} strokeWidth={1.7} />
+          <Search size={16} strokeWidth={1.5} />
         </button>
       </div>
     );
   }
 
   return (
-      <div className="px-3">
-      <div className="group flex h-[44px] items-center gap-2.5 rounded-[18px] border border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.7)_0%,rgba(243,244,246,0.82)_100%)] px-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-[18px] transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.84)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.82)_0%,rgba(243,244,246,0.92)_100%)] focus-within:border-[rgba(255,255,255,0.86)] focus-within:bg-[linear-gradient(180deg,rgba(255,255,255,0.82)_0%,rgba(243,244,246,0.94)_100%)]">
-        <Search size={16} strokeWidth={1.65} className="shrink-0 text-[#6B7280]" />
+    <div className="px-4">
+      <div className="group flex h-[36px] items-center gap-2 rounded-full bg-black/[0.025] px-3.5 border border-black/[0.04] transition-all duration-300 ease-out focus-within:bg-black/[0.035] focus-within:border-black/[0.08]">
+        <Search size={15} strokeWidth={1.5} className="shrink-0 text-[#9CA3AF]" />
         <span
-          className="min-w-0 flex-1 truncate text-[13px] leading-[17px] text-[#6B7280]"
-          style={{ fontFamily: sidebarFont, fontWeight: 540, letterSpacing: "-0.014em" }}
+          className="min-w-0 flex-1 truncate text-[13px] leading-[18px] text-[#8B95A5]"
+          style={{ fontFamily: sidebarFont, fontWeight: 400, letterSpacing: "-0.012em" }}
         >
           Buscar...
         </span>
-        <div className="flex gap-1">
-          <span className="rounded-[8px] border border-white/70 bg-white/70 px-2 py-1 text-[10px] font-semibold leading-none text-[#4B5563] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-[10px]">
-            ⌘
-          </span>
-          <span className="rounded-[8px] border border-white/70 bg-white/70 px-2 py-1 text-[10px] font-semibold leading-none text-[#4B5563] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-[10px]">
-            F
-          </span>
-        </div>
+        <span className="rounded-[6px] bg-black/[0.04] px-1.5 py-0.5 text-[9px] font-medium leading-none text-[#8B95A5]">
+          ⌘F
+        </span>
       </div>
     </div>
   );
@@ -818,7 +842,7 @@ const SidebarBoostCard = ({
     <button
       type="button"
       onClick={onUpgrade}
-      className="group relative mt-3 flex h-[46px] w-full items-center justify-center overflow-hidden rounded-[18px] border border-black/70 bg-gradient-to-b from-[#2a2a2a] to-[#0a0a0a] text-[14px] font-semibold tracking-[-0.015em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_1px_3px_rgba(0,0,0,0.08),0_4px_12px_rgba(0,0,0,0.18)] transition-all duration-200 ease-out hover:opacity-95"
+      className="group relative mt-4 flex h-[50px] w-full items-center justify-center overflow-hidden rounded-[22px] border border-black/80 bg-[linear-gradient(145deg,#303033_0%,#111113_48%,#050505_100%)] text-[15px] font-semibold tracking-[-0.025em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_16px_30px_rgba(0,0,0,0.20)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_36px_rgba(0,0,0,0.24)]"
     >
       <span className="pointer-events-none absolute inset-x-4 top-0 h-px bg-white/20" />
       <span className="pointer-events-none absolute inset-0 opacity-40 bg-[linear-gradient(180deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0.015)_24%,rgba(255,255,255,0)_48%)]" />
@@ -846,14 +870,14 @@ const SidebarBoostCard = ({
   }
 
   return (
-    <div className="mt-4 rounded-[26px] border border-[#E5E5E7] bg-[linear-gradient(180deg,#FFFFFF_0%,#FBFBFC_100%)] px-4 py-[15px] shadow-[0_1px_3px_rgba(0,0,0,0.04),0_10px_24px_rgba(17,24,39,0.04)]">
-      <div className="flex items-start gap-2.5">
-        <div className="pt-0.5 text-[#111111]">
+    <div className="mt-5 overflow-hidden rounded-[30px] border border-white/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.92)_0%,rgba(246,247,250,0.76)_100%)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.98),0_20px_42px_rgba(15,23,42,0.10)] backdrop-blur-2xl">
+      <div className="flex items-start gap-3">
+        <div className="grid h-9 w-9 place-items-center rounded-[16px] bg-white text-[#111111] shadow-[inset_0_1px_0_rgba(255,255,255,0.96),0_12px_24px_rgba(15,23,42,0.08)]">
           <SidebarAccentStar color="currentColor" size={16} />
         </div>
         <div className="min-w-0">
-          <div className="text-[12.5px] font-semibold tracking-[-0.02em] text-[#171717]">Impulsione com IA</div>
-          <div className="mt-0.5 max-w-[220px] text-[11.5px] leading-[15px] text-[#6C6C74]">
+          <div className="text-[14px] font-semibold tracking-[-0.03em] text-[#121826]">Impulsione com IA</div>
+          <div className="mt-1 max-w-[220px] text-[12.5px] leading-[17px] text-[#70798A]">
             Insights e ferramentas que economizam horas.
           </div>
         </div>
@@ -875,6 +899,23 @@ const UserFooter = ({
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isGlass = variant === "glass";
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
 
   if (collapsed) {
     return (
@@ -910,30 +951,12 @@ const UserFooter = ({
     );
   }
 
-  const isGlass = variant === "glass";
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen]);
-
   const closeMenu = () => setIsOpen(false);
 
   return (
-    <div ref={containerRef} className="relative shrink-0 px-2.5 pb-4 pt-0">
+    <div ref={containerRef} className="relative z-10 shrink-0 px-4 pb-5 pt-0">
       {isOpen && !isGlass && (
-        <div className="absolute bottom-[calc(100%+10px)] left-2.5 right-2.5 z-50 rounded-[28px] border border-[rgba(255,255,255,0.76)] bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(243,244,246,0.94)_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_18px_40px_rgba(15,23,42,0.05)] backdrop-blur-[22px]">
+        <div className="absolute bottom-[calc(100%+12px)] left-4 right-4 z-50 rounded-[30px] border border-white/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.92)_0%,rgba(244,246,250,0.86)_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),0_26px_54px_rgba(15,23,42,0.13)] backdrop-blur-2xl">
           <div className="rounded-[20px] border border-[rgba(255,255,255,0.8)] bg-[linear-gradient(180deg,rgba(255,255,255,0.62)_0%,rgba(243,244,246,0.78)_100%)] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
@@ -1053,10 +1076,10 @@ const UserFooter = ({
 
       <div
         className={cn(
-          "overflow-hidden rounded-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.04),0_10px_24px_rgba(17,24,39,0.04)]",
+          "overflow-hidden rounded-[28px]",
           isGlass
             ? "border border-white/10 bg-[linear-gradient(180deg,#1A1A1C_0%,#111113_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_3px_rgba(0,0,0,0.05),0_12px_24px_rgba(0,0,0,0.10)]"
-            : "border border-[rgba(255,255,255,0.78)] bg-[linear-gradient(180deg,rgba(255,255,255,0.84)_0%,rgba(243,244,246,0.9)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_12px_28px_rgba(15,23,42,0.05)] backdrop-blur-[18px]"
+            : "border border-white/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.90)_0%,rgba(243,245,249,0.74)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.98),0_20px_40px_rgba(15,23,42,0.10)] backdrop-blur-2xl"
         )}
       >
       <button
@@ -1067,9 +1090,9 @@ const UserFooter = ({
           isGlass ? "hover:bg-[rgba(255,255,255,0.04)]" : "hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.52)_100%)]"
         )}
         style={{
-          minHeight: "72px",
+          minHeight: "82px",
           gap: "12px",
-          padding: "14px 16px",
+          padding: "16px 18px",
           flexShrink: 0,
           overflow: "hidden"
         }}
@@ -1211,19 +1234,20 @@ const DashboardSidebar = () => {
 
     const resolveSidebarRole = async () => {
       const candidates = [emailRole, emailAffiliateRole, role, metadataRole].filter(Boolean) as string[];
+      const roleClient = supabase as unknown as SidebarRoleClient;
 
       const [profileByUserId, userRole, affiliateRecord] = await Promise.allSettled([
-        (supabase as any)
+        roleClient
           .from("profiles")
           .select("role")
           .eq("user_id", user.id)
           .maybeSingle(),
-        (supabase as any)
+        roleClient
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
           .maybeSingle(),
-        (supabase as any)
+        roleClient
           .from("affiliates")
           .select("user_id")
           .eq("user_id", user.id)
@@ -1282,7 +1306,7 @@ const DashboardSidebar = () => {
   };
 
   const iniciais = nome
-    .split(/[\s._\-]+/)
+    .split(/[\s._-]+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((p) => p[0])
@@ -1303,28 +1327,32 @@ const DashboardSidebar = () => {
   return (
     <nav
       className={cn(
-        "flex shrink-0 flex-col text-foreground transition-[width] duration-300 ease-out",
-        collapsed ? "w-[60px] min-w-[60px]" : "w-[232px] min-w-[232px]"
+        "relative flex shrink-0 flex-col text-foreground transition-[width] duration-300 ease-out",
+        collapsed ? "w-[70px] min-w-[70px]" : "w-[292px] min-w-[292px]"
       )}
       style={{
         height: startMode ? "calc(100vh - 48px)" : "100vh",
         transition: "height 280ms ease, width 300ms ease-out",
         overflow: "hidden",
-        background: "linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(245,247,250,0.64) 100%)",
-        borderRight: "1px solid rgba(255,255,255,0.62)",
-        backdropFilter: "blur(22px) saturate(160%)",
-        WebkitBackdropFilter: "blur(22px) saturate(160%)",
-        boxShadow: "inset -1px 0 0 rgba(255,255,255,0.48), inset 0 1px 0 rgba(255,255,255,0.62), 22px 0 48px rgba(15,23,42,0.09)"
+        background: "linear-gradient(180deg, rgba(250,251,253,0.94) 0%, rgba(243,245,249,0.88) 100%)",
+        borderRight: "1px solid rgba(229,231,235,0.42)",
+        backdropFilter: "blur(24px) saturate(160%)",
+        WebkitBackdropFilter: "blur(24px) saturate(160%)",
+        boxShadow: "18px 0 42px rgba(15,23,42,0.055)"
       }}
     >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-[-90px] top-[-80px] h-52 w-52 rounded-full bg-white/55 blur-3xl" />
+        <div className="absolute bottom-28 right-[-90px] h-60 w-60 rounded-full bg-slate-200/28 blur-3xl" />
+      </div>
       {/* ── Header: Logo mark + Colapsar ─────────────────────────────────── */}
-      <div className={cn("flex shrink-0", collapsed ? "flex-col items-center gap-2 px-2.5 py-3" : "items-center justify-between px-4 py-3")}>
+      <div className={cn("relative z-10 flex shrink-0", collapsed ? "flex-col items-center gap-2 px-3 py-4" : "items-center justify-between px-5 pb-4 pt-5")}>
         {!collapsed ? (
           <>
             <Link to="/?home=1" className="flex items-center gap-2.5">
               <VeloMark size={28} />
               <span
-                className="text-[21px] font-semibold leading-none tracking-[-0.05em] text-[#0f172a]"
+                className="text-[25px] font-semibold leading-none tracking-[-0.065em] text-[#0b1020]"
                 style={{ fontFamily: sidebarDisplayFont }}
               >
                 Velo
@@ -1332,7 +1360,7 @@ const DashboardSidebar = () => {
             </Link>
             <button
               onClick={() => setCollapsed(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-[16px] border border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.78)_0%,rgba(243,244,246,0.9)_100%)] text-[13px] font-semibold leading-none text-[#6B7280] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-[14px] transition-all duration-300 ease-out hover:text-[#0F172A]"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/85 bg-white/70 text-[14px] font-semibold leading-none text-[#657083] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_28px_rgba(15,23,42,0.08)] backdrop-blur-2xl transition-all duration-300 ease-out hover:bg-white hover:text-[#0F172A]"
               title="Colapsar"
             >
               «
@@ -1345,7 +1373,7 @@ const DashboardSidebar = () => {
             </Link>
             <button
               onClick={() => setCollapsed(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-[16px] border border-[rgba(255,255,255,0.72)] bg-[linear-gradient(180deg,rgba(255,255,255,0.78)_0%,rgba(243,244,246,0.9)_100%)] text-[13px] font-semibold leading-none text-[#6B7280] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_24px_rgba(15,23,42,0.05)] backdrop-blur-[14px] transition-all duration-300 ease-out hover:text-[#0F172A]"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/85 bg-white/70 text-[13px] font-semibold leading-none text-[#657083] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_28px_rgba(15,23,42,0.08)] backdrop-blur-2xl transition-all duration-300 ease-out hover:bg-white hover:text-[#0F172A]"
               title="Expandir"
             >
               »
@@ -1354,22 +1382,22 @@ const DashboardSidebar = () => {
         )}
       </div>
 
-      <div className="mt-2">
+      <div className="relative z-10 mt-1">
         <SidebarSearch collapsed={collapsed} />
       </div>
 
       {/* ── Nav items ────────────────────────────────────────────────────── */}
       <div
         className={cn(
-          "flex flex-1 flex-col overflow-y-auto",
-          collapsed ? "items-center gap-1.5 pt-2 px-0" : "gap-1.5 px-2.5"
+          "relative z-10 flex flex-1 flex-col overflow-y-auto",
+          collapsed ? "items-center gap-2 pt-2 px-0" : "gap-2.5 px-4"
         )}
-        style={!collapsed ? { paddingTop: "12px", paddingBottom: "8px", minHeight: 0 } : { paddingTop: "12px", minHeight: 0 }}
+        style={!collapsed ? { paddingTop: "14px", paddingBottom: "10px", minHeight: 0 } : { paddingTop: "12px", minHeight: 0 }}
       >
         {!collapsed && (
           <div
-            className="px-1 pb-1 text-[10.5px] font-semibold uppercase leading-[15px] text-[#6B7280]"
-            style={{ fontFamily: sidebarFont, letterSpacing: "0.16em" }}
+            className="px-3 pt-2 pb-0.5 text-[10px] font-semibold uppercase text-[#8A8FA3]/60"
+            style={{ fontFamily: sidebarFont, letterSpacing: "0.15em" }}
           >
             Menu
           </div>
@@ -1412,10 +1440,10 @@ const DashboardSidebar = () => {
         {!collapsed && (
           <>
             <div
-              className="px-1 pb-1 pt-4 text-[10.5px] font-semibold uppercase leading-[15px] text-[#6B7280]"
-              style={{ fontFamily: sidebarFont, letterSpacing: "0.16em" }}
+              className="px-3 pt-4 pb-0.5 text-[10px] font-semibold uppercase text-[#8A8FA3]/60"
+              style={{ fontFamily: sidebarFont, letterSpacing: "0.15em" }}
             >
-              OUTROS
+              Outros
             </div>
             {otherNav.map((item) => {
               if (item.kind === "link") {
@@ -1442,7 +1470,7 @@ const DashboardSidebar = () => {
         </div>
       )}
 
-      {!collapsed && <div className="flex flex-col" style={{ paddingLeft: "10px", paddingRight: "10px", paddingBottom: "0", gap: "3px", flexShrink: 0 }}>
+      {!collapsed && <div className="relative z-10 flex flex-col" style={{ paddingLeft: "16px", paddingRight: "16px", paddingBottom: "0", gap: "3px", flexShrink: 0 }}>
         {/* Start Mode: só aparece para usuários gratuitos */}
         {!hasActivePlan && (
           <FooterButtonRow icon={Code2} label="Modo inicial" color="#888888" collapsed={collapsed} onClick={toggleStartMode}>
@@ -1453,14 +1481,14 @@ const DashboardSidebar = () => {
       </div>}
 
       {!collapsed && (
-        <div className="shrink-0 px-2.5 pt-1">
-          <SidebarBoostCard variant={startMode ? "glass" : "white"} onUpgrade={() => navigate("/checkout")} />
+        <div className="relative z-10 shrink-0 px-4 pt-1">
+          <SidebarBoostCard variant="white" onUpgrade={() => navigate("/checkout")} />
         </div>
       )}
 
       {/* Divisória 3 - Acima da conta do usuário */}
-      <div className={cn("shrink-0", collapsed ? "px-2" : "px-2.5")} style={{ margin: "4px 0" }}>
-        <div className="h-[1px] w-full" style={{ backgroundColor: "#E5E7EB" }} />
+      <div className={cn("relative z-10 shrink-0", collapsed ? "px-2" : "px-4")} style={{ margin: "10px 0 8px" }}>
+        <div className="h-[1px] w-full bg-white/70 shadow-[0_1px_0_rgba(15,23,42,0.05)]" />
       </div>
 
       {/* ── Footer - Conta do Usuário ───────────────────────────────────────────────────────── */}
@@ -1471,7 +1499,7 @@ const DashboardSidebar = () => {
         iniciais={iniciais}
         collapsed={collapsed}
         onLogout={handleSignOut}
-        variant={startMode ? "glass" : "white"}
+        variant="white"
       />
 
       {/* Modal Start Mode */}
