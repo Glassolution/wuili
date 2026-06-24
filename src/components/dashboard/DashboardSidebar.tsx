@@ -85,9 +85,8 @@ const NavLinkRow = ({
   <Link
     to={item.to}
     className={cn(
-      "sidebar-item group relative flex items-center overflow-hidden transition-all duration-300 ease-out",
-      collapsed ? "group w-full h-[32px] justify-center p-0 m-0" : "px-2.5",
-      active && !collapsed ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]" : "bg-transparent"
+      "sidebar-item group relative flex items-center overflow-hidden transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none",
+      collapsed ? "group w-full h-[32px] justify-center p-0 m-0" : "px-2.5"
     )}
     title={collapsed ? item.label : undefined}
     style={{
@@ -100,15 +99,21 @@ const NavLinkRow = ({
       gap: collapsed ? undefined : "10px",
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
+      background: active && !collapsed ? "#F4F4F5" : "transparent",
+      border: "none",
+      outline: "none",
+      boxShadow: "none",
     }}
   >
     {collapsed ? (
-      <div className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-        active
-          ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]"
-          : "bg-transparent"
-      )}>
+      <div 
+        className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out"
+        style={{
+          background: active ? "#F4F4F5" : "transparent",
+          border: "none",
+          outline: "none",
+        }}
+      >
         <span className={cn(
           "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
           active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF]"
@@ -150,9 +155,8 @@ const NavGroupRow = ({
     type="button"
     onClick={onToggle}
     className={cn(
-      "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out",
-      collapsed ? "group h-[32px] justify-center p-0 m-0" : "px-2.5",
-      groupActiveCompact && !collapsed ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]" : "bg-transparent"
+      "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none",
+      collapsed ? "group h-[32px] justify-center p-0 m-0" : "px-2.5"
     )}
     title={collapsed ? item.label : undefined}
     style={{
@@ -167,15 +171,21 @@ const NavGroupRow = ({
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
       cursor: "pointer",
+      background: groupActiveCompact && !collapsed ? "#F4F4F5" : "transparent",
+      border: "none",
+      outline: "none",
+      boxShadow: "none",
     }}
   >
     {collapsed ? (
-      <div className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-        groupActiveCompact
-          ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]"
-          : "bg-transparent"
-      )}>
+      <div 
+        className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out"
+        style={{
+          background: groupActiveCompact ? "#F4F4F5" : "transparent",
+          border: "none",
+          outline: "none",
+        }}
+      >
         <span className={cn(
           "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
           groupActiveCompact ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF]"
@@ -223,12 +233,7 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
   return (
     <Link
       to={sub.to}
-      className={cn(
-        "sidebar-item relative flex items-center transition-all duration-300 ease-out",
-        subActive
-          ? "bg-white shadow-[0_2px_6px_rgba(15,23,42,0.025)]"
-          : "bg-transparent"
-      )}
+      className="sidebar-item relative flex items-center transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none"
       style={{ 
         fontFamily: sidebarFont, 
         fontSize: "13px", 
@@ -241,6 +246,10 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
         paddingRight: "10px",
         borderRadius: "10px",
         flexShrink: 0,
+        background: subActive ? "#F4F4F5" : "transparent",
+        border: "none",
+        outline: "none",
+        boxShadow: "none",
       }}
     >
       {SubIcon && <IconSpan icon={SubIcon} size={15} strokeWidth={1.5} color={subActive ? "#000000" : "#9CA3AF"} />}
@@ -264,11 +273,15 @@ const FooterLinkRow = ({
 }) => {
   if (collapsed) {
     return (
-      <Link to={to} className="sidebar-item group relative flex h-[32px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
-        <div className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-          active ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]" : "bg-transparent"
-        )}>
+      <Link to={to} className="sidebar-item group relative flex h-[32px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none" title={label}>
+        <div 
+          className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out"
+          style={{
+            background: active ? "#F4F4F5" : "transparent",
+            border: "none",
+            outline: "none",
+          }}
+        >
           <span className={cn(
             "grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300",
             active ? "bg-[#0a0a0a] text-white" : "bg-transparent text-[#9CA3AF]"
@@ -282,10 +295,7 @@ const FooterLinkRow = ({
   return (
     <Link
       to={to}
-      className={cn(
-        "sidebar-item relative flex items-center transition-all duration-300 ease-out",
-        active ? "bg-white shadow-[0_2px_8px_rgba(15,23,42,0.03)]" : "bg-transparent"
-      )}
+      className="sidebar-item relative flex items-center transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none"
       style={{ 
         fontFamily: sidebarFont, 
         fontSize: "13.5px", 
@@ -298,6 +308,10 @@ const FooterLinkRow = ({
         paddingRight: "10px",
         borderRadius: "12px",
         flexShrink: 0,
+        background: active ? "#F4F4F5" : "transparent",
+        border: "none",
+        outline: "none",
+        boxShadow: "none",
       }}
     >
       <span className={cn(
@@ -339,7 +353,7 @@ const FooterButtonRow = ({
     <button
       type="button"
       onClick={onClick}
-      className="sidebar-item relative flex w-full items-center bg-transparent transition-all duration-300 ease-out"
+      className="sidebar-item relative flex w-full items-center bg-transparent transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none"
       style={{ 
         fontFamily: sidebarFont, 
         fontSize: "13.5px", 
@@ -353,6 +367,8 @@ const FooterButtonRow = ({
         borderRadius: "12px",
         background: "transparent",
         cursor: "pointer",
+        border: "none",
+        outline: "none",
       }}
     >
       <span className="grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300 text-[#9CA3AF] group-hover:text-[#6B7280]">
@@ -391,7 +407,7 @@ const FooterAnchorRow = ({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="sidebar-item relative flex items-center transition-all duration-300 ease-out"
+      className="sidebar-item relative flex items-center transition-all duration-300 ease-out border-0 border-transparent outline-none focus:outline-none"
       style={{ 
         fontFamily: sidebarFont, 
         fontSize: "13.5px", 
@@ -404,6 +420,8 @@ const FooterAnchorRow = ({
         paddingRight: "10px",
         borderRadius: "12px",
         flexShrink: 0,
+        border: "none",
+        outline: "none",
       }}
     >
       <span className="grid h-7 w-7 place-items-center rounded-[8px] transition-all duration-300 text-[#9CA3AF] group-hover:text-[#6B7280]">
@@ -852,7 +870,14 @@ const SidebarBoostCard = ({
 
   if (variant === "glass") {
     return (
-      <div className="mt-4 rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(24,24,26,0.98)_0%,rgba(17,17,19,0.99)_100%)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_3px_rgba(0,0,0,0.05),0_12px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl">
+      <div 
+        className="mt-4 rounded-[20px] px-4 py-4 backdrop-blur-xl"
+        style={{
+          background: "rgba(24, 24, 26, 0.98)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "none",
+        }}
+      >
         <div className="flex items-start gap-2.5">
           <div className="pt-0.5 text-white/90">
             <SidebarAccentStar color="currentColor" size={16} />
@@ -870,9 +895,22 @@ const SidebarBoostCard = ({
   }
 
   return (
-    <div className="mt-5 overflow-hidden rounded-[30px] border border-white/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.92)_0%,rgba(246,247,250,0.76)_100%)] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.98),0_20px_42px_rgba(15,23,42,0.10)] backdrop-blur-2xl">
+    <div 
+      className="mt-4 overflow-hidden rounded-[20px] px-4 py-4"
+      style={{
+        background: "rgba(0, 0, 0, 0.015)",
+        border: "1px solid rgba(0, 0, 0, 0.03)",
+        boxShadow: "none",
+      }}
+    >
       <div className="flex items-start gap-3">
-        <div className="grid h-9 w-9 place-items-center rounded-[16px] bg-white text-[#111111] shadow-[inset_0_1px_0_rgba(255,255,255,0.96),0_12px_24px_rgba(15,23,42,0.08)]">
+        <div 
+          className="grid h-9 w-9 place-items-center rounded-[12px] bg-white text-[#111111]"
+          style={{
+            border: "1px solid rgba(0, 0, 0, 0.04)",
+            boxShadow: "none",
+          }}
+        >
           <SidebarAccentStar color="currentColor" size={16} />
         </div>
         <div className="min-w-0">
@@ -1075,12 +1113,12 @@ const UserFooter = ({
       )}
 
       <div
-        className={cn(
-          "overflow-hidden rounded-[28px]",
-          isGlass
-            ? "border border-white/10 bg-[linear-gradient(180deg,#1A1A1C_0%,#111113_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_3px_rgba(0,0,0,0.05),0_12px_24px_rgba(0,0,0,0.10)]"
-            : "border border-white/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.90)_0%,rgba(243,245,249,0.74)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.98),0_20px_40px_rgba(15,23,42,0.10)] backdrop-blur-2xl"
-        )}
+        className="overflow-hidden rounded-[20px]"
+        style={{
+          background: isGlass ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.01)",
+          border: isGlass ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(0, 0, 0, 0.03)",
+          boxShadow: "none",
+        }}
       >
       <button
         type="button"
@@ -1360,7 +1398,13 @@ const DashboardSidebar = () => {
             </Link>
             <button
               onClick={() => setCollapsed(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/85 bg-white/70 text-[14px] font-semibold leading-none text-[#657083] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_28px_rgba(15,23,42,0.08)] backdrop-blur-2xl transition-all duration-300 ease-out hover:bg-white hover:text-[#0F172A]"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-semibold leading-none text-[#657083] transition-all duration-300 ease-out hover:text-[#0F172A]"
+              style={{
+                background: "rgba(0, 0, 0, 0.03)",
+                border: "none",
+                outline: "none",
+                boxShadow: "none",
+              }}
               title="Colapsar"
             >
               «
@@ -1373,7 +1417,13 @@ const DashboardSidebar = () => {
             </Link>
             <button
               onClick={() => setCollapsed(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/85 bg-white/70 text-[13px] font-semibold leading-none text-[#657083] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_14px_28px_rgba(15,23,42,0.08)] backdrop-blur-2xl transition-all duration-300 ease-out hover:bg-white hover:text-[#0F172A]"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-semibold leading-none text-[#657083] transition-all duration-300 ease-out hover:text-[#0F172A]"
+              style={{
+                background: "rgba(0, 0, 0, 0.03)",
+                border: "none",
+                outline: "none",
+                boxShadow: "none",
+              }}
               title="Expandir"
             >
               »
