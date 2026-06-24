@@ -293,7 +293,12 @@ const DashboardHomePage = () => {
       <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-5 px-1 py-1 sm:px-3 lg:px-0">
         <header className="flex items-center justify-between gap-4">
           <h1 className="text-[26px] font-semibold leading-none tracking-[-0.045em] text-[#111111]">Hello, {name}!</h1>
-          <ProductScoutAI onOpenProduct={(productId) => navigate(`/dashboard/catalogo/${productId}`)} />
+          <ProductScoutAI
+            onResults={(results) =>
+              navigate("/dashboard/catalogo", { state: { atlasResults: results } })
+            }
+          />
+
         </header>
 
         <section className="flex items-center justify-between gap-4 rounded-[14px] border border-black/[0.06] bg-white px-4 py-3">
