@@ -128,7 +128,12 @@
 }
 
 @layer base {
-  * {
+  .border,
+  input,
+  textarea,
+  select,
+  kbd,
+  button[class*="border"] {
     @apply border-border;
   }
 

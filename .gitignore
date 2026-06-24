@@ -1,6 +1,9 @@
-﻿node_modules
+node_modules
 .env
 .env.local
 .env.*.local
 .vercel
 supabase/.temp/
+dist/
+dist-ssr/
+*.local

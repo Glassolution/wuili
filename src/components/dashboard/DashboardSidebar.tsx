@@ -87,8 +87,7 @@ const NavLinkRow = ({
     to={item.to}
     className={cn(
       "sidebar-item group relative flex items-center overflow-hidden transition-all duration-300 ease-out",
-      collapsed ? "group w-full h-[32px] justify-center p-0 m-0" : "px-2.5",
-      active && !collapsed ? "bg-[#E4E4E7]" : "bg-transparent"
+      collapsed ? "group w-full h-[32px] justify-center p-0 m-0" : "px-2.5"
     )}
     title={collapsed ? item.label : undefined}
     style={{
@@ -101,22 +100,35 @@ const NavLinkRow = ({
       gap: collapsed ? undefined : "10px",
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
-      border: active && !collapsed ? "1px solid #D4D4D8" : "1px solid transparent",
-      boxShadow: active && !collapsed ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
     }}
   >
+    {active && !collapsed && (
+      <motion.div
+        layoutId="sidebar-active-pill"
+        className="absolute inset-0 z-0 rounded-[12px] bg-[#E4E4E7]"
+        style={{
+          border: "1px solid #D4D4D8",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+        }}
+        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+      />
+    )}
     {collapsed ? (
       <div 
-        className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-          active ? "bg-[#E4E4E7]" : "bg-transparent"
-        )}
-        style={{
-          border: active ? "1px solid #D4D4D8" : "1px solid transparent",
-          boxShadow: active ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
-        }}
+        className="relative flex h-8 w-8 items-center justify-center rounded-[10px]"
       >
-        <span className="grid h-7 w-7 place-items-center bg-transparent">
+        {active && (
+          <motion.div
+            layoutId="sidebar-active-pill-collapsed"
+            className="absolute inset-0 z-0 rounded-[10px] bg-[#E4E4E7]"
+            style={{
+              border: "1px solid #D4D4D8",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+            }}
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          />
+        )}
+        <span className="relative z-10 grid h-7 w-7 place-items-center bg-transparent">
           <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color="#18181B" />
         </span>
       </div>
@@ -224,12 +236,7 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
   return (
     <Link
       to={sub.to}
-      className={cn(
-        "sidebar-item relative flex items-center transition-all duration-300 ease-out",
-        subActive
-          ? "bg-[#E4E4E7]"
-          : "bg-transparent"
-      )}
+      className="sidebar-item relative flex items-center transition-all duration-300 ease-out"
       style={{ 
         fontFamily: sidebarFont, 
         fontSize: "13px", 
@@ -242,12 +249,25 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
         paddingRight: "10px",
         borderRadius: "10px",
         flexShrink: 0,
-        border: subActive ? "1px solid #D4D4D8" : "1px solid transparent",
-        boxShadow: subActive ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
       }}
     >
-      {SubIcon && <IconSpan icon={SubIcon} size={20} strokeWidth={1.5} color="#18181B" />}
-      <span style={{ color: subActive ? "#18181B" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">{sub.label}</span>
+      {subActive && (
+        <motion.div
+          layoutId="sidebar-active-subpill"
+          className="absolute inset-0 z-0 rounded-[10px] bg-[#E4E4E7]"
+          style={{
+            border: "1px solid #D4D4D8",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+          }}
+          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        />
+      )}
+      {SubIcon && (
+        <span className="relative z-10">
+          <IconSpan icon={SubIcon} size={20} strokeWidth={1.5} color="#18181B" />
+        </span>
+      )}
+      <span style={{ color: subActive ? "#18181B" : "#4B5563" }} className="relative z-10 transition-colors duration-200 group-hover:text-[#111827]">{sub.label}</span>
     </Link>
   );
 };
