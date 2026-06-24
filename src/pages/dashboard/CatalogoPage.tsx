@@ -294,6 +294,7 @@ const FilterDropdown = ({
 
 const CatalogoPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("todos");
   const [currentPage, setCurrentPage] = useState(1);
   const [recommendationIndex, setRecommendationIndex] = useState(0);
@@ -310,6 +311,19 @@ const CatalogoPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [favoritedIds, setFavoritedIds] = useState<string[]>([]);
+  const [atlasResults, setAtlasResults] = useState<AtlasResults | null>(null);
+
+  // Recebe resultados Atlas vindos de outra página (ex: DashboardHomePage)
+  useEffect(() => {
+    const incoming = (location.state as { atlasResults?: AtlasResults } | null)?.atlasResults;
+    if (incoming && incoming.ids.length > 0) {
+      setAtlasResults(incoming);
+      // Limpa o state da rota para não reaplicar em navegações futuras
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const ITEMS_PER_PAGE = 12;
 
