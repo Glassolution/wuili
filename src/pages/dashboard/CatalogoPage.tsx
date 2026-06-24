@@ -553,9 +553,37 @@ const CatalogoPage = () => {
           <div className="hidden xl:block xl:flex-1" />
 
           <div className="xl:ml-auto">
-            <ProductScoutAI onOpenProduct={(productId) => navigate(`/dashboard/catalogo/${productId}`)} />
+            <ProductScoutAI onResults={(results) => setAtlasResults(results)} />
           </div>
         </div>
+
+        {atlasResults && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-black/[0.07] bg-[#F7F7F8] px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6B7280]">
+                Resultados do Atlas
+              </p>
+              <p className="mt-0.5 truncate text-[14px] font-semibold text-[#111111]">
+                {atlasResults.label}
+                <span className="ml-2 text-[12px] font-normal text-[#6B7280]">
+                  ({atlasResults.ids.length} produto{atlasResults.ids.length === 1 ? "" : "s"})
+                </span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setAtlasResults(null);
+                setCurrentPage(1);
+              }}
+              className="inline-flex h-9 items-center gap-2 rounded-full border border-[#E5E7EB] bg-white px-4 text-[12px] font-semibold text-[#111111] transition-colors hover:bg-[#F1F1F3]"
+            >
+              <RefreshCw size={13} strokeWidth={2} />
+              Limpar busca
+            </button>
+          </div>
+        )}
+
 
         {isLoading ? (
           <div className="grid h-auto grid-cols-1 gap-3 overflow-visible md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
