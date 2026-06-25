@@ -1,5 +1,5 @@
 // Atlas Search — interpreta texto livre via Lovable AI (Gemini) e busca
-// produtos reais em catalog_products.
+// produtos reais em catalog_products com suporte a contexto incremental.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -9,7 +9,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const ALLOWED_SOURCES = ["b2drop", "c7drop"];
+const ALLOWED_SOURCES = ["cj", "b2drop", "c7drop"];
 const RESULT_LIMIT = 24;
 
 type AtlasFilters = {
@@ -17,6 +17,7 @@ type AtlasFilters = {
   palavras_chave: string[];
   ordenar_por: "margem" | "vendas" | "preco_asc" | "preco_desc" | null;
   estoque_minimo: number | null;
+  resposta_chat: string;
 };
 
 const DEFAULT_FILTERS: AtlasFilters = {
@@ -24,6 +25,7 @@ const DEFAULT_FILTERS: AtlasFilters = {
   palavras_chave: [],
   ordenar_por: null,
   estoque_minimo: null,
+  resposta_chat: "Encontrei este produto no catálogo para você:",
 };
 
 function extractJson(raw: string): AtlasFilters {
@@ -32,7 +34,6 @@ function extractJson(raw: string): AtlasFilters {
     .replace(/```\s*$/i, "")
     .trim();
 
-  // Tenta JSON puro; se falhar, tenta achar o primeiro {...}
   let parsed: unknown;
   try {
     parsed = JSON.parse(cleaned);
@@ -61,6 +62,10 @@ function extractJson(raw: string): AtlasFilters {
         .slice(0, 8)
     : [];
 
+  const responseText = typeof obj.resposta_chat === "string" && obj.resposta_chat.trim().length > 0
+    ? obj.resposta_chat.trim()
+    : "Encontrei este produto no catálogo para você:";
+
   return {
     categoria:
       typeof obj.categoria === "string" && obj.categoria.trim().length > 0
@@ -72,24 +77,53 @@ function extractJson(raw: string): AtlasFilters {
       typeof obj.estoque_minimo === "number" && obj.estoque_minimo > 0
         ? Math.floor(obj.estoque_minimo)
         : null,
+    resposta_chat: responseText,
   };
 }
 
 async function inferFiltersWithAI(
   userText: string,
+  history: Array<{ role: string; content: string }>,
   apiKey: string,
 ): Promise<AtlasFilters | null> {
   const systemPrompt =
-    `Você é um interpretador de buscas de catálogo de dropshipping em português brasileiro.
-Receba o texto do usuário e responda APENAS com um JSON válido (sem markdown, sem comentários) no formato:
-{"categoria": string|null, "palavras_chave": string[], "ordenar_por": "margem"|"vendas"|"preco_asc"|"preco_desc"|null, "estoque_minimo": number|null}
+    `Você é o cérebro de busca do Atlas, o assistente inteligente do catálogo de dropshipping da Velo (português brasileiro).
+Sua tarefa é analisar a conversa entre o usuário e o assistente, e retornar as configurações de busca/filtros adequadas para a última mensagem do usuário, considerando as mensagens anteriores como contexto para refinamento incremental (ex: se o usuário pede "fones" e depois diz "os mais baratos", você deve manter a busca de fone e definir ordenar_por="preco_asc").
 
-Regras:
-- "categoria": uma palavra/expressão curta da categoria principal (ex: "pesca", "beleza", "casa", "eletrônicos"), ou null se não houver.
-- "palavras_chave": 1 a 6 termos relevantes para busca textual no título do produto.
-- "ordenar_por": use "margem" se o usuário pedir lucro/margem; "vendas" se pedir popularidade/viralizar/mais vendido; "preco_asc" para "barato/baixo preço"; "preco_desc" para "caro/premium"; null caso não esteja claro.
-- "estoque_minimo": número se o usuário pedir estoque alto/disponibilidade; null caso contrário.
+Responda APENAS com um JSON válido (sem markdown, sem comentários) no formato:
+{
+  "categoria": string|null,
+  "palavras_chave": string[],
+  "ordenar_por": "margem"|"vendas"|"preco_asc"|"preco_desc"|null,
+  "estoque_minimo": number|null,
+  "resposta_chat": string
+}
+
+Regras para os campos:
+- "categoria": categoria principal identificada (ex: "casa", "eletrônicos", "esporte"), ou null.
+- "palavras_chave": 1 a 6 termos de busca textual relevantes no título/descrição do produto. Refine com base nas preferências anteriores se o usuário estiver continuando a conversa. Se ele mudar de assunto totalmente (ex: "agora quero garrafas"), descarte as palavras-chave antigas.
+- "ordenar_por": "margem" para lucro/margem; "vendas" para popularidade/viralizar; "preco_asc" para barato/menor preço; "preco_desc" para caro/premium; null caso contrário.
+- "estoque_minimo": número se o usuário pedir estoque alto; null caso contrário.
+- "resposta_chat": uma frase de resposta muito curta, profissional e amigável (máximo 150 caracteres) introduzindo a recomendação de forma contextualizada à busca (ex: "Encontrei este fone bluetooth com excelente margem:", "Aqui está o modelo mais barato disponível:").
+
 Responda SOMENTE o JSON.`;
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+  ];
+
+  // Adiciona histórico tratado
+  if (Array.isArray(history)) {
+    for (const msg of history) {
+      if (msg && typeof msg.content === "string") {
+        const role = msg.role === "user" ? "user" : "assistant";
+        messages.push({ role, content: msg.content });
+      }
+    }
+  }
+
+  // Adiciona a mensagem atual
+  messages.push({ role: "user", content: userText });
 
   try {
     const resp = await fetch(
@@ -102,10 +136,7 @@ Responda SOMENTE o JSON.`;
         },
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userText },
-          ],
+          messages: messages,
         }),
       },
     );
@@ -130,7 +161,7 @@ serve(async (req) => {
   }
 
   try {
-    const { query } = await req.json().catch(() => ({ query: "" }));
+    const { query, history } = await req.json().catch(() => ({ query: "", history: [] }));
     const userText = typeof query === "string" ? query.trim() : "";
 
     if (!userText) {
@@ -151,7 +182,7 @@ serve(async (req) => {
     let usedFallback = false;
 
     if (apiKey) {
-      filters = await inferFiltersWithAI(userText, apiKey);
+      filters = await inferFiltersWithAI(userText, history, apiKey);
     }
     if (!filters) {
       usedFallback = true;
@@ -169,12 +200,12 @@ serve(async (req) => {
       .eq("is_blocked", false)
       .gt("stock_quantity", filters.estoque_minimo && filters.estoque_minimo > 0 ? filters.estoque_minimo - 1 : 0);
 
-    // Categoria: tenta ILIKE em category
+    // Categoria
     if (filters.categoria) {
       q = q.ilike("category", `%${filters.categoria}%`);
     }
 
-    // Palavras-chave: OR de ILIKE em title (e fallback em description/category)
+    // Palavras-chave
     if (filters.palavras_chave.length > 0) {
       const ors = filters.palavras_chave
         .map((kw) => {
@@ -201,7 +232,6 @@ serve(async (req) => {
         q = q.order("cost_price", { ascending: false, nullsFirst: false });
         break;
       default:
-        // Relevância simples: prioriza popularidade + recência
         q = q
           .order("orders_count", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false });
@@ -211,7 +241,6 @@ serve(async (req) => {
 
     let { data, error } = await q;
 
-    // Fallback: se a query retornar vazia ou erro de OR, tenta ILIKE simples no texto bruto
     if (error || !data || data.length === 0) {
       if (error) console.error("Primary query failed", error);
       const safe = userText.replace(/[%,]/g, " ").trim();
@@ -235,6 +264,7 @@ serve(async (req) => {
         ids,
         count: ids.length,
         filters,
+        resposta_chat: filters.resposta_chat,
         used_fallback: usedFallback,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },

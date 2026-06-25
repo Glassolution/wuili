@@ -125,54 +125,11 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
   const [customPrompt, setCustomPrompt] = useState("");
   const [lastSuggestedProduct, setLastSuggestedProduct] = useState<Product | null>(null);
 
-  const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [inputFocused, setInputFocused] = useState(false);
   const [chatInputFocused, setChatInputFocused] = useState(false);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const fetchDbProducts = async () => {
-    try {
-      const { data } = await supabase
-        .from("catalog_products")
-        .select("id, title, images, cost_price, suggested_price, category")
-        .eq("is_blocked", false)
-        .gt("stock_quantity", 0)
-        .in("source", ALLOWED_SOURCES)
-        .order("orders_count", { ascending: false, nullsFirst: false })
-        .limit(10);
-
-      if (data && data.length > 0) {
-        const mapped: Product[] = data.map((p) => {
-          let imageUrl = "";
-          let imagesArr: string[] = [];
-          try {
-            imagesArr = typeof p.images === "string" ? JSON.parse(p.images) : p.images;
-            if (!Array.isArray(imagesArr)) imagesArr = [];
-            imageUrl = imagesArr.length > 0 ? imagesArr[0] : "";
-          } catch {
-            imageUrl = "";
-          }
-          return {
-            id: p.id,
-            nome: p.title || "Produto sem título",
-            categoria: p.category || "Geral",
-            preco: p.suggested_price || p.cost_price * 1.5 || 49.9,
-            image_url: imageUrl,
-            images: imagesArr,
-          };
-        });
-        setDbProducts(mapped);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar produtos reais para o Atlas:", err);
-    }
-  };
-
-  useEffect(() => {
-    void fetchDbProducts();
-  }, []);
 
   const openPanel = () => {
     setOpen(true);
@@ -198,80 +155,132 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
     }
   };
 
-  const getProductForMock = (type: "viral" | "margin" | "stock" | "lowprice" | "random", index = 0): Product => {
-    const list = dbProducts.length >= 4 ? dbProducts : FALLBACK_PRODUCTS;
-    
-    if (type === "viral") return list[0 % list.length];
-    if (type === "margin") return list[1 % list.length];
-    if (type === "stock") return list[2 % list.length];
-    if (type === "lowprice") return list[3 % list.length];
-
-    return list[index % list.length];
-  };
-
-  const executeMockSearch = (text: string) => {
-    if (busy) return;
+  const executeRealSearch = async (text: string) => {
+    const cleanText = text.trim();
+    if (busy || !cleanText) return;
     setBusy(true);
 
-    const lowercaseText = text.toLowerCase();
-    let selectedProduct = getProductForMock("random", chatMessages.length);
-    let aiResponseText = "Encontrei este produto excelente para você no catálogo atual:";
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: "user",
+      content: cleanText,
+    };
 
-    if (lowercaseText.includes("viral")) {
-      selectedProduct = getProductForMock("viral");
-      aiResponseText = "Este produto está com uma tração altíssima em engajamento nas redes sociais. Excelente para criar vídeos demonstrativos rápidos no TikTok e Reels:";
-    } else if (lowercaseText.includes("margem") || lowercaseText.includes("lucro")) {
-      selectedProduct = getProductForMock("margin");
-      aiResponseText = "Selecionei este produto com uma das maiores taxas de markup do catálogo. O custo dele é muito baixo, permitindo uma margem superior a 150% na venda direta:";
-    } else if (lowercaseText.includes("estoque") || lowercaseText.includes("alto")) {
-      selectedProduct = getProductForMock("stock");
-      aiResponseText = "Este produto conta com um estoque robusto e estável em nosso centro de distribuição, garantindo tranquilidade para sua escala de anúncios:";
-    } else if (lowercaseText.includes("barato") || lowercaseText.includes("preço") || lowercaseText.includes("baixo")) {
-      selectedProduct = getProductForMock("lowprice");
-      aiResponseText = "Aqui está a opção mais econômica e competitiva do catálogo ideal para atrair clientes de primeira viagem:";
-    }
+    // Adiciona a mensagem do usuário imediatamente para exibição no chat com o loader
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatMode(true);
 
-    setLastSuggestedProduct(selectedProduct);
+    // Formata o histórico anterior (exclui a mensagem do usuário que acabou de ser criada,
+    // pois ela será enviada de forma independente no corpo como query da Edge Function)
+    const formattedHistory = chatMessages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
 
-    setTimeout(() => {
-      const userMsg: ChatMessage = {
-        id: Date.now().toString(),
-        role: "user",
-        content: text,
-      };
+    try {
+      const startTime = Date.now();
+
+      // 1. Invoca a Edge Function atlas-search com o contexto incremental da conversa
+      const { data, error: invokeError } = await supabase.functions.invoke("atlas-search", {
+        body: {
+          query: cleanText,
+          history: formattedHistory,
+        },
+      });
+
+      if (invokeError) throw invokeError;
+
+      const ids = Array.isArray(data?.ids) ? (data.ids as string[]) : [];
+      const aiResponseText = typeof data?.resposta_chat === "string" && data.resposta_chat.length > 0
+        ? data.resposta_chat
+        : "Selecionei este produto no catálogo para você:";
+
+      let recommendedProduct: Product | null = null;
+
+      // 2. Se a Edge Function retornou IDs válidos, busca os detalhes do produto em destaque
+      if (ids.length > 0) {
+        const firstId = ids[0];
+        const { data: prodData, error: dbError } = await supabase
+          .from("catalog_products")
+          .select("id, title, images, cost_price, suggested_price, category")
+          .eq("id", firstId)
+          .single();
+
+        if (!dbError && prodData) {
+          let imageUrl = "";
+          let imagesArr: string[] = [];
+          try {
+            imagesArr = typeof prodData.images === "string" ? JSON.parse(prodData.images) : prodData.images;
+            if (!Array.isArray(imagesArr)) imagesArr = [];
+            imageUrl = imagesArr.length > 0 ? imagesArr[0] : "";
+          } catch {
+            imageUrl = "";
+          }
+
+          recommendedProduct = {
+            id: prodData.id,
+            nome: prodData.title || "Produto sem título",
+            categoria: prodData.category || "Geral",
+            preco: prodData.suggested_price || prodData.cost_price * 1.5 || 49.9,
+            image_url: imageUrl,
+            images: imagesArr,
+          };
+        }
+      }
+
+      // Garante uma duração visual mínima de 750ms para a animação de "Thinking"
+      const elapsed = Date.now() - startTime;
+      const delay = Math.max(0, 750 - elapsed);
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      if (recommendedProduct) {
+        setLastSuggestedProduct(recommendedProduct);
+      }
 
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: aiResponseText,
-        product: selectedProduct,
+        content: recommendedProduct 
+          ? aiResponseText 
+          : "Não encontrei produtos que atendam exatamente a essa solicitação no catálogo. Que tal tentar outras palavras-chave?",
+        product: recommendedProduct || undefined,
       };
 
-      setChatMessages((prev) => [...prev, userMsg, aiMsg]);
-      setChatMode(true);
+      setChatMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error("Erro na busca do Atlas:", err);
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Desculpe, tive uma instabilidade de rede ao consultar o catálogo. Poderia tentar novamente?",
+      };
+      setChatMessages((prev) => [...prev, aiMsg]);
+    } finally {
       setBusy(false);
       setChatInput("");
       setCustomPrompt("");
-    }, 750);
+    }
   };
 
   const handleSendChat = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const prompt = chatInput.trim();
     if (!prompt || busy) return;
-    executeMockSearch(prompt);
+    void executeRealSearch(prompt);
   };
 
   const handleSendInitialPrompt = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const prompt = customPrompt.trim();
     if (!prompt || busy) return;
-    executeMockSearch(prompt);
+    void executeRealSearch(prompt);
   };
 
   const handleChipClick = (suggestion: string) => {
     if (busy) return;
-    executeMockSearch(suggestion);
+    void executeRealSearch(suggestion);
   };
 
   useEffect(() => {
