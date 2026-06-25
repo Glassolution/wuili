@@ -245,26 +245,14 @@ const CatalogPage = () => {
     },
   });
 
+  // Sincronização CJ desativada — catálogo agora vem dos scrapers BR (C7Drop e futuros).
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const { data: syncData, error } = await supabase.functions.invoke("cj-sync-request");
-      if (error) throw new Error(error.message);
-      if (syncData?.error) throw new Error(syncData.error);
-      return syncData;
+      throw new Error("Sincronização CJ desativada. O catálogo agora é alimentado pelos scrapers brasileiros.");
     },
-    onMutate: () => ({ toastId: veloToast.loading("Sincronizando produtos...") }),
-    onSuccess: (syncData, _vars, context) => {
-      const count = syncData.synced ?? 0;
-      veloToast.success(
-        count > 0 ? `${count} produtos sincronizados com sucesso!` : "Sincronização concluída (nenhum produto novo encontrado).",
-        { id: context?.toastId }
-      );
-      queryClient.invalidateQueries({ queryKey: ["catalog"] });
-      queryClient.refetchQueries({ queryKey: ["catalog"] });
-    },
-    onError: (err: Error, _vars, context) =>
-      veloToast.error(`Erro ao sincronizar: ${err.message}`, { id: context?.toastId }),
+    onError: (err: Error) => veloToast.error(err.message),
   });
+
 
   const rawProducts = data?.products || [];
   const totalPages = data?.totalPages || 1;
