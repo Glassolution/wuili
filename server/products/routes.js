@@ -22,39 +22,13 @@ function getAuthorizationHeader(req) {
   return req.headers?.authorization ?? req.headers?.Authorization ?? null;
 }
 
-async function requestCatalogSync(req) {
-  const authorization = getAuthorizationHeader(req);
-  if (!authorization) return { ok: false, reason: "missing_authorization" };
-
-  try {
-    const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/cj-sync-request`, {
-      method: "POST",
-      headers: {
-        Authorization: authorization,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const text = await response.text();
-    let payload = null;
-    try {
-      payload = text ? JSON.parse(text) : null;
-    } catch {
-      payload = text;
-    }
-
-    if (!response.ok) {
-      console.warn("[product-curation] sync CJ não concluiu:", response.status, payload);
-      return { ok: false, status: response.status, payload };
-    }
-
-    console.log("[product-curation] sync CJ concluído:", payload);
-    return { ok: true, status: response.status, payload };
-  } catch (error) {
-    console.error("[product-curation] erro ao solicitar sync CJ:", error);
-    return { ok: false, error: error?.message ?? String(error) };
-  }
+// Integração CJ Dropshipping descontinuada — catálogo agora alimentado pelos
+// scrapers brasileiros (C7Drop e futuros). Mantemos a função como no-op para
+// preservar a assinatura usada em loadCuratedProducts sem disparar a sync antiga.
+async function requestCatalogSync(_req) {
+  return { ok: false, reason: "cj_integration_discontinued" };
 }
+
 
 async function loadCuratedProducts(userId, filters) {
   const recommendations = await getPersonalizedProducts(userId, filters);
