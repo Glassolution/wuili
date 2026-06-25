@@ -397,7 +397,7 @@ const CatalogoPage = () => {
         let query = supabase
           .from("catalog_products")
           .select("*", { count: "exact" })
-          .in("source", ["b2drop", "c7drop"])
+          .in("source", ["cj", "b2drop", "c7drop"])
           .eq("is_blocked", false)
           .gt("stock_quantity", 0)
           .order("created_at", { ascending: false })
@@ -420,9 +420,9 @@ const CatalogoPage = () => {
 
         setProducts((data || []).map(mapProduct));
         setTotalCount(count || 0);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Erro ao buscar produtos do catálogo:", err);
-        setError("Não foi possível carregar o catálogo agora.");
+        setError(`Não foi possível carregar o catálogo agora. Detalhes: ${err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err))}`);
       } finally {
         setIsLoading(false);
       }
@@ -439,7 +439,7 @@ const CatalogoPage = () => {
         const { data, error: fetchError } = await supabase
           .from("catalog_products")
           .select("*")
-          .in("source", ["b2drop", "c7drop"])
+          .in("source", ["cj", "b2drop", "c7drop"])
           .eq("is_blocked", false)
           .gt("stock_quantity", 0)
           .limit(10);

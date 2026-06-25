@@ -45,17 +45,26 @@ export function useSupplierThreads() {
     staleTime: 60_000,
     queryFn: async () => {
       // Get distinct suppliers from orders
-      const { data: orders, error: ordErr } = await (supabase as any)
-        .from("orders")
-        .select("supplier")
-        .eq("user_id", user!.id)
-        .not("supplier", "is", null);
+      let supplierNames: string[] = [];
+      try {
+        const { data: orders, error: ordErr } = await (supabase as any)
+          .from("orders")
+          .select("supplier")
+          .eq("user_id", user!.id)
+          .not("supplier", "is", null);
 
-      if (ordErr) throw ordErr;
-
-      const supplierNames: string[] = Array.from(
-        new Set((orders ?? []).map((o: any) => o.supplier as string).filter(Boolean))
-      );
+        if (ordErr) {
+          console.warn("orders.supplier missing, using fallback", ordErr);
+          supplierNames = ["CJ Dropshipping"];
+        } else {
+          supplierNames = Array.from(
+            new Set((orders ?? []).map((o: any) => o.supplier as string).filter(Boolean))
+          );
+        }
+      } catch (err) {
+        console.warn("Error querying suppliers, using fallback", err);
+        supplierNames = ["CJ Dropshipping"];
+      }
 
       if (supplierNames.length === 0) return [];
 

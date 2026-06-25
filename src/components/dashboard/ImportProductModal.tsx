@@ -82,7 +82,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
-  const { isStartMode } = useStartMode();
+  const isStartMode = false;
 
   const [step, setStep] = useState(1); // Start at step 1 (details)
   const [title, setTitle] = useState("");

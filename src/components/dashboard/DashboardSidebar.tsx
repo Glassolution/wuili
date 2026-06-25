@@ -1518,24 +1518,7 @@ const DashboardSidebar = () => {
         </LayoutGroup>
 
       </div>
-      {collapsed && (
-        <div className="flex flex-col items-center gap-1.5 px-0 pb-1" style={{ flexShrink: 0 }}>
-          {/* Start Mode: só aparece para usuários gratuitos */}
-          {!hasActivePlan && (
-          <FooterButtonRow icon={Code2} label="Modo inicial" color="#888888" collapsed={collapsed} onClick={toggleStartMode} />
-          )}
-        </div>
-      )}
 
-      {!collapsed && <div className="relative z-10 flex flex-col" style={{ paddingLeft: "16px", paddingRight: "16px", paddingBottom: "0", gap: "3px", flexShrink: 0 }}>
-        {/* Start Mode: só aparece para usuários gratuitos */}
-        {!hasActivePlan && (
-          <FooterButtonRow icon={Code2} label="Modo inicial" color="#888888" collapsed={collapsed} onClick={toggleStartMode}>
-            {/* Toggle sempre ligado para gratuitos — clicar abre modal explicativo */}
-            <ToggleSwitch checked={true} onChange={toggleStartMode} />
-          </FooterButtonRow>
-        )}
-      </div>}
 
       {/* Divisória 3 - Acima da conta do usuário */}
       <div className={cn("relative z-10 shrink-0", collapsed ? "px-2" : "px-4")} style={{ margin: "14px 0 8px" }}>

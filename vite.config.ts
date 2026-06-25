@@ -102,6 +102,13 @@ export default defineConfig(({ mode }) => {
       hmr: {
         overlay: false,
       },
+      proxy: {
+        "/api-meli": {
+          target: "https://api.mercadolibre.com",
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api-meli/, ""),
+        },
+      },
     },
     plugins: [react(), affiliateApiDevMiddleware(), mode === "development" && componentTagger()].filter(Boolean),
     build: {

@@ -14,17 +14,22 @@ type ProductScoutAIProps = {
   onResults: (results: AtlasResults) => void;
 };
 
-const ALLOWED_SOURCES = ["b2drop", "c7drop"];
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+};
+
+type ProductPreview = {
+  id: string;
+  title: string;
+  image_url: string;
+  cost_price: number;
+  suggested_price: number;
+};
+
+const ALLOWED_SOURCES = ["cj", "b2drop", "c7drop"];
 const RESULT_LIMIT = 24;
-
-const scoutPreferences = [
-  { id: "viral", label: "Produto para viralizar" },
-  { id: "margin", label: "Maior margem" },
-  { id: "stock", label: "Estoque alto" },
-  { id: "entry", label: "Preço baixo" },
-] as const;
-
-type PreferenceId = (typeof scoutPreferences)[number]["id"];
 
 const SaturnIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -46,51 +51,19 @@ const SaturnIcon = () => (
 );
 
 const VeloOrb = ({ active = false }: { active?: boolean }) => (
-  <span className="relative grid h-11 w-11 shrink-0 place-items-center">
+  <span className="relative grid h-12 w-12 shrink-0 place-items-center">
     <motion.span
-      className="absolute h-10 w-10 rounded-full bg-emerald-400/40 blur-md"
-      animate={active ? { opacity: [0.35, 0.9, 0.35], scale: [0.9, 1.12, 0.9] } : { opacity: 0.7, scale: 1 }}
+      className="absolute h-12 w-12 rounded-full bg-emerald-400/30 blur-md"
+      animate={active ? { opacity: [0.3, 0.8, 0.3], scale: [0.9, 1.15, 0.9] } : { opacity: 0.6, scale: 1 }}
       transition={{ duration: 1.55, repeat: active ? Infinity : 0, ease: "easeInOut" }}
     />
     <motion.span
-      className="relative h-8 w-8 rounded-full bg-[radial-gradient(circle_at_32%_24%,#eaffde_0%,#7cff74_30%,#04c83b_58%,#01831f_100%)] shadow-[inset_-5px_-7px_12px_rgba(0,0,0,0.24),inset_4px_4px_10px_rgba(255,255,255,0.48),0_0_18px_rgba(27,255,86,0.34)]"
+      className="relative h-9 w-9 rounded-full bg-[radial-gradient(circle_at_32%_24%,#eaffde_0%,#7cff74_30%,#04c83b_58%,#01831f_100%)] shadow-[inset_-5px_-7px_12px_rgba(0,0,0,0.24),inset_4px_4px_10px_rgba(255,255,255,0.48),0_0_20px_rgba(27,255,86,0.34)]"
       animate={active ? { rotate: [0, 8, -6, 0], scale: [1, 1.04, 1] } : { rotate: 0, scale: 1 }}
       transition={{ duration: 1.9, repeat: active ? Infinity : 0, ease: "easeInOut" }}
     />
   </span>
 );
-
-async function runPreferenceQuery(pref: PreferenceId): Promise<string[]> {
-  let q = supabase
-    .from("catalog_products")
-    .select("id")
-    .in("source", ALLOWED_SOURCES)
-    .eq("is_blocked", false)
-    .gt("stock_quantity", 0);
-
-  switch (pref) {
-    case "margin":
-      q = q.order("margin_percent", { ascending: false, nullsFirst: false });
-      break;
-    case "stock":
-      q = q.order("stock_quantity", { ascending: false, nullsFirst: false });
-      break;
-    case "entry":
-      q = q
-        .gt("cost_price", 0)
-        .order("cost_price", { ascending: true, nullsFirst: false });
-      break;
-    case "viral":
-    default:
-      q = q
-        .order("orders_count", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false });
-  }
-
-  const { data, error } = await q.limit(RESULT_LIMIT);
-  if (error) throw error;
-  return (data ?? []).map((r) => r.id as string);
-}
 
 async function runFreeTextSearch(text: string): Promise<{ ids: string[]; source: "ai" | "fallback" }> {
   try {
@@ -106,7 +79,6 @@ async function runFreeTextSearch(text: string): Promise<{ ids: string[]; source:
     console.error("atlas-search invoke failed", err);
   }
 
-  // Fallback frontend: ILIKE simples em title/category
   const safe = text.replace(/[%,]/g, " ").trim();
   const { data } = await supabase
     .from("catalog_products")
@@ -121,6 +93,36 @@ async function runFreeTextSearch(text: string): Promise<{ ids: string[]; source:
   return { ids: (data ?? []).map((r) => r.id as string), source: "fallback" };
 }
 
+async function fetchProductPreviews(ids: string[]): Promise<ProductPreview[]> {
+  if (ids.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("catalog_products")
+    .select("id, title, images, cost_price, suggested_price")
+    .in("id", ids)
+    .in("source", ALLOWED_SOURCES);
+
+  if (error) throw error;
+
+  return (data ?? []).map((p) => {
+    let imageUrl = "";
+    try {
+      const images = typeof p.images === "string" ? JSON.parse(p.images) : p.images;
+      imageUrl = Array.isArray(images) && images.length > 0 ? images[0] : "";
+    } catch {
+      imageUrl = "";
+    }
+
+    return {
+      id: p.id,
+      title: p.title || "Produto sem nome",
+      image_url: imageUrl,
+      cost_price: p.cost_price || 0,
+      suggested_price: p.suggested_price || 0,
+    };
+  });
+}
+
 const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -128,65 +130,143 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
   const [customPrompt, setCustomPrompt] = useState("");
   const runRef = useRef(0);
 
+  // Expansion state
+  const [expanded, setExpanded] = useState(false);
+
+  // Search/Results state
+  const [searchResults, setSearchResults] = useState<ProductPreview[]>([]);
+  const [loadingResults, setLoadingResults] = useState(false);
+
+  // Chat state
+  const [chatMode, setChatMode] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
   const openPanel = () => {
     setOpen(true);
     setError(null);
+    setExpanded(false);
+    setChatMode(false);
+    setChatMessages([]);
+    setSearchResults([]);
   };
 
   const close = () => {
     runRef.current += 1;
     setOpen(false);
+    setExpanded(false);
     setBusy(false);
+    setChatMode(false);
+    setChatMessages([]);
+    setSearchResults([]);
+    setCustomPrompt("");
   };
 
-  const handlePreference = async (pref: PreferenceId, label: string) => {
-    const runId = ++runRef.current;
-    setBusy(true);
-    setError(null);
-    try {
-      const ids = await runPreferenceQuery(pref);
-      if (runId !== runRef.current) return;
-      onResults({ ids, label, source: "preference" });
-      setOpen(false);
-    } catch (err) {
-      console.error("Preference query failed", err);
-      if (runId !== runRef.current) return;
-      setError("Não consegui buscar agora. Tente novamente.");
-    } finally {
-      if (runId === runRef.current) setBusy(false);
-    }
-  };
-
-  const handleSubmitText = async () => {
-    const clean = customPrompt.trim();
+  const handleSubmitText = async (text?: string) => {
+    const clean = (text ?? customPrompt).trim();
     if (!clean) return;
     const runId = ++runRef.current;
     setBusy(true);
     setError(null);
+    setExpanded(true);
+    setChatMode(false);
+    setLoadingResults(true);
     try {
       const { ids, source } = await runFreeTextSearch(clean);
       if (runId !== runRef.current) return;
-      onResults({ ids, label: clean, source });
-      setOpen(false);
+
+      const products = await fetchProductPreviews(ids);
+      if (runId !== runRef.current) return;
+
+      setSearchResults(products);
       setCustomPrompt("");
+
+      // Notifica o pai
+      onResults({ ids, label: clean, source });
     } catch (err) {
       console.error("Free text search failed", err);
       if (runId !== runRef.current) return;
       setError("Não consegui buscar agora. Tente novamente.");
     } finally {
-      if (runId === runRef.current) setBusy(false);
+      if (runId === runRef.current) {
+        setBusy(false);
+        setLoadingResults(false);
+      }
     }
   };
+
+  const handleSendChatWith = async (message: string) => {
+    if (!message.trim() || isTyping) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: "user",
+      content: message,
+    };
+
+    setChatMessages((prev) => [...prev, userMessage]);
+    setIsTyping(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: {
+          messages: [
+            { role: "user", content: message },
+          ],
+        },
+      });
+
+      if (error) throw error;
+
+      const aiResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data?.response || "Desculpe, não consegui processar sua mensagem.",
+      };
+
+      setChatMessages((prev) => [...prev, aiResponse]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Ops, tive um problema ao processar sua mensagem. Tente novamente!",
+      };
+      setChatMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
+      setChatInput("");
+    }
+  };
+
+  const handleSendChat = async () => {
+    const message = chatInput.trim();
+    if (!message || isTyping) return;
+    await handleSendChatWith(message);
+  };
+
+  const handleBackToResults = () => {
+    setChatMode(false);
+  };
+
+  // Scroll chat to bottom
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
 
   // Auto-close em ESC
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) close();
+      if (e.key === "Escape" && !busy && !isTyping) close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, busy]);
+  }, [open, busy, isTyping]);
 
   return (
     <>
@@ -208,77 +288,327 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
             {open && (
               <motion.div
                 key="atlas-shell"
-                className="fixed inset-x-0 top-5 z-[120] pointer-events-none px-4 text-white"
-                initial={{ opacity: 0, y: -18, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -16, scale: 0.98 }}
-                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] as const }}
+                className="fixed inset-x-0 top-0 z-[120] pointer-events-none px-4 pt-8 text-white flex flex-col items-center gap-3"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] as const }}
               >
-                <div className="mx-auto w-[min(100%,680px)] space-y-3">
-                  <form
-                    aria-label="Atlas — busca no catálogo"
-                    className="pointer-events-auto flex h-[74px] items-center gap-3 rounded-full border border-white/10 bg-[#242424] px-3 shadow-[0_18px_48px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.08)]"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void handleSubmitText();
-                    }}
-                  >
-                    <VeloOrb active={busy} />
+                {/* Search Input Bar (Floating Pill) */}
+                <motion.div
+                  layout
+                  className="pointer-events-auto w-[min(100%,580px)] overflow-hidden rounded-full bg-[#1c1c1e] px-4 py-2 shadow-[0_16px_40px_rgba(0,0,0,0.5)] text-white backdrop-blur-xl"
+                >
+                  <div className="flex h-11 items-center gap-3">
+                    <VeloOrb active={busy || loadingResults || isTyping} />
                     <input
-                      value={customPrompt}
-                      onChange={(e) => setCustomPrompt(e.target.value)}
-                      disabled={busy}
-                      placeholder="Digite o produto, nicho ou estilo que você quer vender..."
-                      className="h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium text-white outline-none placeholder:text-white/38 disabled:cursor-wait"
+                      value={chatMode ? (searchResults.length > 0 ? "Explorando recomendações do Atlas" : "Conversando com Atlas") : customPrompt}
+                      readOnly={chatMode}
+                      onChange={(e) => {
+                        if (!chatMode) setCustomPrompt(e.target.value);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey && !chatMode) {
+                          e.preventDefault();
+                          void handleSubmitText();
+                        }
+                      }}
+                      disabled={busy || loadingResults}
+                      placeholder="O que você quer saber sobre produtos para vender?"
+                      className={`h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium text-white outline-none placeholder:text-white/40 ${
+                        chatMode ? "cursor-default select-none text-white/70" : "disabled:cursor-wait"
+                      }`}
                     />
                     <button
-                      type="submit"
-                      disabled={!customPrompt.trim() || busy}
-                      className="hidden h-10 rounded-full bg-white px-4 text-[12px] font-semibold text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-35 sm:inline-flex sm:items-center"
+                      type="button"
+                      onClick={close}
+                      className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                      aria-label="Fechar Atlas"
                     >
-                      Buscar
+                      <X size={18} />
                     </button>
-                  </form>
+                  </div>
+                </motion.div>
 
-                  <div className="pointer-events-auto rounded-[22px] border border-white/10 bg-[#242424] px-3 py-3 shadow-[0_22px_60px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.08)]">
-                    <div className="flex items-center gap-3">
-                      <VeloOrb active={busy} />
-                      <div className="min-w-0 flex-1">
-                        <h2 className="truncate text-[14px] font-medium tracking-[-0.01em] text-white">
-                          {busy
-                            ? "Atlas pensando..."
-                            : error
-                              ? error
-                              : "Que tipo de produto você quer encontrar hoje?"}
-                        </h2>
-                      </div>
-                      {!busy && (
+                {/* Suggestions Bar (Separate Floating Pill - Image 2 Style) */}
+                {!chatMode && searchResults.length === 0 && !loadingResults && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="pointer-events-auto w-[min(100%,580px)] overflow-hidden rounded-full bg-[#1c1c1e] px-3.5 py-2 shadow-[0_12px_30px_rgba(0,0,0,0.4)] text-white"
+                  >
+                    <div className="flex gap-2 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {[
+                        "Produtos para viralizar",
+                        "Maior margem de lucro",
+                        "Estoque alto",
+                        "Preço baixo",
+                        "Ideias de nichos",
+                      ].map((question, index) => (
                         <button
+                          key={index}
                           type="button"
-                          onClick={close}
-                          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/32 transition-colors hover:bg-white/10 hover:text-white"
-                          aria-label="Fechar Atlas"
+                          onClick={() => {
+                            setCustomPrompt(question);
+                            void handleSubmitText(question);
+                          }}
+                          className="shrink-0 rounded-full bg-[#2a2a2c] hover:bg-[#323235] active:bg-[#3d3d40] px-4.5 py-2.5 text-[13px] font-normal text-white/85 transition-all hover:scale-[1.01] active:scale-[0.99]"
                         >
-                          <X size={15} />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                      {scoutPreferences.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void handlePreference(p.id, p.label)}
-                          className="shrink-0 rounded-full bg-white/[0.075] px-3.5 py-2 text-[12px] font-medium text-white/84 transition-colors hover:bg-white/[0.13] hover:text-white disabled:cursor-wait disabled:opacity-50"
-                        >
-                          {p.label}
+                          {question}
                         </button>
                       ))}
                     </div>
-                  </div>
-                </div>
+                  </motion.div>
+                )}
+
+                {/* Loading State (Separate Floating Pill) */}
+                {loadingResults && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="pointer-events-auto w-[min(100%,580px)] overflow-hidden rounded-full bg-[#1c1c1e] py-3.5 px-6 shadow-[0_12px_30px_rgba(0,0,0,0.4)] text-white flex items-center justify-center"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-emerald-400" style={{ animationDelay: "0ms" }} />
+                      <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-emerald-400" style={{ animationDelay: "150ms" }} />
+                      <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-emerald-400" style={{ animationDelay: "300ms" }} />
+                      <span className="ml-2 text-[13px] font-medium text-white/60">Buscando no catálogo...</span>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Error State (Separate Floating Pill) */}
+                {error && !loadingResults && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="pointer-events-auto w-[min(100%,580px)] overflow-hidden rounded-[20px] bg-red-500/10 p-3 shadow-[0_12px_30px_rgba(0,0,0,0.4)] text-white text-center"
+                  >
+                    <div className="text-[13px] text-red-400">
+                      {error}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Search Results Grid (Separate Floating Card below) */}
+                {!chatMode && !loadingResults && searchResults.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="pointer-events-auto w-[min(100%,580px)] overflow-hidden rounded-[24px] bg-[#1c1c1e] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-white"
+                  >
+                    <div className="space-y-3">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/30 px-1">
+                        Produtos Recomendados
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10">
+                        {searchResults.slice(0, 12).map((product) => (
+                          <button
+                            key={product.id}
+                            type="button"
+                            onClick={() => {
+                              setChatMode(true);
+                              setChatMessages([
+                                {
+                                  id: "1",
+                                  role: "assistant",
+                                  content: `Encontrei este produto para você!\n\n**${product.title}**\n\n💰 Preço sugerido: R$ ${product.suggested_price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}\n\nPosso te ajudar com:\n• Gerar uma descrição otimizada\n• Encontrar produtos similares\n• Ajustar preço e estratégia\n\nO que você quer saber?`,
+                                },
+                              ]);
+                            }}
+                            className="flex items-center gap-3 rounded-2xl bg-white/[0.04] p-3 text-left transition-all hover:bg-white/[0.08] hover:scale-[1.01]"
+                          >
+                            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white/5">
+                              {product.image_url ? (
+                                <img
+                                  src={product.image_url}
+                                  alt={product.title}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-white/30 text-xs">
+                                  📦
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-2 text-[11px] font-medium text-white leading-tight">
+                                {product.title}
+                              </p>
+                              <p className="mt-1 text-[12px] font-semibold text-emerald-400">
+                                R$ {product.suggested_price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Quick Actions Bar after results */}
+                      <div className="flex gap-2 items-center overflow-x-auto rounded-full bg-black/25 px-2.5 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mt-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setChatMode(true);
+                            setChatMessages([
+                              {
+                                id: Date.now().toString(),
+                                role: "assistant",
+                                content: `Sobre os ${searchResults.length} produtos encontrados, qual deles possui a melhor margem de lucro no catálogo?`,
+                              },
+                            ]);
+                          }}
+                          className="shrink-0 rounded-full bg-[#2a2a2c] hover:bg-[#323235] active:bg-[#3d3d40] px-4 py-2 text-[12px] font-medium text-white/80 transition-all"
+                        >
+                          Qual tem melhor margem?
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setChatMode(true);
+                            setChatMessages([
+                              {
+                                id: Date.now().toString(),
+                                role: "assistant",
+                                content: `Gostaria de ver produtos similares a estes que encontrei? Me diga que características você procura!`,
+                              },
+                            ]);
+                          }}
+                          className="shrink-0 rounded-full bg-[#2a2a2c] hover:bg-[#323235] active:bg-[#3d3d40] px-4 py-2 text-[12px] font-medium text-white/80 transition-all"
+                        >
+                          Ver similares
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchResults([]);
+                            setCustomPrompt("");
+                          }}
+                          className="shrink-0 rounded-full bg-[#2a2a2c] hover:bg-[#323235] active:bg-[#3d3d40] px-4 py-2 text-[12px] font-medium text-white/80 transition-all"
+                        >
+                          Nova busca
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Chat Mode Panel (Separate Floating Card below) */}
+                {chatMode && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="pointer-events-auto w-[min(100%,580px)] overflow-hidden rounded-[24px] bg-[#1c1c1e] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-white"
+                  >
+                    <div className="flex flex-col space-y-3 pt-1">
+                      {/* Chat Header with back button */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleBackToResults}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white/[0.06] px-3 text-[12px] font-medium text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m12 19-7-7 7-7" />
+                            <path d="M19 12H5" />
+                          </svg>
+                          Ver Resultados
+                        </button>
+                        <span className="text-[12px] text-white/40">Conversando com Atlas</span>
+                      </div>
+
+                      {/* Messages Area */}
+                      <div
+                        ref={chatContainerRef}
+                        className="flex-1 overflow-y-auto px-1 py-1 space-y-3 max-h-[260px] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/10"
+                      >
+                        {chatMessages.length === 0 && (
+                          <div className="flex justify-start">
+                            <div className="max-w-[85%] rounded-2xl bg-white/[0.06] px-4 py-2.5 text-[13px] leading-relaxed text-white/90">
+                              Olá! Me conta o que você quer saber sobre produtos para vender. 💡
+                            </div>
+                          </div>
+                        )}
+                        {chatMessages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                          >
+                            <div
+                              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed ${
+                                msg.role === "user"
+                                  ? "bg-emerald-500 text-white"
+                                  : "bg-white/[0.06] text-white/90"
+                              }`}
+                            >
+                              {msg.content}
+                            </div>
+                          </div>
+                        ))}
+                        {isTyping && (
+                          <div className="flex justify-start">
+                            <div className="rounded-2xl bg-white/[0.06] px-4 py-3">
+                              <div className="flex gap-1">
+                                <span className="h-2 w-2 animate-bounce rounded-full bg-white/50" style={{ animationDelay: "0ms" }} />
+                                <span className="h-2 w-2 animate-bounce rounded-full bg-white/50" style={{ animationDelay: "150ms" }} />
+                                <span className="h-2 w-2 animate-bounce rounded-full bg-white/50" style={{ animationDelay: "300ms" }} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* AI Suggestion Bar at the bottom of the chat */}
+                      <div className="flex gap-2 items-center overflow-x-auto rounded-full bg-black/25 px-2.5 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {[
+                          "Como vender este produto?",
+                          "Gerar descrição para o ML",
+                          "Qual o público-alvo ideal?",
+                          "Ideias de anúncios no TikTok",
+                        ].map((question, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            disabled={isTyping}
+                            onClick={() => {
+                              void handleSendChatWith(question);
+                            }}
+                            className="shrink-0 rounded-full bg-[#2a2a2c] hover:bg-[#323235] active:bg-[#3d3d40] px-4 py-2 text-[12px] font-normal text-white/85 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+                          >
+                            {question}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Chat Input */}
+                      <form
+                        className="flex items-center gap-2 rounded-full bg-white/[0.04] px-4 py-2"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void handleSendChat();
+                        }}
+                      >
+                        <input
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          disabled={isTyping}
+                          placeholder="Pergunte algo sobre o produto..."
+                          className="h-8 flex-1 bg-transparent text-[13px] font-medium text-white outline-none placeholder:text-white/30 disabled:cursor-wait"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!chatInput.trim() || isTyping}
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-500 text-white transition-all hover:bg-emerald-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m22 2-7 20-4-9-9-4Z" />
+                            <path d="M22 2 11 13" />
+                          </svg>
+                        </button>
+                      </form>
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>,

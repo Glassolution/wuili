@@ -20,6 +20,7 @@ import {
   supplierColor,
   type ChatMessage,
 } from "@/hooks/useSupplierChat";
+import { useLocation } from "react-router-dom";
 
 // ── AI quick-reply options ────────────────────────────────────────────────────
 
@@ -937,11 +938,22 @@ function AdminSupportBubble({ msg }: { msg: SupportMessage }) {
 
 export default function ChatFornecedoresPage() {
   const { user } = useAuth();
+  const location = useLocation();
   const [selectedId,   setSelectedId]   = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string>("");
   const [search,       setSearch]       = useState("");
   const [mobileView,   setMobileView]   = useState<"list" | "chat">("list");
   const [activeArea, setActiveArea] = useState<ChatArea>("suppliers");
+
+  useEffect(() => {
+    const state = location.state as { supplierId?: string, supplierName?: string } | null;
+    if (state?.supplierId) {
+      setSelectedId(state.supplierId);
+      setSelectedName(state.supplierName || "Fornecedor");
+      setMobileView("chat");
+      setActiveArea("suppliers");
+    }
+  }, [location.state]);
 
   const { data: isAdmin = false } = useQuery({
     queryKey: ["chat-admin-access", user?.id],

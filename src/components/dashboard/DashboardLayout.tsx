@@ -191,7 +191,8 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const { foto } = useProfile();
-  const { isStartMode, hasActivePlan } = useStartMode();
+  const isStartMode = false;
+  const hasActivePlan = true;
   const [menuOpen, setMenuOpen] = useState(false);
   const [showStartModeModal, setShowStartModeModal] = useState(false);
   const metadataRole =
@@ -424,8 +425,7 @@ const DashboardLayoutInner = () => {
     void attachReferralToCurrentUser(user.id);
   }, [user?.id]);
 
-  // Start Mode: ativo para usuários gratuitos, desativado para pagos
-  const { isStartMode } = useStartMode();
+  const isStartMode = false;
 
   useEffect(() => {
     const syncStores = () => setStores(readUserStores());
@@ -696,7 +696,7 @@ const DashboardLayoutInner = () => {
           {/* Header - no shell cinza */}
           <DashboardHeader />
           {/* Main content area - sem moldura externa */}
-          <main className="flex min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ backgroundColor: "#f4f4f4" }}>
+          <main className="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ backgroundColor: "#f4f4f4" }}>
             <PageErrorBoundary>
               <Outlet />
             </PageErrorBoundary>
