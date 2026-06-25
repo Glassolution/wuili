@@ -156,6 +156,22 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     setSellPrice(Math.round(costPrice * mult * 100) / 100);
   };
 
+  const handlePriceChange = (val: string) => {
+    if (val === "") {
+      setSellPrice(0);
+      return;
+    }
+    const numericVal = Number(val);
+    if (!isNaN(numericVal)) {
+      setSellPrice(numericVal);
+      if (costPrice > 0) {
+        const calculatedMult = numericVal / costPrice;
+        const clampedMult = Math.min(Math.max(calculatedMult, 1.5), 5.0);
+        setMultiplier(clampedMult);
+      }
+    }
+  };
+
   const profit = useMemo(() => Math.round((sellPrice - totalCost) * 100) / 100, [sellPrice, totalCost]);
   const profitMargin = useMemo(
     () => (sellPrice > 0 ? Math.round(((sellPrice - totalCost) / sellPrice) * 100) : 0),
@@ -633,8 +649,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                         step="0.01"
                         min="0"
                         value={sellPrice || ""}
-                        readOnly
-                        className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0A0A0A] outline-none transition-colors"
+                        onChange={(e) => handlePriceChange(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400 focus:bg-white"
                       />
                     </div>
                   </div>
