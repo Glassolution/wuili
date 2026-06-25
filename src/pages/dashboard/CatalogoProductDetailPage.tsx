@@ -16,7 +16,7 @@ import {
   Boxes,
   ShoppingBag,
 } from "lucide-react";
-import { formatPrice } from "./CatalogoPage";
+import { formatPrice } from "@/components/dashboard/ProductCard";
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { veloToast } from "@/components/ui/velo-toast";
 
