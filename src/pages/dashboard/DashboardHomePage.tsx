@@ -118,17 +118,15 @@ const DashboardHomePage = () => {
           <header className="flex items-center justify-between gap-4 mt-2">
             <div 
               onClick={() => navigate("/dashboard/planos")}
-              className="flex items-center gap-2 rounded-full bg-[#111111] py-1.5 pl-3.5 pr-4 text-white hover:bg-neutral-800 transition-colors shadow-sm text-[11px] font-semibold leading-none cursor-pointer"
+              className="flex items-center gap-3.5 rounded-full bg-[#111111] py-3 pl-5 pr-6 text-white hover:bg-neutral-900 transition-all duration-200 shadow-[0_4px_12px_rgba(0,0,0,0.15)] text-sm font-semibold cursor-pointer select-none"
             >
-              <span className="grid h-3 w-3 place-items-center rounded-full bg-emerald-500 shrink-0">
-                <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#bef264] shrink-0" />
+              <span className="tracking-tight text-neutral-100 font-medium">
+                Aproveite 3 meses por R$ 1/mês
               </span>
-              <span className="tracking-tight text-white/90">
-                Assine 3 meses por R$ 197,90
-              </span>
-              <span className="h-3 w-px bg-white/20 mx-1" />
-              <span className="text-white font-bold hover:underline">
-                Assinar agora
+              <span className="h-4 w-px bg-white/20 mx-1.5" />
+              <span className="text-white hover:text-neutral-200 transition-colors">
+                Selecionar um plano
               </span>
             </div>
             
