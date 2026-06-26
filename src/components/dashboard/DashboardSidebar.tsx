@@ -38,6 +38,7 @@ import {
   Edit2,
   Trash2,
   Inbox,
+  Infinity,
 } from "lucide-react";
 import StartModeModal from "./StartModeModal";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -86,29 +87,29 @@ const NavLinkRow = ({
   <Link
     to={item.to}
     className={cn(
-      "sidebar-item group relative flex items-center overflow-hidden transition-all duration-300 ease-out",
+      "sidebar-item group relative flex items-center overflow-hidden transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0",
       collapsed ? "group w-full h-[32px] justify-center p-0 m-0" : "px-2.5"
     )}
     title={collapsed ? item.label : undefined}
     style={{
       fontFamily: sidebarFont,
-      fontSize: collapsed ? undefined : "13.5px",
+      fontSize: collapsed ? undefined : "13px",
       fontWeight: collapsed ? undefined : active ? 600 : 400,
       lineHeight: collapsed ? undefined : "20px",
       letterSpacing: collapsed ? undefined : "-0.018em",
-      height: collapsed ? undefined : "38px",
-      gap: collapsed ? undefined : "10px",
+      height: collapsed ? undefined : "32px",
+      gap: collapsed ? undefined : "8px",
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
+      outline: "none",
     }}
   >
     {active && !collapsed && (
       <motion.div
         layoutId="sidebar-active-pill"
-        className="absolute inset-0 z-0 rounded-[12px] bg-[#E4E4E7]"
+        className="absolute inset-0 z-0 rounded-[12px] bg-[#0A0A0A]"
         style={{
-          border: "1px solid #D4D4D8",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+          boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
         }}
         transition={{ type: "spring", stiffness: 380, damping: 30 }}
       />
@@ -120,24 +121,23 @@ const NavLinkRow = ({
         {active && (
           <motion.div
             layoutId="sidebar-active-pill-collapsed"
-            className="absolute inset-0 z-0 rounded-[10px] bg-[#E4E4E7]"
+            className="absolute inset-0 z-0 rounded-[10px] bg-[#0A0A0A]"
             style={{
-              border: "1px solid #D4D4D8",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
             }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
           />
         )}
         <span className="relative z-10 grid h-7 w-7 place-items-center bg-transparent">
-          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color="#18181B" />
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={active ? "#FFFFFF" : "#18181B"} />
         </span>
       </div>
     ) : (
-      <div className="relative z-10 flex items-center gap-2.5 pl-0.5">
+      <div className="relative z-10 flex items-center gap-2 pl-0.5">
         <span className="grid h-7 w-7 place-items-center bg-transparent">
-          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color="#18181B" />
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={active ? "#FFFFFF" : "#18181B"} />
         </span>
-        <span style={{ color: active ? "#18181B" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">
+        <span style={{ color: active ? "#FFFFFF" : "#4B5563" }} className={cn("transition-colors duration-200", !active && "group-hover:text-[#111827]")}>
           {item.label}
         </span>
       </div>
@@ -163,48 +163,47 @@ const NavGroupRow = ({
     type="button"
     onClick={onToggle}
     className={cn(
-      "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out",
+      "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0",
       collapsed ? "group h-[32px] justify-center p-0 m-0" : "px-2.5",
-      groupActiveCompact && !collapsed ? "bg-[#E4E4E7]" : "bg-transparent"
+      groupActiveCompact && !collapsed ? "bg-[#0A0A0A]" : "bg-transparent"
     )}
     title={collapsed ? item.label : undefined}
     style={{
       fontFamily: collapsed ? undefined : sidebarFont,
-      fontSize: collapsed ? undefined : "13.5px",
+      fontSize: collapsed ? undefined : "13px",
       fontWeight: collapsed ? undefined : groupActiveCompact ? 600 : 400,
       lineHeight: collapsed ? undefined : "20px",
       letterSpacing: collapsed ? undefined : "-0.018em",
       textTransform: collapsed ? undefined : "none",
-      height: collapsed ? undefined : "38px",
-      gap: collapsed ? undefined : "10px",
+      height: collapsed ? undefined : "32px",
+      gap: collapsed ? undefined : "8px",
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
       cursor: "pointer",
-      border: groupActiveCompact && !collapsed ? "1px solid #D4D4D8" : "1px solid transparent",
-      boxShadow: groupActiveCompact && !collapsed ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
+      boxShadow: groupActiveCompact && !collapsed ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+      outline: "none",
     }}
   >
     {collapsed ? (
       <div 
         className={cn(
           "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-          groupActiveCompact ? "bg-[#E4E4E7]" : "bg-transparent"
+          groupActiveCompact ? "bg-[#0A0A0A]" : "bg-transparent"
         )}
         style={{
-          border: groupActiveCompact ? "1px solid #D4D4D8" : "1px solid transparent",
-          boxShadow: groupActiveCompact ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
+          boxShadow: groupActiveCompact ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
         }}
       >
         <span className="grid h-7 w-7 place-items-center bg-transparent">
-          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color="#18181B" />
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={groupActiveCompact ? "#FFFFFF" : "#18181B"} />
         </span>
       </div>
     ) : (
       <>
         <span className="grid h-7 w-7 place-items-center bg-transparent">
-          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color="#18181B" />
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={groupActiveCompact ? "#FFFFFF" : "#18181B"} />
         </span>
-        <span className="flex-1 text-left transition-colors duration-200 group-hover:text-[#111827]" style={{ color: groupActiveCompact ? "#18181B" : "#4B5563" }}>
+        <span className="flex-1 text-left transition-colors duration-200 group-hover:text-[#111827]" style={{ color: groupActiveCompact ? "#FFFFFF" : "#4B5563" }}>
           {item.label}
         </span>
         {item.trailing === "plus" ? (
@@ -236,38 +235,38 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
   return (
     <Link
       to={sub.to}
-      className="sidebar-item relative flex items-center transition-all duration-300 ease-out"
+      className="sidebar-item relative flex items-center transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0"
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "13px", 
+        fontSize: "12px", 
         fontWeight: subActive ? 600 : 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em", 
-        height: "32px", 
-        gap: "10px",
+        height: "28px", 
+        gap: "8px",
         paddingLeft: "42px",
         paddingRight: "10px",
         borderRadius: "10px",
         flexShrink: 0,
+        outline: "none",
       }}
     >
       {subActive && (
         <motion.div
           layoutId="sidebar-active-subpill"
-          className="absolute inset-0 z-0 rounded-[10px] bg-[#E4E4E7]"
+          className="absolute inset-0 z-0 rounded-[10px] bg-[#0A0A0A]"
           style={{
-            border: "1px solid #D4D4D8",
-            boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
           }}
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
         />
       )}
       {SubIcon && (
         <span className="relative z-10">
-          <IconSpan icon={SubIcon} size={20} strokeWidth={1.5} color="#18181B" />
+          <IconSpan icon={SubIcon} size={20} strokeWidth={1.5} color={subActive ? "#FFFFFF" : "#18181B"} />
         </span>
       )}
-      <span style={{ color: subActive ? "#18181B" : "#4B5563" }} className="relative z-10 transition-colors duration-200 group-hover:text-[#111827]">{sub.label}</span>
+      <span style={{ color: subActive ? "#FFFFFF" : "#4B5563" }} className="relative z-10 transition-colors duration-200 group-hover:text-[#111827]">{sub.label}</span>
     </Link>
   );
 };
@@ -287,19 +286,18 @@ const FooterLinkRow = ({
 }) => {
   if (collapsed) {
     return (
-      <Link to={to} className="sidebar-item group relative flex h-[32px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
+      <Link to={to} className="sidebar-item group relative flex h-[32px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0" style={{ outline: "none" }} title={label}>
         <div 
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-            active ? "bg-[#E4E4E7]" : "bg-transparent"
+            active ? "bg-[#0A0A0A]" : "bg-transparent"
           )}
           style={{
-            border: active ? "1px solid #D4D4D8" : "1px solid transparent",
-            boxShadow: active ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
+            boxShadow: active ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
           }}
         >
           <span className="grid h-7 w-7 place-items-center bg-transparent">
-            <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
+            <IconSpan icon={icon} size={20} strokeWidth={1.5} color={active ? "#FFFFFF" : "#18181B"} />
           </span>
         </div>
       </Link>
@@ -309,29 +307,29 @@ const FooterLinkRow = ({
     <Link
       to={to}
       className={cn(
-        "sidebar-item relative flex items-center transition-all duration-300 ease-out",
-        active ? "bg-[#E4E4E7]" : "bg-transparent"
+        "sidebar-item relative flex items-center transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0",
+        active ? "bg-[#0A0A0A]" : "bg-transparent"
       )}
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "13.5px", 
+        fontSize: "13px", 
         fontWeight: active ? 600 : 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em",
-        height: "38px",
-        gap: "10px",
+        height: "32px",
+        gap: "8px",
         paddingLeft: "10px",
         paddingRight: "10px",
         borderRadius: "12px",
         flexShrink: 0,
-        border: active && !collapsed ? "1px solid #D4D4D8" : "1px solid transparent",
-        boxShadow: active && !collapsed ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
+        boxShadow: active && !collapsed ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+        outline: "none",
       }}
     >
       <span className="grid h-7 w-7 place-items-center bg-transparent">
-        <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
+        <IconSpan icon={icon} size={20} strokeWidth={1.5} color={active ? "#FFFFFF" : "#18181B"} />
       </span>
-      <span style={{ color: active ? "#18181B" : "#4B5563" }} className="transition-colors duration-200 group-hover:text-[#111827]">{label}</span>
+      <span style={{ color: active ? "#FFFFFF" : "#4B5563" }} className={cn("transition-colors duration-200", !active && "group-hover:text-[#111827]")}>{label}</span>
     </Link>
   );
 };
@@ -353,7 +351,7 @@ const FooterButtonRow = ({
 }) => {
   if (collapsed) {
     return (
-      <button type="button" onClick={onClick} className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" style={{ background: "transparent", border: "none", cursor: "pointer" }} title={label}>
+      <button type="button" onClick={onClick} className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0" style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }} title={label}>
         <span className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out hover:bg-white/40">
           <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
         </span>
@@ -364,20 +362,21 @@ const FooterButtonRow = ({
     <button
       type="button"
       onClick={onClick}
-      className="sidebar-item relative flex w-full items-center bg-transparent transition-all duration-300 ease-out"
+      className="sidebar-item relative flex w-full items-center bg-transparent transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0"
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "13.5px", 
+        fontSize: "13px", 
         fontWeight: 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em",
-        height: "38px",
-        gap: "10px",
+        height: "32px",
+        gap: "8px",
         paddingLeft: "10px",
         paddingRight: "10px",
         borderRadius: "12px",
         background: "transparent",
         cursor: "pointer",
+        outline: "none",
       }}
     >
       <span className="grid h-7 w-7 place-items-center rounded-[8px] text-[#18181B]">
@@ -404,7 +403,7 @@ const FooterAnchorRow = ({
 }) => {
   if (collapsed) {
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out" title={label}>
+      <a href={href} target="_blank" rel="noopener noreferrer" className="sidebar-item group flex w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0" style={{ outline: "none" }} title={label}>
         <span className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out hover:bg-white/40">
           <IconSpan icon={icon} size={20} strokeWidth={1.5} color="#18181B" />
         </span>
@@ -416,19 +415,20 @@ const FooterAnchorRow = ({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="sidebar-item relative flex items-center transition-all duration-300 ease-out"
+      className="sidebar-item relative flex items-center transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0"
       style={{ 
         fontFamily: sidebarFont, 
-        fontSize: "13.5px", 
+        fontSize: "13px", 
         fontWeight: 400, 
         lineHeight: "18px", 
         letterSpacing: "-0.014em",
-        height: "38px",
-        gap: "10px",
+        height: "32px",
+        gap: "8px",
         paddingLeft: "10px",
         paddingRight: "10px",
         borderRadius: "12px",
         flexShrink: 0,
+        outline: "none",
       }}
     >
       <span className="grid h-7 w-7 place-items-center rounded-[8px] text-[#18181B]">
@@ -857,77 +857,49 @@ const SidebarAccentStar = ({ color = "currentColor", size = 16 }: { color?: stri
 );
 
 const SidebarBoostCard = ({
-  variant = "white",
   onUpgrade,
 }: {
-  variant?: "white" | "glass";
   onUpgrade?: () => void;
 }) => {
-  const button = (
-    <button
-      type="button"
-      onClick={onUpgrade}
-      className="group relative mt-4 flex h-[50px] w-full items-center justify-center overflow-hidden rounded-[22px] border border-black/80 bg-[linear-gradient(145deg,#303033_0%,#111113_48%,#050505_100%)] text-[15px] font-semibold tracking-[-0.025em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_16px_30px_rgba(0,0,0,0.20)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_36px_rgba(0,0,0,0.24)]"
-    >
-      <span className="pointer-events-none absolute inset-x-4 top-0 h-px bg-white/20" />
-      <span className="pointer-events-none absolute inset-0 opacity-40 bg-[linear-gradient(180deg,rgba(255,255,255,0.05)_0%,rgba(255,255,255,0.015)_24%,rgba(255,255,255,0)_48%)]" />
-      <span className="relative z-10">Upgrade para Pro</span>
-    </button>
-  );
-
-  if (variant === "glass") {
-    return (
-      <div 
-        className="mt-4 rounded-[20px] px-4 py-4 backdrop-blur-xl"
-        style={{
-          background: "rgba(24, 24, 26, 0.98)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow: "none",
-        }}
-      >
-        <div className="flex items-start gap-2.5">
-          <div className="pt-0.5 text-white/90">
-            <SidebarAccentStar color="currentColor" size={16} />
-          </div>
-          <div className="min-w-0">
-            <div className="text-[14px] font-semibold tracking-[-0.02em] text-white">Impulsione com IA</div>
-            <div className="mt-1 text-[12.5px] leading-[18px] text-white/48">
-              Insights e ferramentas que economizam horas.
-            </div>
-          </div>
-        </div>
-        {button}
-      </div>
-    );
-  }
-
   return (
     <div 
-      className="mt-4 overflow-hidden rounded-[20px] px-4 py-4"
+      className="rounded-2xl px-4 py-4 border border-black/[0.06]"
       style={{
-        background: "rgba(0, 0, 0, 0.015)",
-        border: "1px solid rgba(0, 0, 0, 0.03)",
-        boxShadow: "none",
+        background: "rgba(0, 0, 0, 0.01)",
+        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03)",
       }}
     >
-      <div className="flex items-start gap-3">
-        <div 
-          className="grid h-9 w-9 place-items-center rounded-[12px] bg-white text-[#111111]"
-          style={{
-            border: "1px solid rgba(0, 0, 0, 0.04)",
-            boxShadow: "none",
-          }}
-        >
-          <SidebarAccentStar color="currentColor" size={16} />
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 text-[#18181B]">
+          <Infinity size={20} className="text-[#18181B] shrink-0" />
+          <div className="text-[13.5px] font-semibold tracking-[-0.02em] text-[#18181B] leading-none">
+            Acelere com IA
+          </div>
         </div>
         <div className="min-w-0">
-          <div className="text-[14px] font-semibold tracking-[-0.03em] text-[#121826]">Impulsione com IA</div>
-          <div className="mt-1 max-w-[220px] text-[12.5px] leading-[17px] text-[#70798A]">
+          <div className="text-[11.5px] leading-[16px] text-[#71717A]">
             Insights e ferramentas que economizam horas.
           </div>
         </div>
+        <button
+          type="button"
+          onClick={onUpgrade}
+          className="group relative mt-2 flex h-8 w-full items-center justify-center overflow-hidden rounded-full text-white text-[12px] font-semibold transition-all duration-200 hover:brightness-110 active:scale-[0.98] focus:outline-none focus-visible:outline-none"
+          style={{ 
+            outline: "none",
+            background: "linear-gradient(to bottom, #3A3A3C 0%, #1C1C1E 50%, #0A0A0A 100%)",
+            boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15)",
+            border: "1px solid rgba(0, 0, 0, 0.4)",
+          }}
+        >
+          {/* Liquid glass top reflection overlay */}
+          <span 
+            className="absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/12 to-transparent pointer-events-none rounded-t-full"
+            style={{ filter: "blur(0.5px)" }}
+          />
+          <span className="relative z-10">Upgrade para Pro</span>
+        </button>
       </div>
-      {button}
     </div>
   );
 };
@@ -978,7 +950,8 @@ const UserFooter = ({
           <button
             type="button"
             onClick={() => navigate("/dashboard/configuracoes")}
-            className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
+            className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)] focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+            style={{ outline: "none" }}
             title="Configurações"
           >
             <Settings size={17} strokeWidth={1.65} className="text-[#888888]" />
@@ -986,7 +959,8 @@ const UserFooter = ({
           <button
             type="button"
             onClick={onLogout}
-            className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)]"
+            className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-transparent transition-all duration-300 ease-out hover:border-[rgba(255,255,255,0.54)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,rgba(243,244,246,0.58)_100%)] focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+            style={{ outline: "none" }}
             title="Sair"
           >
             <LogOut size={17} strokeWidth={1.65} className="text-[#888888]" />
@@ -999,7 +973,7 @@ const UserFooter = ({
   const closeMenu = () => setIsOpen(false);
 
   return (
-    <div ref={containerRef} className="relative z-10 shrink-0 px-4 pb-5 pt-0">
+    <div ref={containerRef} className="relative z-10 shrink-0 px-4 pb-4 pt-0">
       {isOpen && !isGlass && (
         <div className="absolute bottom-[calc(100%+12px)] left-4 right-4 z-50 rounded-[30px] border border-white/85 bg-[linear-gradient(145deg,rgba(255,255,255,0.92)_0%,rgba(244,246,250,0.86)_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.96),0_26px_54px_rgba(15,23,42,0.13)] backdrop-blur-2xl">
           <div className="rounded-[20px] border border-[rgba(255,255,255,0.8)] bg-[linear-gradient(180deg,rgba(255,255,255,0.62)_0%,rgba(243,244,246,0.78)_100%)] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]">
@@ -1123,23 +1097,26 @@ const UserFooter = ({
         className="overflow-hidden rounded-[20px]"
         style={{
           background: isGlass ? "rgba(255, 255, 255, 0.02)" : "rgba(0, 0, 0, 0.01)",
-          border: isGlass ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(0, 0, 0, 0.03)",
-          boxShadow: "none",
+          border: isGlass ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(0, 0, 0, 0.06)",
+          boxShadow: isGlass 
+            ? "inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03)" 
+            : "inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03)",
         }}
       >
       <button
         type="button"
         onClick={() => setIsOpen((value) => !value)}
         className={cn(
-          "flex w-full items-center text-left transition-all duration-300",
+          "flex w-full items-center text-left transition-all duration-300 focus:outline-none focus-visible:outline-none focus-visible:ring-0",
           isGlass ? "hover:bg-[rgba(255,255,255,0.04)]" : "hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.36)_0%,rgba(243,244,246,0.52)_100%)]"
         )}
         style={{
-          minHeight: "82px",
+          minHeight: "72px",
           gap: "12px",
-          padding: "16px 18px",
+          padding: "12px 14px",
           flexShrink: 0,
-          overflow: "hidden"
+          overflow: "hidden",
+          outline: "none",
         }}
       >
         <UserAvatar
@@ -1373,7 +1350,7 @@ const DashboardSidebar = () => {
     <nav
       className={cn(
         "relative flex shrink-0 flex-col text-foreground transition-[width] duration-300 ease-out",
-        collapsed ? "w-[70px] min-w-[70px]" : "w-[292px] min-w-[292px]"
+        collapsed ? "w-[70px] min-w-[70px]" : "w-[240px] min-w-[240px]"
       )}
       style={{
         height: startMode ? "calc(100vh - 48px)" : "100vh",
@@ -1391,7 +1368,7 @@ const DashboardSidebar = () => {
         <div className="absolute bottom-28 right-[-90px] h-60 w-60 rounded-full bg-slate-200/28 blur-3xl" />
       </div>
       {/* ── Header: Logo mark + Colapsar ─────────────────────────────────── */}
-      <div className={cn("relative z-10 flex shrink-0", collapsed ? "flex-col items-center gap-2 px-3 py-4" : "items-center justify-between px-5 pb-4 pt-5")}>
+      <div className={cn("relative z-10 flex shrink-0", collapsed ? "flex-col items-center gap-2 px-3 py-4" : "items-center justify-between px-4 pb-3 pt-4")}>
         {!collapsed ? (
           <>
             <Link to="/?home=1" className="flex items-center gap-2.5">
@@ -1447,9 +1424,9 @@ const DashboardSidebar = () => {
       <div
         className={cn(
           "relative z-10 flex flex-1 flex-col overflow-y-auto",
-          collapsed ? "items-center gap-1.5 pt-2 px-0" : "gap-[4px] px-4"
+          collapsed ? "items-center gap-1.5 pt-2 px-0" : "gap-[2px] px-4"
         )}
-        style={!collapsed ? { paddingTop: "24px", paddingBottom: "10px", minHeight: 0 } : { paddingTop: "16px", minHeight: 0 }}
+        style={!collapsed ? { paddingTop: "12px", paddingBottom: "10px", minHeight: 0 } : { paddingTop: "16px", minHeight: 0 }}
       >
         {!collapsed && (
           <div
@@ -1498,7 +1475,7 @@ const DashboardSidebar = () => {
           <>
             <div
               className="px-3 pt-0 pb-1 text-[10px] font-semibold uppercase text-[#8A8FA3]/60"
-              style={{ fontFamily: sidebarFont, letterSpacing: "0.15em", marginTop: "16px" }}
+              style={{ fontFamily: sidebarFont, letterSpacing: "0.15em", marginTop: "10px" }}
             >
               Outros
             </div>
@@ -1519,9 +1496,15 @@ const DashboardSidebar = () => {
 
       </div>
 
+      {/* ── Boost Card ─────────────────────────────────── */}
+      {!collapsed && (
+        <div className="px-4 shrink-0" style={{ marginTop: "4px", marginBottom: "4px" }}>
+          <SidebarBoostCard onUpgrade={() => navigate("/checkout")} />
+        </div>
+      )}
 
       {/* Divisória 3 - Acima da conta do usuário */}
-      <div className={cn("relative z-10 shrink-0", collapsed ? "px-2" : "px-4")} style={{ margin: "14px 0 8px" }}>
+      <div className={cn("relative z-10 shrink-0", collapsed ? "px-2" : "px-4")} style={{ margin: "8px 0 6px" }}>
         <div className="h-[1px] w-full bg-white/70 shadow-[0_1px_0_rgba(15,23,42,0.05)]" />
       </div>
 

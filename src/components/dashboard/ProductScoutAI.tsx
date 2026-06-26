@@ -43,28 +43,153 @@ const SaturnIcon = () => (
   </svg>
 );
 
-const VeloOrb = ({ active = false }: { active?: boolean }) => (
-  <span className="relative grid h-10 w-10 shrink-0 place-items-center">
-    <motion.span
-      className="absolute h-8 w-8 rounded-full bg-emerald-500/12 blur-[8px]"
-      animate={
-        active
-          ? { opacity: [0.2, 0.65, 0.2], scale: [0.85, 1.2, 0.85] }
-          : { opacity: [0.25, 0.4, 0.25], scale: [0.92, 1.04, 0.92] }
-      }
-      transition={{
-        duration: active ? 1.5 : 2.8,
-        repeat: Infinity,
-        ease: "easeInOut",
+const Ring = ({
+  index,
+  state,
+  typingAngle,
+  baseRotateY,
+  baseRotateX,
+}: {
+  index: number;
+  state: 'idle' | 'typing' | 'processing';
+  typingAngle: number;
+  baseRotateY: number;
+  baseRotateX: number;
+}) => {
+  let animateValue: any = 0;
+  let transitionValue: any = {};
+
+  if (state === 'processing') {
+    animateValue = [0, 360];
+    transitionValue = {
+      repeat: Infinity,
+      duration: 1.4 - index * 0.15,
+      ease: "linear",
+    };
+  } else if (state === 'typing') {
+    animateValue = typingAngle + (index * 15);
+    transitionValue = {
+      type: "spring",
+      stiffness: 300,
+      damping: 12,
+    };
+  } else {
+    // idle state: slow sinoidal oscillation
+    animateValue = index % 2 === 0 ? [-8, 8] : [6, -6];
+    transitionValue = {
+      repeat: Infinity,
+      repeatType: "mirror" as const,
+      duration: 3.0 + index * 0.5,
+      ease: "easeInOut",
+    };
+  }
+
+  return (
+    <motion.div
+      key={`${state}-${index}`}
+      className="absolute w-7 h-7 flex items-center justify-center rounded-full pointer-events-none"
+      style={{
+        transformStyle: 'preserve-3d',
       }}
-    />
-    <motion.span
-      className="relative h-7 w-7 rounded-full bg-[radial-gradient(circle_at_35%_25%,#ffffff_0%,#86efac_15%,#22c55e_45%,#166534_75%,#14532d_100%)] shadow-[inset_-2px_-3px_5px_rgba(0,0,0,0.5),inset_1.5px_1.5px_3px_rgba(255,255,255,0.6)]"
-      animate={active ? { rotate: [0, 8, -6, 0], scale: [1, 1.05, 1] } : { rotate: 0, scale: 1 }}
-      transition={{ duration: 1.8, repeat: active ? Infinity : 0, ease: "easeInOut" }}
-    />
-  </span>
-);
+      // Use independent Framer Motion transform properties instead of concatenated string templates
+      animate={{
+        rotateY: baseRotateY,
+        rotateX: baseRotateX,
+        rotateZ: animateValue,
+      }}
+      transition={transitionValue}
+    >
+      <svg
+        width="28"
+        height="28"
+        viewBox="0 0 40 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full"
+      >
+        <defs>
+          <linearGradient id={`ring-grad-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.1" />
+          </linearGradient>
+        </defs>
+        <circle
+          cx="20"
+          cy="20"
+          r="18"
+          stroke={`url(#ring-grad-${index})`}
+          strokeWidth="1.35"
+          className="transition-all duration-300"
+          style={{
+            filter: state === 'processing' 
+              ? 'drop-shadow(0 0 3px rgba(255,255,255,0.85))' 
+              : state === 'typing'
+                ? 'drop-shadow(0 0 2px rgba(255,255,255,0.6))'
+                : 'drop-shadow(0 0 1px rgba(255,255,255,0.3))',
+          }}
+        />
+      </svg>
+    </motion.div>
+  );
+};
+
+const VeloOrb = ({ 
+  state = 'idle', 
+  typingTrigger = 0 
+}: { 
+  state?: 'idle' | 'typing' | 'processing'; 
+  typingTrigger?: number; 
+}) => {
+  const [typingAngle, setTypingAngle] = useState(0);
+
+  useEffect(() => {
+    if (typingTrigger > 0) {
+      setTypingAngle((a) => a + 45);
+    }
+  }, [typingTrigger]);
+
+  return (
+    <div 
+      className="relative w-10 h-10 shrink-0 flex items-center justify-center"
+      style={{ perspective: 800, transformStyle: 'preserve-3d' }}
+    >
+      {/* Outer subtle glow */}
+      <span 
+        className={`absolute rounded-full bg-white/5 blur-[8px] h-8 w-8 transition-all duration-300 ${
+          state === 'processing' ? 'scale-125 opacity-100 bg-white/12' : 'scale-100 opacity-60'
+        }`} 
+      />
+
+      {/* Ring 1 (Vertical Left-Slanted) */}
+      <Ring
+        index={0}
+        state={state}
+        typingAngle={typingAngle}
+        baseRotateY={45}
+        baseRotateX={15}
+      />
+
+      {/* Ring 2 (Vertical Right-Slanted) */}
+      <Ring
+        index={1}
+        state={state}
+        typingAngle={typingAngle}
+        baseRotateY={-45}
+        baseRotateX={-15}
+      />
+
+      {/* Ring 3 (Horizontal-ish Saturn Ring) */}
+      <Ring
+        index={2}
+        state={state}
+        typingAngle={typingAngle}
+        baseRotateY={10}
+        baseRotateX={75}
+      />
+    </div>
+  );
+};
 
 const Styles = () => (
   <style dangerouslySetInnerHTML={{__html: `
@@ -130,6 +255,36 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingTrigger, setTypingTrigger] = useState(0);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleInputChange = (val: string) => {
+    setCustomPrompt(val);
+    setIsTyping(true);
+    setTypingTrigger((prev) => prev + 1);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 1000);
+  };
+
+  const handleChatInputChange = (val: string) => {
+    setChatInput(val);
+    setIsTyping(true);
+    setTypingTrigger((prev) => prev + 1);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 1000);
+  };
+
+  const orbState = busy ? 'processing' : isTyping ? 'typing' : 'idle';
 
   const openPanel = () => {
     setOpen(true);
@@ -349,7 +504,7 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
                         className="pointer-events-auto w-full max-w-[620px] rounded-full bg-[#1E1E1E] border border-white/[0.04] py-2 px-4.5 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5),0_0_1px_rgba(255,255,255,0.06)] text-white flex items-center gap-4"
                       >
                         <div className="pl-0.5 flex items-center shrink-0">
-                          <VeloOrb active={busy} />
+                          <VeloOrb state={orbState} typingTrigger={typingTrigger} />
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -379,7 +534,7 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
                               <input
                                 ref={inputRef}
                                 value={customPrompt}
-                                onChange={(e) => setCustomPrompt(e.target.value)}
+                                onChange={(e) => handleInputChange(e.target.value)}
                                 onFocus={() => setInputFocused(true)}
                                 onBlur={() => setInputFocused(false)}
                                 placeholder="Ex: quero um fone barato para vender..."
@@ -399,10 +554,8 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
                         {/* Linha 1: Orb + Título + X */}
                         <div className="flex items-center justify-between gap-5">
                           <div className="flex items-center gap-4 flex-1 min-w-0">
-                            <div className="flex items-center shrink-0">
-                              <VeloOrb active={busy} />
-                            </div>
-                            <h3 className="text-[14.5px] font-medium text-white/95 tracking-[-0.01em] leading-tight">
+                            <VeloOrb state={orbState} typingTrigger={typingTrigger} />
+                            <h3 className="m-0 p-0 text-[17px] font-normal text-white/90 tracking-[-0.01em] leading-none relative -top-[0.5px]">
                               Que tipo de produto você quer encontrar hoje?
                             </h3>
                           </div>
@@ -418,7 +571,7 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
 
                         {/* Linha 2: Chips de Sugestão com scroll horizontal */}
                         {!busy && (
-                          <div className="flex gap-1.5 overflow-x-auto pb-0.5 pt-0.5 -mx-1 px-1 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex-nowrap">
+                          <div className="flex gap-1.5 overflow-x-auto pb-0.5 pt-0.5 -mx-1 px-1 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex-nowrap mt-4">
                             {[
                               { label: "Produto para viralizar", value: "Produto para viralizar" },
                               { label: "Maior margem", value: "Maior margem de lucro" },
@@ -429,7 +582,7 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
                                 key={chip.label}
                                 type="button"
                                 onClick={() => handleChipClick(chip.value)}
-                                className="shrink-0 rounded-full bg-[#2E2E2E] hover:bg-[#3A3A3A] active:scale-[0.98] transition-all duration-150 px-5.5 py-2 text-[12.5px] font-medium text-white/85 border-none outline-none"
+                                className="shrink-0 rounded-2xl bg-[#2E2E2E] hover:bg-[#3A3A3A] active:scale-[0.98] transition-all duration-150 px-6 py-2 text-[12.5px] font-medium text-white/85 border-none outline-none"
                               >
                                 {chip.label}
                               </button>
@@ -448,7 +601,7 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
                       {/* Chat Header */}
                       <div className="p-4.5 flex items-center justify-between border-b border-white/5">
                         <div className="flex items-center gap-4">
-                          <VeloOrb active={busy} />
+                          <VeloOrb state={orbState} typingTrigger={typingTrigger} />
                           <div className="flex flex-col justify-center">
                             <h3 className="text-[14.5px] font-semibold text-white/95 tracking-tight leading-tight">
                               Atlas
@@ -568,7 +721,7 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
                           >
                             <input
                               value={chatInput}
-                              onChange={(e) => setChatInput(e.target.value)}
+                              onChange={(e) => handleChatInputChange(e.target.value)}
                               onFocus={() => setChatInputFocused(true)}
                               onBlur={() => setChatInputFocused(false)}
                               placeholder="Pergunte algo sobre o produto ou faça outra busca..."
