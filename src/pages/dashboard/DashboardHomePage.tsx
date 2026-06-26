@@ -34,6 +34,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import ProductScoutAI from "@/components/dashboard/ProductScoutAI";
+import OnboardingHome from "@/components/dashboard/OnboardingHome";
 
 type ProfileRow = {
   display_name: string | null;
@@ -776,9 +777,39 @@ const DashboardHomePage = () => {
     },
   });
 
+  const { data: onboardingState } = useQuery({
+    queryKey: ["dashboard-home-onboarding-state", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const [integrationRes, publicationRes] = await Promise.all([
+        supabase
+          .from("user_integrations" as never)
+          .select("access_token")
+          .eq("user_id", user!.id)
+          .eq("platform", "mercadolivre")
+          .maybeSingle(),
+        supabase
+          .from("user_publications" as never)
+          .select("id")
+          .eq("user_id", user!.id)
+          .eq("status", "active")
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      const mlConnected = Boolean((integrationRes.data as { access_token?: string } | null)?.access_token);
+      const hasPublication = Boolean(publicationRes.data);
+      return { mlConnected, hasPublication };
+    },
+  });
+
+  const mlConnected = onboardingState?.mlConnected ?? false;
+  const hasPublication = onboardingState?.hasPublication ?? false;
+  const showOnboarding = onboardingState ? !(mlConnected && hasPublication) : false;
+
   const { data: dashboardData } = useQuery({
     queryKey: ["dashboard-home-wix-data", user?.id],
-    enabled: Boolean(user?.id),
+    enabled: Boolean(user?.id) && !showOnboarding && Boolean(onboardingState),
     queryFn: async () => {
       const [publicationsResult, ordersResult, activitiesResult, catalogProductsResult] = await Promise.all([
         supabase
