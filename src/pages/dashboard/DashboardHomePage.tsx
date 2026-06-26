@@ -140,12 +140,12 @@ const DashboardHomePage = () => {
             <SaturnIcon />
           </div>
           
-          <h2 className="text-3xl font-bold tracking-tight text-neutral-800 mb-2">
-            Olá, {name}!
+          <h2 className="text-[32px] sm:text-[36px] font-medium tracking-tight text-[#6B7280] leading-tight">
+            Boas-vindas ao Velo!
           </h2>
-          <p className="text-neutral-500 text-[14px] mb-8 font-medium">
-            Como posso ajudar você a vender mais hoje?
-          </p>
+          <h3 className="text-[32px] sm:text-[36px] font-bold tracking-tight text-[#111111] leading-none mt-1.5 mb-8">
+            Por onde quer começar?
+          </h3>
 
           <form 
             onSubmit={(e) => {
