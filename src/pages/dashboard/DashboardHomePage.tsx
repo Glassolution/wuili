@@ -111,20 +111,20 @@ const DashboardHomePage = () => {
       className="min-h-full w-full bg-[#f4f4f4] text-[#111111] pb-10"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
-      <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-5 px-1 py-4 sm:px-3 lg:px-0">
+      <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-5 px-1 pt-1 pb-4 sm:px-3 lg:px-0">
         
         {/* Header Superior */}
-        <div className="flex flex-col gap-1 pb-4">
-          <header className="flex items-center justify-between gap-4 mt-2">
+        <div className="flex flex-col gap-1 pb-1">
+          <header className="flex items-center justify-between gap-4 mt-0.5">
             <div 
               onClick={() => navigate("/dashboard/planos")}
-              className="flex items-center gap-3.5 rounded-full bg-[#111111] py-3 pl-5 pr-6 text-white hover:bg-neutral-900 transition-all duration-200 shadow-[0_4px_12px_rgba(0,0,0,0.15)] text-sm font-semibold cursor-pointer select-none"
+              className="flex items-center gap-3 rounded-full bg-[#111111] py-2 pl-[18px] pr-[20px] text-white hover:bg-neutral-900 transition-all duration-200 shadow-[0_4px_12px_rgba(0,0,0,0.12)] text-[12.5px] font-semibold cursor-pointer select-none"
             >
-              <span className="h-2.5 w-2.5 rounded-full bg-[#bef264] shrink-0" />
+              <span className="h-2 w-2 rounded-full bg-[#bef264] shrink-0" />
               <span className="tracking-tight text-neutral-100 font-medium">
                 Aproveite 3 meses por R$ 1/mês
               </span>
-              <span className="h-4 w-px bg-white/20 mx-1.5" />
+              <span className="h-3.5 w-px bg-white/20 mx-1.5" />
               <span className="text-white hover:text-neutral-200 transition-colors">
                 Selecionar um plano
               </span>
