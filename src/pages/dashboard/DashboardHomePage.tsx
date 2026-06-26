@@ -874,6 +874,16 @@ const DashboardHomePage = () => {
   const latestOrderValue = latestOrder ? formatBRL(toNumber(latestOrder.sale_price)) : formatBRL(0);
   const latestProduct = latestOrder?.product_title || "Nenhuma venda registrada";
 
+  if (showOnboarding) {
+    return (
+      <OnboardingHome
+        name={name}
+        mlConnected={mlConnected}
+        hasPublication={hasPublication}
+      />
+    );
+  }
+
   return (
     <main 
       className="min-h-full w-full bg-[#f4f4f4] text-[#111111] pb-10"
