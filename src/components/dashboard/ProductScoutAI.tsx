@@ -460,9 +460,9 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
         type="button"
         onClick={openPanel}
         disabled={busy}
-        className="group inline-flex h-12 items-center gap-3 rounded-full border border-white/10 bg-[#050505] px-6 text-[14px] font-semibold tracking-[-0.01em] text-white shadow-[0_14px_30px_rgba(0,0,0,0.20),inset_0_1px_0_rgba(255,255,255,0.09)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-black disabled:cursor-wait disabled:opacity-70"
+        className="group inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-[#050505] px-5 text-[13px] font-semibold tracking-[-0.01em] text-white shadow-[0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.09)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-black disabled:cursor-wait disabled:opacity-70"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-full text-white transition-transform duration-300 group-hover:-rotate-12">
+        <span className="grid h-6 w-6 place-items-center rounded-full text-white transition-transform duration-300 group-hover:-rotate-12">
           <SaturnIcon />
         </span>
         Atlas

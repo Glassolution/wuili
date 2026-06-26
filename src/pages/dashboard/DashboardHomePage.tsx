@@ -755,23 +755,25 @@ const DashboardHomePage = () => {
               Olá, {name}!
             </h1>
             
-            {/* Barra de Pesquisa Mock */}
-            <div className="hidden sm:flex items-center gap-2 bg-white border border-black/[0.06] rounded-full px-3 py-1.5 w-[240px] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-              <Search className="h-3.5 w-3.5 text-neutral-400" />
-              <input 
-                type="text" 
-                placeholder="Pesquisar..." 
-                disabled 
-                className="bg-transparent text-[11px] outline-none text-neutral-500 w-full cursor-not-allowed" 
-              />
-              <span className="text-[9px] font-bold text-neutral-400 bg-neutral-100 border border-black/[0.04] px-1 rounded leading-none">⌘F</span>
-            </div>
+            <div className="flex items-center gap-3">
+              {/* Barra de Pesquisa Mock */}
+              <div className="hidden sm:flex h-10 items-center gap-2 bg-white border border-black/[0.06] rounded-full px-3.5 w-[240px] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <Search className="h-3.5 w-3.5 text-neutral-400 shrink-0" />
+                <input 
+                  type="text" 
+                  placeholder="Pesquisar..." 
+                  disabled 
+                  className="bg-transparent text-[12px] outline-none text-neutral-500 w-full cursor-not-allowed" 
+                />
+                <span className="text-[9px] font-bold text-neutral-400 bg-neutral-100 border border-black/[0.04] px-1 rounded leading-none shrink-0">⌘F</span>
+              </div>
 
-            <ProductScoutAI
-              onResults={(results) =>
-                navigate("/dashboard/catalogo", { state: { atlasResults: results } })
-              }
-            />
+              <ProductScoutAI
+                onResults={(results) =>
+                  navigate("/dashboard/catalogo", { state: { atlasResults: results } })
+                }
+              />
+            </div>
           </header>
         </div>
 
