@@ -55,6 +55,7 @@ type OrderRow = {
   status: string | null;
   ordered_at: string | null;
   created_at: string | null;
+  platform?: string | null;
 };
 
 type ActivityLogRow = {

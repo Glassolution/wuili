@@ -687,7 +687,7 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
                             <button
                               key={actionText}
                               type="button"
-                              onClick={() => executeMockSearch(actionText)}
+                              onClick={() => executeRealSearch(actionText)}
                               className="shrink-0 rounded-full bg-[#2A2A2A] hover:bg-[#323232] px-3.5 py-1.5 text-[11.5px] font-medium text-white/80 transition-all duration-150 active:scale-[0.98] border-none outline-none"
                               style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}
                             >
