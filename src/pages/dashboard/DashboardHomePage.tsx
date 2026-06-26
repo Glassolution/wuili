@@ -63,6 +63,12 @@ type ActivityLogRow = {
   created_at: string | null;
 };
 
+type CatalogProductRow = {
+  category: string | null;
+  orders_count: number | null;
+  margin_percent: number;
+};
+
 type RevenuePoint = {
   label: string;
   value: number;
@@ -141,8 +147,8 @@ interface CustomTooltipProps {
   active?: boolean;
   payload?: Array<{
     payload: {
-      date: string;
-      views: number;
+      label: string;
+      value: number;
     };
   }>;
 }
@@ -152,8 +158,8 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     const data = payload[0].payload;
     return (
       <div className="rounded-lg border border-black/[0.08] bg-white p-3 shadow-[0_4px_12px_rgba(0,0,0,0.05)]">
-        <p className="text-[12px] font-bold text-neutral-800">{data.views.toLocaleString("pt-BR")} visualizações</p>
-        <p className="text-[10px] font-medium text-neutral-400">{data.date}</p>
+        <p className="text-[12px] font-bold text-neutral-800">{formatBRL(data.value)}</p>
+        <p className="text-[10px] font-medium text-neutral-400">{data.label}</p>
       </div>
     );
   }
@@ -201,9 +207,58 @@ const KPICard = ({ label, value, delta, isPositive = true, isMock = false }: KPI
   );
 };
 
-const PerformanceGeneralCard = () => {
+const PerformanceGeneralCard = ({ orders }: { orders: OrderRow[] }) => {
   const [activeTab, setActiveTab] = useState("visao");
-  
+
+  // Visão Geral Series: Total revenue monthly
+  const visaoSeries = useMemo(() => buildRevenueSeries(orders), [orders]);
+
+  // Por Canal Series: Mercado Livre (platform === "mercadolivre") revenue monthly
+  const canalSeries = useMemo(() => {
+    const mlOrders = orders.filter((o) => String(o.platform || "").toLowerCase() === "mercadolivre");
+    return buildRevenueSeries(mlOrders);
+  }, [orders]);
+
+  // Por Produto Series: Revenue monthly of the top-selling product
+  const topProductData = useMemo(() => {
+    const productRevenueMap = new Map<string, number>();
+    orders.forEach((o) => {
+      if (o.product_title) {
+        productRevenueMap.set(o.product_title, (productRevenueMap.get(o.product_title) ?? 0) + toNumber(o.sale_price));
+      }
+    });
+
+    let topProduct = "";
+    let maxRevenue = -1;
+    productRevenueMap.forEach((revenue, title) => {
+      if (revenue > maxRevenue) {
+        maxRevenue = revenue;
+        topProduct = title;
+      }
+    });
+
+    const topProductOrders = orders.filter((o) => o.product_title === topProduct);
+    const series = buildRevenueSeries(topProductOrders);
+
+    return { title: topProduct || "Nenhum produto", series, total: maxRevenue > 0 ? maxRevenue : 0 };
+  }, [orders]);
+
+  const activeSeries = useMemo(() => {
+    if (activeTab === "canal") return canalSeries;
+    if (activeTab === "produto") return topProductData.series;
+    return visaoSeries;
+  }, [activeTab, visaoSeries, canalSeries, topProductData]);
+
+  const totalPeriod = useMemo(() => {
+    return activeSeries.reduce((sum, item) => sum + item.value, 0);
+  }, [activeSeries]);
+
+  const footerText = useMemo(() => {
+    if (activeTab === "canal") return `Total ML: ${formatBRL(totalPeriod)}`;
+    if (activeTab === "produto") return `${topProductData.title.slice(0, 15)}... (${formatBRL(topProductData.total)})`;
+    return `Faturamento Real: ${formatBRL(totalPeriod)}`;
+  }, [activeTab, totalPeriod, topProductData]);
+
   return (
     <div className="h-full flex flex-col justify-between rounded-2xl border border-black/[0.06] bg-white p-5 sm:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
       <div>
@@ -237,7 +292,7 @@ const PerformanceGeneralCard = () => {
 
         <div className="h-[180px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={viewsChartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+            <AreaChart data={activeSeries} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <defs>
                 <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10B981" stopOpacity={0.15} />
@@ -245,18 +300,18 @@ const PerformanceGeneralCard = () => {
                 </linearGradient>
               </defs>
               <XAxis
-                dataKey="date"
+                dataKey="label"
                 stroke="#A3A3A3"
                 fontSize={10}
                 tickLine={false}
                 axisLine={false}
                 dy={10}
               />
-              <YAxis hide domain={['dataMin - 50', 'dataMax + 50']} />
+              <YAxis hide domain={['auto', 'auto']} />
               <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: '#E5E5E5', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Area
                 type="monotone"
-                dataKey="views"
+                dataKey="value"
                 stroke="#10B981"
                 strokeWidth={1.8}
                 fillOpacity={1}
@@ -267,10 +322,12 @@ const PerformanceGeneralCard = () => {
         </div>
       </div>
 
-      <div className="mt-5 flex items-baseline gap-2 leading-none border-t border-black/[0.03] pt-4">
+      <div className="mt-5 flex items-baseline gap-2 leading-none border-t border-black/[0.03] pt-4 flex-wrap">
         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Total do Período:</span>
-        <strong className="text-sm font-bold text-neutral-800">5.340 visualizações</strong>
-        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded ml-auto">+12.4% // MOCK</span>
+        <strong className="text-sm font-bold text-neutral-800">{footerText}</strong>
+        <span className="text-[10px] text-neutral-400 ml-auto italic">
+          // Receita real. Visualizações em mock (TODO: aguardando métricas)
+        </span>
       </div>
     </div>
   );
@@ -314,6 +371,8 @@ const channelsData = [
 ];
 
 const TrafficByChannelCard = () => {
+  // TODO: aguardando campos ml_channel e ml_flows da tabela orders (Parte A)
+  // Renomear para "Canal de Venda" após Parte A ser aplicada
   return (
     <div className="h-full flex flex-col justify-between rounded-2xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
       <div>
@@ -337,28 +396,71 @@ const TrafficByChannelCard = () => {
   );
 };
 
-// MOCK: Categorias do catálogo do vendedor para gráfico de barras
-const productCategoryData = [
-  { category: "Eletrônicos", sales: 120, color: "#5F87FF" },
-  { category: "Casa", sales: 240, color: "#8AE290" },
-  { category: "Moda", sales: 180, color: "#18181B" },
-  { category: "Beleza", sales: 300, color: "#7CD6F8" },
-  { category: "Acessórios", sales: 100, color: "#A8B4FC" },
-  { category: "Outros", sales: 210, color: "#9EE4C2" },
-];
+interface ProductAnalysisChartCardProps {
+  catalogProducts: CatalogProductRow[];
+}
 
-const ProductAnalysisChartCard = () => {
+const ProductAnalysisChartCard = ({ catalogProducts }: ProductAnalysisChartCardProps) => {
+  const categoryChartData = useMemo(() => {
+    const categoryMap = new Map<string, { category: string; sales: number; totalMargin: number; count: number }>();
+    
+    catalogProducts.forEach((prod) => {
+      const cat = (prod.category || "Outros").trim();
+      const current = categoryMap.get(cat) ?? { category: cat, sales: 0, totalMargin: 0, count: 0 };
+      current.sales += prod.orders_count ?? 0;
+      current.totalMargin += prod.margin_percent ?? 0;
+      current.count += 1;
+      categoryMap.set(cat, current);
+    });
+
+    const list = Array.from(categoryMap.values()).map((item, index) => {
+      const colors = ["#18181B", "#3F3F46", "#71717A", "#A1A1AA", "#D4D4D8", "#E4E4E7"];
+      const color = colors[index % colors.length];
+      return {
+        category: item.category,
+        sales: item.sales,
+        avgMargin: item.count > 0 ? Math.round(item.totalMargin / item.count) : 0,
+        color,
+      };
+    });
+
+    list.sort((a, b) => b.sales - a.sales);
+
+    const totalSales = list.reduce((sum, item) => sum + item.sales, 0);
+    if (totalSales === 0) {
+      return [
+        { category: "Eletrônicos", sales: 120, avgMargin: 15, color: "#18181B" },
+        { category: "Casa", sales: 240, avgMargin: 20, color: "#3F3F46" },
+        { category: "Moda", sales: 180, avgMargin: 25, color: "#71717A" },
+        { category: "Beleza", sales: 300, avgMargin: 18, color: "#A1A1AA" },
+        { category: "Acessórios", sales: 100, avgMargin: 30, color: "#D4D4D8" },
+        { category: "Outros", sales: 210, avgMargin: 12, color: "#E4E4E7" },
+      ].sort((a, b) => b.sales - a.sales);
+    }
+
+    return list.slice(0, 6);
+  }, [catalogProducts]);
+
+  const isMock = useMemo(() => {
+    const totalSales = catalogProducts.reduce((sum, item) => sum + (item.orders_count ?? 0), 0);
+    return totalSales === 0;
+  }, [catalogProducts]);
+
   return (
     <div className="h-full flex flex-col justify-between rounded-[16px] border border-black/[0.07] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
       <div>
         <div className="mb-4 flex items-center justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Análise de Produtos</p>
-          <span className="text-[8px] font-bold text-neutral-400 uppercase bg-neutral-100 px-1.5 py-0.5 rounded leading-none">MOCK</span>
+          {isMock && (
+            <span className="text-[8px] font-bold text-neutral-400 uppercase bg-neutral-100 px-1.5 py-0.5 rounded leading-none">
+              MOCK
+            </span>
+          )}
         </div>
         
         <div className="h-[180px] w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={productCategoryData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+            <BarChart data={categoryChartData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
               <XAxis 
                 dataKey="category" 
                 fontSize={9} 
@@ -373,7 +475,7 @@ const ProductAnalysisChartCard = () => {
                 stroke="#888888" 
               />
               <Bar dataKey="sales" radius={[4, 4, 0, 0]} barSize={24}>
-                {productCategoryData.map((entry, index) => (
+                {categoryChartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Bar>
@@ -592,6 +694,7 @@ const SidebarAtlasSuggestions = () => {
 };
 
 const SidebarCustomers = () => {
+  // TODO: aguardando tabela customers (Parte A)
   // MOCK: resumo de clientes recorrentes
   const customers = [
     { name: "Luis Silva", total: 254.0, avatar: "LS" },
@@ -676,7 +779,7 @@ const DashboardHomePage = () => {
     queryKey: ["dashboard-home-wix-data", user?.id],
     enabled: Boolean(user?.id),
     queryFn: async () => {
-      const [publicationsResult, ordersResult, activitiesResult] = await Promise.all([
+      const [publicationsResult, ordersResult, activitiesResult, catalogProductsResult] = await Promise.all([
         supabase
           .from("user_publications" as never)
           .select("id,title,status,created_at,published_at")
@@ -685,7 +788,7 @@ const DashboardHomePage = () => {
           .limit(50),
         supabase
           .from("orders" as never)
-          .select("id,product_title,sale_price,status,ordered_at,created_at")
+          .select("id,product_title,sale_price,status,ordered_at,created_at,platform")
           .eq("user_id", user!.id)
           .order("created_at", { ascending: false })
           .limit(80),
@@ -695,16 +798,22 @@ const DashboardHomePage = () => {
           .eq("user_id", user!.id)
           .order("created_at", { ascending: false })
           .limit(5),
+        supabase
+          .from("catalog_products" as never)
+          .select("category, orders_count, margin_percent")
+          .limit(150),
       ]);
 
       if (publicationsResult.error) throw publicationsResult.error;
       if (ordersResult.error) throw ordersResult.error;
       if (activitiesResult.error) throw activitiesResult.error;
+      if (catalogProductsResult.error) throw catalogProductsResult.error;
 
       return {
         publications: (publicationsResult.data ?? []) as PublicationRow[],
         orders: (ordersResult.data ?? []) as OrderRow[],
         activities: (activitiesResult.data ?? []) as ActivityLogRow[],
+        catalogProducts: (catalogProductsResult.data ?? []) as CatalogProductRow[],
       };
     },
   });
@@ -712,6 +821,7 @@ const DashboardHomePage = () => {
   const publications = dashboardData?.publications ?? [];
   const orders = dashboardData?.orders ?? [];
   const activities = dashboardData?.activities ?? [];
+  const catalogProducts = dashboardData?.catalogProducts ?? [];
 
   const name = getName(profile, user?.email);
 
@@ -785,16 +895,18 @@ const DashboardHomePage = () => {
             
             {/* LINHA 1: Faixa de KPIs Compactos (Exatamente 4 cards) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* TODO: aguardando tabela de tracking/métrica de visualizações no banco */}
               <KPICard label="Visualizações" value="5.340" delta="+12.4%" isMock={true} />
-              <KPICard label="Visitas" value={visits.toLocaleString("pt-BR")} delta="+8.2%" isMock={true} />
-              <KPICard label="Pedidos" value={String(orders.length)} delta={orders.length > 0 ? "+15.3%" : "--"} isMock={orders.length === 0} />
-              <KPICard label="Conversão" value={`${conversionRate}%`} delta={conversionRate > 0 ? "+2.1%" : "--"} isMock={conversionRate === 0} />
+              {/* TODO: aguardando tabela de tracking/métrica de visitas no banco */}
+              <KPICard label="Visitas" value={visits > 0 ? visits.toLocaleString("pt-BR") : "0"} delta="+8.2%" isMock={true} />
+              <KPICard label="Pedidos" value={String(orders.length)} delta={orders.length > 0 ? "+15.3%" : "--"} />
+              <KPICard label="Conversão" value={visits > 0 ? `${conversionRate}%` : "—"} delta={conversionRate > 0 ? "+2.1%" : "--"} />
             </div>
 
             {/* LINHA 2: Gráfico de Performance Geral + Tráfego por Canal */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               <div className="lg:col-span-2">
-                <PerformanceGeneralCard />
+                <PerformanceGeneralCard orders={orders} />
               </div>
               <div>
                 <TrafficByChannelCard />
@@ -804,7 +916,7 @@ const DashboardHomePage = () => {
             {/* LINHA 3: Análise de Produtos (Bar Chart) + Publicações ML (Donut) */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               <div className="lg:col-span-2">
-                <ProductAnalysisChartCard />
+                <ProductAnalysisChartCard catalogProducts={catalogProducts} />
               </div>
               <div>
                 <MLPublicationsDonutCard 
