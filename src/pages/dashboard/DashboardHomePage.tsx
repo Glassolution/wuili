@@ -183,121 +183,138 @@ const DashboardHomePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 w-full text-left">
             
             {/* Card 1: Importar Produto */}
-            <div className="bg-white border border-black/[0.06] rounded-[24px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[320px]">
-              <div>
-                <h3 className="text-[15px] font-bold text-neutral-800 leading-none">Importe seu primeiro produto</h3>
-                <p className="text-[12.5px] text-neutral-400 font-medium leading-relaxed mt-2">
+            <div className="bg-white border border-black/[0.06] rounded-[24px] p-8 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[360px] relative overflow-hidden">
+              <div className="z-10 max-w-[85%]">
+                <h3 className="text-[16px] font-bold text-neutral-800 leading-none">Importe seu primeiro produto</h3>
+                <p className="text-[13px] text-neutral-400 font-medium leading-relaxed mt-3">
                   Comece a importar produtos vencedores da CJ Dropshipping direto para a sua conta.
                 </p>
-                
-                {/* Ilustração CSS Premium */}
-                <div className="h-[145px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-3 border border-black/[0.01] flex items-center justify-center">
-                  <div className="absolute transform -rotate-2 translate-y-1 bg-white border border-black/[0.05] rounded-xl p-3 shadow-md flex items-center gap-4 w-[88%] max-w-full">
-                    <div className="h-10 w-10 bg-neutral-900 text-white rounded-lg flex items-center justify-center shrink-0">
-                      <SaturnIcon />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="h-2 w-[80%] bg-neutral-200 rounded" />
-                      <div className="h-1.5 w-[50%] bg-neutral-100 rounded mt-2" />
-                    </div>
+              </div>
+              
+              {/* Área de Ilustração Absoluta com Vazamento */}
+              <div className="absolute top-[35%] left-8 right-0 bottom-0 pointer-events-none z-0">
+                {/* Left element: Saturn Icon circle */}
+                <div className="absolute left-0 top-[25px] h-12 w-12 bg-neutral-900 text-white rounded-xl shadow-md flex items-center justify-center z-20">
+                  <SaturnIcon />
+                </div>
+                {/* Center element: small mock card */}
+                <div className="absolute left-[32px] w-[50%] top-[10px] bg-white border border-black/[0.05] rounded-xl p-3 shadow-lg z-10 flex flex-col gap-2">
+                  <div className="h-2 w-[70%] bg-neutral-200 rounded" />
+                  <div className="h-1.5 w-[45%] bg-neutral-100 rounded" />
+                </div>
+                {/* Right element: larger mock product card bleeding past right edge */}
+                <div className="absolute right-[-30px] w-[50%] top-[0px] bg-white border border-black/[0.05] rounded-xl p-3.5 shadow-xl z-0 flex items-center gap-3">
+                  <div className="h-10 w-10 bg-neutral-100 rounded-lg shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="h-2 w-[80%] bg-neutral-200 rounded" />
+                    <div className="h-1.5 w-[50%] bg-neutral-100 rounded mt-2" />
                   </div>
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={() => navigate("/dashboard/catalogo")}
-                className="mt-3 px-4 py-2 text-[11.5px] font-bold text-neutral-700 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200/60 transition-all self-start leading-none"
+                className="z-10 px-5 py-2.5 text-[12px] font-bold text-neutral-700 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200/60 transition-all self-start leading-none mt-auto"
               >
                 Adicionar um produto
               </button>
             </div>
 
             {/* Card 2: Conectar Mercado Livre */}
-            <div className="bg-white border border-black/[0.06] rounded-[24px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[320px]">
-              <div>
-                <h3 className="text-[15px] font-bold text-neutral-800 leading-none">Conecte o Mercado Livre</h3>
-                <p className="text-[12.5px] text-neutral-400 font-medium leading-relaxed mt-2">
+            <div className="bg-white border border-black/[0.06] rounded-[24px] p-8 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[360px] relative overflow-hidden">
+              <div className="z-10 max-w-[85%]">
+                <h3 className="text-[16px] font-bold text-neutral-800 leading-none">Conecte o Mercado Livre</h3>
+                <p className="text-[13px] text-neutral-400 font-medium leading-relaxed mt-3">
                   Publique seus produtos automaticamente na maior plataforma de vendas da América Latina.
                 </p>
-                
-                {/* Ilustração CSS Premium */}
-                <div className="h-[145px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-3 border border-black/[0.01] flex items-center justify-center">
-                  <div className="flex items-center justify-between w-[88%] px-1">
-                    <div className="h-11 w-11 rounded-full bg-neutral-900 text-white flex items-center justify-center shadow-md shrink-0">
-                      <SaturnIcon />
-                    </div>
-                    <div className="h-0.5 flex-1 border-t-2 border-dashed border-neutral-300 mx-3" />
-                    <div className="h-11 w-11 rounded-full bg-[#FFE600] text-[#2D3277] font-black text-[15px] flex items-center justify-center shadow-md shrink-0 select-none">
-                      ML
-                    </div>
-                  </div>
+              </div>
+              
+              {/* Área de Ilustração Absoluta com Vazamento */}
+              <div className="absolute top-[45%] left-[-16px] right-[-24px] bottom-0 pointer-events-none z-0 flex items-center justify-between">
+                <div className="h-12 w-12 rounded-full bg-neutral-900 text-white flex items-center justify-center shadow-md shrink-0 z-10">
+                  <SaturnIcon />
+                </div>
+                <div className="h-0.5 flex-1 border-t-2 border-dashed border-neutral-300 mx-4" />
+                <div className="h-12 w-12 rounded-full bg-[#FFE600] text-[#2D3277] font-black text-[15px] flex items-center justify-center shadow-md shrink-0 select-none z-10">
+                  ML
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={handleConnectML}
-                className="mt-3 px-4 py-2 text-[11.5px] font-bold text-neutral-700 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200/60 transition-all self-start leading-none"
+                className="z-10 px-5 py-2.5 text-[12px] font-bold text-neutral-700 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200/60 transition-all self-start leading-none mt-auto"
               >
                 Conectar conta
               </button>
             </div>
 
             {/* Card 3: Veja seus produtos no ML */}
-            <div className="bg-white border border-black/[0.06] rounded-[24px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[320px]">
-              <div>
-                <h3 className="text-[15px] font-bold text-neutral-800 leading-none">Veja seus produtos no ML</h3>
-                <p className="text-[12.5px] text-neutral-400 font-medium leading-relaxed mt-2">
+            <div className="bg-white border border-black/[0.06] rounded-[24px] p-8 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[360px] relative overflow-hidden">
+              <div className="z-10 max-w-[85%]">
+                <h3 className="text-[16px] font-bold text-neutral-800 leading-none">Veja seus produtos no ML</h3>
+                <p className="text-[13px] text-neutral-400 font-medium leading-relaxed mt-3">
                   Gerencie e acompanhe o status de sincronização dos seus produtos publicados.
                 </p>
-                
-                {/* Ilustração CSS Premium */}
-                <div className="h-[145px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-3 border border-black/[0.01] flex items-center justify-center">
-                  <div className="absolute transform rotate-2 translate-y-1 bg-white border border-black/[0.05] rounded-xl p-3 shadow-md w-[88%] max-w-full">
-                    <div className="flex items-center justify-between gap-2 border-b border-black/[0.03] pb-2 mb-2">
-                      <span className="text-[9px] font-bold text-neutral-400">ANÚNCIO MERCADO LIVRE</span>
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-1.5 py-0.5 text-[7px] font-bold text-emerald-700">ATIVO</span>
+              </div>
+              
+              {/* Área de Ilustração Absoluta com Vazamento */}
+              <div className="absolute top-[30%] left-8 right-0 bottom-0 pointer-events-none z-0">
+                <div className="absolute right-[-40px] top-[15px] bg-white border border-black/[0.05] rounded-xl p-4 shadow-lg w-[85%] max-w-[420px] transform rotate-1 z-0">
+                  <div className="flex items-center justify-between gap-2 border-b border-black/[0.03] pb-2 mb-3">
+                    <span className="text-[9px] font-bold text-neutral-400">ANÚNCIO MERCADO LIVRE</span>
+                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-1.5 py-0.5 text-[7px] font-bold text-emerald-700">ATIVO</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 bg-neutral-100 rounded-lg shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="h-2.5 w-[85%] bg-neutral-200 rounded" />
+                      <div className="h-2 w-[40%] bg-neutral-100 rounded mt-2" />
+                      <div className="h-1.5 w-[60%] bg-neutral-100 rounded mt-1.5" />
                     </div>
-                    <div className="h-2 w-[75%] bg-neutral-200 rounded" />
-                    <div className="h-1.5 w-[45%] bg-neutral-100 rounded mt-2" />
                   </div>
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={() => navigate("/dashboard/produtos-ml")}
-                className="mt-3 px-4 py-2 text-[11.5px] font-bold text-neutral-700 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200/60 transition-all self-start leading-none"
+                className="z-10 px-5 py-2.5 text-[12px] font-bold text-neutral-700 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200/60 transition-all self-start leading-none mt-auto"
               >
                 Ver anúncios
               </button>
             </div>
 
             {/* Card 4: Explore as métricas da loja */}
-            <div className="bg-white border border-black/[0.06] rounded-[24px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[320px]">
-              <div>
-                <h3 className="text-[15px] font-bold text-neutral-800 leading-none">Explore as métricas da loja</h3>
-                <p className="text-[12.5px] text-neutral-400 font-medium leading-relaxed mt-2">
+            <div className="bg-white border border-black/[0.06] rounded-[24px] p-8 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[360px] relative overflow-hidden">
+              <div className="z-10 max-w-[85%]">
+                <h3 className="text-[16px] font-bold text-neutral-800 leading-none">Explore as métricas da loja</h3>
+                <p className="text-[13px] text-neutral-400 font-medium leading-relaxed mt-3">
                   Acompanhe faturamento, visualizações e a conversão de vendas da sua loja.
                 </p>
-                
-                {/* Ilustração CSS Premium */}
-                <div className="h-[145px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-3 border border-black/[0.01] flex items-center justify-center">
-                  <div className="flex items-end justify-between w-[88%] h-[100px]">
-                    <div className="w-[8%] bg-neutral-200 rounded-t-sm h-[30%]" />
-                    <div className="w-[8%] bg-neutral-200 rounded-t-sm h-[50%]" />
-                    <div className="w-[8%] bg-neutral-300 rounded-t-sm h-[70%]" />
-                    <div className="w-[8%] bg-neutral-200 rounded-t-sm h-[40%]" />
-                    <div className="w-[8%] bg-neutral-300 rounded-t-sm h-[80%]" />
-                    <div className="w-[8%] bg-neutral-900 rounded-t-sm h-[100%]" />
-                    <div className="w-[8%] bg-neutral-200 rounded-t-sm h-[60%]" />
-                    <div className="w-[8%] bg-neutral-200 rounded-t-sm h-[45%]" />
-                    <div className="w-[8%] bg-neutral-200 rounded-t-sm h-[55%]" />
-                  </div>
-                </div>
               </div>
+              
+              {/* Área de Ilustração Absoluta com Vazamento */}
+              <div className="absolute right-[-16px] bottom-0 left-8 h-[160px] flex items-end justify-between pointer-events-none z-0">
+                <div className="w-[6%] bg-neutral-100 rounded-t h-[20%]" />
+                <div className="w-[6%] bg-neutral-100 rounded-t h-[35%]" />
+                <div className="w-[6%] bg-neutral-200 rounded-t h-[55%]" />
+                <div className="w-[6%] bg-neutral-200 rounded-t h-[40%]" />
+                <div className="w-[6%] bg-neutral-300 rounded-t h-[75%]" />
+                <div className="w-[6%] bg-neutral-400 rounded-t h-[60%]" />
+                <div className="w-[6%] bg-neutral-200 rounded-t h-[85%]" />
+                <div className="w-[6%] bg-neutral-300 rounded-t h-[70%]" />
+                <div className="w-[6%] bg-neutral-900 rounded-t h-[100%]" />
+                <div className="w-[6%] bg-neutral-300 rounded-t h-[80%]" />
+                <div className="w-[6%] bg-neutral-200 rounded-t h-[50%]" />
+                <div className="w-[6%] bg-neutral-100 rounded-t h-[30%]" />
+              </div>
+
               <button
                 type="button"
                 onClick={() => navigate("/dashboard/catalogo")}
-                className="mt-3 px-4 py-2 text-[11.5px] font-bold text-neutral-700 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200/60 transition-all self-start leading-none"
+                className="z-10 px-5 py-2.5 text-[12px] font-bold text-neutral-700 bg-neutral-50 hover:bg-neutral-100 rounded-full border border-neutral-200/60 transition-all self-start leading-none mt-auto"
               >
                 Ver métricas
               </button>
