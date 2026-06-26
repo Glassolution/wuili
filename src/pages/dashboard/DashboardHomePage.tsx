@@ -2,12 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChevronRight,
-  Star,
   ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { veloToast } from "@/components/ui/velo-toast";
 import ProductScoutAI, { SaturnIcon } from "@/components/dashboard/ProductScoutAI";
 import OnboardingHome from "@/components/dashboard/OnboardingHome";
 
@@ -87,6 +86,16 @@ const DashboardHomePage = () => {
     setInputText("");
   };
 
+  const handleConnectML = async () => {
+    const { data, error } = await supabase.functions.invoke("ml-connect");
+    const authUrl = data?.authUrl ?? data?.auth_url;
+    if (error || !authUrl) {
+      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+      return;
+    }
+    window.location.href = authUrl;
+  };
+
   if (showOnboarding) {
     return (
       <OnboardingHome
@@ -97,11 +106,11 @@ const DashboardHomePage = () => {
     );
   }
 
-  const suggestionPills = [
-    "Encontre fones de ouvido bluetooth com boa margem",
-    "Sugira produtos eletrônicos mais vendidos com estoque no Brasil",
-    "Quais os produtos virais de beleza para importar hoje?",
-    "Me dê ideias de produtos de cozinha com mais de 50% de margem",
+  const actionPills = [
+    { label: "Importe seu primeiro produto", onClick: () => navigate("/dashboard/catalogo") },
+    { label: "Veja seu catálogo", onClick: () => navigate("/dashboard/catalogo") },
+    { label: "Conecte o Mercado Livre", onClick: handleConnectML },
+    { label: "Veja seus produtos no ML", onClick: () => navigate("/dashboard/produtos-ml") },
   ];
 
   return (
@@ -111,17 +120,8 @@ const DashboardHomePage = () => {
     >
       <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-5 px-1 py-4 sm:px-3 lg:px-0">
         
-        {/* Breadcrumb e Header Superior */}
+        {/* Header Superior */}
         <div className="flex flex-col gap-1 border-b border-black/[0.04] pb-4">
-          <div className="flex items-center gap-1.5 text-[11px] text-neutral-400 font-medium leading-none">
-            <span>Dashboard</span>
-            <ChevronRight className="h-3 w-3" />
-            <span className="text-neutral-600">Home</span>
-            <button type="button" className="ml-1 text-neutral-400 hover:text-neutral-600 leading-none">
-              <Star className="h-3.5 w-3.5 fill-none" />
-            </button>
-          </div>
-          
           <header className="flex items-center justify-between gap-4 mt-2">
             <h1 className="text-[20px] font-bold leading-none tracking-[-0.035em] text-neutral-800">
               Olá, {name}!
@@ -129,6 +129,7 @@ const DashboardHomePage = () => {
             
             <div className="flex items-center gap-3">
               <ProductScoutAI
+                showTriggerButton={false}
                 open={scoutOpen}
                 onOpenChange={setScoutOpen}
                 initialPrompt={scoutPrompt}
@@ -178,18 +179,18 @@ const DashboardHomePage = () => {
             </button>
           </form>
 
-          {/* Sugestões Rápidas (Pills) */}
+          {/* Ações Rápidas de Navegação */}
           <div className="mt-8 w-full">
-            <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-3.5">Sugestões de busca</p>
+            <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-3.5">O que você quer fazer?</p>
             <div className="flex flex-wrap justify-center gap-2">
-              {suggestionPills.map((pill, i) => (
+              {actionPills.map((pill, i) => (
                 <button
                   key={i}
                   type="button"
-                  onClick={() => handleSearchSubmit(pill)}
+                  onClick={pill.onClick}
                   className="text-[11.5px] font-semibold text-neutral-600 bg-white hover:bg-neutral-50 hover:text-neutral-800 border border-neutral-200/60 rounded-full px-4 py-2 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] text-left"
                 >
-                  {pill}
+                  {pill.label}
                 </button>
               ))}
             </div>

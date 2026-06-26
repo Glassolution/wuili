@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Link2, Package, ArrowRight, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
-import ProductScoutAI from "@/components/dashboard/ProductScoutAI";
+
 
 interface OnboardingHomeProps {
   name: string;
@@ -59,16 +59,7 @@ const OnboardingHome = ({ name, mlConnected, hasPublication }: OnboardingHomePro
           </h2>
         </div>
 
-        {/* Atlas search input */}
-        <div className="mx-auto w-full max-w-[720px]">
-          <div className="flex justify-center">
-            <ProductScoutAI
-              onResults={(results) =>
-                navigate("/dashboard/catalogo", { state: { atlasResults: results } })
-              }
-            />
-          </div>
-        </div>
+
 
         {/* Checklist 2 cards */}
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
