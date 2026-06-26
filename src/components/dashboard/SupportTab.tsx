@@ -454,7 +454,7 @@ Como posso te ajudar hoje?`;
           {humanMode && ticket && !ticket.ai_active && !supportClosed && (
             <button
               type="button"
-              onClick={returnToAiSupport}
+              onClick={returnToAi}
               disabled={returningToAi}
               className="inline-flex items-center gap-1.5 rounded-full border border-[#D4D4D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#525252] transition hover:border-black hover:text-black disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-[#111111] dark:text-zinc-300 dark:hover:border-white dark:hover:text-white"
             >
