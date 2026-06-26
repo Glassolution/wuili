@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Link2, Package, ArrowRight, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { veloToast } from "@/lib/velo-toast";
+import { veloToast } from "@/components/ui/velo-toast";
 import ProductScoutAI from "@/components/dashboard/ProductScoutAI";
 
 interface OnboardingHomeProps {
@@ -61,10 +61,8 @@ const OnboardingHome = ({ name, mlConnected, hasPublication }: OnboardingHomePro
 
         {/* Atlas search input */}
         <div className="mx-auto w-full max-w-[720px]">
-          <div className="rounded-2xl border border-black/[0.06] bg-white p-2 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+          <div className="flex justify-center">
             <ProductScoutAI
-              variant="inline"
-              placeholder="Pergunte ao Atlas o que vender..."
               onResults={(results) =>
                 navigate("/dashboard/catalogo", { state: { atlasResults: results } })
               }
