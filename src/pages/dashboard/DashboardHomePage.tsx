@@ -114,11 +114,23 @@ const DashboardHomePage = () => {
       <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-5 px-1 py-4 sm:px-3 lg:px-0">
         
         {/* Header Superior */}
-        <div className="flex flex-col gap-1 border-b border-black/[0.04] pb-4">
+        <div className="flex flex-col gap-1 pb-4">
           <header className="flex items-center justify-between gap-4 mt-2">
-            <h1 className="text-[20px] font-bold leading-none tracking-[-0.035em] text-neutral-800">
-              Olá, {name}!
-            </h1>
+            <div 
+              onClick={() => navigate("/dashboard/planos")}
+              className="flex items-center gap-2 rounded-full bg-[#111111] py-1.5 pl-3.5 pr-4 text-white hover:bg-neutral-800 transition-colors shadow-sm text-[11px] font-semibold leading-none cursor-pointer"
+            >
+              <span className="grid h-3 w-3 place-items-center rounded-full bg-emerald-500 shrink-0">
+                <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+              </span>
+              <span className="tracking-tight text-white/90">
+                Assine 3 meses por R$ 197,90
+              </span>
+              <span className="h-3 w-px bg-white/20 mx-1" />
+              <span className="text-white font-bold hover:underline">
+                Assinar agora
+              </span>
+            </div>
             
             <div className="flex items-center gap-3">
               <ProductScoutAI
