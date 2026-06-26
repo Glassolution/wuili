@@ -13,6 +13,9 @@ export type AtlasResults = {
 
 type ProductScoutAIProps = {
   onResults: (results: AtlasResults) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialPrompt?: string;
 };
 
 type ChatMessage = {
@@ -24,7 +27,7 @@ type ChatMessage = {
 
 const ALLOWED_SOURCES = ["cj", "b2drop", "c7drop"];
 
-const SaturnIcon = () => (
+export const SaturnIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <circle cx="12" cy="12" r="4.8" stroke="currentColor" strokeWidth="2" />
     <path
@@ -241,8 +244,20 @@ const FALLBACK_PRODUCTS: Product[] = [
   }
 ];
 
-const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
-  const [open, setOpen] = useState(false);
+const ProductScoutAI = ({ 
+  onResults,
+  open: controlledOpen,
+  onOpenChange,
+  initialPrompt = ""
+}: ProductScoutAIProps) => {
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : localOpen;
+  
+  const setOpen = (val: boolean) => {
+    setLocalOpen(val);
+    if (onOpenChange) onOpenChange(val);
+  };
+
   const [busy, setBusy] = useState(false);
   const [chatMode, setChatMode] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -259,6 +274,18 @@ const ProductScoutAI = ({ onResults }: ProductScoutAIProps) => {
   const [isTyping, setIsTyping] = useState(false);
   const [typingTrigger, setTypingTrigger] = useState(0);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync initialPrompt when modal is opened programmatically
+  useEffect(() => {
+    if (open && initialPrompt && initialPrompt.trim()) {
+      setChatMode(false);
+      setChatMessages([]);
+      setChatInput("");
+      const cleanPrompt = initialPrompt.trim();
+      setCustomPrompt(cleanPrompt);
+      void executeRealSearch(cleanPrompt);
+    }
+  }, [open, initialPrompt]);
 
   const handleInputChange = (val: string) => {
     setCustomPrompt(val);
