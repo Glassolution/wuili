@@ -144,8 +144,8 @@ const DashboardHomePage = () => {
           </header>
         </div>
 
-        {/* Central Chat/Atlas Interface */}
-        <div className="flex flex-col items-center justify-center pt-10 px-4 text-center max-w-4xl mx-auto w-full">
+        {/* Central Content Area (Chat + Cards unificados na mesma largura de max-w-[860px]) */}
+        <div className="mx-auto w-full max-w-[860px] px-4 flex flex-col items-center pt-10 text-center">
           
           <h2 className="text-[28px] sm:text-[32px] font-medium tracking-tight text-[#6B7280] leading-tight">
             Boas-vindas ao Velo!
@@ -159,7 +159,7 @@ const DashboardHomePage = () => {
               e.preventDefault();
               handleSearchSubmit(inputText);
             }}
-            className="w-full max-w-2xl flex items-center gap-2.5 bg-white border border-neutral-200/80 rounded-2xl p-2.5 pl-4 shadow-[0_4px_16px_rgba(0,0,0,0.02)] focus-within:border-neutral-400 transition-all duration-200"
+            className="w-full flex items-center gap-2.5 bg-white border border-neutral-200/80 rounded-2xl p-2.5 pl-4 shadow-[0_4px_16px_rgba(0,0,0,0.02)] focus-within:border-neutral-400 transition-all duration-200"
           >
             <span className="text-neutral-400 shrink-0">
               <SaturnIcon />
@@ -178,14 +178,12 @@ const DashboardHomePage = () => {
               <ArrowRight className="h-4 w-4" />
             </button>
           </form>
-        </div>
 
-        {/* Grid de Cards de Onboarding/Ação */}
-        <div className="mx-auto w-full max-w-[1100px] px-4 mt-24 sm:mt-28 md:mt-32">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full text-left">
+          {/* Grid de Cards de Onboarding/Ação */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 w-full text-left">
             
             {/* Card 1: Importar Produto */}
-            <div className="bg-white border border-black/[0.06] rounded-[24px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[310px]">
+            <div className="bg-white border border-black/[0.06] rounded-[24px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[260px]">
               <div>
                 <h3 className="text-[15px] font-bold text-neutral-800 leading-none">Importe seu primeiro produto</h3>
                 <p className="text-[12.5px] text-neutral-400 font-medium leading-relaxed mt-2.5">
@@ -193,14 +191,14 @@ const DashboardHomePage = () => {
                 </p>
                 
                 {/* Ilustração CSS Premium */}
-                <div className="h-[105px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-4 border border-black/[0.01] flex items-center justify-center">
-                  <div className="absolute transform -rotate-3 translate-y-1 bg-white border border-black/[0.05] rounded-xl p-3 shadow-md flex items-center gap-3.5 w-[280px]">
-                    <div className="h-10 w-10 bg-neutral-900 text-white rounded-lg flex items-center justify-center shrink-0">
+                <div className="h-[85px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-3.5 border border-black/[0.01] flex items-center justify-center">
+                  <div className="absolute transform -rotate-2 translate-y-1 bg-white border border-black/[0.05] rounded-xl p-2.5 shadow-md flex items-center gap-3 w-[260px]">
+                    <div className="h-8 w-8 bg-neutral-900 text-white rounded-lg flex items-center justify-center shrink-0">
                       <SaturnIcon />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="h-2 w-36 bg-neutral-200 rounded" />
-                      <div className="h-1.5 w-24 bg-neutral-100 rounded mt-1.5" />
+                      <div className="h-1.5 w-32 bg-neutral-200 rounded" />
+                      <div className="h-1 w-20 bg-neutral-100 rounded mt-1" />
                     </div>
                   </div>
                 </div>
@@ -215,7 +213,7 @@ const DashboardHomePage = () => {
             </div>
 
             {/* Card 2: Conectar Mercado Livre */}
-            <div className="bg-white border border-black/[0.06] rounded-[24px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[310px]">
+            <div className="bg-white border border-black/[0.06] rounded-[24px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[260px]">
               <div>
                 <h3 className="text-[15px] font-bold text-neutral-800 leading-none">Conecte o Mercado Livre</h3>
                 <p className="text-[12.5px] text-neutral-400 font-medium leading-relaxed mt-2.5">
@@ -223,13 +221,13 @@ const DashboardHomePage = () => {
                 </p>
                 
                 {/* Ilustração CSS Premium */}
-                <div className="h-[105px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-4 border border-black/[0.01] flex items-center justify-center">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-neutral-900 text-white flex items-center justify-center shadow-md shrink-0">
+                <div className="h-[85px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-3.5 border border-black/[0.01] flex items-center justify-center">
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-8.5 w-8.5 rounded-full bg-neutral-900 text-white flex items-center justify-center shadow-md shrink-0">
                       <SaturnIcon />
                     </div>
-                    <div className="h-0.5 w-24 border-t-2 border-dashed border-neutral-300" />
-                    <div className="h-10 w-10 rounded-full bg-[#FFE600] text-[#2D3277] font-black text-[14px] flex items-center justify-center shadow-md shrink-0 select-none">
+                    <div className="h-px w-20 border-t border-dashed border-neutral-300" />
+                    <div className="h-8.5 w-8.5 rounded-full bg-[#FFE600] text-[#2D3277] font-black text-[12px] flex items-center justify-center shadow-md shrink-0 select-none">
                       ML
                     </div>
                   </div>
@@ -245,7 +243,7 @@ const DashboardHomePage = () => {
             </div>
 
             {/* Card 3: Veja seus produtos no ML */}
-            <div className="bg-white border border-black/[0.06] rounded-[24px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[310px]">
+            <div className="bg-white border border-black/[0.06] rounded-[24px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[260px]">
               <div>
                 <h3 className="text-[15px] font-bold text-neutral-800 leading-none">Veja seus produtos no ML</h3>
                 <p className="text-[12.5px] text-neutral-400 font-medium leading-relaxed mt-2.5">
@@ -253,14 +251,14 @@ const DashboardHomePage = () => {
                 </p>
                 
                 {/* Ilustração CSS Premium */}
-                <div className="h-[105px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-4 border border-black/[0.01] flex items-center justify-center">
-                  <div className="absolute transform rotate-2 translate-y-1 bg-white border border-black/[0.05] rounded-xl p-3 shadow-md w-[290px]">
-                    <div className="flex items-center justify-between gap-2 border-b border-black/[0.03] pb-1.5 mb-1.5">
-                      <span className="text-[9px] font-bold text-neutral-400">ANÚNCIO MERCADO LIVRE</span>
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-1.5 py-0.5 text-[7px] font-bold text-emerald-700">ATIVO</span>
+                <div className="h-[85px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-3.5 border border-black/[0.01] flex items-center justify-center">
+                  <div className="absolute transform rotate-1 translate-y-1 bg-white border border-black/[0.05] rounded-xl p-2.5 shadow-md w-[260px]">
+                    <div className="flex items-center justify-between gap-2 border-b border-black/[0.03] pb-1 mb-1">
+                      <span className="text-[8px] font-bold text-neutral-400">ANÚNCIO ML</span>
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-1 py-0.5 text-[6px] font-bold text-emerald-700">ATIVO</span>
                     </div>
-                    <div className="h-2 w-48 bg-neutral-200 rounded" />
-                    <div className="h-1.5 w-32 bg-neutral-100 rounded mt-1.5" />
+                    <div className="h-1.5 w-40 bg-neutral-200 rounded" />
+                    <div className="h-1 w-24 bg-neutral-100 rounded mt-1" />
                   </div>
                 </div>
               </div>
@@ -274,7 +272,7 @@ const DashboardHomePage = () => {
             </div>
 
             {/* Card 4: Explore as métricas da loja */}
-            <div className="bg-white border border-black/[0.06] rounded-[24px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[310px]">
+            <div className="bg-white border border-black/[0.06] rounded-[24px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between h-[260px]">
               <div>
                 <h3 className="text-[15px] font-bold text-neutral-800 leading-none">Explore as métricas da loja</h3>
                 <p className="text-[12.5px] text-neutral-400 font-medium leading-relaxed mt-2.5">
@@ -282,15 +280,15 @@ const DashboardHomePage = () => {
                 </p>
                 
                 {/* Ilustração CSS Premium */}
-                <div className="h-[105px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-4 border border-black/[0.01] flex items-center justify-center">
-                  <div className="flex items-end gap-3 h-12 w-[240px] justify-between">
-                    <div className="w-5 bg-neutral-200 rounded-t-sm h-4" />
-                    <div className="w-5 bg-neutral-200 rounded-t-sm h-6" />
-                    <div className="w-5 bg-neutral-300 rounded-t-sm h-8" />
-                    <div className="w-5 bg-neutral-200 rounded-t-sm h-5" />
-                    <div className="w-5 bg-neutral-300 rounded-t-sm h-10" />
-                    <div className="w-5 bg-neutral-900 rounded-t-sm h-12" />
-                    <div className="w-5 bg-neutral-200 rounded-t-sm h-7" />
+                <div className="h-[85px] w-full relative overflow-hidden bg-neutral-50/50 rounded-xl mt-3.5 border border-black/[0.01] flex items-center justify-center">
+                  <div className="flex items-end gap-2.5 h-10 w-[200px] justify-between">
+                    <div className="w-4 bg-neutral-200 rounded-t-sm h-3" />
+                    <div className="w-4 bg-neutral-200 rounded-t-sm h-5" />
+                    <div className="w-4 bg-neutral-300 rounded-t-sm h-7" />
+                    <div className="w-4 bg-neutral-200 rounded-t-sm h-4" />
+                    <div className="w-4 bg-neutral-300 rounded-t-sm h-8" />
+                    <div className="w-4 bg-neutral-900 rounded-t-sm h-10" />
+                    <div className="w-4 bg-neutral-200 rounded-t-sm h-6" />
                   </div>
                 </div>
               </div>
