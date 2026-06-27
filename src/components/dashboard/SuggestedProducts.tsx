@@ -20,11 +20,11 @@ type SuggestedProduct = {
 
 type FilterKey = "todos" | "maior-margem" | "mais-vendidos" | "recentes";
 
-const FILTERS: Array<{ key: FilterKey; label: string; icon: React.ReactNode }> = [
-  { key: "todos", label: "Todos", icon: <Sparkles className="h-3 w-3" /> },
-  { key: "maior-margem", label: "Maior margem", icon: <TrendingUp className="h-3 w-3" /> },
-  { key: "mais-vendidos", label: "Mais vendidos", icon: <ShoppingBag className="h-3 w-3" /> },
-  { key: "recentes", label: "Recém adicionados", icon: <Package className="h-3 w-3" /> },
+const FILTERS: Array<{ key: FilterKey; label: string }> = [
+  { key: "todos", label: "Todos" },
+  { key: "maior-margem", label: "Maior margem" },
+  { key: "mais-vendidos", label: "Mais vendidos" },
+  { key: "recentes", label: "Recém adicionados" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -248,18 +248,17 @@ const SuggestedProducts = () => {
       </div>
 
       {/* ── Pills de filtro ── */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
+      <div className="flex items-center gap-1.5 mb-6 flex-wrap">
         {FILTERS.map((f) => (
           <button
             key={f.key}
             onClick={() => setActiveFilter(f.key)}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-all duration-100 border ${
+            className={`rounded-full px-3 py-1 text-[11.5px] font-medium transition-all duration-100 ${
               activeFilter === f.key
-                ? "bg-neutral-900 text-white border-neutral-900 shadow-sm"
-                : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400 hover:text-neutral-900"
+                ? "bg-white text-neutral-900 shadow-sm"
+                : "bg-neutral-200/70 text-neutral-500 hover:text-neutral-700"
             }`}
           >
-            {f.icon}
             {f.label}
           </button>
         ))}
