@@ -36,6 +36,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const CriarVideoPage = lazy(() => import("./pages/dashboard/CriarVideoPage"));
 const ChatFornecedoresPage = lazy(() => import("./pages/dashboard/ChatFornecedoresPage"));
 const DashboardHomePage = lazy(() => import("./pages/dashboard/DashboardHomePage"));
+const AtlasChatPage = lazy(() => import("./pages/dashboard/AtlasChatPage"));
 const Docs = lazy(() => import("./pages/Docs"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
@@ -115,6 +116,8 @@ const App = () => (
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
               <Route path="/dashboard" element={<DashboardShell />}>
                 <Route index element={<DashboardHomePage />} />
+                <Route path="atlas" element={<AtlasChatPage />} />
+                <Route path="atlas/:threadId" element={<AtlasChatPage />} />
                 <Route path="catalogo" element={<CatalogoPage />} />
                 <Route path="catalogo/:id" element={<CatalogoProductDetailPage />} />
                 <Route path="produtos-ml" element={<ProdutosMLPage />} />
