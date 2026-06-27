@@ -933,3 +933,38 @@
   background: hsl(var(--muted));
   border-radius: 4px;
 }
+
+/* ── Title shine sweep (Home) ─────────────────────────────────────────────── */
+/* Overlay que desliza sobre o h1 uma única vez ao carregar.
+   Usa pointer-events: none + mix-blend-mode: overlay para não interferir
+   nas cores originais do texto (itálico serifado, cinza do nome, etc.) */
+@keyframes title-shine-move {
+  from { transform: translateX(-110%); }
+  to   { transform: translateX(110%); }
+}
+
+.title-shine-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 4px;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 70%
+  );
+  animation: title-shine-move 900ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 350ms;
+  /* começa fora da tela — o delay mantém o span invisível antes de iniciar */
+  transform: translateX(-110%);
+  /* garante que o overlay fique acima do texto */
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-shine-sweep {
+    animation: none;
+    display: none;
+  }
+}

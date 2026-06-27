@@ -116,21 +116,28 @@ const DashboardHomePage = () => {
         max-w aqui só para o bloco de texto+input, não para o grid abaixo.
       */}
       <section className="flex flex-col items-center text-center mb-10">
-        <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-neutral-900 leading-tight">
-          Boas-vindas ao{" "}
+        <div className="relative inline-block">
+          <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-neutral-900 leading-tight">
+            Boas-vindas ao{" "}
+            <span
+              style={{
+                fontFamily: '"Playfair Display", Georgia, serif',
+                fontStyle: "italic",
+                fontWeight: 600,
+              }}
+            >
+              Velo
+            </span>
+            {name && name !== "Velo" ? (
+              <span className="text-neutral-500 font-medium">, {name}</span>
+            ) : null}
+          </h1>
+          {/* Shine sweep overlay — roda uma vez ao carregar, depois desaparece */}
           <span
-            style={{
-              fontFamily: '"Playfair Display", Georgia, serif',
-              fontStyle: "italic",
-              fontWeight: 600,
-            }}
-          >
-            Velo
-          </span>
-          {name && name !== "Velo" ? (
-            <span className="text-neutral-500 font-medium">, {name}</span>
-          ) : null}
-        </h1>
+            aria-hidden="true"
+            className="title-shine-sweep"
+          />
+        </div>
         <p className="mt-2 text-[14px] text-neutral-500 font-normal">
           O que você quer vender hoje?
         </p>
