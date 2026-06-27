@@ -150,7 +150,7 @@ const DashboardHomePage = () => {
         {/* Welcome + Chat input */}
         <section className="mt-[18vh] flex flex-col items-center text-center">
           <h2 className="text-[28px] sm:text-[30px] font-medium tracking-tight text-neutral-500 leading-tight">
-            Boas-vindas ao Velo{name ? `, ${name}` : ""}!
+            Boas-vindas ao Velo!
           </h2>
           <h1 className="text-[28px] sm:text-[30px] font-bold tracking-tight text-neutral-900 leading-tight mt-0.5">
             Por onde quer começar?

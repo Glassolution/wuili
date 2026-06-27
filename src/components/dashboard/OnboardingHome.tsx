@@ -52,7 +52,7 @@ const OnboardingHome = ({ name, mlConnected, hasPublication }: OnboardingHomePro
         {/* Header central */}
         <div className="mt-[12vh] flex flex-col items-center gap-3 text-center">
           <h1 className="text-[34px] font-semibold leading-[1.15] tracking-[-0.025em] text-neutral-500">
-            Boas-vindas ao Velo, {name}!
+            Boas-vindas ao Velo!
           </h1>
           <h2 className="text-[34px] font-bold leading-[1.15] tracking-[-0.025em] text-neutral-900">
             Por onde quer começar?
