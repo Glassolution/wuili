@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { TrendingUp, ShoppingBag, Sparkles, Package, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -27,6 +28,16 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
   { key: "recentes", label: "Recém adicionados" },
 ];
 
+// ─── Shared fade-up variant ───────────────────────────────────────────────────
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (delay: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1], delay },
+  }),
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getFirstImage = (images: Json | null): string | null => {
   try {
@@ -52,9 +63,11 @@ const formatBRL = (value: number) =>
 const VitrineCard = ({
   product,
   onClick,
+  delay,
 }: {
   product: SuggestedProduct;
   onClick: () => void;
+  delay: number;
 }) => {
   const imageUrl = getFirstImage(product.images);
   const [imgFailed, setImgFailed] = useState(false);
@@ -62,22 +75,24 @@ const VitrineCard = ({
   const margin = Math.round(product.margin_percent);
   const price = product.suggested_price > 0 ? product.suggested_price : product.cost_price;
 
-  // Avatar icon: indica destaque/status
   const AvatarIcon =
     margin >= 40 ? TrendingUp : (product.orders_count ?? 0) >= 100 ? ShoppingBag : Sparkles;
 
   return (
-    <article
+    <motion.article
       onClick={onClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
       className="group relative flex flex-col rounded-[20px] overflow-hidden cursor-pointer border border-neutral-100 bg-white shadow-[0_2px_14px_rgba(0,0,0,0.07)] transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.13)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
       aria-label={`Ver produto: ${product.title}`}
+      variants={fadeUp}
+      initial="hidden"
+      animate="visible"
+      custom={delay}
     >
       {/* ── ZONA 1: Imagem com respiro interno ── */}
       <div className="relative px-4 pt-4 pb-2 flex items-center justify-center bg-white" style={{ minHeight: 200 }}>
-        {/* Badges sobre a imagem */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 z-10 pointer-events-none">
           {product.category ? (
             <span className="inline-flex items-center rounded-full bg-white/80 backdrop-blur-sm px-2.5 py-[3px] text-[10px] font-normal tracking-wide text-neutral-600 border border-neutral-200 shadow-sm">
@@ -93,7 +108,6 @@ const VitrineCard = ({
           )}
         </div>
 
-        {/* Imagem do produto — contain para nunca cortar */}
         {imageUrl && !imgFailed ? (
           <img
             src={imageUrl}
@@ -106,17 +120,13 @@ const VitrineCard = ({
           />
         ) : (
           <div className="flex items-center justify-center h-[160px] w-full">
-            <Package
-              className="h-14 w-14 text-neutral-300"
-              strokeWidth={1.2}
-            />
+            <Package className="h-14 w-14 text-neutral-300" strokeWidth={1.2} />
           </div>
         )}
       </div>
 
-      {/* ── ZONA 2: Faixa de informação — fundo branco ── */}
+      {/* ── ZONA 2: Faixa de informação ── */}
       <div className="px-4 pt-2.5 pb-4 flex items-center gap-2.5 bg-white border-t border-neutral-100">
-        {/* Nome + preço */}
         <div className="min-w-0 flex-1">
           <h3 className="text-[12.5px] font-medium leading-snug line-clamp-1 truncate text-neutral-900">
             {product.title}
@@ -131,7 +141,6 @@ const VitrineCard = ({
           </p>
         </div>
 
-        {/* Avatar circular — status/destaque */}
         <div
           className="shrink-0 h-7 w-7 rounded-full grid place-items-center transition-transform duration-200 group-hover:scale-110 bg-neutral-100 text-neutral-600"
           title={
@@ -145,13 +154,19 @@ const VitrineCard = ({
           <AvatarIcon className="h-3.5 w-3.5" />
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 };
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
-const VitrineSkeleton = () => (
-  <div className="rounded-[20px] overflow-hidden bg-white border border-neutral-100 shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
+const VitrineSkeleton = ({ delay }: { delay: number }) => (
+  <motion.div
+    className="rounded-[20px] overflow-hidden bg-white border border-neutral-100 shadow-[0_2px_14px_rgba(0,0,0,0.05)]"
+    variants={fadeUp}
+    initial="hidden"
+    animate="visible"
+    custom={delay}
+  >
     <div className="px-4 pt-4 pb-2 h-[200px] skeleton-pulse bg-neutral-100" />
     <div className="px-4 pt-2.5 pb-4 border-t border-neutral-100 flex items-center gap-2.5 bg-white">
       <div className="flex-1 flex flex-col gap-1.5">
@@ -160,7 +175,7 @@ const VitrineSkeleton = () => (
       </div>
       <div className="h-7 w-7 rounded-full bg-neutral-200 skeleton-pulse shrink-0" />
     </div>
-  </div>
+  </motion.div>
 );
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
@@ -179,7 +194,9 @@ const EmptyState = () => (
 );
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const SuggestedProducts = () => {
+// initialDelay: ponto de partida do stagger (em segundos)
+// 0.3s → header+pills, cards a partir de 0.4s com 50ms entre cada um
+const SuggestedProducts = ({ initialDelay = 0 }: { initialDelay?: number }) => {
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<FilterKey>("todos");
 
@@ -231,10 +248,23 @@ const SuggestedProducts = () => {
     navigate("/dashboard/catalogo", { state: { highlightId: product.id } });
   };
 
+  // Delays: header = initialDelay, pills = initialDelay + 0.05
+  // cards/skeletons = initialDelay + 0.1 + (index * 0.05)
+  const headerDelay = initialDelay;
+  const pillsDelay = initialDelay + 0.05;
+  const cardBaseDelay = initialDelay + 0.1;
+  const cardStep = 0.05;
+
   return (
     <section className="w-full">
       {/* ── Cabeçalho ── */}
-      <div className="flex items-center justify-between gap-4 mb-4">
+      <motion.div
+        className="flex items-center justify-between gap-4 mb-4"
+        variants={fadeUp}
+        initial="hidden"
+        animate="visible"
+        custom={headerDelay}
+      >
         <h2 className="text-[16px] font-bold text-neutral-800 tracking-tight">
           Produtos sugeridos
         </h2>
@@ -245,10 +275,16 @@ const SuggestedProducts = () => {
           Ver catálogo completo
           <ArrowUpRight className="h-3.5 w-3.5" />
         </button>
-      </div>
+      </motion.div>
 
       {/* ── Pills de filtro ── */}
-      <div className="flex items-center gap-1.5 mb-6 flex-wrap">
+      <motion.div
+        className="flex items-center gap-1.5 mb-6 flex-wrap"
+        variants={fadeUp}
+        initial="hidden"
+        animate="visible"
+        custom={pillsDelay}
+      >
         {FILTERS.map((f) => (
           <button
             key={f.key}
@@ -262,19 +298,22 @@ const SuggestedProducts = () => {
             {f.label}
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* ── Grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading
-          ? Array.from({ length: 6 }).map((_, i) => <VitrineSkeleton key={i} />)
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <VitrineSkeleton key={i} delay={cardBaseDelay + i * cardStep} />
+            ))
           : filtered.length === 0
           ? <EmptyState />
-          : filtered.map((p) => (
+          : filtered.map((p, i) => (
               <VitrineCard
                 key={p.id}
                 product={p}
                 onClick={() => handleProductClick(p)}
+                delay={cardBaseDelay + i * cardStep}
               />
             ))}
       </div>

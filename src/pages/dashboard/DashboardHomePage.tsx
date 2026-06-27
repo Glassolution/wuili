@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, Plus } from "lucide-react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -33,6 +34,16 @@ const AtlasAvatar = ({ size = 28 }: { size?: number }) => (
     A
   </div>
 );
+
+// ─── Fade-up variant (reutilizado em cada elemento) ───────────────────────────
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (delay: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1], delay },
+  }),
+};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const DashboardHomePage = () => {
@@ -110,45 +121,53 @@ const DashboardHomePage = () => {
       </header>
 
       {/* ── Welcome + Search ───────────────────────────────────────────── */}
-      {/*
-        Título e barra de busca ficam centralizados visualmente,
-        mas dentro do layout de largura total — sem container estreito.
-        max-w aqui só para o bloco de texto+input, não para o grid abaixo.
-      */}
       <section className="flex flex-col items-center text-center mb-10">
-        <div className="relative inline-block">
-          <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-neutral-900 leading-tight">
-            Boas-vindas ao{" "}
-            <span
-              style={{
-                fontFamily: '"Playfair Display", Georgia, serif',
-                fontStyle: "italic",
-                fontWeight: 600,
-              }}
-            >
-              Velo
-            </span>
-            {name && name !== "Velo" ? (
-              <span className="text-neutral-500 font-medium">, {name}</span>
-            ) : null}
-          </h1>
-          {/* Shine sweep overlay — roda uma vez ao carregar, depois desaparece */}
-          <span
-            aria-hidden="true"
-            className="title-shine-sweep"
-          />
-        </div>
-        <p className="mt-2 text-[14px] text-neutral-500 font-normal">
-          O que você quer vender hoje?
-        </p>
 
-        {/* Campo de busca / Atlas — limitado para não ficar largo demais */}
-        <form
+        {/* 1 — Título (delay 0ms) */}
+        <motion.h1
+          className="text-[28px] sm:text-[34px] font-bold tracking-tight text-neutral-900 leading-tight"
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={0}
+        >
+          Boas-vindas ao{" "}
+          <span
+            style={{
+              fontFamily: '"Playfair Display", Georgia, serif',
+              fontStyle: "italic",
+              fontWeight: 600,
+            }}
+          >
+            Velo
+          </span>
+          {name && name !== "Velo" ? (
+            <span className="text-neutral-500 font-medium">, {name}</span>
+          ) : null}
+        </motion.h1>
+
+        {/* 2 — Subtítulo (delay 100ms) */}
+        <motion.p
+          className="mt-2 text-[14px] text-neutral-500 font-normal"
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={0.1}
+        >
+          O que você quer vender hoje?
+        </motion.p>
+
+        {/* 3 — Campo de busca / Atlas (delay 200ms) */}
+        <motion.form
           onSubmit={(e) => {
             e.preventDefault();
             handleSearchSubmit(inputText);
           }}
           className="mt-6 w-full max-w-[680px] flex items-center gap-2 bg-white border border-neutral-200 rounded-full pl-4 pr-2 py-2 shadow-[0_2px_10px_rgba(0,0,0,0.03)] focus-within:border-neutral-400 transition-colors"
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={0.2}
         >
           <AtlasAvatar size={24} />
           <input
@@ -176,11 +195,12 @@ const DashboardHomePage = () => {
           >
             <ArrowUp className="h-4 w-4" />
           </button>
-        </form>
+        </motion.form>
       </section>
 
-      {/* ── Produtos sugeridos — largura total ─────────────────────────── */}
-      <SuggestedProducts />
+      {/* ── Produtos sugeridos — delay começa em 300ms ──────────────────── */}
+      {/* initialDelay=0.3 → pills em 300ms, cards a partir de 400ms       */}
+      <SuggestedProducts initialDelay={0.3} />
     </main>
   );
 };
