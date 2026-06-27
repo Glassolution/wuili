@@ -13,6 +13,7 @@ import {
   Package,
   FileText,
   ShoppingBag,
+  ShoppingCart,
   MessageSquare,
   Settings,
   ChevronDown,
@@ -30,6 +31,8 @@ import {
   Trash2,
   Inbox,
   ArrowRight,
+  Video,
+  Link2,
 } from "lucide-react";
 import StartModeModal from "./StartModeModal";
 import { useStartMode } from "@/hooks/useStartMode";
