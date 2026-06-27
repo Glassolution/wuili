@@ -91,7 +91,8 @@ const DashboardHomePage = () => {
 
         {/* 1 — Linha 1: "Boas-vindas ao Velo!" — peso leve, cinza médio (delay 0ms) */}
         <motion.p
-          className="text-[22px] sm:text-[26px] font-medium tracking-tight text-neutral-400 leading-tight"
+          className="text-[22px] sm:text-[26px] font-medium tracking-tight leading-tight"
+          style={{ color: "#616161" }}
           variants={fadeUp}
           initial="hidden"
           animate="visible"
@@ -102,7 +103,7 @@ const DashboardHomePage = () => {
             style={{
               fontFamily: '"Playfair Display", Georgia, serif',
               fontStyle: "italic",
-              fontWeight: 500,
+              fontWeight: 400,
             }}
           >
             Velo
