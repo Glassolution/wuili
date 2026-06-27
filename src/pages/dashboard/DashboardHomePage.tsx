@@ -193,7 +193,7 @@ const DashboardHomePage = () => {
         </section>
 
         {/* Card grid */}
-        <section className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-5">
+        <section className="mt-[12vh] grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Card 1 */}
           <article className="rounded-[20px] border border-black/[0.06] bg-white p-7 h-[280px] flex flex-col justify-between relative overflow-hidden">
             <div className="z-10 max-w-[80%]">
