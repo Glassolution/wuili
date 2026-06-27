@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, ShoppingBag, Sparkles, Package, ArrowUpRight } from "lucide-react";
+import { FastAverageColor } from "fast-average-color";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+
+// ─── Singleton FAC ────────────────────────────────────────────────────────────
+const fac = new FastAverageColor();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type SuggestedProduct = {
@@ -48,11 +52,70 @@ const formatBRL = (value: number) =>
     maximumFractionDigits: 0,
   });
 
+// Dado um array RGBA, retorna se o fundo deve ter texto claro ou escuro.
+// Usa a fórmula de luminância percebida (W3C).
+const isLight = (rgb: [number, number, number]): boolean => {
+  const [r, g, b] = rgb;
+  // Luminância perceptiva
+  const L = 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255);
+  return L > 0.45;
+};
+
+// ─── Hook: cor dominante da imagem ────────────────────────────────────────────
+type ColorState = {
+  bg: string;          // css color string, ex: "rgb(34, 12, 56)"
+  isDark: boolean;     // true = texto branco, false = texto escuro
+  ready: boolean;
+};
+
+const FALLBACK: ColorState = { bg: "#F2F2F2", isDark: false, ready: true };
+
+function useDominantColor(imageUrl: string | null): ColorState {
+  const [color, setColor] = useState<ColorState>({ bg: "#F2F2F2", isDark: false, ready: false });
+
+  useEffect(() => {
+    if (!imageUrl) {
+      setColor(FALLBACK);
+      return;
+    }
+
+    let cancelled = false;
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    img.onload = async () => {
+      if (cancelled) return;
+      try {
+        const result = await fac.getColorAsync(img, {
+          algorithm: "dominant",
+          ignoredColor: [[255, 255, 255, 255, 30]], // ignora pixels quase-brancos
+          mode: "precision",
+        });
+        if (cancelled) return;
+        const [r, g, b] = result.value as [number, number, number, number];
+        const light = isLight([r, g, b]);
+        setColor({ bg: result.hex, isDark: !light, ready: true });
+      } catch {
+        if (!cancelled) setColor(FALLBACK);
+      }
+    };
+
+    img.onerror = () => {
+      if (!cancelled) setColor(FALLBACK);
+    };
+
+    img.src = imageUrl;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl]);
+
+  return color;
+}
+
 // ─── Vitrine Card ─────────────────────────────────────────────────────────────
-// Duas zonas:
-//   Zona 1 — Imagem com padding interno + badges sobre ela
-//   Zona 2 — Faixa de informação com fundo escuro (#111), nome + preço na
-//             mesma linha, avatar circular no canto direito indicando fonte/status
 const VitrineCard = ({
   product,
   onClick,
@@ -62,27 +125,25 @@ const VitrineCard = ({
 }) => {
   const imageUrl = getFirstImage(product.images);
   const [imgFailed, setImgFailed] = useState(false);
+  const { bg, isDark, ready } = useDominantColor(imgFailed ? null : imageUrl);
+
   const margin = Math.round(product.margin_percent);
   const price = product.suggested_price > 0 ? product.suggested_price : product.cost_price;
 
-  // Avatar circular: representa a origem/status do produto
-  // Lógica: margem alta → verde (destaque), muitos pedidos → azul (popular),
-  // default → cinza neutro
-  const avatarBg =
-    margin >= 40
-      ? "bg-emerald-500"
-      : (product.orders_count ?? 0) >= 100
-      ? "bg-blue-500"
-      : "bg-neutral-600";
+  // Cores de texto adaptadas ao fundo
+  const textPrimary = isDark ? "rgba(255,255,255,0.95)" : "rgba(17,17,17,0.90)";
+  const textSecondary = isDark ? "rgba(255,255,255,0.55)" : "rgba(17,17,17,0.45)";
 
-  const avatarIcon =
-    margin >= 40 ? (
-      <TrendingUp className="h-3 w-3 text-white" />
-    ) : (product.orders_count ?? 0) >= 100 ? (
-      <ShoppingBag className="h-3 w-3 text-white" />
-    ) : (
-      <Sparkles className="h-3 w-3 text-white" />
-    );
+  // Cor do avatar circular
+  const avatarStyle = isDark
+    ? { background: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.90)" }
+    : { background: "rgba(0,0,0,0.10)", color: "rgba(17,17,17,0.70)" };
+
+  // Avatar icon: indica destaque/status
+  const AvatarIcon =
+    margin >= 40 ? TrendingUp : (product.orders_count ?? 0) >= 100 ? ShoppingBag : Sparkles;
+
+  const bgStyle = ready ? bg : "#F2F2F2";
 
   return (
     <article
@@ -90,73 +151,95 @@ const VitrineCard = ({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
-      className="group relative flex flex-col rounded-[22px] overflow-hidden cursor-pointer bg-white border border-black/[0.05] shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:shadow-[0_8px_32px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
+      style={{ backgroundColor: bgStyle }}
+      className="group relative flex flex-col rounded-[20px] overflow-hidden cursor-pointer border-0 shadow-[0_2px_14px_rgba(0,0,0,0.07)] transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.13)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
       aria-label={`Ver produto: ${product.title}`}
     >
-      {/* ── ZONA 1: Imagem com moldura interna ── */}
-      <div className="relative p-4 pb-0 bg-white">
-        <div className="relative h-[200px] w-full overflow-hidden rounded-2xl bg-neutral-100">
-          {imageUrl && !imgFailed ? (
-            <img
-              src={imageUrl}
-              alt={product.title}
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-              loading="lazy"
-              decoding="async"
-              onError={() => setImgFailed(true)}
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-neutral-100">
-              <Package className="h-12 w-12 text-neutral-300" strokeWidth={1.2} />
-            </div>
-          )}
-
-          {/* Badge de categoria — canto superior esquerdo */}
-          {product.category && (
-            <span className="absolute top-2.5 left-2.5 inline-flex items-center rounded-full bg-white/88 backdrop-blur-sm px-2.5 py-[3px] text-[10px] font-normal tracking-wide text-neutral-500 border border-white/50">
+      {/* ── ZONA 1: Imagem com respiro interno ── */}
+      <div className="relative px-4 pt-4 pb-2 flex items-center justify-center" style={{ minHeight: 200 }}>
+        {/* Badges sobre a imagem — fundo branco semi-opaco para contraste garantido */}
+        <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 z-10 pointer-events-none">
+          {product.category ? (
+            <span className="inline-flex items-center rounded-full bg-white/80 backdrop-blur-sm px-2.5 py-[3px] text-[10px] font-normal tracking-wide text-neutral-600 border border-white/50 shadow-sm">
               {product.category}
             </span>
-          )}
+          ) : <span />}
 
-          {/* Badge de margem — canto superior direito */}
           {margin > 0 && (
-            <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-500/90 backdrop-blur-sm px-2 py-[3px] text-[10px] font-medium text-white">
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/80 backdrop-blur-sm px-2.5 py-[3px] text-[10px] font-medium text-emerald-700 border border-white/50 shadow-sm">
               <TrendingUp className="h-2.5 w-2.5" />
               {margin}%
             </span>
           )}
         </div>
+
+        {/* Imagem do produto */}
+        {imageUrl && !imgFailed ? (
+          <img
+            src={imageUrl}
+            alt={product.title}
+            className="relative z-0 w-full object-contain transition-transform duration-500 group-hover:scale-[1.03]"
+            style={{ maxHeight: 180, height: 160 }}
+            loading="lazy"
+            decoding="async"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-[160px] w-full">
+            <Package
+              className="h-14 w-14"
+              style={{ color: isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.18)" }}
+              strokeWidth={1.2}
+            />
+          </div>
+        )}
       </div>
 
-      {/* ── ZONA 2: Faixa de informação com fundo escuro ── */}
-      <div className="mt-3 mx-4 mb-4 rounded-[14px] bg-[#111111] px-4 py-3.5 flex items-center gap-3">
-        {/* Texto: nome + subtexto */}
+      {/* ── ZONA 2: Faixa de informação — mesma cor de fundo ── */}
+      {/*
+        Uma linha divisória sutil separa as zonas apenas quando necessário.
+        A faixa usa a mesma cor base do card, diferenciada só pela leve
+        semiopacidade de um overlay escuro ou claro.
+      */}
+      <div
+        className="px-4 pt-2.5 pb-4 flex items-center gap-2.5"
+        style={{
+          borderTop: isDark
+            ? "1px solid rgba(255,255,255,0.10)"
+            : "1px solid rgba(0,0,0,0.07)",
+        }}
+      >
+        {/* Nome + preço */}
         <div className="min-w-0 flex-1">
-          <h3 className="text-[12.5px] font-medium text-white leading-snug line-clamp-1 truncate">
+          <h3
+            className="text-[12.5px] font-medium leading-snug line-clamp-1 truncate"
+            style={{ color: textPrimary }}
+          >
             {product.title}
           </h3>
-          <p className="text-[11px] font-normal text-white/50 mt-0.5 leading-none tracking-wide">
+          <p className="text-[11px] font-semibold mt-0.5 leading-none tracking-tight" style={{ color: textPrimary }}>
             {formatBRL(price)}
             {product.orders_count != null && product.orders_count > 0 && (
-              <span className="ml-2 text-white/35">
+              <span className="ml-1.5 font-normal text-[10px]" style={{ color: textSecondary }}>
                 · {product.orders_count.toLocaleString("pt-BR")} pedidos
               </span>
             )}
           </p>
         </div>
 
-        {/* Avatar circular — status/destaque do produto */}
+        {/* Avatar circular — status/destaque */}
         <div
-          className={`shrink-0 h-8 w-8 rounded-full ${avatarBg} grid place-items-center transition-transform duration-200 group-hover:scale-110`}
+          className="shrink-0 h-7 w-7 rounded-full grid place-items-center transition-transform duration-200 group-hover:scale-110"
+          style={avatarStyle}
           title={
             margin >= 40
               ? "Alta margem"
               : (product.orders_count ?? 0) >= 100
               ? "Mais vendido"
-              : "Produto sugerido"
+              : "Sugestão"
           }
         >
-          {avatarIcon}
+          <AvatarIcon className="h-3.5 w-3.5" />
         </div>
       </div>
     </article>
@@ -165,13 +248,15 @@ const VitrineCard = ({
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const VitrineSkeleton = () => (
-  <div className="rounded-[22px] overflow-hidden border border-black/[0.05] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-    {/* Zona 1: imagem */}
-    <div className="p-4 pb-0 bg-white">
-      <div className="h-[200px] w-full rounded-2xl bg-neutral-100 skeleton-pulse" />
+  <div className="rounded-[20px] overflow-hidden bg-neutral-100 shadow-[0_2px_14px_rgba(0,0,0,0.05)]">
+    <div className="px-4 pt-4 pb-2 h-[200px] skeleton-pulse" />
+    <div className="px-4 pt-2.5 pb-4 border-t border-black/[0.06] flex items-center gap-2.5">
+      <div className="flex-1 flex flex-col gap-1.5">
+        <div className="h-3 w-3/5 rounded-full bg-neutral-200 skeleton-pulse" />
+        <div className="h-2.5 w-1/3 rounded-full bg-neutral-200 skeleton-pulse" />
+      </div>
+      <div className="h-7 w-7 rounded-full bg-neutral-200 skeleton-pulse shrink-0" />
     </div>
-    {/* Zona 2: faixa escura */}
-    <div className="mt-3 mx-4 mb-4 rounded-[14px] bg-neutral-100 skeleton-pulse px-4 py-3.5 flex items-center gap-3 h-[56px]" />
   </div>
 );
 
@@ -229,7 +314,6 @@ const SuggestedProducts = () => {
           })
           .slice(0, 6);
       default:
-        // "todos": score combinado margem (60%) + pedidos (40%)
         return base
           .sort((a, b) => {
             const sA = a.margin_percent * 0.6 + (a.orders_count ?? 0) * 0.4;
@@ -246,7 +330,7 @@ const SuggestedProducts = () => {
 
   return (
     <section className="w-full">
-      {/* ── Cabeçalho da seção ── */}
+      {/* ── Cabeçalho ── */}
       <div className="flex items-center justify-between gap-4 mb-4">
         <h2 className="text-[16px] font-bold text-neutral-800 tracking-tight">
           Produtos sugeridos
@@ -278,7 +362,7 @@ const SuggestedProducts = () => {
         ))}
       </div>
 
-      {/* ── Grid vitrine — 3 colunas em desktop, 2 em tablet, 1 em mobile ── */}
+      {/* ── Grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => <VitrineSkeleton key={i} />)
