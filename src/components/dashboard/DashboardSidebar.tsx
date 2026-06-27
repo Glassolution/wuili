@@ -1321,7 +1321,7 @@ const DashboardSidebar = () => {
   const navigate = useNavigate();
   const { foto, nome: profileNome } = useProfile();
   const { user, signOut, role } = useAuth();
-  const nome = profileNome || user?.user_metadata?.full_name ?? user?.email ?? "Usuário";
+  const nome = profileNome || user?.user_metadata?.full_name || user?.email || "Usuário";
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined) ??
