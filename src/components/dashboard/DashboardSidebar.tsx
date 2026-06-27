@@ -850,42 +850,49 @@ const SidebarTopProduct = ({ userId }: { userId?: string }) => {
   const navigate = useNavigate();
   const [product, setProduct] = useState<TopProduct | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     if (!userId || !isSupabaseEnabled) { setLoaded(true); return; }
     let cancelled = false;
 
     const load = async () => {
-      const { data } = await (supabase as unknown as {
-        from: (t: string) => {
-          select: (c: string) => {
-            eq: (col: string, val: string) => {
-              gt: (col: string, val: number) => {
-                order: (col: string, opts: object) => {
-                  limit: (n: number) => {
-                    maybeSingle: () => Promise<{ data: TopProduct | null }>;
-                  };
-                };
-              };
-            };
-          };
-        };
-      })
-        .from("catalog_products")
-        .select("id, name, image_url, margin_percent")
-        .eq("user_id", userId)
-        .gt("margin_percent", 0)
-        .order("margin_percent", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!cancelled) { setProduct(data ?? null); setLoaded(true); }
+      try {
+        const result = await supabase
+          .from("catalog_products")
+          .select("id, name, image_url, margin_percent")
+          .eq("user_id", userId)
+          .gt("margin_percent", 0)
+          .order("margin_percent", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (cancelled) return;
+        // result.data é null quando catálogo vazio — seguro
+        setProduct((result?.data as TopProduct | null) ?? null);
+      } catch {
+        // falha de rede ou RLS: não renderiza o bloco, não quebra nada
+        if (!cancelled) setProduct(null);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
     };
 
     void load();
     return () => { cancelled = true; };
   }, [userId]);
 
+  // Catálogo vazio ou ainda carregando → não renderiza nada
   if (!loaded || !product) return null;
+
+  // Proteção extra: margin_percent deve ser número finito válido
+  const margin =
+    typeof product.margin_percent === "number" && isFinite(product.margin_percent)
+      ? product.margin_percent
+      : null;
+  if (margin === null) return null;
+
+  const showImage = !!product.image_url && !imgError;
 
   return (
     <button
@@ -902,17 +909,18 @@ const SidebarTopProduct = ({ userId }: { userId?: string }) => {
       {/* Image area */}
       <div
         className="w-full flex items-center justify-center bg-[#F9F9F9]"
-        style={{ height: "96px", padding: "12px" }}
+        style={{ height: "88px", padding: "12px" }}
       >
-        {product.image_url ? (
+        {showImage ? (
           <img
-            src={product.image_url}
-            alt={product.name}
+            src={product.image_url!}
+            alt={product.name ?? "Produto"}
             className="h-full w-full"
-            style={{ objectFit: "contain", maxHeight: "72px" }}
+            style={{ objectFit: "contain", maxHeight: "64px" }}
+            onError={() => setImgError(true)}
           />
         ) : (
-          <Package size={32} strokeWidth={1.3} className="text-[#C4C4C4]" />
+          <Package size={28} strokeWidth={1.3} className="text-[#C4C4C4]" />
         )}
       </div>
       {/* Info area */}
@@ -922,19 +930,19 @@ const SidebarTopProduct = ({ userId }: { userId?: string }) => {
             className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#A3A3A3] mb-1"
             style={{ fontFamily: sidebarFont }}
           >
-            Maior Margem
+            Produto em Alta
           </div>
           <div
             className="truncate text-[12.5px] font-medium leading-[16px] text-[#1A1A1A]"
             style={{ fontFamily: sidebarFont }}
           >
-            {product.name}
+            {product.name ?? "—"}
           </div>
           <div
             className="mt-1 text-[12px] font-semibold text-emerald-600"
             style={{ fontFamily: sidebarFont }}
           >
-            {product.margin_percent.toFixed(0)}% margem
+            {margin.toFixed(0)}% margem
           </div>
         </div>
         <div className="shrink-0 mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#F3F2F0]">
@@ -988,33 +996,42 @@ const SidebarProfileHeader = ({
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-      {/* Avatar */}
-      <UserAvatar foto={foto} email={email} iniciais={iniciais} size={40} background="linear-gradient(180deg,#161616 0%,#050505 100%)" />
-      {/* Name + plan */}
-      <div className="min-w-0 flex-1">
-        <div
-          className="truncate leading-[18px] text-[#1A1A1A]"
-          style={{ fontFamily: sidebarFont, fontSize: "13.5px", fontWeight: 600, letterSpacing: "-0.02em" }}
-        >
-          {nome || "Usuário"}
-        </div>
-        <div
-          className="truncate leading-[16px] text-[#616161]"
-          style={{ fontFamily: sidebarFont, fontSize: "11.5px", fontWeight: 400 }}
-        >
-          {planLabel}
-        </div>
-      </div>
-      {/* Collapse button */}
-      <button
-        onClick={onCollapse}
-        className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[13px] font-semibold leading-none text-[#9CA3AF] transition-all duration-300 ease-out hover:text-[#1A1A1A]"
-        style={{ background: "rgba(0,0,0,0.03)", border: "none", outline: "none" }}
-        title="Colapsar"
+    <div className="px-3 pt-3 pb-1">
+      <div
+        className="flex items-center gap-3 rounded-[16px] px-3 py-2.5"
+        style={{
+          background: "rgba(255,255,255,0.72)",
+          border: "1px solid rgba(0,0,0,0.06)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(0,0,0,0.04)",
+        }}
       >
-        «
-      </button>
+        {/* Avatar */}
+        <UserAvatar foto={foto} email={email} iniciais={iniciais} size={38} background="linear-gradient(180deg,#161616 0%,#050505 100%)" />
+        {/* Name + plan */}
+        <div className="min-w-0 flex-1">
+          <div
+            className="truncate leading-[18px] text-[#1A1A1A]"
+            style={{ fontFamily: sidebarFont, fontSize: "13px", fontWeight: 600, letterSpacing: "-0.02em" }}
+          >
+            {nome || "Usuário"}
+          </div>
+          <div
+            className="truncate leading-[15px] text-[#8A8FA3]"
+            style={{ fontFamily: sidebarFont, fontSize: "11px", fontWeight: 400 }}
+          >
+            {planLabel}
+          </div>
+        </div>
+        {/* Collapse button */}
+        <button
+          onClick={onCollapse}
+          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-semibold leading-none text-[#9CA3AF] transition-all duration-200 ease-out hover:text-[#1A1A1A] hover:bg-[#EBEBEB]"
+          style={{ border: "none", outline: "none" }}
+          title="Colapsar"
+        >
+          «
+        </button>
+      </div>
     </div>
   );
 };
