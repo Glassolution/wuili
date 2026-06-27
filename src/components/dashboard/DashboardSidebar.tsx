@@ -102,7 +102,11 @@ const NavLinkRow = ({
       <motion.div
         layoutId="sidebar-active-pill"
         className="absolute inset-0 z-0 rounded-[12px]"
-        style={{ background: "#EBEBEB" }}
+        style={{
+          background: "#FFFFFF",
+          boxShadow:
+            "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)",
+        }}
         transition={{ type: "spring", stiffness: 380, damping: 30 }}
       />
     )}
@@ -114,7 +118,11 @@ const NavLinkRow = ({
           <motion.div
             layoutId="sidebar-active-pill-collapsed"
             className="absolute inset-0 z-0 rounded-[10px]"
-            style={{ background: "#EBEBEB" }}
+            style={{
+              background: "#FFFFFF",
+              boxShadow:
+                "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)",
+            }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
           />
         )}
@@ -155,7 +163,6 @@ const NavGroupRow = ({
     className={cn(
       "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0",
       collapsed ? "group h-[32px] justify-center p-0 m-0" : "px-2.5",
-      groupActiveCompact && !collapsed ? "bg-[#EBEBEB]" : "bg-transparent"
     )}
     title={collapsed ? item.label : undefined}
     style={{
@@ -170,16 +177,22 @@ const NavGroupRow = ({
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
       cursor: "pointer",
-      boxShadow: "none",
+      background: groupActiveCompact && !collapsed ? "#FFFFFF" : "transparent",
+      boxShadow: groupActiveCompact && !collapsed
+        ? "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)"
+        : "none",
       outline: "none",
     }}
   >
     {collapsed ? (
       <div 
-        className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-          groupActiveCompact ? "bg-[#EBEBEB]" : "bg-transparent"
-        )}
+        className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out"
+        style={{
+          background: groupActiveCompact ? "#FFFFFF" : "transparent",
+          boxShadow: groupActiveCompact
+            ? "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)"
+            : "none",
+        }}
       >
         <span className="grid h-7 w-7 place-items-center bg-transparent">
           <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={groupActiveCompact ? "#111111" : "#18181B"} />
@@ -242,7 +255,11 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
         <motion.div
           layoutId="sidebar-active-subpill"
           className="absolute inset-0 z-0 rounded-[10px]"
-          style={{ background: "#EBEBEB" }}
+          style={{
+            background: "#FFFFFF",
+            boxShadow:
+              "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)",
+          }}
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
         />
       )}
@@ -272,11 +289,14 @@ const FooterLinkRow = ({
   if (collapsed) {
     return (
       <Link to={to} className="sidebar-item group relative flex h-[32px] w-full items-center justify-center p-0 m-0 transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0" style={{ outline: "none" }} title={label}>
-        <div 
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-            active ? "bg-[#EBEBEB]" : "bg-transparent"
-          )}
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out"
+          style={{
+            background: active ? "#FFFFFF" : "transparent",
+            boxShadow: active
+              ? "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)"
+              : "none",
+          }}
         >
           <span className="grid h-7 w-7 place-items-center bg-transparent">
             <IconSpan icon={icon} size={20} strokeWidth={1.5} color={active ? "#111111" : "#18181B"} />
@@ -288,15 +308,12 @@ const FooterLinkRow = ({
   return (
     <Link
       to={to}
-      className={cn(
-        "sidebar-item relative flex items-center transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0",
-        active ? "bg-[#EBEBEB]" : "bg-transparent"
-      )}
-      style={{ 
-        fontFamily: sidebarFont, 
-        fontSize: "13px", 
-        fontWeight: active ? 600 : 400, 
-        lineHeight: "18px", 
+      className="sidebar-item relative flex items-center transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+      style={{
+        fontFamily: sidebarFont,
+        fontSize: "13px",
+        fontWeight: active ? 600 : 400,
+        lineHeight: "18px",
         letterSpacing: "-0.014em",
         height: "32px",
         gap: "8px",
@@ -304,6 +321,10 @@ const FooterLinkRow = ({
         paddingRight: "10px",
         borderRadius: "12px",
         flexShrink: 0,
+        background: active ? "#FFFFFF" : "transparent",
+        boxShadow: active
+          ? "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)"
+          : "none",
         outline: "none",
       }}
     >
@@ -1000,9 +1021,10 @@ const SidebarProfileHeader = ({
       <div
         className="flex items-center gap-3 rounded-[16px] px-3 py-2.5"
         style={{
-          background: "rgba(255,255,255,0.72)",
+          background: "#FFFFFF",
           border: "1px solid rgba(0,0,0,0.06)",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(0,0,0,0.04)",
+          boxShadow:
+            "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)",
         }}
       >
         {/* Avatar */}
@@ -1539,12 +1561,7 @@ const DashboardSidebar = () => {
         style={!collapsed ? { paddingTop: "12px", paddingBottom: "10px", minHeight: 0 } : { paddingTop: "16px", minHeight: 0 }}
       >
         {!collapsed && (
-          <div
-            className="px-3 pt-2 pb-0.5 text-[10px] font-semibold uppercase text-[#8A8FA3]/60"
-            style={{ fontFamily: sidebarFont, letterSpacing: "0.15em" }}
-          >
-            Menu
-          </div>
+          <div className="mb-1" />
         )}
         <LayoutGroup id="sidebar-menu-nav">
         {nav.map((item) => {
@@ -1583,12 +1600,14 @@ const DashboardSidebar = () => {
 
         {!collapsed && (
           <>
+            {/* Divisória entre grupo principal e "Outros" */}
             <div
-              className="px-3 pt-0 pb-1 text-[10px] font-semibold uppercase text-[#8A8FA3]/60"
-              style={{ fontFamily: sidebarFont, letterSpacing: "0.15em", marginTop: "10px" }}
-            >
-              Outros
-            </div>
+              style={{
+                margin: "8px 10px",
+                height: "1px",
+                background: "rgba(0,0,0,0.06)",
+              }}
+            />
             {otherNav.map((item) => {
               if (item.kind === "link") {
                 const active = isLinkActive(item.to);
