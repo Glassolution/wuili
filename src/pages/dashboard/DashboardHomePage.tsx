@@ -148,7 +148,7 @@ const DashboardHomePage = () => {
         </header>
 
         {/* Welcome + Chat input */}
-        <section className="mt-16 flex flex-col items-center text-center">
+        <section className="mt-[18vh] flex flex-col items-center text-center">
           <h2 className="text-[28px] sm:text-[30px] font-medium tracking-tight text-neutral-500 leading-tight">
             Boas-vindas ao Velo{name ? `, ${name}` : ""}!
           </h2>

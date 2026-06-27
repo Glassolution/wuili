@@ -50,7 +50,7 @@ const OnboardingHome = ({ name, mlConnected, hasPublication }: OnboardingHomePro
         </div>
 
         {/* Header central */}
-        <div className="mt-4 flex flex-col items-center gap-3 text-center">
+        <div className="mt-[12vh] flex flex-col items-center gap-3 text-center">
           <h1 className="text-[34px] font-semibold leading-[1.15] tracking-[-0.025em] text-neutral-500">
             Boas-vindas ao Velo, {name}!
           </h1>
