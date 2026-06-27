@@ -1,29 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import SuggestedProducts from "@/components/dashboard/SuggestedProducts";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-type ProfileRow = {
-  display_name: string | null;
-  loja_nome: string | null;
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const getName = (profile?: ProfileRow | null, email?: string | null): string => {
-  const raw = profile?.loja_nome || profile?.display_name || email?.split("@")[0] || "Velo";
-  return raw
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-};
 
 // ─── Atlas Avatar ─────────────────────────────────────────────────────────────
 const AtlasAvatar = ({ size = 28 }: { size?: number }) => (
@@ -51,22 +33,6 @@ const DashboardHomePage = () => {
   const { user } = useAuth();
   const [inputText, setInputText] = useState("");
   const [creating, setCreating] = useState(false);
-
-  const { data: profile } = useQuery({
-    queryKey: ["dashboard-home-profile", user?.id],
-    enabled: Boolean(user?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles" as never)
-        .select("display_name, loja_nome")
-        .eq("id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data as ProfileRow | null;
-    },
-  });
-
-  const name = getName(profile, user?.email);
 
   const startAtlasThread = async (firstMessage?: string) => {
     if (!user?.id) {
@@ -123,9 +89,9 @@ const DashboardHomePage = () => {
       {/* ── Welcome + Search ───────────────────────────────────────────── */}
       <section className="flex flex-col items-center text-center mb-10">
 
-        {/* 1 — Título (delay 0ms) */}
-        <motion.h1
-          className="text-[28px] sm:text-[34px] font-bold tracking-tight text-neutral-900 leading-tight"
+        {/* 1 — Linha 1: "Boas-vindas ao Velo!" — peso leve, cinza médio (delay 0ms) */}
+        <motion.p
+          className="text-[22px] sm:text-[26px] font-medium tracking-tight text-neutral-400 leading-tight"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
@@ -136,26 +102,24 @@ const DashboardHomePage = () => {
             style={{
               fontFamily: '"Playfair Display", Georgia, serif',
               fontStyle: "italic",
-              fontWeight: 600,
+              fontWeight: 500,
             }}
           >
             Velo
           </span>
-          {name && name !== "Velo" ? (
-            <span className="text-neutral-500 font-medium">, {name}</span>
-          ) : null}
-        </motion.h1>
+          !
+        </motion.p>
 
-        {/* 2 — Subtítulo (delay 100ms) */}
-        <motion.p
-          className="mt-2 text-[14px] text-neutral-500 font-normal"
+        {/* 2 — Linha 2: "Por onde quer começar?" — bold, preto (delay 100ms) */}
+        <motion.h1
+          className="text-[28px] sm:text-[34px] font-bold tracking-tight text-neutral-900 leading-tight"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
           custom={0.1}
         >
-          O que você quer vender hoje?
-        </motion.p>
+          Por onde quer começar?
+        </motion.h1>
 
         {/* 3 — Campo de busca / Atlas (delay 200ms) */}
         <motion.form
