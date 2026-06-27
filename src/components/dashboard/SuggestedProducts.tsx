@@ -49,8 +49,10 @@ const formatBRL = (value: number) =>
   });
 
 // ─── Vitrine Card ─────────────────────────────────────────────────────────────
-// Layout: imagem ocupa ~70% da altura do card (grande, cover), faixa de info
-// compacta por baixo. Estilo flat e editorial, sem sombra pesada.
+// Duas zonas:
+//   Zona 1 — Imagem com padding interno + badges sobre ela
+//   Zona 2 — Faixa de informação com fundo escuro (#111), nome + preço na
+//             mesma linha, avatar circular no canto direito indicando fonte/status
 const VitrineCard = ({
   product,
   onClick,
@@ -63,6 +65,25 @@ const VitrineCard = ({
   const margin = Math.round(product.margin_percent);
   const price = product.suggested_price > 0 ? product.suggested_price : product.cost_price;
 
+  // Avatar circular: representa a origem/status do produto
+  // Lógica: margem alta → verde (destaque), muitos pedidos → azul (popular),
+  // default → cinza neutro
+  const avatarBg =
+    margin >= 40
+      ? "bg-emerald-500"
+      : (product.orders_count ?? 0) >= 100
+      ? "bg-blue-500"
+      : "bg-neutral-600";
+
+  const avatarIcon =
+    margin >= 40 ? (
+      <TrendingUp className="h-3 w-3 text-white" />
+    ) : (product.orders_count ?? 0) >= 100 ? (
+      <ShoppingBag className="h-3 w-3 text-white" />
+    ) : (
+      <Sparkles className="h-3 w-3 text-white" />
+    );
+
   return (
     <article
       onClick={onClick}
@@ -72,8 +93,8 @@ const VitrineCard = ({
       className="group relative flex flex-col rounded-[22px] overflow-hidden cursor-pointer bg-white border border-black/[0.05] shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:shadow-[0_8px_32px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
       aria-label={`Ver produto: ${product.title}`}
     >
-      {/* ── Área da imagem com padding interno ("moldura") ── */}
-      <div className="relative p-4 pb-0">
+      {/* ── ZONA 1: Imagem com moldura interna ── */}
+      <div className="relative p-4 pb-0 bg-white">
         <div className="relative h-[200px] w-full overflow-hidden rounded-2xl bg-neutral-100">
           {imageUrl && !imgFailed ? (
             <img
@@ -90,9 +111,6 @@ const VitrineCard = ({
             </div>
           )}
 
-          {/* Overlay gradiente sutil na base da imagem */}
-          <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/15 to-transparent pointer-events-none" />
-
           {/* Badge de categoria — canto superior esquerdo */}
           {product.category && (
             <span className="absolute top-2.5 left-2.5 inline-flex items-center rounded-full bg-white/88 backdrop-blur-sm px-2.5 py-[3px] text-[10px] font-normal tracking-wide text-neutral-500 border border-white/50">
@@ -107,29 +125,39 @@ const VitrineCard = ({
               {margin}%
             </span>
           )}
-
-          {/* Ícone de acesso no hover */}
-          <div className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-full bg-white grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md">
-            <ArrowUpRight className="h-3.5 w-3.5 text-neutral-900" />
-          </div>
         </div>
       </div>
 
-      {/* ── Faixa de informações (compacta) ── */}
-      <div className="px-4 pt-3 pb-4 flex items-start justify-between gap-3 min-h-0">
+      {/* ── ZONA 2: Faixa de informação com fundo escuro ── */}
+      <div className="mt-3 mx-4 mb-4 rounded-[14px] bg-[#111111] px-4 py-3.5 flex items-center gap-3">
+        {/* Texto: nome + subtexto */}
         <div className="min-w-0 flex-1">
-          <h3 className="text-[13px] font-medium text-neutral-800 leading-snug line-clamp-1 truncate">
+          <h3 className="text-[12.5px] font-medium text-white leading-snug line-clamp-1 truncate">
             {product.title}
           </h3>
-          {product.orders_count != null && product.orders_count > 0 && (
-            <p className="text-[10.5px] font-normal text-neutral-400 mt-0.5 leading-none tracking-wide">
-              {product.orders_count.toLocaleString("pt-BR")} pedidos
-            </p>
-          )}
+          <p className="text-[11px] font-normal text-white/50 mt-0.5 leading-none tracking-wide">
+            {formatBRL(price)}
+            {product.orders_count != null && product.orders_count > 0 && (
+              <span className="ml-2 text-white/35">
+                · {product.orders_count.toLocaleString("pt-BR")} pedidos
+              </span>
+            )}
+          </p>
         </div>
-        <span className="shrink-0 text-[13.5px] font-semibold text-neutral-900 tracking-tight">
-          {formatBRL(price)}
-        </span>
+
+        {/* Avatar circular — status/destaque do produto */}
+        <div
+          className={`shrink-0 h-8 w-8 rounded-full ${avatarBg} grid place-items-center transition-transform duration-200 group-hover:scale-110`}
+          title={
+            margin >= 40
+              ? "Alta margem"
+              : (product.orders_count ?? 0) >= 100
+              ? "Mais vendido"
+              : "Produto sugerido"
+          }
+        >
+          {avatarIcon}
+        </div>
       </div>
     </article>
   );
@@ -138,16 +166,12 @@ const VitrineCard = ({
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const VitrineSkeleton = () => (
   <div className="rounded-[22px] overflow-hidden border border-black/[0.05] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-    <div className="p-4 pb-0">
+    {/* Zona 1: imagem */}
+    <div className="p-4 pb-0 bg-white">
       <div className="h-[200px] w-full rounded-2xl bg-neutral-100 skeleton-pulse" />
     </div>
-    <div className="px-4 pt-3 pb-4 flex items-center justify-between gap-3">
-      <div className="flex-1 flex flex-col gap-2">
-        <div className="h-3 w-3/5 rounded bg-neutral-100 skeleton-pulse" />
-        <div className="h-2.5 w-1/3 rounded bg-neutral-100 skeleton-pulse" />
-      </div>
-      <div className="h-4 w-14 rounded bg-neutral-100 skeleton-pulse shrink-0" />
-    </div>
+    {/* Zona 2: faixa escura */}
+    <div className="mt-3 mx-4 mb-4 rounded-[14px] bg-neutral-100 skeleton-pulse px-4 py-3.5 flex items-center gap-3 h-[56px]" />
   </div>
 );
 
