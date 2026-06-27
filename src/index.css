@@ -23,7 +23,7 @@
   :root {
     /* Velo Dashboard palette (light) */
     /* Main content panel */
-    --background: 220 14% 96%; /* #F3F4F6 */
+    --background: 40 11% 95%; /* #F3F2F0 */
     --foreground: 0 0% 7%; /* #111111 */
 
     --card: 0 0% 100%;
@@ -35,13 +35,13 @@
     --primary: 0 0% 7%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%; /* #f3f4f6 */
+    --secondary: 40 11% 95%; /* #F3F2F0 */
     --secondary-foreground: 0 0% 7%;
 
-    --muted: 220 14% 96%; /* #f3f4f6 */
+    --muted: 40 11% 95%; /* #F3F2F0 */
     --muted-foreground: 0 0% 48%; /* #7a7a7a */
 
-    --accent: 220 14% 96%; /* hover */
+    --accent: 40 11% 95%; /* hover */
     --accent-foreground: 0 0% 7%;
 
     --destructive: 0 84% 60%;
@@ -66,11 +66,11 @@
     --dark-muted: 0 0% 42%;
 
     /* App shell (sidebar + top bar) */
-    --sidebar-background: 220 14% 96%; /* #F3F4F6 */
+    --sidebar-background: 40 11% 95%; /* #F3F2F0 */
     --sidebar-foreground: 0 0% 7%;
     --sidebar-primary: 0 0% 7%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent: 40 11% 95%; /* #F3F2F0 */
     --sidebar-accent-foreground: 0 0% 7%;
     --sidebar-border: 0 0% 91%;
     --sidebar-ring: 0 0% 7%;
