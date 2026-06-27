@@ -72,44 +72,46 @@ const VitrineCard = ({
       className="group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer bg-white border border-black/[0.06] transition-all duration-200 hover:shadow-[0_16px_48px_rgba(0,0,0,0.10)] hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
       aria-label={`Ver produto: ${product.title}`}
     >
-      {/* ── Imagem (elemento principal, ~70% do card) ── */}
-      <div className="relative w-full overflow-hidden bg-neutral-100" style={{ aspectRatio: "4/3" }}>
-        {imageUrl && !imgFailed ? (
-          <img
-            src={imageUrl}
-            alt={product.title}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-            loading="lazy"
-            decoding="async"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-neutral-100">
-            <Package className="h-16 w-16 text-neutral-300" strokeWidth={1.2} />
+      {/* ── Área da imagem com padding interno ("moldura") ── */}
+      <div className="relative p-3 pb-0">
+        <div className="relative h-[200px] w-full overflow-hidden rounded-xl bg-neutral-100">
+          {imageUrl && !imgFailed ? (
+            <img
+              src={imageUrl}
+              alt={product.title}
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+              loading="lazy"
+              decoding="async"
+              onError={() => setImgFailed(true)}
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-neutral-100">
+              <Package className="h-12 w-12 text-neutral-300" strokeWidth={1.2} />
+            </div>
+          )}
+
+          {/* Overlay gradiente sutil na base da imagem */}
+          <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/15 to-transparent pointer-events-none" />
+
+          {/* Badge de categoria — canto superior esquerdo */}
+          {product.category && (
+            <span className="absolute top-2.5 left-2.5 inline-flex items-center rounded-full bg-white/90 backdrop-blur-sm px-2 py-0.5 text-[10px] font-bold text-neutral-700 shadow-sm border border-white/60">
+              {product.category}
+            </span>
+          )}
+
+          {/* Badge de margem — canto superior direito */}
+          {margin > 0 && (
+            <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+              <TrendingUp className="h-2.5 w-2.5" />
+              {margin}%
+            </span>
+          )}
+
+          {/* Ícone de acesso no hover */}
+          <div className="absolute bottom-2.5 right-2.5 h-7 w-7 rounded-full bg-white grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md">
+            <ArrowUpRight className="h-3.5 w-3.5 text-neutral-900" />
           </div>
-        )}
-
-        {/* Overlay gradiente sutil na base da imagem */}
-        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-
-        {/* Badge de categoria — canto superior esquerdo */}
-        {product.category && (
-          <span className="absolute top-3 left-3 inline-flex items-center rounded-full bg-white/90 backdrop-blur-sm px-2.5 py-1 text-[10.5px] font-bold text-neutral-700 shadow-sm border border-white/60">
-            {product.category}
-          </span>
-        )}
-
-        {/* Badge de margem — canto superior direito */}
-        {margin > 0 && (
-          <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[10.5px] font-bold text-white shadow-sm">
-            <TrendingUp className="h-3 w-3" />
-            {margin}%
-          </span>
-        )}
-
-        {/* Ícone de acesso no hover */}
-        <div className="absolute bottom-3 right-3 h-8 w-8 rounded-full bg-white grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md">
-          <ArrowUpRight className="h-4 w-4 text-neutral-900" />
         </div>
       </div>
 
@@ -136,7 +138,9 @@ const VitrineCard = ({
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const VitrineSkeleton = () => (
   <div className="rounded-2xl overflow-hidden border border-black/[0.06] bg-white">
-    <div className="w-full bg-neutral-100 skeleton-pulse" style={{ aspectRatio: "4/3" }} />
+    <div className="p-3 pb-0">
+      <div className="h-[200px] w-full rounded-xl bg-neutral-100 skeleton-pulse" />
+    </div>
     <div className="px-4 py-3.5 flex items-center justify-between gap-3">
       <div className="flex-1 flex flex-col gap-2">
         <div className="h-3.5 w-3/5 rounded bg-neutral-100 skeleton-pulse" />
@@ -250,8 +254,8 @@ const SuggestedProducts = () => {
         ))}
       </div>
 
-      {/* ── Grid vitrine — 2 colunas em telas grandes, 1 em mobile ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4 lg:gap-5">
+      {/* ── Grid vitrine — 3 colunas em desktop, 2 em tablet, 1 em mobile ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => <VitrineSkeleton key={i} />)
           : filtered.length === 0
