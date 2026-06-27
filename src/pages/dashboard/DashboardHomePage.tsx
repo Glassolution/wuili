@@ -1,21 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUp, Plus } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import SuggestedProducts from "@/components/dashboard/SuggestedProducts";
-
-// ─── Atlas Avatar ─────────────────────────────────────────────────────────────
-const AtlasAvatar = ({ size = 28 }: { size?: number }) => (
-  <div
-    style={{ width: size, height: size }}
-    className="shrink-0 rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-indigo-500 grid place-items-center text-white text-[12px] font-bold shadow-sm"
-  >
-    A
-  </div>
-);
 
 // ─── Fade-up variant (reutilizado em cada elemento) ───────────────────────────
 const fadeUp = {
@@ -103,7 +93,8 @@ const DashboardHomePage = () => {
             style={{
               fontFamily: '"Playfair Display", Georgia, serif',
               fontStyle: "italic",
-              fontWeight: 400,
+              fontWeight: 500,
+              fontSynthesis: "none",
             }}
           >
             Velo
@@ -128,34 +119,38 @@ const DashboardHomePage = () => {
             e.preventDefault();
             handleSearchSubmit(inputText);
           }}
-          className="mt-6 w-full max-w-[680px] flex items-center gap-2 bg-white border border-neutral-200 rounded-full pl-4 pr-2 py-2 shadow-[0_2px_10px_rgba(0,0,0,0.03)] focus-within:border-neutral-400 transition-colors"
+          className="mt-6 w-full max-w-[680px] flex items-center bg-white rounded-full pl-6 pr-2 py-2 transition-shadow focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_16px_rgba(0,0,0,0.08),0_20px_40px_rgba(0,0,0,0.05)]"
+          style={{
+            border: "1px solid rgba(0,0,0,0.06)",
+            boxShadow:
+              "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)",
+          }}
           variants={fadeUp}
           initial="hidden"
           animate="visible"
           custom={0.2}
         >
-          <AtlasAvatar size={24} />
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Pergunte ao Atlas… ou pesquise um produto"
-            className="flex-1 bg-transparent outline-none text-[13.5px] text-neutral-800 placeholder:text-neutral-400 px-1.5"
+            className="flex-1 bg-transparent outline-none text-[13.5px] text-neutral-800 placeholder:text-[#A3A3A3] placeholder:font-normal"
             disabled={creating}
           />
           <button
-            type="button"
-            onClick={() => startAtlasThread()}
-            className="h-8 w-8 rounded-full border border-neutral-200 text-neutral-500 grid place-items-center hover:bg-neutral-50 transition-colors"
-            aria-label="Nova conversa com o Atlas"
-            title="Nova conversa"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-          <button
             type="submit"
-            disabled={!inputText.trim() || creating}
-            className="h-8 w-8 rounded-full bg-neutral-900 text-white grid place-items-center disabled:opacity-40 hover:bg-neutral-800 transition-colors"
+            disabled={creating}
+            onClick={() => !inputText.trim() && startAtlasThread()}
+            style={{
+              transition: "opacity 0.2s ease, box-shadow 0.2s ease",
+              opacity: inputText.trim() ? 1 : 0.45,
+              background: "linear-gradient(180deg, #2A2A2A 0%, #1A1A1A 100%)",
+              boxShadow: inputText.trim()
+                ? "inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 4px rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.15)"
+                : "none",
+            }}
+            className="h-9 w-9 shrink-0 rounded-full text-white grid place-items-center ml-2"
             aria-label="Enviar mensagem ao Atlas"
           >
             <ArrowUp className="h-4 w-4" />

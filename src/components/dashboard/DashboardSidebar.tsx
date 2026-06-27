@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { LayoutGroup, motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { cn } from "@/lib/utils";
@@ -12,20 +12,11 @@ import {
   Store,
   Package,
   FileText,
-  ShoppingCart,
-  Wallet,
-  BarChart2,
-  Video,
-  Megaphone,
   ShoppingBag,
-  Link2,
   MessageSquare,
-  ShieldCheck,
-  BadgeDollarSign,
   Settings,
   ChevronDown,
   ChevronUp,
-  Code2,
   MessageCircle,
   LogOut,
   Search,
@@ -38,7 +29,7 @@ import {
   Edit2,
   Trash2,
   Inbox,
-  Infinity,
+  ArrowRight,
 } from "lucide-react";
 import StartModeModal from "./StartModeModal";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -107,10 +98,8 @@ const NavLinkRow = ({
     {active && !collapsed && (
       <motion.div
         layoutId="sidebar-active-pill"
-        className="absolute inset-0 z-0 rounded-[12px] bg-[#0A0A0A]"
-        style={{
-          boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-        }}
+        className="absolute inset-0 z-0 rounded-[12px]"
+        style={{ background: "#EBEBEB" }}
         transition={{ type: "spring", stiffness: 380, damping: 30 }}
       />
     )}
@@ -121,23 +110,21 @@ const NavLinkRow = ({
         {active && (
           <motion.div
             layoutId="sidebar-active-pill-collapsed"
-            className="absolute inset-0 z-0 rounded-[10px] bg-[#0A0A0A]"
-            style={{
-              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-            }}
+            className="absolute inset-0 z-0 rounded-[10px]"
+            style={{ background: "#EBEBEB" }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
           />
         )}
         <span className="relative z-10 grid h-7 w-7 place-items-center bg-transparent">
-          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={active ? "#FFFFFF" : "#18181B"} />
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={active ? "#111111" : "#18181B"} />
         </span>
       </div>
     ) : (
       <div className="relative z-10 flex items-center gap-2 pl-0.5">
         <span className="grid h-7 w-7 place-items-center bg-transparent">
-          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={active ? "#FFFFFF" : "#18181B"} />
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={active ? "#111111" : "#18181B"} />
         </span>
-        <span style={{ color: active ? "#FFFFFF" : "#4B5563" }} className={cn("transition-colors duration-200", !active && "group-hover:text-[#111827]")}>
+        <span style={{ color: active ? "#111111" : "#4B5563" }} className={cn("transition-colors duration-200", !active && "group-hover:text-[#111827]")}>
           {item.label}
         </span>
       </div>
@@ -165,7 +152,7 @@ const NavGroupRow = ({
     className={cn(
       "sidebar-item group w-full relative flex items-center overflow-hidden transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0",
       collapsed ? "group h-[32px] justify-center p-0 m-0" : "px-2.5",
-      groupActiveCompact && !collapsed ? "bg-[#0A0A0A]" : "bg-transparent"
+      groupActiveCompact && !collapsed ? "bg-[#EBEBEB]" : "bg-transparent"
     )}
     title={collapsed ? item.label : undefined}
     style={{
@@ -180,7 +167,7 @@ const NavGroupRow = ({
       borderRadius: collapsed ? undefined : "12px",
       flexShrink: 0,
       cursor: "pointer",
-      boxShadow: groupActiveCompact && !collapsed ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+      boxShadow: "none",
       outline: "none",
     }}
   >
@@ -188,22 +175,19 @@ const NavGroupRow = ({
       <div 
         className={cn(
           "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-          groupActiveCompact ? "bg-[#0A0A0A]" : "bg-transparent"
+          groupActiveCompact ? "bg-[#EBEBEB]" : "bg-transparent"
         )}
-        style={{
-          boxShadow: groupActiveCompact ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
-        }}
       >
         <span className="grid h-7 w-7 place-items-center bg-transparent">
-          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={groupActiveCompact ? "#FFFFFF" : "#18181B"} />
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={groupActiveCompact ? "#111111" : "#18181B"} />
         </span>
       </div>
     ) : (
       <>
         <span className="grid h-7 w-7 place-items-center bg-transparent">
-          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={groupActiveCompact ? "#FFFFFF" : "#18181B"} />
+          <IconSpan icon={item.icon} size={20} strokeWidth={1.5} color={groupActiveCompact ? "#111111" : "#18181B"} />
         </span>
-        <span className="flex-1 text-left transition-colors duration-200 group-hover:text-[#111827]" style={{ color: groupActiveCompact ? "#FFFFFF" : "#4B5563" }}>
+        <span className="flex-1 text-left transition-colors duration-200 group-hover:text-[#111827]" style={{ color: groupActiveCompact ? "#111111" : "#4B5563" }}>
           {item.label}
         </span>
         {item.trailing === "plus" ? (
@@ -254,19 +238,17 @@ const NavSubRow = ({ sub, subActive }: { sub: SubItem; subActive: boolean }) => 
       {subActive && (
         <motion.div
           layoutId="sidebar-active-subpill"
-          className="absolute inset-0 z-0 rounded-[10px] bg-[#0A0A0A]"
-          style={{
-            boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-          }}
+          className="absolute inset-0 z-0 rounded-[10px]"
+          style={{ background: "#EBEBEB" }}
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
         />
       )}
       {SubIcon && (
         <span className="relative z-10">
-          <IconSpan icon={SubIcon} size={20} strokeWidth={1.5} color={subActive ? "#FFFFFF" : "#18181B"} />
+          <IconSpan icon={SubIcon} size={20} strokeWidth={1.5} color={subActive ? "#111111" : "#18181B"} />
         </span>
       )}
-      <span style={{ color: subActive ? "#FFFFFF" : "#4B5563" }} className="relative z-10 transition-colors duration-200 group-hover:text-[#111827]">{sub.label}</span>
+      <span style={{ color: subActive ? "#111111" : "#4B5563" }} className="relative z-10 transition-colors duration-200 group-hover:text-[#111827]">{sub.label}</span>
     </Link>
   );
 };
@@ -290,14 +272,11 @@ const FooterLinkRow = ({
         <div 
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded-[10px] transition-all duration-300 ease-out",
-            active ? "bg-[#0A0A0A]" : "bg-transparent"
+            active ? "bg-[#EBEBEB]" : "bg-transparent"
           )}
-          style={{
-            boxShadow: active ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
-          }}
         >
           <span className="grid h-7 w-7 place-items-center bg-transparent">
-            <IconSpan icon={icon} size={20} strokeWidth={1.5} color={active ? "#FFFFFF" : "#18181B"} />
+            <IconSpan icon={icon} size={20} strokeWidth={1.5} color={active ? "#111111" : "#18181B"} />
           </span>
         </div>
       </Link>
@@ -308,7 +287,7 @@ const FooterLinkRow = ({
       to={to}
       className={cn(
         "sidebar-item relative flex items-center transition-all duration-300 ease-out focus:outline-none focus-visible:outline-none focus-visible:ring-0",
-        active ? "bg-[#0A0A0A]" : "bg-transparent"
+        active ? "bg-[#EBEBEB]" : "bg-transparent"
       )}
       style={{ 
         fontFamily: sidebarFont, 
@@ -322,14 +301,13 @@ const FooterLinkRow = ({
         paddingRight: "10px",
         borderRadius: "12px",
         flexShrink: 0,
-        boxShadow: active && !collapsed ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
         outline: "none",
       }}
     >
       <span className="grid h-7 w-7 place-items-center bg-transparent">
-        <IconSpan icon={icon} size={20} strokeWidth={1.5} color={active ? "#FFFFFF" : "#18181B"} />
+        <IconSpan icon={icon} size={20} strokeWidth={1.5} color={active ? "#111111" : "#18181B"} />
       </span>
-      <span style={{ color: active ? "#FFFFFF" : "#4B5563" }} className={cn("transition-colors duration-200", !active && "group-hover:text-[#111827]")}>{label}</span>
+      <span style={{ color: active ? "#111111" : "#4B5563" }} className={cn("transition-colors duration-200", !active && "group-hover:text-[#111827]")}>{label}</span>
     </Link>
   );
 };
@@ -856,50 +834,184 @@ const SidebarAccentStar = ({ color = "currentColor", size = 16 }: { color?: stri
   </svg>
 );
 
-const SidebarBoostCard = ({
-  onUpgrade,
-}: {
-  onUpgrade?: () => void;
-}) => {
+// ── Top Product (Maior Margem) ────────────────────────────────────────────────
+
+type TopProduct = {
+  id: string;
+  name: string;
+  image_url: string | null;
+  margin_percent: number;
+};
+
+const SidebarTopProduct = ({ userId }: { userId?: string }) => {
+  const navigate = useNavigate();
+  const [product, setProduct] = useState<TopProduct | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!userId || !isSupabaseEnabled) { setLoaded(true); return; }
+    let cancelled = false;
+
+    const load = async () => {
+      const { data } = await (supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            eq: (col: string, val: string) => {
+              gt: (col: string, val: number) => {
+                order: (col: string, opts: object) => {
+                  limit: (n: number) => {
+                    maybeSingle: () => Promise<{ data: TopProduct | null }>;
+                  };
+                };
+              };
+            };
+          };
+        };
+      })
+        .from("catalog_products")
+        .select("id, name, image_url, margin_percent")
+        .eq("user_id", userId)
+        .gt("margin_percent", 0)
+        .order("margin_percent", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) { setProduct(data ?? null); setLoaded(true); }
+    };
+
+    void load();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  if (!loaded || !product) return null;
+
   return (
-    <div 
-      className="rounded-2xl px-4 py-4 border border-black/[0.06]"
+    <button
+      type="button"
+      onClick={() => navigate("/dashboard/catalogo")}
+      className="group w-full rounded-[20px] overflow-hidden text-left transition-all duration-200 hover:brightness-[0.97]"
       style={{
-        background: "rgba(0, 0, 0, 0.01)",
-        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03)",
+        background: "#FFFFFF",
+        border: "1px solid rgba(0,0,0,0.06)",
+        boxShadow:
+          "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)",
       }}
     >
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-[#18181B]">
-          <Infinity size={20} className="text-[#18181B] shrink-0" />
-          <div className="text-[13.5px] font-semibold tracking-[-0.02em] text-[#18181B] leading-none">
-            Acelere com IA
-          </div>
-        </div>
-        <div className="min-w-0">
-          <div className="text-[11.5px] leading-[16px] text-[#71717A]">
-            Insights e ferramentas que economizam horas.
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onUpgrade}
-          className="group relative mt-2 flex h-8 w-full items-center justify-center overflow-hidden rounded-full text-white text-[12px] font-semibold transition-all duration-200 hover:brightness-110 active:scale-[0.98] focus:outline-none focus-visible:outline-none"
-          style={{ 
-            outline: "none",
-            background: "linear-gradient(to bottom, #3A3A3C 0%, #1C1C1E 50%, #0A0A0A 100%)",
-            boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15)",
-            border: "1px solid rgba(0, 0, 0, 0.4)",
-          }}
-        >
-          {/* Liquid glass top reflection overlay */}
-          <span 
-            className="absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/12 to-transparent pointer-events-none rounded-t-full"
-            style={{ filter: "blur(0.5px)" }}
+      {/* Image area */}
+      <div
+        className="w-full flex items-center justify-center bg-[#F9F9F9]"
+        style={{ height: "96px", padding: "12px" }}
+      >
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="h-full w-full"
+            style={{ objectFit: "contain", maxHeight: "72px" }}
           />
-          <span className="relative z-10">Upgrade para Pro</span>
-        </button>
+        ) : (
+          <Package size={32} strokeWidth={1.3} className="text-[#C4C4C4]" />
+        )}
       </div>
+      {/* Info area */}
+      <div className="px-3 py-2.5 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div
+            className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#A3A3A3] mb-1"
+            style={{ fontFamily: sidebarFont }}
+          >
+            Maior Margem
+          </div>
+          <div
+            className="truncate text-[12.5px] font-medium leading-[16px] text-[#1A1A1A]"
+            style={{ fontFamily: sidebarFont }}
+          >
+            {product.name}
+          </div>
+          <div
+            className="mt-1 text-[12px] font-semibold text-emerald-600"
+            style={{ fontFamily: sidebarFont }}
+          >
+            {product.margin_percent.toFixed(0)}% margem
+          </div>
+        </div>
+        <div className="shrink-0 mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#F3F2F0]">
+          <ArrowRight size={12} strokeWidth={2} className="text-[#616161]" />
+        </div>
+      </div>
+    </button>
+  );
+};
+
+// ── Profile Header (topo do sidebar) ─────────────────────────────────────────
+
+interface SidebarProfileHeaderProps {
+  nome: string;
+  email?: string | null;
+  foto: string | null;
+  iniciais: string;
+  collapsed: boolean;
+  planLabel: string;
+  onCollapse: () => void;
+  onExpand: () => void;
+}
+
+const SidebarProfileHeader = ({
+  nome,
+  email,
+  foto,
+  iniciais,
+  collapsed,
+  planLabel,
+  onCollapse,
+  onExpand,
+}: SidebarProfileHeaderProps) => {
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-2 px-3 py-4">
+        <Link to="/?home=1" className="flex items-center justify-center">
+          <VeloMark size={28} />
+        </Link>
+        <button
+          onClick={onExpand}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-semibold leading-none text-[#657083] transition-all duration-300 ease-out hover:text-[#0F172A]"
+          style={{ background: "rgba(0,0,0,0.03)", border: "none", outline: "none" }}
+          title="Expandir"
+        >
+          »
+        </button>
+        <UserAvatar foto={foto} email={email} iniciais={iniciais} size={36} background="#111111" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+      {/* Avatar */}
+      <UserAvatar foto={foto} email={email} iniciais={iniciais} size={40} background="linear-gradient(180deg,#161616 0%,#050505 100%)" />
+      {/* Name + plan */}
+      <div className="min-w-0 flex-1">
+        <div
+          className="truncate leading-[18px] text-[#1A1A1A]"
+          style={{ fontFamily: sidebarFont, fontSize: "13.5px", fontWeight: 600, letterSpacing: "-0.02em" }}
+        >
+          {nome || "Usuário"}
+        </div>
+        <div
+          className="truncate leading-[16px] text-[#616161]"
+          style={{ fontFamily: sidebarFont, fontSize: "11.5px", fontWeight: 400 }}
+        >
+          {planLabel}
+        </div>
+      </div>
+      {/* Collapse button */}
+      <button
+        onClick={onCollapse}
+        className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[13px] font-semibold leading-none text-[#9CA3AF] transition-all duration-300 ease-out hover:text-[#1A1A1A]"
+        style={{ background: "rgba(0,0,0,0.03)", border: "none", outline: "none" }}
+        title="Colapsar"
+      >
+        «
+      </button>
     </div>
   );
 };
@@ -1207,9 +1319,9 @@ const UserFooter = ({
 const DashboardSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { foto } = useProfile();
+  const { foto, nome: profileNome } = useProfile();
   const { user, signOut, role } = useAuth();
-  const nome = user?.user_metadata?.full_name ?? user?.email ?? "Usuário";
+  const nome = profileNome || user?.user_metadata?.full_name ?? user?.email ?? "Usuário";
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined) ??
@@ -1220,19 +1332,32 @@ const DashboardSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [resolvedRole, setResolvedRole] = useState<string | null>(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
   const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
+  const [planLabel, setPlanLabel] = useState("Plano Free");
 
   // Start Mode: controlado pelo plano real do usuário (não localStorage)
   const { isStartMode: startMode, hasActivePlan } = useStartMode();
-
   const [showStartModeModal, setShowStartModeModal] = useState(false);
+  const toggleStartMode = () => { if (!hasActivePlan) setShowStartModeModal(true); };
 
-  const toggleStartMode = () => {
-    // Usuários gratuitos não podem desligar o Start Mode — mostrar modal explicativo
-    if (!hasActivePlan) {
-      setShowStartModeModal(true);
-    }
-    // Usuários pagos nunca chegam aqui pois startMode já é false para eles
-  };
+  // Fetch plan label for profile header (read-only)
+  useEffect(() => {
+    if (!user?.id || !isSupabaseEnabled) return;
+    let cancelled = false;
+    const fetchPlan = async () => {
+      type SubRow = { plan: string; status: string };
+      type ProfRow = { plano: string | null };
+      const labelMap: Record<string, string> = { gratis: "Plano Free", free: "Plano Free", go: "Plano Go", pro: "Plano Pro", business: "Plano Business" };
+      const { data: sub } = await (supabase as unknown as { from: (t: string) => { select: (c: string) => { eq: (a: string, b: string) => { order: (a: string, o: object) => { limit: (n: number) => { maybeSingle: () => Promise<{ data: SubRow | null }> } } } } } })
+        .from("subscriptions").select("plan, status").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (cancelled) return;
+      if (sub?.status === "active") { setPlanLabel(labelMap[sub.plan] ?? "Plano Pro"); return; }
+      const { data: prof } = await (supabase as unknown as { from: (t: string) => { select: (c: string) => { eq: (a: string, b: string) => { maybeSingle: () => Promise<{ data: ProfRow | null }> } } } })
+        .from("profiles").select("plano").eq("user_id", user.id).maybeSingle();
+      if (!cancelled) setPlanLabel(labelMap[prof?.plano ?? "gratis"] ?? "Plano Free");
+    };
+    void fetchPlan();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   useEffect(() => {
     setResolvedRole(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
@@ -1367,56 +1492,21 @@ const DashboardSidebar = () => {
         <div className="absolute left-[-90px] top-[-80px] h-52 w-52 rounded-full bg-white/55 blur-3xl" />
         <div className="absolute bottom-28 right-[-90px] h-60 w-60 rounded-full bg-slate-200/28 blur-3xl" />
       </div>
-      {/* ── Header: Logo mark + Colapsar ─────────────────────────────────── */}
-      <div className={cn("relative z-10 flex shrink-0", collapsed ? "flex-col items-center gap-2 px-3 py-4" : "items-center justify-between px-4 pb-3 pt-4")}>
-        {!collapsed ? (
-          <>
-            <Link to="/?home=1" className="flex items-center gap-2.5">
-              <VeloMark size={28} />
-              <span
-                className="text-[25px] font-semibold leading-none tracking-[-0.065em] text-[#0b1020]"
-                style={{ fontFamily: sidebarDisplayFont }}
-              >
-                Velo
-              </span>
-            </Link>
-            <button
-              onClick={() => setCollapsed(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-[14px] font-semibold leading-none text-[#657083] transition-all duration-300 ease-out hover:text-[#0F172A]"
-              style={{
-                background: "rgba(0, 0, 0, 0.03)",
-                border: "none",
-                outline: "none",
-                boxShadow: "none",
-              }}
-              title="Colapsar"
-            >
-              «
-            </button>
-          </>
-        ) : (
-          <div className="flex w-full flex-col items-center gap-2">
-            <Link to="/?home=1" className="flex items-center justify-center">
-              <VeloMark size={28} />
-            </Link>
-            <button
-              onClick={() => setCollapsed(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-semibold leading-none text-[#657083] transition-all duration-300 ease-out hover:text-[#0F172A]"
-              style={{
-                background: "rgba(0, 0, 0, 0.03)",
-                border: "none",
-                outline: "none",
-                boxShadow: "none",
-              }}
-              title="Expandir"
-            >
-              »
-            </button>
-          </div>
-        )}
+      {/* ── Profile Header (topo) ─────────────────────────────────────── */}
+      <div className="relative z-10 shrink-0">
+        <SidebarProfileHeader
+          nome={nome}
+          email={user?.email}
+          foto={foto}
+          iniciais={iniciais}
+          collapsed={collapsed}
+          planLabel={planLabel}
+          onCollapse={() => setCollapsed(true)}
+          onExpand={() => setCollapsed(false)}
+        />
       </div>
 
-      <div className="relative z-10 mt-3">
+      <div className="relative z-10 mt-1">
         <SidebarSearch collapsed={collapsed} />
       </div>
 
@@ -1496,28 +1586,53 @@ const DashboardSidebar = () => {
 
       </div>
 
-      {/* ── Boost Card ─────────────────────────────────── */}
+      {/* ── Top Product — Maior Margem ────────────────────────────────── */}
       {!collapsed && (
-        <div className="px-4 shrink-0" style={{ marginTop: "4px", marginBottom: "4px" }}>
-          <SidebarBoostCard onUpgrade={() => navigate("/checkout")} />
+        <div className="px-4 shrink-0" style={{ marginTop: "4px", marginBottom: "12px" }}>
+          <SidebarTopProduct userId={user?.id} />
         </div>
       )}
 
-      {/* Divisória 3 - Acima da conta do usuário */}
-      <div className={cn("relative z-10 shrink-0", collapsed ? "px-2" : "px-4")} style={{ margin: "8px 0 6px" }}>
+      {/* Divisória antes do logout */}
+      <div className={cn("relative z-10 shrink-0", collapsed ? "px-2" : "px-4")} style={{ margin: "0 0 6px" }}>
         <div className="h-[1px] w-full bg-white/70 shadow-[0_1px_0_rgba(15,23,42,0.05)]" />
       </div>
 
-      {/* ── Footer - Conta do Usuário ───────────────────────────────────────────────────────── */}
-      <UserFooter
-        nome={nome}
-        email={user?.email}
-        foto={foto}
-        iniciais={iniciais}
-        collapsed={collapsed}
-        onLogout={handleSignOut}
-        variant="white"
-      />
+      {/* ── Logout row ───────────────────────────────────────────────── */}
+      {collapsed ? (
+        <div className="relative z-10 shrink-0 flex flex-col items-center gap-1 pb-4 px-0">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/configuracoes")}
+            className="flex h-8 w-8 items-center justify-center rounded-[14px] transition-all duration-300 ease-out hover:bg-[#EBEBEB] focus:outline-none"
+            title="Configurações"
+          >
+            <Settings size={17} strokeWidth={1.65} className="text-[#888888]" />
+          </button>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex h-8 w-8 items-center justify-center rounded-[14px] transition-all duration-300 ease-out hover:bg-[#EBEBEB] focus:outline-none"
+            title="Sair"
+          >
+            <LogOut size={17} strokeWidth={1.65} className="text-[#888888]" />
+          </button>
+        </div>
+      ) : (
+        <div className="relative z-10 shrink-0 px-4 pb-4">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="sidebar-item flex w-full items-center gap-2 rounded-[12px] px-2.5 transition-colors duration-200 hover:bg-[#EBEBEB]"
+            style={{ fontFamily: sidebarFont, fontSize: "13px", fontWeight: 400, height: "32px", letterSpacing: "-0.018em", color: "#4B5563" }}
+          >
+            <span className="grid h-7 w-7 place-items-center">
+              <LogOut size={18} strokeWidth={1.5} className="text-[#4B5563]" />
+            </span>
+            Sair
+          </button>
+        </div>
+      )}
 
       {/* Modal Start Mode */}
       <StartModeModal
