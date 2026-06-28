@@ -69,7 +69,7 @@ const SidebarNavItem = ({ item, active }: { item: NavItem; active?: boolean }) =
   );
   const className = `${navBase} ${
     active
-      ? "bg-white/[0.08] text-white"
+      ? "border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.07)_0%,rgba(255,255,255,0.04)_100%)] text-white shadow-[0_1px_2px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]"
       : "text-[#B4B4B8] hover:bg-white/[0.04]"
   }`;
 
