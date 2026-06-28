@@ -59,23 +59,6 @@ const DashboardHomePage = () => {
       className="min-h-full w-full text-[#111111] pb-16"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
-      {/* ── Header bar ─────────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between gap-4 mb-10">
-        <div
-          onClick={() => navigate("/dashboard/planos")}
-          className="flex items-center gap-3 rounded-full bg-[#111111] py-2 pl-[14px] pr-4 text-white cursor-pointer select-none text-[12.5px]"
-        >
-          <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
-          <span className="font-medium text-neutral-100">Aproveite 3 meses por R$ 1/mês</span>
-          <span className="h-3.5 w-px bg-white/20 mx-1" />
-          <span className="font-semibold">Selecionar um plano</span>
-        </div>
-        <div className="text-[12.5px] text-neutral-500 hidden sm:block">
-          Dúvidas?{" "}
-          <span className="text-neutral-900 font-semibold">contato@velo.com.br</span>
-        </div>
-      </header>
-
       {/* ── Welcome + Search ───────────────────────────────────────────── */}
       <section className="flex flex-col items-center text-center mb-10">
 
