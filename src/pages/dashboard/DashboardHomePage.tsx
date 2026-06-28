@@ -69,7 +69,7 @@ const DashboardHomePage = () => {
     >
       {/* ── Welcome + Search ───────────────────────────────────────────── */}
       <div className="pointer-events-none absolute left-1/2 top-[-140px] h-[360px] w-[720px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.86)_0%,rgba(255,255,255,0.34)_38%,rgba(255,255,255,0)_72%)] blur-2xl" />
-      <section className="relative z-10 mb-6 flex flex-col items-center pt-[16vh] text-center">
+      <section className="relative z-10 mb-4 flex flex-col items-center pt-[24vh] text-center">
 
         {/* 1 — Linha 1: "Boas-vindas ao Velo!" — peso leve, cinza médio (delay 0ms) */}
         <motion.p
