@@ -123,27 +123,33 @@ const CATEGORY_ICON_MAP: Record<string, CategoryIconEntry> = {
 };
 
 // Fallback para categoria não mapeada
-const FALLBACK_ICON: CategoryIconEntry = { Icon: Cube, color: "#6B7280", bg: "#F9FAFB" };
+const FALLBACK_ICON: CategoryIconEntry = { Icon: Cube, color: "#52525B", bg: "rgba(255,255,255,0.48)" };
+const neutralCategoryStyle = (entry: CategoryIconEntry): CategoryIconEntry => ({
+  ...entry,
+  color: "#3F3F46",
+  bg: "rgba(255,255,255,0.48)",
+});
 
 const getCategoryIcon = (category: string | null): CategoryIconEntry => {
-  if (!category) return FALLBACK_ICON;
+  if (!category) return neutralCategoryStyle(FALLBACK_ICON);
   const key = category.toLowerCase().trim();
   // Busca exata primeiro
-  if (CATEGORY_ICON_MAP[key]) return CATEGORY_ICON_MAP[key];
+  if (CATEGORY_ICON_MAP[key]) return neutralCategoryStyle(CATEGORY_ICON_MAP[key]);
   // Busca parcial: verifica se alguma chave está contida na categoria
   for (const [mapKey, entry] of Object.entries(CATEGORY_ICON_MAP)) {
-    if (key.includes(mapKey) || mapKey.includes(key)) return entry;
+    if (key.includes(mapKey) || mapKey.includes(key)) return neutralCategoryStyle(entry);
   }
-  return FALLBACK_ICON;
+  return neutralCategoryStyle(FALLBACK_ICON);
 };
 
 // ─── Shared fade-up variant ───────────────────────────────────────────────────
 const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 18, scale: 0.985 },
   visible: (delay: number) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1], delay },
+    scale: 1,
+    transition: { duration: 0.62, ease: [0.16, 1, 0.3, 1], delay },
   }),
 };
 
@@ -197,10 +203,13 @@ const VitrineCard = ({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
-      className="group relative flex flex-col rounded-[22px] overflow-hidden cursor-pointer bg-white transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
+      className="group relative flex flex-col overflow-hidden rounded-[22px] cursor-pointer transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(17,24,39,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
       style={{
-        border: "1px solid rgba(0,0,0,0.06)",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)",
+        background: "rgba(255,255,255,0.68)",
+        border: "1px solid rgba(255,255,255,0.66)",
+        backdropFilter: "blur(18px) saturate(140%)",
+        WebkitBackdropFilter: "blur(18px) saturate(140%)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.72), 0 1px 2px rgba(0,0,0,0.035), 0 10px 26px rgba(17,24,39,0.06)",
       }}
       aria-label={`Ver produto: ${product.title}`}
       variants={fadeUp}
@@ -209,7 +218,7 @@ const VitrineCard = ({
       custom={delay}
     >
       {/* ── ZONA 1: Imagem com respiro interno ── */}
-      <div className="relative px-5 pt-5 pb-3 flex items-center justify-center bg-[#FAFAFA]" style={{ minHeight: 210 }}>
+      <div className="relative flex items-center justify-center px-5 pb-3 pt-5 bg-[linear-gradient(180deg,rgba(255,255,255,0.54)_0%,rgba(246,246,245,0.58)_100%)]" style={{ minHeight: 210 }}>
         {/* Badge categoria — ícone Duotone + texto */}
         <div className="absolute top-3.5 left-3.5 right-3.5 flex items-start justify-between gap-2 z-10 pointer-events-none">
           {product.category ? (
@@ -218,7 +227,10 @@ const VitrineCard = ({
               style={{
                 background: catEntry.bg,
                 color: catEntry.color,
-                border: "1px solid rgba(0,0,0,0.04)",
+                border: "1px solid rgba(255,255,255,0.58)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7), 0 6px 16px rgba(17,24,39,0.045)",
               }}
             >
               <CatIcon size={13} weight="duotone" color={catEntry.color} />
@@ -230,12 +242,14 @@ const VitrineCard = ({
             <span
               className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium"
               style={{
-                background: "#ECFDF5",
-                color: "#059669",
-                border: "1px solid rgba(0,0,0,0.04)",
+                background: "rgba(255,255,255,0.50)",
+                color: "#3F3F46",
+                border: "1px solid rgba(255,255,255,0.58)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
               }}
             >
-              <TrendUp size={11} weight="duotone" color="#059669" />
+              <TrendUp size={11} weight="duotone" color="#3F3F46" />
               {margin}%
             </span>
           )}
@@ -259,7 +273,7 @@ const VitrineCard = ({
       </div>
 
       {/* ── ZONA 2: Faixa de informação ── */}
-      <div className="px-4 pt-3 pb-4 flex items-center gap-3 bg-white border-t border-neutral-100">
+      <div className="flex items-center gap-3 border-t border-white/60 bg-white/70 px-4 pb-4 pt-3 backdrop-blur-md">
         <div className="min-w-0 flex-1">
           <h3 className="text-[13px] font-medium leading-snug line-clamp-1 truncate text-neutral-900 tracking-[-0.01em]">
             {product.title}
@@ -277,16 +291,17 @@ const VitrineCard = ({
         <div
           className="shrink-0 h-7 w-7 rounded-full grid place-items-center transition-transform duration-200 group-hover:scale-110"
           style={{
-            background: isHighMargin ? "#ECFDF5" : isBestseller ? "#EFF6FF" : "#F5F3FF",
+            background: isHighMargin ? "rgba(255,255,255,0.68)" : isBestseller ? "rgba(250,250,250,0.72)" : "rgba(244,244,245,0.76)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.68), 0 4px 12px rgba(17,24,39,0.055)",
           }}
           title={isHighMargin ? "Alta margem" : isBestseller ? "Mais vendido" : "Sugestão"}
         >
           {isHighMargin ? (
-            <TrendUp size={14} weight="duotone" color="#059669" />
+            <TrendUp size={14} weight="duotone" color="#3F3F46" />
           ) : isBestseller ? (
-            <PhShoppingBag size={14} weight="duotone" color="#3B82F6" />
+            <PhShoppingBag size={14} weight="duotone" color="#3F3F46" />
           ) : (
-            <PhSparkle size={14} weight="duotone" color="#7C3AED" />
+            <PhSparkle size={14} weight="duotone" color="#52525B" />
           )}
         </div>
       </div>
@@ -297,7 +312,7 @@ const VitrineCard = ({
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const VitrineSkeleton = ({ delay }: { delay: number }) => (
   <motion.div
-    className="rounded-[20px] overflow-hidden bg-white border border-neutral-100 shadow-[0_2px_14px_rgba(0,0,0,0.05)]"
+    className="overflow-hidden rounded-[20px] border border-white/60 bg-white/60 shadow-[0_10px_28px_rgba(17,24,39,0.055)] backdrop-blur-md"
     variants={fadeUp}
     initial="hidden"
     animate="visible"
@@ -389,7 +404,7 @@ const SuggestedProducts = ({ initialDelay = 0 }: { initialDelay?: number }) => {
   const headerDelay = initialDelay;
   const pillsDelay = initialDelay + 0.05;
   const cardBaseDelay = initialDelay + 0.1;
-  const cardStep = 0.05;
+  const cardStep = 0.045;
 
   return (
     <section className="w-full">
@@ -415,7 +430,7 @@ const SuggestedProducts = ({ initialDelay = 0 }: { initialDelay?: number }) => {
 
       {/* ── Pills de filtro ── */}
       <motion.div
-        className="flex items-center gap-2 mb-7 flex-wrap"
+        className="mb-7 flex flex-wrap items-center gap-2"
         variants={fadeUp}
         initial="hidden"
         animate="visible"
@@ -427,11 +442,13 @@ const SuggestedProducts = ({ initialDelay = 0 }: { initialDelay?: number }) => {
             onClick={() => setActiveFilter(f.key)}
             className={`rounded-full px-3.5 py-1.5 text-[11.5px] transition-all duration-100 ${
               activeFilter === f.key
-                ? "bg-white text-neutral-900 font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.06)]"
-                : "bg-white/60 text-neutral-500 font-normal hover:text-neutral-700"
+                ? "bg-white/70 text-neutral-900 font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_20px_rgba(17,24,39,0.065)]"
+                : "bg-white/40 text-neutral-500 font-normal hover:bg-white/58 hover:text-neutral-800"
             }`}
             style={{
-              border: "1px solid rgba(0,0,0,0.04)",
+              border: "1px solid rgba(255,255,255,0.58)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
             }}
           >
             {f.label}
@@ -443,7 +460,7 @@ const SuggestedProducts = ({ initialDelay = 0 }: { initialDelay?: number }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => (
-              <VitrineSkeleton key={i} delay={cardBaseDelay + i * cardStep} />
+              <VitrineSkeleton key={i} delay={cardBaseDelay + i * cardStep + (i % 3) * 0.018} />
             ))
           : filtered.length === 0
           ? <EmptyState />
@@ -452,7 +469,7 @@ const SuggestedProducts = ({ initialDelay = 0 }: { initialDelay?: number }) => {
                 key={p.id}
                 product={p}
                 onClick={() => handleProductClick(p)}
-                delay={cardBaseDelay + i * cardStep}
+                delay={cardBaseDelay + i * cardStep + (i % 3) * 0.018}
               />
             ))}
       </div>

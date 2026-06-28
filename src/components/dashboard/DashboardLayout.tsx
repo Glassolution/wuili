@@ -616,7 +616,7 @@ const DashboardLayoutInner = () => {
       <div
         className="dashboard-inter flex h-screen min-h-0 w-full max-w-full overflow-x-hidden flex-col"
         style={{
-          backgroundColor: isStartMode ? "#FFA640" : "#f4f4f4",
+          background: isStartMode ? "#FFA640" : "linear-gradient(135deg, #F7F6F4 0%, #EFEDEA 48%, #E8E7E4 100%)",
           transition: "background-color 280ms ease",
         }}
       >
@@ -628,7 +628,7 @@ const DashboardLayoutInner = () => {
             minHeight: isStartMode ? "calc(100vh - 48px)" : "100vh",
             borderTopLeftRadius: isStartMode ? "24px" : "0",
             borderTopRightRadius: isStartMode ? "24px" : "0",
-            backgroundColor: "#f4f4f4",
+            background: "transparent",
             position: "relative",
             zIndex: 2,
             transition: "margin-top 280ms ease, border-radius 280ms ease, min-height 280ms ease",
@@ -663,7 +663,7 @@ const DashboardLayoutInner = () => {
     <div 
       className="dashboard-inter flex h-screen min-h-0 w-full max-w-full overflow-x-hidden flex-col" 
       style={{ 
-        backgroundColor: isStartMode ? "#FFA640" : "#f4f4f4",
+        background: isStartMode ? "#FFA640" : "linear-gradient(135deg, #F7F6F4 0%, #EFEDEA 48%, #E8E7E4 100%)",
         paddingTop: 0,
         transition: "background-color 280ms ease"
       }}
@@ -679,7 +679,7 @@ const DashboardLayoutInner = () => {
           borderTopLeftRadius: isStartMode ? "32px" : "0",
           borderTopRightRadius: isStartMode ? "32px" : "0",
           overflow: "hidden",
-          backgroundColor: "#f4f4f4",
+          background: "transparent",
           minHeight: isStartMode ? "calc(100vh - 48px)" : "100vh",
           position: "relative",
           zIndex: 2,
@@ -696,7 +696,7 @@ const DashboardLayoutInner = () => {
           {/* Header - no shell cinza */}
           <DashboardHeader />
           {/* Main content area - sem moldura externa */}
-          <main className="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ backgroundColor: "#f4f4f4" }}>
+          <main className="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ background: "transparent" }}>
             <PageErrorBoundary>
               <Outlet />
             </PageErrorBoundary>

@@ -64,7 +64,7 @@ const DashboardHomePage = () => {
 
   return (
     <main
-      className="relative w-full overflow-hidden pb-6 text-[#111111]"
+      className="relative w-full overflow-visible pb-24 text-[#111111]"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
       {/* ── Welcome + Search ───────────────────────────────────────────── */}
@@ -184,7 +184,7 @@ const DashboardHomePage = () => {
 
       {/* ── Produtos sugeridos — delay começa em 300ms ──────────────────── */}
       {/* initialDelay=0.3 → pills em 300ms, cards a partir de 400ms       */}
-      <div className="relative z-10">
+      <div className="relative z-10 pb-16">
         <SuggestedProducts initialDelay={0.34} />
       </div>
     </main>

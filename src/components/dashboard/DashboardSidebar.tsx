@@ -747,7 +747,7 @@ const SidebarSearch = ({ collapsed }: { collapsed: boolean }) => {
 
   return (
     <div className="px-4">
-      <div className="group flex h-[36px] items-center gap-2 rounded-[10px] bg-black/[0.045] px-3.5 border border-[#E4E4E7] transition-all duration-300 ease-out focus-within:bg-black/[0.06] focus-within:border-[#D1D5DB]">
+      <div className="group flex h-[36px] items-center gap-2 rounded-[10px] border border-white/55 bg-white/40 px-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_8px_18px_rgba(17,24,39,0.04)] backdrop-blur-md transition-all duration-300 ease-out focus-within:bg-white/58">
         <Search size={15} strokeWidth={1.5} className="shrink-0 text-[#6B7280]" />
         <span
           className="min-w-0 flex-1 truncate text-[13px] leading-[18px] text-[#4B5563]"
@@ -919,17 +919,19 @@ const SidebarTopProduct = ({ userId }: { userId?: string }) => {
     <button
       type="button"
       onClick={() => navigate("/dashboard/catalogo")}
-      className="group w-full rounded-[20px] overflow-hidden text-left transition-all duration-200 hover:brightness-[0.97]"
+      className="group w-full overflow-hidden rounded-[20px] text-left transition-all duration-300 ease-out hover:-translate-y-1"
       style={{
-        background: "#FFFFFF",
-        border: "1px solid rgba(0,0,0,0.06)",
+        background: "rgba(255,255,255,0.54)",
+        border: "1px solid rgba(255,255,255,0.62)",
+        backdropFilter: "blur(18px) saturate(140%)",
+        WebkitBackdropFilter: "blur(18px) saturate(140%)",
         boxShadow:
-          "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)",
+          "inset 0 1px 0 rgba(255,255,255,0.72), 0 1px 2px rgba(0,0,0,0.035), 0 12px 28px rgba(17,24,39,0.06)",
       }}
     >
       {/* Image area */}
       <div
-        className="w-full flex items-center justify-center bg-[#F9F9F9]"
+        className="flex w-full items-center justify-center bg-white/40"
         style={{ height: "88px", padding: "12px" }}
       >
         {showImage ? (
@@ -1021,10 +1023,12 @@ const SidebarProfileHeader = ({
       <div
         className="flex items-center gap-3 rounded-[16px] px-3 py-2.5"
         style={{
-          background: "#FFFFFF",
-          border: "1px solid rgba(0,0,0,0.06)",
+          background: "rgba(255,255,255,0.52)",
+          border: "1px solid rgba(255,255,255,0.62)",
+          backdropFilter: "blur(18px) saturate(140%)",
+          WebkitBackdropFilter: "blur(18px) saturate(140%)",
           boxShadow:
-            "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04)",
+            "inset 0 1px 0 rgba(255,255,255,0.72), 0 1px 2px rgba(0,0,0,0.035), 0 12px 28px rgba(17,24,39,0.06)",
         }}
       >
         {/* Avatar */}
@@ -1523,11 +1527,11 @@ const DashboardSidebar = () => {
         height: startMode ? "calc(100vh - 48px)" : "100vh",
         transition: "height 280ms ease, width 300ms ease-out",
         overflow: "hidden",
-        background: "linear-gradient(180deg, rgba(250,251,253,0.94) 0%, rgba(243,245,249,0.88) 100%)",
-        borderRight: "1px solid rgba(229,231,235,0.42)",
-        backdropFilter: "blur(24px) saturate(160%)",
-        WebkitBackdropFilter: "blur(24px) saturate(160%)",
-        boxShadow: "18px 0 42px rgba(15,23,42,0.055)"
+        background: "linear-gradient(180deg, rgba(255,255,255,0.56) 0%, rgba(242,242,240,0.48) 100%)",
+        borderRight: "1px solid rgba(255,255,255,0.52)",
+        backdropFilter: "blur(28px) saturate(155%)",
+        WebkitBackdropFilter: "blur(28px) saturate(155%)",
+        boxShadow: "inset -1px 0 0 rgba(255,255,255,0.42), 22px 0 54px rgba(17,24,39,0.065)"
       }}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
