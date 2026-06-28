@@ -3,14 +3,14 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Archive,
   Bell,
-  CircleHelp,
   ClipboardList,
   Compass,
+  Copy,
   Home,
-  LayoutTemplate,
+  Info,
+  LayoutList,
   Search,
-  Settings,
-  ShoppingBag,
+  Settings2,
   Users,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,7 +62,7 @@ const SidebarNavItem = ({ item, active }: { item: NavItem; active?: boolean }) =
         className={`${iconBase} ${active ? "text-white" : "text-[#8B8B8F] group-hover:text-white"}`}
         strokeWidth={1.5}
       />
-      <span className={`relative z-10 truncate ${active ? "font-medium text-white" : "font-normal text-[#B4B4B8] group-hover:text-white"}`}>
+      <span className={`relative z-10 truncate ${active ? "font-medium text-white" : "font-light text-[#B4B4B8] group-hover:text-white"}`}>
         {item.label}
       </span>
     </>
@@ -101,18 +101,18 @@ const DashboardSidebar = () => {
   const utilityNav: NavItem[] = [
     { label: "Buscar", icon: Search, onClick: () => navigate("/dashboard/catalogo") },
     { label: "Início", icon: Home, to: "/dashboard", end: true },
-    { label: "Modelos", icon: LayoutTemplate, to: "/dashboard/produtos" },
+    { label: "Modelos", icon: LayoutList, to: "/dashboard/produtos" },
     { label: "Notificações", icon: Bell, onClick: () => undefined },
   ];
 
   const mainNav: NavItem[] = [
     { label: "Catálogo", icon: Compass, to: "/dashboard/catalogo" },
     { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
-    { label: "Pedidos", icon: ShoppingBag, to: "/dashboard/pedidos" },
+    { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
     { label: "Afiliados", icon: Users, to: "/dashboard/comissoes" },
     { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios" },
-    { label: "Ajuda & Central", icon: CircleHelp, to: "/docs" },
-    { label: "Configurações", icon: Settings, to: "/dashboard/configuracoes" },
+    { label: "Ajuda & Central", icon: Info, to: "/docs" },
+    { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes" },
   ];
 
   const isActive = (item: NavItem) => {
