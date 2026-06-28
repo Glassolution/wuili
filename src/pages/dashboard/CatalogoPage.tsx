@@ -36,6 +36,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import ProductScoutAI, { type AtlasResults } from "@/components/dashboard/ProductScoutAI";
+import SuggestedProducts from "@/components/dashboard/SuggestedProducts";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { ProductCard, ProductCardSkeleton, type Product, formatPrice } from "@/components/dashboard/ProductCard";
@@ -878,7 +879,10 @@ const CatalogoPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [activeSubTab, setActiveSubTab] = useState<"produtos" | "metricas">("produtos");
+  const [activeSubTab, setActiveSubTab] = useState<"produtos" | "metricas">(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("tab") === "metricas" ? "metricas" : "produtos";
+  });
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("todos");
   const [currentPage, setCurrentPage] = useState(1);
   const [recommendationIndex, setRecommendationIndex] = useState(0);
@@ -971,6 +975,13 @@ const CatalogoPage = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("tab") === "metricas") {
+      setActiveSubTab("metricas");
+    }
+  }, [location.search]);
 
 
   const ITEMS_PER_PAGE = 12;
@@ -1173,6 +1184,10 @@ const CatalogoPage = () => {
 
         {activeSubTab === "produtos" ? (
           <>
+            <div className="mb-9">
+              <SuggestedProducts initialDelay={0.02} />
+            </div>
+
             <div
               ref={filterBarRef}
               className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center"
