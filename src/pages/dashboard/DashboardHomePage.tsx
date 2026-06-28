@@ -64,7 +64,7 @@ const DashboardHomePage = () => {
 
   return (
     <main
-      className="relative min-h-full w-full overflow-hidden pb-16 text-[#111111]"
+      className="relative w-full overflow-hidden pb-6 text-[#111111]"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
       {/* ── Welcome + Search ───────────────────────────────────────────── */}
