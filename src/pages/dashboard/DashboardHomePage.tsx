@@ -31,7 +31,7 @@ const fadeUp = {
 };
 
 const cardShadow =
-  "inset 0 1px 0 rgba(255,255,255,0.86), 0 1px 2px rgba(17,24,39,0.035), 0 16px 36px rgba(17,24,39,0.06), 0 34px 76px rgba(30,58,138,0.045)";
+  "inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(17,24,39,0.028), 0 14px 34px rgba(17,24,39,0.052), 0 30px 68px rgba(30,58,138,0.038)";
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -157,14 +157,13 @@ const DashboardHomePage = () => {
             event.preventDefault();
             openAquas(chatPrompt || "Como posso vender mais hoje?");
           }}
-          className="mt-10 overflow-hidden rounded-[26px] border border-white/70 bg-white/72 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_20px_50px_rgba(17,24,39,0.10)] backdrop-blur-2xl"
+          className="mt-10 overflow-hidden rounded-[26px] bg-white/75 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(17,24,39,0.03),0_20px_50px_rgba(17,24,39,0.09)] backdrop-blur-2xl"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
           custom={0.16}
         >
-          <div className="flex min-h-[96px] items-start gap-3 px-2 pt-2">
-            <AquasIcon size={34} />
+          <div className="flex min-h-[96px] items-start px-2 pt-2">
             <textarea
               value={chatPrompt}
               onChange={(event) => setChatPrompt(event.target.value)}
@@ -205,17 +204,17 @@ const DashboardHomePage = () => {
                   key={card.title}
                   type="button"
                   onClick={card.onClick}
-                  className="group flex min-h-[92px] items-center gap-4 rounded-[22px] border border-white/70 bg-white/70 p-4 text-left backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white"
+                  className="group flex min-h-[92px] items-center gap-4 rounded-[22px] bg-white/72 p-4 text-left backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white"
                   style={{ boxShadow: cardShadow }}
                   variants={fadeUp}
                   initial="hidden"
                   animate="visible"
                   custom={0.3 + index * 0.05}
                 >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#F8FAFC] text-[#1E3A8A] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_8px_18px_rgba(17,24,39,0.05)]">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center self-center rounded-2xl bg-[#F8FAFC] text-[#1E3A8A] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_8px_18px_rgba(17,24,39,0.05)]">
                     <Icon className="h-5 w-5" strokeWidth={1.85} />
                   </span>
-                  <span className="min-w-0">
+                  <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-semibold leading-tight text-neutral-950">{card.title}</span>
                     <span className="mt-1 block truncate text-[12.5px] font-medium text-[#8A94A6]">{card.description}</span>
                   </span>
