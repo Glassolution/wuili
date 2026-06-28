@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProductCard, type Product } from "@/components/dashboard/ProductCard";
+import AquasIcon from "@/components/dashboard/AquasIcon";
 
 export type AtlasResults = {
   ids: string[];
@@ -333,7 +334,7 @@ const ProductScoutAI = ({
     if (lastSuggestedProduct) {
       onResults({
         ids: [lastSuggestedProduct.id],
-        label: `Recomendado pelo Atlas: ${lastSuggestedProduct.nome}`,
+        label: `Recomendado pelo Aquas: ${lastSuggestedProduct.nome}`,
         source: "ai",
       });
     }
@@ -434,7 +435,7 @@ const ProductScoutAI = ({
 
       setChatMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
-      console.error("Erro na busca do Atlas:", err);
+      console.error("Erro na busca do Aquas:", err);
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -493,9 +494,9 @@ const ProductScoutAI = ({
           className="group inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-[#050505] px-5 text-[13px] font-semibold tracking-[-0.01em] text-white shadow-[0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.09)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-black disabled:cursor-wait disabled:opacity-70"
         >
           <span className="grid h-6 w-6 place-items-center rounded-full text-white transition-transform duration-300 group-hover:-rotate-12">
-            <SaturnIcon />
+            <AquasIcon size={24} inverted />
           </span>
-          Atlas
+          Aquas
         </button>
       )}
 
@@ -594,7 +595,7 @@ const ProductScoutAI = ({
                             type="button"
                             onClick={close}
                             className="text-white/40 hover:text-white transition-colors p-1 shrink-0 mr-0.5"
-                            aria-label="Fechar Atlas"
+                            aria-label="Fechar Aquas"
                           >
                             <X size={15} strokeWidth={2.5} />
                           </button>
@@ -635,10 +636,10 @@ const ProductScoutAI = ({
                           <VeloOrb state={orbState} typingTrigger={typingTrigger} />
                           <div className="flex flex-col justify-center">
                             <h3 className="text-[14.5px] font-semibold text-white/95 tracking-tight leading-tight">
-                              Atlas
+                              Aquas
                             </h3>
                             <span className="text-[11px] text-white/40 mt-0.5 tracking-[0.015em] select-none">
-                              Assistente Inteligente de Produtos
+                              Seu agente de vendas
                             </span>
                           </div>
                         </div>
@@ -646,7 +647,7 @@ const ProductScoutAI = ({
                           type="button"
                           onClick={close}
                           className="text-white/40 hover:text-white transition-colors p-1 shrink-0 mr-0.5"
-                          aria-label="Fechar Atlas"
+                          aria-label="Fechar Aquas"
                         >
                           <X size={15} strokeWidth={2.5} />
                         </button>
@@ -735,7 +736,7 @@ const ProductScoutAI = ({
                           <div className="relative overflow-hidden rounded-full p-[1.5px] animate-think-glow animate-pulse">
                             <div className="flex h-11 w-full items-center justify-between rounded-full bg-[#121216] px-5 text-white/80">
                               <span className="text-[12.5px] text-white/50 font-medium animate-pulse select-none tracking-[0.015em]">
-                                Atlas está formulando resposta...
+                                Aquas está formulando resposta...
                               </span>
                               <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
                             </div>

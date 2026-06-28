@@ -36,7 +36,6 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import ProductScoutAI, { type AtlasResults } from "@/components/dashboard/ProductScoutAI";
-import SuggestedProducts from "@/components/dashboard/SuggestedProducts";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { ProductCard, ProductCardSkeleton, type Product, formatPrice } from "@/components/dashboard/ProductCard";
@@ -667,7 +666,7 @@ const SidebarAtlasSuggestions = () => {
   return (
     <div className="space-y-3 border-t border-black/[0.04] pt-4">
       <div className="flex items-center justify-between leading-none">
-        <p className="text-[11.5px] font-bold text-neutral-800 uppercase tracking-tight">Sugestões do Atlas</p>
+        <p className="text-[11.5px] font-bold text-neutral-800 uppercase tracking-tight">Sugestões do Aquas</p>
         <span className="text-[7.5px] font-bold text-neutral-400 uppercase bg-neutral-100 px-1 py-0.5 rounded leading-none">MOCK</span>
       </div>
       <div className="space-y-2.5">
@@ -1184,10 +1183,6 @@ const CatalogoPage = () => {
 
         {activeSubTab === "produtos" ? (
           <>
-            <div className="mb-9">
-              <SuggestedProducts initialDelay={0.02} />
-            </div>
-
             <div
               ref={filterBarRef}
               className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center"
@@ -1257,7 +1252,7 @@ const CatalogoPage = () => {
               <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-black/[0.07] bg-[#F7F7F8] px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6B7280]">
-                    Resultados do Atlas
+                    Resultados do Aquas
                   </p>
                   <p className="mt-0.5 truncate text-[14px] font-semibold text-[#111111]">
                     {atlasResults.label}

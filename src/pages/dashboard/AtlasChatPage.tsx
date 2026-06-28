@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
+import AquasIcon from "@/components/dashboard/AquasIcon";
 
 type ThreadRow = { id: string; title: string; updated_at: string };
 type MessageRow = {
@@ -16,12 +17,7 @@ type MessageRow = {
 };
 
 const AtlasAvatar = ({ size = 28 }: { size?: number }) => (
-  <div
-    style={{ width: size, height: size }}
-    className="shrink-0 rounded-full bg-gradient-to-br from-violet-500 via-fuchsia-500 to-indigo-500 grid place-items-center text-white text-[12px] font-bold shadow-sm"
-  >
-    A
-  </div>
+  <AquasIcon size={size} inverted />
 );
 
 const AtlasChatPage = () => {
@@ -116,7 +112,7 @@ const AtlasChatPage = () => {
       const { data, error } = await supabase.functions.invoke("atlas-chat", {
         body: { messages: prior },
       });
-      if (error) throw new Error(error.message || "Falha no Atlas");
+      if (error) throw new Error(error.message || "Falha no Aquas");
       const reply = (data as { message?: string; error?: string })?.message;
       if (!reply) throw new Error((data as { error?: string })?.error || "Resposta vazia");
 
@@ -235,7 +231,7 @@ const AtlasChatPage = () => {
         <div className="flex-1 overflow-y-auto p-2">
           {threads.length === 0 && (
             <p className="text-[12px] text-neutral-400 px-3 py-4 text-center">
-              Suas conversas com o Atlas aparecerão aqui.
+              Suas conversas com o Aquas aparecerão aqui.
             </p>
           )}
           {threads.map((t) => {
@@ -276,8 +272,8 @@ const AtlasChatPage = () => {
           <div className="flex items-center gap-2.5">
             <AtlasAvatar size={28} />
             <div>
-              <div className="text-[14px] font-bold text-neutral-900 leading-none">Atlas</div>
-              <div className="text-[11px] text-neutral-500 mt-0.5">Assistente da Velo</div>
+              <div className="text-[14px] font-bold text-neutral-900 leading-none">Aquas</div>
+              <div className="text-[11px] text-neutral-500 mt-0.5">Seu agente de vendas</div>
             </div>
           </div>
           <button
@@ -294,9 +290,9 @@ const AtlasChatPage = () => {
             {!hasMessages && !isThinking && (
               <div className="flex flex-col items-center text-center pt-10 gap-3">
                 <AtlasAvatar size={56} />
-                <h2 className="text-[20px] font-bold text-neutral-900">Olá, eu sou o Atlas</h2>
+                <h2 className="text-[20px] font-bold text-neutral-900">Olá, eu sou o Aquas</h2>
                 <p className="text-[14px] text-neutral-500 max-w-[420px]">
-                  Posso te ajudar a usar a Velo, conectar o Mercado Livre, encontrar produtos e tirar dúvidas. Por onde quer começar?
+                  Sou seu agente de vendas: posso ajudar a encontrar produtos, conectar o Mercado Livre e tirar dúvidas. Por onde quer começar?
                 </p>
               </div>
             )}
@@ -325,7 +321,7 @@ const AtlasChatPage = () => {
             {isThinking && (
               <div className="flex gap-3 justify-start">
                 <AtlasAvatar size={28} />
-                <div className="text-[13px] text-neutral-400 italic pt-1">Atlas está pensando…</div>
+                <div className="text-[13px] text-neutral-400 italic pt-1">Aquas está pensando…</div>
               </div>
             )}
           </div>
@@ -348,7 +344,7 @@ const AtlasChatPage = () => {
                 }
               }}
               rows={1}
-              placeholder="Pergunte ao Atlas…"
+              placeholder="Pergunte ao Aquas…"
               className="flex-1 bg-transparent resize-none outline-none text-[14px] text-neutral-800 placeholder:text-neutral-400 max-h-[160px] py-1"
               disabled={isThinking}
             />
