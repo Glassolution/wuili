@@ -10,8 +10,10 @@ import {
   Info,
   LayoutList,
   Search,
+  Sparkles,
   Settings2,
   Users,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
@@ -47,9 +49,9 @@ const getInitials = (name: string, email?: string | null) => {
 };
 
 const navBase =
-  "group relative flex h-9 w-full items-center gap-3 overflow-hidden rounded-[8px] px-3 text-left text-[14px] font-normal leading-none transition-colors duration-200";
+  "group relative flex h-8 w-full items-center gap-2.5 overflow-hidden rounded-[6px] px-2.5 text-left text-[13px] font-normal leading-none transition-colors duration-200";
 
-const iconBase = "relative z-10 h-[18px] w-[18px] shrink-0 transition-colors duration-200";
+const iconBase = "relative z-10 h-4 w-4 shrink-0 transition-colors duration-200";
 
 const VeloSidebarLogo = () => (
   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-[8px] bg-[#111111] text-white" aria-hidden="true">
@@ -99,15 +101,53 @@ const SidebarSearchButton = ({ onClick }: { onClick: () => void }) => (
   <button
     type="button"
     onClick={onClick}
-    className="flex h-9 w-full items-center rounded-[8px] bg-black/[0.035] text-left transition-colors hover:bg-black/[0.055]"
+    className="flex h-9 w-full items-center gap-2.5 rounded-[6px] bg-black/[0.035] px-2.5 text-left transition-colors hover:bg-black/[0.055]"
     aria-label="Abrir busca rápida"
   >
-    <Search className="ml-2.5 h-4 w-4 shrink-0 text-[#8B8B8F]" strokeWidth={1.5} aria-hidden="true" />
-    <span className="ml-3 min-w-0 flex-1 truncate text-[14px] font-normal leading-none text-[#8B8B8F]">Buscar</span>
-    <span className="mr-2 rounded-[4px] bg-black/[0.05] px-1.5 py-1 text-[11px] font-normal leading-none text-[#8B8B8F]">
+    <Search className="h-4 w-4 shrink-0 text-[#8B8B8F]" strokeWidth={1.5} aria-hidden="true" />
+    <span className="min-w-0 flex-1 truncate text-[13px] font-normal leading-none text-[#8B8B8F]">Buscar</span>
+    <span className="rounded-[4px] bg-black/[0.05] px-1.5 py-1 text-[11px] font-normal leading-none text-[#8B8B8F]">
       ⌘K
     </span>
   </button>
+);
+
+const SidebarUpgradeCard = ({
+  onClose,
+  onUpgrade,
+}: {
+  onClose: () => void;
+  onUpgrade: () => void;
+}) => (
+  <div className="mx-[10px] mb-2 rounded-[12px] border border-black/[0.06] bg-black/[0.04] p-[14px] text-[#111111] shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.1] dark:bg-[#17171A] dark:text-white dark:shadow-[0_14px_28px_rgba(0,0,0,0.22)]">
+    <div className="flex items-start justify-between gap-3">
+      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-black/[0.06] text-[#111111] dark:bg-white/[0.08] dark:text-white">
+        <Sparkles className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[#737378] transition-colors hover:bg-black/[0.05] hover:text-[#111111] dark:text-white/60 dark:hover:bg-white/[0.08] dark:hover:text-white"
+        aria-label="Ocultar card de upgrade"
+      >
+        <X className="h-[14px] w-[14px]" strokeWidth={1.75} aria-hidden="true" />
+      </button>
+    </div>
+
+    <div className="mt-3">
+      <p className="text-[14px] font-semibold leading-5">Upgrade para o Premium!</p>
+      <p className="mt-1 text-[12px] leading-[1.45] text-[#55555A] dark:text-white/68">Publique sem limites</p>
+      <p className="text-[12px] leading-[1.45] text-[#55555A] dark:text-white/68">Personalize sua marca</p>
+    </div>
+
+    <button
+      type="button"
+      onClick={onUpgrade}
+      className="mt-4 flex h-9 w-full items-center justify-center rounded-full bg-[#111111] text-[13px] font-medium text-white transition-colors hover:bg-black/90 dark:bg-white dark:text-[#111111] dark:hover:bg-white/90"
+    >
+      Fazer upgrade
+    </button>
+  </div>
 );
 
 const SearchCommandModal = ({
@@ -216,6 +256,7 @@ const DashboardSidebar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showUpgradeCard, setShowUpgradeCard] = useState(true);
 
   const displayName = nome || user?.user_metadata?.full_name || user?.email || "Velo";
   const initials = getInitials(displayName, user?.email);
@@ -316,8 +357,8 @@ const DashboardSidebar = () => {
 
         <div className="mx-4 h-px bg-black/[0.08]" />
 
-        <nav className="flex flex-col gap-1 px-4 py-5" aria-label="Utilitários">
-          <div className="mb-2">
+        <nav className="flex flex-col gap-0.5 px-4 py-5" aria-label="Utilitários">
+          <div className="mb-1.5">
             <SidebarSearchButton onClick={openSearch} />
           </div>
           {utilityNav.map((item) => (
@@ -327,7 +368,7 @@ const DashboardSidebar = () => {
 
         <div className="mx-4 h-px bg-black/[0.08]" />
 
-        <nav className="flex flex-col gap-1 px-4 py-5" aria-label="Navegação principal">
+        <nav className="flex flex-col gap-0.5 px-4 py-5" aria-label="Navegação principal">
           {mainNav.map((item) => (
             <SidebarNavItem key={item.label} item={item} active={isActive(item)} />
           ))}
@@ -335,7 +376,14 @@ const DashboardSidebar = () => {
 
         <div className="min-h-0 flex-1" />
 
-        <footer className="m-3 rounded-[10px] bg-black/[0.04] p-3">
+        {showUpgradeCard ? (
+          <SidebarUpgradeCard
+            onClose={() => setShowUpgradeCard(false)}
+            onUpgrade={() => navigate("/dashboard/planos")}
+          />
+        ) : null}
+
+        <footer className="mx-3 mb-3 rounded-[10px] bg-black/[0.04] p-3">
           <button
             type="button"
             onClick={() => navigate("/dashboard/configuracoes")}
