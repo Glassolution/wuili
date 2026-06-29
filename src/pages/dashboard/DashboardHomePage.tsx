@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowUp, BarChart3, BookOpen, PackagePlus, Sparkles, Store, WandSparkles } from "lucide-react";
+import { ArrowUp, BarChart3, BookOpen, ChevronDown, PackagePlus, Plus, Sparkles, Store, WandSparkles } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer } from "recharts";
 import AquasIcon from "@/components/dashboard/AquasIcon";
 import { useAuth } from "@/contexts/AuthContext";
@@ -105,6 +105,14 @@ const learnCards: LearnCard[] = [
   },
 ];
 
+const aquasSuggestions = [
+  "Quantos produtos tenho no catálogo?",
+  "Como estão meus pedidos recentes?",
+  "Como posso vender mais essa semana?",
+  "Dicas de precificação",
+  "Status do Mercado Livre",
+];
+
 const ProductStackVisual = ({ products }: { products: CatalogPreviewProduct[] }) => {
   const previews = products
     .flatMap((product) => extractImages(product.images).slice(0, 1).map((image) => ({ image, title: product.title })))
@@ -193,6 +201,7 @@ const DashboardHomePage = () => {
   const { user } = useAuth();
   const { nome } = useProfile();
   const [chatPrompt, setChatPrompt] = useState("");
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   const firstName = useMemo(() => getFirstName(nome, user?.email), [nome, user?.email]);
   const greeting = useMemo(() => getGreeting(), []);
@@ -301,36 +310,78 @@ const DashboardHomePage = () => {
             event.preventDefault();
             openAquas(chatPrompt || "Como posso vender mais hoje?");
           }}
-          className="mt-10 overflow-hidden rounded-[26px] bg-white/75 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(17,24,39,0.03),0_20px_50px_rgba(17,24,39,0.09)] backdrop-blur-2xl"
+          className="mt-10 overflow-hidden rounded-[26px] bg-white/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(17,24,39,0.03),0_20px_50px_rgba(17,24,39,0.09)] backdrop-blur-2xl"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
           custom={0.16}
         >
-          <div className="flex min-h-[96px] items-start px-2 pt-2">
+          <div className="px-5 pb-4 pt-5">
             <textarea
+              ref={chatInputRef}
               value={chatPrompt}
               onChange={(event) => setChatPrompt(event.target.value)}
               rows={2}
               placeholder="Pergunte ao Aquas... Como posso te ajudar hoje?"
-              className="min-h-[62px] flex-1 resize-none bg-transparent pt-1 text-[15px] font-medium leading-6 text-neutral-800 outline-none placeholder:text-[#9CA3AF]"
+              className="min-h-[72px] w-full resize-none bg-transparent text-[15px] font-medium leading-6 text-neutral-800 outline-none placeholder:text-[#9CA3AF]"
             />
           </div>
-          <div className="mt-1 flex items-center justify-between px-2 pb-1">
-            <div className="flex items-center gap-2 text-[12px] font-semibold text-[#6B7280]">
-              <AquasIcon size={22} inverted />
-              <span>Aquas</span>
-              <span className="font-medium text-[#9CA3AF]">seu agente de vendas</span>
-            </div>
+          <div className="flex items-center justify-between gap-3 px-4 pb-4">
             <button
-              type="submit"
-              className="grid h-10 w-10 place-items-center rounded-full bg-[#111111] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_22px_rgba(17,24,39,0.18)] transition-all hover:-translate-y-0.5 hover:bg-[#1E3A8A] active:translate-y-0"
-              aria-label="Enviar pergunta ao Aquas"
+              type="button"
+              className="inline-flex h-10 max-w-full items-center gap-2 rounded-full bg-[#F3F4F6] px-3 text-left text-[12px] font-medium text-[#4B5563] transition-colors hover:bg-[#ECEEF2]"
+              aria-label="Selecionar agente Aquas"
             >
-              <ArrowUp className="h-4 w-4" strokeWidth={2} />
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_1px_3px_rgba(17,24,39,0.08)]">
+                <AquasIcon size={16} inverted />
+              </span>
+              <span className="min-w-0 truncate font-semibold text-[#111827]">Aquas</span>
+              <span className="min-w-0 truncate text-[#6B7280]">seu agente de vendas</span>
+              <ChevronDown className="h-[14px] w-[14px] shrink-0 text-[#6B7280]" strokeWidth={1.9} />
             </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="grid h-10 w-10 place-items-center rounded-full text-[#6B7280] transition-colors hover:bg-black/[0.04] hover:text-[#111111]"
+                aria-label="Adicionar contexto à pergunta"
+              >
+                <Plus className="h-[18px] w-[18px]" strokeWidth={1.9} />
+              </button>
+              <button
+                type="submit"
+                className="grid h-10 w-10 place-items-center rounded-full bg-[#111111] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_22px_rgba(17,24,39,0.18)] transition-all hover:-translate-y-0.5 hover:bg-[#1E3A8A] active:translate-y-0"
+                aria-label="Enviar pergunta ao Aquas"
+              >
+                <ArrowUp className="h-4 w-4" strokeWidth={2} />
+              </button>
+            </div>
           </div>
         </motion.form>
+
+        <motion.div
+          className="mt-6 flex flex-wrap gap-2"
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={0.2}
+        >
+          {aquasSuggestions.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => {
+                setChatPrompt(suggestion);
+                window.requestAnimationFrame(() => {
+                  chatInputRef.current?.focus();
+                  chatInputRef.current?.setSelectionRange(suggestion.length, suggestion.length);
+                });
+              }}
+              className="inline-flex items-center rounded-full bg-[#F0F0F0] px-4 py-2.5 text-[13px] font-medium text-[#4B5563] transition-colors hover:bg-[#E7E7E7] hover:text-[#111111]"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </motion.div>
 
         <motion.section
           className="mt-7"
