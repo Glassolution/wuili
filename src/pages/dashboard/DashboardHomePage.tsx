@@ -110,7 +110,7 @@ const DashboardHomePage = () => {
 
   return (
     <main
-      className="relative min-h-full w-full overflow-visible bg-[#F7F8FA] pb-24 text-[#111111]"
+      className="relative -m-5 min-h-[calc(100%+40px)] overflow-visible bg-[#F7F8FA] px-5 pb-24 pt-5 text-[#111111] sm:-m-6 sm:min-h-[calc(100%+48px)] sm:px-6 sm:pt-6 lg:-m-7 lg:min-h-[calc(100%+56px)] lg:px-7 lg:pt-7"
       style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
     >
       <div
