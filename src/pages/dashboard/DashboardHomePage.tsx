@@ -1,17 +1,24 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowUp, BarChart3, BookOpen, Lightbulb, PackagePlus, ShoppingBag, Sparkles, Store, WandSparkles } from "lucide-react";
+import { ArrowUp, BarChart3, BookOpen, PackagePlus, Sparkles, Store, WandSparkles } from "lucide-react";
+import { Bar, BarChart, ResponsiveContainer } from "recharts";
 import AquasIcon from "@/components/dashboard/AquasIcon";
 import { useAuth } from "@/contexts/AuthContext";
+import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { useProfile } from "@/lib/profileContext";
 
 type QuickStartCard = {
   title: string;
   description: string;
-  Icon: React.ElementType;
+  cta: string;
+  visual: "products" | "marketplace" | "chart" | "aquas";
   onClick: () => void;
 };
+
+type CatalogPreviewProduct = Pick<Database["public"]["Tables"]["catalog_products"]["Row"], "id" | "title" | "images" | "suggested_price">;
 
 type LearnCard = {
   title: string;
@@ -32,6 +39,38 @@ const fadeUp = {
 
 const cardShadow =
   "inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(17,24,39,0.028), 0 14px 34px rgba(17,24,39,0.052), 0 30px 68px rgba(30,58,138,0.038)";
+
+const quickCardShadow =
+  "inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(17,17,17,0.03), 0 14px 34px rgba(17,17,17,0.055)";
+
+const showcaseShadow = "0 4px 12px rgba(0,0,0,0.08)";
+
+const salesPreviewData = [
+  { name: "Seg", value: 34 },
+  { name: "Ter", value: 52 },
+  { name: "Qua", value: 42 },
+  { name: "Qui", value: 68 },
+  { name: "Sex", value: 58 },
+  { name: "Sáb", value: 76 },
+];
+
+const extractImages = (images: Json | null): string[] => {
+  if (!images) return [];
+  if (Array.isArray(images)) {
+    return images.filter((image): image is string => typeof image === "string" && image.length > 0);
+  }
+  if (typeof images === "string") {
+    try {
+      const parsed: unknown = JSON.parse(images);
+      return Array.isArray(parsed)
+        ? parsed.filter((image): image is string => typeof image === "string" && image.length > 0)
+        : [images];
+    } catch {
+      return [images];
+    }
+  }
+  return [];
+};
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -66,6 +105,89 @@ const learnCards: LearnCard[] = [
   },
 ];
 
+const ProductStackVisual = ({ products }: { products: CatalogPreviewProduct[] }) => {
+  const previews = products
+    .flatMap((product) => extractImages(product.images).slice(0, 1).map((image) => ({ image, title: product.title })))
+    .slice(0, 3);
+
+  return (
+    <div className="relative flex h-[132px] items-center justify-center overflow-hidden rounded-[18px] border border-black/[0.04] bg-white/46">
+      <div className="absolute inset-x-7 bottom-5 h-5 rounded-full bg-black/[0.06] blur-xl" aria-hidden="true" />
+      {previews.length > 0 ? (
+        previews.map((product, index) => {
+          const transforms = ["-translate-x-16 rotate-[-7deg]", "translate-x-0 rotate-[2deg]", "translate-x-16 rotate-[7deg]"];
+          const zIndex = index === 1 ? "z-20" : "z-10";
+
+          return (
+            <div
+              key={`${product.image}-${index}`}
+              className={`absolute h-[92px] w-[92px] overflow-hidden rounded-[18px] border border-white bg-[#F8F8F8] ${transforms[index]} ${zIndex}`}
+              style={{ boxShadow: showcaseShadow }}
+            >
+              <img src={product.image} alt={product.title} className="h-full w-full object-cover grayscale-[18%] saturate-0" loading="lazy" />
+            </div>
+          );
+        })
+      ) : (
+        <div className="grid h-[92px] w-[92px] place-items-center rounded-[18px] border border-black/[0.06] bg-white text-[#8B8B8F]" style={{ boxShadow: showcaseShadow }}>
+          <PackagePlus className="h-7 w-7" strokeWidth={1.5} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MarketplaceVisual = ({ product }: { product?: CatalogPreviewProduct }) => {
+  const image = product ? extractImages(product.images)[0] : null;
+
+  return (
+    <div className="relative flex h-[132px] items-center justify-center overflow-hidden rounded-[18px] border border-black/[0.04] bg-white/46">
+      <div className="absolute h-[106px] w-[150px] rotate-[-5deg] rounded-[18px] border border-black/[0.05] bg-white/76" style={{ boxShadow: showcaseShadow }} />
+      <div className="relative z-10 w-[156px] rotate-[3deg] overflow-hidden rounded-[18px] border border-black/[0.06] bg-white" style={{ boxShadow: showcaseShadow }}>
+        <div className="h-[58px] bg-[#F4F4F5]">
+          {image ? <img src={image} alt={product?.title || "Produto"} className="h-full w-full object-cover grayscale-[20%] saturate-0" loading="lazy" /> : null}
+        </div>
+        <div className="space-y-2 p-3">
+          <div className="h-2 w-[84%] rounded-full bg-black/[0.13]" />
+          <div className="h-2 w-[52%] rounded-full bg-black/[0.08]" />
+          <div className="mt-3 h-3 w-[44%] rounded-full bg-black/[0.18]" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SalesChartVisual = () => (
+  <div className="relative h-[132px] overflow-hidden rounded-[18px] border border-black/[0.04] bg-white/46 px-3 py-4">
+    <div className="absolute left-5 top-5 h-2 w-20 rounded-full bg-black/[0.12]" />
+    <div className="absolute left-5 top-10 h-2 w-12 rounded-full bg-black/[0.07]" />
+    <div className="absolute inset-x-5 bottom-4 h-px bg-black/[0.08]" />
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={salesPreviewData} margin={{ top: 30, right: 10, left: 10, bottom: 0 }}>
+        <Bar dataKey="value" radius={[7, 7, 2, 2]} fill="#111111" opacity={0.78} />
+      </BarChart>
+    </ResponsiveContainer>
+  </div>
+);
+
+const AquasVisual = () => (
+  <div className="relative flex h-[132px] items-center justify-center overflow-hidden rounded-[18px] border border-black/[0.04] bg-white/46">
+    <div className="absolute h-24 w-24 rounded-full border border-black/[0.04] bg-white/60 blur-[1px]" />
+    <div className="absolute left-[21%] top-[22%] grid h-8 w-8 -rotate-6 place-items-center rounded-full border border-black/[0.06] bg-white" style={{ boxShadow: showcaseShadow }}>
+      <Sparkles className="h-4 w-4 text-[#111111]" strokeWidth={1.5} />
+    </div>
+    <div className="absolute bottom-[20%] right-[19%] h-8 w-12 rotate-[7deg] rounded-[16px] border border-black/[0.06] bg-white" style={{ boxShadow: showcaseShadow }} />
+    <AquasIcon size={72} inverted className="relative z-10 rotate-[2deg]" />
+  </div>
+);
+
+const QuickCardVisual = ({ card, products }: { card: QuickStartCard; products: CatalogPreviewProduct[] }) => {
+  if (card.visual === "products") return <ProductStackVisual products={products} />;
+  if (card.visual === "marketplace") return <MarketplaceVisual product={products[0]} />;
+  if (card.visual === "chart") return <SalesChartVisual />;
+  return <AquasVisual />;
+};
+
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -74,6 +196,24 @@ const DashboardHomePage = () => {
 
   const firstName = useMemo(() => getFirstName(nome, user?.email), [nome, user?.email]);
   const greeting = useMemo(() => getGreeting(), []);
+  const { data: previewProducts = [] } = useQuery({
+    queryKey: ["dashboard-quick-actions-products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("catalog_products")
+        .select("id, title, images, suggested_price")
+        .in("source", ["c7drop", "cj", "b2drop"])
+        .eq("is_blocked", false)
+        .gt("stock_quantity", 0)
+        .order("orders_count", { ascending: false, nullsFirst: false })
+        .limit(4);
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: isSupabaseEnabled,
+    staleTime: 1000 * 60 * 10,
+  });
 
   const openAquas = (prompt?: string) => {
     const cleanPrompt = prompt?.trim();
@@ -85,25 +225,29 @@ const DashboardHomePage = () => {
     {
       title: "Importar produtos",
       description: "Escolha itens do fornecedor C7Drop.",
-      Icon: PackagePlus,
+      cta: "Importar agora",
+      visual: "products",
       onClick: () => navigate("/dashboard/catalogo"),
     },
     {
       title: "Gerenciar Mercado Livre",
       description: "Acompanhe integrações e publicações.",
-      Icon: ShoppingBag,
+      cta: "Ver publicações",
+      visual: "marketplace",
       onClick: () => navigate("/dashboard/produtos-ml"),
     },
     {
       title: "Ver análise de vendas",
       description: "Indicadores de margem e performance.",
-      Icon: BarChart3,
+      cta: "Ver relatório completo",
+      visual: "chart",
       onClick: () => navigate("/dashboard/catalogo?tab=metricas"),
     },
     {
       title: "Perguntar ao Aquas",
       description: "O que devo importar hoje?",
-      Icon: Lightbulb,
+      cta: "Conversar com Aquas",
+      visual: "aquas",
       onClick: () => openAquas("O que devo importar hoje?"),
     },
   ];
@@ -196,31 +340,35 @@ const DashboardHomePage = () => {
           custom={0.24}
         >
           <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.18em] text-[#9CA3AF]">Ações rápidas</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {quickStartCards.map((card, index) => {
-              const Icon = card.Icon;
-              return (
-                <motion.button
-                  key={card.title}
-                  type="button"
-                  onClick={card.onClick}
-                  className="group flex min-h-[92px] items-center gap-4 rounded-[22px] bg-white/72 p-4 text-left backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white"
-                  style={{ boxShadow: cardShadow }}
-                  variants={fadeUp}
-                  initial="hidden"
-                  animate="visible"
-                  custom={0.3 + index * 0.05}
-                >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center self-center rounded-2xl bg-[#F8FAFC] text-[#1E3A8A] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_8px_18px_rgba(17,24,39,0.05)]">
-                    <Icon className="h-5 w-5" strokeWidth={1.85} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {quickStartCards.map((card, index) => (
+              <motion.button
+                key={card.title}
+                type="button"
+                onClick={card.onClick}
+                className="group flex min-h-[284px] flex-col rounded-[22px] border border-white/70 bg-white/72 p-5 text-left backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-white"
+                style={{ boxShadow: quickCardShadow }}
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+                custom={0.3 + index * 0.05}
+              >
+                <span className="block">
+                  <span className="block text-[18px] font-bold leading-tight tracking-[-0.03em] text-neutral-950">{card.title}</span>
+                  <span className="mt-2 block text-[14px] font-medium leading-5 text-[#737373]">{card.description}</span>
+                </span>
+
+                <span className="mt-5 block w-full">
+                  <QuickCardVisual card={card} products={previewProducts} />
+                </span>
+
+                <span className="mt-auto pt-5">
+                  <span className="inline-flex h-9 items-center rounded-full border border-black/[0.08] bg-white px-4 text-[13px] font-semibold text-[#111111] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_4px_12px_rgba(0,0,0,0.06)] transition-transform group-hover:translate-x-0.5">
+                    {card.cta}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-semibold leading-tight text-neutral-950">{card.title}</span>
-                    <span className="mt-1 block truncate text-[12.5px] font-medium text-[#8A94A6]">{card.description}</span>
-                  </span>
-                </motion.button>
-              );
-            })}
+                </span>
+              </motion.button>
+            ))}
           </div>
         </motion.section>
 
