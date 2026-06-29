@@ -317,7 +317,9 @@ const DashboardSidebar = () => {
         <div className="mx-4 h-px bg-black/[0.08]" />
 
         <nav className="flex flex-col gap-1 px-4 py-5" aria-label="Utilitários">
-          <SidebarSearchButton onClick={openSearch} />
+          <div className="mb-2">
+            <SidebarSearchButton onClick={openSearch} />
+          </div>
           {utilityNav.map((item) => (
             <SidebarNavItem key={item.label} item={item} active={isActive(item)} />
           ))}
