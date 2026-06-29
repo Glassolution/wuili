@@ -301,36 +301,38 @@ const DashboardHomePage = () => {
             event.preventDefault();
             openAquas(chatPrompt || "Como posso vender mais hoje?");
           }}
-          className="mt-10 rounded-[22px] bg-white/88 px-5 pb-4 pt-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_1px_2px_rgba(17,24,39,0.025),0_18px_44px_rgba(17,24,39,0.085)] backdrop-blur-2xl"
+          className="mx-auto mt-10 w-full max-w-[500px] rounded-[16px] border border-white/80 bg-white/86 px-[14px] py-[10px] shadow-[0_1px_1px_rgba(17,24,39,0.025),0_16px_42px_rgba(17,24,39,0.085)] backdrop-blur-2xl"
+          style={{ fontFamily: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
           variants={fadeUp}
           initial="hidden"
           animate="visible"
           custom={0.16}
         >
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 shrink-0 text-[#7A7F87]" strokeWidth={1.5} />
+          <div className="flex h-[18px] items-center gap-2">
+            <Search className="h-[15px] w-[15px] shrink-0 text-[#6F7680]" strokeWidth={1.5} />
             <input
               value={chatPrompt}
               onChange={(event) => setChatPrompt(event.target.value)}
               placeholder="Pergunte ao Aquas..."
-              className="h-6 min-w-0 flex-1 bg-transparent text-[15px] font-medium leading-6 text-neutral-800 outline-none placeholder:text-[#6F747C]"
+              aria-label="Pergunte ao Aquas"
+              className="h-[18px] min-w-0 flex-1 bg-transparent text-[14px] font-medium leading-[18px] text-[#111111] outline-none placeholder:text-[#2D333B]"
             />
           </div>
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="mt-[10px] flex h-[30px] items-center justify-between gap-3">
             <button
               type="button"
-              className="inline-flex min-w-0 items-center gap-2 text-[13px] font-medium text-[#B8BDC5] transition-colors hover:text-[#7B818A]"
+              className="inline-flex min-w-0 items-center gap-[7px] text-[13px] font-normal text-[#C4C8CE] transition-colors hover:text-[#8D939B]"
               aria-label="Adicionar contexto"
             >
-              <Plus className="h-[14px] w-[14px] shrink-0" strokeWidth={1.5} />
+              <Plus className="h-[14px] w-[14px] shrink-0" strokeWidth={1.45} />
               <span className="truncate">Adicionar contexto</span>
             </button>
             <button
               type="submit"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#111111] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_22px_rgba(17,24,39,0.18)] transition-all hover:-translate-y-0.5 hover:bg-[#1E3A8A] active:translate-y-0"
+              className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-[#050505] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(17,24,39,0.16)] transition-transform hover:-translate-y-px active:translate-y-0"
               aria-label="Enviar pergunta ao Aquas"
             >
-              <ArrowUp className="h-4 w-4" strokeWidth={2} />
+              <ArrowUp className="h-[13px] w-[13px]" strokeWidth={2.1} />
             </button>
           </div>
         </motion.form>
