@@ -56,9 +56,10 @@ const DashboardHomePage = () => {
         aria-hidden="true"
       />
 
-      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-24px)] w-full max-w-[820px] flex-col px-4 pb-5 pt-[7vh] sm:px-6 lg:pt-[9vh]">
+      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-24px)] w-full flex-col items-center px-4 pb-5 pt-[8vh] sm:px-6 lg:pt-[10vh]">
+        {/* 1. Badge centralizado — posição Dia */}
         <motion.div
-          className="flex justify-center"
+          className="flex w-full justify-center"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
@@ -74,8 +75,9 @@ const DashboardHomePage = () => {
           </button>
         </motion.div>
 
+        {/* 2. Headline — respiro generoso abaixo do badge (referência Dia) */}
         <motion.header
-          className="mt-12 text-center"
+          className="mt-[52px] w-full text-center sm:mt-[68px]"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
@@ -86,43 +88,51 @@ const DashboardHomePage = () => {
           </h1>
         </motion.header>
 
+        {/* 3. Card do input — ~40vw, faixa horizontal larga, reconstruído do zero */}
         <motion.form
           onSubmit={(event) => {
             event.preventDefault();
             openAquas(chatPrompt || "Como posso vender mais hoje?");
           }}
-          className="mx-auto mt-[clamp(58px,10vh,112px)] w-full max-w-[462px] rounded-[15px] border border-white/80 bg-white/86 px-[13px] py-[9px] shadow-[0_1px_1px_rgba(17,24,39,0.025),0_16px_42px_rgba(17,24,39,0.085)] backdrop-blur-2xl"
+          className="mt-[clamp(112px,18vh,200px)] w-[40vw] min-w-[min(100%,400px)] max-w-[640px] rounded-[28px] border border-black/[0.05] bg-white px-6 py-5 shadow-[0_2px_6px_rgba(17,24,39,0.04),0_28px_72px_rgba(17,24,39,0.09)] sm:px-7 sm:py-[22px]"
           style={{ fontFamily: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
           variants={fadeUp}
           initial="hidden"
           animate="visible"
           custom={0.16}
         >
-          <div className="flex h-[17px] items-center gap-2">
-            <Search className="h-[14px] w-[14px] shrink-0 text-[#6F7680]" strokeWidth={1.5} />
+          {/* Linha 1: lupa + placeholder */}
+          <div className="flex items-center gap-3">
+            <Search
+              className="h-[16px] w-[16px] shrink-0 text-[#6F7680]"
+              strokeWidth={1.55}
+              aria-hidden="true"
+            />
             <input
               value={chatPrompt}
               onChange={(event) => setChatPrompt(event.target.value)}
               placeholder="Pergunte ao Aquas..."
               aria-label="Pergunte ao Aquas"
-              className="h-[17px] min-w-0 flex-1 bg-transparent text-[13.5px] font-medium leading-[17px] text-[#111111] outline-none placeholder:text-[#2D333B]"
+              className="min-w-0 flex-1 bg-transparent text-[15px] font-medium leading-[22px] text-[#111111] outline-none placeholder:text-[#2D333B]"
             />
           </div>
-          <div className="mt-[9px] flex h-[28px] items-center justify-between gap-3">
+
+          {/* Linha 2: contexto à esquerda, enviar à direita */}
+          <div className="mt-5 flex items-center justify-between gap-4">
             <button
               type="button"
-              className="inline-flex min-w-0 items-center gap-[7px] text-[12.5px] font-normal text-[#C4C8CE] transition-colors hover:text-[#8D939B]"
+              className="inline-flex min-w-0 items-center gap-2 text-[13px] font-normal text-[#C4C8CE] transition-colors hover:text-[#8D939B]"
               aria-label="Adicionar contexto"
             >
-              <Plus className="h-[13px] w-[13px] shrink-0" strokeWidth={1.45} />
+              <Plus className="h-[14px] w-[14px] shrink-0" strokeWidth={1.5} />
               <span className="truncate">Adicionar contexto</span>
             </button>
             <button
               type="submit"
-              className="grid h-[28px] w-[28px] shrink-0 place-items-center rounded-full bg-[#050505] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(17,24,39,0.16)] transition-transform hover:-translate-y-px active:translate-y-0"
+              className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full bg-[#050505] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_22px_rgba(17,24,39,0.18)] transition-transform hover:-translate-y-px active:translate-y-0"
               aria-label="Enviar pergunta ao Aquas"
             >
-              <ArrowUp className="h-3 w-3" strokeWidth={2.1} />
+              <ArrowUp className="h-[14px] w-[14px]" strokeWidth={2.2} />
             </button>
           </div>
         </motion.form>
