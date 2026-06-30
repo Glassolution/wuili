@@ -113,31 +113,31 @@ const ProductTile = ({
 );
 
 const HeroCollage = ({ products }: { products: ProductPreview[] }) => (
-  <div className="relative h-[238px] w-[318px]">
+  <div className="relative h-[220px] w-[280px]">
     <ProductTile
       product={products[3]}
-      className="absolute left-[16px] top-[66px] h-[122px] w-[72px] -rotate-[12deg] rounded-[16px]"
+      className="absolute left-[0px] top-[42px] h-[160px] w-[130px] -rotate-[8deg] rounded-[18px]"
     />
     <ProductTile
       product={products[1]}
-      className="absolute left-[72px] top-[34px] h-[168px] w-[108px] rotate-[3deg] rounded-[18px]"
+      className="absolute left-[38px] top-[28px] z-10 h-[160px] w-[130px] -rotate-[4deg] rounded-[18px]"
     />
     <ProductTile
       product={products[0]}
-      className="absolute left-[122px] top-[16px] z-20 h-[188px] w-[128px] -rotate-[1deg] rounded-[20px] shadow-[0_24px_54px_rgba(17,17,17,0.16)]"
+      className="absolute left-[75px] top-[18px] z-30 h-[160px] w-[130px] rotate-[1deg] rounded-[18px] shadow-[0_24px_54px_rgba(17,17,17,0.16)]"
     />
     <ProductTile
       product={products[2]}
-      className="absolute right-[22px] top-[48px] h-[142px] w-[94px] rotate-[10deg] rounded-[17px]"
+      className="absolute left-[112px] top-[30px] z-20 h-[160px] w-[130px] rotate-[4deg] rounded-[18px]"
     />
     <ProductTile
       product={products[4]}
-      className="absolute bottom-[4px] left-[105px] z-30 h-[74px] w-[96px] -rotate-[5deg] rounded-[15px] shadow-[0_20px_42px_rgba(17,17,17,0.13)]"
+      className="absolute left-[150px] top-[44px] h-[160px] w-[130px] rotate-[8deg] rounded-[18px] shadow-[0_20px_42px_rgba(17,17,17,0.13)]"
     />
-    <span className="absolute left-[42px] top-[28px] h-5 w-[2px] -rotate-[24deg] rounded-full bg-[#111]" />
-    <span className="absolute left-[58px] top-[22px] h-3.5 w-[2px] -rotate-[5deg] rounded-full bg-[#111]" />
-    <span className="absolute right-[12px] bottom-[46px] h-5 w-[2px] rotate-[44deg] rounded-full bg-[#111]" />
-    <span className="absolute right-[34px] bottom-[34px] h-3.5 w-[2px] rotate-[68deg] rounded-full bg-[#111]" />
+    <span className="absolute left-[28px] top-[20px] h-5 w-[2px] -rotate-[24deg] rounded-full bg-[#111]" />
+    <span className="absolute left-[44px] top-[14px] h-3.5 w-[2px] -rotate-[5deg] rounded-full bg-[#111]" />
+    <span className="absolute right-[2px] bottom-[46px] h-5 w-[2px] rotate-[44deg] rounded-full bg-[#111]" />
+    <span className="absolute right-[24px] bottom-[34px] h-3.5 w-[2px] rotate-[68deg] rounded-full bg-[#111]" />
   </div>
 );
 
