@@ -180,9 +180,7 @@ serve(async (req) => {
         if (pub) {
           cjVariantId = pub.cj_variant_id ?? null;
           cjProductId = pub.cj_product_id ?? null;
-          cjProductUrl = pub.cj_product_url ?? (
-            cjProductId ? `https://www.cjdropshipping.com/product-detail.html?id=${cjProductId}` : null
-          );
+          cjProductUrl = pub.cj_product_url ?? null;
           costPrice = pub.cost_price ?? null;
         }
       }

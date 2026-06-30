@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const operationLogos = [
   { name: "Mercado Livre", label: "Mercado Livre", src: "/brand/mercado-livre.svg" },
-  { name: "CJ Dropshipping", label: "CJ Dropshipping" },
+  { name: "C7Drop", label: "C7Drop" },
   { name: "Mercado Pago", label: "Mercado Pago" },
   { name: "Correios", label: "Correios" },
   { name: "Shopee", label: "Shopee", src: "/brand/shopee.svg" },
@@ -222,7 +222,7 @@ function ProcessVisual({ type }: { type: string }) {
         </div>
 
         <div className="absolute bottom-7 left-1/2 flex -translate-x-1/2 gap-2">
-          {["ML", "CJ", "MP"].map((item) => (
+          {["ML", "C7", "MP"].map((item) => (
             <span key={item} className="rounded-full border border-white/[0.08] bg-white/[0.045] px-3.5 py-1.5 text-[11px] font-medium text-white/46">
               {item}
             </span>

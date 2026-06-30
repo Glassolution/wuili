@@ -55,7 +55,7 @@ export function useSupplierThreads() {
 
         if (ordErr) {
           console.warn("orders.supplier missing, using fallback", ordErr);
-          supplierNames = ["CJ Dropshipping"];
+          supplierNames = ["C7Drop"];
         } else {
           supplierNames = Array.from(
             new Set((orders ?? []).map((o: any) => o.supplier as string).filter(Boolean))
@@ -63,7 +63,7 @@ export function useSupplierThreads() {
         }
       } catch (err) {
         console.warn("Error querying suppliers, using fallback", err);
-        supplierNames = ["CJ Dropshipping"];
+        supplierNames = ["C7Drop"];
       }
 
       if (supplierNames.length === 0) return [];

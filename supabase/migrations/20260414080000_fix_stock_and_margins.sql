@@ -1,13 +1,11 @@
--- Fix 1: Atualiza stock_quantity de 0 para 999 em todos os produtos ativos da CJ
--- A CJ é uma plataforma de dropshipping — se o produto está listado, está disponível
+-- Fix 1: Atualiza stock_quantity de 0 para 999 em todos os produtos ativos C7Drop
 UPDATE public.catalog_products
 SET stock_quantity = 999
-WHERE source = 'cj'
+WHERE source = 'c7drop'
   AND is_active = true
   AND (stock_quantity IS NULL OR stock_quantity = 0);
 
 -- Fix 2: Recalcula suggested_price usando multiplier por faixa de custo
--- (igual à lógica do cj-sync-products atual)
 UPDATE public.catalog_products
 SET suggested_price = ROUND(
   cost_price * CASE
@@ -19,7 +17,7 @@ SET suggested_price = ROUND(
   END,
   2
 )
-WHERE source = 'cj'
+WHERE source = 'c7drop'
   AND is_active = true;
 
 -- Fix 3: Recalcula margin_percent com base no novo suggested_price
@@ -29,5 +27,5 @@ SET margin_percent = CASE
   THEN ROUND(((suggested_price - cost_price) / suggested_price) * 100, 2)
   ELSE 0
 END
-WHERE source = 'cj'
+WHERE source = 'c7drop'
   AND is_active = true;

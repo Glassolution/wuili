@@ -8,7 +8,6 @@ const DEFAULT_LIMIT = 30;
 const MAX_LIMIT = 100;
 const MIN_PUBLISHABLE_SCORE = 40;
 const ML_SEARCH_URL = "https://api.mercadolibre.com/sites/MLB/search";
-const CJ_PRODUCT_QUERY_URL = "https://developers.cjdropshipping.com/api2.0/v1/product/query";
 const DEFAULT_SUPABASE_URL = "https://nqzpoioxvbqavrtphtoa.supabase.co";
 const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xenBvaW94dmJxYXZydHBodG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNDMyNDgsImV4cCI6MjA5MDgxOTI0OH0.G1VlS8doiHQtooC2tyiiHbWl4h9kqoMSuirShDhhjzk";
 
@@ -70,7 +69,7 @@ function normalizeText(value) {
 function pickSearchTitle(product) {
   const title = String(product?.title ?? product?.productNameEn ?? product?.productName ?? "").trim();
   return title
-    .replace(/\b(cj|dropshipping|novo|original|produto)\b/gi, "")
+    .replace(/\b(dropshipping|novo|original|produto)\b/gi, "")
     .replace(/\s+/g, " ")
     .slice(0, 90)
     .trim();
@@ -322,7 +321,7 @@ async function fetchCatalogProducts(filters = {}) {
         "orders_count",
       ].join(","),
     )
-    .eq("source", "cj")
+    .eq("source", "c7drop")
     .eq("is_active", true)
     .gt("stock_quantity", 0)
     .order("orders_count", { ascending: false })
@@ -380,23 +379,6 @@ async function fetchMlReference(product) {
   };
 }
 
-async function fetchCjProductDetail(product) {
-  const accessToken = process.env.CJ_ACCESS_TOKEN;
-  const pid = product?.external_id ?? product?.pid;
-  if (!accessToken || !pid) return null;
-
-  const url = new URL(CJ_PRODUCT_QUERY_URL);
-  url.searchParams.set("pid", String(pid));
-
-  const data = await fetchJsonWithRetry(
-    url,
-    { headers: { "CJ-Access-Token": accessToken } },
-    { label: "cj-product-query" },
-  );
-
-  return data?.data ?? null;
-}
-
 function extractCostPrice(product) {
   const directCost = toNumber(product?.cost_price, 0);
   if (directCost > 0) return directCost;
@@ -411,32 +393,32 @@ function extractCostPrice(product) {
 }
 
 function scoreMargin(product, mlReference) {
-  const cjPrice = extractCostPrice(product);
+  const supplierCost = extractCostPrice(product);
   const mlAveragePrice = toNumber(mlReference?.averagePrice, 0);
   const fallbackSuggested = toNumber(product?.suggested_price, 0);
   const referencePrice = mlAveragePrice > 0 ? mlAveragePrice : fallbackSuggested;
 
-  if (cjPrice <= 0 || referencePrice <= 0) {
+  if (supplierCost <= 0 || referencePrice <= 0) {
     return {
       score: 35,
-      cjPrice,
+      supplierCost,
       mlAveragePrice: mlAveragePrice || null,
       estimatedMarginPercent: null,
       reason: "dados insuficientes para margem real",
     };
   }
 
-  const estimatedMarginPercent = ((referencePrice - cjPrice) / referencePrice) * 100;
+  const estimatedMarginPercent = ((referencePrice - supplierCost) / referencePrice) * 100;
   return {
     score: Math.round(clamp(estimatedMarginPercent * 2.2)),
-    cjPrice: Number(cjPrice.toFixed(2)),
+    supplierCost: Number(supplierCost.toFixed(2)),
     mlAveragePrice: Number(referencePrice.toFixed(2)),
     estimatedMarginPercent: Number(estimatedMarginPercent.toFixed(2)),
   };
 }
 
-function extractShippingSignals(product, cjDetail) {
-  const haystack = normalizeText(JSON.stringify([product, cjDetail]));
+function extractShippingSignals(product) {
+  const haystack = normalizeText(JSON.stringify(product));
   const hasBrazilWarehouse =
     haystack.includes("warehouse br") ||
     haystack.includes("br warehouse") ||
@@ -450,11 +432,6 @@ function extractShippingSignals(product, cjDetail) {
     product?.delivery_days,
     product?.deliveryDays,
     product?.estimatedShippingDays,
-    cjDetail?.shipping_days,
-    cjDetail?.shippingDays,
-    cjDetail?.deliveryDays,
-    cjDetail?.estimatedDeliveryDays,
-    cjDetail?.logistics?.deliveryDays,
   ]
     .map((value) => toNumber(value, 0))
     .filter((value) => value > 0);
@@ -472,8 +449,8 @@ function extractShippingSignals(product, cjDetail) {
   return { hasBrazilWarehouse, estimatedDays };
 }
 
-function scoreShipping(product, cjDetail) {
-  const { hasBrazilWarehouse, estimatedDays } = extractShippingSignals(product, cjDetail);
+function scoreShipping(product) {
+  const { hasBrazilWarehouse, estimatedDays } = extractShippingSignals(product);
   let score;
 
   if (hasBrazilWarehouse) score = 100;
@@ -490,11 +467,11 @@ function scoreShipping(product, cjDetail) {
   };
 }
 
-function scoreSupplier(product, cjDetail) {
-  const rating = toNumber(product?.rating ?? cjDetail?.productEvaluation ?? cjDetail?.supplierRating, 0);
-  const ordersCount = toNumber(product?.orders_count ?? cjDetail?.listingCount ?? cjDetail?.salesCount, 0);
-  const disputeRate = toNumber(product?.dispute_rate ?? cjDetail?.disputeRate ?? cjDetail?.dispute_rate, NaN);
-  const disputeCount = toNumber(product?.dispute_count ?? cjDetail?.disputeCount ?? cjDetail?.dispute_count, NaN);
+function scoreSupplier(product) {
+  const rating = toNumber(product?.rating, 0);
+  const ordersCount = toNumber(product?.orders_count, 0);
+  const disputeRate = toNumber(product?.dispute_rate, NaN);
+  const disputeCount = toNumber(product?.dispute_count, NaN);
 
   const ratingScore = rating > 0 ? clamp((rating / 5) * 100) : 65;
   const ordersScore = ordersCount > 0 ? clamp(Math.log10(ordersCount + 1) * 25) : 45;
@@ -587,24 +564,16 @@ export async function scoreProduct(product) {
   }
 
   let mlReference = null;
-  let cjDetail = null;
-
   try {
     mlReference = await fetchMlReference(product);
   } catch (error) {
     console.error(`[product-curation] ML indisponível para ${stableProductId(product)}:`, error.message);
   }
 
-  try {
-    cjDetail = await fetchCjProductDetail(product);
-  } catch (error) {
-    console.error(`[product-curation] CJ detail indisponível para ${stableProductId(product)}:`, error.message);
-  }
-
   const criteria = {
     margin: scoreMargin(product, mlReference),
-    shipping: scoreShipping(product, cjDetail),
-    supplier: scoreSupplier(product, cjDetail),
+    shipping: scoreShipping(product),
+    supplier: scoreSupplier(product),
     demand: scoreDemand(mlReference),
     competition: scoreCompetition(mlReference),
   };
@@ -667,7 +636,7 @@ function applyResultFilters(product, score, filters) {
   if (score.score < minScore) return false;
   if (minMargin != null && toNumber(score.criteria?.margin?.estimatedMarginPercent, -Infinity) < minMargin) return false;
   if (maxShippingDays != null && toNumber(score.criteria?.shipping?.estimatedDays, Infinity) > maxShippingDays) return false;
-  if (product?.source && product.source !== "cj") return false;
+  if (product?.source && product.source !== "c7drop") return false;
   return true;
 }
 
@@ -712,7 +681,7 @@ export async function getCuratedProducts(filters = {}) {
   if (filters.userId) {
     await logAiActivity(
       filters.userId,
-      `${curated.length} produtos selecionados pela IA no CJ Dropshipping`,
+      `${curated.length} produtos C7Drop selecionados pela IA`,
       {
         source: "product_curation",
         analyzed: scoredProducts.length,

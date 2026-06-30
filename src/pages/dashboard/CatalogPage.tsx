@@ -53,7 +53,7 @@ const PAYMENT_STATUS_FILTERS = [
 ];
 
 const PLATFORM_CONFIG: Record<string, { label: string; bg: string; color: string; icon: string }> = {
-  cj: { label: "CJ Dropshipping", bg: "#fff4e8", color: "#d86500", icon: "CJ" },
+  c7drop: { label: "C7Drop", bg: "#f0fdf4", color: "#15803d", icon: "C7" },
   aliexpress: { label: "AliExpress", bg: "#fff0f0", color: "#d82f2f", icon: "AE" },
   amazon: { label: "Amazon", bg: "#fff8de", color: "#a76f00", icon: "AZ" },
   shopee: { label: "Shopee", bg: "#fff1e8", color: "#d84b23", icon: "SP" },
@@ -74,7 +74,7 @@ type CatalogResponse = {
 };
 
 function getPlatform(source: string | null | undefined) {
-  if (!source) return PLATFORM_CONFIG.cj;
+  if (!source) return PLATFORM_CONFIG.c7drop;
   return PLATFORM_CONFIG[source.toLowerCase()] ?? {
     label: source,
     bg: "#f4f4f5",
@@ -245,10 +245,10 @@ const CatalogPage = () => {
     },
   });
 
-  // Sincronização CJ desativada — catálogo agora vem dos scrapers BR (C7Drop e futuros).
+  // Sincronização manual desativada — catálogo agora vem do cron C7Drop.
   const syncMutation = useMutation({
     mutationFn: async () => {
-      throw new Error("Sincronização CJ desativada. O catálogo agora é alimentado pelos scrapers brasileiros.");
+      throw new Error("Sincronização manual desativada. O catálogo agora é alimentado pelo cron C7Drop.");
     },
     onError: (err: Error) => veloToast.error(err.message),
   });

@@ -2,7 +2,7 @@
 -- Catalog products table
 CREATE TABLE public.catalog_products (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  source TEXT NOT NULL DEFAULT 'cj',
+  source TEXT NOT NULL DEFAULT 'c7drop',
   external_id TEXT NOT NULL,
   title TEXT NOT NULL,
   description TEXT,
@@ -29,7 +29,7 @@ CREATE POLICY "Authenticated users can read catalog"
   TO authenticated
   USING (true);
 
--- CJ token cache table (internal use by edge functions)
+-- Legacy token cache table kept only for backward-compatible migrations. Do not use.
 CREATE TABLE public.cj_token_cache (
   id INTEGER PRIMARY KEY DEFAULT 1,
   access_token TEXT NOT NULL,

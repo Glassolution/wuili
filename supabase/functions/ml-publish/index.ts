@@ -316,7 +316,7 @@ Deno.serve(async (req) => {
 
     // === PICTURES ===
     // ML exige foto de capa com FUNDO BRANCO digitalizado em várias categorias
-    // (beleza, saúde, moda etc). As imagens do catálogo CJ/Velo nem sempre vêm
+    // (beleza, saúde, moda etc). As imagens do catálogo Velo nem sempre vêm
     // assim — então normalizamos via proxy gratuito images.weserv.nl, que
     // redimensiona para 1200x1200 com `fit=contain` e preenche o canvas com
     // branco puro. Isso evita o status "Inativo para revisar" em massa.
@@ -405,8 +405,7 @@ Deno.serve(async (req) => {
     }
 
     // === SAVE PUBLICATION ===
-    // cj_product_id and cj_variant_id come from the ImportProductModal payload
-    // so the ml-orders-webhook can map ML item → CJ variant without an extra lookup
+    // Campos legados mantidos somente por compatibilidade com o schema atual.
     try {
       await supabase.from('user_publications').insert({
         user_id,
@@ -418,7 +417,6 @@ Deno.serve(async (req) => {
         status:         'active',
         permalink:      itemData.permalink,
         published_at:   new Date().toISOString(),
-        // CJ product/variant IDs passed from frontend when importing the product
         cj_product_id:  product.cj_product_id  ?? null,
         cj_product_url: product.cj_product_url ?? null,
         cj_variant_id:  product.cj_variant_id  ?? null,

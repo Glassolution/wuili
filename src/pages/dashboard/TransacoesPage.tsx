@@ -95,7 +95,7 @@ const TransacoesPage = () => {
       pedido: row.external_order_id ?? `VL-${String(idx + 1).padStart(5, "0")}`,
       produto: row.product_title ?? "Produto",
       category,
-      method: "CJ Dropshipping",
+      method: "C7Drop",
       canal: row.platform ?? "Mercado Livre",
       amount: isPositive ? salePrice : costPrice,
       isPositive,
@@ -128,7 +128,7 @@ const TransacoesPage = () => {
 
       {/* ── Summary Strip ────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "32px", backgroundColor: "#FFFFFF", border: "1px solid rgba(0,0,0,0.04)", borderRadius: "28px", padding: "24px 32px", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-        {/* Saldo CJ */}
+        {/* Saldo operacional */}
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div style={{ width: "44px", height: "44px", borderRadius: "50%", backgroundColor: "#FAFAFA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Menu size={20} strokeWidth={1.8} style={{ color: "#111111" }} />
@@ -274,7 +274,7 @@ const TransacoesPage = () => {
                     <td style={{ padding: "18px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <div style={{ width: "24px", height: "24px", borderRadius: "50%", backgroundColor: "#111111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 600, color: "#FFFFFF", flexShrink: 0 }}>
-                          CJ
+                          C7
                         </div>
                         <span style={{ fontSize: "14px", fontWeight: 400, letterSpacing: "-0.01em", color: "#111111" }}>
                           {transaction.method}

@@ -178,32 +178,6 @@ Deno.serve(async (req) => {
       await adminClient.from("profiles").update({ plano: "gratis" }).eq("user_id", userId);
     }
 
-    // Trigger CJ fulfillment for paid/approved marketplace orders.
-    if ((payment.status === "approved" || payment.status === "paid") && maybeOrderId) {
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const internalSecret = Deno.env.get("INTERNAL_SECRET")!;
-        const fulfillResponse = await fetch(`${supabaseUrl}/functions/v1/cj-fulfill`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceRoleKey}`,
-            apikey: serviceRoleKey,
-            "x-internal-secret": internalSecret,
-          },
-          body: JSON.stringify({ order_id: maybeOrderId }),
-        });
-
-        const fulfillJson = await fulfillResponse.json().catch(() => ({}));
-        if (!fulfillResponse.ok || fulfillJson?.success === false) {
-          console.error("CJ fulfillment trigger failed:", JSON.stringify(fulfillJson));
-        }
-      } catch (fulfillError) {
-        console.error("CJ fulfillment trigger error:", fulfillError);
-      }
-    }
-
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -191,7 +191,7 @@ async function getPopularCategories() {
     const { data, error } = await supabase
       .from("catalog_products")
       .select("category, orders_count")
-      .eq("source", "cj")
+      .eq("source", "c7drop")
       .eq("is_active", true)
       .not("category", "is", null)
       .order("orders_count", { ascending: false })

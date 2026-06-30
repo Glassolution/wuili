@@ -659,7 +659,7 @@ const SidebarAtlasSuggestions = () => {
   const navigate = useNavigate();
   const recommendations = [
     { name: "Fone Bluetooth Pro", badge: "Margem 65%", time: "Recém adicionado" },
-    { name: "Mini Projetor HD", badge: "Alta Demanda", time: "Em alta na CJ" },
+    { name: "Mini Projetor HD", badge: "Alta Demanda", time: "Em alta na C7Drop" },
     { name: "Suporte MagSafe", badge: "Viral TikTok", time: "Mais importado" },
   ];
   
@@ -926,6 +926,7 @@ const CatalogoPage = () => {
         supabase
           .from("catalog_products" as never)
           .select("category, orders_count, margin_percent")
+          .eq("source", "c7drop")
           .limit(150),
       ]);
 
@@ -1055,7 +1056,7 @@ const CatalogoPage = () => {
         let query = supabase
           .from("catalog_products")
           .select("*", { count: "exact" })
-          .in("source", ["cj", "b2drop", "c7drop"])
+          .eq("source", "c7drop")
           .eq("is_blocked", false)
           .gt("stock_quantity", 0)
           .order("created_at", { ascending: false })
@@ -1097,7 +1098,7 @@ const CatalogoPage = () => {
         const { data, error: fetchError } = await supabase
           .from("catalog_products")
           .select("*")
-          .in("source", ["cj", "b2drop", "c7drop"])
+          .eq("source", "c7drop")
           .eq("is_blocked", false)
           .gt("stock_quantity", 0)
           .limit(10);

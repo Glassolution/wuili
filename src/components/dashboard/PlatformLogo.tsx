@@ -5,7 +5,7 @@ const platformData: Record<string, { url: string }> = {
   Shopee:     { url: "/brand/shopee.png" },
   eBay:       { url: "https://cdn.simpleicons.org/ebay/E53238" },
   Shopify:    { url: "/brand/shopify-ia.png" },
-  "CJ Dropshipping": { url: "/brand/cj.png" },
+  C7Drop: { url: "/velo-logo.svg" },
   Lazada:     { url: "https://cdn.simpleicons.org/lazada/0F146D" },
   WooCommerce:{ url: "https://cdn.simpleicons.org/woocommerce/96588A" },
   Etsy:       { url: "https://cdn.simpleicons.org/etsy/F16521" },

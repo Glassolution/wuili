@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, TrendingUp, Clock, Package, DollarSign } from "lucide-react";
+import { TrendingUp, Clock, Package, DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type PaymentStatus = "paid_cj" | "pending";
-type CJStatus = "processing" | "shipped" | "awaiting_balance";
+type PaymentStatus = "paid" | "pending";
+type FulfillmentStatus = "processing" | "shipped" | "awaiting_balance";
 
 type OrderRow = {
   id: string;
@@ -14,18 +14,18 @@ type OrderRow = {
   produto: string;
   frete: number;
   paymentStatus: PaymentStatus;
-  cjStatus: CJStatus;
+  fulfillmentStatus: FulfillmentStatus;
   date: string;
 };
 
 // ─── Map DB status → display status ──────────────────────────────────────────
 function mapPaymentStatus(status: string): PaymentStatus {
   const s = status.toLowerCase();
-  if (s === "paid" || s === "approved" || s === "completed") return "paid_cj";
+  if (s === "paid" || s === "approved" || s === "completed") return "paid";
   return "pending";
 }
 
-function mapCJStatus(status: string, fulfillmentStatus: string | null): CJStatus {
+function mapFulfillmentStatus(status: string, fulfillmentStatus: string | null): FulfillmentStatus {
   const fs = (fulfillmentStatus ?? "").toLowerCase();
   if (fs === "shipped") return "shipped";
   const s = status.toLowerCase();
@@ -47,7 +47,7 @@ const formatDate = (dateStr: string | null): string => {
 // ─── Badges ───────────────────────────────────────────────────────────────────
 const PaymentStatusBadge = ({ status }: { status: PaymentStatus }) => {
   const config = {
-    paid_cj: { bg: "#ECFDF5", color: "#10B981", label: "Pago na CJ" },
+    paid: { bg: "#ECFDF5", color: "#10B981", label: "Pago" },
     pending:  { bg: "#FFF7ED", color: "#FB923C", label: "Pendente"   },
   };
   const { bg, color, label } = config[status];
@@ -58,11 +58,11 @@ const PaymentStatusBadge = ({ status }: { status: PaymentStatus }) => {
   );
 };
 
-const CJStatusBadge = ({ status }: { status: CJStatus }) => {
+const FulfillmentStatusBadge = ({ status }: { status: FulfillmentStatus }) => {
   const config = {
     processing:      { bg: "#EFF6FF", color: "#3B82F6", label: "Processando"      },
     shipped:         { bg: "#ECFDF5", color: "#10B981", label: "Enviado"           },
-    awaiting_balance:{ bg: "#FEF2F2", color: "#EF4444", label: "Aguardando saldo" },
+    awaiting_balance:{ bg: "#FEF2F2", color: "#EF4444", label: "Aguardando envio" },
   };
   const { bg, color, label } = config[status];
   return (
@@ -98,18 +98,14 @@ const PagamentosPage = () => {
     produto: row.product_title ?? "Produto",
     frete: Number(row.cost_price ?? 0),
     paymentStatus: mapPaymentStatus(row.status ?? "pending"),
-    cjStatus: mapCJStatus(row.status ?? "pending", row.fulfillment_status ?? null),
+    fulfillmentStatus: mapFulfillmentStatus(row.status ?? "pending", row.fulfillment_status ?? null),
     date: formatDate(row.ordered_at ?? row.created_at),
   }));
 
   // Summary metrics
   const fretesPendentes = orders.filter(o => o.paymentStatus === "pending").reduce((s, o) => s + o.frete, 0);
-  const pedidosAguardando = orders.filter(o => o.cjStatus === "awaiting_balance").length;
+  const pedidosAguardando = orders.filter(o => o.fulfillmentStatus === "awaiting_balance").length;
   const totalGastoMes = orders.reduce((s, o) => s + o.frete, 0);
-
-  const handleOpenCJ = () => {
-    window.open("https://cjdropshipping.com", "_blank", "noopener,noreferrer");
-  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "28px", fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', WebkitFontSmoothing: "antialiased", textRendering: "optimizeLegibility" }}>
@@ -117,24 +113,23 @@ const PagamentosPage = () => {
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div>
         <h1 style={{ fontSize: "28px", fontWeight: 600, letterSpacing: "-0.04em", color: "#111111", margin: 0, lineHeight: 1.2 }}>
-          Saldo CJ Dropshipping
+          Pagamentos e pedidos
         </h1>
         <p style={{ fontSize: "14px", fontWeight: 400, letterSpacing: "-0.01em", color: "#737373", marginTop: "6px" }}>
-          Gerencie pedidos e acompanhe os pagamentos realizados diretamente na CJ Dropshipping.
+          Acompanhe custos, fretes pendentes e status financeiro dos pedidos da Velo.
         </p>
       </div>
 
       {/* ── Summary Card ────────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px", backgroundColor: "#FFFFFF", border: "1px solid rgba(0,0,0,0.04)", borderRadius: "24px", padding: "28px", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
 
-        {/* Saldo atual CJ — não disponível via API, exibe placeholder */}
         <div>
           <div style={{ width: "44px", height: "44px", borderRadius: "50%", backgroundColor: "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
             <DollarSign size={20} strokeWidth={1.8} style={{ color: "#111111" }} />
           </div>
-          <p style={{ fontSize: "13px", fontWeight: 400, letterSpacing: "-0.01em", color: "#737373", margin: 0 }}>Saldo atual CJ</p>
+          <p style={{ fontSize: "13px", fontWeight: 400, letterSpacing: "-0.01em", color: "#737373", margin: 0 }}>Saldo operacional</p>
           <p style={{ fontSize: "24px", fontWeight: 600, letterSpacing: "-0.03em", color: "#111111", margin: 0, marginTop: "6px" }}>
-            Ver na CJ
+            Velo
           </p>
         </div>
 
@@ -184,22 +179,6 @@ const PagamentosPage = () => {
         </div>
       </div>
 
-      {/* ── CJ Dropshipping Button ──────────────────────────────────────── */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", padding: "32px", backgroundColor: "#FAFAFA", border: "1px solid rgba(0,0,0,0.06)", borderRadius: "20px" }}>
-        <button
-          onClick={handleOpenCJ}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", height: "48px", padding: "0 32px", fontSize: "15px", fontWeight: 600, letterSpacing: "-0.02em", color: "#FFFFFF", backgroundColor: "#111111", border: "none", borderRadius: "12px", cursor: "pointer", transition: "background-color 0.15s" }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#000000")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#111111")}
-        >
-          Abrir CJ Dropshipping
-          <ExternalLink size={16} strokeWidth={2} />
-        </button>
-        <p style={{ fontSize: "13px", fontWeight: 400, letterSpacing: "-0.01em", color: "#737373", margin: 0, textAlign: "center", maxWidth: "600px" }}>
-          Os pagamentos e recargas são realizados diretamente na plataforma da CJ Dropshipping.
-        </p>
-      </div>
-
       {/* ── Orders Table ────────────────────────────────────────────────── */}
       <div>
         <h2 style={{ fontSize: "18px", fontWeight: 600, letterSpacing: "-0.03em", color: "#111111", margin: 0, marginBottom: "16px" }}>
@@ -223,7 +202,7 @@ const PagamentosPage = () => {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ backgroundColor: "#FAFAFA", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                  {["Pedido", "Produto", "Frete", "Status do pagamento", "Status CJ", "Data"].map((header) => (
+                  {["Pedido", "Produto", "Frete", "Status do pagamento", "Status de envio", "Data"].map((header) => (
                     <th key={header} style={{ padding: "14px 20px", textAlign: "left", fontSize: "12px", fontWeight: 600, letterSpacing: "-0.01em", color: "#737373", textTransform: "uppercase" }}>
                       {header}
                     </th>
@@ -251,7 +230,7 @@ const PagamentosPage = () => {
                       <PaymentStatusBadge status={order.paymentStatus} />
                     </td>
                     <td style={{ padding: "16px 20px" }}>
-                      <CJStatusBadge status={order.cjStatus} />
+                      <FulfillmentStatusBadge status={order.fulfillmentStatus} />
                     </td>
                     <td style={{ padding: "16px 20px" }}>
                       <span style={{ fontSize: "14px", fontWeight: 400, letterSpacing: "-0.01em", color: "#737373" }}>{order.date}</span>

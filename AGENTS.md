@@ -4,7 +4,7 @@
 
 **Nome:** Velo  
 **Slogan:** "Apenas venda."  
-**O que é:** Plataforma de dropshipping com IA para iniciantes brasileiros. Permite que o usuário escolha produtos da CJ Dropshipping, personalize com IA e publique automaticamente no Mercado Livre e Shopee.  
+**O que é:** Plataforma de dropshipping com IA para iniciantes brasileiros. Permite que o usuário escolha produtos do catálogo Velo alimentado por scraping de fornecedores brasileiros, personalize com IA e publique no Mercado Livre e Shopee.
 **Stack principal:** Next.js 14 + TypeScript + Tailwind CSS + Supabase + Lovable
 
 ---
@@ -36,7 +36,7 @@
 | Frontend     | React + TypeScript + Tailwind CSS               |
 | Backend      | Supabase (PostgreSQL + Auth + Edge Functions + Storage) |
 | IA           | Google Gemini via Supabase Edge Functions       |
-| Integrações  | Mercado Livre OAuth + API, CJ Dropshipping API  |
+| Integrações  | Mercado Livre OAuth + API, scrapers brasileiros de fornecedores |
 | Deploy       | Lovable Cloud + Vercel                          |
 
 ---
@@ -59,9 +59,9 @@
 |----------------------|----------------------------------------------------|
 | `profiles`           | Dados do usuário (nome, plano, preferências)       |
 | `user_integrations`  | Tokens OAuth do Mercado Livre e Shopee             |
-| `catalog_products`   | Produtos sincronizados da CJ Dropshipping          |
+| `catalog_products`   | Produtos coletados exclusivamente pelo scraping C7Drop |
 | `user_publications`  | Anúncios publicados no Mercado Livre pelo usuário  |
-| `cj_token_cache`     | Cache do token de autenticação da CJ API           |
+| `cj_token_cache`     | Tabela legada descontinuada — não usar             |
 
 > Todas as tabelas possuem RLS ativo. Sempre revisar policies antes de qualquer alteração de schema.
 
@@ -74,8 +74,7 @@
 | `ml-publish`        | Publica produto no Mercado Livre via API               |
 | `ml-connect`        | Inicia fluxo OAuth do Mercado Livre                    |
 | `ml-callback`       | Recebe callback OAuth e salva token em `user_integrations` |
-| `cj-auth`           | Autentica na CJ Dropshipping API e cacheia token       |
-| `cj-sync-products`  | Sincroniza produtos da CJ para `catalog_products`      |
+| `scrape-c7drop`     | Scraper principal do catálogo Velo via C7Drop          |
 | `catalog`           | Serve produtos paginados para o frontend               |
 | `chat`              | IA conversacional via Gemini para geração de descrições|
 
@@ -88,7 +87,6 @@
 | ML Client ID           | `5831446135077053`                                               |
 | ML Redirect URI        | `https://nqzpoioxvbqavrtphtoa.supabase.co/functions/v1/ml-callback` |
 | Supabase Project Ref   | `nqzpoioxvbqavrtphtoa`                                           |
-| CJ API Key             | Secret `CJ_API_KEY` nas Edge Functions                           |
 | Gemini API Key         | Secret `GEMINI_API_KEY` nas Edge Functions                       |
 
 > **Todas as secrets ficam nas Edge Functions do Supabase. NUNCA no código-fonte.**
@@ -98,6 +96,7 @@
 ## 8. O Que NÃO Fazer
 
 - Nunca hardcodar secrets, tokens ou API keys no código
+- Nunca reintroduzir, chamar ou depender da API da CJ Dropshipping; essa integração foi descontinuada definitivamente
 - Nunca usar dados mockados na interface — sempre dados reais do Supabase
 - Nunca exibir produtos com `stock_quantity = 0`
 - Nunca alterar RLS de tabelas sem revisar as policies existentes
@@ -110,7 +109,7 @@
 ## 9. Fluxo Principal
 
 ```
-Usuário navega no catálogo CJ
+Usuário navega no catálogo Velo alimentado pelo scraping C7Drop
   → Importa o produto para sua conta
   → IA (Gemini) gera título e descrição otimizados
   → Usuário revisa e personaliza

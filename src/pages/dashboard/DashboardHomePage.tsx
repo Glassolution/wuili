@@ -1,212 +1,313 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { ArrowUp, ArrowUpRight, Play, Plus, Search } from "lucide-react";
-import { VeloLogo } from "@/components/VeloLogo";
-import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/lib/profileContext";
+import {
+  Archive,
+  CircleHelp,
+  Folder,
+  Globe2,
+  Grid2X2,
+  Plus,
+  Search,
+  Settings,
+  Sparkle,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database, Json } from "@/integrations/supabase/types";
+
+type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
+
+type ProductPreview = {
+  id: string;
+  title: string;
+  category: string;
+  image: string;
+};
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 18, scale: 0.985 },
+  hidden: { opacity: 0, y: 18, scale: 0.98 },
   visible: (delay: number) => ({
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.62, ease: [0.16, 1, 0.3, 1], delay },
+    transition: { duration: 0.58, ease: [0.16, 1, 0.3, 1], delay },
   }),
 };
 
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Bom dia";
-  if (hour < 18) return "Boa tarde";
-  return "Boa noite";
+const featureCards = [
+  {
+    eyebrow: "ORGANIZE SEU CATÁLOGO",
+    title: "Salve e organize produtos vencedores sem esforço",
+    tone: "bg-[#FAFAFA]",
+  },
+  {
+    eyebrow: "REÚNA SUAS IDEIAS",
+    title: "Crie coleções para testar nichos, ofertas e anúncios",
+    tone: "bg-[#FBFBFB]",
+  },
+  {
+    eyebrow: "CONSTRUA SUA LOJA",
+    title: "Publique seus favoritos no Mercado Livre em poucos cliques",
+    tone: "bg-[#FAFAFA]",
+  },
+];
+
+const getProductImages = (images: Json | null): string[] => {
+  if (!images) return [];
+
+  if (Array.isArray(images)) {
+    return images.filter((image): image is string => typeof image === "string" && image.trim().length > 0);
+  }
+
+  if (typeof images === "string") {
+    try {
+      const parsed: unknown = JSON.parse(images);
+      return Array.isArray(parsed)
+        ? parsed.filter((image): image is string => typeof image === "string" && image.trim().length > 0)
+        : [images];
+    } catch {
+      return [images];
+    }
+  }
+
+  return [];
 };
 
-const getFirstName = (name?: string | null, email?: string | null) => {
-  const raw = (name || email?.split("@")[0] || "Velo").trim();
-  return raw.split(/[\s._-]+/).filter(Boolean)[0] || "Velo";
+const mapProductPreview = (product: CatalogProductRow): ProductPreview | null => {
+  const [image] = getProductImages(product.images);
+
+  if (!image) return null;
+
+  return {
+    id: product.id,
+    title: product.title,
+    category: product.category || "Produto",
+    image,
+  };
 };
+
+const ToolbarIcon = ({ children, label }: { children: ReactNode; label: string }) => (
+  <button
+    type="button"
+    aria-label={label}
+    className="grid h-7 w-7 place-items-center rounded-full text-[#171717] transition-colors hover:bg-[#F4F4F3]"
+  >
+    {children}
+  </button>
+);
+
+const ProductTile = ({
+  product,
+  className,
+}: {
+  product?: ProductPreview;
+  className: string;
+}) => (
+  <div className={`overflow-hidden border border-black/[0.06] bg-[#F7F7F6] shadow-[0_18px_42px_rgba(17,17,17,0.11)] ${className}`}>
+    {product ? (
+      <img src={product.image} alt="" className="h-full w-full object-cover object-center" />
+    ) : (
+      <div className="h-full w-full bg-[linear-gradient(135deg,#F6F6F5_0%,#EFEFED_100%)]" />
+    )}
+  </div>
+);
+
+const HeroCollage = ({ products }: { products: ProductPreview[] }) => (
+  <div className="relative h-[238px] w-[318px]">
+    <ProductTile
+      product={products[3]}
+      className="absolute left-[16px] top-[66px] h-[122px] w-[72px] -rotate-[12deg] rounded-[16px]"
+    />
+    <ProductTile
+      product={products[1]}
+      className="absolute left-[72px] top-[34px] h-[168px] w-[108px] rotate-[3deg] rounded-[18px]"
+    />
+    <ProductTile
+      product={products[0]}
+      className="absolute left-[122px] top-[16px] z-20 h-[188px] w-[128px] -rotate-[1deg] rounded-[20px] shadow-[0_24px_54px_rgba(17,17,17,0.16)]"
+    />
+    <ProductTile
+      product={products[2]}
+      className="absolute right-[22px] top-[48px] h-[142px] w-[94px] rotate-[10deg] rounded-[17px]"
+    />
+    <ProductTile
+      product={products[4]}
+      className="absolute bottom-[4px] left-[105px] z-30 h-[74px] w-[96px] -rotate-[5deg] rounded-[15px] shadow-[0_20px_42px_rgba(17,17,17,0.13)]"
+    />
+    <span className="absolute left-[42px] top-[28px] h-5 w-[2px] -rotate-[24deg] rounded-full bg-[#111]" />
+    <span className="absolute left-[58px] top-[22px] h-3.5 w-[2px] -rotate-[5deg] rounded-full bg-[#111]" />
+    <span className="absolute right-[12px] bottom-[46px] h-5 w-[2px] rotate-[44deg] rounded-full bg-[#111]" />
+    <span className="absolute right-[34px] bottom-[34px] h-3.5 w-[2px] rotate-[68deg] rounded-full bg-[#111]" />
+  </div>
+);
+
+const CardProductStack = ({ products }: { products: ProductPreview[] }) => (
+  <div className="absolute -bottom-10 left-5 right-5 h-[104px]">
+    {products.slice(0, 3).map((product, index) => (
+      <div
+        key={`${product.id}-${index}`}
+        className="absolute bottom-0 h-[92px] w-[42%] overflow-hidden rounded-[13px] border border-black/[0.055] bg-white shadow-[0_16px_28px_rgba(17,17,17,0.08)] transition-transform duration-300 group-hover:-translate-y-2"
+        style={{
+          left: `${index * 27}%`,
+          transform: `rotate(${[-5, 1, 5][index]}deg)`,
+          zIndex: index + 1,
+        }}
+      >
+        <img src={product.image} alt="" className="h-full w-full object-cover object-center" />
+      </div>
+    ))}
+  </div>
+);
 
 const DashboardHomePage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { nome } = useProfile();
-  const [chatPrompt, setChatPrompt] = useState("");
+  const [products, setProducts] = useState<ProductPreview[]>([]);
 
-  const firstName = useMemo(() => getFirstName(nome, user?.email), [nome, user?.email]);
-  const greeting = useMemo(() => getGreeting(), []);
+  useEffect(() => {
+    let isMounted = true;
 
-  const openAquas = (prompt?: string) => {
-    const cleanPrompt = prompt?.trim();
-    const qs = cleanPrompt ? `?first=${encodeURIComponent(cleanPrompt)}` : "";
-    navigate(`/dashboard/atlas${qs}`);
-  };
+    const fetchProducts = async () => {
+      const { data, error } = await supabase
+        .from("catalog_products")
+        .select("id,title,category,images,is_active,is_blocked,stock_quantity,orders_count")
+        .eq("source", "c7drop")
+        .eq("is_active", true)
+        .eq("is_blocked", false)
+        .gt("stock_quantity", 0)
+        .order("orders_count", { ascending: false, nullsFirst: false })
+        .limit(12);
+
+      if (error || !isMounted) return;
+
+      const previews = ((data ?? []) as CatalogProductRow[])
+        .map(mapProductPreview)
+        .filter((product): product is ProductPreview => Boolean(product));
+
+      setProducts(previews);
+    };
+
+    fetchProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const productGroups = useMemo(() => {
+    if (products.length === 0) return featureCards.map(() => []);
+
+    return featureCards.map((_, index) =>
+      [0, 1, 2]
+        .map((offset) => products[(index * 3 + offset + 2) % products.length])
+        .filter((product): product is ProductPreview => Boolean(product)),
+    );
+  }, [products]);
 
   return (
     <main
-      className="relative -m-5 min-h-[calc(100%+40px)] overflow-visible bg-[#FAF0F8] px-5 pb-24 pt-5 text-[#111111] sm:-m-6 sm:min-h-[calc(100%+48px)] sm:px-6 sm:pt-6 lg:-m-7 lg:min-h-[calc(100%+56px)] lg:px-7 lg:pt-7"
-      style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}
+      className="relative -m-5 min-h-[calc(100%+40px)] overflow-hidden bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+48px)] lg:-m-7 lg:min-h-[calc(100%+56px)]"
+      style={{ fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
     >
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: [
-            "linear-gradient(180deg, #FCE7F3 0%, #F5E8FF 38%, #FFF4E8 100%)",
-            "radial-gradient(ellipse 130% 90% at 50% -8%, rgba(236,72,153,0.28) 0%, rgba(192,132,252,0.22) 28%, rgba(255,255,255,0) 62%)",
-            "radial-gradient(ellipse 80% 60% at 12% 18%, rgba(251,191,219,0.38) 0%, rgba(255,255,255,0) 52%)",
-            "radial-gradient(ellipse 100% 75% at 88% 92%, rgba(253,186,116,0.55) 0%, rgba(255,218,185,0.42) 32%, rgba(255,255,255,0) 58%)",
-          ].join(", "),
-        }}
-        aria-hidden="true"
-      />
+      <header className="relative z-20 flex h-12 items-center gap-3 border-b border-black/[0.03] px-4">
+        <div className="flex items-center gap-2">
+          <ToolbarIcon label="Ajustes">
+            <Settings className="h-[15px] w-[15px]" strokeWidth={2} />
+          </ToolbarIcon>
+          <ToolbarIcon label="Aplicativos">
+            <Grid2X2 className="h-[15px] w-[15px]" strokeWidth={2} />
+          </ToolbarIcon>
+          <ToolbarIcon label="Arquivos">
+            <Folder className="h-[15px] w-[15px]" strokeWidth={2} />
+          </ToolbarIcon>
+          <ToolbarIcon label="Coleções">
+            <Archive className="h-[15px] w-[15px]" strokeWidth={2} />
+          </ToolbarIcon>
+          <ToolbarIcon label="Mercados">
+            <Globe2 className="h-[15px] w-[15px]" strokeWidth={2} />
+          </ToolbarIcon>
+        </div>
 
-      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-24px)] w-full flex-col items-center px-4 pb-4 pt-[7vh] sm:px-6 lg:pt-[8vh]">
-        {/* Logo Velo — topo, acima do badge (referência Dia) */}
+        <div className="mx-2 flex h-9 flex-1 items-center gap-2 rounded-full bg-[#FBFBFA] px-3 text-[#A3A3A3] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.025)]">
+          <Search className="h-[14px] w-[14px]" strokeWidth={1.8} />
+          <span className="text-[13px] font-medium">Buscar em todas as coleções</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <ToolbarIcon label="Configurações">
+            <Settings className="h-[15px] w-[15px]" strokeWidth={2} />
+          </ToolbarIcon>
+          <ToolbarIcon label="Ajuda">
+            <CircleHelp className="h-[15px] w-[15px]" strokeWidth={2} />
+          </ToolbarIcon>
+          <button
+            type="button"
+            aria-label="Conta"
+            className="h-7 w-7 rounded-full bg-[radial-gradient(circle_at_72%_26%,#FFB84D_0%,#F97316_26%,#EC4899_58%,#7C3AED_100%)] shadow-[0_6px_18px_rgba(236,72,153,0.22)]"
+          />
+        </div>
+      </header>
+
+      <section className="relative mx-auto flex min-h-[calc(100vh-48px)] w-full max-w-[1180px] flex-col items-center px-6 pb-0 pt-[8.8vh]">
         <motion.div
-          className="flex w-full justify-center"
+          className="flex flex-col items-center text-center"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
           custom={0}
         >
-          <VeloLogo size="sm" variant="dark" />
-        </motion.div>
+          <HeroCollage products={products} />
 
-        {/* Badge centralizado */}
-        <motion.div
-          className="mt-6 flex w-full justify-center sm:mt-7"
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0.04}
-        >
-          <button
-            type="button"
-            onClick={() => navigate("/checkout")}
-            className="inline-flex h-8 items-center gap-2 rounded-full border border-white/70 bg-white/76 px-3 text-[12px] font-semibold text-[#6B7280] shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_10px_22px_rgba(17,24,39,0.06)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:text-[#1E3A8A]"
-          >
-            Plano Velo
-            <span className="text-[#B45309]">Upgrade</span>
-          </button>
-        </motion.div>
-
-        {/* 2. Headline — respiro generoso abaixo do badge (referência Dia) */}
-        <motion.header
-          className="mt-[52px] w-full text-center sm:mt-[68px]"
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0.08}
-        >
-          <h1 className="text-[42px] font-medium leading-[0.98] tracking-[-0.06em] text-neutral-950 sm:text-[62px]">
-            {greeting}, {firstName}
+          <h1 className="mt-5 text-[20px] font-semibold tracking-[-0.035em] text-[#151515]">
+            Crie uma coleção única
           </h1>
-        </motion.header>
-
-        {/* 3. Card do input + esboços de janela decorativos */}
-        <div className="relative mt-auto w-[34vw] min-w-[min(100%,360px)] max-w-[520px] overflow-visible pb-2 pt-8">
-          <div
-            className="pointer-events-none absolute -inset-x-[18%] -top-[8%] bottom-[-28%] z-0 overflow-visible"
-            aria-hidden="true"
+          <p className="mt-3 max-w-[360px] text-center text-[14px] font-medium leading-[1.5] text-[#B8B8B8]">
+            Reúna produtos, ideias, anúncios e referências para acelerar sua próxima venda.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/catalogo")}
+            className="mt-7 inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#F5F5F4] px-4 text-[13px] font-semibold text-[#222] shadow-[0_12px_24px_rgba(17,17,17,0.05),inset_0_0_0_1px_rgba(0,0,0,0.03)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
           >
-            <div
-              className="absolute left-[2%] top-[18%] h-[156px] w-[260px] rounded-[16px] border border-[#64748B]/35 bg-white/[0.02] opacity-[0.14]"
-              style={{ transform: "rotate(-5deg)" }}
-            >
-              <div className="flex items-center gap-1.5 px-3 pt-2.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#64748B]/35" />
-                <span className="h-1.5 w-1.5 rounded-full bg-[#64748B]/35" />
-                <span className="h-1.5 w-1.5 rounded-full bg-[#64748B]/35" />
-              </div>
-            </div>
-            <div
-              className="absolute right-[0%] top-[34%] h-[142px] w-[228px] rounded-[14px] border border-[#64748B]/32 bg-white/[0.02] opacity-[0.12]"
-              style={{ transform: "rotate(4deg)" }}
-            >
-              <div className="flex items-center gap-1.5 px-3 pt-2.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#64748B]/32" />
-                <span className="h-1.5 w-1.5 rounded-full bg-[#64748B]/32" />
-                <span className="h-1.5 w-1.5 rounded-full bg-[#64748B]/32" />
-              </div>
-            </div>
-            <div
-              className="absolute left-[18%] top-[52%] h-[128px] w-[210px] rounded-[12px] border border-[#64748B]/28 bg-transparent opacity-[0.11]"
-              style={{ transform: "rotate(-2deg)" }}
-            />
-          </div>
+            <Plus className="h-[14px] w-[14px]" strokeWidth={2} />
+            Criar
+          </button>
+        </motion.div>
 
-          <motion.form
-            onSubmit={(event) => {
-              event.preventDefault();
-              openAquas(chatPrompt || "Como posso vender mais hoje?");
-            }}
-            className="relative z-10 w-full rounded-[18px] border border-black/[0.05] bg-white px-4 py-3 shadow-[0_2px_6px_rgba(17,24,39,0.04),0_24px_62px_rgba(17,24,39,0.085)] sm:px-5 sm:py-4"
-            style={{ fontFamily: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            custom={0.16}
-          >
-          {/* Linha 1: lupa + placeholder */}
-          <div className="flex items-center gap-2.5">
-            <Search
-              className="h-[14px] w-[14px] shrink-0 text-[#6F7680]"
-              strokeWidth={1.55}
-              aria-hidden="true"
-            />
-            <input
-              value={chatPrompt}
-              onChange={(event) => setChatPrompt(event.target.value)}
-              placeholder="Pergunte ao Aquas..."
-              aria-label="Pergunte ao Aquas"
-              className="min-w-0 flex-1 bg-transparent text-[13.5px] font-medium leading-[18px] text-[#111111] outline-none placeholder:text-[#2D333B]"
-            />
-          </div>
-
-          {/* Linha 2: contexto à esquerda, enviar à direita */}
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <button
-              type="button"
-              className="inline-flex min-w-0 items-center gap-2 text-[12.5px] font-normal text-[#C4C8CE] transition-colors hover:text-[#8D939B]"
-              aria-label="Adicionar contexto"
-            >
-              <Plus className="h-[13px] w-[13px] shrink-0" strokeWidth={1.5} />
-              <span className="truncate">Adicionar contexto</span>
-            </button>
-            <button
-              type="submit"
-              className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-[#050505] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_22px_rgba(17,24,39,0.18)] transition-transform hover:-translate-y-px active:translate-y-0"
-              aria-label="Enviar pergunta ao Aquas"
-            >
-              <ArrowUp className="h-[13px] w-[13px]" strokeWidth={2.2} />
-            </button>
-          </div>
-          </motion.form>
-        </div>
-
-        {/* Card "Acessar o site" — estilo trailer (referência Dia) */}
         <motion.div
-          className="mt-5 flex justify-center"
+          className="mt-auto grid w-full max-w-[880px] grid-cols-1 gap-4 pt-24 sm:grid-cols-3"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
-          custom={0.24}
+          custom={0.14}
         >
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="inline-flex items-center gap-2.5 rounded-[12px] border border-white/75 bg-white/78 p-1.5 pr-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_14px_34px_rgba(17,24,39,0.08)] backdrop-blur-2xl transition-transform hover:-translate-y-0.5 active:translate-y-0"
-          >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-[7px] bg-[linear-gradient(135deg,#1F2937_0%,#0A0A0A_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-              <Play className="h-3 w-3 fill-white text-white" strokeWidth={0} />
-            </span>
-            <span className="inline-flex items-center gap-2 text-[13.5px] font-semibold tracking-[-0.02em] text-[#050505]">
-              Acessar o site
-              <ArrowUpRight className="h-[14px] w-[14px]" strokeWidth={1.9} />
-            </span>
-          </button>
+          {featureCards.map((card, index) => (
+            <article
+              key={card.eyebrow}
+              className={`group relative h-[218px] overflow-hidden rounded-[16px] border border-black/[0.035] ${card.tone} p-5 shadow-[0_16px_42px_rgba(17,17,17,0.032)]`}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#B0B0B0]">
+                {card.eyebrow}
+              </p>
+              <h2 className="mt-4 max-w-[235px] text-[17px] font-semibold leading-[1.18] tracking-[-0.035em] text-[#1A1A1A]">
+                {card.title}
+              </h2>
+              {productGroups[index].length > 0 ? (
+                <CardProductStack products={productGroups[index]} />
+              ) : (
+                <div className="absolute -bottom-8 left-6 right-6 h-[92px] rounded-t-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
+              )}
+            </article>
+          ))}
         </motion.div>
+
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard/atlas")}
+          aria-label="Abrir Aquas"
+          className="absolute bottom-5 right-5 grid h-11 w-11 place-items-center rounded-full bg-white text-black shadow-[0_12px_32px_rgba(17,17,17,0.1),inset_0_0_0_1px_rgba(0,0,0,0.05)] transition-transform hover:-translate-y-0.5"
+        >
+          <Sparkle className="h-[19px] w-[19px]" strokeWidth={1.8} />
+        </button>
       </section>
     </main>
   );

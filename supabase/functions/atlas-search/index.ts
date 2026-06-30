@@ -9,7 +9,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const ALLOWED_SOURCES = ["cj", "b2drop", "c7drop"];
+const ALLOWED_SOURCES = ["c7drop"];
 const RESULT_LIMIT = 24;
 
 type AtlasFilters = {

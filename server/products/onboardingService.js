@@ -131,7 +131,7 @@ async function fetchAvailableCategories() {
   const fromCatalog = await supabase
     .from("catalog_products")
     .select("category")
-    .eq("source", "cj")
+    .eq("source", "c7drop")
     .eq("is_active", true)
     .not("category", "is", null)
     .limit(500);
@@ -240,4 +240,3 @@ export async function completeOnboarding(userId) {
 
   return getOnboardingStatus(userId);
 }
-

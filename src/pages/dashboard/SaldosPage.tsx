@@ -29,6 +29,7 @@ const PLATFORM_CONFIG: Record<string, { label: string; icon: string; iconBg: str
   amazon:       { label: "Amazon",        icon: "AZ", iconBg: "#FF9900", iconColor: "#fff"    },
   magalu:       { label: "Magalu",        icon: "MG", iconBg: "#0086FF", iconColor: "#fff"    },
   aliexpress:   { label: "AliExpress",    icon: "AE", iconBg: "#FF4747", iconColor: "#fff"    },
+  c7drop:       { label: "C7Drop",        icon: "C7", iconBg: "#16A34A", iconColor: "#fff"    },
 };
 
 const DEFAULT_PLATFORM = { label: "Plataforma", icon: "??", iconBg: "#E5E5E5", iconColor: "#0A0A0A" };

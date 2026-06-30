@@ -148,7 +148,6 @@ node_modules
 **Edge Functions (Supabase):**
 - `ML_CLIENT_ID` - Mercado Livre Client ID
 - `ML_CLIENT_SECRET` - Mercado Livre Client Secret ⚠️ CRÍTICO
-- `CJ_API_KEY` - CJ Dropshipping API Key ⚠️ CRÍTICO
 - `GEMINI_API_KEY` - Google Gemini API Key ⚠️ CRÍTICO
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase Service Role Key ⚠️ CRÍTICO
 - `MERCADOPAGO_ACCESS_TOKEN` - Mercado Pago Access Token ⚠️ CRÍTICO
@@ -230,7 +229,6 @@ Isso **NÃO indica invasão**, apenas que:
 
 **Ações:**
 - [ ] Marcar `ML_CLIENT_SECRET` como **Sensitive**
-- [ ] Marcar `CJ_API_KEY` como **Sensitive**
 - [ ] Marcar `GEMINI_API_KEY` como **Sensitive**
 - [ ] Marcar `SUPABASE_SERVICE_ROLE_KEY` como **Sensitive**
 - [ ] Marcar `MERCADOPAGO_ACCESS_TOKEN` como **Sensitive**
@@ -351,7 +349,6 @@ git config --global commit.gpgsign true
 
 **Agendar rotação periódica:**
 - [ ] Mercado Livre tokens (a cada 90 dias)
-- [ ] CJ Dropshipping API key (a cada 90 dias)
 - [ ] Gemini API key (a cada 90 dias)
 - [ ] Supabase service role key (apenas se comprometida)
 
@@ -400,7 +397,6 @@ git config --global commit.gpgsign true
 | Secret | Localização | Exposição | Risco | Ação |
 |--------|-------------|-----------|-------|------|
 | `ML_CLIENT_SECRET` | Edge Functions | Server-side | 🔴 CRÍTICO | Marcar como sensitive |
-| `CJ_API_KEY` | Edge Functions | Server-side | 🔴 CRÍTICO | Marcar como sensitive |
 | `GEMINI_API_KEY` | Edge Functions | Server-side | 🔴 CRÍTICO | Marcar como sensitive |
 | `SUPABASE_SERVICE_ROLE_KEY` | Edge Functions | Server-side | 🔴 CRÍTICO | Marcar como sensitive |
 | `MERCADOPAGO_ACCESS_TOKEN` | Edge Functions | Server-side | 🔴 CRÍTICO | Marcar como sensitive |

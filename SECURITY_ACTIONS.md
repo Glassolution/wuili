@@ -12,7 +12,6 @@ Marque cada item conforme completar:
 
 ### Vercel (5 minutos)
 - [ ] Marcar `ML_CLIENT_SECRET` como Sensitive
-- [ ] Marcar `CJ_API_KEY` como Sensitive
 - [ ] Marcar `GEMINI_API_KEY` como Sensitive
 - [ ] Marcar `SUPABASE_SERVICE_ROLE_KEY` como Sensitive
 - [ ] Marcar `MERCADOPAGO_ACCESS_TOKEN` como Sensitive
@@ -53,7 +52,6 @@ https://vercel.com/[seu-projeto]/settings/environment-variables
 | Variável | Descrição | Prioridade |
 |----------|-----------|------------|
 | `ML_CLIENT_SECRET` | Mercado Livre Client Secret | 🔴 CRÍTICA |
-| `CJ_API_KEY` | CJ Dropshipping API Key | 🔴 CRÍTICA |
 | `GEMINI_API_KEY` | Google Gemini API Key | 🔴 CRÍTICA |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Key | 🔴 CRÍTICA |
 | `MERCADOPAGO_ACCESS_TOKEN` | Mercado Pago Access Token | 🔴 CRÍTICA |

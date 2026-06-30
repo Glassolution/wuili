@@ -184,9 +184,7 @@ export default function ProdutosMLPage() {
           if (pub) {
             cjVariantId = pub.cj_variant_id ?? null;
             cjProductId = pub.cj_product_id ?? null;
-            cjProductUrl = pub.cj_product_url ?? (
-              cjProductId ? `https://www.cjdropshipping.com/product-detail.html?id=${cjProductId}` : null
-            );
+            cjProductUrl = pub.cj_product_url ?? null;
             costPrice = pub.cost_price ?? null;
           }
         }
@@ -253,7 +251,7 @@ export default function ProdutosMLPage() {
       // Map to ensure default supplier if missing
       return (data || []).map((o: any) => ({
         ...o,
-        supplier: o.supplier || "CJ Dropshipping",
+        supplier: o.supplier || "C7Drop",
       })) as Order[];
     },
   });
@@ -427,7 +425,7 @@ export default function ProdutosMLPage() {
 
   // Navigate to Supplier Chat
   const handleChatSupplier = (order: Order) => {
-    const supplierName = order.supplier || "CJ Dropshipping";
+    const supplierName = order.supplier || "C7Drop";
     const supplierId = supplierName.toLowerCase().replace(/\s+/g, "-");
 
     navigate("/dashboard/chat-fornecedores", {

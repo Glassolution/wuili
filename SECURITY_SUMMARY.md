@@ -35,7 +35,6 @@ Trata-se de um **colaborador legítimo** que fez 1 commit válido no projeto. O 
 
 **Secrets afetadas:**
 - `ML_CLIENT_SECRET`
-- `CJ_API_KEY`
 - `GEMINI_API_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `MERCADOPAGO_ACCESS_TOKEN`
@@ -66,7 +65,6 @@ Trata-se de um **colaborador legítimo** que fez 1 commit válido no projeto. O 
 2. Para cada secret crítica, clicar em "..." > "Mark as Sensitive"
 3. Secrets a marcar:
    - ML_CLIENT_SECRET
-   - CJ_API_KEY
    - GEMINI_API_KEY
    - SUPABASE_SERVICE_ROLE_KEY
    - MERCADOPAGO_ACCESS_TOKEN

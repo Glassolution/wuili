@@ -51,28 +51,6 @@ const getImage = (images: any): string | null => {
   }
 };
 
-const getFirstCjVariantId = (variants: any): string | null => {
-  try {
-    const parsed = typeof variants === "string" ? JSON.parse(variants) : variants;
-    const first = Array.isArray(parsed) ? parsed[0] : parsed?.[0] ?? parsed;
-
-    return (
-      first?.vid ??
-      first?.variantId ??
-      first?.variant_id ??
-      first?.id ??
-      first?.skuId ??
-      first?.sku_id ??
-      null
-    );
-  } catch {
-    return null;
-  }
-};
-
-const getCjProductUrl = (externalId?: string | null) =>
-  externalId ? `https://www.cjdropshipping.com/product-detail.html?id=${encodeURIComponent(externalId)}` : null;
-
 const STEPS = [
   { num: 1, label: "Detalhes" },
   { num: 2, label: "Revisão" },
@@ -372,9 +350,9 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           product: {
             id: product?.id,
             external_id: product?.external_id,
-            cj_product_id: product?.external_id ?? null,
-            cj_product_url: getCjProductUrl(product?.external_id),
-            cj_variant_id: getFirstCjVariantId(product?.variants),
+            cj_product_id: null,
+            cj_product_url: product?.original_url ?? null,
+            cj_variant_id: null,
             title: title.trim(),
             price: sellPrice,
             cost_price: totalCost,

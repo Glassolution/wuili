@@ -156,7 +156,7 @@ const CatalogoProductDetailPage = () => {
           .from("catalog_products")
           .select("*")
           .eq("is_blocked", false)
-          .in("source", ["cj", "b2drop", "c7drop"])
+          .eq("source", "c7drop")
           .neq("id", id)
           .eq("category", data.category || "")
           .limit(12);
@@ -167,7 +167,7 @@ const CatalogoProductDetailPage = () => {
             .from("catalog_products")
             .select("*")
             .eq("is_blocked", false)
-            .in("source", ["cj", "b2drop", "c7drop"])
+            .eq("source", "c7drop")
             .neq("id", id)
             .limit(12);
           if (fb) setRelated(fb.map(mapProduct));

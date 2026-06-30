@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Info, Search, RefreshCw, ExternalLink } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Info, Search, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { veloToast as toast } from "@/components/ui/velo-toast";
 
 type TabKey = "compradores" | "entregas" | "devolucoes";
 
@@ -17,7 +16,6 @@ type OrderRow = {
   ordered_at: string | null;
   tracking_code: string | null;
   status: string | null;
-  cj_order_id: string | null;
   fulfillment_status: string | null;
   fulfillment_error: string | null;
 };
@@ -49,13 +47,13 @@ const getDeliveryStatus = (order: OrderRow) => {
   if (fulfillment === "error") return "error";
   if (baseStatus === "delivered") return "delivered";
   if (baseStatus === "shipped" || order.tracking_code) return "shipped";
-  if (baseStatus === "processing" || fulfillment === "processing" || order.cj_order_id) return "processing";
-  return "pending_cj";
+  if (baseStatus === "processing" || fulfillment === "processing") return "processing";
+  return "pending";
 };
 
 const deliveryStatusUI: Record<string, { label: string; className: string }> = {
-  pending_cj: {
-    label: "Aguardando CJ",
+  pending: {
+    label: "Aguardando envio",
     className: "bg-yellow-100 text-yellow-800 border border-yellow-200",
   },
   processing: {
@@ -88,7 +86,6 @@ const tabButtonBase =
 
 const ClientesPage = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabKey>("compradores");
   const [buyerSearch, setBuyerSearch] = useState("");
 
@@ -98,7 +95,7 @@ const ClientesPage = () => {
     queryFn: async () => {
       const { data, error } = await (supabase.from("orders" as any) as any)
         .select(
-          "id, external_order_id, platform, product_title, buyer_name, sale_price, ordered_at, tracking_code, status, cj_order_id, fulfillment_status, fulfillment_error",
+          "id, external_order_id, platform, product_title, buyer_name, sale_price, ordered_at, tracking_code, status, fulfillment_status, fulfillment_error",
         )
         .eq("user_id", user!.id)
         .order("ordered_at", { ascending: false });
@@ -162,21 +159,6 @@ const ClientesPage = () => {
     [orders],
   );
 
-  const handleResendToCJ = async (orderId: string) => {
-    const toastId = toast.loading("Reenviando pedido para a CJ...");
-    const { data, error } = await supabase.functions.invoke("cj-fulfill-request", {
-      body: { order_id: orderId },
-    });
-
-    if (error || data?.success === false) {
-      toast.error(data?.error ?? error?.message ?? "Falha ao reenviar pedido para CJ.", { id: toastId });
-      return;
-    }
-
-    toast.success("Pedido reenviado para a CJ com sucesso.", { id: toastId });
-    await queryClient.invalidateQueries({ queryKey: ["clientes-orders", user?.id] });
-  };
-
   return (
     <div className="space-y-5">
       <div>
@@ -189,8 +171,8 @@ const ClientesPage = () => {
       <div className="flex items-start gap-3 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F7] p-4 shadow-sm dark:border-zinc-700">
         <Info size={18} className="mt-0.5 shrink-0 text-[#525252]" />
         <p className="text-[13px] leading-relaxed text-[#404040] sm:text-sm">
-          A entrega é feita diretamente pela CJ Dropshipping ao seu comprador. Questões sobre nota fiscal devem ser
-          resolvidas pelo vendedor. Em caso de problemas com o produto, entre em contato com contato@velo.com.br
+          Acompanhe compradores, rastreios e ocorrências dos pedidos conectados à Velo. Em caso de problemas com o
+          produto, entre em contato com contato@velo.com.br.
         </p>
       </div>
 
@@ -362,17 +344,8 @@ const ClientesPage = () => {
                       </div>
                     </div>
 
-                    {(statusKey === "error" || trackingLink || order.fulfillment_error) && (
+                    {(trackingLink || order.fulfillment_error) && (
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {statusKey === "error" && (
-                          <button
-                            onClick={() => handleResendToCJ(order.id)}
-                            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1 rounded-xl border border-[#E5E5E5] bg-white px-3 text-xs font-semibold text-[#262626] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                          >
-                            <RefreshCw size={12} />
-                            Reenviar
-                          </button>
-                        )}
                         {trackingLink && (
                           <button
                             onClick={() => window.open(trackingLink, "_blank", "noopener,noreferrer")}
@@ -400,7 +373,7 @@ const ClientesPage = () => {
                   <th className="px-2 py-3">Pedido</th>
                   <th className="px-2 py-3">Produto</th>
                   <th className="px-2 py-3">Comprador</th>
-                  <th className="px-2 py-3">Status CJ</th>
+                  <th className="px-2 py-3">Status de envio</th>
                   <th className="px-2 py-3">Código de rastreio</th>
                   <th className="px-2 py-3">Prazo estimado</th>
                   <th className="px-2 py-3">Ações</th>
@@ -431,15 +404,6 @@ const ClientesPage = () => {
                         </td>
                         <td className="px-2 py-3">
                           <div className="flex flex-wrap gap-2">
-                            {statusKey === "error" && (
-                              <button
-                                onClick={() => handleResendToCJ(order.id)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-[#E5E5E5] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#262626] hover:bg-[#F5F5F5]"
-                              >
-                                <RefreshCw size={12} />
-                                Reenviar para CJ
-                              </button>
-                            )}
                             {trackingLink && (
                               <button
                                 onClick={() => window.open(trackingLink, "_blank", "noopener,noreferrer")}

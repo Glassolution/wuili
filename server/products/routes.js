@@ -22,11 +22,10 @@ function getAuthorizationHeader(req) {
   return req.headers?.authorization ?? req.headers?.Authorization ?? null;
 }
 
-// Integração CJ Dropshipping descontinuada — catálogo agora alimentado pelos
-// scrapers brasileiros (C7Drop e futuros). Mantemos a função como no-op para
-// preservar a assinatura usada em loadCuratedProducts sem disparar a sync antiga.
+// Catálogo alimentado exclusivamente pelo scraper C7Drop. Mantemos a função
+// como no-op para preservar a assinatura usada em loadCuratedProducts.
 async function requestCatalogSync(_req) {
-  return { ok: false, reason: "cj_integration_discontinued" };
+  return { ok: false, reason: "catalog_sync_managed_by_c7drop_cron" };
 }
 
 
@@ -65,7 +64,7 @@ router.get("/api/products/curated", requireAuthenticatedUser, async (req, res) =
     let sync = null;
 
     if (products.length === 0) {
-      console.warn("[product-curation] curadoria vazia; solicitando sync do catálogo CJ.");
+      console.warn("[product-curation] curadoria vazia; aguardando próximo cron C7Drop.");
       sync = await requestCatalogSync(req);
 
       if (sync?.ok) {

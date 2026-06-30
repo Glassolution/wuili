@@ -27,7 +27,7 @@ type ChatMessage = {
   product?: Product;
 };
 
-const ALLOWED_SOURCES = ["cj", "b2drop", "c7drop"];
+const ALLOWED_SOURCES = ["c7drop"];
 
 export const SaturnIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">

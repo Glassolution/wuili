@@ -6,9 +6,9 @@
  *   1. Parse ML notification → extract orderId + mlUserId
  *   2. Look up the Velo user that owns this ML account
  *   3. Fetch full order details from ML API
- *   4. Map ML item → user_publications to get cj_variant_id
+ *   4. Map ML item → user_publications to get legacy supplier cost fields
  *   5. INSERT into orders table
- *   6. If order.status === 'paid', invoke cj-fulfill automatically
+ *   6. Stop there. External supplier fulfillment is intentionally disabled.
  *
  * Register this URL in ML via ml-setup-webhook.
  */
@@ -34,83 +34,11 @@ function err(message: string, status = 500) {
   });
 }
 
-function extractBalance(payload: unknown): number {
-  const raw = payload as any;
-  const data = raw?.data ?? raw;
-  const candidates = [
-    data?.balance,
-    data?.availableBalance,
-    data?.available_balance,
-    data?.amount,
-    data?.walletBalance,
-    data?.accountBalance,
-    Array.isArray(data) ? data[0]?.balance : undefined,
-    Array.isArray(data) ? data[0]?.availableBalance : undefined,
-  ];
-
-  for (const value of candidates) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-
-  return 0;
-}
-
-async function getCjAccessToken(supabaseUrl: string, serviceRoleKey: string, internalSecret: string): Promise<string | null> {
-  const authRes = await fetch(`${supabaseUrl}/functions/v1/cj-auth`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "x-internal-secret": internalSecret,
-    },
-  });
-  const authData = await authRes.json().catch(() => ({}));
-  return authData?.accessToken ?? null;
-}
-
-async function getCjBalance(cjAccessToken: string): Promise<number> {
-  const balanceRes = await fetch(
-    "https://developers.cjdropshipping.com/api2.0/v1/account/balance",
-    { headers: { "CJ-Access-Token": cjAccessToken } }
-  );
-  const balanceData = await balanceRes.json().catch(() => null);
-
-  if (!balanceRes.ok) {
-    throw new Error(balanceData?.message ?? balanceData?.msg ?? `Erro ao consultar saldo CJ (${balanceRes.status})`);
-  }
-
-  return extractBalance(balanceData);
-}
-
-async function createLowBalanceNotification(
-  adminClient: ReturnType<typeof createClient>,
-  userId: string,
-  orderId: string,
-  required: number,
-  available: number
-): Promise<void> {
-  try {
-    await (adminClient as any).from("notifications").insert({
-      user_id: userId,
-      title: "Saldo insuficiente na CJ",
-      message: "Você tem um pedido aguardando envio. Recarregue sua conta na CJ Dropshipping para processar automaticamente.",
-      action_url: "https://cjdropshipping.com/wallet.html",
-      type: "warning",
-      read: false,
-      metadata: { order_id: orderId, required, available },
-    });
-  } catch (e) {
-    console.error("[ml-orders-webhook] createLowBalanceNotification error:", e);
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const supabaseUrl    = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const internalSecret = Deno.env.get("INTERNAL_SECRET")!;
   // Hybrid deployment: DB may live on a different project than the functions
   const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
   const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
@@ -226,10 +154,10 @@ Deno.serve(async (req) => {
     const buyerState   = addr.state?.name   ?? "";
     const buyerZip     = addr.zip_code      ?? "";
 
-    // ── 5. Look up publication to get cj_variant_id + cost_price ──────────
-    let cjVariantId:  string | null = null;
-    let cjProductId:  string | null = null;
-    let cjProductUrl: string | null = null;
+    // ── 5. Look up publication cost metadata ──────────────────────────────
+    let legacyVariantId:  string | null = null;
+    let legacyProductId:  string | null = null;
+    let legacyProductUrl: string | null = null;
     let costPrice:    number | null = null;
 
     if (mlItemId) {
@@ -241,11 +169,9 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (pub) {
-        cjVariantId = pub.cj_variant_id ?? null;
-        cjProductId = pub.cj_product_id ?? null;
-        cjProductUrl = pub.cj_product_url ?? (
-          cjProductId ? `https://www.cjdropshipping.com/product-detail.html?id=${cjProductId}` : null
-        );
+        legacyVariantId = pub.cj_variant_id ?? null;
+        legacyProductId = pub.cj_product_id ?? null;
+        legacyProductUrl = pub.cj_product_url ?? null;
         costPrice   = pub.cost_price    ?? null;
       }
     }
@@ -253,34 +179,8 @@ Deno.serve(async (req) => {
     const salePrice = Number(mlOrder.total_amount ?? item?.unit_price ?? 0);
     const profit    = costPrice !== null ? salePrice - costPrice : null;
     let orderStatus = "paid";
-    let fulfillmentStatus = cjVariantId ? "pending" : "no_variant";
+    let fulfillmentStatus = legacyVariantId ? "manual_review" : "no_supplier_metadata";
     let fulfillmentError: string | null = null;
-    let shouldTriggerFulfillment = Boolean(cjVariantId);
-    let balanceCheck: { required: number; available: number } | null = null;
-
-    if (cjVariantId && Number(costPrice ?? 0) > 0) {
-      try {
-        const cjToken = await getCjAccessToken(supabaseUrl, serviceRoleKey, internalSecret);
-        if (cjToken) {
-          const availableBalance = await getCjBalance(cjToken);
-          const requiredBalance = Number(costPrice ?? 0);
-
-          if (availableBalance < requiredBalance) {
-            orderStatus = "awaiting_payment";
-            fulfillmentStatus = "awaiting_payment";
-            fulfillmentError =
-              `Saldo CJ insuficiente. Disponível: $${availableBalance.toFixed(2)}. ` +
-              `Necessário: $${requiredBalance.toFixed(2)}`;
-            shouldTriggerFulfillment = false;
-            balanceCheck = { required: requiredBalance, available: availableBalance };
-          }
-        } else {
-          console.warn("[ml-orders-webhook] CJ token unavailable; balance check skipped");
-        }
-      } catch (balanceErr) {
-        console.warn("[ml-orders-webhook] CJ balance check failed; fulfillment will continue:", balanceErr);
-      }
-    }
 
     // ── 6. INSERT order ────────────────────────────────────────────────────
     const { data: newOrder, error: insertError } = await adminClient
@@ -303,9 +203,9 @@ Deno.serve(async (req) => {
         sale_price:          salePrice,
         cost_price:          costPrice,
         profit,
-        cj_product_id:       cjProductId,
-        cj_product_url:      cjProductUrl,
-        cj_variant_id:       cjVariantId,
+        cj_product_id:       legacyProductId,
+        cj_product_url:      legacyProductUrl,
+        cj_variant_id:       legacyVariantId,
         status:              orderStatus,
         fulfillment_status:  fulfillmentStatus,
         fulfillment_error:   fulfillmentError,
@@ -322,32 +222,7 @@ Deno.serve(async (req) => {
     const internalOrderId = newOrder.id as string;
     console.log("[ml-orders-webhook] order saved:", internalOrderId);
 
-    if (balanceCheck) {
-      await createLowBalanceNotification(
-        adminClient,
-        integration.user_id,
-        internalOrderId,
-        balanceCheck.required,
-        balanceCheck.available
-      );
-    }
-
-    // ── 7. Trigger CJ fulfillment if we have a variant ────────────────────
-    if (shouldTriggerFulfillment && internalOrderId) {
-      console.log("[ml-orders-webhook] triggering cj-fulfill for:", internalOrderId);
-      // Fire-and-forget — don't await so ML gets a fast 200 response
-      fetch(`${supabaseUrl}/functions/v1/cj-fulfill`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization:  `Bearer ${serviceRoleKey}`,
-          "x-internal-secret": internalSecret,
-        },
-        body: JSON.stringify({ order_id: internalOrderId }),
-      }).catch((e) => console.error("[ml-orders-webhook] cj-fulfill invoke error:", e));
-    } else {
-      console.warn("[ml-orders-webhook] no cj_variant_id — fulfillment skipped for:", internalOrderId);
-    }
+    console.log("[ml-orders-webhook] fulfillment intentionally disabled for:", internalOrderId);
 
     return ok({ success: true, order_id: internalOrderId });
 

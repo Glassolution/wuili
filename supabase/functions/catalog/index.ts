@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
         ].join(","),
         { count: "exact" }
       )
+      .eq("source", "c7drop")
       .eq("is_active", true)
       .eq("is_blocked", false)
       .gt("stock_quantity", 0)
