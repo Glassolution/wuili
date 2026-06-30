@@ -61,7 +61,7 @@ const DashboardHomePage = () => {
         aria-hidden="true"
       />
 
-      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-24px)] w-full flex-col items-center px-4 pb-5 pt-[8vh] sm:px-6 lg:pt-[10vh]">
+      <section className="relative z-10 mx-auto flex min-h-[calc(100vh-24px)] w-full flex-col items-center px-4 pb-4 pt-[7vh] sm:px-6 lg:pt-[8vh]">
         {/* Logo Velo — topo, acima do badge (referência Dia) */}
         <motion.div
           className="flex w-full justify-center"
@@ -105,7 +105,7 @@ const DashboardHomePage = () => {
         </motion.header>
 
         {/* 3. Card do input + esboços de janela decorativos */}
-        <div className="relative mt-[clamp(112px,18vh,200px)] w-[40vw] min-w-[min(100%,400px)] max-w-[640px] overflow-visible py-6">
+        <div className="relative mt-auto w-[34vw] min-w-[min(100%,360px)] max-w-[520px] overflow-visible pb-2 pt-8">
           <div
             className="pointer-events-none absolute -inset-x-[18%] -top-[8%] bottom-[-28%] z-0 overflow-visible"
             aria-hidden="true"
@@ -141,7 +141,7 @@ const DashboardHomePage = () => {
               event.preventDefault();
               openAquas(chatPrompt || "Como posso vender mais hoje?");
             }}
-            className="relative z-10 w-full rounded-[28px] border border-black/[0.05] bg-white px-6 py-5 shadow-[0_2px_6px_rgba(17,24,39,0.04),0_28px_72px_rgba(17,24,39,0.09)] sm:px-7 sm:py-[22px]"
+            className="relative z-10 w-full rounded-[18px] border border-black/[0.05] bg-white px-4 py-3 shadow-[0_2px_6px_rgba(17,24,39,0.04),0_24px_62px_rgba(17,24,39,0.085)] sm:px-5 sm:py-4"
             style={{ fontFamily: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
             variants={fadeUp}
             initial="hidden"
@@ -149,9 +149,9 @@ const DashboardHomePage = () => {
             custom={0.16}
           >
           {/* Linha 1: lupa + placeholder */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <Search
-              className="h-[16px] w-[16px] shrink-0 text-[#6F7680]"
+              className="h-[14px] w-[14px] shrink-0 text-[#6F7680]"
               strokeWidth={1.55}
               aria-hidden="true"
             />
@@ -160,26 +160,26 @@ const DashboardHomePage = () => {
               onChange={(event) => setChatPrompt(event.target.value)}
               placeholder="Pergunte ao Aquas..."
               aria-label="Pergunte ao Aquas"
-              className="min-w-0 flex-1 bg-transparent text-[15px] font-medium leading-[22px] text-[#111111] outline-none placeholder:text-[#2D333B]"
+              className="min-w-0 flex-1 bg-transparent text-[13.5px] font-medium leading-[18px] text-[#111111] outline-none placeholder:text-[#2D333B]"
             />
           </div>
 
           {/* Linha 2: contexto à esquerda, enviar à direita */}
-          <div className="mt-5 flex items-center justify-between gap-4">
+          <div className="mt-3 flex items-center justify-between gap-3">
             <button
               type="button"
-              className="inline-flex min-w-0 items-center gap-2 text-[13px] font-normal text-[#C4C8CE] transition-colors hover:text-[#8D939B]"
+              className="inline-flex min-w-0 items-center gap-2 text-[12.5px] font-normal text-[#C4C8CE] transition-colors hover:text-[#8D939B]"
               aria-label="Adicionar contexto"
             >
-              <Plus className="h-[14px] w-[14px] shrink-0" strokeWidth={1.5} />
+              <Plus className="h-[13px] w-[13px] shrink-0" strokeWidth={1.5} />
               <span className="truncate">Adicionar contexto</span>
             </button>
             <button
               type="submit"
-              className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full bg-[#050505] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_22px_rgba(17,24,39,0.18)] transition-transform hover:-translate-y-px active:translate-y-0"
+              className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-[#050505] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_22px_rgba(17,24,39,0.18)] transition-transform hover:-translate-y-px active:translate-y-0"
               aria-label="Enviar pergunta ao Aquas"
             >
-              <ArrowUp className="h-[14px] w-[14px]" strokeWidth={2.2} />
+              <ArrowUp className="h-[13px] w-[13px]" strokeWidth={2.2} />
             </button>
           </div>
           </motion.form>
@@ -187,7 +187,7 @@ const DashboardHomePage = () => {
 
         {/* Card "Acessar o site" — estilo trailer (referência Dia) */}
         <motion.div
-          className="mt-10 flex justify-center sm:mt-12"
+          className="mt-5 flex justify-center"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
@@ -196,14 +196,14 @@ const DashboardHomePage = () => {
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="inline-flex items-center gap-3 rounded-[14px] border border-white/75 bg-white/78 p-2 pr-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_14px_34px_rgba(17,24,39,0.08)] backdrop-blur-2xl transition-transform hover:-translate-y-0.5 active:translate-y-0"
+            className="inline-flex items-center gap-2.5 rounded-[12px] border border-white/75 bg-white/78 p-1.5 pr-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_14px_34px_rgba(17,24,39,0.08)] backdrop-blur-2xl transition-transform hover:-translate-y-0.5 active:translate-y-0"
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#1F2937_0%,#0A0A0A_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-              <Play className="h-3.5 w-3.5 fill-white text-white" strokeWidth={0} />
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-[7px] bg-[linear-gradient(135deg,#1F2937_0%,#0A0A0A_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <Play className="h-3 w-3 fill-white text-white" strokeWidth={0} />
             </span>
-            <span className="inline-flex items-center gap-2 text-[15px] font-semibold tracking-[-0.02em] text-[#050505]">
+            <span className="inline-flex items-center gap-2 text-[13.5px] font-semibold tracking-[-0.02em] text-[#050505]">
               Acessar o site
-              <ArrowUpRight className="h-[16px] w-[16px]" strokeWidth={1.9} />
+              <ArrowUpRight className="h-[14px] w-[14px]" strokeWidth={1.9} />
             </span>
           </button>
         </motion.div>
