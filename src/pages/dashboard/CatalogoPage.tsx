@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -39,6 +39,11 @@ import ProductScoutAI, { type AtlasResults } from "@/components/dashboard/Produc
 import { veloToast } from "@/components/ui/velo-toast";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { ProductCard, ProductCardSkeleton, type Product, formatPrice } from "@/components/dashboard/ProductCard";
+import {
+  addProductToCollection,
+  getCollectionProductIds,
+  removeProductFromCollection,
+} from "@/lib/collectionsApi";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
@@ -877,7 +882,11 @@ const FilterDropdown = ({
 const CatalogoPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const selectionCollectionId = searchParams.get("collectionId");
+  const selectionCollectionName = searchParams.get("collectionName") || "coleção";
+  const isCollectionSelectionMode = Boolean(selectionCollectionId);
   const [activeSubTab, setActiveSubTab] = useState<"produtos" | "metricas">(() => {
     const params = new URLSearchParams(location.search);
     return params.get("tab") === "metricas" ? "metricas" : "produtos";
@@ -898,6 +907,8 @@ const CatalogoPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [favoritedIds, setFavoritedIds] = useState<string[]>([]);
+  const [collectionProductIds, setCollectionProductIds] = useState<string[]>([]);
+  const [collectionToggleLoadingId, setCollectionToggleLoadingId] = useState<string | null>(null);
   const [atlasResults, setAtlasResults] = useState<AtlasResults | null>(null);
 
   const { data: dashboardData } = useQuery({
@@ -992,6 +1003,57 @@ const CatalogoPage = () => {
         ? prev.filter((id) => id !== productId)
         : [...prev, productId]
     );
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchCollectionSelection = async () => {
+      if (!selectionCollectionId) {
+        setCollectionProductIds([]);
+        return;
+      }
+
+      try {
+        const ids = await getCollectionProductIds(selectionCollectionId);
+        if (isMounted) setCollectionProductIds(ids);
+      } catch {
+        if (isMounted) {
+          veloToast.error("Não foi possível carregar os produtos da coleção.");
+        }
+      }
+    };
+
+    fetchCollectionSelection();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectionCollectionId]);
+
+  const toggleCollectionProduct = async (productId: string) => {
+    if (!selectionCollectionId || collectionToggleLoadingId) return;
+
+    const isSelected = collectionProductIds.includes(productId);
+    setCollectionToggleLoadingId(productId);
+    setCollectionProductIds((current) =>
+      isSelected ? current.filter((id) => id !== productId) : [...current, productId],
+    );
+
+    try {
+      if (isSelected) {
+        await removeProductFromCollection(selectionCollectionId, productId);
+      } else {
+        await addProductToCollection(selectionCollectionId, productId);
+      }
+    } catch {
+      setCollectionProductIds((current) =>
+        isSelected ? [...current, productId] : current.filter((id) => id !== productId),
+      );
+      veloToast.error("Não foi possível atualizar a coleção.");
+    } finally {
+      setCollectionToggleLoadingId(null);
+    }
   };
 
   useEffect(() => {
@@ -1148,6 +1210,37 @@ const CatalogoPage = () => {
 
   return (
     <div className="-mt-1 min-h-full w-full overflow-visible" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
+      {isCollectionSelectionMode && selectionCollectionId && (
+        <div className="sticky top-0 z-40 mb-4 rounded-2xl border border-black/[0.08] bg-[#111111] px-4 py-3 text-white shadow-[0_18px_44px_rgba(17,17,17,0.22)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/50">
+                Modo de seleção
+              </p>
+              <p className="mt-0.5 truncate text-[14px] font-semibold">
+                Adicionando à coleção: {selectionCollectionName}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(`/colecoes/${selectionCollectionId}`)}
+                className="inline-flex h-9 items-center justify-center rounded-full bg-white px-4 text-[12px] font-semibold text-[#111111] transition-opacity hover:opacity-90"
+              >
+                Concluir
+              </button>
+              <button
+                type="button"
+                aria-label="Sair do modo de seleção"
+                onClick={() => navigate("/dashboard/catalogo", { replace: true })}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <section className="min-w-0 overflow-visible">
         
         {/* Sub-abas do Catálogo */}
@@ -1305,6 +1398,15 @@ const CatalogoPage = () => {
                     categoryLabel={product.categoria}
                     isFavorited={favoritedIds.includes(product.id)}
                     onToggleFavorite={() => toggleFavorite(product.id)}
+                    collectionSelection={
+                      isCollectionSelectionMode
+                        ? {
+                            selected: collectionProductIds.includes(product.id),
+                            loading: collectionToggleLoadingId === product.id,
+                            onToggle: () => toggleCollectionProduct(product.id),
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </div>
@@ -1395,6 +1497,15 @@ const CatalogoPage = () => {
                       categoryLabel={product.categoria}
                       isFavorited={favoritedIds.includes(product.id)}
                       onToggleFavorite={() => toggleFavorite(product.id)}
+                      collectionSelection={
+                        isCollectionSelectionMode
+                          ? {
+                              selected: collectionProductIds.includes(product.id),
+                              loading: collectionToggleLoadingId === product.id,
+                              onToggle: () => toggleCollectionProduct(product.id),
+                            }
+                          : undefined
+                      }
                       compact
                     />
                   ))}

@@ -9,10 +9,19 @@ import {
   Plus,
   Search,
   Settings,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  createCollection,
+  listCollectionCategories,
+  listCollectionsWithSummaries,
+  type CollectionSummary,
+} from "@/lib/collectionsApi";
+import { veloToast } from "@/components/ui/velo-toast";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
@@ -158,9 +167,154 @@ const CardProductStack = ({ products }: { products: ProductPreview[] }) => (
   </div>
 );
 
+const CreateCollectionModal = ({
+  open,
+  categories,
+  creating,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  categories: string[];
+  creating: boolean;
+  onClose: () => void;
+  onCreate: (payload: { name: string; category: string | null }) => void;
+}) => {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setName("");
+      setCategory(categories[0] ?? null);
+    }
+  }, [categories, open]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-[430px] rounded-[22px] border border-black/[0.06] bg-white p-5 shadow-[0_24px_70px_rgba(17,17,17,0.18)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-[20px] font-semibold tracking-[-0.04em] text-[#111111]">
+              Criar coleção
+            </h2>
+            <p className="mt-1 text-[13px] font-medium leading-5 text-[#777]">
+              Nomeie uma vitrine para salvar produtos do catálogo Velo.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Fechar"
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-full text-[#777] transition-colors hover:bg-[#F4F4F3] hover:text-[#111]"
+          >
+            <X className="h-4 w-4" strokeWidth={2} />
+          </button>
+        </div>
+
+        <label className="mt-5 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#999]">
+          Nome da coleção
+        </label>
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          autoFocus
+          placeholder="Ex: Eletrônicos campeões"
+          className="mt-2 h-11 w-full rounded-[12px] border border-black/[0.08] bg-[#FAFAFA] px-3 text-[14px] font-medium text-[#111] outline-none transition-colors placeholder:text-[#B8B8B8] focus:border-[#111]"
+        />
+
+        <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#999]">
+          Categoria
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {(categories.length > 0 ? categories : ["Geral"]).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setCategory(item)}
+              className={`h-9 rounded-full px-3 text-[12px] font-semibold transition-colors ${
+                category === item
+                  ? "bg-[#111111] text-white"
+                  : "bg-[#F3F3F2] text-[#555] hover:bg-[#EBEBEA] hover:text-[#111]"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          disabled={!name.trim() || creating}
+          onClick={() => onCreate({ name: name.trim(), category })}
+          className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#111111] text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {creating ? "Criando..." : "Criar coleção"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-full text-[13px] font-semibold text-[#777] transition-colors hover:bg-[#F6F6F5] hover:text-[#111]"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const CollectionCard = ({ collection }: { collection: CollectionSummary }) => {
+  const navigate = useNavigate();
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(`/colecoes/${collection.id}`)}
+      className="group relative h-[280px] overflow-hidden rounded-[16px] border border-black/[0.035] bg-[#FAFAFA] p-5 text-left shadow-[0_16px_42px_rgba(17,17,17,0.032)] transition-transform hover:-translate-y-1"
+    >
+      <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#B0B0B0]">
+        {collection.category || "COLEÇÃO VELO"}
+      </p>
+      <h2 className="mt-4 max-w-[250px] text-[19px] font-semibold leading-[1.12] tracking-[-0.04em] text-[#1A1A1A]">
+        {collection.name}
+      </h2>
+      <p className="mt-2 text-[13px] font-medium text-[#9A9A9A]">
+        {collection.productCount} produto{collection.productCount === 1 ? "" : "s"}
+      </p>
+
+      <div className="absolute bottom-5 left-5 right-5 h-[112px]">
+        {collection.thumbnails.length > 0 ? (
+          collection.thumbnails.map((image, index) => (
+            <div
+              key={`${image}-${index}`}
+              className="absolute bottom-0 h-[104px] w-[42%] overflow-hidden rounded-[13px] border border-black/[0.055] bg-white shadow-[0_16px_28px_rgba(17,17,17,0.08)] transition-transform duration-300 group-hover:-translate-y-2"
+              style={{
+                left: `${index * 27}%`,
+                transform: `rotate(${[-5, 1, 5][index] ?? 0}deg)`,
+                zIndex: index + 1,
+              }}
+            >
+              <img src={image} alt="" className="h-full w-full object-cover object-center" />
+            </div>
+          ))
+        ) : (
+          <div className="absolute bottom-0 left-0 right-0 h-[104px] rounded-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
+        )}
+      </div>
+    </button>
+  );
+};
+
 const DashboardHomePage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [products, setProducts] = useState<ProductPreview[]>([]);
+  const [collections, setCollections] = useState<CollectionSummary[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [creatingCollection, setCreatingCollection] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -192,6 +346,55 @@ const DashboardHomePage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchCollectionData = async () => {
+      try {
+        const [collectionRows, categoryRows] = await Promise.all([
+          listCollectionsWithSummaries(),
+          listCollectionCategories(),
+        ]);
+
+        if (!isMounted) return;
+
+        setCollections(collectionRows);
+        setCategories(categoryRows);
+      } catch {
+        if (isMounted) {
+          veloToast.error("Não foi possível carregar suas coleções.");
+        }
+      }
+    };
+
+    fetchCollectionData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleCreateCollection = async ({ name, category }: { name: string; category: string | null }) => {
+    if (!user?.id) {
+      veloToast.error("Faça login para criar uma coleção.");
+      return;
+    }
+
+    setCreatingCollection(true);
+
+    try {
+      const collection = await createCollection({ name, category, userId: user.id });
+      setCreateModalOpen(false);
+      navigate(
+        `/dashboard/catalogo?collectionId=${encodeURIComponent(collection.id)}&collectionName=${encodeURIComponent(collection.name)}`,
+      );
+    } catch {
+      veloToast.error("Não foi possível criar a coleção.");
+    } finally {
+      setCreatingCollection(false);
+    }
+  };
+
   const productGroups = useMemo(() => {
     if (products.length === 0) return featureCards.map(() => []);
 
@@ -204,7 +407,7 @@ const DashboardHomePage = () => {
 
   return (
     <main
-      className="relative -m-5 min-h-[calc(100%+40px)] overflow-visible bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+48px)] lg:-m-7 lg:min-h-[calc(100%+56px)]"
+      className="relative -m-5 min-h-screen overflow-visible bg-white pb-24 text-[#111111] sm:-m-6 lg:-m-7"
       style={{ fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
     >
       <header className="relative z-20 flex h-12 items-center gap-3 border-b border-black/[0.03] px-4">
@@ -246,7 +449,7 @@ const DashboardHomePage = () => {
         </div>
       </header>
 
-      <section className="relative mx-auto flex w-full max-w-[1180px] flex-col items-center px-6 pb-12 pt-[8.8vh]">
+      <section className="relative mx-auto flex w-full max-w-[1180px] flex-col items-center bg-white px-6 pb-20 pt-[8.8vh]">
         <motion.div
           className="flex flex-col items-center text-center"
           variants={fadeUp}
@@ -254,51 +457,95 @@ const DashboardHomePage = () => {
           animate="visible"
           custom={0}
         >
-          <HeroCollage products={products} />
+          {collections.length === 0 ? (
+            <>
+              <HeroCollage products={products} />
 
-          <h1 className="mt-5 text-[20px] font-semibold tracking-[-0.035em] text-[#151515]">
-            Crie uma coleção única
-          </h1>
-          <p className="mt-3 max-w-[360px] text-center text-[14px] font-medium leading-[1.5] text-[#B8B8B8]">
-            Reúna produtos, ideias, anúncios e referências para acelerar sua próxima venda.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/catalogo")}
-            className="mt-7 inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#F5F5F4] px-4 text-[13px] font-semibold text-[#222] shadow-[0_12px_24px_rgba(17,17,17,0.05),inset_0_0_0_1px_rgba(0,0,0,0.03)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
-          >
-            <Plus className="h-[14px] w-[14px]" strokeWidth={2} />
-            Criar
-          </button>
-        </motion.div>
-
-        <motion.div
-          className="grid w-full max-w-[880px] grid-cols-1 gap-4 pt-24 sm:grid-cols-3"
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0.14}
-        >
-          {featureCards.map((card, index) => (
-            <article
-              key={card.eyebrow}
-              className={`group relative h-[280px] overflow-hidden rounded-[16px] border border-black/[0.035] ${card.tone} p-5 shadow-[0_16px_42px_rgba(17,17,17,0.032)]`}
-            >
-              <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#B0B0B0]">
-                {card.eyebrow}
+              <h1 className="mt-5 text-[20px] font-semibold tracking-[-0.035em] text-[#151515]">
+                Crie uma coleção única
+              </h1>
+              <p className="mt-3 max-w-[360px] text-center text-[14px] font-medium leading-[1.5] text-[#B8B8B8]">
+                Reúna produtos, ideias, anúncios e referências para acelerar sua próxima venda.
               </p>
-              <h2 className="mt-4 max-w-[235px] text-[17px] font-semibold leading-[1.18] tracking-[-0.035em] text-[#1A1A1A]">
-                {card.title}
-              </h2>
-              {productGroups[index].length > 0 ? (
-                <CardProductStack products={productGroups[index]} />
-              ) : (
-                <div className="absolute bottom-5 left-6 right-6 h-[104px] rounded-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
-              )}
-            </article>
-          ))}
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(true)}
+                className="mt-7 inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#F5F5F4] px-4 text-[13px] font-semibold text-[#222] shadow-[0_12px_24px_rgba(17,17,17,0.05),inset_0_0_0_1px_rgba(0,0,0,0.03)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <Plus className="h-[14px] w-[14px]" strokeWidth={2} />
+                Criar
+              </button>
+            </>
+          ) : (
+            <div className="w-full max-w-[880px]">
+              <div className="flex flex-col gap-4 text-left sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#B0B0B0]">
+                    Coleções
+                  </p>
+                  <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[#151515]">
+                    Suas vitrines de produtos
+                  </h1>
+                  <p className="mt-2 max-w-[460px] text-[14px] font-medium leading-[1.5] text-[#9A9A9A]">
+                    Organize produtos por nicho, oferta ou campanha antes de publicar.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCreateModalOpen(true)}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[10px] bg-[#111111] px-4 text-[13px] font-semibold text-white shadow-[0_12px_24px_rgba(17,17,17,0.12)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+                >
+                  <Plus className="h-[14px] w-[14px]" strokeWidth={2} />
+                  Nova coleção
+                </button>
+              </div>
+
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {collections.map((collection) => (
+                  <CollectionCard key={collection.id} collection={collection} />
+                ))}
+              </div>
+            </div>
+          )}
         </motion.div>
+
+        {collections.length === 0 && (
+          <motion.div
+            className="grid w-full max-w-[880px] grid-cols-1 gap-4 pt-24 sm:grid-cols-3"
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            custom={0.14}
+          >
+            {featureCards.map((card, index) => (
+              <article
+                key={card.eyebrow}
+                className={`group relative h-[280px] overflow-hidden rounded-[16px] border border-black/[0.035] ${card.tone} p-5 shadow-[0_16px_42px_rgba(17,17,17,0.032)]`}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#B0B0B0]">
+                  {card.eyebrow}
+                </p>
+                <h2 className="mt-4 max-w-[235px] text-[17px] font-semibold leading-[1.18] tracking-[-0.035em] text-[#1A1A1A]">
+                  {card.title}
+                </h2>
+                {productGroups[index].length > 0 ? (
+                  <CardProductStack products={productGroups[index]} />
+                ) : (
+                  <div className="absolute bottom-5 left-6 right-6 h-[104px] rounded-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
+                )}
+              </article>
+            ))}
+          </motion.div>
+        )}
       </section>
+
+      <CreateCollectionModal
+        open={createModalOpen}
+        categories={categories}
+        creating={creatingCollection}
+        onClose={() => setCreateModalOpen(false)}
+        onCreate={handleCreateCollection}
+      />
     </main>
   );
 };

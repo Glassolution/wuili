@@ -52,12 +52,18 @@ export const ProductCard = ({
   isFavorited,
   onToggleFavorite,
   compact = false,
+  collectionSelection,
 }: {
   product: Product;
   categoryLabel: string;
   isFavorited: boolean;
   onToggleFavorite: () => void;
   compact?: boolean;
+  collectionSelection?: {
+    selected: boolean;
+    loading?: boolean;
+    onToggle: () => void;
+  };
 }) => {
   const { rating, reviewCount } = getMockRating(product.id);
 
@@ -99,6 +105,30 @@ export const ProductCard = ({
             <AlertCircle size={10} className="text-[#6B7280]" />
             <span>Fotos insuficientes</span>
           </span>
+        )}
+
+        {collectionSelection && (
+          <button
+            type="button"
+            aria-label={collectionSelection.selected ? "Remover da coleção" : "Adicionar à coleção"}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              collectionSelection.onToggle();
+            }}
+            disabled={collectionSelection.loading}
+            className={`absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-sm transition-all ${
+              collectionSelection.selected
+                ? "border-[#111111] bg-[#111111] text-white shadow-[0_12px_26px_rgba(17,17,17,0.22)]"
+                : "border-[#E6E6E8] bg-white/95 text-[#111111] hover:bg-[#F7F7F8]"
+            } ${collectionSelection.loading ? "cursor-wait opacity-60" : ""}`}
+          >
+            <Heart
+              size={17}
+              strokeWidth={2}
+              className={collectionSelection.selected ? "fill-current" : ""}
+            />
+          </button>
         )}
       </div>
 

@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ClipboardList, Compass, Copy, Home, Info, Search, Settings2, Sparkles, Users, X } from "lucide-react";
+import { Archive, ChevronDown, ChevronUp, ClipboardList, Compass, Copy, Folder, Home, Info, Search, Settings2, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/lib/profileContext";
+import { listCollections, onCollectionsUpdated, type VeloCollection } from "@/lib/collectionsApi";
 
 type NavItem = {
   label: string;
-  icon: typeof Home;
+  icon: ElementType;
   to: string;
   end?: boolean;
+  dimmed?: boolean;
 };
 
 const navItems: NavItem[] = [
@@ -15,40 +18,315 @@ const navItems: NavItem[] = [
   { label: "Catálogo", icon: Compass, to: "/dashboard/catalogo" },
   { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
-  { label: "Afiliados", icon: Users, to: "/dashboard/comissoes" },
-  { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios" },
-  { label: "Ajuda & Central", icon: Info, to: "/docs" },
-  { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes" },
+  { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true },
+  { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
+  { label: "Ajuda & Central", icon: Info, to: "/docs", dimmed: true },
+  { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes", dimmed: true },
 ];
 
 const normalizePath = (path: string) => path.split("?")[0].replace(/\/$/, "");
 
-const VeloSidebarLogo = () => (
-  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-[#000000] text-[#FFFFFF]" aria-hidden="true">
-    <svg width="16" height="16" viewBox="0 0 48 48" fill="none">
-      <path d="M33 18 A11 11 0 1 0 33 30" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-      <path d="M30 26 L34 30 L38 26" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </span>
+const getInitials = (name: string, email?: string | null) => {
+  const raw = (name || email || "Velo").trim();
+  const parts = raw.split(/[\s._@-]+/).filter(Boolean);
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+};
+
+const styles = {
+  sidebar: {
+    width: 248,
+    height: "100%",
+    minHeight: 0,
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    padding: "18px 16px",
+    borderRadius: 0,
+    border: "1px solid #2A2926",
+    background: "#171714",
+    color: "#FFFFFF",
+    boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.05)",
+  } satisfies CSSProperties,
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  } satisfies CSSProperties,
+  brand: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    minWidth: 0,
+    color: "#F2F1EC",
+    textDecoration: "none",
+  } satisfies CSSProperties,
+  brandText: {
+    fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontSize: 20,
+    lineHeight: "24px",
+    fontWeight: 700,
+    letterSpacing: "-0.065em",
+  } satisfies CSSProperties,
+  search: {
+    marginTop: 22,
+    height: 36,
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    boxSizing: "border-box",
+    border: 0,
+    borderRadius: 11,
+    padding: "0 10px",
+    background: "#070706",
+    color: "#FFFFFF",
+    textAlign: "left",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+  } satisfies CSSProperties,
+  searchText: {
+    minWidth: 0,
+    flex: 1,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    fontSize: 14,
+    lineHeight: "18px",
+    fontWeight: 600,
+    letterSpacing: "-0.03em",
+  } satisfies CSSProperties,
+  searchBadge: {
+    width: 24,
+    height: 24,
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    background: "#24231F",
+    color: "#FFFFFF",
+    fontSize: 15,
+    lineHeight: "15px",
+    fontWeight: 650,
+  } satisfies CSSProperties,
+  nav: {
+    marginTop: 22,
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  } satisfies CSSProperties,
+  collectionSubnav: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 3,
+    margin: "-1px 0 4px",
+    paddingLeft: 8,
+  } satisfies CSSProperties,
+  collectionLink: {
+    height: 26,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 8,
+    padding: "0 10px",
+    color: "rgba(255,255,255,0.76)",
+    textDecoration: "none",
+    fontSize: 12,
+    lineHeight: "14px",
+    fontWeight: 500,
+    letterSpacing: "-0.02em",
+  } satisfies CSSProperties,
+  navLinkBase: {
+    height: 32,
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    boxSizing: "border-box",
+    borderRadius: 10,
+    padding: "0 10px",
+    textDecoration: "none",
+    fontSize: 13,
+    lineHeight: "16px",
+    letterSpacing: "-0.02em",
+  } satisfies CSSProperties,
+  spacer: {
+    minHeight: 0,
+    flex: 1,
+  } satisfies CSSProperties,
+  upgradeCard: {
+    width: "100%",
+    boxSizing: "border-box",
+    borderRadius: 13,
+    padding: 10,
+    marginBottom: 10,
+    background: "#191918",
+    color: "#FFFFFF",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.075), 0 10px 30px rgba(0,0,0,0.24)",
+  } satisfies CSSProperties,
+  upgradeTop: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8,
+  } satisfies CSSProperties,
+  upgradeIcon: {
+    width: 35,
+    height: 35,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 9,
+    background: "#141413",
+    color: "#FFFFFF",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12), 0 8px 18px rgba(0,0,0,0.18)",
+  } satisfies CSSProperties,
+  upgradeClose: {
+    width: 18,
+    height: 18,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    border: 0,
+    background: "transparent",
+    color: "rgba(255,255,255,0.45)",
+  } satisfies CSSProperties,
+  upgradeTitle: {
+    margin: "12px 0 0",
+    color: "#FFFFFF",
+    fontSize: 13,
+    lineHeight: "17px",
+    fontWeight: 650,
+    letterSpacing: "-0.03em",
+  } satisfies CSSProperties,
+  upgradeCopy: {
+    margin: "7px 0 0",
+    color: "rgba(255,255,255,0.56)",
+    fontSize: 11,
+    lineHeight: "15px",
+    fontWeight: 500,
+  } satisfies CSSProperties,
+  upgradeButton: {
+    marginTop: 12,
+    width: "100%",
+    height: 32,
+    border: 0,
+    borderRadius: 9,
+    background: "#2B2B29",
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: 650,
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+  } satisfies CSSProperties,
+  profileCard: {
+    width: "100%",
+    minWidth: 0,
+    minHeight: 52,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    boxSizing: "border-box",
+    border: 0,
+    borderRadius: 14,
+    padding: "8px 10px",
+    background: "#20201D",
+    color: "#FFFFFF",
+    textAlign: "left",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.22)",
+  } satisfies CSSProperties,
+  avatar: {
+    width: 32,
+    height: 32,
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    borderRadius: 999,
+    background: "#30302C",
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
+  } satisfies CSSProperties,
+  profileText: {
+    minWidth: 0,
+    flex: 1,
+  } satisfies CSSProperties,
+  profileName: {
+    display: "block",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    color: "#FFFFFF",
+    fontSize: 13,
+    lineHeight: "16px",
+    fontWeight: 650,
+    letterSpacing: "-0.025em",
+  } satisfies CSSProperties,
+  profileEmail: {
+    display: "block",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    marginTop: 2,
+    color: "rgba(255,255,255,0.62)",
+    fontSize: 11,
+    lineHeight: "14px",
+    fontWeight: 500,
+  } satisfies CSSProperties,
+  profileChevrons: {
+    width: 16,
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    color: "rgba(255,255,255,0.5)",
+  } satisfies CSSProperties,
+};
+
+const SignatureUpgradeIcon = () => (
+  <svg width="23" height="23" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+    <path
+      d="M5.2 19.2C8.4 14.8 11.2 7.7 10.4 6.5C9.6 5.4 7.2 12.2 7 17.2C6.8 22.1 12.8 8.4 14.1 9.9C15.3 11.3 11.6 18.5 13.2 18.8C14.8 19.1 17.7 13.1 19.5 13.9C20.9 14.5 18.8 17.6 16.7 18.5C20.1 17.7 22.3 18.4 23.8 19.3"
+      stroke="#F2F1EC"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path d="M18.8 7.1H23.8" stroke="#F2F1EC" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
+const VeloIconOnly = () => (
+  <svg aria-hidden="true" width="22" height="22" viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }}>
+    <path d="M33 18 A11 11 0 1 0 33 30" stroke="#F2F1EC" strokeWidth="4" strokeLinecap="round" />
+    <path d="M30 26 L34 30 L38 26" stroke="#F2F1EC" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
 );
 
 const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) => {
   const Icon = item.icon;
+  const inactiveColor = "#FFFFFF";
+  const linkStyle: CSSProperties = {
+    ...styles.navLinkBase,
+    color: active ? "#FFFFFF" : inactiveColor,
+    background: active ? "#2A2925" : "transparent",
+    fontWeight: active ? 650 : 500,
+    boxShadow: active ? "0 10px 28px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08)" : "none",
+  };
 
   return (
-    <Link
-      to={item.to}
-      aria-current={active ? "page" : undefined}
-      className={`flex items-center gap-[10px] rounded-[10px] px-3 py-[9px] text-[14px] transition-colors ${
-        active ? "bg-[#2C2C2C] font-medium text-[#FFFFFF]" : "bg-transparent font-normal text-[#4A4A4A] hover:bg-[#FAFAFA]"
-      }`}
-    >
-      <Icon
-        className={`h-[18px] w-[18px] shrink-0 ${active ? "fill-current text-[#FFFFFF]" : "text-[#4A4A4A]"}`}
-        strokeWidth={1.5}
-        aria-hidden="true"
-      />
-      <span className="truncate">{item.label}</span>
+    <Link to={item.to} aria-current={active ? "page" : undefined} style={linkStyle}>
+      <Icon size={16} strokeWidth={1.65} fill={active ? "currentColor" : "none"} aria-hidden="true" />
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
 };
@@ -57,8 +335,11 @@ const DashboardSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [showUpgradeCard, setShowUpgradeCard] = useState(true);
+  const { nome, foto } = useProfile();
+  const [collections, setCollections] = useState<VeloCollection[]>([]);
+  const profileName = nome || user?.user_metadata?.full_name || user?.email || "Usuario";
   const profileEmail = user?.email || "conta@velo.app";
+  const initials = getInitials(profileName, user?.email);
 
   const isActive = (item: NavItem) => {
     const currentPath = normalizePath(location.pathname);
@@ -66,74 +347,99 @@ const DashboardSidebar = () => {
     return item.end ? currentPath === itemPath : currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
   };
 
-  return (
-    <aside className="velo-dashboard-sidebar flex h-full min-h-0 w-[260px] shrink-0 flex-col gap-6 rounded-[16px] bg-[#FFFFFF] px-4 py-5 text-[#4A4A4A] [border-right:0.5px_solid_#E5E5E5]">
-      <Link to="/dashboard" className="flex items-center gap-[10px]">
-        <VeloSidebarLogo />
-        <span className="truncate text-[16px] font-medium text-[#000000]">Velo</span>
-      </Link>
+  useEffect(() => {
+    let isMounted = true;
 
-      <button
-        type="button"
-        className="flex items-center gap-[10px] rounded-[10px] bg-[#F7F7F6] px-3 py-[10px] text-left"
-        aria-label="Buscar"
-      >
-        <Search className="h-4 w-4 shrink-0 text-[#999999]" strokeWidth={1.5} aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate text-[14px] font-normal text-[#999999]">Buscar</span>
-        <span className="rounded-[5px] bg-[#EFEFEE] px-[6px] py-[2px] text-[11px] font-normal leading-none text-[#999999]">⌘K</span>
+    const fetchCollections = async () => {
+      try {
+        const rows = await listCollections(3);
+        if (isMounted) setCollections(rows);
+      } catch {
+        if (isMounted) setCollections([]);
+      }
+    };
+
+    fetchCollections();
+    const unsubscribe = onCollectionsUpdated(fetchCollections);
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  return (
+    <aside className="velo-dashboard-sidebar" style={styles.sidebar}>
+      <header style={styles.header}>
+        <Link to="/dashboard" style={styles.brand}>
+          <VeloIconOnly />
+          <span style={styles.brandText}>Velo</span>
+        </Link>
+      </header>
+
+      <button type="button" aria-label="Buscar" style={styles.search}>
+        <Search size={15} strokeWidth={1.7} aria-hidden="true" />
+        <span style={styles.searchText}>Buscar</span>
+        <span style={styles.searchBadge}>/</span>
       </button>
 
-      <nav className="flex flex-col gap-1" aria-label="Navegação principal">
+      <nav aria-label="Navegação principal" style={styles.nav}>
         {navItems.map((item) => (
-          <SidebarNavLink key={item.label} item={item} active={isActive(item)} />
+          <div key={item.label}>
+            <SidebarNavLink item={item} active={isActive(item)} />
+            {item.label === "Catálogo" && collections.length > 0 && (
+              <div aria-label="Coleções" style={styles.collectionSubnav}>
+                {collections.map((collection) => (
+                  <Link key={collection.id} to={`/colecoes/${collection.id}`} style={styles.collectionLink}>
+                    <Folder size={14} strokeWidth={1.55} aria-hidden="true" />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {collection.name}
+                    </span>
+                  </Link>
+                ))}
+                <Link to="/colecoes" style={{ ...styles.collectionLink, color: "#FFFFFF" }}>
+                  <span style={{ width: 14, flexShrink: 0 }} />
+                  <span>Ver todas</span>
+                </Link>
+              </div>
+            )}
+          </div>
         ))}
       </nav>
 
-      <div className="min-h-0 flex-1" aria-hidden="true" />
+      <div aria-hidden="true" style={styles.spacer} />
 
-      {showUpgradeCard ? (
-        <section className="rounded-[16px] bg-[#F3F2F0] p-4" aria-label="Upgrade para Premium">
-          <div className="flex items-center justify-between">
-            <Sparkles className="h-[18px] w-[18px] text-[#000000]" strokeWidth={1.5} aria-hidden="true" />
-            <button
-              type="button"
-              onClick={() => setShowUpgradeCard(false)}
-              className="flex h-4 w-4 items-center justify-center text-[#999999]"
-              aria-label="Ocultar card de upgrade"
-            >
-              <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            </button>
-          </div>
-
-          <p className="mt-[6px] text-[14px] font-medium text-[#000000]">Upgrade para o Premium!</p>
-          <p className="mt-1 text-[13px] leading-[1.4] text-[#777777]">
-            Publique sem limites
-            <br />
-            Personalize sua marca
-          </p>
-
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/planos")}
-            className="mt-[10px] h-[38px] w-full rounded-full bg-[#000000] text-[13px] font-medium text-[#FFFFFF]"
-          >
-            Fazer upgrade
+      <section aria-label="Upgrade para Premium" style={styles.upgradeCard}>
+        <div style={styles.upgradeTop}>
+          <span style={styles.upgradeIcon} aria-hidden="true">
+            <SignatureUpgradeIcon />
+          </span>
+          <button type="button" aria-label="Fechar upgrade" style={styles.upgradeClose}>
+            <X size={15} strokeWidth={1.8} />
           </button>
-        </section>
-      ) : null}
+        </div>
+        <p style={styles.upgradeTitle}>Upgrade para o Premium!</p>
+        <p style={styles.upgradeCopy}>
+          Publique sem limites
+          <br />
+          Personalize sua marca
+        </p>
+        <button type="button" onClick={() => navigate("/dashboard/planos")} style={styles.upgradeButton}>
+          Fazer upgrade
+        </button>
+      </section>
 
-      <button
-        type="button"
-        onClick={() => navigate("/dashboard/configuracoes")}
-        className="flex min-w-0 items-center gap-[10px] rounded-[14px] bg-[#F3F2F0] px-3 py-[10px] text-left"
-        aria-label="Abrir perfil"
-      >
-        <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#E0E0E0] text-[12px] font-semibold text-[#333333]">
-          FX
+      <button type="button" aria-label="Abrir perfil" onClick={() => navigate("/dashboard/configuracoes")} style={styles.profileCard}>
+        <span style={styles.avatar}>
+          {foto ? <img src={foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
         </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[13px] font-semibold text-[#000000]">Felipe Xavier</span>
-          <span className="block truncate whitespace-nowrap text-[11px] text-[#999999]">{profileEmail}</span>
+        <span style={styles.profileText}>
+          <span style={styles.profileName}>{profileName}</span>
+          <span style={styles.profileEmail}>{profileEmail}</span>
+        </span>
+        <span aria-hidden="true" style={styles.profileChevrons}>
+          <ChevronUp size={14} strokeWidth={1.8} />
+          <ChevronDown size={14} strokeWidth={1.8} />
         </span>
       </button>
     </aside>
