@@ -494,7 +494,7 @@ const DashboardHomePage = () => {
         </motion.div>
 
         <motion.div
-          className="grid w-full max-w-[760px] grid-cols-1 gap-4 pt-24 md:grid-cols-2"
+          className="grid w-full max-w-[1180px] grid-cols-1 gap-4 pt-24 md:grid-cols-3"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
