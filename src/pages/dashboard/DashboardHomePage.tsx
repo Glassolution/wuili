@@ -438,8 +438,8 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
     : [formatCurrency(0), formatCurrency(0), formatCurrency(0)];
 
   return (
-  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
-    <p className="text-[10px] font-semibold text-[#5F5F5F]">
+  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+    <p className="text-[10px] font-bold text-[#5F5F5F]">
       Total sales over time
     </p>
     <div className="mt-1 flex items-baseline gap-1.5">
@@ -448,29 +448,29 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
       </p>
       <span className="text-[9px] font-semibold text-[#8C8C8C]">{trend}</span>
     </div>
-    <div className="mt-1.5 h-[104px]">
-      <svg viewBox="0 0 720 140" aria-hidden="true" className="h-full w-full">
-        {[24, 48, 72, 96, 120].map((y) => (
+    <div className="mt-2 h-[152px]">
+      <svg viewBox="0 0 720 180" aria-hidden="true" className="h-full w-full">
+        {[30, 62, 94, 126, 158].map((y) => (
           <line key={y} x1="52" x2="708" y1={y} y2={y} stroke="#ECECEC" strokeWidth="1" />
         ))}
-        <text x="4" y="28" fill="#B0B0B0" fontSize="9">{yLabels[0]}</text>
-        <text x="4" y="76" fill="#B0B0B0" fontSize="9">{yLabels[1]}</text>
-        <text x="4" y="124" fill="#B0B0B0" fontSize="9">{yLabels[2]}</text>
+        <text x="4" y="34" fill="#B0B0B0" fontSize="9">{yLabels[0]}</text>
+        <text x="4" y="98" fill="#B0B0B0" fontSize="9">{yLabels[1]}</text>
+        <text x="4" y="162" fill="#B0B0B0" fontSize="9">{yLabels[2]}</text>
         <path
-          d={toChartPath(compareValues, 720, 120, 52)}
+          d={toChartPath(compareValues, 720, 154, 52)}
           fill="none"
-          opacity="0.28"
+          opacity="0.22"
           stroke="#9CA3AF"
-          strokeDasharray="4 5"
+          strokeDasharray="3 5"
           strokeLinecap="round"
-          strokeWidth="3"
+          strokeWidth="2.4"
         />
         <path
-          d={toChartPath(chartValues, 720, 120, 52)}
+          d={toChartPath(chartValues, 720, 154, 52)}
           fill="none"
           stroke={chartBlue}
           strokeLinecap="round"
-          strokeWidth="3.2"
+          strokeWidth="2.7"
           style={{
             animation: "velo-chart-draw 1200ms cubic-bezier(.2,.8,.2,1) both",
             strokeDasharray: 900,
@@ -485,7 +485,7 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
           ["Oct 2024", 596],
           ["Dec 2024", 690],
         ].map(([label, x]) => (
-          <text key={label} x={Number(x)} y="136" fill="#A7A7A7" fontSize="9" textAnchor="middle">
+          <text key={label} x={Number(x)} y="176" fill="#A7A7A7" fontSize="9" textAnchor="middle">
             {label}
           </text>
         ))}
@@ -497,13 +497,13 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
 
 const SalesBreakdown = ({ rows }: { rows: CollectionKpis["salesBreakdown"] }) => {
   return (
-    <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
-      <p className="text-[10px] font-semibold text-[#5F5F5F]">
+    <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+      <p className="text-[10px] font-bold text-[#5F5F5F]">
         Total sales breakdown
       </p>
-      <div className="mt-2 divide-y divide-black/[0.045]">
+      <div className="mt-2 space-y-[3px]">
         {rows.map(({ label, value, trend }) => (
-          <div key={label} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 py-[5px] text-[10px]">
+          <div key={label} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-[4px] bg-[#F7F7F6] px-2 py-[5px] text-[10px]">
             <span className="font-semibold text-[#6F6F6F]">{label}</span>
             <span className="font-bold text-[#4A4A4A]">{value}</span>
             <span className="text-[9px] font-semibold text-[#8A8A8A]">{trend}</span>
@@ -518,22 +518,22 @@ const MiniDonutCard = ({ revenue, activePublicationsCount, catalogCount }: { rev
   const activeShare = catalogCount > 0 ? Math.min(92, Math.max(8, (activePublicationsCount / catalogCount) * 100)) : 8;
 
   return (
-  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
-    <p className="text-[10px] font-semibold text-[#5F5F5F]">Total sales by sales channel</p>
-    <div className="mt-2 flex items-center justify-center">
+  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+    <p className="text-[10px] font-bold text-[#5F5F5F]">Total sales by sales channel</p>
+    <div className="mt-2.5 flex items-center justify-center">
       <div
-        className="relative grid h-[66px] w-[66px] place-items-center rounded-full"
+        className="relative grid h-[82px] w-[82px] place-items-center rounded-full"
         style={{
           background: `conic-gradient(${chartBlue} 0 ${activeShare}%, #4F46E5 ${activeShare}% ${Math.min(activeShare + 10, 100)}%, #DDE7FF ${Math.min(activeShare + 10, 100)}% 100%)`,
         }}
       >
-        <div className="grid h-[46px] w-[46px] place-items-center rounded-full bg-white text-center">
-          <span className="block text-[10px] font-bold text-[#171717]">{revenue === "R$ 0,00" ? "R$ 0" : revenue}</span>
+        <div className="grid h-[58px] w-[58px] place-items-center rounded-full bg-white text-center">
+          <span className="block text-[11px] font-bold text-[#171717]">{revenue === "R$ 0,00" ? "R$ 0" : revenue}</span>
           <span className="block text-[8px] font-semibold text-[#8A8A8A]">↗ 31%</span>
         </div>
       </div>
     </div>
-    <div className="mt-2 flex justify-center gap-3 text-[9px] font-semibold text-[#777]">
+    <div className="mt-2.5 flex justify-center gap-3 text-[9px] font-semibold text-[#777]">
       <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#2563EB]" />Online Store</span>
       <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#4F46E5]" />Shop</span>
     </div>
@@ -542,13 +542,13 @@ const MiniDonutCard = ({ revenue, activePublicationsCount, catalogCount }: { rev
 };
 
 const AverageOrderCard = ({ value, monthlySales }: { value: string; monthlySales: number[] }) => (
-  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
-    <p className="text-[10px] font-semibold text-[#5F5F5F]">Average order value over time</p>
+  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+    <p className="text-[10px] font-bold text-[#5F5F5F]">Average order value over time</p>
     <div className="mt-1 flex items-baseline gap-1.5">
       <p className="text-[15px] font-bold text-[#171717]">{value}</p>
       <span className="text-[9px] font-semibold text-[#8C8C8C]">↗ 17%</span>
     </div>
-    <Sparkline values={monthlySales} className="mt-2 h-[34px] w-full" />
+    <Sparkline values={monthlySales} className="mt-4 h-[56px] w-full" />
   </article>
 );
 
@@ -561,9 +561,9 @@ const ProductsBarCard = ({ catalogCount, activePublicationsCount, orderCount }: 
   ];
 
   return (
-  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
-    <p className="text-[10px] font-semibold text-[#5F5F5F]">Total sales by product</p>
-    <div className="mt-2.5 space-y-2">
+  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+    <p className="text-[10px] font-bold text-[#5F5F5F]">Total sales by product</p>
+    <div className="mt-3 space-y-2.5">
       {[
         ...rows,
       ].map(([label, value]) => (
@@ -572,7 +572,7 @@ const ProductsBarCard = ({ catalogCount, activePublicationsCount, orderCount }: 
             <span>{label}</span>
             <span>{formatInteger(Number(value))}</span>
           </div>
-          <div className="h-4 overflow-hidden rounded-[4px] bg-[#E9EEF1]">
+          <div className="h-5 overflow-hidden rounded-[4px] bg-[#E9EEF1]">
             <div
               className="h-full bg-[#2563EB] transition-[width] duration-700 ease-out"
               style={{ width: `${Math.max(8, (Number(value) / max) * 100)}%` }}
@@ -587,6 +587,7 @@ const ProductsBarCard = ({ catalogCount, activePublicationsCount, orderCount }: 
 
 const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
   const salesTrend = formatTrend(kpis.monthlySales[5] ?? 0, kpis.monthlySales[4] ?? 0);
+  const salesSeries = kpis.monthlySales.some((value) => value > 0) ? kpis.monthlySales : kpis.monthlyOrders;
 
   return (
   <section className="rounded-[14px] bg-[#F2F2F1] p-3">
@@ -621,14 +622,14 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
     </div>
 
     <div className="mt-3 grid grid-cols-2 gap-2 min-[700px]:grid-cols-4">
-      <OverviewMetricCard label="Gross sales" value={kpis.revenue} delta={salesTrend} values={kpis.monthlySales} />
-      <OverviewMetricCard label="Returning customer rate" value={kpis.returningCustomerRate} delta="—" values={[0, 0, 0, 0, 0, 0]} />
+      <OverviewMetricCard label="Gross sales" value={kpis.revenue} delta={salesTrend} values={salesSeries} />
+      <OverviewMetricCard label="Returning customer rate" value={kpis.returningCustomerRate} delta="—" values={kpis.monthlyOrders} />
       <OverviewMetricCard label="Orders fulfilled" value={kpis.fulfilledOrders} delta="—" values={kpis.monthlyOrders} />
       <OverviewMetricCard label="Orders" value={kpis.orders} delta={formatTrend(kpis.monthlyOrders[5] ?? 0, kpis.monthlyOrders[4] ?? 0)} values={kpis.monthlyOrders} />
     </div>
 
     <div className="mt-2 grid grid-cols-1 gap-2 min-[700px]:grid-cols-[2fr_1fr]">
-      <SalesOverTimeChart revenue={kpis.revenue} values={kpis.monthlySales} />
+      <SalesOverTimeChart revenue={kpis.revenue} values={salesSeries} />
       <SalesBreakdown rows={kpis.salesBreakdown} />
     </div>
 
@@ -638,7 +639,7 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
         activePublicationsCount={kpis.activePublicationsCount}
         catalogCount={kpis.catalogCount}
       />
-      <AverageOrderCard value={kpis.averageOrderValue} monthlySales={kpis.monthlySales} />
+      <AverageOrderCard value={kpis.averageOrderValue} monthlySales={salesSeries} />
       <ProductsBarCard
         catalogCount={kpis.catalogCount}
         activePublicationsCount={kpis.activePublicationsCount}
