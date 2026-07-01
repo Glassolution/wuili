@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Archive,
@@ -765,7 +765,6 @@ const CollectionDashboardCard = ({
 }) => {
   const coverImage = collection.coverImage ?? collection.thumbnails[0];
   const productLabel = `${collection.productCount} produto${collection.productCount === 1 ? "" : "s"}`;
-  const meta = collection.category ? `${productLabel} · ${collection.category}` : productLabel;
 
   return (
     <article
@@ -778,14 +777,16 @@ const CollectionDashboardCard = ({
           onAddProducts();
         }
       }}
-      className="group relative min-h-[220px] cursor-pointer overflow-hidden rounded-[16px] bg-[#F3F2F0] outline-none transition-transform duration-200 ease-out hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-black/20"
+      className="group relative h-[200px] w-[220px] shrink-0 cursor-pointer overflow-hidden rounded-[16px] bg-[#F3F2F0] outline-none transition-transform duration-200 ease-out hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-black/20"
     >
       {coverImage ? (
         <img src={coverImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
       ) : (
-        <div className="absolute inset-0 bg-[#F3F2F0]" />
+        <div className="absolute inset-0 grid place-items-center bg-[#F3F2F0] text-[#9A9A96]">
+          <FolderOpen className="h-9 w-9" strokeWidth={1.7} />
+        </div>
       )}
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_30%,rgba(0,0,0,0.75)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_30%,rgba(0,0,0,0.80)_100%)]" />
 
       <button
         type="button"
@@ -796,20 +797,20 @@ const CollectionDashboardCard = ({
           event.stopPropagation();
           onToggleMenu();
         }}
-        className="absolute right-3 top-3 z-20 grid h-8 w-8 place-items-center rounded-full bg-black/20 text-white backdrop-blur-md transition-colors hover:bg-black/35 disabled:cursor-wait disabled:opacity-55"
+        className="absolute right-2.5 top-2.5 z-20 grid h-8 w-8 place-items-center rounded-full bg-black/20 text-white backdrop-blur-md transition-colors hover:bg-black/35 disabled:cursor-wait disabled:opacity-55"
       >
-        <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={2} />
+        <MoreHorizontal className="h-4 w-4" strokeWidth={2.3} />
       </button>
 
       {menuOpen ? (
         <div
-          className="absolute right-3 top-12 z-30 w-[168px] overflow-hidden rounded-[12px] border border-white/15 bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.22)]"
+          className="absolute right-2.5 top-12 z-30 w-[168px] overflow-hidden rounded-[12px] border border-white/15 bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.22)]"
           onClick={(event) => event.stopPropagation()}
         >
           <button
             type="button"
             onClick={onAddProducts}
-            className="flex h-9 w-full items-center rounded-[9px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0]"
+            className="flex h-10 w-full items-center rounded-[10px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0]"
           >
             Adicionar produtos
           </button>
@@ -817,36 +818,20 @@ const CollectionDashboardCard = ({
             type="button"
             disabled={deleting}
             onClick={onDelete}
-            className="flex h-9 w-full items-center rounded-[9px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0] disabled:cursor-wait disabled:opacity-55"
+            className="flex h-10 w-full items-center rounded-[10px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0] disabled:cursor-wait disabled:opacity-55"
           >
             Excluir coleção
           </button>
         </div>
       ) : null}
 
-      <div className="absolute bottom-0 left-0 z-10 max-w-[calc(100%-142px)] p-4">
-        <h2 className="text-[18px] font-semibold leading-[1.2] text-white">
+      <div className="absolute bottom-0 left-0 z-10 w-full min-w-0 p-[14px]">
+        <h2 className="truncate text-[15px] font-semibold leading-[1.15] tracking-[-0.02em] text-white">
           {collection.name}
         </h2>
-        <p className="mt-1 text-[12px] font-medium text-white/75">
-          {meta}
+        <p className="mt-1 text-[12px] font-medium text-white/70">
+          {productLabel}
         </p>
-      </div>
-
-      <div className="absolute bottom-4 right-4 z-10 flex items-center">
-        {collection.thumbnails.length > 0 ? (
-          collection.thumbnails.slice(0, 3).map((image, index) => (
-            <img
-              key={`${collection.id}-${image}-${index}`}
-              src={image}
-              alt=""
-              className="h-9 w-9 rounded-[6px] border-2 border-white bg-white object-cover object-center shadow-[0_8px_18px_rgba(0,0,0,0.18)]"
-              style={{ marginLeft: index === 0 ? 0 : -10, zIndex: 3 - index }}
-            />
-          ))
-        ) : (
-          <span className="h-9 w-9 rounded-[6px] border-2 border-white bg-[#F3F2F0]" />
-        )}
       </div>
     </article>
   );
@@ -859,12 +844,18 @@ const DashboardHomePage = () => {
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [collectionCategories, setCollectionCategories] = useState<string[]>([]);
-  const [activeCategory, setActiveCategory] = useState("Todas");
   const [openMenuCollectionId, setOpenMenuCollectionId] = useState<string | null>(null);
   const [collectionKpis, setCollectionKpis] = useState<CollectionKpis>(emptyKpis);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const carouselDragRef = useRef({
+    isDown: false,
+    startX: 0,
+    scrollLeft: 0,
+    dragged: false,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -985,16 +976,43 @@ const DashboardHomePage = () => {
     );
   }, [products]);
 
-  const filteredCollections = useMemo(() => {
-    if (activeCategory === "Todas") return collections;
-    return collections.filter((collection) => collection.category === activeCategory);
-  }, [activeCategory, collections]);
+  const handleCarouselMouseDown = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
 
-  useEffect(() => {
-    if (activeCategory !== "Todas" && !collectionCategories.includes(activeCategory)) {
-      setActiveCategory("Todas");
-    }
-  }, [activeCategory, collectionCategories]);
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+
+    carouselDragRef.current = {
+      isDown: true,
+      startX: event.pageX - carousel.offsetLeft,
+      scrollLeft: carousel.scrollLeft,
+      dragged: false,
+    };
+  };
+
+  const handleCarouselMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    const carousel = carouselRef.current;
+    const drag = carouselDragRef.current;
+    if (!carousel || !drag.isDown) return;
+
+    event.preventDefault();
+    const x = event.pageX - carousel.offsetLeft;
+    const walk = x - drag.startX;
+    if (Math.abs(walk) > 4) drag.dragged = true;
+    carousel.scrollLeft = drag.scrollLeft - walk;
+  };
+
+  const stopCarouselDrag = () => {
+    carouselDragRef.current.isDown = false;
+  };
+
+  const handleCarouselClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if (!carouselDragRef.current.dragged) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    carouselDragRef.current.dragged = false;
+  };
 
   const handleAddProductsToCollection = (collection: CollectionSummary) => {
     setOpenMenuCollectionId(null);
@@ -1013,76 +1031,62 @@ const DashboardHomePage = () => {
           <div className="mx-auto w-full max-w-[1180px]">
             <CollectionsOverview kpis={collectionKpis} />
 
-            <div className="mt-3 rounded-[16px] bg-white p-5 shadow-[0_10px_26px_rgba(17,17,17,0.025)]">
-            <header className="flex items-start justify-between gap-6">
-              <div>
-                <h1 className="text-[24px] font-bold leading-tight tracking-[-0.03em] text-black">
-                  Minhas Coleções
-                </h1>
-                <p className="mt-1 text-[13px] font-medium text-[#999]">
-                  {collections.length} coleção{collections.length === 1 ? "" : "ões"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCreateModalOpen(true)}
-                className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-black px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
-              >
-                <Plus className="h-4 w-4" strokeWidth={2} />
-                Nova Coleção
-              </button>
-            </header>
-
-            <section className="mt-10">
-              <h2 className="mb-4 text-[16px] font-semibold text-black">
-                Categorias
-              </h2>
-              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {["Todas", ...collectionCategories].map((category) => {
-                  const active = activeCategory === category;
-
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setActiveCategory(category)}
-                      className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-[14px] text-[13px] font-medium transition-colors ${
-                        active
-                          ? "bg-black text-white"
-                          : "bg-[#F3F2F0] text-[#333] hover:bg-[#E9E8E6]"
-                      }`}
-                    >
-                      <FolderOpen className="h-4 w-4" strokeWidth={1.8} />
-                      {category}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="mt-8">
-              {filteredCollections.length > 0 ? (
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 min-[1200px]:grid-cols-3">
-                  {filteredCollections.map((collection) => (
-                    <CollectionDashboardCard
-                      key={collection.id}
-                      collection={collection}
-                      deleting={deletingCollectionId === collection.id}
-                      menuOpen={openMenuCollectionId === collection.id}
-                      onToggleMenu={() =>
-                        setOpenMenuCollectionId((current) => (current === collection.id ? null : collection.id))
-                      }
-                      onAddProducts={() => handleAddProductsToCollection(collection)}
-                      onDelete={() => handleDeleteCollection(collection)}
-                    />
-                  ))}
+            <div className="mt-3 max-h-[280px] rounded-[16px] bg-white px-6 py-5 shadow-[0_10px_26px_rgba(17,17,17,0.025)]">
+              <header className="flex items-center justify-between gap-6">
+                <div className="flex items-baseline">
+                  <h1 className="text-[18px] font-semibold leading-none tracking-[-0.02em] text-black">
+                    Minhas Coleções
+                  </h1>
+                  <p className="ml-2 text-[13px] font-medium text-[#999]">
+                    {collections.length} coleção{collections.length === 1 ? "" : "ões"}
+                  </p>
                 </div>
-              ) : (
-                <div className="flex min-h-[260px] items-center justify-center text-center text-[14px] font-medium text-[#999]">
-                  Nenhuma coleção nessa categoria
-                </div>
-              )}
-            </section>
+                <button
+                  type="button"
+                  onClick={() => setCreateModalOpen(true)}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-full bg-black px-4 py-2 text-[13px] font-medium leading-none text-white transition-opacity hover:opacity-90"
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2} />
+                  Nova Coleção
+                </button>
+              </header>
+
+              <section className="mt-4">
+                {collections.length > 0 ? (
+                  <div
+                    ref={carouselRef}
+                    onMouseDown={handleCarouselMouseDown}
+                    onMouseMove={handleCarouselMouseMove}
+                    onMouseUp={stopCarouselDrag}
+                    onMouseLeave={stopCarouselDrag}
+                    onClickCapture={handleCarouselClickCapture}
+                    className="flex cursor-grab flex-nowrap gap-4 overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  >
+                    {collections.map((collection) => (
+                      <CollectionDashboardCard
+                        key={collection.id}
+                        collection={collection}
+                        deleting={deletingCollectionId === collection.id}
+                        menuOpen={openMenuCollectionId === collection.id}
+                        onToggleMenu={() =>
+                          setOpenMenuCollectionId((current) => (current === collection.id ? null : collection.id))
+                        }
+                        onAddProducts={() => handleAddProductsToCollection(collection)}
+                        onDelete={() => handleDeleteCollection(collection)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setCreateModalOpen(true)}
+                    className="flex h-[200px] w-[220px] shrink-0 flex-col items-center justify-center rounded-[16px] border-[1.5px] border-dashed border-[#E0E0E0] bg-[#FAFAF9] text-[#999] transition-colors hover:border-[#CFCFCF] hover:text-[#666]"
+                  >
+                    <Plus className="h-6 w-6" strokeWidth={1.8} />
+                    <span className="mt-2 text-[13px] font-medium">Criar primeira coleção</span>
+                  </button>
+                )}
+              </section>
             </div>
           </div>
         </section>
