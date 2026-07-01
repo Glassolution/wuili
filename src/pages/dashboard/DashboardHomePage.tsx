@@ -383,11 +383,11 @@ const Sparkline = ({ values, className = "" }: { values: number[]; className?: s
   return (
   <svg viewBox="0 0 96 34" aria-hidden="true" className={className}>
     <path
-      d={toChartPath(normalizeSeries(values, 0), 96, 34, 4)}
+      d={toChartPath(normalizeSeries(values, 0), 96, 34, 5)}
       fill="none"
       stroke={chartBlue}
       strokeLinecap="round"
-      strokeWidth="2.4"
+      strokeWidth="2.2"
       style={{
         animation: "velo-chart-draw 900ms ease-out both",
         strokeDasharray: 150,
@@ -395,7 +395,7 @@ const Sparkline = ({ values, className = "" }: { values: number[]; className?: s
       }}
     />
     <path
-      d={toChartPath(hasData ? values.map((value) => value * 0.72) : values, 96, 34, 4)}
+      d={toChartPath(hasData ? values.map((value) => value * 0.72) : values, 96, 34, 5)}
       fill="none"
       opacity="0.24"
       stroke={chartBlueSoft}
@@ -407,21 +407,21 @@ const Sparkline = ({ values, className = "" }: { values: number[]; className?: s
 };
 
 const OverviewMetricCard = ({ label, value, delta, values }: { label: string; value: string; delta: string; values: number[] }) => (
-  <article className="grid min-h-[70px] grid-cols-[1fr_76px] items-center gap-3 rounded-[10px] border border-black/[0.04] bg-white px-4 py-3 shadow-[0_8px_18px_rgba(17,17,17,0.035)]">
+  <article className="grid min-h-[52px] grid-cols-[1fr_58px] items-center gap-2 rounded-[9px] border border-black/[0.04] bg-white px-3 py-2 shadow-[0_6px_14px_rgba(17,17,17,0.03)]">
     <div>
-      <p className="text-[11px] font-semibold leading-none text-[#5F5F5F]">
+      <p className="text-[10px] font-semibold leading-none text-[#5F5F5F]">
         {label}
       </p>
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <p className="text-[15px] font-bold leading-none text-[#171717]">
+      <div className="mt-1.5 flex items-baseline gap-1">
+        <p className="text-[13px] font-bold leading-none text-[#171717]">
           {value}
         </p>
-        <span className="text-[10px] font-semibold text-[#8C8C8C]">
+        <span className="text-[9px] font-semibold text-[#8C8C8C]">
           {delta}
         </span>
       </div>
     </div>
-    <Sparkline values={values} className="h-[28px] w-[76px]" />
+    <Sparkline values={values} className="h-[20px] w-[58px]" />
   </article>
 );
 
@@ -438,26 +438,26 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
     : [formatCurrency(0), formatCurrency(0), formatCurrency(0)];
 
   return (
-  <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
-    <p className="text-[12px] font-semibold text-[#5F5F5F]">
+  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+    <p className="text-[10px] font-semibold text-[#5F5F5F]">
       Total sales over time
     </p>
-    <div className="mt-2 flex items-baseline gap-2">
-      <p className="text-[21px] font-bold text-[#171717]">
+    <div className="mt-1 flex items-baseline gap-1.5">
+      <p className="text-[17px] font-bold text-[#171717]">
         {revenue}
       </p>
-      <span className="text-[11px] font-semibold text-[#8C8C8C]">{trend}</span>
+      <span className="text-[9px] font-semibold text-[#8C8C8C]">{trend}</span>
     </div>
-    <div className="mt-3 h-[190px]">
-      <svg viewBox="0 0 720 220" aria-hidden="true" className="h-full w-full">
-        {[38, 78, 118, 158, 198].map((y) => (
+    <div className="mt-1.5 h-[104px]">
+      <svg viewBox="0 0 720 140" aria-hidden="true" className="h-full w-full">
+        {[24, 48, 72, 96, 120].map((y) => (
           <line key={y} x1="52" x2="708" y1={y} y2={y} stroke="#ECECEC" strokeWidth="1" />
         ))}
-        <text x="4" y="42" fill="#B0B0B0" fontSize="11">{yLabels[0]}</text>
-        <text x="4" y="122" fill="#B0B0B0" fontSize="11">{yLabels[1]}</text>
-        <text x="4" y="202" fill="#B0B0B0" fontSize="11">{yLabels[2]}</text>
+        <text x="4" y="28" fill="#B0B0B0" fontSize="9">{yLabels[0]}</text>
+        <text x="4" y="76" fill="#B0B0B0" fontSize="9">{yLabels[1]}</text>
+        <text x="4" y="124" fill="#B0B0B0" fontSize="9">{yLabels[2]}</text>
         <path
-          d={toChartPath(compareValues, 720, 190, 52)}
+          d={toChartPath(compareValues, 720, 120, 52)}
           fill="none"
           opacity="0.28"
           stroke="#9CA3AF"
@@ -466,7 +466,7 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
           strokeWidth="3"
         />
         <path
-          d={toChartPath(chartValues, 720, 190, 52)}
+          d={toChartPath(chartValues, 720, 120, 52)}
           fill="none"
           stroke={chartBlue}
           strokeLinecap="round"
@@ -485,7 +485,7 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
           ["Oct 2024", 596],
           ["Dec 2024", 690],
         ].map(([label, x]) => (
-          <text key={label} x={Number(x)} y="216" fill="#A7A7A7" fontSize="11" textAnchor="middle">
+          <text key={label} x={Number(x)} y="136" fill="#A7A7A7" fontSize="9" textAnchor="middle">
             {label}
           </text>
         ))}
@@ -497,16 +497,16 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
 
 const SalesBreakdown = ({ rows }: { rows: CollectionKpis["salesBreakdown"] }) => {
   return (
-    <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
-      <p className="text-[12px] font-semibold text-[#5F5F5F]">
+    <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+      <p className="text-[10px] font-semibold text-[#5F5F5F]">
         Total sales breakdown
       </p>
-      <div className="mt-3 divide-y divide-black/[0.045]">
+      <div className="mt-2 divide-y divide-black/[0.045]">
         {rows.map(({ label, value, trend }) => (
-          <div key={label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2 text-[12px]">
+          <div key={label} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 py-[5px] text-[10px]">
             <span className="font-semibold text-[#6F6F6F]">{label}</span>
             <span className="font-bold text-[#4A4A4A]">{value}</span>
-            <span className="text-[10px] font-semibold text-[#8A8A8A]">{trend}</span>
+            <span className="text-[9px] font-semibold text-[#8A8A8A]">{trend}</span>
           </div>
         ))}
       </div>
@@ -518,22 +518,22 @@ const MiniDonutCard = ({ revenue, activePublicationsCount, catalogCount }: { rev
   const activeShare = catalogCount > 0 ? Math.min(92, Math.max(8, (activePublicationsCount / catalogCount) * 100)) : 8;
 
   return (
-  <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
-    <p className="text-[12px] font-semibold text-[#5F5F5F]">Total sales by sales channel</p>
-    <div className="mt-4 flex items-center justify-center">
+  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+    <p className="text-[10px] font-semibold text-[#5F5F5F]">Total sales by sales channel</p>
+    <div className="mt-2 flex items-center justify-center">
       <div
-        className="relative grid h-[102px] w-[102px] place-items-center rounded-full"
+        className="relative grid h-[66px] w-[66px] place-items-center rounded-full"
         style={{
           background: `conic-gradient(${chartBlue} 0 ${activeShare}%, #4F46E5 ${activeShare}% ${Math.min(activeShare + 10, 100)}%, #DDE7FF ${Math.min(activeShare + 10, 100)}% 100%)`,
         }}
       >
-        <div className="grid h-[72px] w-[72px] place-items-center rounded-full bg-white text-center">
-          <span className="block text-[16px] font-bold text-[#171717]">{revenue === "R$ 0,00" ? "R$ 0" : revenue}</span>
-          <span className="mt-0.5 block text-[10px] font-semibold text-[#8A8A8A]">↗ 31%</span>
+        <div className="grid h-[46px] w-[46px] place-items-center rounded-full bg-white text-center">
+          <span className="block text-[10px] font-bold text-[#171717]">{revenue === "R$ 0,00" ? "R$ 0" : revenue}</span>
+          <span className="block text-[8px] font-semibold text-[#8A8A8A]">↗ 31%</span>
         </div>
       </div>
     </div>
-    <div className="mt-3 flex justify-center gap-4 text-[11px] font-semibold text-[#777]">
+    <div className="mt-2 flex justify-center gap-3 text-[9px] font-semibold text-[#777]">
       <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#2563EB]" />Online Store</span>
       <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#4F46E5]" />Shop</span>
     </div>
@@ -542,13 +542,13 @@ const MiniDonutCard = ({ revenue, activePublicationsCount, catalogCount }: { rev
 };
 
 const AverageOrderCard = ({ value, monthlySales }: { value: string; monthlySales: number[] }) => (
-  <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
-    <p className="text-[12px] font-semibold text-[#5F5F5F]">Average order value over time</p>
-    <div className="mt-2 flex items-baseline gap-2">
-      <p className="text-[19px] font-bold text-[#171717]">{value}</p>
-      <span className="text-[11px] font-semibold text-[#8C8C8C]">↗ 17%</span>
+  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+    <p className="text-[10px] font-semibold text-[#5F5F5F]">Average order value over time</p>
+    <div className="mt-1 flex items-baseline gap-1.5">
+      <p className="text-[15px] font-bold text-[#171717]">{value}</p>
+      <span className="text-[9px] font-semibold text-[#8C8C8C]">↗ 17%</span>
     </div>
-    <Sparkline values={monthlySales} className="mt-5 h-[58px] w-full" />
+    <Sparkline values={monthlySales} className="mt-2 h-[34px] w-full" />
   </article>
 );
 
@@ -561,18 +561,18 @@ const ProductsBarCard = ({ catalogCount, activePublicationsCount, orderCount }: 
   ];
 
   return (
-  <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
-    <p className="text-[12px] font-semibold text-[#5F5F5F]">Total sales by product</p>
-    <div className="mt-5 space-y-4">
+  <article className="rounded-[10px] border border-black/[0.045] bg-white p-3 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
+    <p className="text-[10px] font-semibold text-[#5F5F5F]">Total sales by product</p>
+    <div className="mt-2.5 space-y-2">
       {[
         ...rows,
       ].map(([label, value]) => (
         <div key={label}>
-          <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold text-[#A1A1A1]">
+          <div className="mb-1 flex items-center justify-between text-[9px] font-semibold text-[#A1A1A1]">
             <span>{label}</span>
             <span>{formatInteger(Number(value))}</span>
           </div>
-          <div className="h-7 overflow-hidden rounded-[4px] bg-[#E9EEF1]">
+          <div className="h-4 overflow-hidden rounded-[4px] bg-[#E9EEF1]">
             <div
               className="h-full bg-[#2563EB] transition-[width] duration-700 ease-out"
               style={{ width: `${Math.max(8, (Number(value) / max) * 100)}%` }}
@@ -589,7 +589,7 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
   const salesTrend = formatTrend(kpis.monthlySales[5] ?? 0, kpis.monthlySales[4] ?? 0);
 
   return (
-  <section className="rounded-[16px] bg-[#F2F2F1] p-4">
+  <section className="rounded-[14px] bg-[#F2F2F1] p-3">
     <style>
       {`
         @keyframes velo-chart-draw {
@@ -599,40 +599,40 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
     </style>
     <div className="flex items-start justify-between gap-4">
       <div>
-        <h1 className="text-[18px] font-bold text-[#171717]">Overview</h1>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <span className="inline-flex h-7 items-center gap-2 rounded-[7px] bg-white px-3 text-[11px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-            <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} />
+        <h1 className="text-[16px] font-bold text-[#171717]">Overview</h1>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="inline-flex h-6 items-center gap-1.5 rounded-[6px] bg-white px-2.5 text-[10px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+            <CalendarDays className="h-3 w-3" strokeWidth={1.8} />
             Last 365 days
           </span>
-          <span className="inline-flex h-7 items-center rounded-[7px] bg-white px-3 text-[11px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+          <span className="inline-flex h-6 items-center rounded-[6px] bg-white px-2.5 text-[10px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
             Compare to: Feb 14, 2023-Feb 12, 2024
           </span>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <button type="button" aria-label="Configurar visão" className="grid h-7 w-7 place-items-center rounded-[7px] bg-white text-[#171717] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-          <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
+        <button type="button" aria-label="Configurar visão" className="grid h-6 w-6 place-items-center rounded-[6px] bg-white text-[#171717] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+          <SlidersHorizontal className="h-3 w-3" strokeWidth={1.8} />
         </button>
-        <button type="button" aria-label="Personalizar" className="h-7 rounded-[7px] bg-[#222] px-3 text-[11px] font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,0.12)]">
+        <button type="button" aria-label="Personalizar" className="h-6 rounded-[6px] bg-[#222] px-2.5 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,0.12)]">
           Customize
         </button>
       </div>
     </div>
 
-    <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 min-[900px]:grid-cols-4">
+    <div className="mt-3 grid grid-cols-2 gap-2 min-[700px]:grid-cols-4">
       <OverviewMetricCard label="Gross sales" value={kpis.revenue} delta={salesTrend} values={kpis.monthlySales} />
       <OverviewMetricCard label="Returning customer rate" value={kpis.returningCustomerRate} delta="—" values={[0, 0, 0, 0, 0, 0]} />
       <OverviewMetricCard label="Orders fulfilled" value={kpis.fulfilledOrders} delta="—" values={kpis.monthlyOrders} />
       <OverviewMetricCard label="Orders" value={kpis.orders} delta={formatTrend(kpis.monthlyOrders[5] ?? 0, kpis.monthlyOrders[4] ?? 0)} values={kpis.monthlyOrders} />
     </div>
 
-    <div className="mt-3 grid grid-cols-1 gap-3 min-[900px]:grid-cols-[2fr_1fr]">
+    <div className="mt-2 grid grid-cols-1 gap-2 min-[700px]:grid-cols-[2fr_1fr]">
       <SalesOverTimeChart revenue={kpis.revenue} values={kpis.monthlySales} />
       <SalesBreakdown rows={kpis.salesBreakdown} />
     </div>
 
-    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 min-[900px]:grid-cols-3">
+    <div className="mt-2 grid grid-cols-1 gap-2 min-[620px]:grid-cols-3">
       <MiniDonutCard
         revenue={kpis.revenue}
         activePublicationsCount={kpis.activePublicationsCount}
@@ -1008,24 +1008,24 @@ const DashboardHomePage = () => {
       style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" }}
     >
       {collections.length > 0 ? (
-        <section className="min-h-screen bg-[#F2F2F1] px-4 py-4 sm:px-6">
-          <div className="mx-auto w-full max-w-[1120px]">
+        <section className="min-h-screen bg-[#F2F2F1] px-3 py-3 sm:px-5">
+          <div className="mx-auto w-full max-w-[1180px]">
             <CollectionsOverview kpis={collectionKpis} />
 
-            <div className="mt-8 rounded-[18px] bg-white p-8 shadow-[0_12px_32px_rgba(17,17,17,0.025)]">
+            <div className="mt-3 rounded-[16px] bg-white p-5 shadow-[0_10px_26px_rgba(17,17,17,0.025)]">
             <header className="flex items-start justify-between gap-6">
               <div>
-                <h1 className="text-[28px] font-bold leading-tight tracking-[-0.035em] text-black">
+                <h1 className="text-[24px] font-bold leading-tight tracking-[-0.03em] text-black">
                   Minhas Coleções
                 </h1>
-                <p className="mt-2 text-[14px] font-medium text-[#999]">
+                <p className="mt-1 text-[13px] font-medium text-[#999]">
                   {collections.length} coleção{collections.length === 1 ? "" : "ões"}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setCreateModalOpen(true)}
-                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-black px-5 text-[14px] font-medium text-white transition-opacity hover:opacity-90"
+                className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-black px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90"
               >
                 <Plus className="h-4 w-4" strokeWidth={2} />
                 Nova Coleção
