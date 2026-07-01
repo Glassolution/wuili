@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Archive,
   CalendarDays,
   CircleHelp,
   Folder,
-  FolderOpen,
   Globe2,
   Grid2X2,
   MoreHorizontal,
+  Pencil,
   Plus,
   Search,
   Settings,
@@ -25,6 +25,7 @@ import {
   listCollectionCategories,
   listCollectionsWithSummaries,
   listUserCollectionCategories,
+  renameCollection,
   type CollectionSummary,
 } from "@/lib/collectionsApi";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -748,12 +749,80 @@ const CreateCollectionModal = ({
   );
 };
 
+const RenameCollectionModal = ({
+  open,
+  name,
+  saving,
+  onNameChange,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  name: string;
+  saving: boolean;
+  onNameChange: (name: string) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) => {
+  if (!open) return null;
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSave();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 backdrop-blur-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-[360px] rounded-[18px] bg-white p-5 shadow-[0_24px_80px_rgba(0,0,0,0.18)]"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#111]">Editar coleção</h2>
+            <p className="mt-1 text-[13px] font-medium text-[#8A8A8A]">Renomeie sua coleção.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-full text-[#777] transition-colors hover:bg-[#F5F5F4] hover:text-[#111]"
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" strokeWidth={2} />
+          </button>
+        </div>
+
+        <label className="mt-5 block text-[12px] font-semibold text-[#777]" htmlFor="collection-rename">
+          Nome da coleção
+        </label>
+        <input
+          id="collection-rename"
+          value={name}
+          onChange={(event) => onNameChange(event.target.value)}
+          autoFocus
+          className="mt-2 h-11 w-full rounded-[12px] border border-[#E5E5E5] bg-[#FAFAF9] px-3 text-[14px] font-medium text-[#111] outline-none transition-colors placeholder:text-[#B0B0B0] focus:border-[#111] focus:bg-white"
+          placeholder="Nome da coleção"
+        />
+
+        <button
+          type="submit"
+          disabled={!name.trim() || saving}
+          className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#111111] text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {saving ? "Salvando..." : "Salvar"}
+        </button>
+      </form>
+    </div>
+  );
+};
+
 const CollectionDashboardCard = ({
   collection,
   deleting,
   menuOpen,
   onToggleMenu,
   onAddProducts,
+  onEdit,
   onDelete,
 }: {
   collection: CollectionSummary;
@@ -761,9 +830,9 @@ const CollectionDashboardCard = ({
   menuOpen: boolean;
   onToggleMenu: () => void;
   onAddProducts: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }) => {
-  const coverImage = collection.coverImage ?? collection.thumbnails[0];
   const productLabel = `${collection.productCount} produto${collection.productCount === 1 ? "" : "s"}`;
 
   return (
@@ -777,61 +846,84 @@ const CollectionDashboardCard = ({
           onAddProducts();
         }
       }}
-      className="group relative h-[200px] w-[200px] shrink-0 cursor-pointer overflow-hidden rounded-[14px] bg-[#F3F2F0] outline-none transition-transform duration-200 ease-out hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-black/20"
+      className="relative flex h-auto w-[200px] shrink-0 cursor-pointer flex-col gap-3 rounded-[14px] border-[0.5px] border-[#E5E5E5] bg-[#F7F7F6] p-4 outline-none transition-colors duration-150 hover:bg-[#F0F0EF] focus-visible:ring-2 focus-visible:ring-black/20"
     >
-      {coverImage ? (
-        <img src={coverImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
-      ) : (
-        <div className="absolute inset-0 grid place-items-center bg-[#F3F2F0] text-[#9A9A96]">
-          <FolderOpen className="h-9 w-9" strokeWidth={1.7} />
-        </div>
-      )}
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_40%,rgba(0,0,0,0.80)_100%)]" />
-
-      <button
-        type="button"
-        aria-label="Opções da coleção"
-        aria-expanded={menuOpen}
-        disabled={deleting}
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggleMenu();
-        }}
-        className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white transition-colors hover:bg-white/30 disabled:cursor-wait disabled:opacity-55"
-      >
-        <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={2.3} />
-      </button>
-
-      {menuOpen ? (
-        <div
-          className="absolute right-2 top-10 z-30 w-[168px] overflow-hidden rounded-[12px] border border-white/15 bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.22)]"
-          onClick={(event) => event.stopPropagation()}
+      <div className="flex items-start justify-between gap-3">
+        <Folder className="h-9 w-9 text-[#C8C8C8]" strokeWidth={1.7} fill="#ECECEC" />
+        <button
+          type="button"
+          aria-label="Opções da coleção"
+          aria-expanded={menuOpen}
+          disabled={deleting}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleMenu();
+          }}
+          className="flex h-6 w-6 items-center justify-center text-[#999] transition-colors hover:text-[#111] disabled:cursor-wait disabled:opacity-55"
         >
-          <button
-            type="button"
-            onClick={onAddProducts}
-            className="flex h-10 w-full items-center rounded-[10px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0]"
-          >
-            Adicionar produtos
-          </button>
-          <button
-            type="button"
-            disabled={deleting}
-            onClick={onDelete}
-            className="flex h-10 w-full items-center rounded-[10px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0] disabled:cursor-wait disabled:opacity-55"
-          >
-            Excluir coleção
-          </button>
-        </div>
-      ) : null}
+          <MoreHorizontal className="h-4 w-4" strokeWidth={2.2} />
+        </button>
 
-      <div className="absolute bottom-0 left-0 z-10 min-w-0 p-3">
-        <h2 className="max-w-[160px] truncate whitespace-nowrap text-[14px] font-semibold leading-[1.15] tracking-[-0.02em] text-white">
+        {menuOpen ? (
+          <div
+            className="absolute right-3 top-10 z-30 w-[168px] overflow-hidden rounded-[12px] border border-[#E5E5E5] bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.12)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={onAddProducts}
+              className="flex h-10 w-full items-center rounded-[10px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0]"
+            >
+              Adicionar produtos
+            </button>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={onDelete}
+              className="flex h-10 w-full items-center rounded-[10px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0] disabled:cursor-wait disabled:opacity-55"
+            >
+              Excluir coleção
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="grid h-[60px] w-full place-items-center rounded-[8px] bg-[#ECECEC]">
+        <span className="h-[2px] w-6 rounded-full bg-[#C8C8C8]" />
+      </div>
+
+      <div className="min-w-0">
+        <h2 className="mb-0.5 max-w-full truncate whitespace-nowrap text-[14px] font-semibold leading-[1.2] text-black">
           {collection.name}
         </h2>
-        <p className="mt-0.5 text-[11px] font-medium text-white/70">
+        <p className="text-[12px] font-medium text-[#999]">
           {productLabel}
         </p>
+      </div>
+
+      <div className="mt-1 flex w-full gap-2">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddProducts();
+          }}
+          className="inline-flex w-[calc(60%_-_4px)] items-center justify-center gap-1.5 rounded-[8px] bg-black py-2 text-[12px] font-medium leading-none text-white transition-opacity hover:opacity-90"
+        >
+          <Plus className="h-3 w-3" strokeWidth={2} />
+          Adicionar
+        </button>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onEdit();
+          }}
+          className="inline-flex w-[calc(40%_-_4px)] items-center justify-center gap-1.5 rounded-[8px] border-0 bg-transparent py-2 text-[12px] font-medium leading-none text-[#555] transition-colors hover:bg-[#E8E8E7] hover:text-[#111]"
+        >
+          <Pencil className="h-3 w-3" strokeWidth={2} />
+          Editar
+        </button>
       </div>
     </article>
   );
@@ -849,6 +941,9 @@ const DashboardHomePage = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
+  const [renamingCollection, setRenamingCollection] = useState<CollectionSummary | null>(null);
+  const [renameCollectionName, setRenameCollectionName] = useState("");
+  const [savingRename, setSavingRename] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const carouselDragRef = useRef({
     isDown: false,
@@ -966,6 +1061,38 @@ const DashboardHomePage = () => {
     }
   };
 
+  const openRenameCollectionModal = (collection: CollectionSummary) => {
+    setOpenMenuCollectionId(null);
+    setRenamingCollection(collection);
+    setRenameCollectionName(collection.name);
+  };
+
+  const closeRenameCollectionModal = () => {
+    if (savingRename) return;
+    setRenamingCollection(null);
+    setRenameCollectionName("");
+  };
+
+  const handleRenameCollection = async () => {
+    if (!renamingCollection) return;
+
+    const nextName = renameCollectionName.trim();
+    if (!nextName) return;
+
+    setSavingRename(true);
+
+    try {
+      await renameCollection(renamingCollection.id, nextName);
+      if (user?.id) await loadCollectionData(user.id);
+      setRenamingCollection(null);
+      setRenameCollectionName("");
+    } catch {
+      veloToast.error("Não foi possível renomear a coleção.");
+    } finally {
+      setSavingRename(false);
+    }
+  };
+
   const productGroups = useMemo(() => {
     if (products.length === 0) return featureCards.map(() => []);
 
@@ -1072,6 +1199,7 @@ const DashboardHomePage = () => {
                           setOpenMenuCollectionId((current) => (current === collection.id ? null : collection.id))
                         }
                         onAddProducts={() => handleAddProductsToCollection(collection)}
+                        onEdit={() => openRenameCollectionModal(collection)}
                         onDelete={() => handleDeleteCollection(collection)}
                       />
                     ))}
@@ -1193,6 +1321,14 @@ const DashboardHomePage = () => {
         creating={creatingCollection}
         onClose={() => setCreateModalOpen(false)}
         onCreate={handleCreateCollection}
+      />
+      <RenameCollectionModal
+        open={Boolean(renamingCollection)}
+        name={renameCollectionName}
+        saving={savingRename}
+        onNameChange={setRenameCollectionName}
+        onClose={closeRenameCollectionModal}
+        onSave={handleRenameCollection}
       />
     </main>
   );

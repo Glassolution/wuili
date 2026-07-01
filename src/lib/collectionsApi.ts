@@ -189,6 +189,19 @@ export const deleteCollection = async (collectionId: string) => {
   notifyCollectionsUpdated();
 };
 
+export const renameCollection = async (collectionId: string, name: string): Promise<VeloCollection> => {
+  const { data, error } = await collectionsDb
+    .from("collections")
+    .update({ name })
+    .eq("id", collectionId)
+    .select("id,user_id,name,category,created_at,updated_at")
+    .single();
+
+  if (error) throw error;
+  notifyCollectionsUpdated();
+  return data as VeloCollection;
+};
+
 export const getCollectionProductIds = async (collectionId: string): Promise<string[]> => {
   const { data, error } = await collectionsDb
     .from("collection_products")
