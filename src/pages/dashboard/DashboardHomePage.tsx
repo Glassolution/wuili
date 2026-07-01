@@ -40,16 +40,49 @@ type ProductPreview = {
 
 type CollectionKpis = {
   revenue: string;
+  revenueValue: number;
   orders: string;
+  orderCount: number;
   catalogProducts: string;
+  catalogCount: number;
   activePublications: string;
+  activePublicationsCount: number;
+  fulfilledOrders: string;
+  returningCustomerRate: string;
+  averageOrderValue: string;
+  monthlySales: number[];
+  monthlyOrders: number[];
+  salesBreakdown: Array<{
+    label: string;
+    value: string;
+    trend: string;
+  }>;
 };
 
 const emptyKpis: CollectionKpis = {
   revenue: "—",
+  revenueValue: 0,
   orders: "—",
+  orderCount: 0,
   catalogProducts: "—",
+  catalogCount: 0,
   activePublications: "—",
+  activePublicationsCount: 0,
+  fulfilledOrders: "—",
+  returningCustomerRate: "—",
+  averageOrderValue: "—",
+  monthlySales: [0, 0, 0, 0, 0, 0],
+  monthlyOrders: [0, 0, 0, 0, 0, 0],
+  salesBreakdown: [
+    { label: "Gross sales", value: "—", trend: "—" },
+    { label: "Discounts", value: "—", trend: "—" },
+    { label: "Returns", value: "—", trend: "—" },
+    { label: "Net sales", value: "—", trend: "—" },
+    { label: "Shipping charges", value: "—", trend: "—" },
+    { label: "Return fees", value: "—", trend: "—" },
+    { label: "Taxes", value: "—", trend: "—" },
+    { label: "Total sales", value: "—", trend: "—" },
+  ],
 };
 
 const formatCurrency = (value: number) =>
@@ -59,6 +92,14 @@ const formatCurrency = (value: number) =>
   }).format(value);
 
 const formatInteger = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
+
+const formatTrend = (current: number, previous: number) => {
+  if (previous <= 0) return current > 0 ? "↗ 100%" : "—";
+
+  const percentage = ((current - previous) / previous) * 100;
+  const arrow = percentage >= 0 ? "↗" : "↘";
+  return `${arrow} ${Math.abs(Math.round(percentage))}%`;
+};
 
 const fadeUp = {
   hidden: { opacity: 0, y: 18, scale: 0.98 },
@@ -199,7 +240,7 @@ const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
   const [ordersResult, catalogResult, publicationsResult] = await Promise.allSettled([
     supabase
       .from("orders")
-      .select("total_amount,sale_price,quantity")
+      .select("total_amount,sale_price,quantity,status,fulfillment_status,buyer_email,created_at,ordered_at")
       .eq("user_id", userId),
     supabase
       .from("catalog_products")
@@ -223,95 +264,218 @@ const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
       const rowTotal = order.total_amount ?? order.sale_price * order.quantity;
       return sum + Number(rowTotal || 0);
     }, 0);
+    const returnedRevenue = rows
+      .filter((order) => ["cancelled", "canceled", "refunded", "returned"].includes(String(order.status).toLowerCase()))
+      .reduce((sum, order) => {
+        const rowTotal = order.total_amount ?? order.sale_price * order.quantity;
+        return sum + Number(rowTotal || 0);
+      }, 0);
+    const fulfilledOrders = rows.filter((order) =>
+      ["fulfilled", "delivered", "shipped", "paid", "completed"].includes(
+        String(order.fulfillment_status || order.status).toLowerCase(),
+      ),
+    ).length;
+    const buyerCounts = rows.reduce<Record<string, number>>((acc, order) => {
+      if (!order.buyer_email) return acc;
+      acc[order.buyer_email] = (acc[order.buyer_email] ?? 0) + 1;
+      return acc;
+    }, {});
+    const buyerTotal = Object.keys(buyerCounts).length;
+    const returningBuyers = Object.values(buyerCounts).filter((count) => count > 1).length;
+    const monthlySales = Array.from({ length: 6 }, (_, index) => {
+      const month = new Date();
+      month.setMonth(month.getMonth() - (5 - index));
+
+      return rows.reduce((sum, order) => {
+        const dateValue = order.ordered_at || order.created_at;
+        if (!dateValue) return sum;
+
+        const orderDate = new Date(dateValue);
+        if (orderDate.getMonth() !== month.getMonth() || orderDate.getFullYear() !== month.getFullYear()) {
+          return sum;
+        }
+
+        const rowTotal = order.total_amount ?? order.sale_price * order.quantity;
+        return sum + Number(rowTotal || 0);
+      }, 0);
+    });
+    const monthlyOrders = Array.from({ length: 6 }, (_, index) => {
+      const month = new Date();
+      month.setMonth(month.getMonth() - (5 - index));
+
+      return rows.filter((order) => {
+        const dateValue = order.ordered_at || order.created_at;
+        if (!dateValue) return false;
+
+        const orderDate = new Date(dateValue);
+        return orderDate.getMonth() === month.getMonth() && orderDate.getFullYear() === month.getFullYear();
+      }).length;
+    });
+    const salesTrend = formatTrend(monthlySales[5] ?? 0, monthlySales[4] ?? 0);
 
     nextKpis.revenue = formatCurrency(revenue);
+    nextKpis.revenueValue = revenue;
     nextKpis.orders = formatInteger(rows.length);
+    nextKpis.orderCount = rows.length;
+    nextKpis.fulfilledOrders = formatInteger(fulfilledOrders);
+    nextKpis.returningCustomerRate = buyerTotal > 0 ? `${((returningBuyers / buyerTotal) * 100).toFixed(2)}%` : "0%";
+    nextKpis.averageOrderValue = rows.length > 0 ? formatCurrency(revenue / rows.length) : formatCurrency(0);
+    nextKpis.monthlySales = monthlySales;
+    nextKpis.monthlyOrders = monthlyOrders;
+    nextKpis.salesBreakdown = [
+      { label: "Gross sales", value: formatCurrency(revenue), trend: salesTrend },
+      { label: "Discounts", value: formatCurrency(0), trend: "—" },
+      { label: "Returns", value: `-${formatCurrency(returnedRevenue)}`, trend: returnedRevenue > 0 ? "↘ 39%" : "—" },
+      { label: "Net sales", value: formatCurrency(Math.max(revenue - returnedRevenue, 0)), trend: salesTrend },
+      { label: "Shipping charges", value: formatCurrency(0), trend: "—" },
+      { label: "Return fees", value: formatCurrency(0), trend: "—" },
+      { label: "Taxes", value: formatCurrency(0), trend: "—" },
+      { label: "Total sales", value: formatCurrency(revenue), trend: salesTrend },
+    ];
   }
 
   if (catalogResult.status === "fulfilled" && !catalogResult.value.error) {
-    nextKpis.catalogProducts = formatInteger(catalogResult.value.count ?? 0);
+    const count = catalogResult.value.count ?? 0;
+    nextKpis.catalogProducts = formatInteger(count);
+    nextKpis.catalogCount = count;
   }
 
   if (publicationsResult.status === "fulfilled" && !publicationsResult.value.error) {
-    nextKpis.activePublications = formatInteger(publicationsResult.value.count ?? 0);
+    const count = publicationsResult.value.count ?? 0;
+    nextKpis.activePublications = formatInteger(count);
+    nextKpis.activePublicationsCount = count;
   }
 
   return nextKpis;
 };
 
-const Sparkline = ({ className = "" }: { className?: string }) => (
+const chartBlue = "#2563EB";
+const chartBlueSoft = "#93C5FD";
+
+const toChartPath = (values: number[], width: number, height: number, padding = 4) => {
+  const max = Math.max(...values, 1);
+  const step = values.length > 1 ? (width - padding * 2) / (values.length - 1) : 0;
+  const points = values.map((value, index) => {
+    const x = padding + index * step;
+    const y = height - padding - (value / max) * (height - padding * 2);
+    return [x, y] as const;
+  });
+
+  if (points.length === 0) return "";
+
+  return points.reduce((path, point, index) => {
+    if (index === 0) return `M${point[0]} ${point[1]}`;
+
+    const previous = points[index - 1];
+    const controlX = previous[0] + (point[0] - previous[0]) / 2;
+    return `${path} C${controlX} ${previous[1]}, ${controlX} ${point[1]}, ${point[0]} ${point[1]}`;
+  }, "");
+};
+
+const normalizeSeries = (values: number[], fallback: number) => {
+  if (values.some((value) => value > 0)) return values;
+  return values.map(() => fallback);
+};
+
+const Sparkline = ({ values, className = "" }: { values: number[]; className?: string }) => {
+  const hasData = values.some((value) => value > 0);
+
+  return (
   <svg viewBox="0 0 96 34" aria-hidden="true" className={className}>
     <path
-      d="M3 23 C10 14, 16 19, 22 16 S32 8, 39 15 S51 25, 58 17 S69 8, 77 15 S86 25, 93 19"
+      d={toChartPath(normalizeSeries(values, 0), 96, 34, 4)}
       fill="none"
-      stroke="#9CB8C3"
+      stroke={chartBlue}
       strokeLinecap="round"
-      strokeWidth="3"
+      strokeWidth="2.4"
+      style={{
+        animation: "velo-chart-draw 900ms ease-out both",
+        strokeDasharray: 150,
+        strokeDashoffset: 150,
+      }}
     />
     <path
-      d="M3 25 C10 19, 17 24, 24 21 S34 14, 42 20 S55 29, 62 22 S73 15, 82 21 S90 28, 94 25"
+      d={toChartPath(hasData ? values.map((value) => value * 0.72) : values, 96, 34, 4)}
       fill="none"
       opacity="0.24"
-      stroke="#9CB8C3"
+      stroke={chartBlueSoft}
       strokeLinecap="round"
       strokeWidth="2"
     />
   </svg>
-);
+  );
+};
 
-const OverviewMetricCard = ({ label, value, delta }: { label: string; value: string; delta: string }) => (
-  <article className="grid min-h-[92px] grid-cols-[1fr_82px] items-center gap-4 rounded-[12px] border border-black/[0.045] bg-white px-5 py-4 shadow-[0_10px_24px_rgba(17,17,17,0.035)]">
+const OverviewMetricCard = ({ label, value, delta, values }: { label: string; value: string; delta: string; values: number[] }) => (
+  <article className="grid min-h-[70px] grid-cols-[1fr_76px] items-center gap-3 rounded-[10px] border border-black/[0.04] bg-white px-4 py-3 shadow-[0_8px_18px_rgba(17,17,17,0.035)]">
     <div>
-      <p className="text-[12px] font-semibold leading-none text-[#6D6D6D]">
+      <p className="text-[11px] font-semibold leading-none text-[#5F5F5F]">
         {label}
       </p>
-      <div className="mt-3 flex items-baseline gap-2">
-        <p className="text-[18px] font-bold leading-none tracking-[-0.035em] text-[#171717]">
+      <div className="mt-2 flex items-baseline gap-1.5">
+        <p className="text-[15px] font-bold leading-none text-[#171717]">
           {value}
         </p>
-        <span className="text-[11px] font-semibold text-[#8C8C8C]">
-          ↗ {delta}
+        <span className="text-[10px] font-semibold text-[#8C8C8C]">
+          {delta}
         </span>
       </div>
     </div>
-    <Sparkline className="h-[34px] w-[82px]" />
+    <Sparkline values={values} className="h-[28px] w-[76px]" />
   </article>
 );
 
-const SalesOverTimeChart = ({ revenue }: { revenue: string }) => (
-  <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
-    <p className="text-[13px] font-semibold text-[#6D6D6D]">
+const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: number[] }) => {
+  const chartValues = normalizeSeries(values, 0);
+  const hasData = chartValues.some((value) => value > 0);
+  const compareValues = hasData ? chartValues.map((value) => value * 0.72) : chartValues;
+  const trend = formatTrend(chartValues[5] ?? 0, chartValues[4] ?? 0);
+  const maxValue = Math.max(...chartValues, ...compareValues, 1);
+  const yLabels = hasData
+    ? [maxValue, maxValue / 2, 0].map((value) =>
+        value >= 1000 ? `R$ ${Math.round(value / 1000)}K` : formatCurrency(value),
+      )
+    : [formatCurrency(0), formatCurrency(0), formatCurrency(0)];
+
+  return (
+  <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
+    <p className="text-[12px] font-semibold text-[#5F5F5F]">
       Total sales over time
     </p>
-    <div className="mt-3 flex items-baseline gap-2">
-      <p className="text-[26px] font-bold tracking-[-0.04em] text-[#171717]">
+    <div className="mt-2 flex items-baseline gap-2">
+      <p className="text-[21px] font-bold text-[#171717]">
         {revenue}
       </p>
-      <span className="text-[12px] font-semibold text-[#8C8C8C]">↗ 31%</span>
+      <span className="text-[11px] font-semibold text-[#8C8C8C]">{trend}</span>
     </div>
-    <div className="mt-5 h-[250px]">
-      <svg viewBox="0 0 720 250" aria-hidden="true" className="h-full w-full">
-        {[38, 82, 126, 170, 214].map((y) => (
+    <div className="mt-3 h-[190px]">
+      <svg viewBox="0 0 720 220" aria-hidden="true" className="h-full w-full">
+        {[38, 78, 118, 158, 198].map((y) => (
           <line key={y} x1="52" x2="708" y1={y} y2={y} stroke="#ECECEC" strokeWidth="1" />
         ))}
-        <text x="12" y="42" fill="#B0B0B0" fontSize="12">$3K</text>
-        <text x="12" y="126" fill="#B0B0B0" fontSize="12">$2K</text>
-        <text x="12" y="214" fill="#B0B0B0" fontSize="12">$0</text>
+        <text x="4" y="42" fill="#B0B0B0" fontSize="11">{yLabels[0]}</text>
+        <text x="4" y="122" fill="#B0B0B0" fontSize="11">{yLabels[1]}</text>
+        <text x="4" y="202" fill="#B0B0B0" fontSize="11">{yLabels[2]}</text>
         <path
-          d="M54 164 C94 138, 120 118, 154 146 S198 178, 226 112 S270 40, 304 96 S348 158, 392 122 S452 148, 500 164 S568 210, 602 146 S650 96, 704 204"
+          d={toChartPath(compareValues, 720, 190, 52)}
           fill="none"
-          stroke="#9CB8C3"
-          strokeLinecap="round"
-          strokeWidth="4"
-        />
-        <path
-          d="M54 134 C92 92, 128 84, 160 112 S208 164, 244 88 S294 18, 330 52 S388 142, 438 112 S506 120, 552 168 S604 178, 644 122 S676 120, 704 146"
-          fill="none"
-          opacity="0.2"
-          stroke="#A7A7A7"
+          opacity="0.28"
+          stroke="#9CA3AF"
           strokeDasharray="4 5"
           strokeLinecap="round"
           strokeWidth="3"
+        />
+        <path
+          d={toChartPath(chartValues, 720, 190, 52)}
+          fill="none"
+          stroke={chartBlue}
+          strokeLinecap="round"
+          strokeWidth="3.2"
+          style={{
+            animation: "velo-chart-draw 1200ms cubic-bezier(.2,.8,.2,1) both",
+            strokeDasharray: 900,
+            strokeDashoffset: 900,
+          }}
         />
         {[
           ["Feb 2024", 62],
@@ -321,38 +485,28 @@ const SalesOverTimeChart = ({ revenue }: { revenue: string }) => (
           ["Oct 2024", 596],
           ["Dec 2024", 690],
         ].map(([label, x]) => (
-          <text key={label} x={Number(x)} y="242" fill="#A7A7A7" fontSize="12" textAnchor="middle">
+          <text key={label} x={Number(x)} y="216" fill="#A7A7A7" fontSize="11" textAnchor="middle">
             {label}
           </text>
         ))}
       </svg>
     </div>
   </article>
-);
+  );
+};
 
-const SalesBreakdown = ({ revenue }: { revenue: string }) => {
-  const rows = [
-    ["Gross sales", revenue, "↗ 28%"],
-    ["Discounts", "-R$ 0,00", "↗ 4%"],
-    ["Returns", "-R$ 0,00", "↘ 39%"],
-    ["Net sales", revenue, "↗ 31%"],
-    ["Shipping charges", "R$ 0,00", "↗ 58%"],
-    ["Return fees", "R$ 0,00", "—"],
-    ["Taxes", "R$ 0,00", "↗ 47%"],
-    ["Total sales", revenue, "↗ 31%"],
-  ];
-
+const SalesBreakdown = ({ rows }: { rows: CollectionKpis["salesBreakdown"] }) => {
   return (
-    <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
-      <p className="text-[13px] font-semibold text-[#6D6D6D]">
+    <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
+      <p className="text-[12px] font-semibold text-[#5F5F5F]">
         Total sales breakdown
       </p>
-      <div className="mt-4 divide-y divide-black/[0.045]">
-        {rows.map(([label, value, trend]) => (
-          <div key={label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-3 text-[13px]">
-            <span className="font-semibold text-[#777]">{label}</span>
+      <div className="mt-3 divide-y divide-black/[0.045]">
+        {rows.map(({ label, value, trend }) => (
+          <div key={label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2 text-[12px]">
+            <span className="font-semibold text-[#6F6F6F]">{label}</span>
             <span className="font-bold text-[#4A4A4A]">{value}</span>
-            <span className="text-[11px] font-semibold text-[#8A8A8A]">{trend}</span>
+            <span className="text-[10px] font-semibold text-[#8A8A8A]">{trend}</span>
           </div>
         ))}
       </div>
@@ -360,99 +514,140 @@ const SalesBreakdown = ({ revenue }: { revenue: string }) => {
   );
 };
 
-const MiniDonutCard = ({ revenue }: { revenue: string }) => (
-  <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
-    <p className="text-[13px] font-semibold text-[#6D6D6D]">Total sales by sales channel</p>
-    <div className="mt-5 flex items-center justify-center">
-      <div className="relative grid h-[128px] w-[128px] place-items-center rounded-full bg-[conic-gradient(#4388C5_0_82%,#7C67D9_82%_92%,#D8D8D8_92%_100%)]">
-        <div className="grid h-[92px] w-[92px] place-items-center rounded-full bg-white text-center">
-          <span className="block text-[21px] font-bold tracking-[-0.035em] text-[#171717]">{revenue === "R$ 0,00" ? "R$ 0" : revenue}</span>
-          <span className="mt-1 block text-[11px] font-semibold text-[#8A8A8A]">↗ 31%</span>
+const MiniDonutCard = ({ revenue, activePublicationsCount, catalogCount }: { revenue: string; activePublicationsCount: number; catalogCount: number }) => {
+  const activeShare = catalogCount > 0 ? Math.min(92, Math.max(8, (activePublicationsCount / catalogCount) * 100)) : 8;
+
+  return (
+  <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
+    <p className="text-[12px] font-semibold text-[#5F5F5F]">Total sales by sales channel</p>
+    <div className="mt-4 flex items-center justify-center">
+      <div
+        className="relative grid h-[102px] w-[102px] place-items-center rounded-full"
+        style={{
+          background: `conic-gradient(${chartBlue} 0 ${activeShare}%, #4F46E5 ${activeShare}% ${Math.min(activeShare + 10, 100)}%, #DDE7FF ${Math.min(activeShare + 10, 100)}% 100%)`,
+        }}
+      >
+        <div className="grid h-[72px] w-[72px] place-items-center rounded-full bg-white text-center">
+          <span className="block text-[16px] font-bold text-[#171717]">{revenue === "R$ 0,00" ? "R$ 0" : revenue}</span>
+          <span className="mt-0.5 block text-[10px] font-semibold text-[#8A8A8A]">↗ 31%</span>
         </div>
       </div>
     </div>
-    <div className="mt-4 flex justify-center gap-4 text-[12px] font-semibold text-[#777]">
-      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#4388C5]" />Online Store</span>
-      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#7C67D9]" />Shop</span>
+    <div className="mt-3 flex justify-center gap-4 text-[11px] font-semibold text-[#777]">
+      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#2563EB]" />Online Store</span>
+      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#4F46E5]" />Shop</span>
     </div>
+  </article>
+  );
+};
+
+const AverageOrderCard = ({ value, monthlySales }: { value: string; monthlySales: number[] }) => (
+  <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
+    <p className="text-[12px] font-semibold text-[#5F5F5F]">Average order value over time</p>
+    <div className="mt-2 flex items-baseline gap-2">
+      <p className="text-[19px] font-bold text-[#171717]">{value}</p>
+      <span className="text-[11px] font-semibold text-[#8C8C8C]">↗ 17%</span>
+    </div>
+    <Sparkline values={monthlySales} className="mt-5 h-[58px] w-full" />
   </article>
 );
 
-const AverageOrderCard = () => (
-  <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
-    <p className="text-[13px] font-semibold text-[#6D6D6D]">Average order value over time</p>
-    <div className="mt-3 flex items-baseline gap-2">
-      <p className="text-[24px] font-bold tracking-[-0.04em] text-[#171717]">R$ 0,00</p>
-      <span className="text-[12px] font-semibold text-[#8C8C8C]">↗ 17%</span>
-    </div>
-    <Sparkline className="mt-9 h-[82px] w-full" />
-  </article>
-);
+const ProductsBarCard = ({ catalogCount, activePublicationsCount, orderCount }: { catalogCount: number; activePublicationsCount: number; orderCount: number }) => {
+  const max = Math.max(catalogCount, activePublicationsCount, orderCount, 1);
+  const rows = [
+    ["Produtos no catálogo", catalogCount],
+    ["Publicações ativas", activePublicationsCount],
+    ["Pedidos", orderCount],
+  ];
 
-const ProductsBarCard = () => (
-  <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
-    <p className="text-[13px] font-semibold text-[#6D6D6D]">Total sales by product</p>
-    <div className="mt-7 space-y-5">
+  return (
+  <article className="rounded-[12px] border border-black/[0.045] bg-white p-4 shadow-[0_10px_22px_rgba(17,17,17,0.035)]">
+    <p className="text-[12px] font-semibold text-[#5F5F5F]">Total sales by product</p>
+    <div className="mt-5 space-y-4">
       {[
-        ["Produto em destaque", "72%"],
-        ["Coleção ativa", "58%"],
-        ["Favoritos", "46%"],
-      ].map(([label, width]) => (
+        ...rows,
+      ].map(([label, value]) => (
         <div key={label}>
-          <p className="mb-2 text-[12px] font-semibold text-[#A1A1A1]">{label}</p>
-          <div className="h-8 overflow-hidden rounded-[4px] bg-[#E9EEF1]">
-            <div className="h-full bg-[#4388C5]" style={{ width }} />
+          <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold text-[#A1A1A1]">
+            <span>{label}</span>
+            <span>{formatInteger(Number(value))}</span>
+          </div>
+          <div className="h-7 overflow-hidden rounded-[4px] bg-[#E9EEF1]">
+            <div
+              className="h-full bg-[#2563EB] transition-[width] duration-700 ease-out"
+              style={{ width: `${Math.max(8, (Number(value) / max) * 100)}%` }}
+            />
           </div>
         </div>
       ))}
     </div>
   </article>
-);
+  );
+};
 
-const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => (
-  <section className="rounded-[18px] bg-[#F2F2F1] p-5">
+const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
+  const salesTrend = formatTrend(kpis.monthlySales[5] ?? 0, kpis.monthlySales[4] ?? 0);
+
+  return (
+  <section className="rounded-[16px] bg-[#F2F2F1] p-4">
+    <style>
+      {`
+        @keyframes velo-chart-draw {
+          to { stroke-dashoffset: 0; }
+        }
+      `}
+    </style>
     <div className="flex items-start justify-between gap-4">
       <div>
-        <h1 className="text-[20px] font-bold tracking-[-0.03em] text-[#171717]">Overview</h1>
-        <div className="mt-7 flex flex-wrap gap-2">
-          <span className="inline-flex h-8 items-center gap-2 rounded-[8px] bg-white px-3 text-[12px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-            <CalendarDays className="h-4 w-4" strokeWidth={1.8} />
+        <h1 className="text-[18px] font-bold text-[#171717]">Overview</h1>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <span className="inline-flex h-7 items-center gap-2 rounded-[7px] bg-white px-3 text-[11px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+            <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} />
             Last 365 days
           </span>
-          <span className="inline-flex h-8 items-center rounded-[8px] bg-white px-3 text-[12px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+          <span className="inline-flex h-7 items-center rounded-[7px] bg-white px-3 text-[11px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
             Compare to: Feb 14, 2023-Feb 12, 2024
           </span>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <button type="button" aria-label="Configurar visão" className="grid h-8 w-8 place-items-center rounded-[8px] bg-white text-[#171717] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-          <SlidersHorizontal className="h-4 w-4" strokeWidth={1.8} />
+        <button type="button" aria-label="Configurar visão" className="grid h-7 w-7 place-items-center rounded-[7px] bg-white text-[#171717] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+          <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
         </button>
-        <button type="button" aria-label="Personalizar" className="h-8 rounded-[8px] bg-[#222] px-3 text-[12px] font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,0.12)]">
+        <button type="button" aria-label="Personalizar" className="h-7 rounded-[7px] bg-[#222] px-3 text-[11px] font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,0.12)]">
           Customize
         </button>
       </div>
     </div>
 
-    <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 min-[1120px]:grid-cols-4">
-      <OverviewMetricCard label="Gross sales" value={kpis.revenue} delta="28%" />
-      <OverviewMetricCard label="Returning customer rate" value="0%" delta="45%" />
-      <OverviewMetricCard label="Orders fulfilled" value={kpis.orders} delta="31%" />
-      <OverviewMetricCard label="Orders" value={kpis.orders} delta="33%" />
+    <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 min-[900px]:grid-cols-4">
+      <OverviewMetricCard label="Gross sales" value={kpis.revenue} delta={salesTrend} values={kpis.monthlySales} />
+      <OverviewMetricCard label="Returning customer rate" value={kpis.returningCustomerRate} delta="—" values={[0, 0, 0, 0, 0, 0]} />
+      <OverviewMetricCard label="Orders fulfilled" value={kpis.fulfilledOrders} delta="—" values={kpis.monthlyOrders} />
+      <OverviewMetricCard label="Orders" value={kpis.orders} delta={formatTrend(kpis.monthlyOrders[5] ?? 0, kpis.monthlyOrders[4] ?? 0)} values={kpis.monthlyOrders} />
     </div>
 
-    <div className="mt-5 grid grid-cols-1 gap-5 min-[1120px]:grid-cols-[2fr_1fr]">
-      <SalesOverTimeChart revenue={kpis.revenue} />
-      <SalesBreakdown revenue={kpis.revenue} />
+    <div className="mt-3 grid grid-cols-1 gap-3 min-[900px]:grid-cols-[2fr_1fr]">
+      <SalesOverTimeChart revenue={kpis.revenue} values={kpis.monthlySales} />
+      <SalesBreakdown rows={kpis.salesBreakdown} />
     </div>
 
-    <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 min-[1120px]:grid-cols-3">
-      <MiniDonutCard revenue={kpis.revenue} />
-      <AverageOrderCard />
-      <ProductsBarCard />
+    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 min-[900px]:grid-cols-3">
+      <MiniDonutCard
+        revenue={kpis.revenue}
+        activePublicationsCount={kpis.activePublicationsCount}
+        catalogCount={kpis.catalogCount}
+      />
+      <AverageOrderCard value={kpis.averageOrderValue} monthlySales={kpis.monthlySales} />
+      <ProductsBarCard
+        catalogCount={kpis.catalogCount}
+        activePublicationsCount={kpis.activePublicationsCount}
+        orderCount={kpis.orderCount}
+      />
     </div>
   </section>
-);
+  );
+};
 
 const CreateCollectionModal = ({
   open,
@@ -810,11 +1005,11 @@ const DashboardHomePage = () => {
   return (
     <main
       className="relative -m-5 min-h-screen overflow-visible bg-white pb-24 text-[#111111] sm:-m-6 lg:-m-7"
-      style={{ fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
+      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" }}
     >
       {collections.length > 0 ? (
-        <section className="min-h-screen bg-[#F2F2F1] px-6 py-5 sm:px-10">
-          <div className="mx-auto w-full max-w-[1180px]">
+        <section className="min-h-screen bg-[#F2F2F1] px-4 py-4 sm:px-6">
+          <div className="mx-auto w-full max-w-[1120px]">
             <CollectionsOverview kpis={collectionKpis} />
 
             <div className="mt-8 rounded-[18px] bg-white p-8 shadow-[0_12px_32px_rgba(17,17,17,0.025)]">
