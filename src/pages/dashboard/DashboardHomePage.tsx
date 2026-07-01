@@ -358,11 +358,6 @@ const DashboardHomePage = () => {
     };
   }, []);
 
-  const logCollectionLoadError = (error: unknown) => {
-    const supabaseError = error as { message?: string; code?: string; details?: string };
-    console.error("Erro ao carregar coleções:", supabaseError.message, supabaseError.code, supabaseError.details);
-  };
-
   const loadCollectionData = async (userId: string) => {
     const [collectionRows, categoryRows] = await Promise.all([
       listCollectionsWithSummaries(userId),
@@ -376,8 +371,7 @@ const DashboardHomePage = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    loadCollectionData(user.id).catch((error) => {
-      logCollectionLoadError(error);
+    loadCollectionData(user.id).catch(() => {
       veloToast.error("Não foi possível carregar suas coleções.");
     });
   }, [user?.id]);
@@ -412,8 +406,7 @@ const DashboardHomePage = () => {
     try {
       await deleteCollection(collection.id);
       if (user?.id) await loadCollectionData(user.id);
-    } catch (error) {
-      logCollectionLoadError(error);
+    } catch {
       veloToast.error("Não foi possível excluir a coleção.");
     } finally {
       setDeletingCollectionId(null);

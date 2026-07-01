@@ -204,9 +204,9 @@ export const listCollectionsWithSummaries = async (userId: string): Promise<Coll
   const collectionIds = collections.map((collection) => collection.id);
   const { data: rows, error: rowsError } = await collectionsDb
     .from("collection_products")
-    .select("collection_id,product_id,created_at,added_at")
+    .select("collection_id,product_id,added_at")
     .in("collection_id", collectionIds)
-    .order("created_at", { ascending: false, nullsFirst: false });
+    .order("added_at", { ascending: false, nullsFirst: false });
 
   if (rowsError) throw rowsError;
 
