@@ -31,6 +31,35 @@ const collectionsDb = supabase as any;
 
 const COLLECTIONS_UPDATED_EVENT = "velo:collections-updated";
 
+const getAuthenticatedUserId = async (expectedUserId?: string) => {
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error) throw error;
+
+  const authenticatedUserId = data.user?.id;
+  if (!authenticatedUserId) {
+    const authError = new Error("Usuário não autenticado para carregar coleções.") as Error & {
+      code?: string;
+      details?: string;
+    };
+    authError.code = "NO_AUTH_USER";
+    authError.details = "supabase.auth.getUser() não retornou um usuário válido.";
+    throw authError;
+  }
+
+  if (expectedUserId && expectedUserId !== authenticatedUserId) {
+    const mismatchError = new Error("Sessão autenticada não corresponde ao usuário atual.") as Error & {
+      code?: string;
+      details?: string;
+    };
+    mismatchError.code = "AUTH_USER_MISMATCH";
+    mismatchError.details = `Context user_id=${expectedUserId}; auth user_id=${authenticatedUserId}`;
+    throw mismatchError;
+  }
+
+  return authenticatedUserId;
+};
+
 export const notifyCollectionsUpdated = () => {
   window.dispatchEvent(new CustomEvent(COLLECTIONS_UPDATED_EVENT));
 };
@@ -61,10 +90,13 @@ const getProductImages = (images: Json | null): string[] => {
   return [];
 };
 
-export const listCollections = async (limit?: number): Promise<VeloCollection[]> => {
+export const listCollections = async (userId: string, limit?: number): Promise<VeloCollection[]> => {
+  const authenticatedUserId = await getAuthenticatedUserId(userId);
+
   let query = collectionsDb
     .from("collections")
     .select("id,user_id,name,category,created_at,updated_at")
+    .eq("user_id", authenticatedUserId)
     .order("updated_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false, nullsFirst: false });
 
@@ -165,8 +197,8 @@ export const removeProductFromCollection = async (collectionId: string, productI
   notifyCollectionsUpdated();
 };
 
-export const listCollectionsWithSummaries = async (): Promise<CollectionSummary[]> => {
-  const collections = await listCollections();
+export const listCollectionsWithSummaries = async (userId: string): Promise<CollectionSummary[]> => {
+  const collections = await listCollections(userId);
   if (collections.length === 0) return [];
 
   const collectionIds = collections.map((collection) => collection.id);

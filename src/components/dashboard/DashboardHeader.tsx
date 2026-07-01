@@ -41,7 +41,10 @@ const DashboardHeader = () => {
   const meta = routes.find((r) => r.test(location.pathname)) ?? routes[0];
   const Icon = meta.icon;
   const isDashboard = meta.title === "Dashboard";
-  const shouldHideHeader = location.pathname === "/dashboard" || location.pathname.startsWith("/dashboard/catalogo");
+  const shouldHideHeader =
+    location.pathname === "/dashboard" ||
+    location.pathname === "/colecoes" ||
+    location.pathname.startsWith("/dashboard/catalogo");
 
   if (shouldHideHeader) {
     return null;
