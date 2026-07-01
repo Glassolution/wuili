@@ -9,7 +9,6 @@ import {
   Plus,
   Search,
   Settings,
-  Sparkle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,11 +102,11 @@ const ProductTile = ({
   product?: ProductPreview;
   className: string;
 }) => (
-  <div className={`overflow-hidden border border-black/[0.06] bg-[#F7F7F6] shadow-[0_18px_42px_rgba(17,17,17,0.11)] ${className}`}>
+  <div className={`box-border overflow-hidden rounded-[12px] border-[0.5px] border-[#E5E5E5] bg-white p-2 shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${className}`}>
     {product ? (
-      <img src={product.image} alt="" className="h-full w-full object-cover object-center" />
+      <img src={product.image} alt="" className="h-full w-full rounded-[8px] object-cover object-center" />
     ) : (
-      <div className="h-full w-full bg-[linear-gradient(135deg,#F6F6F5_0%,#EFEFED_100%)]" />
+      <div className="h-full w-full rounded-[8px] bg-[linear-gradient(135deg,#F6F6F5_0%,#EFEFED_100%)]" />
     )}
   </div>
 );
@@ -116,37 +115,37 @@ const HeroCollage = ({ products }: { products: ProductPreview[] }) => (
   <div className="relative h-[220px] w-[280px]">
     <ProductTile
       product={products[3]}
-      className="absolute left-[0px] top-[42px] h-[160px] w-[130px] -rotate-[8deg] rounded-[18px]"
+      className="absolute left-[0px] top-[42px] h-[160px] w-[130px] -rotate-[8deg]"
     />
     <ProductTile
       product={products[1]}
-      className="absolute left-[38px] top-[28px] z-10 h-[160px] w-[130px] -rotate-[4deg] rounded-[18px]"
+      className="absolute left-[38px] top-[28px] z-10 h-[160px] w-[130px] -rotate-[4deg]"
     />
     <ProductTile
       product={products[0]}
-      className="absolute left-[75px] top-[18px] z-30 h-[160px] w-[130px] rotate-[1deg] rounded-[18px] shadow-[0_24px_54px_rgba(17,17,17,0.16)]"
+      className="absolute left-[75px] top-[18px] z-30 h-[160px] w-[130px] rotate-[1deg]"
     />
     <ProductTile
       product={products[2]}
-      className="absolute left-[112px] top-[30px] z-20 h-[160px] w-[130px] rotate-[4deg] rounded-[18px]"
+      className="absolute left-[112px] top-[30px] z-20 h-[160px] w-[130px] rotate-[4deg]"
     />
     <ProductTile
       product={products[4]}
-      className="absolute left-[150px] top-[44px] h-[160px] w-[130px] rotate-[8deg] rounded-[18px] shadow-[0_20px_42px_rgba(17,17,17,0.13)]"
+      className="absolute left-[150px] top-[44px] h-[160px] w-[130px] rotate-[8deg]"
     />
-    <span className="absolute left-[28px] top-[20px] h-5 w-[2px] -rotate-[24deg] rounded-full bg-[#111]" />
-    <span className="absolute left-[44px] top-[14px] h-3.5 w-[2px] -rotate-[5deg] rounded-full bg-[#111]" />
-    <span className="absolute right-[2px] bottom-[46px] h-5 w-[2px] rotate-[44deg] rounded-full bg-[#111]" />
-    <span className="absolute right-[24px] bottom-[34px] h-3.5 w-[2px] rotate-[68deg] rounded-full bg-[#111]" />
+    <span className="absolute left-[28px] top-[20px] z-40 h-5 w-[2px] -rotate-[24deg] rounded-full bg-[#111]" />
+    <span className="absolute left-[44px] top-[14px] z-40 h-3.5 w-[2px] -rotate-[5deg] rounded-full bg-[#111]" />
+    <span className="absolute right-[2px] bottom-[46px] z-40 h-5 w-[2px] rotate-[44deg] rounded-full bg-[#111]" />
+    <span className="absolute right-[24px] bottom-[34px] z-40 h-3.5 w-[2px] rotate-[68deg] rounded-full bg-[#111]" />
   </div>
 );
 
 const CardProductStack = ({ products }: { products: ProductPreview[] }) => (
-  <div className="absolute -bottom-10 left-5 right-5 h-[104px]">
+  <div className="absolute bottom-5 left-5 right-5 h-[112px]">
     {products.slice(0, 3).map((product, index) => (
       <div
         key={`${product.id}-${index}`}
-        className="absolute bottom-0 h-[92px] w-[42%] overflow-hidden rounded-[13px] border border-black/[0.055] bg-white shadow-[0_16px_28px_rgba(17,17,17,0.08)] transition-transform duration-300 group-hover:-translate-y-2"
+        className="absolute bottom-0 h-[104px] w-[42%] overflow-hidden rounded-[13px] border border-black/[0.055] bg-white shadow-[0_16px_28px_rgba(17,17,17,0.08)] transition-transform duration-300 group-hover:-translate-y-2"
         style={{
           left: `${index * 27}%`,
           transform: `rotate(${[-5, 1, 5][index]}deg)`,
@@ -205,7 +204,7 @@ const DashboardHomePage = () => {
 
   return (
     <main
-      className="relative -m-5 min-h-[calc(100%+40px)] overflow-hidden bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+48px)] lg:-m-7 lg:min-h-[calc(100%+56px)]"
+      className="relative -m-5 min-h-[calc(100%+40px)] overflow-visible bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+48px)] lg:-m-7 lg:min-h-[calc(100%+56px)]"
       style={{ fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
     >
       <header className="relative z-20 flex h-12 items-center gap-3 border-b border-black/[0.03] px-4">
@@ -247,7 +246,7 @@ const DashboardHomePage = () => {
         </div>
       </header>
 
-      <section className="relative mx-auto flex min-h-[calc(100vh-48px)] w-full max-w-[1180px] flex-col items-center px-6 pb-0 pt-[8.8vh]">
+      <section className="relative mx-auto flex w-full max-w-[1180px] flex-col items-center px-6 pb-12 pt-[8.8vh]">
         <motion.div
           className="flex flex-col items-center text-center"
           variants={fadeUp}
@@ -274,7 +273,7 @@ const DashboardHomePage = () => {
         </motion.div>
 
         <motion.div
-          className="mt-auto grid w-full max-w-[880px] grid-cols-1 gap-4 pt-24 sm:grid-cols-3"
+          className="grid w-full max-w-[880px] grid-cols-1 gap-4 pt-24 sm:grid-cols-3"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
@@ -283,7 +282,7 @@ const DashboardHomePage = () => {
           {featureCards.map((card, index) => (
             <article
               key={card.eyebrow}
-              className={`group relative h-[218px] overflow-hidden rounded-[16px] border border-black/[0.035] ${card.tone} p-5 shadow-[0_16px_42px_rgba(17,17,17,0.032)]`}
+              className={`group relative h-[280px] overflow-hidden rounded-[16px] border border-black/[0.035] ${card.tone} p-5 shadow-[0_16px_42px_rgba(17,17,17,0.032)]`}
             >
               <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#B0B0B0]">
                 {card.eyebrow}
@@ -294,20 +293,11 @@ const DashboardHomePage = () => {
               {productGroups[index].length > 0 ? (
                 <CardProductStack products={productGroups[index]} />
               ) : (
-                <div className="absolute -bottom-8 left-6 right-6 h-[92px] rounded-t-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
+                <div className="absolute bottom-5 left-6 right-6 h-[104px] rounded-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
               )}
             </article>
           ))}
         </motion.div>
-
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard/atlas")}
-          aria-label="Abrir Aquas"
-          className="absolute bottom-5 right-5 grid h-11 w-11 place-items-center rounded-full bg-white text-black shadow-[0_12px_32px_rgba(17,17,17,0.1),inset_0_0_0_1px_rgba(0,0,0,0.05)] transition-transform hover:-translate-y-0.5"
-        >
-          <Sparkle className="h-[19px] w-[19px]" strokeWidth={1.8} />
-        </button>
       </section>
     </main>
   );
