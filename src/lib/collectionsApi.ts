@@ -22,6 +22,7 @@ export type VeloCollectionProduct = {
 
 export type CollectionSummary = VeloCollection & {
   productCount: number;
+  coverImage: string | null;
   thumbnails: string[];
 };
 
@@ -130,6 +131,27 @@ export const listCollectionCategories = async (): Promise<string[]> => {
   ).slice(0, 8);
 };
 
+export const listUserCollectionCategories = async (userId: string): Promise<string[]> => {
+  const authenticatedUserId = await getAuthenticatedUserId(userId);
+
+  const { data, error } = await collectionsDb
+    .from("collections")
+    .select("category")
+    .eq("user_id", authenticatedUserId)
+    .not("category", "is", null)
+    .order("category", { ascending: true });
+
+  if (error) throw error;
+
+  return Array.from(
+    new Set(
+      ((data ?? []) as Array<{ category: string | null }>)
+        .map((item) => item.category)
+        .filter((category): category is string => Boolean(category?.trim())),
+    ),
+  );
+};
+
 export const createCollection = async ({
   name,
   category,
@@ -230,10 +252,12 @@ export const listCollectionsWithSummaries = async (userId: string): Promise<Coll
 
   return collections.map((collection) => {
     const productsForCollection = collectionProducts.filter((item) => item.collection_id === collection.id);
+    const firstProduct = productsForCollection[productsForCollection.length - 1];
 
     return {
       ...collection,
       productCount: productsForCollection.length,
+      coverImage: firstProduct ? productImages.get(firstProduct.product_id) ?? null : null,
       thumbnails: productsForCollection
         .map((item) => productImages.get(item.product_id))
         .filter((image): image is string => Boolean(image))

@@ -4,12 +4,13 @@ import {
   Archive,
   CircleHelp,
   Folder,
+  FolderOpen,
   Globe2,
   Grid2X2,
+  MoreHorizontal,
   Plus,
   Search,
   Settings,
-  Trash2,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +22,7 @@ import {
   deleteCollection,
   listCollectionCategories,
   listCollectionsWithSummaries,
+  listUserCollectionCategories,
   type CollectionSummary,
 } from "@/lib/collectionsApi";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -267,51 +269,104 @@ const CreateCollectionModal = ({
   );
 };
 
-const CollectionCard = ({
+const CollectionDashboardCard = ({
   collection,
   deleting,
+  menuOpen,
+  onToggleMenu,
+  onAddProducts,
   onDelete,
 }: {
   collection: CollectionSummary;
   deleting: boolean;
+  menuOpen: boolean;
+  onToggleMenu: () => void;
+  onAddProducts: () => void;
   onDelete: () => void;
 }) => {
+  const coverImage = collection.coverImage ?? collection.thumbnails[0];
+  const productLabel = `${collection.productCount} produto${collection.productCount === 1 ? "" : "s"}`;
+  const meta = collection.category ? `${productLabel} · ${collection.category}` : productLabel;
+
   return (
     <article
-      className="relative min-h-[172px] rounded-[16px] border border-[#E5E5E5] bg-[#FAFAF9] p-5 text-left shadow-[0_14px_34px_rgba(17,17,17,0.035)]"
+      role="button"
+      tabIndex={0}
+      onClick={onAddProducts}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onAddProducts();
+        }
+      }}
+      className="group relative h-[200px] cursor-pointer overflow-hidden rounded-[16px] bg-[#F3F2F0] outline-none transition-transform duration-200 ease-out hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-black/20"
     >
+      {coverImage ? (
+        <img src={coverImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+      ) : (
+        <div className="absolute inset-0 bg-[#F3F2F0]" />
+      )}
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_30%,rgba(0,0,0,0.75)_100%)]" />
+
       <button
         type="button"
-        aria-label="Excluir coleção"
+        aria-label="Opções da coleção"
+        aria-expanded={menuOpen}
         disabled={deleting}
-        onClick={onDelete}
-        className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-[#999] transition-colors hover:bg-white hover:text-[#111] disabled:cursor-wait disabled:opacity-45"
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggleMenu();
+        }}
+        className="absolute right-3 top-3 z-20 grid h-8 w-8 place-items-center rounded-full bg-black/20 text-white backdrop-blur-md transition-colors hover:bg-black/35 disabled:cursor-wait disabled:opacity-55"
       >
-        <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+        <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={2} />
       </button>
 
-      <p className="pr-10 text-[11px] font-semibold uppercase tracking-[0.05em] text-[#999]">
-        {collection.category || "COLEÇÃO VELO"}
-      </p>
-      <h2 className="mt-3 pr-10 text-[16px] font-semibold leading-[1.2] tracking-[-0.025em] text-black">
-        {collection.name}
-      </h2>
-      <p className="mt-2 text-[13px] font-medium text-[#777]">
-        {collection.productCount} produto{collection.productCount === 1 ? "" : "s"} salvo{collection.productCount === 1 ? "" : "s"}
-      </p>
+      {menuOpen ? (
+        <div
+          className="absolute right-3 top-12 z-30 w-[168px] overflow-hidden rounded-[12px] border border-white/15 bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.22)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={onAddProducts}
+            className="flex h-9 w-full items-center rounded-[9px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0]"
+          >
+            Adicionar produtos
+          </button>
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={onDelete}
+            className="flex h-9 w-full items-center rounded-[9px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0] disabled:cursor-wait disabled:opacity-55"
+          >
+            Excluir coleção
+          </button>
+        </div>
+      ) : null}
 
-      <div className="mt-7 flex items-center gap-2">
+      <div className="absolute bottom-0 left-0 z-10 max-w-[calc(100%-112px)] p-4">
+        <h2 className="text-[16px] font-semibold leading-[1.2] text-white">
+          {collection.name}
+        </h2>
+        <p className="mt-1 text-[12px] font-medium text-white/75">
+          {meta}
+        </p>
+      </div>
+
+      <div className="absolute bottom-4 right-4 z-10 flex items-center">
         {collection.thumbnails.length > 0 ? (
-          collection.thumbnails.map((image, index) => (
+          collection.thumbnails.slice(0, 3).map((image, index) => (
             <img
-              key={`${image}-${index}`}
+              key={`${collection.id}-${image}-${index}`}
               src={image}
               alt=""
-              className="h-12 w-12 rounded-[8px] border border-black/[0.04] bg-white object-cover object-center"
+              className="h-7 w-7 rounded-[6px] border-2 border-white bg-white object-cover object-center shadow-[0_8px_18px_rgba(0,0,0,0.18)]"
+              style={{ marginLeft: index === 0 ? 0 : -8, zIndex: 3 - index }}
             />
           ))
         ) : (
-          <div className="h-12 w-12 rounded-[8px] border border-black/[0.04] bg-[#EFEFEE]" />
+          <span className="h-7 w-7 rounded-[6px] border-2 border-white bg-[#F3F2F0]" />
         )}
       </div>
     </article>
@@ -324,6 +379,9 @@ const DashboardHomePage = () => {
   const [products, setProducts] = useState<ProductPreview[]>([]);
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [collectionCategories, setCollectionCategories] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState("Todas");
+  const [openMenuCollectionId, setOpenMenuCollectionId] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
@@ -359,13 +417,15 @@ const DashboardHomePage = () => {
   }, []);
 
   const loadCollectionData = async (userId: string) => {
-    const [collectionRows, categoryRows] = await Promise.all([
+    const [collectionRows, categoryRows, userCategoryRows] = await Promise.all([
       listCollectionsWithSummaries(userId),
       listCollectionCategories(),
+      listUserCollectionCategories(userId),
     ]);
 
     setCollections(collectionRows);
     setCategories(categoryRows);
+    setCollectionCategories(userCategoryRows);
   };
 
   useEffect(() => {
@@ -401,6 +461,7 @@ const DashboardHomePage = () => {
     const confirmed = window.confirm(`Excluir a coleção "${collection.name}"?`);
     if (!confirmed) return;
 
+    setOpenMenuCollectionId(null);
     setDeletingCollectionId(collection.id);
 
     try {
@@ -423,114 +484,199 @@ const DashboardHomePage = () => {
     );
   }, [products]);
 
+  const filteredCollections = useMemo(() => {
+    if (activeCategory === "Todas") return collections;
+    return collections.filter((collection) => collection.category === activeCategory);
+  }, [activeCategory, collections]);
+
+  useEffect(() => {
+    if (activeCategory !== "Todas" && !collectionCategories.includes(activeCategory)) {
+      setActiveCategory("Todas");
+    }
+  }, [activeCategory, collectionCategories]);
+
+  const handleAddProductsToCollection = (collection: CollectionSummary) => {
+    setOpenMenuCollectionId(null);
+    navigate(
+      `/dashboard/catalogo?collectionId=${encodeURIComponent(collection.id)}&collectionName=${encodeURIComponent(collection.name)}`,
+    );
+  };
+
   return (
     <main
       className="relative -m-5 min-h-screen overflow-visible bg-white pb-24 text-[#111111] sm:-m-6 lg:-m-7"
       style={{ fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
     >
-      <header className="relative z-20 flex h-12 items-center gap-3 border-b border-black/[0.03] px-4">
-        <div className="flex items-center gap-2">
-          <ToolbarIcon label="Ajustes">
-            <Settings className="h-[15px] w-[15px]" strokeWidth={2} />
-          </ToolbarIcon>
-          <ToolbarIcon label="Aplicativos">
-            <Grid2X2 className="h-[15px] w-[15px]" strokeWidth={2} />
-          </ToolbarIcon>
-          <ToolbarIcon label="Arquivos">
-            <Folder className="h-[15px] w-[15px]" strokeWidth={2} />
-          </ToolbarIcon>
-          <ToolbarIcon label="Coleções">
-            <Archive className="h-[15px] w-[15px]" strokeWidth={2} />
-          </ToolbarIcon>
-          <ToolbarIcon label="Mercados">
-            <Globe2 className="h-[15px] w-[15px]" strokeWidth={2} />
-          </ToolbarIcon>
-        </div>
-
-        <div className="mx-2 flex h-9 flex-1 items-center gap-2 rounded-full bg-[#FBFBFA] px-3 text-[#A3A3A3] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.025)]">
-          <Search className="h-[14px] w-[14px]" strokeWidth={1.8} />
-          <span className="text-[13px] font-medium">Buscar em todas as coleções</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <ToolbarIcon label="Configurações">
-            <Settings className="h-[15px] w-[15px]" strokeWidth={2} />
-          </ToolbarIcon>
-          <ToolbarIcon label="Ajuda">
-            <CircleHelp className="h-[15px] w-[15px]" strokeWidth={2} />
-          </ToolbarIcon>
-          <button
-            type="button"
-            aria-label="Conta"
-            className="h-7 w-7 rounded-full bg-[radial-gradient(circle_at_72%_26%,#FFB84D_0%,#F97316_26%,#EC4899_58%,#7C3AED_100%)] shadow-[0_6px_18px_rgba(236,72,153,0.22)]"
-          />
-        </div>
-      </header>
-
-      <section className="relative mx-auto flex w-full max-w-[1180px] flex-col items-center bg-white px-6 pb-20 pt-[8.8vh]">
-        <motion.div
-          className="flex flex-col items-center text-center"
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0}
-        >
-          <HeroCollage products={products} />
-
-          <h1 className="mt-5 text-[20px] font-semibold tracking-[-0.035em] text-[#151515]">
-            Crie uma coleção única
-          </h1>
-          <p className="mt-3 max-w-[360px] text-center text-[14px] font-medium leading-[1.5] text-[#B8B8B8]">
-            Reúna produtos, ideias, anúncios e referências para acelerar sua próxima venda.
-          </p>
-          <button
-            type="button"
-            onClick={() => setCreateModalOpen(true)}
-            className="mt-7 inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#F5F5F4] px-4 text-[13px] font-semibold text-[#222] shadow-[0_12px_24px_rgba(17,17,17,0.05),inset_0_0_0_1px_rgba(0,0,0,0.03)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
-          >
-            <Plus className="h-[14px] w-[14px]" strokeWidth={2} />
-            Criar
-          </button>
-        </motion.div>
-
-        <motion.div
-          className="grid w-full max-w-[1180px] grid-cols-1 gap-4 pt-24 md:grid-cols-3"
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0.14}
-        >
-          {collections.length === 0 ? (
-            featureCards.map((card, index) => (
-              <article
-                key={card.eyebrow}
-                className={`group relative h-[280px] overflow-hidden rounded-[16px] border border-black/[0.035] ${card.tone} p-5 shadow-[0_16px_42px_rgba(17,17,17,0.032)]`}
-              >
-                <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#B0B0B0]">
-                  {card.eyebrow}
+      {collections.length > 0 ? (
+        <section className="min-h-screen bg-white px-6 py-9 sm:px-10">
+          <div className="mx-auto w-full max-w-[1180px]">
+            <header className="flex items-start justify-between gap-6">
+              <div>
+                <h1 className="text-[28px] font-bold leading-tight tracking-[-0.035em] text-black">
+                  Minhas Coleções
+                </h1>
+                <p className="mt-2 text-[14px] font-medium text-[#999]">
+                  {collections.length} coleção{collections.length === 1 ? "" : "ões"}
                 </p>
-                <h2 className="mt-4 max-w-[235px] text-[17px] font-semibold leading-[1.18] tracking-[-0.035em] text-[#1A1A1A]">
-                  {card.title}
-                </h2>
-                {productGroups[index].length > 0 ? (
-                  <CardProductStack products={productGroups[index]} />
-                ) : (
-                  <div className="absolute bottom-5 left-6 right-6 h-[104px] rounded-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
-                )}
-              </article>
-            ))
-          ) : (
-            collections.map((collection) => (
-              <CollectionCard
-                key={collection.id}
-                collection={collection}
-                deleting={deletingCollectionId === collection.id}
-                onDelete={() => handleDeleteCollection(collection)}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(true)}
+                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-black px-5 text-[14px] font-medium text-white transition-opacity hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" strokeWidth={2} />
+                Nova Coleção
+              </button>
+            </header>
+
+            <section className="mt-10">
+              <h2 className="mb-4 text-[16px] font-semibold text-black">
+                Categorias
+              </h2>
+              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {["Todas", ...collectionCategories].map((category) => {
+                  const active = activeCategory === category;
+
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setActiveCategory(category)}
+                      className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-[14px] text-[13px] font-medium transition-colors ${
+                        active
+                          ? "bg-black text-white"
+                          : "bg-[#F3F2F0] text-[#333] hover:bg-[#E9E8E6]"
+                      }`}
+                    >
+                      <FolderOpen className="h-4 w-4" strokeWidth={1.8} />
+                      {category}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="mt-8">
+              {filteredCollections.length > 0 ? (
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  {filteredCollections.map((collection) => (
+                    <CollectionDashboardCard
+                      key={collection.id}
+                      collection={collection}
+                      deleting={deletingCollectionId === collection.id}
+                      menuOpen={openMenuCollectionId === collection.id}
+                      onToggleMenu={() =>
+                        setOpenMenuCollectionId((current) => (current === collection.id ? null : collection.id))
+                      }
+                      onAddProducts={() => handleAddProductsToCollection(collection)}
+                      onDelete={() => handleDeleteCollection(collection)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex min-h-[260px] items-center justify-center text-center text-[14px] font-medium text-[#999]">
+                  Nenhuma coleção nessa categoria
+                </div>
+              )}
+            </section>
+          </div>
+        </section>
+      ) : (
+        <>
+          <header className="relative z-20 flex h-12 items-center gap-3 border-b border-black/[0.03] px-4">
+            <div className="flex items-center gap-2">
+              <ToolbarIcon label="Ajustes">
+                <Settings className="h-[15px] w-[15px]" strokeWidth={2} />
+              </ToolbarIcon>
+              <ToolbarIcon label="Aplicativos">
+                <Grid2X2 className="h-[15px] w-[15px]" strokeWidth={2} />
+              </ToolbarIcon>
+              <ToolbarIcon label="Arquivos">
+                <Folder className="h-[15px] w-[15px]" strokeWidth={2} />
+              </ToolbarIcon>
+              <ToolbarIcon label="Coleções">
+                <Archive className="h-[15px] w-[15px]" strokeWidth={2} />
+              </ToolbarIcon>
+              <ToolbarIcon label="Mercados">
+                <Globe2 className="h-[15px] w-[15px]" strokeWidth={2} />
+              </ToolbarIcon>
+            </div>
+
+            <div className="mx-2 flex h-9 flex-1 items-center gap-2 rounded-full bg-[#FBFBFA] px-3 text-[#A3A3A3] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.025)]">
+              <Search className="h-[14px] w-[14px]" strokeWidth={1.8} />
+              <span className="text-[13px] font-medium">Buscar em todas as coleções</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <ToolbarIcon label="Configurações">
+                <Settings className="h-[15px] w-[15px]" strokeWidth={2} />
+              </ToolbarIcon>
+              <ToolbarIcon label="Ajuda">
+                <CircleHelp className="h-[15px] w-[15px]" strokeWidth={2} />
+              </ToolbarIcon>
+              <button
+                type="button"
+                aria-label="Conta"
+                className="h-7 w-7 rounded-full bg-[radial-gradient(circle_at_72%_26%,#FFB84D_0%,#F97316_26%,#EC4899_58%,#7C3AED_100%)] shadow-[0_6px_18px_rgba(236,72,153,0.22)]"
               />
-            ))
-          )}
-        </motion.div>
-      </section>
+            </div>
+          </header>
+
+          <section className="relative mx-auto flex w-full max-w-[1180px] flex-col items-center bg-white px-6 pb-20 pt-[8.8vh]">
+            <motion.div
+              className="flex flex-col items-center text-center"
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              custom={0}
+            >
+              <HeroCollage products={products} />
+
+              <h1 className="mt-5 text-[20px] font-semibold tracking-[-0.035em] text-[#151515]">
+                Crie uma coleção única
+              </h1>
+              <p className="mt-3 max-w-[360px] text-center text-[14px] font-medium leading-[1.5] text-[#B8B8B8]">
+                Reúna produtos, ideias, anúncios e referências para acelerar sua próxima venda.
+              </p>
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(true)}
+                className="mt-7 inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#F5F5F4] px-4 text-[13px] font-semibold text-[#222] shadow-[0_12px_24px_rgba(17,17,17,0.05),inset_0_0_0_1px_rgba(0,0,0,0.03)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <Plus className="h-[14px] w-[14px]" strokeWidth={2} />
+                Criar
+              </button>
+            </motion.div>
+
+            <motion.div
+              className="grid w-full max-w-[1180px] grid-cols-1 gap-4 pt-24 md:grid-cols-3"
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              custom={0.14}
+            >
+              {featureCards.map((card, index) => (
+                <article
+                  key={card.eyebrow}
+                  className={`group relative h-[280px] overflow-hidden rounded-[16px] border border-black/[0.035] ${card.tone} p-5 shadow-[0_16px_42px_rgba(17,17,17,0.032)]`}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#B0B0B0]">
+                    {card.eyebrow}
+                  </p>
+                  <h2 className="mt-4 max-w-[235px] text-[17px] font-semibold leading-[1.18] tracking-[-0.035em] text-[#1A1A1A]">
+                    {card.title}
+                  </h2>
+                  {productGroups[index].length > 0 ? (
+                    <CardProductStack products={productGroups[index]} />
+                  ) : (
+                    <div className="absolute bottom-5 left-6 right-6 h-[104px] rounded-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
+                  )}
+                </article>
+              ))}
+            </motion.div>
+          </section>
+        </>
+      )}
 
       <CreateCollectionModal
         open={createModalOpen}
