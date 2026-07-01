@@ -777,7 +777,7 @@ const CollectionDashboardCard = ({
           onAddProducts();
         }
       }}
-      className="group relative h-[200px] w-[220px] shrink-0 cursor-pointer overflow-hidden rounded-[16px] bg-[#F3F2F0] outline-none transition-transform duration-200 ease-out hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-black/20"
+      className="group relative h-[200px] w-[200px] shrink-0 cursor-pointer overflow-hidden rounded-[14px] bg-[#F3F2F0] outline-none transition-transform duration-200 ease-out hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-black/20"
     >
       {coverImage ? (
         <img src={coverImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
@@ -786,7 +786,7 @@ const CollectionDashboardCard = ({
           <FolderOpen className="h-9 w-9" strokeWidth={1.7} />
         </div>
       )}
-      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_30%,rgba(0,0,0,0.80)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_40%,rgba(0,0,0,0.80)_100%)]" />
 
       <button
         type="button"
@@ -797,14 +797,14 @@ const CollectionDashboardCard = ({
           event.stopPropagation();
           onToggleMenu();
         }}
-        className="absolute right-2.5 top-2.5 z-20 grid h-8 w-8 place-items-center rounded-full bg-black/20 text-white backdrop-blur-md transition-colors hover:bg-black/35 disabled:cursor-wait disabled:opacity-55"
+        className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white transition-colors hover:bg-white/30 disabled:cursor-wait disabled:opacity-55"
       >
-        <MoreHorizontal className="h-4 w-4" strokeWidth={2.3} />
+        <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={2.3} />
       </button>
 
       {menuOpen ? (
         <div
-          className="absolute right-2.5 top-12 z-30 w-[168px] overflow-hidden rounded-[12px] border border-white/15 bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.22)]"
+          className="absolute right-2 top-10 z-30 w-[168px] overflow-hidden rounded-[12px] border border-white/15 bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.22)]"
           onClick={(event) => event.stopPropagation()}
         >
           <button
@@ -825,11 +825,11 @@ const CollectionDashboardCard = ({
         </div>
       ) : null}
 
-      <div className="absolute bottom-0 left-0 z-10 w-full min-w-0 p-[14px]">
-        <h2 className="truncate text-[15px] font-semibold leading-[1.15] tracking-[-0.02em] text-white">
+      <div className="absolute bottom-0 left-0 z-10 min-w-0 p-3">
+        <h2 className="max-w-[160px] truncate whitespace-nowrap text-[14px] font-semibold leading-[1.15] tracking-[-0.02em] text-white">
           {collection.name}
         </h2>
-        <p className="mt-1 text-[12px] font-medium text-white/70">
+        <p className="mt-0.5 text-[11px] font-medium text-white/70">
           {productLabel}
         </p>
       </div>
@@ -1031,7 +1031,7 @@ const DashboardHomePage = () => {
           <div className="mx-auto w-full max-w-[1180px]">
             <CollectionsOverview kpis={collectionKpis} />
 
-            <div className="mt-3 max-h-[280px] rounded-[16px] bg-white px-6 py-5 shadow-[0_10px_26px_rgba(17,17,17,0.025)]">
+            <div className="mt-4 overflow-visible rounded-[16px] border-[0.5px] border-[#E5E5E5] bg-white px-6 py-5 shadow-[0_10px_26px_rgba(17,17,17,0.025)]">
               <header className="flex items-center justify-between gap-6">
                 <div className="flex items-baseline">
                   <h1 className="text-[18px] font-semibold leading-none tracking-[-0.02em] text-black">
@@ -1060,7 +1060,7 @@ const DashboardHomePage = () => {
                     onMouseUp={stopCarouselDrag}
                     onMouseLeave={stopCarouselDrag}
                     onClickCapture={handleCarouselClickCapture}
-                    className="flex cursor-grab flex-nowrap gap-4 overflow-x-auto pb-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    className="flex cursor-grab flex-nowrap gap-4 overflow-x-auto overflow-y-visible pb-1 active:cursor-grabbing [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                   >
                     {collections.map((collection) => (
                       <CollectionDashboardCard
@@ -1080,7 +1080,7 @@ const DashboardHomePage = () => {
                   <button
                     type="button"
                     onClick={() => setCreateModalOpen(true)}
-                    className="flex h-[200px] w-[220px] shrink-0 flex-col items-center justify-center rounded-[16px] border-[1.5px] border-dashed border-[#E0E0E0] bg-[#FAFAF9] text-[#999] transition-colors hover:border-[#CFCFCF] hover:text-[#666]"
+                    className="flex h-[200px] w-[200px] shrink-0 flex-col items-center justify-center rounded-[14px] border-[1.5px] border-dashed border-[#E0E0E0] bg-[#FAFAF9] text-[#999] transition-colors hover:border-[#CFCFCF] hover:text-[#666]"
                   >
                     <Plus className="h-6 w-6" strokeWidth={1.8} />
                     <span className="mt-2 text-[13px] font-medium">Criar primeira coleção</span>
