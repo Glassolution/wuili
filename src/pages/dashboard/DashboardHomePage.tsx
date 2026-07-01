@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Archive,
+  CalendarDays,
   CircleHelp,
   Folder,
   FolderOpen,
@@ -11,6 +12,7 @@ import {
   Plus,
   Search,
   Settings,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -237,15 +239,219 @@ const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
   return nextKpis;
 };
 
-const KpiCard = ({ label, value }: { label: string; value: string }) => (
-  <article className="rounded-[16px] border-[0.5px] border-[#E5E5E5] bg-white px-6 py-5">
-    <p className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#999]">
-      {label}
-    </p>
-    <p className="mt-3 text-[24px] font-bold leading-none tracking-[-0.035em] text-black">
-      {value}
-    </p>
+const Sparkline = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 96 34" aria-hidden="true" className={className}>
+    <path
+      d="M3 23 C10 14, 16 19, 22 16 S32 8, 39 15 S51 25, 58 17 S69 8, 77 15 S86 25, 93 19"
+      fill="none"
+      stroke="#9CB8C3"
+      strokeLinecap="round"
+      strokeWidth="3"
+    />
+    <path
+      d="M3 25 C10 19, 17 24, 24 21 S34 14, 42 20 S55 29, 62 22 S73 15, 82 21 S90 28, 94 25"
+      fill="none"
+      opacity="0.24"
+      stroke="#9CB8C3"
+      strokeLinecap="round"
+      strokeWidth="2"
+    />
+  </svg>
+);
+
+const OverviewMetricCard = ({ label, value, delta }: { label: string; value: string; delta: string }) => (
+  <article className="grid min-h-[92px] grid-cols-[1fr_82px] items-center gap-4 rounded-[12px] border border-black/[0.045] bg-white px-5 py-4 shadow-[0_10px_24px_rgba(17,17,17,0.035)]">
+    <div>
+      <p className="text-[12px] font-semibold leading-none text-[#6D6D6D]">
+        {label}
+      </p>
+      <div className="mt-3 flex items-baseline gap-2">
+        <p className="text-[18px] font-bold leading-none tracking-[-0.035em] text-[#171717]">
+          {value}
+        </p>
+        <span className="text-[11px] font-semibold text-[#8C8C8C]">
+          ↗ {delta}
+        </span>
+      </div>
+    </div>
+    <Sparkline className="h-[34px] w-[82px]" />
   </article>
+);
+
+const SalesOverTimeChart = ({ revenue }: { revenue: string }) => (
+  <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
+    <p className="text-[13px] font-semibold text-[#6D6D6D]">
+      Total sales over time
+    </p>
+    <div className="mt-3 flex items-baseline gap-2">
+      <p className="text-[26px] font-bold tracking-[-0.04em] text-[#171717]">
+        {revenue}
+      </p>
+      <span className="text-[12px] font-semibold text-[#8C8C8C]">↗ 31%</span>
+    </div>
+    <div className="mt-5 h-[250px]">
+      <svg viewBox="0 0 720 250" aria-hidden="true" className="h-full w-full">
+        {[38, 82, 126, 170, 214].map((y) => (
+          <line key={y} x1="52" x2="708" y1={y} y2={y} stroke="#ECECEC" strokeWidth="1" />
+        ))}
+        <text x="12" y="42" fill="#B0B0B0" fontSize="12">$3K</text>
+        <text x="12" y="126" fill="#B0B0B0" fontSize="12">$2K</text>
+        <text x="12" y="214" fill="#B0B0B0" fontSize="12">$0</text>
+        <path
+          d="M54 164 C94 138, 120 118, 154 146 S198 178, 226 112 S270 40, 304 96 S348 158, 392 122 S452 148, 500 164 S568 210, 602 146 S650 96, 704 204"
+          fill="none"
+          stroke="#9CB8C3"
+          strokeLinecap="round"
+          strokeWidth="4"
+        />
+        <path
+          d="M54 134 C92 92, 128 84, 160 112 S208 164, 244 88 S294 18, 330 52 S388 142, 438 112 S506 120, 552 168 S604 178, 644 122 S676 120, 704 146"
+          fill="none"
+          opacity="0.2"
+          stroke="#A7A7A7"
+          strokeDasharray="4 5"
+          strokeLinecap="round"
+          strokeWidth="3"
+        />
+        {[
+          ["Feb 2024", 62],
+          ["Apr 2024", 196],
+          ["Jun 2024", 328],
+          ["Aug 2024", 462],
+          ["Oct 2024", 596],
+          ["Dec 2024", 690],
+        ].map(([label, x]) => (
+          <text key={label} x={Number(x)} y="242" fill="#A7A7A7" fontSize="12" textAnchor="middle">
+            {label}
+          </text>
+        ))}
+      </svg>
+    </div>
+  </article>
+);
+
+const SalesBreakdown = ({ revenue }: { revenue: string }) => {
+  const rows = [
+    ["Gross sales", revenue, "↗ 28%"],
+    ["Discounts", "-R$ 0,00", "↗ 4%"],
+    ["Returns", "-R$ 0,00", "↘ 39%"],
+    ["Net sales", revenue, "↗ 31%"],
+    ["Shipping charges", "R$ 0,00", "↗ 58%"],
+    ["Return fees", "R$ 0,00", "—"],
+    ["Taxes", "R$ 0,00", "↗ 47%"],
+    ["Total sales", revenue, "↗ 31%"],
+  ];
+
+  return (
+    <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
+      <p className="text-[13px] font-semibold text-[#6D6D6D]">
+        Total sales breakdown
+      </p>
+      <div className="mt-4 divide-y divide-black/[0.045]">
+        {rows.map(([label, value, trend]) => (
+          <div key={label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-3 text-[13px]">
+            <span className="font-semibold text-[#777]">{label}</span>
+            <span className="font-bold text-[#4A4A4A]">{value}</span>
+            <span className="text-[11px] font-semibold text-[#8A8A8A]">{trend}</span>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+};
+
+const MiniDonutCard = ({ revenue }: { revenue: string }) => (
+  <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
+    <p className="text-[13px] font-semibold text-[#6D6D6D]">Total sales by sales channel</p>
+    <div className="mt-5 flex items-center justify-center">
+      <div className="relative grid h-[128px] w-[128px] place-items-center rounded-full bg-[conic-gradient(#4388C5_0_82%,#7C67D9_82%_92%,#D8D8D8_92%_100%)]">
+        <div className="grid h-[92px] w-[92px] place-items-center rounded-full bg-white text-center">
+          <span className="block text-[21px] font-bold tracking-[-0.035em] text-[#171717]">{revenue === "R$ 0,00" ? "R$ 0" : revenue}</span>
+          <span className="mt-1 block text-[11px] font-semibold text-[#8A8A8A]">↗ 31%</span>
+        </div>
+      </div>
+    </div>
+    <div className="mt-4 flex justify-center gap-4 text-[12px] font-semibold text-[#777]">
+      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#4388C5]" />Online Store</span>
+      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#7C67D9]" />Shop</span>
+    </div>
+  </article>
+);
+
+const AverageOrderCard = () => (
+  <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
+    <p className="text-[13px] font-semibold text-[#6D6D6D]">Average order value over time</p>
+    <div className="mt-3 flex items-baseline gap-2">
+      <p className="text-[24px] font-bold tracking-[-0.04em] text-[#171717]">R$ 0,00</p>
+      <span className="text-[12px] font-semibold text-[#8C8C8C]">↗ 17%</span>
+    </div>
+    <Sparkline className="mt-9 h-[82px] w-full" />
+  </article>
+);
+
+const ProductsBarCard = () => (
+  <article className="rounded-[13px] border border-black/[0.045] bg-white p-5 shadow-[0_12px_28px_rgba(17,17,17,0.035)]">
+    <p className="text-[13px] font-semibold text-[#6D6D6D]">Total sales by product</p>
+    <div className="mt-7 space-y-5">
+      {[
+        ["Produto em destaque", "72%"],
+        ["Coleção ativa", "58%"],
+        ["Favoritos", "46%"],
+      ].map(([label, width]) => (
+        <div key={label}>
+          <p className="mb-2 text-[12px] font-semibold text-[#A1A1A1]">{label}</p>
+          <div className="h-8 overflow-hidden rounded-[4px] bg-[#E9EEF1]">
+            <div className="h-full bg-[#4388C5]" style={{ width }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  </article>
+);
+
+const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => (
+  <section className="rounded-[18px] bg-[#F2F2F1] p-5">
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <h1 className="text-[20px] font-bold tracking-[-0.03em] text-[#171717]">Overview</h1>
+        <div className="mt-7 flex flex-wrap gap-2">
+          <span className="inline-flex h-8 items-center gap-2 rounded-[8px] bg-white px-3 text-[12px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+            <CalendarDays className="h-4 w-4" strokeWidth={1.8} />
+            Last 365 days
+          </span>
+          <span className="inline-flex h-8 items-center rounded-[8px] bg-white px-3 text-[12px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+            Compare to: Feb 14, 2023-Feb 12, 2024
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button type="button" aria-label="Configurar visão" className="grid h-8 w-8 place-items-center rounded-[8px] bg-white text-[#171717] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+          <SlidersHorizontal className="h-4 w-4" strokeWidth={1.8} />
+        </button>
+        <button type="button" aria-label="Personalizar" className="h-8 rounded-[8px] bg-[#222] px-3 text-[12px] font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,0.12)]">
+          Customize
+        </button>
+      </div>
+    </div>
+
+    <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 min-[1120px]:grid-cols-4">
+      <OverviewMetricCard label="Gross sales" value={kpis.revenue} delta="28%" />
+      <OverviewMetricCard label="Returning customer rate" value="0%" delta="45%" />
+      <OverviewMetricCard label="Orders fulfilled" value={kpis.orders} delta="31%" />
+      <OverviewMetricCard label="Orders" value={kpis.orders} delta="33%" />
+    </div>
+
+    <div className="mt-5 grid grid-cols-1 gap-5 min-[1120px]:grid-cols-[2fr_1fr]">
+      <SalesOverTimeChart revenue={kpis.revenue} />
+      <SalesBreakdown revenue={kpis.revenue} />
+    </div>
+
+    <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 min-[1120px]:grid-cols-3">
+      <MiniDonutCard revenue={kpis.revenue} />
+      <AverageOrderCard />
+      <ProductsBarCard />
+    </div>
+  </section>
 );
 
 const CreateCollectionModal = ({
@@ -607,15 +813,11 @@ const DashboardHomePage = () => {
       style={{ fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
     >
       {collections.length > 0 ? (
-        <section className="min-h-screen bg-white px-6 py-9 sm:px-10">
+        <section className="min-h-screen bg-[#F2F2F1] px-6 py-5 sm:px-10">
           <div className="mx-auto w-full max-w-[1180px]">
-            <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <KpiCard label="Receita total" value={collectionKpis.revenue} />
-              <KpiCard label="Pedidos" value={collectionKpis.orders} />
-              <KpiCard label="Produtos no catálogo" value={collectionKpis.catalogProducts} />
-              <KpiCard label="Publicações ativas" value={collectionKpis.activePublications} />
-            </div>
+            <CollectionsOverview kpis={collectionKpis} />
 
+            <div className="mt-8 rounded-[18px] bg-white p-8 shadow-[0_12px_32px_rgba(17,17,17,0.025)]">
             <header className="flex items-start justify-between gap-6">
               <div>
                 <h1 className="text-[28px] font-bold leading-tight tracking-[-0.035em] text-black">
@@ -685,6 +887,7 @@ const DashboardHomePage = () => {
                 </div>
               )}
             </section>
+            </div>
           </div>
         </section>
       ) : (
