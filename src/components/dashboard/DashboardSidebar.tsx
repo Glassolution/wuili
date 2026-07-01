@@ -1,6 +1,6 @@
 import type { CSSProperties, ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronDown, ChevronUp, ClipboardList, Compass, Copy, Home, Info, Search, Settings2, Users, X } from "lucide-react";
+import { Archive, ChevronDown, ChevronUp, ClipboardList, Copy, Home, Info, Search, Settings2, ShoppingCart, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 
@@ -14,7 +14,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { label: "Início", icon: Home, to: "/dashboard", end: true },
-  { label: "Catálogo", icon: Compass, to: "/dashboard/catalogo" },
+  { label: "Catálogo", icon: ShoppingCart, to: "/dashboard/catalogo" },
   { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
   { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true },
