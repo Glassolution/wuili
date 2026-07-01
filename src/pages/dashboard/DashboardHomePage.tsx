@@ -36,6 +36,28 @@ type ProductPreview = {
   image: string;
 };
 
+type CollectionKpis = {
+  revenue: string;
+  orders: string;
+  catalogProducts: string;
+  activePublications: string;
+};
+
+const emptyKpis: CollectionKpis = {
+  revenue: "—",
+  orders: "—",
+  catalogProducts: "—",
+  activePublications: "—",
+};
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+
+const formatInteger = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
+
 const fadeUp = {
   hidden: { opacity: 0, y: 18, scale: 0.98 },
   visible: (delay: number) => ({
@@ -171,6 +193,61 @@ const CardProductStack = ({ products }: { products: ProductPreview[] }) => (
   </div>
 );
 
+const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
+  const [ordersResult, catalogResult, publicationsResult] = await Promise.allSettled([
+    supabase
+      .from("orders")
+      .select("total_amount,sale_price,quantity")
+      .eq("user_id", userId),
+    supabase
+      .from("catalog_products")
+      .select("id", { count: "exact", head: true })
+      .eq("source", "c7drop")
+      .eq("is_active", true)
+      .eq("is_blocked", false)
+      .gt("stock_quantity", 0),
+    supabase
+      .from("user_publications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .in("status", ["active", "ativo", "published", "publicado"]),
+  ]);
+
+  const nextKpis = { ...emptyKpis };
+
+  if (ordersResult.status === "fulfilled" && !ordersResult.value.error) {
+    const rows = ordersResult.value.data ?? [];
+    const revenue = rows.reduce((sum, order) => {
+      const rowTotal = order.total_amount ?? order.sale_price * order.quantity;
+      return sum + Number(rowTotal || 0);
+    }, 0);
+
+    nextKpis.revenue = formatCurrency(revenue);
+    nextKpis.orders = formatInteger(rows.length);
+  }
+
+  if (catalogResult.status === "fulfilled" && !catalogResult.value.error) {
+    nextKpis.catalogProducts = formatInteger(catalogResult.value.count ?? 0);
+  }
+
+  if (publicationsResult.status === "fulfilled" && !publicationsResult.value.error) {
+    nextKpis.activePublications = formatInteger(publicationsResult.value.count ?? 0);
+  }
+
+  return nextKpis;
+};
+
+const KpiCard = ({ label, value }: { label: string; value: string }) => (
+  <article className="rounded-[16px] border-[0.5px] border-[#E5E5E5] bg-white px-6 py-5">
+    <p className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#999]">
+      {label}
+    </p>
+    <p className="mt-3 text-[24px] font-bold leading-none tracking-[-0.035em] text-black">
+      {value}
+    </p>
+  </article>
+);
+
 const CreateCollectionModal = ({
   open,
   categories,
@@ -299,7 +376,7 @@ const CollectionDashboardCard = ({
           onAddProducts();
         }
       }}
-      className="group relative h-[200px] cursor-pointer overflow-hidden rounded-[16px] bg-[#F3F2F0] outline-none transition-transform duration-200 ease-out hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-black/20"
+      className="group relative min-h-[220px] cursor-pointer overflow-hidden rounded-[16px] bg-[#F3F2F0] outline-none transition-transform duration-200 ease-out hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-black/20"
     >
       {coverImage ? (
         <img src={coverImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
@@ -345,8 +422,8 @@ const CollectionDashboardCard = ({
         </div>
       ) : null}
 
-      <div className="absolute bottom-0 left-0 z-10 max-w-[calc(100%-112px)] p-4">
-        <h2 className="text-[16px] font-semibold leading-[1.2] text-white">
+      <div className="absolute bottom-0 left-0 z-10 max-w-[calc(100%-142px)] p-4">
+        <h2 className="text-[18px] font-semibold leading-[1.2] text-white">
           {collection.name}
         </h2>
         <p className="mt-1 text-[12px] font-medium text-white/75">
@@ -361,12 +438,12 @@ const CollectionDashboardCard = ({
               key={`${collection.id}-${image}-${index}`}
               src={image}
               alt=""
-              className="h-7 w-7 rounded-[6px] border-2 border-white bg-white object-cover object-center shadow-[0_8px_18px_rgba(0,0,0,0.18)]"
-              style={{ marginLeft: index === 0 ? 0 : -8, zIndex: 3 - index }}
+              className="h-9 w-9 rounded-[6px] border-2 border-white bg-white object-cover object-center shadow-[0_8px_18px_rgba(0,0,0,0.18)]"
+              style={{ marginLeft: index === 0 ? 0 : -10, zIndex: 3 - index }}
             />
           ))
         ) : (
-          <span className="h-7 w-7 rounded-[6px] border-2 border-white bg-[#F3F2F0]" />
+          <span className="h-9 w-9 rounded-[6px] border-2 border-white bg-[#F3F2F0]" />
         )}
       </div>
     </article>
@@ -382,6 +459,7 @@ const DashboardHomePage = () => {
   const [collectionCategories, setCollectionCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState("Todas");
   const [openMenuCollectionId, setOpenMenuCollectionId] = useState<string | null>(null);
+  const [collectionKpis, setCollectionKpis] = useState<CollectionKpis>(emptyKpis);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
@@ -434,6 +512,27 @@ const DashboardHomePage = () => {
     loadCollectionData(user.id).catch(() => {
       veloToast.error("Não foi possível carregar suas coleções.");
     });
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setCollectionKpis(emptyKpis);
+      return;
+    }
+
+    let isMounted = true;
+
+    loadCollectionKpis(user.id)
+      .then((kpis) => {
+        if (isMounted) setCollectionKpis(kpis);
+      })
+      .catch(() => {
+        if (isMounted) setCollectionKpis(emptyKpis);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
   const handleCreateCollection = async ({ name, category }: { name: string; category: string | null }) => {
@@ -510,6 +609,13 @@ const DashboardHomePage = () => {
       {collections.length > 0 ? (
         <section className="min-h-screen bg-white px-6 py-9 sm:px-10">
           <div className="mx-auto w-full max-w-[1180px]">
+            <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <KpiCard label="Receita total" value={collectionKpis.revenue} />
+              <KpiCard label="Pedidos" value={collectionKpis.orders} />
+              <KpiCard label="Produtos no catálogo" value={collectionKpis.catalogProducts} />
+              <KpiCard label="Publicações ativas" value={collectionKpis.activePublications} />
+            </div>
+
             <header className="flex items-start justify-between gap-6">
               <div>
                 <h1 className="text-[28px] font-bold leading-tight tracking-[-0.035em] text-black">
@@ -558,7 +664,7 @@ const DashboardHomePage = () => {
 
             <section className="mt-8">
               {filteredCollections.length > 0 ? (
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 min-[1200px]:grid-cols-3">
                   {filteredCollections.map((collection) => (
                     <CollectionDashboardCard
                       key={collection.id}
