@@ -27,7 +27,7 @@ type LearnCard = {
   gradient: string;
 };
 
-const fadeUp = {
+const fadeUp: any = {
   hidden: { opacity: 0, y: 18, scale: 0.985 },
   visible: (delay: number) => ({
     opacity: 1,
