@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
-import type { Product } from "@/components/dashboard/ProductCard";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
@@ -62,21 +61,6 @@ const getProductImages = (images: Json | null): string[] => {
   return [];
 };
 
-export const mapCatalogProductToProduct = (product: CatalogProductRow): Product => {
-  const images = getProductImages(product.images);
-  const fallbackImage = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop";
-
-  return {
-    id: product.id,
-    nome: product.title || "Produto sem nome",
-    categoria: product.category || "Produto",
-    preco: product.cost_price || 0,
-    image_url: images[0] || fallbackImage,
-    images: images.length > 0 ? images : [fallbackImage],
-    product_url: product.product_url,
-  };
-};
-
 export const listCollections = async (limit?: number): Promise<VeloCollection[]> => {
   let query = collectionsDb
     .from("collections")
@@ -134,15 +118,21 @@ export const createCollection = async ({
   return data as VeloCollection;
 };
 
-export const getCollection = async (id: string): Promise<VeloCollection> => {
-  const { data, error } = await collectionsDb
-    .from("collections")
-    .select("id,user_id,name,category,created_at,updated_at")
-    .eq("id", id)
-    .single();
+export const deleteCollection = async (collectionId: string) => {
+  const { error: productsError } = await collectionsDb
+    .from("collection_products")
+    .delete()
+    .eq("collection_id", collectionId);
 
-  if (error) throw error;
-  return data as VeloCollection;
+  if (productsError) throw productsError;
+
+  const { error: collectionError } = await collectionsDb
+    .from("collections")
+    .delete()
+    .eq("id", collectionId);
+
+  if (collectionError) throw collectionError;
+  notifyCollectionsUpdated();
 };
 
 export const getCollectionProductIds = async (collectionId: string): Promise<string[]> => {
@@ -173,32 +163,6 @@ export const removeProductFromCollection = async (collectionId: string, productI
 
   if (error) throw error;
   notifyCollectionsUpdated();
-};
-
-export const fetchCollectionProducts = async (collectionId: string): Promise<Product[]> => {
-  const { data: rows, error: rowsError } = await collectionsDb
-    .from("collection_products")
-    .select("product_id,created_at,added_at")
-    .eq("collection_id", collectionId)
-    .order("created_at", { ascending: false, nullsFirst: false });
-
-  if (rowsError) throw rowsError;
-
-  const productIds = ((rows ?? []) as VeloCollectionProduct[]).map((row) => row.product_id);
-  if (productIds.length === 0) return [];
-
-  const { data: products, error: productsError } = await supabase
-    .from("catalog_products")
-    .select("*")
-    .in("id", productIds);
-
-  if (productsError) throw productsError;
-
-  const byId = new Map(((products ?? []) as CatalogProductRow[]).map((product) => [product.id, product]));
-  return productIds
-    .map((id) => byId.get(id))
-    .filter((product): product is CatalogProductRow => Boolean(product))
-    .map(mapCatalogProductToProduct);
 };
 
 export const listCollectionsWithSummaries = async (): Promise<CollectionSummary[]> => {

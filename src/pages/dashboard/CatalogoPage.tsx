@@ -1224,7 +1224,7 @@ const CatalogoPage = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => navigate(`/colecoes/${selectionCollectionId}`)}
+                onClick={() => navigate("/colecoes")}
                 className="inline-flex h-9 items-center justify-center rounded-full bg-white px-4 text-[12px] font-semibold text-[#111111] transition-opacity hover:opacity-90"
               >
                 Concluir

@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   Settings,
+  Trash2,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +18,7 @@ import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createCollection,
+  deleteCollection,
   listCollectionCategories,
   listCollectionsWithSummaries,
   type CollectionSummary,
@@ -265,45 +267,54 @@ const CreateCollectionModal = ({
   );
 };
 
-const CollectionCard = ({ collection }: { collection: CollectionSummary }) => {
-  const navigate = useNavigate();
-
+const CollectionCard = ({
+  collection,
+  deleting,
+  onDelete,
+}: {
+  collection: CollectionSummary;
+  deleting: boolean;
+  onDelete: () => void;
+}) => {
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/colecoes/${collection.id}`)}
-      className="group relative h-[280px] overflow-hidden rounded-[16px] border border-black/[0.035] bg-[#FAFAFA] p-5 text-left shadow-[0_16px_42px_rgba(17,17,17,0.032)] transition-transform hover:-translate-y-1"
+    <article
+      className="relative min-h-[172px] rounded-[16px] border border-[#E5E5E5] bg-[#FAFAF9] p-5 text-left shadow-[0_14px_34px_rgba(17,17,17,0.035)]"
     >
-      <p className="text-[10px] font-bold uppercase tracking-[0.04em] text-[#B0B0B0]">
+      <button
+        type="button"
+        aria-label="Excluir coleção"
+        disabled={deleting}
+        onClick={onDelete}
+        className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-[#999] transition-colors hover:bg-white hover:text-[#111] disabled:cursor-wait disabled:opacity-45"
+      >
+        <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+      </button>
+
+      <p className="pr-10 text-[11px] font-semibold uppercase tracking-[0.05em] text-[#999]">
         {collection.category || "COLEÇÃO VELO"}
       </p>
-      <h2 className="mt-4 max-w-[250px] text-[19px] font-semibold leading-[1.12] tracking-[-0.04em] text-[#1A1A1A]">
+      <h2 className="mt-3 pr-10 text-[16px] font-semibold leading-[1.2] tracking-[-0.025em] text-black">
         {collection.name}
       </h2>
-      <p className="mt-2 text-[13px] font-medium text-[#9A9A9A]">
-        {collection.productCount} produto{collection.productCount === 1 ? "" : "s"}
+      <p className="mt-2 text-[13px] font-medium text-[#777]">
+        {collection.productCount} produto{collection.productCount === 1 ? "" : "s"} salvo{collection.productCount === 1 ? "" : "s"}
       </p>
 
-      <div className="absolute bottom-5 left-5 right-5 h-[112px]">
+      <div className="mt-7 flex items-center gap-2">
         {collection.thumbnails.length > 0 ? (
           collection.thumbnails.map((image, index) => (
-            <div
+            <img
               key={`${image}-${index}`}
-              className="absolute bottom-0 h-[104px] w-[42%] overflow-hidden rounded-[13px] border border-black/[0.055] bg-white shadow-[0_16px_28px_rgba(17,17,17,0.08)] transition-transform duration-300 group-hover:-translate-y-2"
-              style={{
-                left: `${index * 27}%`,
-                transform: `rotate(${[-5, 1, 5][index] ?? 0}deg)`,
-                zIndex: index + 1,
-              }}
-            >
-              <img src={image} alt="" className="h-full w-full object-cover object-center" />
-            </div>
+              src={image}
+              alt=""
+              className="h-12 w-12 rounded-[8px] border border-black/[0.04] bg-white object-cover object-center"
+            />
           ))
         ) : (
-          <div className="absolute bottom-0 left-0 right-0 h-[104px] rounded-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
+          <div className="h-12 w-12 rounded-[8px] border border-black/[0.04] bg-[#EFEFEE]" />
         )}
       </div>
-    </button>
+    </article>
   );
 };
 
@@ -315,6 +326,7 @@ const DashboardHomePage = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
+  const [deletingCollectionId, setDeletingCollectionId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -346,32 +358,20 @@ const DashboardHomePage = () => {
     };
   }, []);
 
+  const loadCollectionData = async () => {
+    const [collectionRows, categoryRows] = await Promise.all([
+      listCollectionsWithSummaries(),
+      listCollectionCategories(),
+    ]);
+
+    setCollections(collectionRows);
+    setCategories(categoryRows);
+  };
+
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchCollectionData = async () => {
-      try {
-        const [collectionRows, categoryRows] = await Promise.all([
-          listCollectionsWithSummaries(),
-          listCollectionCategories(),
-        ]);
-
-        if (!isMounted) return;
-
-        setCollections(collectionRows);
-        setCategories(categoryRows);
-      } catch {
-        if (isMounted) {
-          veloToast.error("Não foi possível carregar suas coleções.");
-        }
-      }
-    };
-
-    fetchCollectionData();
-
-    return () => {
-      isMounted = false;
-    };
+    loadCollectionData().catch(() => {
+      veloToast.error("Não foi possível carregar suas coleções.");
+    });
   }, []);
 
   const handleCreateCollection = async ({ name, category }: { name: string; category: string | null }) => {
@@ -392,6 +392,22 @@ const DashboardHomePage = () => {
       veloToast.error("Não foi possível criar a coleção.");
     } finally {
       setCreatingCollection(false);
+    }
+  };
+
+  const handleDeleteCollection = async (collection: CollectionSummary) => {
+    const confirmed = window.confirm(`Excluir a coleção "${collection.name}"?`);
+    if (!confirmed) return;
+
+    setDeletingCollectionId(collection.id);
+
+    try {
+      await deleteCollection(collection.id);
+      await loadCollectionData();
+    } catch {
+      veloToast.error("Não foi possível excluir a coleção.");
+    } finally {
+      setDeletingCollectionId(null);
     }
   };
 
@@ -457,67 +473,33 @@ const DashboardHomePage = () => {
           animate="visible"
           custom={0}
         >
-          {collections.length === 0 ? (
-            <>
-              <HeroCollage products={products} />
+          <HeroCollage products={products} />
 
-              <h1 className="mt-5 text-[20px] font-semibold tracking-[-0.035em] text-[#151515]">
-                Crie uma coleção única
-              </h1>
-              <p className="mt-3 max-w-[360px] text-center text-[14px] font-medium leading-[1.5] text-[#B8B8B8]">
-                Reúna produtos, ideias, anúncios e referências para acelerar sua próxima venda.
-              </p>
-              <button
-                type="button"
-                onClick={() => setCreateModalOpen(true)}
-                className="mt-7 inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#F5F5F4] px-4 text-[13px] font-semibold text-[#222] shadow-[0_12px_24px_rgba(17,17,17,0.05),inset_0_0_0_1px_rgba(0,0,0,0.03)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <Plus className="h-[14px] w-[14px]" strokeWidth={2} />
-                Criar
-              </button>
-            </>
-          ) : (
-            <div className="w-full max-w-[880px]">
-              <div className="flex flex-col gap-4 text-left sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#B0B0B0]">
-                    Coleções
-                  </p>
-                  <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[#151515]">
-                    Suas vitrines de produtos
-                  </h1>
-                  <p className="mt-2 max-w-[460px] text-[14px] font-medium leading-[1.5] text-[#9A9A9A]">
-                    Organize produtos por nicho, oferta ou campanha antes de publicar.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCreateModalOpen(true)}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[10px] bg-[#111111] px-4 text-[13px] font-semibold text-white shadow-[0_12px_24px_rgba(17,17,17,0.12)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
-                >
-                  <Plus className="h-[14px] w-[14px]" strokeWidth={2} />
-                  Nova coleção
-                </button>
-              </div>
-
-              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {collections.map((collection) => (
-                  <CollectionCard key={collection.id} collection={collection} />
-                ))}
-              </div>
-            </div>
-          )}
+          <h1 className="mt-5 text-[20px] font-semibold tracking-[-0.035em] text-[#151515]">
+            Crie uma coleção única
+          </h1>
+          <p className="mt-3 max-w-[360px] text-center text-[14px] font-medium leading-[1.5] text-[#B8B8B8]">
+            Reúna produtos, ideias, anúncios e referências para acelerar sua próxima venda.
+          </p>
+          <button
+            type="button"
+            onClick={() => setCreateModalOpen(true)}
+            className="mt-7 inline-flex h-9 items-center gap-2 rounded-[10px] bg-[#F5F5F4] px-4 text-[13px] font-semibold text-[#222] shadow-[0_12px_24px_rgba(17,17,17,0.05),inset_0_0_0_1px_rgba(0,0,0,0.03)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Plus className="h-[14px] w-[14px]" strokeWidth={2} />
+            Criar
+          </button>
         </motion.div>
 
-        {collections.length === 0 && (
-          <motion.div
-            className="grid w-full max-w-[880px] grid-cols-1 gap-4 pt-24 sm:grid-cols-3"
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-            custom={0.14}
-          >
-            {featureCards.map((card, index) => (
+        <motion.div
+          className="grid w-full max-w-[880px] grid-cols-1 gap-4 pt-24 sm:grid-cols-3"
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          custom={0.14}
+        >
+          {collections.length === 0 ? (
+            featureCards.map((card, index) => (
               <article
                 key={card.eyebrow}
                 className={`group relative h-[280px] overflow-hidden rounded-[16px] border border-black/[0.035] ${card.tone} p-5 shadow-[0_16px_42px_rgba(17,17,17,0.032)]`}
@@ -534,9 +516,18 @@ const DashboardHomePage = () => {
                   <div className="absolute bottom-5 left-6 right-6 h-[104px] rounded-[14px] border border-black/[0.045] bg-[linear-gradient(135deg,#F7F7F6_0%,#EFEFED_100%)] shadow-[0_16px_28px_rgba(17,17,17,0.06)]" />
                 )}
               </article>
-            ))}
-          </motion.div>
-        )}
+            ))
+          ) : (
+            collections.map((collection) => (
+              <CollectionCard
+                key={collection.id}
+                collection={collection}
+                deleting={deletingCollectionId === collection.id}
+                onDelete={() => handleDeleteCollection(collection)}
+              />
+            ))
+          )}
+        </motion.div>
       </section>
 
       <CreateCollectionModal

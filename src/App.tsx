@@ -36,7 +36,6 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const CriarVideoPage = lazy(() => import("./pages/dashboard/CriarVideoPage"));
 const ChatFornecedoresPage = lazy(() => import("./pages/dashboard/ChatFornecedoresPage"));
 const DashboardHomePage = lazy(() => import("./pages/dashboard/DashboardHomePage"));
-const CollectionDetailPage = lazy(() => import("./pages/dashboard/CollectionDetailPage"));
 const AtlasChatPage = lazy(() => import("./pages/dashboard/AtlasChatPage"));
 const Docs = lazy(() => import("./pages/Docs"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
@@ -141,7 +140,6 @@ const App = () => (
               </Route>
               <Route path="/colecoes" element={<DashboardShell />}>
                 <Route index element={<DashboardHomePage />} />
-                <Route path=":id" element={<CollectionDetailPage />} />
               </Route>
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/ref/:code" element={<RefCapturePage />} />

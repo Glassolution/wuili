@@ -1,9 +1,8 @@
-import { useEffect, useState, type CSSProperties, type ElementType } from "react";
+import type { CSSProperties, ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronDown, ChevronUp, ClipboardList, Compass, Copy, Folder, Home, Info, Search, Settings2, Users, X } from "lucide-react";
+import { Archive, ChevronDown, ChevronUp, ClipboardList, Compass, Copy, Home, Info, Search, Settings2, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
-import { listCollections, onCollectionsUpdated, type VeloCollection } from "@/lib/collectionsApi";
 
 type NavItem = {
   label: string;
@@ -121,27 +120,6 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 4,
-  } satisfies CSSProperties,
-  collectionSubnav: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 3,
-    margin: "-1px 0 4px",
-    paddingLeft: 8,
-  } satisfies CSSProperties,
-  collectionLink: {
-    height: 26,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    borderRadius: 8,
-    padding: "0 10px",
-    color: "rgba(255,255,255,0.76)",
-    textDecoration: "none",
-    fontSize: 12,
-    lineHeight: "14px",
-    fontWeight: 500,
-    letterSpacing: "-0.02em",
   } satisfies CSSProperties,
   navLinkBase: {
     height: 32,
@@ -336,7 +314,6 @@ const DashboardSidebar = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { nome, foto } = useProfile();
-  const [collections, setCollections] = useState<VeloCollection[]>([]);
   const profileName = nome || user?.user_metadata?.full_name || user?.email || "Usuario";
   const profileEmail = user?.email || "conta@velo.app";
   const initials = getInitials(profileName, user?.email);
@@ -346,27 +323,6 @@ const DashboardSidebar = () => {
     const itemPath = normalizePath(item.to);
     return item.end ? currentPath === itemPath : currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
   };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchCollections = async () => {
-      try {
-        const rows = await listCollections(3);
-        if (isMounted) setCollections(rows);
-      } catch {
-        if (isMounted) setCollections([]);
-      }
-    };
-
-    fetchCollections();
-    const unsubscribe = onCollectionsUpdated(fetchCollections);
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, []);
 
   return (
     <aside className="velo-dashboard-sidebar" style={styles.sidebar}>
@@ -385,25 +341,7 @@ const DashboardSidebar = () => {
 
       <nav aria-label="Navegação principal" style={styles.nav}>
         {navItems.map((item) => (
-          <div key={item.label}>
-            <SidebarNavLink item={item} active={isActive(item)} />
-            {item.label === "Catálogo" && collections.length > 0 && (
-              <div aria-label="Coleções" style={styles.collectionSubnav}>
-                {collections.map((collection) => (
-                  <Link key={collection.id} to={`/colecoes/${collection.id}`} style={styles.collectionLink}>
-                    <Folder size={14} strokeWidth={1.55} aria-hidden="true" />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {collection.name}
-                    </span>
-                  </Link>
-                ))}
-                <Link to="/colecoes" style={{ ...styles.collectionLink, color: "#FFFFFF" }}>
-                  <span style={{ width: 14, flexShrink: 0 }} />
-                  <span>Ver todas</span>
-                </Link>
-              </div>
-            )}
-          </div>
+          <SidebarNavLink key={item.label} item={item} active={isActive(item)} />
         ))}
       </nav>
 
