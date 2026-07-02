@@ -4,7 +4,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowUp,
   Boxes,
+  ChevronDown,
+  Mic,
   PackageSearch,
+  Plus,
   Sparkles,
   TrendingUp,
   type LucideIcon,
@@ -307,7 +310,7 @@ const ProductScoutAI = ({
     if (!open) return;
 
     const updatePanelPosition = () => {
-      const width = Math.min(chatMode ? 640 : 760, window.innerWidth - 32);
+      const width = Math.min(chatMode ? 620 : 760, window.innerWidth - 32);
 
       setPanelPosition({
         top: window.innerWidth < 768 ? 48 : 64,
@@ -355,7 +358,7 @@ const ProductScoutAI = ({
     if (!primaryProduct) return null;
 
     return (
-      <div className="mt-3 max-w-[520px] rounded-[18px] border border-white/[0.08] bg-[#202020] p-3 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
+      <div className="mt-3 max-w-[450px] rounded-[18px] border border-white/[0.08] bg-[#202020] p-3 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
         <div className="flex items-center gap-3">
           <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[14px] bg-white/[0.04]">
             {primaryProduct.image_url ? (
@@ -371,7 +374,7 @@ const ProductScoutAI = ({
             <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/42">
               Produto recomendado
             </div>
-            <div className="mt-1 line-clamp-2 text-[14px] font-semibold leading-snug text-white">
+            <div className="mt-1 line-clamp-2 text-[13px] font-semibold leading-snug text-white">
               {primaryProduct.nome}
             </div>
             <div className="mt-1 flex items-center gap-2 text-[12px] text-white/48">
@@ -493,8 +496,8 @@ const ProductScoutAI = ({
   );
 
   const renderChatWindow = () => (
-    <div className="flex max-h-[calc(100vh-96px)] min-h-[520px] flex-col overflow-hidden rounded-[28px] border border-white/[0.07] bg-[#171717] shadow-[0_24px_70px_rgba(0,0,0,0.42)]">
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+    <div className="flex max-h-[calc(100vh-88px)] min-h-[540px] flex-col overflow-hidden rounded-[26px] border border-white/[0.07] bg-[#171717] shadow-[0_24px_70px_rgba(0,0,0,0.42)]">
+      <div className="flex items-center justify-between border-b border-white/[0.05] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           {renderAquasAvatar("h-9 w-9", 25)}
           <div className="min-w-0">
@@ -552,12 +555,14 @@ const ProductScoutAI = ({
         </div>
       </div>
 
-      <div className="border-t border-white/[0.06] bg-[#1d1d1d] px-4 pb-4 pt-4">
+      <div className="border-t border-white/[0.06] bg-[#1b1b1b] px-4 pb-4 pt-4">
         <form
           onSubmit={handleFooterSubmit}
-          className="flex h-12 items-center gap-2 rounded-full border border-white/[0.07] bg-[#2a2a2a] px-4"
+          className="rounded-[20px] border border-white/[0.08] bg-[#2c2c2c] px-4 pb-3 pt-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
           style={{
-            boxShadow: footerInputFocused ? "0 0 0 1px rgba(255,255,255,0.12)" : "none",
+            boxShadow: footerInputFocused
+              ? "0 0 0 1px rgba(255,255,255,0.14), inset 0 1px 0 rgba(255,255,255,0.04)"
+              : "inset 0 1px 0 rgba(255,255,255,0.04)",
           }}
         >
           <input
@@ -568,16 +573,42 @@ const ProductScoutAI = ({
             onBlur={() => setFooterInputFocused(false)}
             placeholder={footerPlaceholder}
             disabled={busy}
-            className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium text-white outline-none placeholder:text-white/38 disabled:cursor-wait"
+            className="mb-5 h-6 w-full bg-transparent text-[15px] font-medium text-white outline-none placeholder:text-white/34 disabled:cursor-wait"
           />
-          <button
-            type="submit"
-            disabled={isFooterDisabled}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-black transition-transform hover:scale-[1.03] disabled:scale-100 disabled:opacity-35"
-            aria-label="Enviar mensagem para o Aquas"
-          >
-            <ArrowUp size={14} strokeWidth={2} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/62 transition-colors hover:bg-white/[0.08] hover:text-white"
+              aria-label="Adicionar contexto"
+            >
+              <Plus size={20} strokeWidth={1.7} />
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-8 shrink-0 items-center gap-2 rounded-full px-2.5 text-[13px] font-medium text-white/58 transition-colors hover:bg-white/[0.08] hover:text-white/76"
+              aria-label="Modo de análise"
+            >
+              <Sparkles size={15} strokeWidth={1.7} />
+              Pedir análise
+              <ChevronDown size={14} strokeWidth={1.8} />
+            </button>
+            <div className="flex-1" />
+            <button
+              type="button"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/52 transition-colors hover:bg-white/[0.08] hover:text-white/78"
+              aria-label="Usar voz"
+            >
+              <Mic size={16} strokeWidth={1.7} />
+            </button>
+            <button
+              type="submit"
+              disabled={isFooterDisabled}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black shadow-[0_8px_18px_rgba(0,0,0,0.18)] transition-transform hover:scale-[1.03] disabled:scale-100 disabled:bg-white/24 disabled:text-white/34"
+              aria-label="Enviar mensagem para o Aquas"
+            >
+              <ArrowUp size={17} strokeWidth={1.9} />
+            </button>
+          </div>
         </form>
       </div>
     </div>
