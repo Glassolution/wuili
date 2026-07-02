@@ -288,7 +288,8 @@ const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
   const nextKpis = { ...emptyKpis };
 
   if (ordersResult.status === "fulfilled" && !ordersResult.value.error) {
-    const rows = ordersResult.value.data ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows: any[] = ordersResult.value.data ?? [];
     const revenue = rows.reduce((sum, order) => {
       const rowTotal = order.total_amount ?? order.sale_price * order.quantity;
       return sum + Number(rowTotal || 0);
