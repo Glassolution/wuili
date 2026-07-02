@@ -656,75 +656,73 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
 
 const CreateCollectionModal = ({
   open,
-  categories,
   creating,
   onClose,
   onCreate,
 }: {
   open: boolean;
-  categories: string[];
   creating: boolean;
   onClose: () => void;
   onCreate: (payload: { name: string; category: string | null }) => void;
 }) => {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<string | null>(null);
+  const categoryOptions = ["Outros", "Casa", "Eletrônicos", "Bebê e Infantil", "Moda", "Automotivo", "Decoração", "Pet"];
 
   useEffect(() => {
     if (open) {
       setName("");
-      setCategory(categories[0] ?? null);
+      setCategory(categoryOptions[0]);
     }
-  }, [categories, open]);
+  }, [open]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-[430px] rounded-[22px] border border-black/[0.06] bg-white p-5 shadow-[0_24px_70px_rgba(17,17,17,0.18)]">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-[20px] font-semibold tracking-[-0.04em] text-[#111111]">
-              Criar coleção
-            </h2>
-            <p className="mt-1 text-[13px] font-medium leading-5 text-[#777]">
-              Nomeie uma vitrine para salvar produtos do catálogo Velo.
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="Fechar"
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-full text-[#777] transition-colors hover:bg-[#F4F4F3] hover:text-[#111]"
-          >
-            <X className="h-4 w-4" strokeWidth={2} />
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 px-4 backdrop-blur-[8px]">
+      <div className="relative w-full max-w-[420px] rounded-[24px] bg-white px-7 py-8 shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
+        <button
+          type="button"
+          aria-label="Fechar"
+          onClick={onClose}
+          className="absolute right-5 top-5 grid h-[18px] w-[18px] place-items-center border-0 bg-transparent p-0 text-[#999] transition-colors hover:text-[#555]"
+        >
+          <X className="h-[18px] w-[18px]" strokeWidth={2} />
+        </button>
+
+        <div>
+          <h2 className="mb-1.5 text-[24px] font-bold leading-tight text-black">
+            Criar coleção
+          </h2>
+          <p className="mb-7 max-w-[330px] text-[14px] font-normal leading-[1.5] text-[#999]">
+            Nomeie uma vitrine para salvar produtos do catálogo Velo.
+          </p>
         </div>
 
-        <label className="mt-5 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#999]">
-          Nome da coleção
+        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#999]">
+          NOME DA COLEÇÃO
         </label>
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
           autoFocus
           placeholder="Ex: Eletrônicos campeões"
-          className="mt-2 h-11 w-full rounded-[12px] border border-black/[0.08] bg-[#FAFAFA] px-3 text-[14px] font-medium text-[#111] outline-none transition-colors placeholder:text-[#B8B8B8] focus:border-[#111]"
+          className="mb-6 w-full rounded-[14px] border-0 bg-[#F7F7F6] px-4 py-3.5 text-[15px] font-normal text-black outline-none transition-shadow placeholder:text-[#C0C0C0] focus:shadow-[0_0_0_2px_#000]"
         />
 
-        <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#999]">
-          Categoria
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#999]">
+          CATEGORIA
         </p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {(categories.length > 0 ? categories : ["Geral"]).map((item) => (
+        <div className="mb-8 flex flex-wrap gap-2">
+          {categoryOptions.map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setCategory(item)}
-              className={`h-9 rounded-full px-3 text-[12px] font-semibold transition-colors ${
+              className={`rounded-full border-0 px-4 py-2 text-[13px] font-medium transition-colors ${
                 category === item
-                  ? "bg-[#111111] text-white"
-                  : "bg-[#F3F3F2] text-[#555] hover:bg-[#EBEBEA] hover:text-[#111]"
+                  ? "bg-black text-white"
+                  : "bg-[#F3F2F0] text-[#555] hover:bg-[#EBEBEA]"
               }`}
             >
               {item}
@@ -736,14 +734,14 @@ const CreateCollectionModal = ({
           type="button"
           disabled={!name.trim() || creating}
           onClick={() => onCreate({ name: name.trim(), category })}
-          className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#111111] text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+          className="mb-3 inline-flex h-[52px] w-full cursor-pointer items-center justify-center rounded-[14px] border-0 bg-black text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:bg-[#E0E0E0] disabled:text-[#999]"
         >
           {creating ? "Criando..." : "Criar coleção"}
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-full text-[13px] font-semibold text-[#777] transition-colors hover:bg-[#F6F6F5] hover:text-[#111]"
+          className="inline-flex h-10 w-full cursor-pointer items-center justify-center border-0 bg-transparent text-[14px] font-medium text-[#999] transition-colors hover:text-[#555]"
         >
           Cancelar
         </button>
@@ -1522,7 +1520,6 @@ const DashboardHomePage = () => {
 
       <CreateCollectionModal
         open={createModalOpen}
-        categories={categories}
         creating={creatingCollection}
         onClose={() => setCreateModalOpen(false)}
         onCreate={handleCreateCollection}
