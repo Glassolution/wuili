@@ -337,6 +337,13 @@ export type Database = {
             referencedRelation: "collections"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "collection_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
         ]
       }
       collections: {
