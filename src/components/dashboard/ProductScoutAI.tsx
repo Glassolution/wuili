@@ -52,27 +52,27 @@ type PromptOption = {
 const INITIAL_SUGGESTIONS: PromptOption[] = [
   {
     icon: PackageSearch,
-    label: "Quero algo barato para começar",
-    value: "Quero um produto barato para começar a vender",
-    hint: "Sugestões com preço de entrada e menor barreira para iniciar.",
+    label: "Produtos baratos para testar",
+    value: "Encontre produtos baratos para testar uma primeira venda",
+    hint: "Preço de entrada baixo para validar demanda sem muito risco.",
   },
   {
     icon: TrendingUp,
-    label: "Busco maior margem",
-    value: "Quero produtos com maior margem de lucro",
-    hint: "Priorizo itens com melhor espaço para markup e venda.",
+    label: "Itens com alta margem",
+    value: "Encontre produtos com alta margem de lucro no catálogo",
+    hint: "Itens com espaço para markup e venda com lucro maior.",
   },
   {
     icon: Sparkles,
-    label: "Preciso de algo com apelo viral",
-    value: "Quero um produto com apelo viral para anúncios",
-    hint: "Ideias com potencial de chamar atenção em anúncio curto.",
+    label: "Produtos virais para anúncio",
+    value: "Encontre produtos com apelo viral para anúncios curtos",
+    hint: "Produtos fáceis de demonstrar e bons para criativos rápidos.",
   },
   {
     icon: Boxes,
-    label: "Quero opções com bom estoque",
-    value: "Quero produtos com estoque alto e boa disponibilidade",
-    hint: "Produtos com mais segurança de reposição para vender sem pausa.",
+    label: "Estoque alto no catálogo",
+    value: "Encontre produtos com estoque alto e boa disponibilidade",
+    hint: "Opções com mais segurança para vender sem pausa.",
   },
 ];
 
@@ -356,7 +356,7 @@ const ProductScoutAI = ({
       const width = Math.min(760, window.innerWidth - 32);
 
       setPanelPosition({
-        top: window.innerWidth < 768 ? 76 : 118,
+        top: window.innerWidth < 768 ? 52 : 72,
         left: Math.max(16, (window.innerWidth - width) / 2),
         width,
       });
@@ -487,7 +487,7 @@ const ProductScoutAI = ({
     );
   };
 
-  const modalQuestion = "O que você quer saber sobre este produto?";
+  const modalQuestion = "Que tipo de produto você quer encontrar?";
   const footerValue = chatMode ? chatInput : customPrompt;
   const footerPlaceholder = busy
     ? "Aquas está analisando..."
