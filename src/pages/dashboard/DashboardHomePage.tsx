@@ -1018,9 +1018,9 @@ const CollectionProductsPanel = ({
       ) : products.length > 0 ? (
         products.map((product) => (
           <div key={product.id} className="flex min-h-[68px] items-center gap-3 px-4 py-3">
-            {product.image ? (
+            {product.image_url ? (
               <img
-                src={product.image}
+                src={product.image_url}
                 alt=""
                 className="h-11 w-11 shrink-0 rounded-[8px] border border-black/[0.04] bg-white object-cover object-center"
               />
@@ -1031,13 +1031,15 @@ const CollectionProductsPanel = ({
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold text-[#181818]">{product.title}</p>
-              <p className="mt-1 text-[12px] font-medium text-[#777]">{formatCurrency(product.price)}</p>
+              <p className="mt-1 text-[12px] font-medium text-[#777]">
+                {product.price === null ? "Preço indisponível" : formatCurrency(product.price)}
+              </p>
             </div>
             <button
               type="button"
               aria-label="Remover produto da coleção"
-              disabled={removingProductId === product.productId}
-              onClick={() => onRemoveProduct(product.productId)}
+              disabled={removingProductId === product.id}
+              onClick={() => onRemoveProduct(product.id)}
               className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#9A9A9A] transition-colors hover:bg-white hover:text-[#111] disabled:cursor-wait disabled:opacity-50"
             >
               <X className="h-4 w-4" strokeWidth={2} />
@@ -1330,7 +1332,7 @@ const DashboardHomePage = () => {
 
     try {
       await removeProductFromCollection(selectedCollectionId, productId);
-      setCollectionProducts((current) => current.filter((product) => product.productId !== productId));
+      setCollectionProducts((current) => current.filter((product) => product.id !== productId));
       if (user?.id) await loadCollectionData(user.id);
     } catch {
       veloToast.error("Não foi possível remover o produto da coleção.");

@@ -28,12 +28,31 @@ export type CollectionSummary = VeloCollection & {
 
 export type CollectionProductItem = {
   id: string;
-  collectionId: string;
-  productId: string;
   title: string;
-  price: number;
-  image: string | null;
-  addedAt: string | null;
+  image_url: string | null;
+  price: number | null;
+  added_at: string | null;
+};
+
+type CollectionProductJoinRow = {
+  product_id: string;
+  added_at?: string | null;
+  catalog_products:
+    | {
+        id: string;
+        title: string | null;
+        image_url?: string | null;
+        images?: Json | null;
+        cost_price?: number | null;
+      }
+    | Array<{
+        id: string;
+        title: string | null;
+        image_url?: string | null;
+        images?: Json | null;
+        cost_price?: number | null;
+      }>
+    | null;
 };
 
 // Types generated before Lovable-created collection tables are available locally.
@@ -245,40 +264,33 @@ export const removeProductFromCollection = async (collectionId: string, productI
 export const listCollectionProducts = async (collectionId: string): Promise<CollectionProductItem[]> => {
   const { data, error } = await collectionsDb
     .from("collection_products")
-    .select("id,collection_id,product_id,added_at,catalog_products!inner(id,title,suggested_price,images)")
+    .select(`
+      product_id,
+      added_at,
+      catalog_products (
+        id,
+        title,
+        images,
+        cost_price
+      )
+    `)
     .eq("collection_id", collectionId)
-    .order("added_at", { ascending: false, nullsFirst: false });
+    .order("added_at", { ascending: false });
 
   if (error) throw error;
 
-  return ((data ?? []) as Array<{
-    id: string;
-    collection_id: string;
-    product_id: string;
-    added_at?: string | null;
-    catalog_products:
-      | Pick<CatalogProductRow, "id" | "title" | "suggested_price" | "images">
-      | Array<Pick<CatalogProductRow, "id" | "title" | "suggested_price" | "images">>
-      | null;
-  }>)
-    .filter((item) => Boolean(item.catalog_products))
-    .map((item) => {
-      const product = Array.isArray(item.catalog_products) ? item.catalog_products[0] : item.catalog_products;
-      if (!product) return null;
+  return ((data ?? []) as CollectionProductJoinRow[]).map((item) => {
+    const product = Array.isArray(item.catalog_products) ? item.catalog_products[0] : item.catalog_products;
+    const [imageFromImages] = getProductImages(product?.images ?? null);
 
-      const [image] = getProductImages(product.images);
-
-      return {
-        id: item.id,
-        collectionId: item.collection_id,
-        productId: item.product_id,
-        title: product.title,
-        price: product.suggested_price,
-        image: image ?? null,
-        addedAt: item.added_at ?? null,
-      };
-    })
-    .filter((item): item is CollectionProductItem => Boolean(item));
+    return {
+      id: item.product_id,
+      title: product?.title ?? "Produto sem nome",
+      image_url: imageFromImages ?? product?.image_url ?? null,
+      price: product?.cost_price ?? null,
+      added_at: item.added_at ?? null,
+    };
+  });
 };
 
 export const listCollectionsWithSummaries = async (userId: string): Promise<CollectionSummary[]> => {
