@@ -1,8 +1,9 @@
-import type { CSSProperties, ElementType } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronDown, ChevronUp, ClipboardList, Copy, Home, Info, Search, Settings2, ShoppingCart, Users, X } from "lucide-react";
+import { Archive, BadgeCheck, ChevronDown, ChevronUp, ClipboardList, Copy, CreditCard, Home, Info, LogOut, MessagesSquare, Plus, Search, Settings2, ShoppingCart, Sparkles, ToggleLeft, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
+import { supabase } from "@/integrations/supabase/client";
 
 type NavItem = {
   label: string;
@@ -44,7 +45,8 @@ const styles = {
     flexShrink: 0,
     display: "flex",
     flexDirection: "column",
-    overflow: "hidden",
+    overflow: "visible",
+    position: "relative",
     boxSizing: "border-box",
     padding: "18px 16px",
     borderRadius: 0,
@@ -62,15 +64,15 @@ const styles = {
   brand: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     minWidth: 0,
     color: "#F2F1EC",
     textDecoration: "none",
   } satisfies CSSProperties,
   brandText: {
     fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 20,
-    lineHeight: "24px",
+    fontSize: 18,
+    lineHeight: "22px",
     fontWeight: 700,
     letterSpacing: "-0.065em",
   } satisfies CSSProperties,
@@ -268,6 +270,119 @@ const styles = {
     alignItems: "center",
     color: "rgba(255,255,255,0.5)",
   } satisfies CSSProperties,
+  profileWrap: {
+    position: "relative",
+  } satisfies CSSProperties,
+  profilePanel: {
+    position: "absolute",
+    left: "calc(100% + 6px)",
+    bottom: 0,
+    width: 214,
+    boxSizing: "border-box",
+    borderRadius: 18,
+    padding: 4,
+    border: "1px solid rgba(255,255,255,0.05)",
+    background: "linear-gradient(180deg, #121212 0%, #09090A 100%)",
+    boxShadow: "0 14px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03)",
+    zIndex: 80,
+  } satisfies CSSProperties,
+  profilePanelCard: {
+    overflow: "hidden",
+    borderRadius: 15,
+    border: "1px solid rgba(255,255,255,0.05)",
+    background: "linear-gradient(180deg, #131314 0%, #0C0C0D 100%)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.025)",
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", sans-serif',
+  } satisfies CSSProperties,
+  profilePanelBody: {
+    padding: "7px 6px 4px",
+  } satisfies CSSProperties,
+  profilePanelRow: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 7,
+    boxSizing: "border-box",
+    border: 0,
+    minHeight: 40,
+    borderRadius: 11,
+    padding: "8px 10px",
+    background: "transparent",
+    color: "#F3F3F2",
+    textAlign: "left",
+  } satisfies CSSProperties,
+  profilePanelRowActive: {
+    background: "rgba(255,255,255,0.11)",
+  } satisfies CSSProperties,
+  profilePanelRowLeft: {
+    minWidth: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  } satisfies CSSProperties,
+  profilePanelRowLabel: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    fontSize: 10.5,
+    lineHeight: "14px",
+    fontWeight: 500,
+    letterSpacing: "-0.015em",
+  } satisfies CSSProperties,
+  profilePanelIcon: {
+    width: 14,
+    height: 14,
+    flexShrink: 0,
+    color: "rgba(255,255,255,0.9)",
+  } satisfies CSSProperties,
+  profilePanelDivider: {
+    height: 1,
+    margin: "3px 0",
+    background: "rgba(255,255,255,0.08)",
+  } satisfies CSSProperties,
+  profilePanelFooter: {
+    padding: "1px 6px 6px",
+  } satisfies CSSProperties,
+  profilePanelBadge: {
+    height: 16,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 999,
+    padding: "0 6px",
+    fontSize: 8,
+    lineHeight: "9px",
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
+    background: "rgba(255,255,255,0.1)",
+    color: "#FAFAF9",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04)",
+  } satisfies CSSProperties,
+  profilePanelMutedBadge: {
+    height: 16,
+    display: "inline-flex",
+    alignItems: "center",
+    borderRadius: 999,
+    padding: "0 6px",
+    fontSize: 8,
+    lineHeight: "9px",
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
+    background: "rgba(255,255,255,0.06)",
+    color: "rgba(255,255,255,0.72)",
+  } satisfies CSSProperties,
+  profilePanelCircleButton: {
+    width: 16,
+    height: 16,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.06)",
+    color: "rgba(255,255,255,0.72)",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04)",
+  } satisfies CSSProperties,
 };
 
 const SignatureUpgradeIcon = () => (
@@ -284,7 +399,7 @@ const SignatureUpgradeIcon = () => (
 );
 
 const VeloIconOnly = () => (
-  <svg aria-hidden="true" width="22" height="22" viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }}>
+  <svg aria-hidden="true" width="30" height="30" viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }}>
     <path d="M33 18 A11 11 0 1 0 33 30" stroke="#F2F1EC" strokeWidth="4" strokeLinecap="round" />
     <path d="M30 26 L34 30 L38 26" stroke="#F2F1EC" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
@@ -312,8 +427,11 @@ const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) =>
 const DashboardSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { nome, foto } = useProfile();
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [plan, setPlan] = useState("gratis");
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileName = nome || user?.user_metadata?.full_name || user?.email || "Usuario";
   const profileEmail = user?.email || "conta@velo.app";
   const initials = getInitials(profileName, user?.email);
@@ -322,6 +440,65 @@ const DashboardSidebar = () => {
     const currentPath = normalizePath(location.pathname);
     const itemPath = normalizePath(item.to);
     return item.end ? currentPath === itemPath : currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
+  };
+
+  useEffect(() => {
+    setProfileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let active = true;
+
+    supabase
+      .from("profiles")
+      .select("plano")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        if (data?.plano) setPlan(String(data.plano));
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProfileMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [profileMenuOpen]);
+
+  const planLabel = plan === "business" ? "BUSINESS" : plan === "pro" ? "PRO" : plan === "go" ? "GO" : "GRATIS";
+
+  const handlePanelNavigate = (to: string) => {
+    setProfileMenuOpen(false);
+    navigate(to);
+  };
+
+  const handleSignOut = async () => {
+    setProfileMenuOpen(false);
+    await signOut();
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -367,19 +544,113 @@ const DashboardSidebar = () => {
         </button>
       </section>
 
-      <button type="button" aria-label="Abrir perfil" onClick={() => navigate("/dashboard/configuracoes")} style={styles.profileCard}>
-        <span style={styles.avatar}>
-          {foto ? <img src={foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
-        </span>
-        <span style={styles.profileText}>
-          <span style={styles.profileName}>{profileName}</span>
-          <span style={styles.profileEmail}>{profileEmail}</span>
-        </span>
-        <span aria-hidden="true" style={styles.profileChevrons}>
-          <ChevronUp size={14} strokeWidth={1.8} />
-          <ChevronDown size={14} strokeWidth={1.8} />
-        </span>
-      </button>
+      <div ref={profileMenuRef} style={styles.profileWrap}>
+        <button
+          type="button"
+          aria-label="Abrir perfil"
+          aria-haspopup="menu"
+          aria-expanded={profileMenuOpen}
+          onClick={() => setProfileMenuOpen((current) => !current)}
+          style={styles.profileCard}
+        >
+          <span style={styles.avatar}>
+            {foto ? <img src={foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
+          </span>
+          <span style={styles.profileText}>
+            <span style={styles.profileName}>{profileName}</span>
+            <span style={styles.profileEmail}>{profileEmail}</span>
+          </span>
+          <span aria-hidden="true" style={styles.profileChevrons}>
+            <ChevronUp size={14} strokeWidth={1.8} />
+            <ChevronDown size={14} strokeWidth={1.8} />
+          </span>
+        </button>
+
+        {profileMenuOpen ? (
+          <div style={styles.profilePanel} role="menu" aria-label="Menu de perfil">
+            <div style={styles.profilePanelCard}>
+              <div style={styles.profilePanelBody}>
+                <button
+                  type="button"
+                  onClick={() => handlePanelNavigate("/dashboard/configuracoes")}
+                  style={{ ...styles.profilePanelRow, ...styles.profilePanelRowActive }}
+                >
+                  <span style={styles.profilePanelRowLeft}>
+                    <BadgeCheck size={15} strokeWidth={2.1} style={styles.profilePanelIcon} />
+                    <span style={styles.profilePanelRowLabel}>Perfil</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePanelNavigate("/docs")}
+                  style={styles.profilePanelRow}
+                >
+                  <span style={styles.profilePanelRowLeft}>
+                    <MessagesSquare size={15} strokeWidth={2.05} style={styles.profilePanelIcon} />
+                    <span style={styles.profilePanelRowLabel}>Comunidade</span>
+                  </span>
+                  <span style={styles.profilePanelCircleButton}>
+                    <Plus size={12} strokeWidth={2.2} />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePanelNavigate("/dashboard/planos")}
+                  style={styles.profilePanelRow}
+                >
+                  <span style={styles.profilePanelRowLeft}>
+                    <CreditCard size={16} strokeWidth={1.9} style={styles.profilePanelIcon} />
+                    <span style={styles.profilePanelRowLabel}>Assinatura</span>
+                  </span>
+                  <span style={plan === "gratis" ? styles.profilePanelMutedBadge : styles.profilePanelBadge}>
+                    {plan !== "gratis" ? <Sparkles size={12} strokeWidth={2.2} /> : null}
+                    {planLabel}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePanelNavigate("/dashboard/configuracoes")}
+                  style={styles.profilePanelRow}
+                >
+                  <span style={styles.profilePanelRowLeft}>
+                    <ToggleLeft size={16} strokeWidth={2.05} style={styles.profilePanelIcon} />
+                    <span style={styles.profilePanelRowLabel}>Configurações</span>
+                  </span>
+                </button>
+              </div>
+
+              <div style={styles.profilePanelDivider} />
+
+              <div style={styles.profilePanelFooter}>
+                <button
+                  type="button"
+                  onClick={() => handlePanelNavigate("/docs")}
+                  style={styles.profilePanelRow}
+                >
+                  <span style={styles.profilePanelRowLeft}>
+                    <Info size={15} strokeWidth={2.05} style={styles.profilePanelIcon} />
+                    <span style={styles.profilePanelRowLabel}>Central de ajuda</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  style={styles.profilePanelRow}
+                >
+                  <span style={styles.profilePanelRowLeft}>
+                    <LogOut size={15} strokeWidth={2.05} style={styles.profilePanelIcon} />
+                    <span style={styles.profilePanelRowLabel}>Sair</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </aside>
   );
 };

@@ -31,6 +31,7 @@ export type CollectionProductItem = {
   title: string;
   image_url: string | null;
   price: number | null;
+  category: string | null;
   added_at: string | null;
 };
 
@@ -41,6 +42,7 @@ type CollectionProductJoinRow = {
     | {
         id: string;
         title: string | null;
+        category?: string | null;
         image_url?: string | null;
         images?: Json | null;
         cost_price?: number | null;
@@ -48,6 +50,7 @@ type CollectionProductJoinRow = {
     | Array<{
         id: string;
         title: string | null;
+        category?: string | null;
         image_url?: string | null;
         images?: Json | null;
         cost_price?: number | null;
@@ -270,6 +273,7 @@ export const listCollectionProducts = async (collectionId: string): Promise<Coll
       catalog_products (
         id,
         title,
+        category,
         images,
         cost_price
       )
@@ -288,6 +292,7 @@ export const listCollectionProducts = async (collectionId: string): Promise<Coll
       title: product?.title ?? "Produto sem nome",
       image_url: imageFromImages ?? product?.image_url ?? null,
       price: product?.cost_price ?? null,
+      category: product?.category ?? null,
       added_at: item.added_at ?? null,
     };
   });

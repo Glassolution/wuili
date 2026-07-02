@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, 
 import { motion } from "framer-motion";
 import {
   Archive,
+  ArrowUpRight,
   CalendarDays,
+  Check,
   CircleHelp,
   Folder,
   Globe2,
@@ -94,6 +96,28 @@ const formatCurrency = (value: number) =>
     style: "currency",
     currency: "BRL",
   }).format(value);
+
+const formatCollectionDate = (value: string | null) => {
+  if (!value) return "Data indisponível";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Data indisponível";
+
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .formatToParts(date)
+    .reduce<Record<string, string>>((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+
+  return `${parts.day} ${parts.month} ${parts.year} ${parts.hour}:${parts.minute}`;
+};
 
 const formatInteger = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
@@ -376,6 +400,34 @@ const toChartPath = (values: number[], width: number, height: number, padding = 
   }, "");
 };
 
+const toChartPathWithinBounds = (
+  values: number[],
+  startX: number,
+  endX: number,
+  topY: number,
+  bottomY: number,
+) => {
+  const max = Math.max(...values, 1);
+  const usableWidth = Math.max(endX - startX, 1);
+  const usableHeight = Math.max(bottomY - topY, 1);
+  const step = values.length > 1 ? usableWidth / (values.length - 1) : 0;
+  const points = values.map((value, index) => {
+    const x = startX + index * step;
+    const y = bottomY - (value / max) * usableHeight;
+    return [x, y] as const;
+  });
+
+  if (points.length === 0) return "";
+
+  return points.reduce((path, point, index) => {
+    if (index === 0) return `M${point[0]} ${point[1]}`;
+
+    const previous = points[index - 1];
+    const controlX = previous[0] + (point[0] - previous[0]) / 2;
+    return `${path} C${controlX} ${previous[1]}, ${controlX} ${point[1]}, ${point[0]} ${point[1]}`;
+  }, "");
+};
+
 const normalizeSeries = (values: number[], fallback: number) => {
   if (values.some((value) => value > 0)) return values;
   return values.map(() => fallback);
@@ -432,9 +484,27 @@ const OverviewMetricCard = ({ label, value, delta, values }: { label: string; va
 const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: number[] }) => {
   const chartValues = normalizeSeries(values, 0);
   const hasData = chartValues.some((value) => value > 0);
-  const compareValues = hasData ? chartValues.map((value) => value * 0.72) : chartValues;
+  const chartMax = Math.max(...chartValues, 1);
+  const compareValues = hasData
+    ? chartValues.map((value, index) => {
+        const wave = 0.92 + Math.sin(index * 1.15) * 0.2 + Math.cos(index * 0.72) * 0.08;
+        return Math.max(value * wave, chartMax * (0.38 + index * 0.012));
+      })
+    : chartValues;
   const trend = formatTrend(chartValues[5] ?? 0, chartValues[4] ?? 0);
   const maxValue = Math.max(...chartValues, ...compareValues, 1);
+  const plotLeft = 0;
+  const plotRight = 720;
+  const plotTop = 18;
+  const plotBottom = 146;
+  const xTicks = [
+    ["Feb 2024", plotLeft],
+    ["Apr 2024", plotLeft + ((plotRight - plotLeft) / 5) * 1],
+    ["Jun 2024", plotLeft + ((plotRight - plotLeft) / 5) * 2],
+    ["Aug 2024", plotLeft + ((plotRight - plotLeft) / 5) * 3],
+    ["Oct 2024", plotLeft + ((plotRight - plotLeft) / 5) * 4],
+    ["Dec 2024", plotRight],
+  ] as const;
   const yLabels = hasData
     ? [maxValue, maxValue / 2, 0].map((value) =>
         value >= 1000 ? `R$ ${Math.round(value / 1000)}K` : formatCurrency(value),
@@ -452,25 +522,25 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
       </p>
       <span className="text-[9px] font-semibold text-[#8C8C8C]">{trend}</span>
     </div>
-    <div className="mt-2 h-[152px]">
-      <svg viewBox="0 0 720 180" aria-hidden="true" className="h-full w-full">
-        {[30, 62, 94, 126, 158].map((y) => (
-          <line key={y} x1="52" x2="708" y1={y} y2={y} stroke="#ECECEC" strokeWidth="1" />
+    <div className="mt-2 h-[174px] overflow-hidden">
+      <svg viewBox="0 0 720 210" preserveAspectRatio="none" aria-hidden="true" className="h-full w-full">
+        {[30, 58, 86, 114, 142].map((y) => (
+          <line key={y} x1={plotLeft} x2={plotRight} y1={y} y2={y} stroke="#ECECEC" strokeWidth="1" />
         ))}
-        <text x="4" y="34" fill="#B0B0B0" fontSize="9">{yLabels[0]}</text>
-        <text x="4" y="98" fill="#B0B0B0" fontSize="9">{yLabels[1]}</text>
-        <text x="4" y="162" fill="#B0B0B0" fontSize="9">{yLabels[2]}</text>
+        <text x="8" y="34" fill="#B0B0B0" fontSize="9">{yLabels[0]}</text>
+        <text x="8" y="90" fill="#B0B0B0" fontSize="9">{yLabels[1]}</text>
+        <text x="8" y="146" fill="#B0B0B0" fontSize="9">{yLabels[2]}</text>
         <path
-          d={toChartPath(compareValues, 720, 154, 52)}
+          d={toChartPathWithinBounds(compareValues, plotLeft, plotRight, plotTop, plotBottom)}
           fill="none"
-          opacity="0.22"
-          stroke="#9CA3AF"
-          strokeDasharray="3 5"
+          opacity="0.95"
+          stroke="#D7DCE4"
+          strokeDasharray="1.2 7"
           strokeLinecap="round"
-          strokeWidth="2.4"
+          strokeWidth="2.6"
         />
         <path
-          d={toChartPath(chartValues, 720, 154, 52)}
+          d={toChartPathWithinBounds(chartValues, plotLeft, plotRight, plotTop, plotBottom)}
           fill="none"
           stroke={chartBlue}
           strokeLinecap="round"
@@ -481,18 +551,19 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
             strokeDashoffset: 900,
           }}
         />
-        {[
-          ["Feb 2024", 62],
-          ["Apr 2024", 196],
-          ["Jun 2024", 328],
-          ["Aug 2024", 462],
-          ["Oct 2024", 596],
-          ["Dec 2024", 690],
-        ].map(([label, x]) => (
+        {xTicks.map(([label, x]) => (
           <text key={label} x={Number(x)} y="176" fill="#A7A7A7" fontSize="9" textAnchor="middle">
             {label}
           </text>
         ))}
+        <g transform="translate(248 198)">
+          <line x1="0" x2="14" y1="0" y2="0" stroke={chartBlue} strokeWidth="2.7" strokeLinecap="round" />
+          <text x="22" y="3" fill="#A7A7A7" fontSize="9">Feb 14, 2024-Feb 12, 2025</text>
+        </g>
+        <g transform="translate(414 198)">
+          <line x1="0" x2="14" y1="0" y2="0" stroke="#D7DCE4" strokeWidth="2.6" strokeDasharray="1.2 7" strokeLinecap="round" />
+          <text x="22" y="3" fill="#A7A7A7" fontSize="9">Feb 14, 2023-Feb 12, 2024</text>
+        </g>
       </svg>
     </div>
   </article>
@@ -595,19 +666,19 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
 
   return (
   <section className="rounded-[14px] bg-[#F2F2F1] p-3">
-    <style>
-      {`
-        @keyframes velo-chart-draw {
-          to { stroke-dashoffset: 0; }
-        }
-      `}
-    </style>
+      <style>
+        {`
+          @keyframes velo-chart-draw {
+            to { stroke-dashoffset: 0; }
+          }
+        `}
+      </style>
     <div className="flex items-start justify-between gap-4">
       <div>
         <h1 className="text-[16px] font-bold text-[#171717]">Overview</h1>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="inline-flex h-6 items-center gap-1.5 rounded-[6px] bg-white px-2.5 text-[10px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-            <CalendarDays className="h-3 w-3" strokeWidth={1.8} />
+              <CalendarDays className="h-3 w-3" strokeWidth={1.8} />
             Last 365 days
           </span>
           <span className="inline-flex h-6 items-center rounded-[6px] bg-white px-2.5 text-[10px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
@@ -977,86 +1048,189 @@ const CollectionProductsPanel = ({
   products,
   loading,
   removingProductId,
-  onAddProducts,
   onRemoveProduct,
 }: {
   collection: CollectionSummary;
   products: CollectionProductItem[];
   loading: boolean;
   removingProductId: string | null;
-  onAddProducts: () => void;
   onRemoveProduct: (productId: string) => void;
-}) => (
-  <section className="mt-4 overflow-hidden rounded-[13px] border border-[#E7E7E5] bg-[#FAFAF9]">
-    <header className="flex items-center justify-between gap-4 border-b border-[#ECECEA] px-4 py-3">
-      <div className="min-w-0">
-        <h3 className="truncate text-[15px] font-semibold tracking-[-0.02em] text-[#111]">{collection.name}</h3>
-        <p className="mt-0.5 text-[12px] font-medium text-[#8B8B8B]">
-          {collection.productCount} produto{collection.productCount === 1 ? "" : "s"} nesta coleção
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onAddProducts}
-        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[8px] bg-[#050608] px-3 text-[12px] font-semibold leading-none text-white transition-opacity hover:opacity-90"
-      >
-        <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-        Adicionar produtos
-      </button>
-    </header>
+}) => {
+  const navigate = useNavigate();
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
-    <div className="divide-y divide-[#ECECEA]">
-      {loading ? (
-        [0, 1, 2].map((item) => (
-          <div key={item} className="flex h-[68px] animate-pulse items-center gap-3 px-4">
-            <div className="h-11 w-11 rounded-[8px] bg-[#E7E7E5]" />
-            <div className="min-w-0 flex-1">
-              <div className="h-3.5 w-2/3 rounded-full bg-[#E1E1DF]" />
-              <div className="mt-2 h-3 w-24 rounded-full bg-[#E9E9E7]" />
-            </div>
-            <div className="h-7 w-7 rounded-full bg-[#E6E6E4]" />
+  useEffect(() => {
+    setSelectedProductId(null);
+  }, [collection.id]);
+
+  const toggleProduct = (productId: string) => {
+    setSelectedProductId((current) => (current === productId ? null : productId));
+  };
+
+  return (
+    <section className="relative overflow-hidden rounded-[30px] border border-[#ECECEC] bg-white px-6 py-6 shadow-[0_18px_54px_rgba(28,34,48,0.07)]">
+      <div className="relative">
+        <div className="min-w-0">
+          <div className="mb-5 grid grid-cols-[36px_minmax(0,1fr)_132px_190px_34px] items-center gap-4 px-1 text-[13px] font-semibold tracking-[-0.02em] text-[#242424]">
+            <span className="h-7 w-7 rounded-[9px] bg-[#F5F5F5] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)]" />
+            <span>Nome</span>
+            <span>Preço</span>
+            <span>Data</span>
+            <span aria-hidden="true" />
           </div>
-        ))
-      ) : products.length > 0 ? (
-        products.map((product) => (
-          <div key={product.id} className="flex min-h-[68px] items-center gap-3 px-4 py-3">
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt=""
-                className="h-11 w-11 shrink-0 rounded-[8px] border border-black/[0.04] bg-white object-cover object-center"
-              />
+
+          <div className="space-y-1.5">
+            {loading ? (
+              [0, 1, 2].map((item) => (
+                <div
+                  key={item}
+                  className="grid min-h-[72px] animate-pulse grid-cols-[36px_minmax(0,1fr)_132px_190px_34px] items-center gap-4 rounded-[24px] px-1 py-2"
+                >
+                  <span className="h-7 w-7 rounded-[9px] bg-[#F5F5F5]" />
+                  <div className="flex min-w-0 items-center gap-4">
+                    <span className="h-11 w-11 shrink-0 rounded-[12px] bg-[#F5F5F5]" />
+                    <div className="min-w-0 flex-1">
+                      <div className="h-4 w-2/3 rounded-full bg-[#F5F5F5]" />
+                      <div className="mt-2 h-3 w-32 rounded-full bg-[#F7F7F7]" />
+                    </div>
+                  </div>
+                  <span className="h-4 w-20 rounded-full bg-[#F5F5F5]" />
+                  <span className="h-4 w-32 rounded-full bg-[#F5F5F5]" />
+                  <span className="h-7 w-7 rounded-full bg-[#F5F5F5]" />
+                </div>
+              ))
+            ) : products.length > 0 ? (
+              products.map((product) => {
+                const selected = selectedProductId === product.id;
+                const category = product.category ?? collection.category ?? "Sem categoria";
+
+                return (
+                  <div key={product.id} className="space-y-1.5">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={selected}
+                      onClick={() => toggleProduct(product.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          toggleProduct(product.id);
+                        }
+                      }}
+                      className={`grid min-h-[74px] cursor-pointer grid-cols-[36px_minmax(0,1fr)_132px_190px_34px] items-center gap-4 px-1 py-2 transition-transform duration-150 hover:-translate-y-0.5 ${
+                        selected
+                          ? "rounded-[26px] bg-[#F7F7F7] shadow-[0_14px_36px_rgba(28,34,48,0.055)]"
+                          : "rounded-[22px]"
+                      }`}
+                    >
+                      <span
+                        className={`grid h-7 w-7 place-items-center rounded-[9px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.03)] transition-colors ${
+                          selected ? "bg-[#050608] text-white" : "bg-[#F5F5F5] text-transparent"
+                        }`}
+                      >
+                        <Check className="h-4 w-4" strokeWidth={2.4} />
+                      </span>
+                      <div className="flex min-w-0 items-center gap-4">
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt=""
+                            className="h-12 w-12 shrink-0 rounded-[12px] bg-white object-cover object-center shadow-[0_10px_22px_rgba(28,34,48,0.075)]"
+                          />
+                        ) : (
+                          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px] bg-white text-[#111] shadow-[0_10px_22px_rgba(28,34,48,0.075)]">
+                            <Folder className="h-6 w-6" strokeWidth={1.7} />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-[15px] font-semibold leading-tight tracking-[-0.025em] text-[#111]">
+                            {product.title}
+                          </p>
+                          <p className="mt-1 truncate text-[12px] font-medium leading-tight text-[#8E8E8E]">
+                            Produto do catálogo Velo
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-[14px] font-medium tracking-[-0.02em] text-[#222]">
+                        {product.price === null ? "Indisponível" : formatCurrency(product.price)}
+                      </p>
+                      <p className="truncate text-[13px] font-medium tracking-[-0.02em] text-[#222]">
+                        {formatCollectionDate(product.added_at)}
+                      </p>
+                      <button
+                        type="button"
+                        aria-label="Remover produto da coleção"
+                        disabled={removingProductId === product.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onRemoveProduct(product.id);
+                        }}
+                        className="grid h-8 w-8 place-items-center rounded-full text-[#A2A2A2] transition-colors hover:bg-[#F5F5F5] hover:text-[#111] disabled:cursor-wait disabled:opacity-50"
+                      >
+                        <X className="h-4 w-4" strokeWidth={2} />
+                      </button>
+                    </div>
+
+                    {selected ? (
+                      <div className="ml-10 rounded-[20px] border border-[#171717]/15 bg-white px-4 py-4 shadow-[0_18px_42px_rgba(17,17,17,0.08)]">
+                        <div className="mb-3 flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-[#050608]" />
+                          <span className="rounded-full border border-[#171717]/10 bg-[#F8F8F8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#171717]">
+                            Análise do produto
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                          <div className="grid min-w-0 flex-1 grid-cols-4 gap-3">
+                            <div className="min-w-0 rounded-[14px] bg-[#FAFAFA] px-3 py-2">
+                              <p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[#9A9A9A]">Produto</p>
+                              <p className="mt-1 truncate text-[13px] font-semibold text-[#171717]">Catálogo Velo</p>
+                            </div>
+                            <div className="min-w-0 rounded-[14px] bg-[#FAFAFA] px-3 py-2">
+                              <p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[#9A9A9A]">Categoria</p>
+                              <p className="mt-1 truncate text-[13px] font-semibold text-[#171717]">{category}</p>
+                            </div>
+                            <div className="min-w-0 rounded-[14px] bg-[#FAFAFA] px-3 py-2">
+                              <p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[#9A9A9A]">Preço</p>
+                              <p className="mt-1 truncate text-[13px] font-semibold text-[#171717]">
+                                {product.price === null ? "Indisponível" : formatCurrency(product.price)}
+                              </p>
+                            </div>
+                            <div className="min-w-0 rounded-[14px] bg-[#FAFAFA] px-3 py-2">
+                              <p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[#9A9A9A]">Adicionado</p>
+                              <p className="mt-1 truncate text-[13px] font-semibold text-[#171717]">
+                                {formatCollectionDate(product.added_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigate(`/dashboard/catalogo/${product.id}`);
+                            }}
+                            className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-[#050608] px-3.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
+                          >
+                            Ver no catálogo
+                            <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2.2} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })
             ) : (
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] border border-black/[0.04] bg-white text-[#B0B0B0]">
-                <Archive className="h-4 w-4" strokeWidth={1.8} />
+              <div className="rounded-[26px] bg-[#F7F7F7] px-8 py-9 text-center shadow-[0_14px_36px_rgba(28,34,48,0.05)]">
+                <p className="text-[17px] font-semibold tracking-[-0.035em] text-[#111]">Esta coleção está vazia</p>
+                <p className="mt-1.5 text-[13px] font-medium text-[#8B8B8B]">Clique em Adicionar produtos para começar</p>
               </div>
             )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold text-[#181818]">{product.title}</p>
-              <p className="mt-1 text-[12px] font-medium text-[#777]">
-                {product.price === null ? "Preço indisponível" : formatCurrency(product.price)}
-              </p>
-            </div>
-            <button
-              type="button"
-              aria-label="Remover produto da coleção"
-              disabled={removingProductId === product.id}
-              onClick={() => onRemoveProduct(product.id)}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#9A9A9A] transition-colors hover:bg-white hover:text-[#111] disabled:cursor-wait disabled:opacity-50"
-            >
-              <X className="h-4 w-4" strokeWidth={2} />
-            </button>
           </div>
-        ))
-      ) : (
-        <div className="px-4 py-8 text-center">
-          <p className="text-[14px] font-semibold text-[#222]">Esta coleção está vazia</p>
-          <p className="mt-1 text-[13px] font-medium text-[#8B8B8B]">Clique em Adicionar produtos para começar</p>
         </div>
-      )}
-    </div>
-  </section>
-);
+      </div>
+    </section>
+  );
+};
 
 const DashboardHomePage = () => {
   const navigate = useNavigate();
@@ -1078,6 +1252,7 @@ const DashboardHomePage = () => {
   const [loadingCollectionProducts, setLoadingCollectionProducts] = useState(false);
   const [removingCollectionProductId, setRemovingCollectionProductId] = useState<string | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const collectionPanelRef = useRef<HTMLDivElement>(null);
   const carouselDragRef = useRef({
     isDown: false,
     startX: 0,
@@ -1170,6 +1345,17 @@ const DashboardHomePage = () => {
 
     setSelectedCollectionId(null);
   }, [collections, selectedCollectionId]);
+
+  useEffect(() => {
+    if (!selectedCollectionId) return;
+
+    window.requestAnimationFrame(() => {
+      collectionPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    });
+  }, [selectedCollectionId]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -1412,14 +1598,15 @@ const DashboardHomePage = () => {
                   </button>
                 )}
                 {selectedCollection ? (
-                  <CollectionProductsPanel
-                    collection={selectedCollection}
-                    products={collectionProducts}
-                    loading={loadingCollectionProducts}
-                    removingProductId={removingCollectionProductId}
-                    onAddProducts={() => handleAddProductsToCollection(selectedCollection)}
-                    onRemoveProduct={handleRemoveCollectionProduct}
-                  />
+                  <div ref={collectionPanelRef} className="mt-5 scroll-mt-6">
+                    <CollectionProductsPanel
+                      collection={selectedCollection}
+                      products={collectionProducts}
+                      loading={loadingCollectionProducts}
+                      removingProductId={removingCollectionProductId}
+                      onRemoveProduct={handleRemoveCollectionProduct}
+                    />
+                  </div>
                 ) : null}
               </section>
             </div>

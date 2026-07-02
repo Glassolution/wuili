@@ -1,10 +1,10 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
-import { ArrowRight, Check, Eye, EyeOff, Loader2, Mail } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
 async function checkEmailExists(email: string): Promise<boolean> {
@@ -19,16 +19,11 @@ async function checkEmailExists(email: string): Promise<boolean> {
   }
 }
 
-const PRODUCT_PREFERENCES = [
-  "Eletrônicos", "Moda", "Casa & Decoração",
-  "Beleza", "Esportes", "Brinquedos",
-];
-
 const ease = [0.22, 1, 0.36, 1] as const;
 const slideDown = {
   initial: { opacity: 0, y: -8, height: 0 },
   animate: { opacity: 1, y: 0, height: "auto" },
-  exit:    { opacity: 0, y: -8, height: 0 },
+  exit: { opacity: 0, y: -8, height: 0 },
   transition: { duration: 0.38, ease },
 };
 
@@ -42,100 +37,37 @@ const GoogleIcon = () => (
   </svg>
 );
 
-/* ─── Right panel — vitrine visual ───────────────────────────────────────── */
-const RightPanel = () => (
-  <div className="relative hidden lg:flex flex-1 overflow-hidden rounded-r-[24px]"
-    style={{
-      background: "linear-gradient(135deg, #d4c5b0 0%, #c4b8a8 30%, #a8b4c8 60%, #8090b8 100%)",
-    }}
-  >
-    {/* Overlay escuro sutil */}
-    <div className="absolute inset-0 bg-black/10" />
+const getPanelCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
+  if (resetMode) {
+    return {
+      badge: "Recuperação",
+      title: "Recupere seu acesso.",
+      description: "Enviaremos um link para redefinir sua senha e voltar para a operação da Velo.",
+    };
+  }
 
-    {/* Conteúdo central — mockup do dashboard */}
-    <div className="relative z-10 flex w-full flex-col items-center justify-center px-10 py-12">
+  if (step === "signup") {
+    return {
+      badge: "Nova conta",
+      title: "Comece sua operação.",
+      description: "Crie sua conta e entre na Velo para descobrir produtos, pedidos e publicações em um só lugar.",
+    };
+  }
 
-      {/* Card principal mockup */}
-      <div
-        className="w-full max-w-[340px] rounded-[20px] bg-white/95 backdrop-blur-sm shadow-[0_32px_80px_rgba(0,0,0,0.22)] overflow-hidden"
-        style={{ fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif' }}
-      >
-        {/* Header do mockup */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-neutral-100">
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-lg bg-[#0a0a0a] grid place-items-center">
-              <svg width="14" height="14" viewBox="0 0 48 48" fill="none">
-                <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFF" strokeWidth="4" strokeLinecap="round" fill="none"/>
-                <path d="M30 26 L34 30 L38 26" stroke="#FFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-              </svg>
-            </div>
-            <span className="text-[12px] font-bold text-neutral-800 tracking-tight">Velo</span>
-          </div>
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-        </div>
+  if (step === "login") {
+    return {
+      badge: "Entrar",
+      title: "Volte para a Velo.",
+      description: "Continue de onde parou com a mesma conta usada para acessar o seu dashboard.",
+    };
+  }
 
-        {/* Welcome */}
-        <div className="px-5 pt-4 pb-2">
-          <p className="text-[11px] text-neutral-400 font-medium">Bem-vindo de volta</p>
-          <h3 className="text-[17px] font-bold text-neutral-900 tracking-tight mt-0.5">Sua loja hoje</h3>
-        </div>
-
-        {/* KPI */}
-        <div className="px-5 pb-3">
-          <div className="flex items-end gap-2">
-            <span className="text-[28px] font-bold tracking-tight text-neutral-900 leading-none">R$ 4.206</span>
-            <span className="text-[11px] font-semibold text-emerald-600 mb-1">↑ 12%</span>
-          </div>
-          <p className="text-[10px] text-neutral-400 mt-0.5">vs. semana passada</p>
-        </div>
-
-        {/* Mini chart bars */}
-        <div className="px-5 pb-4 flex items-end gap-1" style={{ height: 52 }}>
-          {[30, 45, 28, 60, 38, 72, 50, 85, 62, 90, 70, 100].map((h, i) => (
-            <div
-              key={i}
-              className="flex-1 rounded-sm"
-              style={{
-                height: `${h}%`,
-                background: i >= 9 ? "#0a0a0a" : "#e5e7eb",
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Product list */}
-        <div className="px-5 pb-5 space-y-2">
-          {[
-            { name: "Fone Bluetooth Pro", val: "R$ 4.908", delta: "+12%", color: "#6366f1" },
-            { name: "Suporte MagSafe", val: "R$ 2,97", delta: "+6%", color: "#f59e0b" },
-            { name: "Mini Projetor HD", val: "R$ 201", delta: "+3%", color: "#10b981" },
-            { name: "Kit Manicure", val: "R$ 1.516", delta: "+2%", color: "#ec4899" },
-          ].map((item) => (
-            <div key={item.name} className="flex items-center gap-3 rounded-xl bg-neutral-50 px-3 py-2.5">
-              <div className="h-7 w-7 rounded-full flex-shrink-0" style={{ background: item.color + "22" }}>
-                <div className="h-full w-full rounded-full flex items-center justify-center">
-                  <div className="h-3 w-3 rounded-full" style={{ background: item.color }} />
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-semibold text-neutral-800 truncate">{item.name}</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-[11px] font-bold text-neutral-900">{item.val}</p>
-                <p className="text-[9px] font-semibold text-emerald-600">{item.delta} hoje</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Caption abaixo do card */}
-      <p className="mt-6 text-center text-[13px] font-medium text-white/70 max-w-[260px] leading-relaxed">
-        Gerencie produtos, pedidos e publicações em um só lugar.
-      </p>
-    </div>
-  </div>
-);
+  return {
+    badge: "Acesso",
+    title: "Entre ou crie sua conta.",
+    description: "Use seu e-mail para continuar. A Velo identifica se você já possui acesso ou se precisa criar uma conta.",
+  };
+};
 
 /* ─── Page ────────────────────────────────────────────────────────────────── */
 const LoginPage = () => {
@@ -147,7 +79,6 @@ const LoginPage = () => {
   const [password, setPassword]           = useState("");
   const [nome, setNome]                   = useState("");
   const [showPw, setShowPw]               = useState(false);
-  const [preferences, setPreferences]     = useState<string[]>([]);
   const [loading, setLoading]             = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
@@ -251,220 +182,302 @@ const LoginPage = () => {
     setStep(exists ? "login" : "signup");
   };
 
-  const togglePreference = (pref: string) =>
-    setPreferences((prev) => prev.includes(pref) ? prev.filter((p) => p !== pref) : [...prev, pref]);
-
   useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 350); }, [step]);
   useEffect(() => { if (step === "signup") setTimeout(() => nomeRef.current?.focus(), 350);     }, [step]);
 
   if (!authLoading && user && !loading && !googleLoading) return <Navigate to="/dashboard" replace />;
 
-  /* ── Shared input style ── */
-  const inputCls = "h-[46px] w-full rounded-xl border border-[#e5e7eb] bg-[#fafafa] px-4 text-[14px] text-[#111111] outline-none transition placeholder:text-[#c4c4c4] focus:border-[#111111] focus:bg-white focus:ring-1 focus:ring-[#111111]";
-  const btnPrimaryCls = "h-[46px] w-full rounded-xl bg-[#0f0f0f] text-[14px] font-semibold text-white transition hover:bg-[#2a2a2a] disabled:opacity-50 active:scale-[0.99]";
+  const copy = getPanelCopy(step, resetMode);
+  const inputCls =
+    "h-[44px] w-full rounded-[4px] border border-white/[0.06] bg-white/[0.06] px-3 text-[13px] font-[400] text-white/92 outline-none transition placeholder:text-white/22 focus:border-white/[0.14] focus:bg-white/[0.08]";
+  const subtleBtnCls =
+    "inline-flex h-[36px] min-w-[116px] items-center justify-center rounded-[4px] bg-[#f3efe8] px-5 text-[12px] font-[500] text-black transition hover:bg-white disabled:opacity-50";
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center bg-[#f0f0f0] p-4"
-      style={{ fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif' }}
+    <main
+      className="relative min-h-screen overflow-hidden bg-[#000000] text-white"
+      style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
     >
-      {/* Card raiz — split layout */}
-      <div className="flex w-full max-w-[960px] overflow-hidden rounded-[24px] bg-white shadow-[0_4px_6px_rgba(0,0,0,0.04),0_20px_60px_rgba(0,0,0,0.10)]"
-        style={{ minHeight: 580 }}
-      >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04),transparent_34%),#000000]" />
 
-        {/* ── Lado esquerdo: formulário ── */}
-        <div className="relative flex w-full flex-col justify-between px-10 py-9 lg:w-[420px] lg:flex-shrink-0">
+      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-7 py-7 sm:px-10 lg:px-24">
+        <Link to="/" className="inline-flex items-center gap-2.5 text-white">
+          <svg width="28" height="28" viewBox="0 0 48 48" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" />
+            <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-[17px] font-[700] tracking-[-0.04em] text-white">Velo</span>
+        </Link>
+        <Link
+          to="/"
+          className="inline-flex h-[28px] items-center rounded-[4px] bg-white/[0.08] px-3 text-[11px] font-[500] text-white/78 transition hover:bg-white/[0.12] hover:text-white"
+        >
+          Fechar
+        </Link>
+      </header>
 
-          {/* Logo */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-[#0a0a0a]">
-              <svg width="16" height="16" viewBox="0 0 48 48" fill="none">
-                <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFF" strokeWidth="4" strokeLinecap="round" fill="none"/>
-                <path d="M30 26 L34 30 L38 26" stroke="#FFF" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <section className="relative z-10 flex min-h-screen items-center justify-center px-6 py-16 sm:px-10 lg:px-20">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease }}
+          className="grid w-full max-w-[250px] items-start gap-10 md:w-auto md:max-w-none md:grid-cols-[250px_1px_250px] md:gap-8"
+        >
+          <div className="flex min-h-[250px] flex-col md:pr-4">
+            <div className="inline-flex w-fit items-center gap-2 text-[14px] font-[600] tracking-[-0.04em] text-white">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 48 48"
+                fill="none"
+                aria-hidden="true"
+                className="shrink-0"
+              >
+                <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" />
+                <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
+              <span>Velo</span>
+              <span className="rounded-full border border-white/[0.08] bg-[#1b1630] px-2 py-[2px] text-[9px] font-[700] uppercase tracking-[0.1em] text-[#a78bfa]">
+                {copy.badge}
+              </span>
             </div>
-            <span className="text-[16px] font-bold tracking-tight text-[#0a0a0a]">Velo</span>
+            <h1 className="mt-4 max-w-[238px] text-[42px] font-[400] leading-[1.02] tracking-[-0.055em] text-white sm:text-[48px]">
+              {copy.title}
+            </h1>
+            <p className="mt-5 max-w-[258px] text-[15px] font-[400] leading-[1.55] text-white/70">
+              {copy.description}
+            </p>
+            <p className="mt-5 max-w-[258px] text-[14px] font-[400] leading-[1.6] text-white/54">
+              Entre para centralizar catálogo, pedidos e publicações com a identidade da Velo.
+            </p>
           </div>
 
-          {/* Corpo do formulário */}
-          <div className="flex flex-1 flex-col justify-center py-8">
+          <div className="hidden h-full min-h-[250px] w-px bg-white/[0.08] md:block" />
 
-            {/* Título */}
-            <div className="mb-7">
-              <h1 className="text-[26px] font-bold tracking-tight text-[#0a0a0a] leading-tight">
-                {resetMode
-                  ? "Recuperar senha"
-                  : step === "signup"
-                  ? "Criar uma conta"
-                  : "Bem-vindo à Velo"}
-              </h1>
-              <p className="mt-1.5 text-[13.5px] text-[#888888]">
-                {resetMode
-                  ? "Enviaremos um link para seu e-mail."
-                  : step === "signup"
-                  ? "Comece seu teste grátis de 30 dias."
-                  : "Entre ou crie sua conta para continuar."}
-              </p>
-            </div>
-
-            {/* ── RESET MODE ── */}
-            {resetMode ? (
-              <form onSubmit={handleReset} className="space-y-3">
-                <input
-                  type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  required placeholder="voce@email.com" className={inputCls}
-                />
-                <button type="submit" disabled={loading} className={btnPrimaryCls}>
-                  {loading ? "Enviando..." : "Enviar link de recuperação"}
-                </button>
-                <button type="button" onClick={() => setResetMode(false)}
-                  className="w-full text-center text-[13px] text-[#888888] hover:text-[#111111] transition">
-                  ← Voltar para login
-                </button>
-              </form>
-            ) : (
-              <div className="space-y-3">
-
-                {/* Email field */}
-                <form onSubmit={(e) => { e.preventDefault(); if (step === "initial") handleEmailContinue(); }}>
-                  <div className="relative">
+          <div className="w-full md:pl-2">
+            <div className="w-full max-w-[250px]">
+              {resetMode ? (
+                <form onSubmit={handleReset} className="space-y-4">
+                  <Field label="E-mail">
                     <input
-                      type="email" value={email}
+                      type="email"
+                      value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="seu@email.com"
-                      readOnly={step !== "initial"}
-                      className={`${inputCls} ${step !== "initial" ? "text-[#888] cursor-default" : ""}`}
+                      required
+                      placeholder="seuemail@exemplo.com"
+                      className={inputCls}
                     />
-                    {step === "initial" && (
-                      <button
-                        type="submit" disabled={checkingEmail}
-                        className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg bg-[#0f0f0f] text-white hover:bg-[#2a2a2a] transition disabled:opacity-60"
-                        aria-label="Continuar"
-                      >
-                        {checkingEmail ? <Loader2 size={14} className="animate-spin" /> : <ArrowRight size={14} />}
-                      </button>
-                    )}
+                  </Field>
+
+                  <AgreementText />
+
+                  <div className="flex justify-center pt-1">
+                    <button type="submit" disabled={loading} className={subtleBtnCls}>
+                      {loading ? "Enviando..." : "Enviar link"}
+                    </button>
+                  </div>
+
+                  <div className="pt-1 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setResetMode(false)}
+                      className="text-[11.5px] font-[400] text-white/48 transition hover:text-white/78"
+                    >
+                      Voltar
+                    </button>
                   </div>
                 </form>
+              ) : (
+                <div className="space-y-4">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (step === "initial") void handleEmailContinue();
+                    }}
+                    className="space-y-4"
+                  >
+                    <Field label="Endereço de e-mail">
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="seuemail@exemplo.com"
+                        readOnly={step !== "initial"}
+                        className={`${inputCls} ${step !== "initial" ? "cursor-default text-white/48" : ""}`}
+                      />
+                    </Field>
 
-                {/* ── LOGIN ── */}
-                <AnimatePresence mode="wait">
-                  {step === "login" && (
-                    <motion.form key="login" {...slideDown} onSubmit={handleSignIn} className="overflow-hidden">
-                      <div className="space-y-3 pt-1">
-                        <div className="relative">
-                          <input
-                            ref={passwordRef}
-                            type={showPw ? "text" : "password"}
-                            value={password} onChange={(e) => setPassword(e.target.value)}
-                            required placeholder="Sua senha"
-                            className={`${inputCls} pr-11`}
-                          />
-                          <button type="button" onClick={() => setShowPw((c) => !c)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c4c4c4] hover:text-[#111111] transition">
-                            {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                    {step === "initial" && (
+                      <>
+                        <AgreementText />
+                        <div className="flex justify-center pt-1">
+                          <button type="submit" disabled={checkingEmail} className={subtleBtnCls}>
+                            {checkingEmail ? "Verificando..." : "Continuar"}
                           </button>
                         </div>
-                        <button type="submit" disabled={loading} className={btnPrimaryCls}>
-                          {loading ? "Entrando..." : "Entrar"}
-                        </button>
-                        <div className="flex items-center justify-between pt-0.5">
-                          <button type="button" onClick={() => setResetMode(true)}
-                            className="text-[12.5px] text-[#888888] hover:text-[#111111] transition">
-                            Esqueceu a senha?
-                          </button>
-                          <button type="button" onClick={() => { setStep("initial"); setPassword(""); }}
-                            className="text-[12px] text-[#c4c4c4] hover:text-[#888] transition">
-                            Trocar e-mail
-                          </button>
-                        </div>
-                      </div>
-                    </motion.form>
-                  )}
+                      </>
+                    )}
+                  </form>
 
-                  {/* ── SIGNUP ── */}
-                  {step === "signup" && (
-                    <motion.form key="signup" {...slideDown} onSubmit={handleSignUp} className="overflow-hidden">
-                      <div className="space-y-3 pt-1">
-                        <input ref={nomeRef} type="text" value={nome}
-                          onChange={(e) => setNome(e.target.value)} required placeholder="Seu nome"
-                          className={inputCls} />
-                        <div className="relative">
-                          <input
-                            type={showPw ? "text" : "password"}
-                            value={password} onChange={(e) => setPassword(e.target.value)}
-                            required placeholder="Mínimo 8 caracteres"
-                            className={`${inputCls} pr-11`}
-                          />
-                          <button type="button" onClick={() => setShowPw((c) => !c)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#c4c4c4] hover:text-[#111111] transition">
-                            {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
-                          </button>
-                        </div>
-                        {/* Preferências */}
-                        <div>
-                          <p className="mb-2 text-[12px] font-semibold text-[#888]">O que você quer vender?</p>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {PRODUCT_PREFERENCES.map((pref) => {
-                              const sel = preferences.includes(pref);
-                              return (
-                                <button key={pref} type="button" onClick={() => togglePreference(pref)}
-                                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[12px] font-medium transition ${
-                                    sel ? "border-[#0f0f0f] bg-[#0f0f0f] text-white" : "border-[#e5e7eb] text-[#888] hover:border-[#d1d5db] hover:text-[#111]"
-                                  }`}>
-                                  {sel && <Check size={12} strokeWidth={2.5} />}
-                                  {pref}
-                                </button>
-                              );
-                            })}
+                  <AnimatePresence mode="wait">
+                    {step === "login" && (
+                      <motion.form key="login" {...slideDown} onSubmit={handleSignIn} className="overflow-hidden">
+                        <div className="space-y-4">
+                          <Field label="Senha">
+                            <div className="relative">
+                              <input
+                                ref={passwordRef}
+                                type={showPw ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                placeholder="Digite sua senha"
+                                className={`${inputCls} pr-10`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPw((c) => !c)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/34 transition hover:text-white/74"
+                              >
+                                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                              </button>
+                            </div>
+                          </Field>
+
+                          <AgreementText />
+
+                          <div className="flex justify-center pt-1">
+                            <button type="submit" disabled={loading} className={subtleBtnCls}>
+                              {loading ? "Entrando..." : "Entrar"}
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 text-[11.5px] text-white/42">
+                            <button
+                              type="button"
+                              onClick={() => setResetMode(true)}
+                              className="transition hover:text-white/72"
+                            >
+                              Esqueci a senha
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStep("initial");
+                                setPassword("");
+                              }}
+                              className="transition hover:text-white/72"
+                            >
+                              Trocar e-mail
+                            </button>
                           </div>
                         </div>
-                        <button type="submit" disabled={loading} className={btnPrimaryCls}>
-                          {loading ? "Criando conta..." : "Criar conta"}
-                        </button>
-                        <button type="button"
-                          onClick={() => { setStep("initial"); setNome(""); setPassword(""); setPreferences([]); }}
-                          className="w-full text-center text-[12px] text-[#c4c4c4] hover:text-[#888] transition">
-                          Trocar e-mail
-                        </button>
-                      </div>
-                    </motion.form>
-                  )}
-                </AnimatePresence>
+                      </motion.form>
+                    )}
 
-                {/* Google — só no step initial */}
-                {step === "initial" && (
-                  <>
-                    <div className="flex items-center gap-3 py-1">
-                      <div className="h-px flex-1 bg-[#f0f0f0]" />
-                      <span className="text-[11.5px] text-[#c4c4c4]">ou</span>
-                      <div className="h-px flex-1 bg-[#f0f0f0]" />
+                    {step === "signup" && (
+                      <motion.form key="signup" {...slideDown} onSubmit={handleSignUp} className="overflow-hidden">
+                        <div className="space-y-4">
+                          <Field label="Nome completo">
+                            <input
+                              ref={nomeRef}
+                              type="text"
+                              value={nome}
+                              onChange={(e) => setNome(e.target.value)}
+                              required
+                              placeholder="Digite seu nome"
+                              className={inputCls}
+                            />
+                          </Field>
+
+                          <Field label="Senha">
+                            <div className="relative">
+                              <input
+                                type={showPw ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                placeholder="Mínimo de 8 caracteres"
+                                className={`${inputCls} pr-10`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPw((c) => !c)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/34 transition hover:text-white/74"
+                              >
+                                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                              </button>
+                            </div>
+                          </Field>
+
+                          <AgreementText />
+
+                          <div className="flex justify-center pt-1">
+                            <button type="submit" disabled={loading} className={subtleBtnCls}>
+                              {loading ? "Criando..." : "Criar conta"}
+                            </button>
+                          </div>
+
+                          <div className="pt-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStep("initial");
+                                setNome("");
+                                setPassword("");
+                              }}
+                              className="text-[11.5px] font-[400] text-white/42 transition hover:text-white/72"
+                            >
+                              Trocar e-mail
+                            </button>
+                          </div>
+                        </div>
+                      </motion.form>
+                    )}
+                  </AnimatePresence>
+
+                  {step === "initial" && (
+                    <div className="pt-2 text-center">
+                      <button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        disabled={googleLoading}
+                        className="inline-flex items-center justify-center gap-2 text-[11.5px] font-[400] text-white/46 transition hover:text-white/78 disabled:opacity-40"
+                      >
+                        <GoogleIcon />
+                        {googleLoading ? "Conectando..." : "Continuar com Google"}
+                      </button>
                     </div>
-                    <button type="button" onClick={handleGoogleLogin} disabled={googleLoading}
-                      className="flex h-[46px] w-full items-center justify-center gap-2.5 rounded-xl border border-[#e5e7eb] bg-white text-[14px] font-semibold text-[#111111] transition hover:bg-[#fafafa] hover:border-[#d1d5db] disabled:opacity-50">
-                      <GoogleIcon />
-                      {googleLoading ? "Conectando..." : "Continuar com Google"}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-
-          {/* Footer */}
-          <p className="text-[11px] text-[#c4c4c4] leading-relaxed">
-            Ao continuar, você concorda com os{" "}
-            <span className="text-[#888]">Termos de Uso</span> e a{" "}
-            <span className="text-[#888]">Política de Privacidade</span> da Velo.
-          </p>
-        </div>
-
-        {/* ── Lado direito: vitrine ── */}
-        <RightPanel />
-      </div>
-    </div>
+        </motion.div>
+      </section>
+    </main>
   );
 };
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <label className="block">
+    <span className="mb-2 block text-[10px] font-[400] tracking-[-0.01em] text-white/38">{label}</span>
+    {children}
+  </label>
+);
+
+const AgreementText = () => (
+  <p className="max-w-[320px] text-[10px] font-[400] leading-[1.55] text-white/42">
+    Ao continuar, você concorda com a{" "}
+    <Link to="/docs" className="text-white/62 underline decoration-white/18 underline-offset-2 transition hover:text-white">
+      Política de Privacidade
+    </Link>{" "}
+    e com os{" "}
+    <Link to="/docs" className="text-white/62 underline decoration-white/18 underline-offset-2 transition hover:text-white">
+      Termos de Serviço
+    </Link>
+    .
+  </p>
+);
 
 export default LoginPage;
