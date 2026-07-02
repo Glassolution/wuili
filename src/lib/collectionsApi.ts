@@ -157,8 +157,8 @@ export const listCollectionCategories = async (): Promise<string[]> => {
   return Array.from(
     new Set(
       (data ?? [])
-        .map((item) => item.category)
-        .filter((category): category is string => Boolean(category?.trim())),
+        .map((item) => (item as { category?: string | null }).category)
+        .filter((category): category is string => Boolean(category && category.trim())),
     ),
   ).slice(0, 8);
 };
