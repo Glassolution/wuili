@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion, type Transition } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowUp,
   Boxes,
-  ChevronRight,
   PackageSearch,
   Sparkles,
   TrendingUp,
@@ -104,186 +103,11 @@ const QUICK_ACTIONS: PromptOption[] = [
   },
 ];
 
-export const SaturnIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <circle cx="12" cy="12" r="4.8" stroke="currentColor" strokeWidth="2" />
-    <path
-      d="M3.2 15.2c2.5 1.8 7.5 2 12.1.5 4.6-1.5 7.2-4.1 6.5-5.9-.4-1.2-2-1.8-4.1-1.8"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    />
-    <path
-      d="M20.8 8.8c-2.5-1.8-7.5-2-12.1-.5-4.6 1.5-7.2 4.1-6.5 5.9.4 1.2 2 1.8 4.1 1.8"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      opacity="0.78"
-    />
-  </svg>
-);
-
-const Ring = ({
-  index,
-  state,
-  typingAngle,
-  baseRotateY,
-  baseRotateX,
-}: {
-  index: number;
-  state: 'idle' | 'typing' | 'processing';
-  typingAngle: number;
-  baseRotateY: number;
-  baseRotateX: number;
-}) => {
-  let animateValue: number | number[] = 0;
-  let transitionValue: Transition = {};
-
-  if (state === 'processing') {
-    animateValue = [0, 360];
-    transitionValue = {
-      repeat: Infinity,
-      duration: 1.4 - index * 0.15,
-      ease: "linear",
-    };
-  } else if (state === 'typing') {
-    animateValue = typingAngle + (index * 15);
-    transitionValue = {
-      type: "spring",
-      stiffness: 300,
-      damping: 12,
-    };
-  } else {
-    // idle state: slow sinoidal oscillation
-    animateValue = index % 2 === 0 ? [-8, 8] : [6, -6];
-    transitionValue = {
-      repeat: Infinity,
-      repeatType: "mirror" as const,
-      duration: 3.0 + index * 0.5,
-      ease: "easeInOut",
-    };
-  }
-
-  return (
-    <motion.div
-      key={`${state}-${index}`}
-      className="absolute w-7 h-7 flex items-center justify-center rounded-full pointer-events-none"
-      style={{
-        transformStyle: 'preserve-3d',
-      }}
-      // Use independent Framer Motion transform properties instead of concatenated string templates
-      animate={{
-        rotateY: baseRotateY,
-        rotateX: baseRotateX,
-        rotateZ: animateValue,
-      }}
-      transition={transitionValue}
-    >
-      <svg
-        width="28"
-        height="28"
-        viewBox="0 0 40 40"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full"
-      >
-        <defs>
-          <linearGradient id={`ring-grad-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.1" />
-          </linearGradient>
-        </defs>
-        <circle
-          cx="20"
-          cy="20"
-          r="18"
-          stroke={`url(#ring-grad-${index})`}
-          strokeWidth="1.35"
-          className="transition-all duration-300"
-          style={{
-            filter: state === 'processing' 
-              ? 'drop-shadow(0 0 3px rgba(255,255,255,0.85))' 
-              : state === 'typing'
-                ? 'drop-shadow(0 0 2px rgba(255,255,255,0.6))'
-                : 'drop-shadow(0 0 1px rgba(255,255,255,0.3))',
-          }}
-        />
-      </svg>
-    </motion.div>
-  );
-};
-
-const VeloOrb = ({ 
-  state = 'idle', 
-  typingTrigger = 0 
-}: { 
-  state?: 'idle' | 'typing' | 'processing'; 
-  typingTrigger?: number; 
-}) => {
-  const [typingAngle, setTypingAngle] = useState(0);
-
-  useEffect(() => {
-    if (typingTrigger > 0) {
-      setTypingAngle((a) => a + 45);
-    }
-  }, [typingTrigger]);
-
-  return (
-    <div 
-      className="relative w-10 h-10 shrink-0 flex items-center justify-center"
-      style={{ perspective: 800, transformStyle: 'preserve-3d' }}
-    >
-      {/* Outer subtle glow */}
-      <span 
-        className={`absolute rounded-full bg-white/5 blur-[8px] h-8 w-8 transition-all duration-300 ${
-          state === 'processing' ? 'scale-125 opacity-100 bg-white/12' : 'scale-100 opacity-60'
-        }`} 
-      />
-
-      {/* Ring 1 (Vertical Left-Slanted) */}
-      <Ring
-        index={0}
-        state={state}
-        typingAngle={typingAngle}
-        baseRotateY={45}
-        baseRotateX={15}
-      />
-
-      {/* Ring 2 (Vertical Right-Slanted) */}
-      <Ring
-        index={1}
-        state={state}
-        typingAngle={typingAngle}
-        baseRotateY={-45}
-        baseRotateX={-15}
-      />
-
-      {/* Ring 3 (Horizontal-ish Saturn Ring) */}
-      <Ring
-        index={2}
-        state={state}
-        typingAngle={typingAngle}
-        baseRotateY={10}
-        baseRotateX={75}
-      />
-    </div>
-  );
-};
-
 const Styles = () => (
   <style dangerouslySetInnerHTML={{__html: `
-    @keyframes aquas-shell-glow {
-      0% { box-shadow: 0 20px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03); }
-      50% { box-shadow: 0 24px 48px rgba(0,0,0,0.56), inset 0 1px 0 rgba(255,255,255,0.06); }
-      100% { box-shadow: 0 20px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03); }
-    }
     @keyframes aquas-shimmer {
       0% { background-position: 0% 50%; }
       100% { background-position: 200% 50%; }
-    }
-    .aquas-shell-glow {
-      animation: aquas-shell-glow 2.8s ease-in-out infinite;
     }
     .aquas-shimmer {
       background-image: linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 100%);
@@ -325,35 +149,13 @@ const ProductScoutAI = ({
   const footerInputRef = useRef<HTMLInputElement>(null);
   const triggerButtonRef = useRef<HTMLButtonElement>(null);
 
-  const [isTyping, setIsTyping] = useState(false);
-  const [typingTrigger, setTypingTrigger] = useState(0);
-  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const handleInputChange = (val: string) => {
     setCustomPrompt(val);
-    setIsTyping(true);
-    setTypingTrigger((prev) => prev + 1);
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    typingTimeoutRef.current = setTimeout(() => {
-      setIsTyping(false);
-    }, 1000);
   };
 
   const handleChatInputChange = (val: string) => {
     setChatInput(val);
-    setIsTyping(true);
-    setTypingTrigger((prev) => prev + 1);
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    typingTimeoutRef.current = setTimeout(() => {
-      setIsTyping(false);
-    }, 1000);
   };
-
-  const orbState = busy ? 'processing' : isTyping ? 'typing' : 'idle';
 
   const openPanel = () => {
     setOpen(true);
@@ -602,38 +404,6 @@ const ProductScoutAI = ({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, busy, close]);
 
-  useEffect(() => {
-    return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const renderPromptOption = (option: PromptOption, index: number, keyPrefix: string) => {
-    const Icon = option.icon;
-
-    return (
-      <div key={`${keyPrefix}-${option.label}`}>
-        {index === 2 && <div className="mx-3 my-2 border-t border-white/[0.08]" />}
-        <button
-          type="button"
-          onClick={() => handleChipClick(option.value)}
-          className="flex w-full items-center gap-3 rounded-[12px] border border-transparent px-4 py-[14px] text-left transition-all duration-150 hover:border-white/[0.06] hover:bg-white/[0.08] active:scale-[0.995]"
-        >
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[0.04] text-white/60">
-            <Icon size={20} strokeWidth={1.5} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-medium text-white">{option.label}</span>
-            <span className="mt-0.5 block text-[12px] text-white/45">{option.hint}</span>
-          </span>
-          <ChevronRight size={18} strokeWidth={1.5} className="shrink-0 text-white/30" />
-        </button>
-      </div>
-    );
-  };
-
   const renderProductPanel = (products: SuggestedProduct[]) => {
     const primaryProduct = products[0];
     if (!primaryProduct) return null;
@@ -725,8 +495,14 @@ const ProductScoutAI = ({
     );
   };
 
+  const modalQuestion = "O que você quer saber sobre este produto?";
   const footerValue = chatMode ? chatInput : customPrompt;
-  const footerPlaceholder = "Pergunte algo sobre o produto ou faça outra busca...";
+  const footerPlaceholder = busy
+    ? "Aquas está analisando..."
+    : chatMode
+      ? "Continue conversando com o Aquas..."
+      : "Digite uma resposta livre...";
+  const activePromptOptions = chatMode ? QUICK_ACTIONS : INITIAL_SUGGESTIONS;
   const isFooterDisabled = busy || !footerValue.trim();
   const handleFooterSubmit = (event?: React.FormEvent) => {
     if (chatMode) {
@@ -745,6 +521,97 @@ const ProductScoutAI = ({
 
     handleInputChange(value);
   };
+
+  const renderAquasAvatar = (sizeClass = "h-11 w-11", iconSize = 30) => (
+    <span
+      className={`grid ${sizeClass} shrink-0 place-items-center rounded-full bg-white text-black shadow-[0_10px_24px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.75)]`}
+    >
+      <AquasIcon size={iconSize} />
+    </span>
+  );
+
+  const renderQuestionBar = () => (
+    <div className="flex h-[58px] items-center gap-3 rounded-full bg-[#1e1e1e] px-3.5 pr-6 shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
+      {renderAquasAvatar("h-10 w-10", 27)}
+      <span className="min-w-0 truncate text-[15px] font-medium tracking-[-0.02em] text-white/72">
+        {modalQuestion}
+      </span>
+    </div>
+  );
+
+  const renderAnswerBar = () => (
+    <div className="rounded-[26px] bg-[#2c2c2c] px-3.5 py-3 shadow-[0_22px_50px_rgba(0,0,0,0.34)]">
+      <div className="flex items-center gap-3 px-1 pb-3">
+        {renderAquasAvatar("h-10 w-10", 27)}
+        <span className="min-w-0 flex-1 truncate text-[15px] font-medium tracking-[-0.02em] text-white/86">
+          {modalQuestion}
+        </span>
+        <button
+          type="button"
+          onClick={close}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/42 transition-colors hover:bg-white/[0.07] hover:text-white/72"
+          aria-label="Fechar Aquas"
+        >
+          <X size={18} strokeWidth={1.8} />
+        </button>
+      </div>
+
+      <form onSubmit={handleFooterSubmit} className="flex min-w-0 items-center gap-2">
+        <div
+          className="flex min-w-0 flex-1 gap-2 overflow-x-auto pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{
+            WebkitMaskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 42px), transparent 100%)",
+            maskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 42px), transparent 100%)",
+          }}
+        >
+          {busy ? (
+            <span className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#3e3e3e] px-4 text-[13px] font-semibold text-white/64">
+              <span className="aquas-shimmer h-1.5 w-1.5 rounded-full" />
+              Buscando no catálogo...
+            </span>
+          ) : (
+            activePromptOptions.map((option) => (
+              <button
+                key={`${chatMode ? "quick" : "initial"}-${option.label}`}
+                type="button"
+                onClick={() => handleChipClick(option.value)}
+                className="inline-flex h-11 max-w-[260px] shrink-0 items-center rounded-full bg-[#3e3e3e] px-4 text-[13px] font-semibold tracking-[-0.01em] text-white/78 transition-colors hover:bg-[#484848] hover:text-white"
+              >
+                <span className="truncate">{option.label}</span>
+              </button>
+            ))
+          )}
+
+          <label
+            className="inline-flex h-11 min-w-[230px] shrink-0 items-center rounded-full bg-[#3e3e3e] px-4 transition-colors"
+            style={{
+              boxShadow: footerInputFocused ? "inset 0 0 0 1px rgba(255,255,255,0.18)" : "none",
+            }}
+          >
+            <input
+              ref={footerInputRef}
+              value={footerValue}
+              onChange={(event) => handleFooterChange(event.target.value)}
+              onFocus={() => setFooterInputFocused(true)}
+              onBlur={() => setFooterInputFocused(false)}
+              placeholder={footerPlaceholder}
+              disabled={busy}
+              className="h-full min-w-0 flex-1 bg-transparent text-[13px] font-medium text-white outline-none placeholder:text-white/38 disabled:cursor-wait"
+            />
+          </label>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isFooterDisabled}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-black shadow-[0_12px_28px_rgba(0,0,0,0.25)] transition-transform hover:scale-[1.03] disabled:scale-100 disabled:opacity-35"
+          aria-label="Enviar resposta para o Aquas"
+        >
+          <ArrowUp size={16} strokeWidth={1.9} />
+        </button>
+      </form>
+    </div>
+  );
 
   return (
     <>
@@ -792,134 +659,53 @@ const ProductScoutAI = ({
                   exit={{ opacity: 0, scaleY: 0.97, y: -8 }}
                   transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <div className="pointer-events-auto rounded-[24px] border border-white/[0.06] bg-[rgba(18,18,18,0.96)] p-3 shadow-[0_20px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl aquas-shell-glow">
-                    <div className="flex max-h-[min(78vh,760px)] flex-col gap-2.5">
-                      <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.03] px-4 py-3.5">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex min-w-0 items-center gap-3.5">
-                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[16px] border border-white/[0.08] bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                              <AquasIcon size={28} inverted />
-                            </span>
-                            <div className="min-w-0">
-                              <div className="truncate text-[15px] font-semibold tracking-[-0.02em] text-white">Aquas</div>
-                              <div className="mt-0.5 truncate text-[12px] text-white/45">Seu agente de vendas</div>
-                            </div>
-                          </div>
+                  <div className="pointer-events-auto flex flex-col gap-3.5">
+                    {renderQuestionBar()}
 
-                          <button
-                            type="button"
-                            onClick={close}
-                            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/[0.06] bg-white/[0.03] text-white/55 transition-colors hover:bg-white/[0.08] hover:text-white"
-                            aria-label="Fechar Aquas"
-                          >
-                            <X size={16} strokeWidth={1.5} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="overflow-hidden rounded-[20px] border border-white/[0.06] bg-white/[0.03]">
+                    {chatMode && (
+                      <div className="overflow-hidden rounded-[24px] bg-[rgba(18,18,18,0.97)] p-3 shadow-[0_22px_52px_rgba(0,0,0,0.42)] backdrop-blur-xl">
                         <div
                           ref={chatContainerRef}
-                          className={`overflow-y-auto px-3 py-3 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10 ${
-                            chatMode ? "max-h-[380px]" : "max-h-[340px]"
-                          }`}
+                          className="max-h-[min(58vh,560px)] overflow-y-auto px-1 py-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10"
                         >
-                          {!chatMode ? (
-                            <div className="space-y-3">
-                              <div className="rounded-[18px] border border-white/[0.05] bg-[#131313] px-4 py-4">
-                                <div className="flex items-start gap-3">
-                                  <VeloOrb state={orbState} typingTrigger={typingTrigger} />
-                                  <div className="min-w-0">
-                                    <div className="text-[16px] font-medium tracking-[-0.02em] text-white">
-                                      Encontre o próximo produto com mais clareza
-                                    </div>
-                                    <p className="mt-1.5 text-[13.5px] leading-relaxed text-white/58">
-                                      Descreva faixa de preço, nicho, benefício ou perfil de cliente. Eu retorno uma análise
-                                      curta, um produto principal e alternativas reais do catálogo.
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="rounded-[18px] border border-white/[0.05] bg-[#131313] py-2">
-                                {INITIAL_SUGGESTIONS.map((option, index) => renderPromptOption(option, index, "initial"))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {chatMessages.map((msg) => (
+                          <div className="space-y-4">
+                            {chatMessages.map((msg) => (
+                              <div
+                                key={msg.id}
+                                className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+                              >
                                 <div
-                                  key={msg.id}
-                                  className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+                                  className={`max-w-[92%] rounded-[18px] border px-4 py-3 text-[13.5px] leading-relaxed ${
+                                    msg.role === "user"
+                                      ? "border-white/[0.08] bg-white/[0.06] text-white"
+                                      : "w-full border-white/[0.05] bg-[#131313] text-white/88"
+                                  }`}
                                 >
-                                  <div
-                                    className={`max-w-[92%] rounded-[18px] border px-4 py-3 text-[13.5px] leading-relaxed ${
-                                      msg.role === "user"
-                                        ? "border-white/[0.08] bg-white/[0.06] text-white"
-                                        : "w-full border-white/[0.05] bg-[#131313] text-white/88"
-                                    }`}
-                                  >
-                                    {msg.content}
-                                  </div>
-
-                                  {msg.role === "assistant" && msg.products && msg.products.length > 0
-                                    ? renderProductPanel(msg.products)
-                                    : null}
+                                  {msg.content}
                                 </div>
-                              ))}
 
-                              {busy && (
-                                <div className="rounded-[18px] border border-white/[0.05] bg-[#131313] px-4 py-3.5">
-                                  <div className="flex items-center gap-3 text-white/58">
-                                    <span className="aquas-shimmer block h-2 w-2 rounded-full" />
-                                    <span className="aquas-shimmer block h-2 w-2 rounded-full" />
-                                    <span className="aquas-shimmer block h-2 w-2 rounded-full" />
-                                    <span className="ml-1 text-[12.5px] font-medium">Aquas está formulando resposta...</span>
-                                  </div>
+                                {msg.role === "assistant" && msg.products && msg.products.length > 0
+                                  ? renderProductPanel(msg.products)
+                                  : null}
+                              </div>
+                            ))}
+
+                            {busy && (
+                              <div className="rounded-[18px] border border-white/[0.05] bg-[#131313] px-4 py-3.5">
+                                <div className="flex items-center gap-3 text-white/58">
+                                  <span className="aquas-shimmer block h-2 w-2 rounded-full" />
+                                  <span className="aquas-shimmer block h-2 w-2 rounded-full" />
+                                  <span className="aquas-shimmer block h-2 w-2 rounded-full" />
+                                  <span className="ml-1 text-[12.5px] font-medium">Aquas está formulando resposta...</span>
                                 </div>
-                              )}
-                            </div>
-                          )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
+                    )}
 
-                      {!busy && (
-                        <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.03] py-2">
-                          {QUICK_ACTIONS.map((option, index) => renderPromptOption(option, index, "quick"))}
-                        </div>
-                      )}
-
-                      <div className="mt-0.5 border-t border-white/[0.06] px-1 pt-3">
-                        <div className="rounded-[18px] bg-[#161616] px-3 py-3">
-                          <form
-                            onSubmit={handleFooterSubmit}
-                            className="flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.05] px-3 py-2 transition-all"
-                            style={{
-                              boxShadow: footerInputFocused
-                                ? "0 0 0 1px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.04)"
-                                : "inset 0 1px 0 rgba(255,255,255,0.04)",
-                            }}
-                          >
-                            <input
-                              ref={footerInputRef}
-                              value={footerValue}
-                              onChange={(event) => handleFooterChange(event.target.value)}
-                              onFocus={() => setFooterInputFocused(true)}
-                              onBlur={() => setFooterInputFocused(false)}
-                              placeholder={footerPlaceholder}
-                              className="h-9 flex-1 bg-transparent px-2 text-[14px] text-white outline-none placeholder:text-white/40"
-                            />
-                            <button
-                              type="submit"
-                              disabled={isFooterDisabled}
-                              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black transition-all hover:scale-[1.03] disabled:scale-100 disabled:opacity-35"
-                            >
-                              <ArrowUp size={15} strokeWidth={1.8} />
-                            </button>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
+                    {renderAnswerBar()}
                   </div>
                 </motion.div>
               </>
