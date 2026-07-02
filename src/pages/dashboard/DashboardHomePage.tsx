@@ -766,9 +766,9 @@ const CreateCollectionModal = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-[8px]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#303430] px-4">
       <div
-        className="relative w-[90%] max-w-[380px] rounded-[20px] bg-[#38393a] px-6 py-7 shadow-[0_24px_60px_rgba(0,0,0,0.40)]"
+        className="relative w-[90%] max-w-[380px] rounded-[20px] bg-[#2f3230] px-6 py-7 shadow-[0_24px_60px_rgba(0,0,0,0.40)]"
         style={{ fontFamily: "Inter, system-ui, sans-serif" }}
       >
         <button
@@ -814,18 +814,18 @@ const CreateCollectionModal = ({
                 key={label}
                 type="button"
                 onClick={() => setCategory(label)}
-                className={`flex w-full items-center gap-3 rounded-[16px] border-0 px-4 py-3 text-left transition-colors ${
-                  selected ? "bg-[#474747]" : "bg-[#262626] hover:bg-[#303030]"
+                className={`flex w-full items-center gap-2.5 rounded-[12px] border-0 px-3 py-1.5 text-left transition-colors ${
+                  selected ? "bg-[#4f514f]" : "bg-[#282b29] hover:bg-[#303330]"
                 }`}
               >
                 <span
-                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-[10px] ${
-                    selected ? "bg-[#929292]" : "bg-[#757474]"
+                  className={`grid h-7 w-7 shrink-0 place-items-center rounded-[8px] ${
+                    selected ? "bg-[#6f726f]" : "bg-[#3b403d]"
                   }`}
                 >
-                  <Icon className="h-5 w-5 text-[#1e1e1e]" strokeWidth={1.5} />
+                  <Icon className="h-4 w-4 text-[#e8e8e3]" strokeWidth={1.5} />
                 </span>
-                <span className={`text-[14px] font-semibold ${selected ? "text-white" : "text-[#afafaf]"}`}>
+                <span className={`text-[13px] font-semibold ${selected ? "text-[#f5f5f0]" : "text-[#b2b6b2]"}`}>
                   {label}
                 </span>
               </button>
