@@ -76,33 +76,6 @@ const INITIAL_SUGGESTIONS: PromptOption[] = [
   },
 ];
 
-const QUICK_ACTIONS: PromptOption[] = [
-  {
-    icon: Sparkles,
-    label: "Como vender este produto?",
-    value: "Como vender este produto?",
-    hint: "Posicionamento, oferta e argumentos de venda.",
-  },
-  {
-    icon: TrendingUp,
-    label: "Qual o público ideal?",
-    value: "Qual o público ideal?",
-    hint: "Perfil de cliente e contexto de uso mais aderente.",
-  },
-  {
-    icon: PackageSearch,
-    label: "Quais alternativas parecidas?",
-    value: "Quais alternativas parecidas você recomenda?",
-    hint: "Outras opções próximas para comparar no catálogo.",
-  },
-  {
-    icon: Boxes,
-    label: "Crie um ângulo de anúncio",
-    value: "Crie um ângulo de anúncio para esse produto",
-    hint: "Uma abordagem inicial para criativo e copy.",
-  },
-];
-
 const Styles = () => (
   <style dangerouslySetInnerHTML={{__html: `
     @keyframes aquas-shimmer {
@@ -334,7 +307,7 @@ const ProductScoutAI = ({
     if (!open) return;
 
     const updatePanelPosition = () => {
-      const width = Math.min(chatMode ? 820 : 760, window.innerWidth - 32);
+      const width = Math.min(chatMode ? 640 : 760, window.innerWidth - 32);
 
       setPanelPosition({
         top: window.innerWidth < 768 ? 48 : 64,
@@ -419,7 +392,7 @@ const ProductScoutAI = ({
     : chatMode
       ? "Continue conversando com o Aquas..."
       : modalQuestion;
-  const activePromptOptions = chatMode ? QUICK_ACTIONS : INITIAL_SUGGESTIONS;
+  const activePromptOptions = INITIAL_SUGGESTIONS;
   const isFooterDisabled = busy || !footerValue.trim();
   const handleFooterSubmit = (event?: React.FormEvent) => {
     if (chatMode) {
@@ -520,7 +493,7 @@ const ProductScoutAI = ({
   );
 
   const renderChatWindow = () => (
-    <div className="overflow-hidden rounded-[28px] border border-white/[0.07] bg-[#171717] shadow-[0_24px_70px_rgba(0,0,0,0.42)]">
+    <div className="flex max-h-[calc(100vh-96px)] min-h-[520px] flex-col overflow-hidden rounded-[28px] border border-white/[0.07] bg-[#171717] shadow-[0_24px_70px_rgba(0,0,0,0.42)]">
       <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           {renderAquasAvatar("h-9 w-9", 25)}
@@ -541,7 +514,7 @@ const ProductScoutAI = ({
 
       <div
         ref={chatContainerRef}
-        className="max-h-[min(58vh,560px)] overflow-y-auto px-5 py-5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10"
+        className="min-h-0 flex-1 overflow-y-auto px-5 py-5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10"
       >
         <div className="space-y-5">
           {chatMessages.map((msg) => (
@@ -579,28 +552,7 @@ const ProductScoutAI = ({
         </div>
       </div>
 
-      <div className="border-t border-white/[0.06] bg-[#1d1d1d] px-4 pb-4 pt-3">
-        {!busy && (
-          <div
-            className="mb-3 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            style={{
-              WebkitMaskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 48px), transparent 100%)",
-              maskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 48px), transparent 100%)",
-            }}
-          >
-            {QUICK_ACTIONS.map((option) => (
-              <button
-                key={`chat-${option.label}`}
-                type="button"
-                onClick={() => handleChipClick(option.value)}
-                className="inline-flex h-9 max-w-[230px] shrink-0 items-center rounded-full bg-white/[0.08] px-4 text-[13px] font-medium text-white/78 transition-colors hover:bg-white/[0.13] hover:text-white"
-              >
-                <span className="truncate">{option.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
+      <div className="border-t border-white/[0.06] bg-[#1d1d1d] px-4 pb-4 pt-4">
         <form
           onSubmit={handleFooterSubmit}
           className="flex h-12 items-center gap-2 rounded-full border border-white/[0.07] bg-[#2a2a2a] px-4"
