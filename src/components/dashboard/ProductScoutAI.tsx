@@ -330,33 +330,14 @@ const ProductScoutAI = ({
     }
   }, [executeRealSearch, initialPrompt, open]);
 
-  const buildStatChips = (product: SuggestedProduct) => {
-    const chips: Array<{ label: string; tone: "neutral" | "success" }> = [];
-    const effectiveSuggested = product.suggestedPrice ?? product.preco;
-
-    if (product.costPrice && effectiveSuggested > product.costPrice) {
-      const marginPercent = Math.round(((effectiveSuggested - product.costPrice) / product.costPrice) * 100);
-      chips.push({ label: `+${marginPercent}% margem`, tone: "success" });
-    }
-
-    if (typeof product.stockQuantity === "number") {
-      chips.push({ label: `${product.stockQuantity} em estoque`, tone: "neutral" });
-    }
-
-    chips.push({ label: product.categoria, tone: "neutral" });
-    chips.push({ label: formatPrice(product.preco), tone: "neutral" });
-
-    return chips.slice(0, 4);
-  };
-
   useEffect(() => {
     if (!open) return;
 
     const updatePanelPosition = () => {
-      const width = Math.min(760, window.innerWidth - 32);
+      const width = Math.min(chatMode ? 820 : 760, window.innerWidth - 32);
 
       setPanelPosition({
-        top: window.innerWidth < 768 ? 52 : 72,
+        top: window.innerWidth < 768 ? 48 : 64,
         left: Math.max(16, (window.innerWidth - width) / 2),
         width,
       });
@@ -370,7 +351,7 @@ const ProductScoutAI = ({
       window.removeEventListener("resize", updatePanelPosition);
       window.removeEventListener("scroll", updatePanelPosition, true);
     };
-  }, [open]);
+  }, [open, chatMode]);
 
   useEffect(() => {
     if (!open) return;
@@ -400,89 +381,33 @@ const ProductScoutAI = ({
     const primaryProduct = products[0];
     if (!primaryProduct) return null;
 
-    const alternativeProducts = products.slice(1);
-
     return (
-      <div className="mt-3 rounded-[18px] border border-white/[0.06] bg-white/[0.03] p-3.5">
-        <div className="flex flex-col gap-3 rounded-[16px] border border-white/[0.05] bg-[#131313] p-3.5 sm:flex-row">
-          <div className="h-[112px] w-full overflow-hidden rounded-[16px] bg-white/[0.04] sm:h-[112px] sm:w-[112px]">
+      <div className="mt-3 max-w-[520px] rounded-[18px] border border-white/[0.08] bg-[#202020] p-3 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
+        <div className="flex items-center gap-3">
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[14px] bg-white/[0.04]">
             {primaryProduct.image_url ? (
-              <img
-                src={primaryProduct.image_url}
-                alt={primaryProduct.nome}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
+              <img src={primaryProduct.image_url} alt={primaryProduct.nome} className="h-full w-full object-cover" loading="lazy" />
             ) : (
               <div className="grid h-full w-full place-items-center text-white/30">
-                <PackageSearch size={24} strokeWidth={1.5} />
+                <PackageSearch size={20} strokeWidth={1.5} />
               </div>
             )}
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="inline-flex items-center rounded-full border border-white/[0.15] bg-white/[0.1] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
-              Produto principal
+            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/42">
+              Produto recomendado
             </div>
-            <div className="mt-3 text-[17px] font-semibold leading-snug tracking-[-0.02em] text-white">
+            <div className="mt-1 line-clamp-2 text-[14px] font-semibold leading-snug text-white">
               {primaryProduct.nome}
             </div>
-            <div className="mt-1 text-[12px] text-white/45">{primaryProduct.categoria}</div>
-            <div className="mt-3 text-[26px] font-semibold tracking-[-0.05em] text-white">
-              {formatPrice(primaryProduct.preco)}
+            <div className="mt-1 flex items-center gap-2 text-[12px] text-white/48">
+              <span className="truncate">{primaryProduct.categoria}</span>
+              <span className="h-1 w-1 rounded-full bg-white/24" />
+              <span className="shrink-0 text-white/78">{formatPrice(primaryProduct.preco)}</span>
             </div>
           </div>
         </div>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          {buildStatChips(primaryProduct).map((chip) => (
-            <span
-              key={`${primaryProduct.id}-${chip.label}`}
-              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[11.5px] font-medium ${
-                chip.tone === "success"
-                  ? "border-emerald-500/30 bg-emerald-500/12 text-emerald-300"
-                  : "border-white/[0.08] bg-white/[0.05] text-white/78"
-              }`}
-            >
-              {chip.label}
-            </span>
-          ))}
-        </div>
-
-        {alternativeProducts.length > 0 && (
-          <div className="mt-4">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/36">
-              Alternativas do catálogo
-            </div>
-            <div className="flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {alternativeProducts.map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => handleChipClick(`Quero analisar ${product.nome}`)}
-                  className="min-w-[184px] shrink-0 rounded-[16px] border border-white/[0.06] bg-[#151515] p-2.5 text-left transition-all duration-150 hover:bg-white/[0.08]"
-                >
-                  <div className="h-[92px] overflow-hidden rounded-[12px] bg-white/[0.04]">
-                    {product.image_url ? (
-                      <img src={product.image_url} alt={product.nome} className="h-full w-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-white/30">
-                        <PackageSearch size={20} strokeWidth={1.5} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-2.5 line-clamp-2 text-[13px] font-medium leading-snug text-white">
-                    {product.nome}
-                  </div>
-                  <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-white/42">
-                    <span className="truncate">{product.categoria}</span>
-                    <span className="text-white/72">{formatPrice(product.preco)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -594,6 +519,118 @@ const ProductScoutAI = ({
     </div>
   );
 
+  const renderChatWindow = () => (
+    <div className="overflow-hidden rounded-[28px] border border-white/[0.07] bg-[#171717] shadow-[0_24px_70px_rgba(0,0,0,0.42)]">
+      <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {renderAquasAvatar("h-9 w-9", 25)}
+          <div className="min-w-0">
+            <div className="text-[14px] font-semibold tracking-[-0.02em] text-white">Aquas</div>
+            <div className="text-[12px] text-white/42">Conversa sobre produto</div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={close}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/42 transition-colors hover:bg-white/[0.07] hover:text-white/72"
+          aria-label="Fechar Aquas"
+        >
+          <X size={18} strokeWidth={1.8} />
+        </button>
+      </div>
+
+      <div
+        ref={chatContainerRef}
+        className="max-h-[min(58vh,560px)] overflow-y-auto px-5 py-5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10"
+      >
+        <div className="space-y-5">
+          {chatMessages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            >
+              {msg.role === "assistant" && renderAquasAvatar("h-8 w-8", 23)}
+              <div className={`min-w-0 ${msg.role === "user" ? "max-w-[78%]" : "max-w-[86%]"}`}>
+                <div
+                  className={`whitespace-pre-line rounded-[18px] px-4 py-3 text-[14px] leading-relaxed tracking-[-0.01em] ${
+                    msg.role === "user"
+                      ? "bg-white text-[#111]"
+                      : "bg-transparent px-0 py-0 text-white/86"
+                  }`}
+                >
+                  {msg.content}
+                </div>
+                {msg.role === "assistant" && msg.products && msg.products.length > 0
+                  ? renderProductPanel(msg.products)
+                  : null}
+              </div>
+            </div>
+          ))}
+
+          {busy && (
+            <div className="flex items-center gap-3">
+              {renderAquasAvatar("h-8 w-8", 23)}
+              <div className="inline-flex h-9 items-center gap-2 rounded-full bg-white/[0.07] px-4 text-[13px] font-medium text-white/54">
+                <span className="aquas-shimmer h-1.5 w-1.5 rounded-full" />
+                Analisando o catálogo...
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="border-t border-white/[0.06] bg-[#1d1d1d] px-4 pb-4 pt-3">
+        {!busy && (
+          <div
+            className="mb-3 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{
+              WebkitMaskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 48px), transparent 100%)",
+              maskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 48px), transparent 100%)",
+            }}
+          >
+            {QUICK_ACTIONS.map((option) => (
+              <button
+                key={`chat-${option.label}`}
+                type="button"
+                onClick={() => handleChipClick(option.value)}
+                className="inline-flex h-9 max-w-[230px] shrink-0 items-center rounded-full bg-white/[0.08] px-4 text-[13px] font-medium text-white/78 transition-colors hover:bg-white/[0.13] hover:text-white"
+              >
+                <span className="truncate">{option.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <form
+          onSubmit={handleFooterSubmit}
+          className="flex h-12 items-center gap-2 rounded-full border border-white/[0.07] bg-[#2a2a2a] px-4"
+          style={{
+            boxShadow: footerInputFocused ? "0 0 0 1px rgba(255,255,255,0.12)" : "none",
+          }}
+        >
+          <input
+            ref={footerInputRef}
+            value={footerValue}
+            onChange={(event) => handleFooterChange(event.target.value)}
+            onFocus={() => setFooterInputFocused(true)}
+            onBlur={() => setFooterInputFocused(false)}
+            placeholder={footerPlaceholder}
+            disabled={busy}
+            className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-medium text-white outline-none placeholder:text-white/38 disabled:cursor-wait"
+          />
+          <button
+            type="submit"
+            disabled={isFooterDisabled}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-black transition-transform hover:scale-[1.03] disabled:scale-100 disabled:opacity-35"
+            aria-label="Enviar mensagem para o Aquas"
+          >
+            <ArrowUp size={14} strokeWidth={2} />
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <Styles />
@@ -640,53 +677,15 @@ const ProductScoutAI = ({
                   exit={{ opacity: 0, scaleY: 0.97, y: -8 }}
                   transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <div className="pointer-events-auto flex flex-col gap-3.5">
-                    {renderQuestionBar()}
-
-                    {chatMode && (
-                      <div className="overflow-hidden rounded-[24px] bg-[rgba(18,18,18,0.97)] p-3 shadow-[0_22px_52px_rgba(0,0,0,0.42)] backdrop-blur-xl">
-                        <div
-                          ref={chatContainerRef}
-                          className="max-h-[min(58vh,560px)] overflow-y-auto px-1 py-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10"
-                        >
-                          <div className="space-y-4">
-                            {chatMessages.map((msg) => (
-                              <div
-                                key={msg.id}
-                                className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
-                              >
-                                <div
-                                  className={`max-w-[92%] rounded-[18px] border px-4 py-3 text-[13.5px] leading-relaxed ${
-                                    msg.role === "user"
-                                      ? "border-white/[0.08] bg-white/[0.06] text-white"
-                                      : "w-full border-white/[0.05] bg-[#131313] text-white/88"
-                                  }`}
-                                >
-                                  {msg.content}
-                                </div>
-
-                                {msg.role === "assistant" && msg.products && msg.products.length > 0
-                                  ? renderProductPanel(msg.products)
-                                  : null}
-                              </div>
-                            ))}
-
-                            {busy && (
-                              <div className="rounded-[18px] border border-white/[0.05] bg-[#131313] px-4 py-3.5">
-                                <div className="flex items-center gap-3 text-white/58">
-                                  <span className="aquas-shimmer block h-2 w-2 rounded-full" />
-                                  <span className="aquas-shimmer block h-2 w-2 rounded-full" />
-                                  <span className="aquas-shimmer block h-2 w-2 rounded-full" />
-                                  <span className="ml-1 text-[12.5px] font-medium">Aquas está formulando resposta...</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                  <div className="pointer-events-auto">
+                    {chatMode ? (
+                      renderChatWindow()
+                    ) : (
+                      <div className="flex flex-col gap-3.5">
+                        {renderQuestionBar()}
+                        {renderAnswerBar()}
                       </div>
                     )}
-
-                    {renderAnswerBar()}
                   </div>
                 </motion.div>
               </>
