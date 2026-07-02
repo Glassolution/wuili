@@ -353,18 +353,10 @@ const ProductScoutAI = ({
     if (!open) return;
 
     const updatePanelPosition = () => {
-      const width = Math.min(620, window.innerWidth - 32);
-
-      if (triggerButtonRef.current) {
-        const rect = triggerButtonRef.current.getBoundingClientRect();
-        const left = Math.min(window.innerWidth - width - 16, Math.max(16, rect.right - width));
-        const top = Math.min(window.innerHeight - 40, rect.bottom + 12);
-        setPanelPosition({ top, left, width });
-        return;
-      }
+      const width = Math.min(760, window.innerWidth - 32);
 
       setPanelPosition({
-        top: 88,
+        top: window.innerWidth < 768 ? 76 : 118,
         left: Math.max(16, (window.innerWidth - width) / 2),
         width,
       });
@@ -501,7 +493,7 @@ const ProductScoutAI = ({
     ? "Aquas está analisando..."
     : chatMode
       ? "Continue conversando com o Aquas..."
-      : "Digite uma resposta livre...";
+      : modalQuestion;
   const activePromptOptions = chatMode ? QUICK_ACTIONS : INITIAL_SUGGESTIONS;
   const isFooterDisabled = busy || !footerValue.trim();
   const handleFooterSubmit = (event?: React.FormEvent) => {
@@ -531,16 +523,34 @@ const ProductScoutAI = ({
   );
 
   const renderQuestionBar = () => (
-    <div className="flex h-[58px] items-center gap-3 rounded-full bg-[#1e1e1e] px-3.5 pr-6 shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
+    <form
+      onSubmit={handleFooterSubmit}
+      className="flex h-[64px] items-center gap-3 rounded-full bg-[#1e1e1e] px-3.5 pr-5 shadow-[0_18px_44px_rgba(0,0,0,0.28)]"
+    >
       {renderAquasAvatar("h-10 w-10", 27)}
-      <span className="min-w-0 truncate text-[15px] font-medium tracking-[-0.02em] text-white/72">
-        {modalQuestion}
-      </span>
-    </div>
+      <input
+        ref={footerInputRef}
+        value={footerValue}
+        onChange={(event) => handleFooterChange(event.target.value)}
+        onFocus={() => setFooterInputFocused(true)}
+        onBlur={() => setFooterInputFocused(false)}
+        placeholder={footerPlaceholder}
+        disabled={busy}
+        className="h-full min-w-0 flex-1 bg-transparent text-[16px] font-medium tracking-[-0.02em] text-white outline-none placeholder:text-white/48 disabled:cursor-wait"
+      />
+      <button
+        type="submit"
+        disabled={isFooterDisabled}
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-black shadow-[0_12px_28px_rgba(0,0,0,0.25)] transition-all hover:scale-[1.03] disabled:pointer-events-none disabled:scale-100 disabled:opacity-0"
+        aria-label="Enviar resposta para o Aquas"
+      >
+        <ArrowUp size={16} strokeWidth={1.9} />
+      </button>
+    </form>
   );
 
   const renderAnswerBar = () => (
-    <div className="rounded-[26px] bg-[#2c2c2c] px-3.5 py-3 shadow-[0_22px_50px_rgba(0,0,0,0.34)]">
+    <div className="rounded-[26px] bg-[#2c2c2c] px-3.5 py-3.5 shadow-[0_22px_50px_rgba(0,0,0,0.34)]">
       <div className="flex items-center gap-3 px-1 pb-3">
         {renderAquasAvatar("h-10 w-10", 27)}
         <span className="min-w-0 flex-1 truncate text-[15px] font-medium tracking-[-0.02em] text-white/86">
@@ -556,60 +566,31 @@ const ProductScoutAI = ({
         </button>
       </div>
 
-      <form onSubmit={handleFooterSubmit} className="flex min-w-0 items-center gap-2">
-        <div
-          className="flex min-w-0 flex-1 gap-2 overflow-x-auto pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          style={{
-            WebkitMaskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 42px), transparent 100%)",
-            maskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 42px), transparent 100%)",
-          }}
-        >
-          {busy ? (
-            <span className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#3e3e3e] px-4 text-[13px] font-semibold text-white/64">
-              <span className="aquas-shimmer h-1.5 w-1.5 rounded-full" />
-              Buscando no catálogo...
-            </span>
-          ) : (
-            activePromptOptions.map((option) => (
-              <button
-                key={`${chatMode ? "quick" : "initial"}-${option.label}`}
-                type="button"
-                onClick={() => handleChipClick(option.value)}
-                className="inline-flex h-11 max-w-[260px] shrink-0 items-center rounded-full bg-[#3e3e3e] px-4 text-[13px] font-semibold tracking-[-0.01em] text-white/78 transition-colors hover:bg-[#484848] hover:text-white"
-              >
-                <span className="truncate">{option.label}</span>
-              </button>
-            ))
-          )}
-
-          <label
-            className="inline-flex h-11 min-w-[230px] shrink-0 items-center rounded-full bg-[#3e3e3e] px-4 transition-colors"
-            style={{
-              boxShadow: footerInputFocused ? "inset 0 0 0 1px rgba(255,255,255,0.18)" : "none",
-            }}
-          >
-            <input
-              ref={footerInputRef}
-              value={footerValue}
-              onChange={(event) => handleFooterChange(event.target.value)}
-              onFocus={() => setFooterInputFocused(true)}
-              onBlur={() => setFooterInputFocused(false)}
-              placeholder={footerPlaceholder}
-              disabled={busy}
-              className="h-full min-w-0 flex-1 bg-transparent text-[13px] font-medium text-white outline-none placeholder:text-white/38 disabled:cursor-wait"
-            />
-          </label>
-        </div>
-
-        <button
-          type="submit"
-          disabled={isFooterDisabled}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-black shadow-[0_12px_28px_rgba(0,0,0,0.25)] transition-transform hover:scale-[1.03] disabled:scale-100 disabled:opacity-35"
-          aria-label="Enviar resposta para o Aquas"
-        >
-          <ArrowUp size={16} strokeWidth={1.9} />
-        </button>
-      </form>
+      <div
+        className="flex min-w-0 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{
+          WebkitMaskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 52px), transparent 100%)",
+          maskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 52px), transparent 100%)",
+        }}
+      >
+        {busy ? (
+          <span className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-[#3e3e3e] px-4 text-[13px] font-semibold text-white/64">
+            <span className="aquas-shimmer h-1.5 w-1.5 rounded-full" />
+            Buscando no catálogo...
+          </span>
+        ) : (
+          activePromptOptions.map((option) => (
+            <button
+              key={`${chatMode ? "quick" : "initial"}-${option.label}`}
+              type="button"
+              onClick={() => handleChipClick(option.value)}
+              className="inline-flex h-10 max-w-[280px] shrink-0 items-center rounded-full bg-[#3e3e3e] px-4 text-[13px] font-semibold tracking-[-0.01em] text-white/78 transition-colors hover:bg-[#484848] hover:text-white"
+            >
+              <span className="truncate">{option.label}</span>
+            </button>
+          ))
+        )}
+      </div>
     </div>
   );
 
