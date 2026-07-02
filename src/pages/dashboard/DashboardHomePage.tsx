@@ -135,9 +135,10 @@ const fadeUp = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.58, ease: [0.16, 1, 0.3, 1], delay },
+    transition: { duration: 0.58, ease: [0.16, 1, 0.3, 1] as [number, number, number, number], delay },
   }),
-};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any;
 
 const featureCards = [
   {
