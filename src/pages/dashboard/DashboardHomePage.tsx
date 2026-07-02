@@ -750,76 +750,85 @@ const CreateCollectionModal = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4 backdrop-blur-[6px]">
-      <div className="relative w-[90%] max-w-[400px] rounded-[24px] bg-white px-7 py-8 shadow-[0_20px_60px_rgba(0,0,0,0.15)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(5,5,5,0.58)] px-4 backdrop-blur-[10px]">
+      <div className="relative w-[90%] max-w-[400px] rounded-[28px] border border-white/[0.06] bg-[#121212] px-5 py-5 shadow-[0_22px_48px_rgba(0,0,0,0.48)]">
         <button
           type="button"
           aria-label="Fechar"
           onClick={onClose}
-          className="absolute right-5 top-5 border-0 bg-transparent p-0 text-[#999] transition-colors hover:text-[#555]"
+          className="absolute right-5 top-5 grid h-9 w-9 place-items-center rounded-full border border-white/[0.06] bg-white/[0.03] p-0 text-white/48 transition-colors hover:bg-white/[0.08] hover:text-white/80"
         >
-          <X className="h-[18px] w-[18px]" strokeWidth={2} />
+          <X className="h-[16px] w-[16px]" strokeWidth={1.8} />
         </button>
 
-        <div className="mb-5 grid h-12 w-12 place-items-center rounded-[12px] bg-[#F3F2F0] text-black">
-          <Folder className="h-6 w-6" strokeWidth={1.9} />
+        <div className="rounded-[22px] border border-white/[0.05] bg-[#0E0E0E] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+          <div className="mb-4 flex items-start gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[14px] bg-[#1C1C1C] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <Folder className="h-5 w-5" strokeWidth={1.7} />
+            </div>
+            <div className="min-w-0 pt-0.5">
+              <h2 className="text-[22px] font-semibold leading-tight tracking-[-0.03em] text-white">
+                Criar coleção
+              </h2>
+              <p className="mt-1.5 text-[13.5px] font-normal leading-[1.55] text-white/48">
+                Nomeie uma vitrine para salvar produtos do catálogo Velo.
+              </p>
+            </div>
+          </div>
+
+          <div className="h-px bg-white/[0.06]" />
+
+          <div className="pt-4">
+            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-white/38">
+              NOME DA COLEÇÃO
+            </label>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              autoFocus
+              placeholder="Ex: Eletrônicos campeões"
+              className="mb-5 w-full rounded-[16px] border border-white/[0.06] bg-[#181818] px-4 py-3.5 text-[15px] font-normal text-white outline-none transition-[border-color,box-shadow,background-color] placeholder:text-white/26 focus:border-white/[0.14] focus:bg-[#1A1A1A] focus:shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
+            />
+
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/38">
+              CATEGORIA
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {categoryOptions.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setCategory(item)}
+                  className={`rounded-full border px-3.5 py-2 text-[13px] font-medium transition-colors ${
+                    category === item
+                      ? "border-white/[0.14] bg-white text-black"
+                      : "border-white/[0.06] bg-[#1A1A1A] text-white/70 hover:bg-[#202020] hover:text-white"
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div>
-          <h2 className="mb-1.5 text-[22px] font-bold leading-tight text-black">
-            Criar coleção
-          </h2>
-          <p className="mb-7 text-[14px] font-normal leading-[1.5] text-[#999]">
-            Nomeie uma vitrine para salvar produtos do catálogo Velo.
-          </p>
+        <div className="mt-3 rounded-[22px] border border-white/[0.05] bg-[#171717] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+          <button
+            type="button"
+            disabled={!name.trim() || creating}
+            onClick={() => onCreate({ name: name.trim(), category })}
+            className="inline-flex h-[52px] w-full cursor-pointer items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.92] text-[15px] font-semibold text-black transition-colors hover:bg-white disabled:cursor-not-allowed disabled:border-white/[0.05] disabled:bg-white/[0.12] disabled:text-white/30"
+          >
+            {creating ? "Criando..." : "Criar coleção"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-2 inline-flex h-10 w-full cursor-pointer items-center justify-center border-0 bg-transparent text-[14px] font-normal text-white/42 transition-colors hover:text-white/72"
+          >
+            Cancelar
+          </button>
         </div>
-
-        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#999]">
-          NOME DA COLEÇÃO
-        </label>
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          autoFocus
-          placeholder="Ex: Eletrônicos campeões"
-          className="mb-6 w-full rounded-[12px] border-0 bg-[#F7F7F6] px-4 py-3.5 text-[15px] font-normal text-black outline-none transition-shadow placeholder:text-[#C0C0C0] focus:shadow-[0_0_0_2px_#000]"
-        />
-
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#999]">
-          CATEGORIA
-        </p>
-        <div className="mb-7 flex flex-wrap gap-2">
-          {categoryOptions.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setCategory(item)}
-              className={`rounded-full border-0 px-3.5 py-2 text-[13px] font-medium transition-colors ${
-                category === item
-                  ? "bg-black text-white"
-                  : "bg-[#F3F2F0] text-[#444] hover:bg-[#EBEBEA]"
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          disabled={!name.trim() || creating}
-          onClick={() => onCreate({ name: name.trim(), category })}
-          className="mb-2.5 inline-flex h-[52px] w-full cursor-pointer items-center justify-center rounded-[14px] border-0 bg-black text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:bg-[#E5E5E5] disabled:text-[#999]"
-        >
-          {creating ? "Criando..." : "Criar coleção"}
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="inline-flex h-10 w-full cursor-pointer items-center justify-center border-0 bg-transparent text-[14px] font-normal text-[#999] transition-colors hover:text-[#555]"
-        >
-          Cancelar
-        </button>
       </div>
     </div>
   );
