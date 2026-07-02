@@ -726,7 +726,7 @@ const ProductScoutAI = ({
   };
 
   const footerValue = chatMode ? chatInput : customPrompt;
-  const footerPlaceholder = "Pergunte algo sobre o produto...";
+  const footerPlaceholder = "Pergunte algo sobre o produto ou faça outra busca...";
   const isFooterDisabled = busy || !footerValue.trim();
   const handleFooterSubmit = (event?: React.FormEvent) => {
     if (chatMode) {
@@ -785,7 +785,7 @@ const ProductScoutAI = ({
                     top: panelPosition.top,
                     left: panelPosition.left,
                     width: panelPosition.width,
-                    transformOrigin: "top center",
+                    transformOrigin: "top",
                   }}
                   initial={{ opacity: 0, scaleY: 0.94, y: -8 }}
                   animate={{ opacity: 1, scaleY: 1, y: 0 }}
@@ -889,33 +889,35 @@ const ProductScoutAI = ({
                         </div>
                       )}
 
-                      <div className="rounded-[18px] border border-white/[0.06] bg-[#161616] px-3 py-3">
-                        <form
-                          onSubmit={handleFooterSubmit}
-                          className="flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.05] px-3 py-2 transition-all"
-                          style={{
-                            boxShadow: footerInputFocused
-                              ? "0 0 0 1px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.04)"
-                              : "inset 0 1px 0 rgba(255,255,255,0.04)",
-                          }}
-                        >
-                          <input
-                            ref={footerInputRef}
-                            value={footerValue}
-                            onChange={(event) => handleFooterChange(event.target.value)}
-                            onFocus={() => setFooterInputFocused(true)}
-                            onBlur={() => setFooterInputFocused(false)}
-                            placeholder={footerPlaceholder}
-                            className="h-9 flex-1 bg-transparent px-2 text-[14px] text-white outline-none placeholder:text-white/40"
-                          />
-                          <button
-                            type="submit"
-                            disabled={isFooterDisabled}
-                            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black transition-all hover:scale-[1.03] disabled:scale-100 disabled:opacity-35"
+                      <div className="mt-0.5 border-t border-white/[0.06] px-1 pt-3">
+                        <div className="rounded-[18px] bg-[#161616] px-3 py-3">
+                          <form
+                            onSubmit={handleFooterSubmit}
+                            className="flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.05] px-3 py-2 transition-all"
+                            style={{
+                              boxShadow: footerInputFocused
+                                ? "0 0 0 1px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.04)"
+                                : "inset 0 1px 0 rgba(255,255,255,0.04)",
+                            }}
                           >
-                            <ArrowUp size={15} strokeWidth={1.8} />
-                          </button>
-                        </form>
+                            <input
+                              ref={footerInputRef}
+                              value={footerValue}
+                              onChange={(event) => handleFooterChange(event.target.value)}
+                              onFocus={() => setFooterInputFocused(true)}
+                              onBlur={() => setFooterInputFocused(false)}
+                              placeholder={footerPlaceholder}
+                              className="h-9 flex-1 bg-transparent px-2 text-[14px] text-white outline-none placeholder:text-white/40"
+                            />
+                            <button
+                              type="submit"
+                              disabled={isFooterDisabled}
+                              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black transition-all hover:scale-[1.03] disabled:scale-100 disabled:opacity-35"
+                            >
+                              <ArrowUp size={15} strokeWidth={1.8} />
+                            </button>
+                          </form>
+                        </div>
                       </div>
                     </div>
                   </div>
