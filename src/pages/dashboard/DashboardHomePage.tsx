@@ -679,22 +679,26 @@ const CreateCollectionModal = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 px-4 backdrop-blur-[8px]">
-      <div className="relative w-full max-w-[420px] rounded-[24px] bg-white px-7 py-8 shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4 backdrop-blur-[6px]">
+      <div className="relative w-[90%] max-w-[400px] rounded-[24px] bg-white px-7 py-8 shadow-[0_20px_60px_rgba(0,0,0,0.15)]">
         <button
           type="button"
           aria-label="Fechar"
           onClick={onClose}
-          className="absolute right-5 top-5 grid h-[18px] w-[18px] place-items-center border-0 bg-transparent p-0 text-[#999] transition-colors hover:text-[#555]"
+          className="absolute right-5 top-5 border-0 bg-transparent p-0 text-[#999] transition-colors hover:text-[#555]"
         >
           <X className="h-[18px] w-[18px]" strokeWidth={2} />
         </button>
 
+        <div className="mb-5 grid h-12 w-12 place-items-center rounded-[12px] bg-[#F3F2F0] text-black">
+          <Folder className="h-6 w-6" strokeWidth={1.9} />
+        </div>
+
         <div>
-          <h2 className="mb-1.5 text-[24px] font-bold leading-tight text-black">
+          <h2 className="mb-1.5 text-[22px] font-bold leading-tight text-black">
             Criar coleção
           </h2>
-          <p className="mb-7 max-w-[330px] text-[14px] font-normal leading-[1.5] text-[#999]">
+          <p className="mb-7 text-[14px] font-normal leading-[1.5] text-[#999]">
             Nomeie uma vitrine para salvar produtos do catálogo Velo.
           </p>
         </div>
@@ -707,22 +711,22 @@ const CreateCollectionModal = ({
           onChange={(event) => setName(event.target.value)}
           autoFocus
           placeholder="Ex: Eletrônicos campeões"
-          className="mb-6 w-full rounded-[14px] border-0 bg-[#F7F7F6] px-4 py-3.5 text-[15px] font-normal text-black outline-none transition-shadow placeholder:text-[#C0C0C0] focus:shadow-[0_0_0_2px_#000]"
+          className="mb-6 w-full rounded-[12px] border-0 bg-[#F7F7F6] px-4 py-3.5 text-[15px] font-normal text-black outline-none transition-shadow placeholder:text-[#C0C0C0] focus:shadow-[0_0_0_2px_#000]"
         />
 
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#999]">
           CATEGORIA
         </p>
-        <div className="mb-8 flex flex-wrap gap-2">
+        <div className="mb-7 flex flex-wrap gap-2">
           {categoryOptions.map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setCategory(item)}
-              className={`rounded-full border-0 px-4 py-2 text-[13px] font-medium transition-colors ${
+              className={`rounded-full border-0 px-3.5 py-2 text-[13px] font-medium transition-colors ${
                 category === item
                   ? "bg-black text-white"
-                  : "bg-[#F3F2F0] text-[#555] hover:bg-[#EBEBEA]"
+                  : "bg-[#F3F2F0] text-[#444] hover:bg-[#EBEBEA]"
               }`}
             >
               {item}
@@ -734,14 +738,14 @@ const CreateCollectionModal = ({
           type="button"
           disabled={!name.trim() || creating}
           onClick={() => onCreate({ name: name.trim(), category })}
-          className="mb-3 inline-flex h-[52px] w-full cursor-pointer items-center justify-center rounded-[14px] border-0 bg-black text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:bg-[#E0E0E0] disabled:text-[#999]"
+          className="mb-2.5 inline-flex h-[52px] w-full cursor-pointer items-center justify-center rounded-[14px] border-0 bg-black text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:bg-[#E5E5E5] disabled:text-[#999]"
         >
           {creating ? "Criando..." : "Criar coleção"}
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-10 w-full cursor-pointer items-center justify-center border-0 bg-transparent text-[14px] font-medium text-[#999] transition-colors hover:text-[#555]"
+          className="inline-flex h-10 w-full cursor-pointer items-center justify-center border-0 bg-transparent text-[14px] font-normal text-[#999] transition-colors hover:text-[#555]"
         >
           Cancelar
         </button>
