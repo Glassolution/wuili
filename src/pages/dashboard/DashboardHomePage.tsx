@@ -23,9 +23,12 @@ import {
   createCollection,
   deleteCollection,
   listCollectionCategories,
+  listCollectionProducts,
   listCollectionsWithSummaries,
   listUserCollectionCategories,
   renameCollection,
+  removeProductFromCollection,
+  type CollectionProductItem,
   type CollectionSummary,
 } from "@/lib/collectionsApi";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -819,7 +822,9 @@ const RenameCollectionModal = ({
 const CollectionDashboardCard = ({
   collection,
   deleting,
+  expanded,
   menuOpen,
+  onToggleExpanded,
   onToggleMenu,
   onAddProducts,
   onEdit,
@@ -827,29 +832,66 @@ const CollectionDashboardCard = ({
 }: {
   collection: CollectionSummary;
   deleting: boolean;
+  expanded: boolean;
   menuOpen: boolean;
+  onToggleExpanded: () => void;
   onToggleMenu: () => void;
   onAddProducts: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) => {
-  const productLabel = `${collection.productCount} produto${collection.productCount === 1 ? "" : "s"}`;
+  const collectionDescription = collection.category
+    ? `Organize produtos da categoria ${collection.category.toLowerCase()}.`
+    : "Organize produtos, ideias e anúncios nesta coleção.";
+  const previewImages = collection.thumbnails.slice(0, 3);
 
   return (
     <article
       role="button"
       tabIndex={0}
-      onClick={onAddProducts}
+      aria-expanded={expanded}
+      onClick={onToggleExpanded}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onAddProducts();
+          onToggleExpanded();
         }
       }}
-      className="relative flex h-auto w-[200px] shrink-0 cursor-pointer flex-col gap-3 rounded-[14px] border-[0.5px] border-[#E5E5E5] bg-[#F7F7F6] p-4 outline-none transition-colors duration-150 hover:bg-[#F0F0EF] focus-visible:ring-2 focus-visible:ring-black/20"
+      className={`relative flex h-[224px] w-[274px] shrink-0 cursor-pointer flex-col rounded-[13px] border p-3.5 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-black/20 ${
+        expanded ? "border-[#111] bg-white" : "border-[#E9E9E8] bg-[#F8F8F7] hover:bg-[#F2F2F1]"
+      }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <Folder className="h-9 w-9 text-[#C8C8C8]" strokeWidth={1.7} fill="#ECECEC" />
+      <div className="flex items-start justify-between gap-4">
+        <div className="relative h-[68px] w-[88px] shrink-0">
+          <div className="absolute left-0 top-0 h-[22px] w-[46px] rounded-t-[10px] bg-[#ECECEA]" />
+          <div className="absolute left-0 top-[11px] h-[57px] w-[88px] rounded-[10px] bg-white shadow-[inset_0_0_0_1px_rgba(0,0,0,0.035),0_8px_18px_rgba(0,0,0,0.035)]">
+            <span className="absolute bottom-4 right-4 h-[2px] w-5 rounded-full bg-[#BDBDBB]" />
+          </div>
+        </div>
+
+        <div className="flex min-w-0 items-start gap-1.5 pt-1.5">
+          <span className="text-[12px] font-semibold leading-none text-[#969696]">{collection.productCount}+</span>
+          <div className="flex -space-x-2">
+            {previewImages.length > 0 ? (
+              previewImages.map((image, index) => (
+                <img
+                  key={`${collection.id}-thumb-${index}`}
+                  src={image}
+                  alt=""
+                  className="h-6 w-6 rounded-full border-[1.5px] border-[#F8F8F7] object-cover object-center"
+                />
+              ))
+            ) : (
+              [0, 1, 2].map((item) => (
+                <span
+                  key={item}
+                  className="h-6 w-6 rounded-full border-[1.5px] border-[#F8F8F7] bg-[#E4E4E2]"
+                />
+              ))
+            )}
+          </div>
+        </div>
+
         <button
           type="button"
           aria-label="Opções da coleção"
@@ -859,19 +901,22 @@ const CollectionDashboardCard = ({
             event.stopPropagation();
             onToggleMenu();
           }}
-          className="flex h-6 w-6 items-center justify-center text-[#999] transition-colors hover:text-[#111] disabled:cursor-wait disabled:opacity-55"
+          className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full text-[#9A9A9A] transition-colors hover:bg-white hover:text-[#111] disabled:cursor-wait disabled:opacity-55"
         >
-          <MoreHorizontal className="h-4 w-4" strokeWidth={2.2} />
+          <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={2.2} />
         </button>
 
         {menuOpen ? (
           <div
-            className="absolute right-3 top-10 z-30 w-[168px] overflow-hidden rounded-[12px] border border-[#E5E5E5] bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.12)]"
+            className="absolute right-3 top-9 z-30 w-[168px] overflow-hidden rounded-[12px] border border-[#E5E5E5] bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.12)]"
             onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
-              onClick={onAddProducts}
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddProducts();
+              }}
               className="flex h-10 w-full items-center rounded-[10px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0]"
             >
               Adicionar produtos
@@ -888,30 +933,26 @@ const CollectionDashboardCard = ({
         ) : null}
       </div>
 
-      <div className="grid h-[60px] w-full place-items-center rounded-[8px] bg-[#ECECEC]">
-        <span className="h-[2px] w-6 rounded-full bg-[#C8C8C8]" />
-      </div>
-
-      <div className="min-w-0">
-        <h2 className="mb-0.5 max-w-full truncate whitespace-nowrap text-[14px] font-semibold leading-[1.2] text-black">
+      <div className="mt-4 min-w-0">
+        <h2 className="truncate whitespace-nowrap text-[16px] font-semibold leading-[1.12] tracking-[-0.03em] text-[#171717]">
           {collection.name}
         </h2>
-        <p className="text-[12px] font-medium text-[#999]">
-          {productLabel}
+        <p className="mt-1.5 line-clamp-2 min-h-[35px] max-w-[205px] text-[13px] font-medium leading-[1.35] tracking-[-0.02em] text-[#8C8C8C]">
+          {collectionDescription}
         </p>
       </div>
 
-      <div className="mt-1 flex w-full gap-2">
+      <div className="mt-auto flex w-full items-center gap-5 pt-3">
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
             onAddProducts();
           }}
-          className="inline-flex w-[calc(60%_-_4px)] items-center justify-center gap-1.5 rounded-[8px] bg-black py-2 text-[12px] font-medium leading-none text-white transition-opacity hover:opacity-90"
+          className="inline-flex h-[34px] w-[150px] items-center justify-center gap-1.5 rounded-[8px] bg-[#050608] text-[12px] font-semibold leading-none text-white transition-opacity hover:opacity-90"
         >
-          <Plus className="h-3 w-3" strokeWidth={2} />
-          Adicionar
+          <Search className="h-[13px] w-[13px]" strokeWidth={2} />
+          Adicionar produtos
         </button>
         <button
           type="button"
@@ -919,15 +960,99 @@ const CollectionDashboardCard = ({
             event.stopPropagation();
             onEdit();
           }}
-          className="inline-flex w-[calc(40%_-_4px)] items-center justify-center gap-1.5 rounded-[8px] border-0 bg-transparent py-2 text-[12px] font-medium leading-none text-[#555] transition-colors hover:bg-[#E8E8E7] hover:text-[#111]"
+          className="inline-flex h-[34px] items-center justify-center gap-1.5 border-0 bg-transparent text-[14px] font-medium leading-none text-[#777] transition-colors hover:text-[#111]"
         >
-          <Pencil className="h-3 w-3" strokeWidth={2} />
+          <Pencil className="h-[13px] w-[13px]" strokeWidth={2} />
           Editar
         </button>
       </div>
     </article>
   );
 };
+
+const CollectionProductsPanel = ({
+  collection,
+  products,
+  loading,
+  removingProductId,
+  onAddProducts,
+  onRemoveProduct,
+}: {
+  collection: CollectionSummary;
+  products: CollectionProductItem[];
+  loading: boolean;
+  removingProductId: string | null;
+  onAddProducts: () => void;
+  onRemoveProduct: (productId: string) => void;
+}) => (
+  <section className="mt-4 overflow-hidden rounded-[13px] border border-[#E7E7E5] bg-[#FAFAF9]">
+    <header className="flex items-center justify-between gap-4 border-b border-[#ECECEA] px-4 py-3">
+      <div className="min-w-0">
+        <h3 className="truncate text-[15px] font-semibold tracking-[-0.02em] text-[#111]">{collection.name}</h3>
+        <p className="mt-0.5 text-[12px] font-medium text-[#8B8B8B]">
+          {collection.productCount} produto{collection.productCount === 1 ? "" : "s"} nesta coleção
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onAddProducts}
+        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[8px] bg-[#050608] px-3 text-[12px] font-semibold leading-none text-white transition-opacity hover:opacity-90"
+      >
+        <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+        Adicionar produtos
+      </button>
+    </header>
+
+    <div className="divide-y divide-[#ECECEA]">
+      {loading ? (
+        [0, 1, 2].map((item) => (
+          <div key={item} className="flex h-[68px] animate-pulse items-center gap-3 px-4">
+            <div className="h-11 w-11 rounded-[8px] bg-[#E7E7E5]" />
+            <div className="min-w-0 flex-1">
+              <div className="h-3.5 w-2/3 rounded-full bg-[#E1E1DF]" />
+              <div className="mt-2 h-3 w-24 rounded-full bg-[#E9E9E7]" />
+            </div>
+            <div className="h-7 w-7 rounded-full bg-[#E6E6E4]" />
+          </div>
+        ))
+      ) : products.length > 0 ? (
+        products.map((product) => (
+          <div key={product.id} className="flex min-h-[68px] items-center gap-3 px-4 py-3">
+            {product.image ? (
+              <img
+                src={product.image}
+                alt=""
+                className="h-11 w-11 shrink-0 rounded-[8px] border border-black/[0.04] bg-white object-cover object-center"
+              />
+            ) : (
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] border border-black/[0.04] bg-white text-[#B0B0B0]">
+                <Archive className="h-4 w-4" strokeWidth={1.8} />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold text-[#181818]">{product.title}</p>
+              <p className="mt-1 text-[12px] font-medium text-[#777]">{formatCurrency(product.price)}</p>
+            </div>
+            <button
+              type="button"
+              aria-label="Remover produto da coleção"
+              disabled={removingProductId === product.productId}
+              onClick={() => onRemoveProduct(product.productId)}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#9A9A9A] transition-colors hover:bg-white hover:text-[#111] disabled:cursor-wait disabled:opacity-50"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
+        ))
+      ) : (
+        <div className="px-4 py-8 text-center">
+          <p className="text-[14px] font-semibold text-[#222]">Esta coleção está vazia</p>
+          <p className="mt-1 text-[13px] font-medium text-[#8B8B8B]">Clique em Adicionar produtos para começar</p>
+        </div>
+      )}
+    </div>
+  </section>
+);
 
 const DashboardHomePage = () => {
   const navigate = useNavigate();
@@ -944,6 +1069,10 @@ const DashboardHomePage = () => {
   const [renamingCollection, setRenamingCollection] = useState<CollectionSummary | null>(null);
   const [renameCollectionName, setRenameCollectionName] = useState("");
   const [savingRename, setSavingRename] = useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [collectionProducts, setCollectionProducts] = useState<CollectionProductItem[]>([]);
+  const [loadingCollectionProducts, setLoadingCollectionProducts] = useState(false);
+  const [removingCollectionProductId, setRemovingCollectionProductId] = useState<string | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const carouselDragRef = useRef({
     isDown: false,
@@ -1001,6 +1130,42 @@ const DashboardHomePage = () => {
       veloToast.error("Não foi possível carregar suas coleções.");
     });
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!selectedCollectionId) {
+      setCollectionProducts([]);
+      setLoadingCollectionProducts(false);
+      return;
+    }
+
+    let isMounted = true;
+    setLoadingCollectionProducts(true);
+
+    listCollectionProducts(selectedCollectionId)
+      .then((items) => {
+        if (isMounted) setCollectionProducts(items);
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCollectionProducts([]);
+          veloToast.error("Não foi possível carregar os produtos da coleção.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoadingCollectionProducts(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedCollectionId]);
+
+  useEffect(() => {
+    if (!selectedCollectionId) return;
+    if (collections.some((collection) => collection.id === selectedCollectionId)) return;
+
+    setSelectedCollectionId(null);
+  }, [collections, selectedCollectionId]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -1103,6 +1268,11 @@ const DashboardHomePage = () => {
     );
   }, [products]);
 
+  const selectedCollection = useMemo(
+    () => collections.find((collection) => collection.id === selectedCollectionId) ?? null,
+    [collections, selectedCollectionId],
+  );
+
   const handleCarouselMouseDown = (event: MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
 
@@ -1146,6 +1316,27 @@ const DashboardHomePage = () => {
     navigate(
       `/dashboard/catalogo?collectionId=${encodeURIComponent(collection.id)}&collectionName=${encodeURIComponent(collection.name)}`,
     );
+  };
+
+  const handleToggleCollectionPanel = (collection: CollectionSummary) => {
+    setOpenMenuCollectionId(null);
+    setSelectedCollectionId((current) => (current === collection.id ? null : collection.id));
+  };
+
+  const handleRemoveCollectionProduct = async (productId: string) => {
+    if (!selectedCollectionId || removingCollectionProductId) return;
+
+    setRemovingCollectionProductId(productId);
+
+    try {
+      await removeProductFromCollection(selectedCollectionId, productId);
+      setCollectionProducts((current) => current.filter((product) => product.productId !== productId));
+      if (user?.id) await loadCollectionData(user.id);
+    } catch {
+      veloToast.error("Não foi possível remover o produto da coleção.");
+    } finally {
+      setRemovingCollectionProductId(null);
+    }
   };
 
   return (
@@ -1194,7 +1385,9 @@ const DashboardHomePage = () => {
                         key={collection.id}
                         collection={collection}
                         deleting={deletingCollectionId === collection.id}
+                        expanded={selectedCollectionId === collection.id}
                         menuOpen={openMenuCollectionId === collection.id}
+                        onToggleExpanded={() => handleToggleCollectionPanel(collection)}
                         onToggleMenu={() =>
                           setOpenMenuCollectionId((current) => (current === collection.id ? null : collection.id))
                         }
@@ -1214,6 +1407,16 @@ const DashboardHomePage = () => {
                     <span className="mt-2 text-[13px] font-medium">Criar primeira coleção</span>
                   </button>
                 )}
+                {selectedCollection ? (
+                  <CollectionProductsPanel
+                    collection={selectedCollection}
+                    products={collectionProducts}
+                    loading={loadingCollectionProducts}
+                    removingProductId={removingCollectionProductId}
+                    onAddProducts={() => handleAddProductsToCollection(selectedCollection)}
+                    onRemoveProduct={handleRemoveCollectionProduct}
+                  />
+                ) : null}
               </section>
             </div>
           </div>

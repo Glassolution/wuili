@@ -26,6 +26,16 @@ export type CollectionSummary = VeloCollection & {
   thumbnails: string[];
 };
 
+export type CollectionProductItem = {
+  id: string;
+  collectionId: string;
+  productId: string;
+  title: string;
+  price: number;
+  image: string | null;
+  addedAt: string | null;
+};
+
 // Types generated before Lovable-created collection tables are available locally.
 // Keep untyped table access isolated here instead of spreading `any` through UI code.
 const collectionsDb = supabase as any;
@@ -230,6 +240,45 @@ export const removeProductFromCollection = async (collectionId: string, productI
 
   if (error) throw error;
   notifyCollectionsUpdated();
+};
+
+export const listCollectionProducts = async (collectionId: string): Promise<CollectionProductItem[]> => {
+  const { data, error } = await collectionsDb
+    .from("collection_products")
+    .select("id,collection_id,product_id,added_at,catalog_products!inner(id,title,suggested_price,images)")
+    .eq("collection_id", collectionId)
+    .order("added_at", { ascending: false, nullsFirst: false });
+
+  if (error) throw error;
+
+  return ((data ?? []) as Array<{
+    id: string;
+    collection_id: string;
+    product_id: string;
+    added_at?: string | null;
+    catalog_products:
+      | Pick<CatalogProductRow, "id" | "title" | "suggested_price" | "images">
+      | Array<Pick<CatalogProductRow, "id" | "title" | "suggested_price" | "images">>
+      | null;
+  }>)
+    .filter((item) => Boolean(item.catalog_products))
+    .map((item) => {
+      const product = Array.isArray(item.catalog_products) ? item.catalog_products[0] : item.catalog_products;
+      if (!product) return null;
+
+      const [image] = getProductImages(product.images);
+
+      return {
+        id: item.id,
+        collectionId: item.collection_id,
+        productId: item.product_id,
+        title: product.title,
+        price: product.suggested_price,
+        image: image ?? null,
+        addedAt: item.added_at ?? null,
+      };
+    })
+    .filter((item): item is CollectionProductItem => Boolean(item));
 };
 
 export const listCollectionsWithSummaries = async (userId: string): Promise<CollectionSummary[]> => {
