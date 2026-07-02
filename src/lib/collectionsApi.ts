@@ -154,9 +154,11 @@ export const listCollectionCategories = async (): Promise<string[]> => {
 
   if (error) throw error;
 
-  const categories = (data ?? [])
-    .map((item) => (item as { category?: string | null }).category)
-    .filter((category): category is string => typeof category === "string" && category.trim().length > 0);
+  const categories: string[] = [];
+  for (const item of data ?? []) {
+    const cat = (item as { category?: string | null }).category;
+    if (typeof cat === "string" && cat.trim().length > 0) categories.push(cat);
+  }
   return Array.from(new Set(categories)).slice(0, 8);
 };
 
