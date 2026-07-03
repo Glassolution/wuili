@@ -259,12 +259,154 @@ serve(async (req) => {
 
     const ids = (data ?? []).map((r) => r.id as string);
 
+    // --------- Enriquecimento: análise do produto principal ---------
+    let produto: Record<string, unknown> | null = null;
+    let analise: Record<string, unknown> | null = null;
+    let mensagem = filters.resposta_chat;
+
+    if (ids.length > 0) {
+      const topId = ids[0];
+      const { data: topProd } = await supabase
+        .from("catalog_products")
+        .select(
+          "id, title, category, cost_price, suggested_price, margin_percent, orders_count, images, product_url",
+        )
+        .eq("id", topId)
+        .maybeSingle();
+
+      if (topProd) {
+        const imgs = Array.isArray(topProd.images)
+          ? (topProd.images as unknown[])
+          : typeof topProd.images === "string"
+          ? (() => { try { return JSON.parse(topProd.images as string); } catch { return []; } })()
+          : [];
+        const imagem_url = Array.isArray(imgs) && imgs.length > 0 ? String(imgs[0]) : "";
+
+        produto = {
+          id: topProd.id,
+          nome: topProd.title ?? "Produto",
+          categoria: topProd.category ?? "Geral",
+          preco: Number(topProd.suggested_price ?? topProd.cost_price ?? 0),
+          imagem_url,
+          catalogo_url: `/dashboard/catalogo/${topProd.id}`,
+          fornecedor_url: topProd.product_url ?? "",
+        };
+
+        // Média da categoria para comparar margem
+        let avgMargin: number | null = null;
+        if (topProd.category) {
+          const { data: catAvg } = await supabase
+            .from("catalog_products")
+            .select("margin_percent")
+            .eq("category", topProd.category)
+            .eq("is_blocked", false)
+            .gt("stock_quantity", 0)
+            .not("margin_percent", "is", null)
+            .limit(200);
+          if (catAvg && catAvg.length > 0) {
+            const nums = catAvg
+              .map((r: { margin_percent: number | null }) => Number(r.margin_percent))
+              .filter((n) => Number.isFinite(n));
+            if (nums.length) avgMargin = nums.reduce((a, b) => a + b, 0) / nums.length;
+          }
+        }
+
+        const marginPct = Number(topProd.margin_percent ?? 0);
+        const orders = Number(topProd.orders_count ?? 0);
+
+        let margemTxt = "Margem em linha com a média da categoria.";
+        if (avgMargin !== null) {
+          if (marginPct >= avgMargin * 1.15) margemTxt = `Margem de ${marginPct.toFixed(0)}% — acima da média da categoria (${avgMargin.toFixed(0)}%).`;
+          else if (marginPct <= avgMargin * 0.85) margemTxt = `Margem de ${marginPct.toFixed(0)}% — abaixo da média da categoria (${avgMargin.toFixed(0)}%).`;
+          else margemTxt = `Margem de ${marginPct.toFixed(0)}% — em linha com a média da categoria (${avgMargin.toFixed(0)}%).`;
+        } else if (marginPct > 0) {
+          margemTxt = `Margem de ${marginPct.toFixed(0)}%.`;
+        }
+
+        let demandaTxt = "Demanda ainda incerta — poucos dados de vendas.";
+        if (orders >= 500) demandaTxt = `Alta procura: ${orders} pedidos registrados na fonte.`;
+        else if (orders >= 100) demandaTxt = `Procura média: ${orders} pedidos registrados.`;
+        else if (orders > 0) demandaTxt = `Procura baixa: apenas ${orders} pedidos registrados.`;
+
+        // Potencial viral + facilidade de venda via IA (curto, JSON)
+        let viralTxt = "Potencial de conteúdo depende de bom vídeo demonstrativo.";
+        let facilidadeTxt = "Concorrência moderada; preço acessível ajuda no giro.";
+        let recomendacao: "bom" | "mediano" | "ruim" = "mediano";
+
+        if (apiKey) {
+          try {
+            const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "google/gemini-3-flash-preview",
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "Você avalia produtos de dropshipping BR. Responda APENAS JSON válido com as chaves potencial_viral (string curta), facilidade_venda (string curta), recomendacao ('bom'|'mediano'|'ruim').",
+                  },
+                  {
+                    role: "user",
+                    content: `Produto: ${topProd.title}\nCategoria: ${topProd.category}\nPreço sugerido: R$${Number(topProd.suggested_price ?? 0).toFixed(2)}\nMargem: ${marginPct.toFixed(0)}%\nPedidos: ${orders}\nAvalie potencial em vídeos curtos (TikTok/Reels) e facilidade de venda.`,
+                  },
+                ],
+              }),
+            });
+            if (aiResp.ok) {
+              const j = await aiResp.json();
+              const raw = String(j?.choices?.[0]?.message?.content ?? "");
+              const m = raw.match(/\{[\s\S]*\}/);
+              if (m) {
+                const parsed = JSON.parse(m[0]);
+                if (typeof parsed.potencial_viral === "string") viralTxt = parsed.potencial_viral;
+                if (typeof parsed.facilidade_venda === "string") facilidadeTxt = parsed.facilidade_venda;
+                if (parsed.recomendacao === "bom" || parsed.recomendacao === "mediano" || parsed.recomendacao === "ruim") {
+                  recomendacao = parsed.recomendacao;
+                }
+              }
+            }
+          } catch (e) {
+            console.error("analise IA falhou", e);
+          }
+        }
+
+        // Heurística de fallback para recomendação
+        if (!apiKey) {
+          const scoreMargin = avgMargin !== null ? (marginPct >= avgMargin ? 1 : 0) : (marginPct >= 40 ? 1 : 0);
+          const scoreOrders = orders >= 300 ? 1 : orders >= 50 ? 0.5 : 0;
+          const score = scoreMargin + scoreOrders;
+          recomendacao = score >= 1.5 ? "bom" : score >= 0.5 ? "mediano" : "ruim";
+        }
+
+        analise = {
+          margem: margemTxt,
+          demanda: demandaTxt,
+          potencial_viral: viralTxt,
+          facilidade_venda: facilidadeTxt,
+          recomendacao,
+        };
+
+        const veredito = recomendacao === "bom"
+          ? "Vale a pena testar."
+          : recomendacao === "mediano"
+          ? "Vale com ressalvas — teste com verba controlada."
+          : "Não recomendado no momento.";
+        mensagem = `${filters.resposta_chat} ${margemTxt} ${demandaTxt} ${viralTxt} ${facilidadeTxt} ${veredito}`;
+      }
+    }
+
     return new Response(
       JSON.stringify({
+        // contrato novo
+        mensagem,
+        produto,
+        analise,
+        // contrato legado (mantido p/ compatibilidade com o frontend atual)
         ids,
         count: ids.length,
         filters,
-        resposta_chat: filters.resposta_chat,
+        resposta_chat: mensagem,
         used_fallback: usedFallback,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
