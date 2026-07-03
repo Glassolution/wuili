@@ -3,25 +3,18 @@ import { motion } from "framer-motion";
 import {
   Archive,
   ArrowUpRight,
-  Baby,
   CalendarDays,
-  Car,
   Check,
   CircleHelp,
-  Cpu,
   Folder,
   Globe2,
   Grid2X2,
-  Home,
-  Lamp,
-  MoreHorizontal,
-  PawPrint,
   Pencil,
   Plus,
   Search,
   Settings,
-  Shirt,
   SlidersHorizontal,
+  Trash2,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -746,67 +739,67 @@ const CreateCollectionModal = ({
   const [name, setName] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const categoryOptions = [
-    { label: "Outros", Icon: Folder },
-    { label: "Casa", Icon: Home },
-    { label: "Eletrônicos", Icon: Cpu },
-    { label: "Bebê e Infantil", Icon: Baby },
-    { label: "Moda", Icon: Shirt },
-    { label: "Automotivo", Icon: Car },
-    { label: "Decoração", Icon: Lamp },
-    { label: "Pet", Icon: PawPrint },
+    "Outros",
+    "Casa",
+    "Eletrônicos",
+    "Bebê e Infantil",
+    "Moda",
+    "Automotivo",
+    "Decoração",
+    "Pet",
   ];
 
   useEffect(() => {
     if (open) {
       setName("");
-      setCategory(categoryOptions[0].label);
+      setCategory(categoryOptions[0]);
     }
   }, [open]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#303430] px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/45 px-4 backdrop-blur-[14px]">
       <div
-        className="relative w-[90%] max-w-[380px] rounded-[20px] bg-[#2f3230] px-6 py-7 shadow-[0_24px_60px_rgba(0,0,0,0.40)]"
+        className="relative w-full max-w-[390px] rounded-[24px] bg-white px-5 pb-4 pt-5 text-black shadow-[0_18px_60px_rgba(20,24,32,0.14)]"
         style={{ fontFamily: "Inter, system-ui, sans-serif" }}
       >
         <button
           type="button"
           aria-label="Fechar"
           onClick={onClose}
-          className="absolute right-5 top-5 border-0 bg-transparent p-0 text-[#888] transition-colors hover:text-[#999]"
+          className="absolute right-4 top-4 grid h-5 w-5 place-items-center rounded-full border-0 bg-[#F2F2F1] p-0 text-[#9A9A9A] transition-colors hover:bg-[#E9E9E8] hover:text-[#555]"
         >
-          <X className="h-[18px] w-[18px]" strokeWidth={2} />
+          <X className="h-3 w-3" strokeWidth={2} />
         </button>
 
-        <div className="mb-5 grid h-12 w-12 place-items-center rounded-[12px] bg-[#2C2C2E] text-white">
-          <Folder className="h-[22px] w-[22px]" strokeWidth={1.5} />
+        <div className="mx-auto mb-3 grid h-9 w-9 place-items-center">
+          <Folder className="h-7 w-7 text-[#111]" strokeWidth={1.7} />
         </div>
 
-        <h2 className="mb-1 text-[22px] font-bold leading-tight text-white">
+        <h2 className="text-center text-[18px] font-bold leading-tight tracking-normal text-black">
           Criar coleção
         </h2>
-        <p className="mb-6 text-[13px] font-normal leading-[1.5] text-[#9e9e9e]">
-          Organize produtos do catálogo Velo em uma vitrine.
+        <p className="mx-auto mt-1 max-w-[250px] text-center text-[11px] font-medium leading-[1.35] text-[#8A8A8A]">
+          Nomeie uma vitrine para salvar produtos do catálogo Velo.
         </p>
 
-        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#666]">
-          NOME DA COLEÇÃO
+        <label className="mb-1 mt-3 block text-[9px] font-bold uppercase tracking-[0.08em] text-[#A0A0A0]">
+          Nome
         </label>
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
           autoFocus
           placeholder="Ex: Eletrônicos campeões"
-          className="mb-5 w-full rounded-[12px] border border-[#3a3a3a] bg-[#262626] px-[14px] py-[13px] text-[15px] font-normal text-white outline-none transition-shadow placeholder:text-[#8a8a8a] focus:shadow-[0_0_0_2px_#555]"
+          className="h-8 w-full rounded-[13px] border-0 bg-[#F6F6F5] px-3.5 text-[12px] font-semibold text-black outline-none transition-shadow placeholder:font-medium placeholder:text-[#B8B8B8] focus:shadow-[0_0_0_2px_#111]"
         />
 
-        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#666]">
-          CATEGORIA
+        <p className="mb-1 mt-3 text-[9px] font-bold uppercase tracking-[0.08em] text-[#A0A0A0]">
+          Categoria
         </p>
-        <div className="mb-7 space-y-2">
-          {categoryOptions.map(({ label, Icon }) => {
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          {categoryOptions.map((label) => {
             const selected = category === label;
 
             return (
@@ -814,18 +807,13 @@ const CreateCollectionModal = ({
                 key={label}
                 type="button"
                 onClick={() => setCategory(label)}
-                className={`flex w-full items-center gap-2.5 rounded-[12px] border-0 px-3 py-1.5 text-left transition-colors ${
-                  selected ? "bg-[#4f514f]" : "bg-[#282b29] hover:bg-[#303330]"
+                className={`flex h-8 items-center justify-center rounded-[13px] border-0 px-2.5 text-center text-[11px] font-bold leading-tight transition-all ${
+                  selected
+                    ? "bg-[#151515] text-white shadow-[0_14px_28px_rgba(0,0,0,0.18)]"
+                    : "bg-[#F4F4F3] text-[#1D1D1D] hover:bg-[#EDEDEB]"
                 }`}
               >
-                <span
-                  className={`grid h-7 w-7 shrink-0 place-items-center rounded-[8px] ${
-                    selected ? "bg-[#6f726f]" : "bg-[#3b403d]"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 text-[#e8e8e3]" strokeWidth={1.5} />
-                </span>
-                <span className={`text-[13px] font-semibold ${selected ? "text-[#f5f5f0]" : "text-[#b2b6b2]"}`}>
+                <span className="min-w-0 truncate">
                   {label}
                 </span>
               </button>
@@ -833,21 +821,23 @@ const CreateCollectionModal = ({
           })}
         </div>
 
-        <button
-          type="button"
-          disabled={!name.trim() || creating}
-          onClick={() => onCreate({ name: name.trim(), category })}
-          className="mb-2.5 inline-flex h-[50px] w-full cursor-pointer items-center justify-center rounded-[12px] border-0 bg-[#474747] text-[15px] font-semibold text-white transition-colors hover:bg-[#535353] disabled:cursor-not-allowed disabled:bg-[#262626] disabled:text-[#555]"
-        >
-          {creating ? "Criando..." : "Criar coleção"}
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="inline-flex h-10 w-full cursor-pointer items-center justify-center border-0 bg-transparent text-[14px] font-normal text-[#666] transition-colors hover:text-[#999]"
-        >
-          Cancelar
-        </button>
+        <div className="mt-3.5 flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-[#F4F4F3] px-3.5 text-[11px] font-semibold text-[#9A9A9A] transition-colors hover:bg-[#ECECEA] hover:text-[#555]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={!name.trim() || creating}
+            onClick={() => onCreate({ name: name.trim(), category })}
+            className="inline-flex h-8 flex-1 cursor-pointer items-center justify-center rounded-full border-0 bg-[#111] px-4 text-[11.5px] font-bold text-white transition-colors hover:bg-[#242424] disabled:cursor-not-allowed disabled:bg-[#E9E9E7] disabled:text-[#B8B8B8]"
+          >
+            {creating ? "Criando..." : "Criar"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -855,18 +845,24 @@ const CreateCollectionModal = ({
 
 const RenameCollectionModal = ({
   open,
+  collection,
   name,
   saving,
+  deleting,
   onNameChange,
   onClose,
   onSave,
+  onDelete,
 }: {
   open: boolean;
+  collection: CollectionSummary | null;
   name: string;
   saving: boolean;
+  deleting: boolean;
   onNameChange: (name: string) => void;
   onClose: () => void;
   onSave: () => void;
+  onDelete: () => void;
 }) => {
   if (!open) return null;
 
@@ -876,70 +872,106 @@ const RenameCollectionModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 backdrop-blur-sm">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-[360px] rounded-[18px] bg-white p-5 shadow-[0_24px_80px_rgba(0,0,0,0.18)]"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#111]">Editar coleção</h2>
-            <p className="mt-1 text-[13px] font-medium text-[#8A8A8A]">Renomeie sua coleção.</p>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#F7F7F6]/88 px-4 backdrop-blur-[10px]">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.55]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(0,0,0,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.035) 1px, transparent 1px)",
+          backgroundSize: "92px 92px",
+        }}
+      />
+
+      <div className="relative">
+        <div className="absolute -left-10 top-8 flex flex-col gap-2.5">
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#6F6F6F] shadow-[0_10px_22px_rgba(0,0,0,0.11)]">
+            <Pencil className="h-3 w-3" strokeWidth={2.2} />
+          </span>
           <button
             type="button"
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-full text-[#777] transition-colors hover:bg-[#F5F5F4] hover:text-[#111]"
-            aria-label="Fechar"
+            onClick={onDelete}
+            disabled={deleting || saving}
+            className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#B42318] shadow-[0_10px_22px_rgba(0,0,0,0.11)] transition-transform hover:scale-105 disabled:cursor-wait disabled:opacity-50"
+            aria-label="Excluir coleção"
           >
-            <X className="h-4 w-4" strokeWidth={2} />
+            <Trash2 className="h-3 w-3" strokeWidth={2.2} />
           </button>
         </div>
 
-        <label className="mt-5 block text-[12px] font-semibold text-[#777]" htmlFor="collection-rename">
-          Nome da coleção
-        </label>
-        <input
-          id="collection-rename"
-          value={name}
-          onChange={(event) => onNameChange(event.target.value)}
-          autoFocus
-          className="mt-2 h-11 w-full rounded-[12px] border border-[#E5E5E5] bg-[#FAFAF9] px-3 text-[14px] font-medium text-[#111] outline-none transition-colors placeholder:text-[#B0B0B0] focus:border-[#111] focus:bg-white"
-          placeholder="Nome da coleção"
-        />
-
-        <button
-          type="submit"
-          disabled={!name.trim() || saving}
-          className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#111111] text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+        <form
+          onSubmit={handleSubmit}
+          className="relative w-[280px] rounded-[16px] bg-white px-5 pb-4 pt-5 shadow-[0_18px_46px_rgba(21,24,30,0.12)]"
         >
-          {saving ? "Salvando..." : "Salvar"}
-        </button>
-      </form>
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3.5 top-3.5 grid h-6 w-6 place-items-center rounded-full text-[#9B9B9B] transition-colors hover:bg-[#F4F4F3] hover:text-[#111]"
+            aria-label="Fechar"
+          >
+            <X className="h-3 w-3" strokeWidth={2.1} />
+          </button>
+
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-[linear-gradient(145deg,#F4F4F3,#E7E7E4)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_8px_18px_rgba(0,0,0,0.07)]">
+            <Folder className="h-5 w-5 text-[#111]" strokeWidth={1.8} />
+          </div>
+
+          <label className="mt-4 block text-[9px] font-bold uppercase tracking-[0.12em] text-[#A0A0A0]" htmlFor="collection-rename">
+            Nome da coleção
+          </label>
+          <input
+            id="collection-rename"
+            value={name}
+            onChange={(event) => onNameChange(event.target.value)}
+            autoFocus
+            className="mt-1.5 h-9 w-full rounded-[11px] border border-transparent bg-[#F6F6F5] px-3 text-[16px] font-semibold tracking-[-0.035em] text-[#111] outline-none transition-all placeholder:text-[#B0B0B0] focus:border-[#111] focus:bg-white"
+            placeholder="Nome"
+          />
+
+          <div className="mt-4 grid grid-cols-[1fr_auto] gap-x-6 gap-y-1.5 text-[12px] leading-none">
+            <span className="font-medium text-[#8A8A8A]">Categoria</span>
+            <strong className="text-right font-semibold text-[#111]">{collection?.category ?? "Outros"}</strong>
+            <span className="font-medium text-[#8A8A8A]">Produtos</span>
+            <strong className="text-right font-semibold text-[#111]">{collection?.productCount ?? 0}</strong>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              type="submit"
+              disabled={!name.trim() || saving || deleting}
+              className="inline-flex h-8 items-center justify-center rounded-full bg-[#111] px-3.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {saving ? "Salvando..." : "Salvar"}
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={deleting || saving}
+              className="inline-flex h-8 items-center justify-center rounded-full bg-[#F4F4F3] px-3.5 text-[12px] font-semibold text-[#B42318] transition-colors hover:bg-[#FFF1F0] disabled:cursor-wait disabled:opacity-50"
+            >
+              {deleting ? "Excluindo..." : "Excluir"}
+            </button>
+          </div>
+        </form>
+
+        <div className="mx-auto h-4 w-[210px] rounded-b-[16px] bg-white/72 shadow-[0_14px_28px_rgba(21,24,30,0.08)]" />
+      </div>
     </div>
   );
 };
 
 const CollectionDashboardCard = ({
   collection,
-  deleting,
   expanded,
-  menuOpen,
   onToggleExpanded,
-  onToggleMenu,
   onAddProducts,
   onEdit,
-  onDelete,
 }: {
   collection: CollectionSummary;
-  deleting: boolean;
   expanded: boolean;
-  menuOpen: boolean;
   onToggleExpanded: () => void;
-  onToggleMenu: () => void;
   onAddProducts: () => void;
   onEdit: () => void;
-  onDelete: () => void;
 }) => {
   const collectionDescription = collection.category
     ? `Organize produtos da categoria ${collection.category.toLowerCase()}.`
@@ -993,45 +1025,6 @@ const CollectionDashboardCard = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          aria-label="Opções da coleção"
-          aria-expanded={menuOpen}
-          disabled={deleting}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleMenu();
-          }}
-          className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full text-[#9A9A9A] transition-colors hover:bg-white hover:text-[#111] disabled:cursor-wait disabled:opacity-55"
-        >
-          <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={2.2} />
-        </button>
-
-        {menuOpen ? (
-          <div
-            className="absolute right-3 top-9 z-30 w-[168px] overflow-hidden rounded-[12px] border border-[#E5E5E5] bg-white p-1 text-left shadow-[0_18px_46px_rgba(0,0,0,0.12)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onAddProducts();
-              }}
-              className="flex h-10 w-full items-center rounded-[10px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0]"
-            >
-              Adicionar produtos
-            </button>
-            <button
-              type="button"
-              disabled={deleting}
-              onClick={onDelete}
-              className="flex h-10 w-full items-center rounded-[10px] px-3 text-[13px] font-medium text-[#222] transition-colors hover:bg-[#F3F2F0] disabled:cursor-wait disabled:opacity-55"
-            >
-              Excluir coleção
-            </button>
-          </div>
-        ) : null}
       </div>
 
       <div className="mt-4 min-w-0">
@@ -1267,7 +1260,6 @@ const DashboardHomePage = () => {
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [collectionCategories, setCollectionCategories] = useState<string[]>([]);
-  const [openMenuCollectionId, setOpenMenuCollectionId] = useState<string | null>(null);
   const [collectionKpis, setCollectionKpis] = useState<CollectionKpis>(emptyKpis);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creatingCollection, setCreatingCollection] = useState(false);
@@ -1431,12 +1423,15 @@ const DashboardHomePage = () => {
     const confirmed = window.confirm(`Excluir a coleção "${collection.name}"?`);
     if (!confirmed) return;
 
-    setOpenMenuCollectionId(null);
     setDeletingCollectionId(collection.id);
 
     try {
       await deleteCollection(collection.id);
       if (user?.id) await loadCollectionData(user.id);
+      if (renamingCollection?.id === collection.id) {
+        setRenamingCollection(null);
+        setRenameCollectionName("");
+      }
     } catch {
       veloToast.error("Não foi possível excluir a coleção.");
     } finally {
@@ -1445,7 +1440,6 @@ const DashboardHomePage = () => {
   };
 
   const openRenameCollectionModal = (collection: CollectionSummary) => {
-    setOpenMenuCollectionId(null);
     setRenamingCollection(collection);
     setRenameCollectionName(collection.name);
   };
@@ -1530,14 +1524,12 @@ const DashboardHomePage = () => {
   };
 
   const handleAddProductsToCollection = (collection: CollectionSummary) => {
-    setOpenMenuCollectionId(null);
     navigate(
       `/dashboard/catalogo?collectionId=${encodeURIComponent(collection.id)}&collectionName=${encodeURIComponent(collection.name)}`,
     );
   };
 
   const handleToggleCollectionPanel = (collection: CollectionSummary) => {
-    setOpenMenuCollectionId(null);
     setSelectedCollectionId((current) => (current === collection.id ? null : collection.id));
   };
 
@@ -1602,16 +1594,10 @@ const DashboardHomePage = () => {
                       <CollectionDashboardCard
                         key={collection.id}
                         collection={collection}
-                        deleting={deletingCollectionId === collection.id}
                         expanded={selectedCollectionId === collection.id}
-                        menuOpen={openMenuCollectionId === collection.id}
                         onToggleExpanded={() => handleToggleCollectionPanel(collection)}
-                        onToggleMenu={() =>
-                          setOpenMenuCollectionId((current) => (current === collection.id ? null : collection.id))
-                        }
                         onAddProducts={() => handleAddProductsToCollection(collection)}
                         onEdit={() => openRenameCollectionModal(collection)}
-                        onDelete={() => handleDeleteCollection(collection)}
                       />
                     ))}
                   </div>
@@ -1745,11 +1731,16 @@ const DashboardHomePage = () => {
       />
       <RenameCollectionModal
         open={Boolean(renamingCollection)}
+        collection={renamingCollection}
         name={renameCollectionName}
         saving={savingRename}
+        deleting={Boolean(renamingCollection && deletingCollectionId === renamingCollection.id)}
         onNameChange={setRenameCollectionName}
         onClose={closeRenameCollectionModal}
         onSave={handleRenameCollection}
+        onDelete={() => {
+          if (renamingCollection) void handleDeleteCollection(renamingCollection);
+        }}
       />
     </main>
   );

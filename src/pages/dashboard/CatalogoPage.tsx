@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   ChevronDown,
@@ -887,10 +886,6 @@ const CatalogoPage = () => {
   const selectionCollectionId = searchParams.get("collectionId");
   const selectionCollectionName = searchParams.get("collectionName") || "coleção";
   const isCollectionSelectionMode = Boolean(selectionCollectionId);
-  const [activeSubTab, setActiveSubTab] = useState<"produtos" | "metricas">(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get("tab") === "metricas" ? "metricas" : "produtos";
-  });
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("todos");
   const [currentPage, setCurrentPage] = useState(1);
   const [recommendationIndex, setRecommendationIndex] = useState(0);
@@ -911,71 +906,6 @@ const CatalogoPage = () => {
   const [collectionToggleLoadingId, setCollectionToggleLoadingId] = useState<string | null>(null);
   const [atlasResults, setAtlasResults] = useState<AtlasResults | null>(null);
 
-  const { data: dashboardData } = useQuery({
-    queryKey: ["dashboard-home-wix-data", user?.id],
-    enabled: Boolean(user?.id) && activeSubTab === "metricas",
-    queryFn: async () => {
-      const [publicationsResult, ordersResult, activitiesResult, catalogProductsResult] = await Promise.all([
-        supabase
-          .from("user_publications" as never)
-          .select("id,title,status,created_at,published_at")
-          .eq("user_id", user!.id)
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("orders" as never)
-          .select("id,product_title,sale_price,status,ordered_at,created_at,platform")
-          .eq("user_id", user!.id)
-          .order("created_at", { ascending: false })
-          .limit(80),
-        supabase
-          .from("ai_activity_logs" as never)
-          .select("id,message,created_at")
-          .eq("user_id", user!.id)
-          .order("created_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("catalog_products" as never)
-          .select("category, orders_count, margin_percent")
-          .eq("source", "c7drop")
-          .limit(150),
-      ]);
-
-      if (publicationsResult.error) throw publicationsResult.error;
-      if (ordersResult.error) throw ordersResult.error;
-      if (activitiesResult.error) throw activitiesResult.error;
-      if (catalogProductsResult.error) throw catalogProductsResult.error;
-
-      return {
-        publications: (publicationsResult.data ?? []) as PublicationRow[],
-        orders: (ordersResult.data ?? []) as OrderRow[],
-        activities: (activitiesResult.data ?? []) as ActivityLogRow[],
-        catalogProducts: (catalogProductsResult.data ?? []) as MetricsCatalogProductRow[],
-      };
-    },
-  });
-
-  const publications = dashboardData?.publications ?? [];
-  const orders = dashboardData?.orders ?? [];
-  const activities = dashboardData?.activities ?? [];
-  const catalogProductsForMetrics = dashboardData?.catalogProducts ?? [];
-
-  // Mapeamento e contagem de publicações reais
-  const successCount = publications.filter((item) => ["active", "ativo", "published", "publicado"].includes(String(item.status ?? "").toLowerCase())).length;
-  const failedCount = publications.filter((item) => ["failed", "erro", "error", "falha"].includes(String(item.status ?? "").toLowerCase())).length;
-  const pendingCount = publications.filter((item) => ["pending", "rascunho", "draft", "paused", "pausado", "expired", "expirado"].includes(String(item.status ?? "").toLowerCase())).length;
-  const totalPublications = publications.length;
-
-  const totalRevenue = orders.reduce((sum, order) => sum + toNumber(order.sale_price), 0);
-
-  // MOCK: Estimativa de visitas matemática e coerente baseada em pedidos reais
-  const visits = orders.length > 0 ? orders.length * 45 + 12 : 0;
-  const conversionRate = visits > 0 ? Number(((orders.length / visits) * 100).toFixed(1)) : 0;
-
-  const latestOrder = orders[0];
-  const latestOrderValue = latestOrder ? formatBRL(toNumber(latestOrder.sale_price)) : formatBRL(0);
-  const latestProduct = latestOrder?.product_title || "Nenhuma venda registrada";
-
   // Recebe resultados Atlas vindos de outra página (ex: DashboardHomePage)
   useEffect(() => {
     const incoming = (location.state as { atlasResults?: AtlasResults } | null)?.atlasResults;
@@ -986,14 +916,6 @@ const CatalogoPage = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get("tab") === "metricas") {
-      setActiveSubTab("metricas");
-    }
-  }, [location.search]);
-
 
   const ITEMS_PER_PAGE = 12;
 
@@ -1242,41 +1164,7 @@ const CatalogoPage = () => {
         </div>
       )}
       <section className="min-w-0 overflow-visible">
-        
-        {/* Sub-abas do Catálogo */}
-        <div className="mb-6 border-b border-black/[0.06] flex items-center justify-between pb-3">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setActiveSubTab("produtos")}
-              className={`pb-2 text-[14px] font-bold transition-all relative ${
-                activeSubTab === "produtos"
-                  ? "text-neutral-800"
-                  : "text-neutral-400 hover:text-neutral-600"
-              }`}
-            >
-              Produtos
-              {activeSubTab === "produtos" && (
-                <span className="absolute bottom-[-13px] left-0 right-0 h-[2px] bg-neutral-800 rounded-full" />
-              )}
-            </button>
-            <button
-              onClick={() => setActiveSubTab("metricas")}
-              className={`pb-2 text-[14px] font-bold transition-all relative ${
-                activeSubTab === "metricas"
-                  ? "text-neutral-800"
-                  : "text-neutral-400 hover:text-neutral-600"
-              }`}
-            >
-              Métricas do Dashboard
-              {activeSubTab === "metricas" && (
-                <span className="absolute bottom-[-13px] left-0 right-0 h-[2px] bg-neutral-800 rounded-full" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {activeSubTab === "produtos" ? (
-          <>
+        <>
             <div
               ref={filterBarRef}
               className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center"
@@ -1551,67 +1439,7 @@ const CatalogoPage = () => {
                 </form>
               </div>
             </section>
-          </>
-        ) : (
-          /* Aba de Métricas */
-          <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
-            {/* Lado Esquerdo (KPIs + Gráficos) */}
-            <div className="flex-1 space-y-6 w-full min-w-0">
-              {/* LINHA 1: Faixa de KPIs Compactos (Exatamente 4 cards) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <KPICard label="Visualizações" value="5.340" delta="+12.4%" isMock={true} />
-                <KPICard label="Visitas" value={visits > 0 ? visits.toLocaleString("pt-BR") : "0"} delta="+8.2%" isMock={true} />
-                <KPICard label="Pedidos" value={String(orders.length)} delta={orders.length > 0 ? "+15.3%" : "--"} />
-                <KPICard label="Conversão" value={visits > 0 ? `${conversionRate}%` : "—"} delta={conversionRate > 0 ? "+2.1%" : "--"} />
-              </div>
-
-              {/* LINHA 2: Gráfico de Performance Geral + Tráfego por Canal */}
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-2">
-                  <PerformanceGeneralCard orders={orders} />
-                </div>
-                <div>
-                  <TrafficByChannelCard />
-                </div>
-              </div>
-
-              {/* LINHA 3: Análise de Produtos (Bar Chart) + Publicações ML (Donut) */}
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-2">
-                  <ProductAnalysisChartCard catalogProducts={catalogProductsForMetrics} />
-                </div>
-                <div>
-                  <MLPublicationsDonutCard 
-                    success={successCount} 
-                    failed={failedCount} 
-                    pending={pendingCount} 
-                    total={totalPublications} 
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Lado Direito (Drawer de Camada Visualmente Destacada) */}
-            <div className="w-full lg:w-[290px] bg-white border border-black/[0.06] rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02),0_8px_30px_rgba(0,0,0,0.03)] flex flex-col gap-4 shrink-0">
-              <SidebarRecentLogs activities={activities} />
-              <SidebarAtlasSuggestions />
-              <SidebarCustomers />
-              <SidebarDrawerFooter />
-              
-              {/* Última venda secundária */}
-              <section className="rounded-xl border border-black/[0.04] bg-neutral-50 p-4 leading-none">
-                <div className="flex items-center justify-between mb-2 leading-none">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Última venda</span>
-                  <Package className="h-3.5 w-3.5 text-neutral-400" />
-                </div>
-                <strong className="mt-1.5 block text-xl font-bold tracking-tight text-[#111111] leading-none">
-                  {latestOrderValue}
-                </strong>
-                <p className="mt-1.5 text-[10.5px] leading-relaxed text-neutral-400 line-clamp-2">{latestProduct}</p>
-              </section>
-            </div>
-          </div>
-        )}
+        </>
       </section>
     </div>
   );
