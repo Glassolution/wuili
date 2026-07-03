@@ -119,6 +119,7 @@ const ProductScoutAI = ({
     top: 88,
     left: 16,
     width: 620,
+    height: 660,
   });
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -310,12 +311,19 @@ const ProductScoutAI = ({
     if (!open) return;
 
     const updatePanelPosition = () => {
-      const width = Math.min(chatMode ? 620 : 760, window.innerWidth - 32);
+      const sidebar = document.querySelector(".velo-dashboard-sidebar");
+      const sidebarRect = sidebar?.getBoundingClientRect();
+      const contentLeft = sidebarRect && sidebarRect.width > 0 ? Math.max(0, sidebarRect.right) : 0;
+      const availableWidth = Math.max(320, window.innerWidth - contentLeft);
+      const horizontalInset = window.innerWidth < 768 ? 16 : 32;
+      const width = Math.max(320, Math.min(860, availableWidth - horizontalInset));
+      const height = Math.min(660, window.innerHeight - 96);
 
       setPanelPosition({
         top: window.innerWidth < 768 ? 48 : 64,
-        left: Math.max(16, (window.innerWidth - width) / 2),
+        left: contentLeft + Math.max(horizontalInset / 2, (availableWidth - width) / 2),
         width,
+        height,
       });
     };
 
@@ -358,7 +366,7 @@ const ProductScoutAI = ({
     if (!primaryProduct) return null;
 
     return (
-      <div className="mt-3 max-w-[450px] rounded-[18px] border border-white/[0.08] bg-[#202020] p-3 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
+      <div className="mt-3 max-w-[620px] rounded-[18px] border border-white/[0.08] bg-[#202020] p-3 shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
         <div className="flex items-center gap-3">
           <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[14px] bg-white/[0.04]">
             {primaryProduct.image_url ? (
@@ -450,8 +458,8 @@ const ProductScoutAI = ({
     </form>
   );
 
-  const renderAnswerBar = () => (
-    <div className="rounded-[26px] bg-[#2c2c2c] px-3.5 py-3.5 shadow-[0_22px_50px_rgba(0,0,0,0.34)]">
+  const renderAnswerContent = () => (
+    <>
       <div className="flex items-center gap-3 px-1 pb-3">
         {renderAquasAvatar("h-10 w-10", 27)}
         <span className="min-w-0 flex-1 truncate text-[15px] font-medium tracking-[-0.02em] text-white/86">
@@ -492,11 +500,11 @@ const ProductScoutAI = ({
           ))
         )}
       </div>
-    </div>
+    </>
   );
 
-  const renderChatWindow = () => (
-    <div className="flex max-h-[calc(100vh-88px)] min-h-[540px] flex-col overflow-hidden rounded-[26px] border border-white/[0.07] bg-[#171717] shadow-[0_24px_70px_rgba(0,0,0,0.42)]">
+  const renderChatContent = () => (
+    <>
       <div className="flex items-center justify-between border-b border-white/[0.05] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           {renderAquasAvatar("h-9 w-9", 25)}
@@ -611,7 +619,57 @@ const ProductScoutAI = ({
           </div>
         </form>
       </div>
-    </div>
+    </>
+  );
+
+  const renderResponseSurface = () => (
+    <motion.div
+      layout
+      initial={false}
+      animate={{
+        height: chatMode ? panelPosition.height : 128,
+        borderRadius: chatMode ? 28 : 26,
+        backgroundColor: chatMode ? "#171717" : "#2c2c2c",
+        borderColor: chatMode ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0)",
+      }}
+      transition={{
+        height: { duration: 0.78, ease: [0.22, 1, 0.36, 1] },
+        borderRadius: { duration: 0.62, ease: [0.22, 1, 0.36, 1] },
+        backgroundColor: { duration: 0.34, ease: "easeOut" },
+        borderColor: { duration: 0.34, ease: "easeOut" },
+      }}
+      className="relative overflow-hidden border shadow-[0_28px_84px_rgba(0,0,0,0.46)]"
+    >
+      <AnimatePresence initial={false}>
+        {!chatMode && (
+          <motion.div
+            key="aquas-answer-content"
+            className="absolute inset-0 px-3.5 py-3.5"
+            initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -10, filter: "blur(8px)" }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {renderAnswerContent()}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence initial={false}>
+        {chatMode && (
+          <motion.div
+            key="aquas-chat-content"
+            className="absolute inset-0 flex flex-col"
+            initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 8, filter: "blur(8px)" }}
+            transition={{ delay: 0.2, duration: 0.44, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {renderChatContent()}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 
   return (
@@ -648,6 +706,7 @@ const ProductScoutAI = ({
 
                 <motion.div
                   key="atlas-shell"
+                  layout
                   className="fixed z-[120] text-white"
                   style={{
                     top: panelPosition.top,
@@ -655,20 +714,33 @@ const ProductScoutAI = ({
                     width: panelPosition.width,
                     transformOrigin: "top",
                   }}
-                  initial={{ opacity: 0, scaleY: 0.94, y: -8 }}
-                  animate={{ opacity: 1, scaleY: 1, y: 0 }}
-                  exit={{ opacity: 0, scaleY: 0.97, y: -8 }}
-                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  initial={{ opacity: 0, y: -18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -14 }}
+                  transition={{
+                    duration: 0.38,
+                    ease: [0.16, 1, 0.3, 1],
+                    layout: { duration: 0.68, ease: [0.22, 1, 0.36, 1] },
+                  }}
                 >
                   <div className="pointer-events-auto">
-                    {chatMode ? (
-                      renderChatWindow()
-                    ) : (
-                      <div className="flex flex-col gap-3.5">
+                    <div className="flex flex-col gap-3.5">
+                      <motion.div
+                        layout
+                        initial={{ opacity: 0, y: -18, filter: "blur(6px)" }}
+                        animate={{
+                          opacity: chatMode ? 0 : 1,
+                          y: chatMode ? -8 : 0,
+                          filter: chatMode ? "blur(8px)" : "blur(0px)",
+                        }}
+                        transition={{ duration: chatMode ? 0.24 : 0.36, ease: [0.22, 1, 0.36, 1] }}
+                        className={chatMode ? "pointer-events-none" : undefined}
+                        aria-hidden={chatMode}
+                      >
                         {renderQuestionBar()}
-                        {renderAnswerBar()}
-                      </div>
-                    )}
+                      </motion.div>
+                      {renderResponseSurface()}
+                    </div>
                   </div>
                 </motion.div>
               </>
