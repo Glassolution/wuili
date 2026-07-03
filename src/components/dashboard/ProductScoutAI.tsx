@@ -209,7 +209,9 @@ const ProductScoutAI = ({
           .in("id", orderedIds);
 
         if (!dbError && productsData) {
-          const productsById = new Map(productsData.map((product) => [product.id, product]));
+          const productsById = new Map<string, any>(
+            (productsData as any[]).map((product) => [product.id as string, product])
+          );
           fetchedProducts = orderedIds
             .map((productId) => {
               const prodData = productsById.get(productId);
