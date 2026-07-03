@@ -530,8 +530,8 @@ const ProductScoutAI = ({
                 <div
                   className={`whitespace-pre-line rounded-[18px] px-4 py-3 text-[14px] leading-relaxed tracking-[-0.01em] ${
                     msg.role === "user"
-                      ? "bg-white text-[#111]"
-                      : "bg-transparent px-0 py-0 text-white/86"
+                      ? "bg-white/[0.08] text-white"
+                      : "bg-transparent px-0 py-0 text-white/90"
                   }`}
                 >
                   {msg.content}
