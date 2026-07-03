@@ -135,9 +135,10 @@ const fadeUp = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.58, ease: [0.16, 1, 0.3, 1], delay },
+    transition: { duration: 0.58, ease: [0.16, 1, 0.3, 1] as [number, number, number, number], delay },
   }),
-};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any;
 
 const featureCards = [
   {
@@ -287,7 +288,8 @@ const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
   const nextKpis = { ...emptyKpis };
 
   if (ordersResult.status === "fulfilled" && !ordersResult.value.error) {
-    const rows = ordersResult.value.data ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows: any[] = ordersResult.value.data ?? [];
     const revenue = rows.reduce((sum, order) => {
       const rowTotal = order.total_amount ?? order.sale_price * order.quantity;
       return sum + Number(rowTotal || 0);

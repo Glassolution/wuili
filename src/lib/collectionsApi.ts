@@ -154,13 +154,12 @@ export const listCollectionCategories = async (): Promise<string[]> => {
 
   if (error) throw error;
 
-  return Array.from(
-    new Set(
-      (data ?? [])
-        .map((item) => item.category)
-        .filter((category): category is string => Boolean(category?.trim())),
-    ),
-  ).slice(0, 8);
+  const categories: string[] = [];
+  for (const item of data ?? []) {
+    const cat = (item as { category?: string | null }).category;
+    if (typeof cat === "string" && cat.trim().length > 0) categories.push(cat);
+  }
+  return Array.from(new Set(categories)).slice(0, 8);
 };
 
 export const listUserCollectionCategories = async (userId: string): Promise<string[]> => {
