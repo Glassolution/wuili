@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
   ArrowUp,
   Boxes,
   ChevronDown,
+  ExternalLink,
+  Eye,
   Mic,
   PackageSearch,
   Plus,
