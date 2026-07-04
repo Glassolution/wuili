@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Check, QrCode, CreditCard, Copy,
-  CheckCircle2, Loader2,
+  CheckCircle2, HelpCircle, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,10 +15,20 @@ import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFun
 type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
 
-const PLANS_DATA: Record<string, { name: string; price: string; features: string[] }> = {
+type PlanData = {
+  name: string;
+  price: string;
+  description: string;
+  badge?: string;
+  features: string[];
+};
+
+const PLANS_DATA: Record<string, PlanData> = {
   pro: {
     name: "Pro",
     price: "R$ 99,90",
+    description: "Para validar produtos, publicar com segurança e operar com IA sem complexidade.",
+    badge: "Mais escolhido",
     features: [
       "Até 30 produtos publicados",
       "Até 2 marketplaces conectados",
@@ -36,6 +46,8 @@ const PLANS_DATA: Record<string, { name: string; price: string; features: string
   business: {
     name: "Business",
     price: "R$ 149,90",
+    description: "Para quem quer escalar catálogo, automações e análise avançada sem limites.",
+    badge: "Escala",
     features: [
       "Produtos ilimitados",
       "Marketplaces ilimitados",
@@ -65,7 +77,10 @@ const CheckoutPage = () => {
   const [searchParams] = useSearchParams();
 
   const rawPlan = searchParams.get("plan") ?? "pro";
-  const planId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
+  const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
+  const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
+  const [showPaymentStep, setShowPaymentStep] = useState(false);
+  const planId = selectedPlanId;
   const plan = PLANS_DATA[planId];
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("pix");
@@ -89,10 +104,10 @@ const CheckoutPage = () => {
   }, [session, email]);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
+    if (!showPaymentStep || !session?.user?.id) return;
     void markReachedPayment(session.user.id, { route: "/checkout", plan: planId });
     void markAffiliateReachedPayment(session.user.id, PLAN_AMOUNTS[planId] ?? 0);
-  }, [planId, session?.user?.id]);
+  }, [planId, session?.user?.id, showPaymentStep]);
 
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
@@ -225,6 +240,12 @@ const CheckoutPage = () => {
     }
   };
 
+  const startCheckout = (nextPlanId = selectedPlanId) => {
+    setSelectedPlanId(nextPlanId);
+    setShowPaymentStep(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (checkoutState === "success") {
     return (
       <div className="min-h-screen bg-[#F5F6FA] flex items-center justify-center px-4">
@@ -245,6 +266,127 @@ const CheckoutPage = () => {
     );
   }
 
+  if (!showPaymentStep) {
+    const plans = Object.entries(PLANS_DATA);
+
+    return (
+      <div className="min-h-screen overflow-hidden bg-[#0A0A0A] px-4 py-6 font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111] sm:px-6 lg:px-10">
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(255,255,255,0.14),transparent_26%),radial-gradient(circle_at_82%_8%,rgba(180,180,180,0.18),transparent_22%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent_38%)]" />
+        <div className="pointer-events-none fixed inset-0 opacity-[0.055] [background-image:radial-gradient(circle,rgba(255,255,255,0.8)_0.7px,transparent_0.8px)] [background-size:7px_7px]" />
+
+        <div className="relative mx-auto flex min-h-[calc(100vh-48px)] max-w-6xl items-center justify-center">
+          <section className="w-full rounded-[34px] bg-white p-5 shadow-[0_34px_120px_rgba(0,0,0,0.42)] sm:p-7 lg:p-10">
+            <div className="mb-8 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F3F2] text-black transition hover:bg-[#E9E9E7]"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <VeloLogo size="md" variant="dark" />
+              <span className="h-10 w-10" aria-hidden="true" />
+            </div>
+
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="mx-auto mb-3 w-fit rounded-full bg-[#F5F5F4] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#8B8B88]">
+                Planos Velo
+              </p>
+              <h1 className="text-[34px] font-semibold leading-none tracking-[-0.055em] text-black sm:text-[44px]">
+                Escolha o plano para crescer
+              </h1>
+              <p className="mx-auto mt-3 max-w-xl text-[14px] leading-6 text-[#8A8A86]">
+                Antes do pagamento, selecione o plano que combina com o seu momento. O checkout continua seguro via Mercado Pago.
+              </p>
+            </div>
+
+            <div className="mx-auto mt-8 grid max-w-4xl items-stretch gap-4 rounded-[28px] bg-[#F4F3F1] p-3 md:grid-cols-2">
+              {plans.map(([id, currentPlan]) => {
+                const isRecommended = id === "pro";
+
+                return (
+                  <article
+                    key={id}
+                    className={`relative flex min-h-[430px] flex-col rounded-[24px] p-6 transition duration-200 ${
+                      isRecommended
+                        ? "bg-white shadow-[0_18px_60px_rgba(0,0,0,0.10)]"
+                        : "bg-transparent hover:bg-white/60"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                        isRecommended
+                          ? "bg-black text-white"
+                          : "border border-black/12 bg-white text-black"
+                      }`}>
+                        <Check size={18} strokeWidth={2.5} />
+                      </div>
+                      {currentPlan.badge && (
+                        <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                          isRecommended ? "bg-black text-white" : "bg-white/80 text-[#777]"
+                        }`}>
+                          {currentPlan.badge}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-8">
+                      <h2 className="text-[22px] font-semibold tracking-[-0.03em] text-black">{currentPlan.name}</h2>
+                      <p className="mt-1 min-h-[42px] text-[13px] leading-5 text-[#777]">{currentPlan.description}</p>
+                    </div>
+
+                    <div className="mt-7 flex items-end gap-1">
+                      <span className="text-[38px] font-semibold tracking-[-0.06em] text-black">{currentPlan.price}</span>
+                      <span className="pb-2 text-[12px] font-medium text-[#7A7A77]">/mês</span>
+                    </div>
+
+                    <div className="my-6 h-px bg-black/10" />
+
+                    <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.12em] text-[#8A8A86]">Inclui</p>
+                    <ul className="space-y-2.5">
+                      {currentPlan.features.slice(0, 5).map((feature) => (
+                        <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-[#3D3D3A]">
+                          <Check size={14} className="mt-0.5 shrink-0 text-black" strokeWidth={2.4} />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <button
+                      type="button"
+                      onClick={() => startCheckout(id)}
+                      className="mt-auto h-11 w-full rounded-full bg-black px-5 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(0,0,0,0.20)] transition hover:bg-[#1A1A1A]"
+                    >
+                      Assinar {currentPlan.name}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="mx-auto mt-5 max-w-4xl overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_16%_22%,rgba(255,239,164,0.88),transparent_26%),radial-gradient(circle_at_48%_18%,rgba(255,184,229,0.76),transparent_30%),radial-gradient(circle_at_86%_48%,rgba(139,218,255,0.82),transparent_32%),linear-gradient(135deg,#F8F1CB,#F8DDF1_46%,#BDEEFF)] px-6 py-7 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.70),0_18px_50px_rgba(0,0,0,0.08)]">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-black shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
+                <HelpCircle size={24} strokeWidth={2.1} />
+              </div>
+              <p className="mt-4 text-[15px] font-semibold text-black">Não tem certeza de qual plano escolher?</p>
+              <p className="mx-auto mt-1 max-w-md text-[12px] font-medium leading-5 text-black/56">
+                Comece pelo Pro. Você pode ajustar o plano depois sem mudar o fluxo de checkout.
+              </p>
+              <button
+                type="button"
+                onClick={() => startCheckout("pro")}
+                className="mx-auto mt-4 h-10 rounded-full bg-black px-7 text-[12px] font-semibold text-white shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition hover:bg-[#1A1A1A]"
+              >
+                Continuar com Pro
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
       <div className="grid min-h-screen w-full grid-cols-1 lg:grid-cols-2">
@@ -255,7 +397,7 @@ const CheckoutPage = () => {
           <div className="relative w-full max-w-[440px]">
           <div className="mb-12 flex items-center gap-3">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => setShowPaymentStep(false)}
               className="flex h-8 w-8 items-center justify-center rounded-full text-white/42 transition-colors hover:bg-white/[0.06] hover:text-white"
               aria-label="Voltar"
             >
