@@ -297,7 +297,7 @@ const ProductScoutAI = ({
       setChatInput("");
       setCustomPrompt("");
     }
-  }, [busy, chatMessages]);
+  }, [busy, chatMessages, lastSuggestedProducts]);
 
   const handleSendChat = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
