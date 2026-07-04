@@ -1,5 +1,7 @@
-// Atlas Search — interpreta texto livre via Lovable AI (Gemini) e busca
-// produtos reais em catalog_products com suporte a contexto incremental.
+// Atlas/Aquas — assistente conversacional real:
+// - Classifica cada turno como "search" (buscar novo produto) ou "chat" (analisar/discutir o atual).
+// - Em "search", retorna produto + análise estruturada.
+// - Em "chat", responde perguntas do usuário sobre o produto em contexto (nicho, facilidade de venda, alternativas etc.).
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -11,6 +13,8 @@ const corsHeaders = {
 
 const ALLOWED_SOURCES = ["c7drop"];
 const RESULT_LIMIT = 24;
+const AI_MODEL = "google/gemini-3-flash-preview";
+const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 type AtlasFilters = {
   categoria: string | null;
@@ -28,162 +32,191 @@ const DEFAULT_FILTERS: AtlasFilters = {
   resposta_chat: "Encontrei este produto no catálogo para você:",
 };
 
-function extractJson(raw: string): AtlasFilters {
-  const cleaned = raw
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
+type ChatHistoryItem = { role: string; content: string };
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(cleaned);
-  } catch {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) return { ...DEFAULT_FILTERS };
-    try {
-      parsed = JSON.parse(match[0]);
-    } catch {
-      return { ...DEFAULT_FILTERS };
-    }
-  }
-
-  const obj = (parsed ?? {}) as Record<string, unknown>;
-  const ordenar = typeof obj.ordenar_por === "string" ? obj.ordenar_por : null;
-  const validOrdenar: AtlasFilters["ordenar_por"] =
-    ordenar === "margem" || ordenar === "vendas" ||
-    ordenar === "preco_asc" || ordenar === "preco_desc"
-      ? ordenar
-      : null;
-
-  const keywords = Array.isArray(obj.palavras_chave)
-    ? obj.palavras_chave
-        .filter((k): k is string => typeof k === "string" && k.trim().length > 0)
-        .map((k) => k.trim())
-        .slice(0, 8)
-    : [];
-
-  const responseText = typeof obj.resposta_chat === "string" && obj.resposta_chat.trim().length > 0
-    ? obj.resposta_chat.trim()
-    : "Encontrei este produto no catálogo para você:";
-
-  return {
-    categoria:
-      typeof obj.categoria === "string" && obj.categoria.trim().length > 0
-        ? obj.categoria.trim()
-        : null,
-    palavras_chave: keywords,
-    ordenar_por: validOrdenar,
-    estoque_minimo:
-      typeof obj.estoque_minimo === "number" && obj.estoque_minimo > 0
-        ? Math.floor(obj.estoque_minimo)
-        : null,
-    resposta_chat: responseText,
-  };
+function extractJsonObject(raw: string): Record<string, unknown> | null {
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  try { return JSON.parse(cleaned) as Record<string, unknown>; } catch { /* try substring */ }
+  const m = cleaned.match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try { return JSON.parse(m[0]) as Record<string, unknown>; } catch { return null; }
 }
 
-async function inferFiltersWithAI(
-  userText: string,
-  history: Array<{ role: string; content: string }>,
-  apiKey: string,
-): Promise<AtlasFilters | null> {
-  const systemPrompt =
-    `Você é o cérebro de busca do Atlas, o assistente inteligente do catálogo de dropshipping da Velo (português brasileiro).
-Sua tarefa é analisar a conversa entre o usuário e o assistente, e retornar as configurações de busca/filtros adequadas para a última mensagem do usuário, considerando as mensagens anteriores como contexto para refinamento incremental (ex: se o usuário pede "fones" e depois diz "os mais baratos", você deve manter a busca de fone e definir ordenar_por="preco_asc").
-
-Responda APENAS com um JSON válido (sem markdown, sem comentários) no formato:
-{
-  "categoria": string|null,
-  "palavras_chave": string[],
-  "ordenar_por": "margem"|"vendas"|"preco_asc"|"preco_desc"|null,
-  "estoque_minimo": number|null,
-  "resposta_chat": string
-}
-
-Regras para os campos:
-- "categoria": categoria principal identificada (ex: "casa", "eletrônicos", "esporte"), ou null.
-- "palavras_chave": 1 a 6 termos de busca textual relevantes no título/descrição do produto. Refine com base nas preferências anteriores se o usuário estiver continuando a conversa. Se ele mudar de assunto totalmente (ex: "agora quero garrafas"), descarte as palavras-chave antigas.
-- "ordenar_por": "margem" para lucro/margem; "vendas" para popularidade/viralizar; "preco_asc" para barato/menor preço; "preco_desc" para caro/premium; null caso contrário.
-- "estoque_minimo": número se o usuário pedir estoque alto; null caso contrário.
-- "resposta_chat": uma frase de resposta muito curta, profissional e amigável (máximo 150 caracteres) introduzindo a recomendação de forma contextualizada à busca (ex: "Encontrei este fone bluetooth com excelente margem:", "Aqui está o modelo mais barato disponível:").
-
-Responda SOMENTE o JSON.`;
-
-  const messages = [
-    { role: "system", content: systemPrompt },
-  ];
-
-  // Adiciona histórico tratado
-  if (Array.isArray(history)) {
-    for (const msg of history) {
-      if (msg && typeof msg.content === "string") {
-        const role = msg.role === "user" ? "user" : "assistant";
-        messages.push({ role, content: msg.content });
-      }
-    }
-  }
-
-  // Adiciona a mensagem atual
-  messages.push({ role: "user", content: userText });
-
+async function callAI(apiKey: string, messages: Array<{ role: string; content: string }>): Promise<string | null> {
   try {
-    const resp = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: messages,
-        }),
-      },
-    );
-
+    const resp = await fetch(AI_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: AI_MODEL, messages }),
+    });
     if (!resp.ok) {
-      console.error("Lovable AI gateway error", resp.status, await resp.text());
+      console.error("AI gateway error", resp.status, await resp.text());
       return null;
     }
     const data = await resp.json();
     const content = data?.choices?.[0]?.message?.content;
-    if (typeof content !== "string") return null;
-    return extractJson(content);
-  } catch (err) {
-    console.error("AI inference failed", err);
+    return typeof content === "string" ? content : null;
+  } catch (e) {
+    console.error("AI call failed", e);
     return null;
   }
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+// Classifica turno: nova busca vs continuar conversa sobre produto atual.
+async function classifyIntent(
+  apiKey: string,
+  userText: string,
+  history: ChatHistoryItem[],
+  hasCurrentProduct: boolean,
+): Promise<"search" | "chat"> {
+  if (!hasCurrentProduct) return "search";
+
+  const sys = `Você classifica intenção do usuário no assistente Aquas (dropshipping BR).
+Responda APENAS JSON: {"intencao":"search"|"chat"}.
+- "search": usuário quer NOVOS produtos (ex: "me mostre fones", "encontre algo mais barato", "outros produtos", "algo de cozinha", "trocar produto").
+- "chat": usuário quer discutir/analisar o produto atualmente mostrado (ex: "esse é bom pro meu nicho?", "é fácil de vender?", "e a concorrência?", "explica melhor", "vale a pena?", "como divulgar?").`;
+  const messages = [
+    { role: "system", content: sys },
+    ...history.slice(-6).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
+    { role: "user", content: userText },
+  ];
+  const raw = await callAI(apiKey, messages);
+  if (!raw) return "search";
+  const parsed = extractJsonObject(raw);
+  return parsed?.intencao === "chat" ? "chat" : "search";
+}
+
+async function inferFilters(
+  apiKey: string,
+  userText: string,
+  history: ChatHistoryItem[],
+): Promise<AtlasFilters | null> {
+  const systemPrompt = `Você é o cérebro de busca do Aquas (catálogo Velo, PT-BR).
+Analise a conversa e retorne filtros para a última mensagem do usuário, considerando o contexto anterior para refinamento incremental.
+
+Responda APENAS JSON:
+{"categoria":string|null,"palavras_chave":string[],"ordenar_por":"margem"|"vendas"|"preco_asc"|"preco_desc"|null,"estoque_minimo":number|null,"resposta_chat":string}
+
+- palavras_chave: 1-6 termos relevantes ao título/desc; descarte antigos se o usuário mudou de assunto.
+- ordenar_por: "margem"=lucro, "vendas"=viral/popular, "preco_asc"=barato, "preco_desc"=premium.
+- resposta_chat: frase curta (<=150 chars) introduzindo a recomendação.`;
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...history.map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
+    { role: "user", content: userText },
+  ];
+  const raw = await callAI(apiKey, messages);
+  if (!raw) return null;
+  const obj = extractJsonObject(raw) ?? {};
+
+  const ordenar = typeof obj.ordenar_por === "string" ? obj.ordenar_por : null;
+  const validOrdenar: AtlasFilters["ordenar_por"] =
+    ordenar === "margem" || ordenar === "vendas" || ordenar === "preco_asc" || ordenar === "preco_desc"
+      ? ordenar : null;
+  const keywords = Array.isArray(obj.palavras_chave)
+    ? obj.palavras_chave.filter((k): k is string => typeof k === "string" && k.trim().length > 0)
+        .map((k) => k.trim()).slice(0, 8)
+    : [];
+
+  return {
+    categoria: typeof obj.categoria === "string" && obj.categoria.trim().length > 0 ? obj.categoria.trim() : null,
+    palavras_chave: keywords,
+    ordenar_por: validOrdenar,
+    estoque_minimo: typeof obj.estoque_minimo === "number" && obj.estoque_minimo > 0 ? Math.floor(obj.estoque_minimo) : null,
+    resposta_chat: typeof obj.resposta_chat === "string" && obj.resposta_chat.trim().length > 0
+      ? obj.resposta_chat.trim() : "Encontrei este produto no catálogo para você:",
+  };
+}
+
+async function loadProductFull(supabase: ReturnType<typeof createClient>, id: string) {
+  const { data } = await supabase
+    .from("catalog_products")
+    .select("id, title, category, description, cost_price, suggested_price, margin_percent, orders_count, images, product_url, stock_quantity")
+    .eq("id", id)
+    .maybeSingle();
+  return data;
+}
+
+function firstImageOf(images: unknown): string {
+  if (Array.isArray(images) && images.length > 0) return String(images[0] ?? "");
+  if (typeof images === "string") {
+    try {
+      const arr = JSON.parse(images);
+      if (Array.isArray(arr) && arr.length > 0) return String(arr[0] ?? "");
+    } catch { /* ignore */ }
   }
+  return "";
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { query, history } = await req.json().catch(() => ({ query: "", history: [] }));
-    const userText = typeof query === "string" ? query.trim() : "";
+    const body = await req.json().catch(() => ({}));
+    const userText = typeof body?.query === "string" ? body.query.trim() : "";
+    const history: ChatHistoryItem[] = Array.isArray(body?.history) ? body.history : [];
+    const currentProductId: string | null = typeof body?.current_product_id === "string" ? body.current_product_id : null;
 
     if (!userText) {
-      return new Response(
-        JSON.stringify({ error: "missing_query" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "missing_query" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: { persistSession: false },
-    });
-
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false } });
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
+
+    // --- Roteamento por intenção ---
+    const intent = apiKey
+      ? await classifyIntent(apiKey, userText, history, Boolean(currentProductId))
+      : "search";
+
+    // ================= MODO CHAT (discussão sobre produto atual) =================
+    if (intent === "chat" && currentProductId && apiKey) {
+      const prod = await loadProductFull(supabase, currentProductId);
+      if (prod) {
+        const sys = `Você é o Aquas, assistente de dropshipping BR da Velo. Responda em PT-BR, tom direto, útil, sem enrolação (3-6 frases).
+Você está analisando este produto para o usuário:
+- Nome: ${prod.title}
+- Categoria: ${prod.category}
+- Preço sugerido: R$${Number(prod.suggested_price ?? 0).toFixed(2)}
+- Custo: R$${Number(prod.cost_price ?? 0).toFixed(2)}
+- Margem: ${Number(prod.margin_percent ?? 0).toFixed(0)}%
+- Pedidos registrados: ${Number(prod.orders_count ?? 0)}
+- Estoque: ${Number(prod.stock_quantity ?? 0)}
+${prod.description ? `- Descrição: ${String(prod.description).slice(0, 500)}` : ""}
+
+Ao responder, considere:
+- Se serve para o nicho pretendido pelo usuário.
+- Facilidade de venda (concorrência, apelo, preço).
+- Facilidade de uso/entendimento pelo comprador final.
+- Se vale sugerir alternativas melhores no catálogo (apenas mencione, sem inventar produtos).
+Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas peça para reformular como pedido de produto.`;
+        const messages = [
+          { role: "system", content: sys },
+          ...history.slice(-8).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
+          { role: "user", content: userText },
+        ];
+        const raw = await callAI(apiKey, messages);
+        const mensagem = (raw ?? "").trim() || "Posso te ajudar com mais alguma dúvida sobre esse produto?";
+
+        return new Response(JSON.stringify({
+          mode: "chat",
+          mensagem,
+          resposta_chat: mensagem,
+          ids: [],
+          count: 0,
+          used_fallback: false,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    // ================= MODO SEARCH (busca produto novo) =================
     let filters: AtlasFilters | null = null;
     let usedFallback = false;
 
-    if (apiKey) {
-      filters = await inferFiltersWithAI(userText, history, apiKey);
-    }
+    if (apiKey) filters = await inferFilters(apiKey, userText, history);
     if (!filters) {
       usedFallback = true;
       filters = {
@@ -192,7 +225,6 @@ serve(async (req) => {
       };
     }
 
-    // Monta query
     let q = supabase
       .from("catalog_products")
       .select("id")
@@ -200,12 +232,8 @@ serve(async (req) => {
       .eq("is_blocked", false)
       .gt("stock_quantity", filters.estoque_minimo && filters.estoque_minimo > 0 ? filters.estoque_minimo - 1 : 0);
 
-    // Categoria
-    if (filters.categoria) {
-      q = q.ilike("category", `%${filters.categoria}%`);
-    }
+    if (filters.categoria) q = q.ilike("category", `%${filters.categoria}%`);
 
-    // Palavras-chave
     if (filters.palavras_chave.length > 0) {
       const ors = filters.palavras_chave
         .map((kw) => {
@@ -218,27 +246,18 @@ serve(async (req) => {
 
     switch (filters.ordenar_por) {
       case "margem":
-        q = q.order("margin_percent", { ascending: false, nullsFirst: false });
-        break;
+        q = q.order("margin_percent", { ascending: false, nullsFirst: false }); break;
       case "vendas":
-        q = q
-          .order("orders_count", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false });
-        break;
+        q = q.order("orders_count", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }); break;
       case "preco_asc":
-        q = q.gt("cost_price", 0).order("cost_price", { ascending: true, nullsFirst: false });
-        break;
+        q = q.gt("cost_price", 0).order("cost_price", { ascending: true, nullsFirst: false }); break;
       case "preco_desc":
-        q = q.order("cost_price", { ascending: false, nullsFirst: false });
-        break;
+        q = q.order("cost_price", { ascending: false, nullsFirst: false }); break;
       default:
-        q = q
-          .order("orders_count", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false });
+        q = q.order("orders_count", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
     }
 
     q = q.limit(RESULT_LIMIT);
-
     let { data, error } = await q;
 
     if (error || !data || data.length === 0) {
@@ -258,30 +277,14 @@ serve(async (req) => {
     }
 
     const ids = (data ?? []).map((r) => r.id as string);
-
-    // --------- Enriquecimento: análise do produto principal ---------
     let produto: Record<string, unknown> | null = null;
     let analise: Record<string, unknown> | null = null;
     let mensagem = filters.resposta_chat;
 
     if (ids.length > 0) {
-      const topId = ids[0];
-      const { data: topProd } = await supabase
-        .from("catalog_products")
-        .select(
-          "id, title, category, cost_price, suggested_price, margin_percent, orders_count, images, product_url",
-        )
-        .eq("id", topId)
-        .maybeSingle();
-
+      const topProd = await loadProductFull(supabase, ids[0]);
       if (topProd) {
-        const imgs = Array.isArray(topProd.images)
-          ? (topProd.images as unknown[])
-          : typeof topProd.images === "string"
-          ? (() => { try { return JSON.parse(topProd.images as string); } catch { return []; } })()
-          : [];
-        const imagem_url = Array.isArray(imgs) && imgs.length > 0 ? String(imgs[0]) : "";
-
+        const imagem_url = firstImageOf(topProd.images);
         produto = {
           id: topProd.id,
           nome: topProd.title ?? "Produto",
@@ -292,130 +295,78 @@ serve(async (req) => {
           fornecedor_url: topProd.product_url ?? "",
         };
 
-        // Média da categoria para comparar margem
+        const marginPct = Number(topProd.margin_percent ?? 0);
+        const orders = Number(topProd.orders_count ?? 0);
+
+        // Média categoria p/ margem
         let avgMargin: number | null = null;
         if (topProd.category) {
           const { data: catAvg } = await supabase
-            .from("catalog_products")
-            .select("margin_percent")
-            .eq("category", topProd.category)
-            .eq("is_blocked", false)
-            .gt("stock_quantity", 0)
-            .not("margin_percent", "is", null)
-            .limit(200);
+            .from("catalog_products").select("margin_percent")
+            .eq("category", topProd.category).eq("is_blocked", false)
+            .gt("stock_quantity", 0).not("margin_percent", "is", null).limit(200);
           if (catAvg && catAvg.length > 0) {
-            const nums = catAvg
-              .map((r: { margin_percent: number | null }) => Number(r.margin_percent))
+            const nums = catAvg.map((r: { margin_percent: number | null }) => Number(r.margin_percent))
               .filter((n) => Number.isFinite(n));
             if (nums.length) avgMargin = nums.reduce((a, b) => a + b, 0) / nums.length;
           }
         }
 
-        const marginPct = Number(topProd.margin_percent ?? 0);
-        const orders = Number(topProd.orders_count ?? 0);
-
-        let margemTxt = "Margem em linha com a média da categoria.";
+        let margemTxt = marginPct > 0 ? `Margem de ${marginPct.toFixed(0)}%.` : "Margem indefinida.";
         if (avgMargin !== null) {
-          if (marginPct >= avgMargin * 1.15) margemTxt = `Margem de ${marginPct.toFixed(0)}% — acima da média da categoria (${avgMargin.toFixed(0)}%).`;
-          else if (marginPct <= avgMargin * 0.85) margemTxt = `Margem de ${marginPct.toFixed(0)}% — abaixo da média da categoria (${avgMargin.toFixed(0)}%).`;
-          else margemTxt = `Margem de ${marginPct.toFixed(0)}% — em linha com a média da categoria (${avgMargin.toFixed(0)}%).`;
-        } else if (marginPct > 0) {
-          margemTxt = `Margem de ${marginPct.toFixed(0)}%.`;
+          if (marginPct >= avgMargin * 1.15) margemTxt = `Margem ${marginPct.toFixed(0)}% — acima da média (${avgMargin.toFixed(0)}%).`;
+          else if (marginPct <= avgMargin * 0.85) margemTxt = `Margem ${marginPct.toFixed(0)}% — abaixo da média (${avgMargin.toFixed(0)}%).`;
+          else margemTxt = `Margem ${marginPct.toFixed(0)}% — em linha com a média (${avgMargin.toFixed(0)}%).`;
         }
+        let demandaTxt = "Demanda ainda incerta.";
+        if (orders >= 500) demandaTxt = `Alta procura: ${orders} pedidos.`;
+        else if (orders >= 100) demandaTxt = `Procura média: ${orders} pedidos.`;
+        else if (orders > 0) demandaTxt = `Procura baixa: ${orders} pedidos.`;
 
-        let demandaTxt = "Demanda ainda incerta — poucos dados de vendas.";
-        if (orders >= 500) demandaTxt = `Alta procura: ${orders} pedidos registrados na fonte.`;
-        else if (orders >= 100) demandaTxt = `Procura média: ${orders} pedidos registrados.`;
-        else if (orders > 0) demandaTxt = `Procura baixa: apenas ${orders} pedidos registrados.`;
-
-        // Potencial viral + facilidade de venda via IA (curto, JSON)
         let viralTxt = "Potencial de conteúdo depende de bom vídeo demonstrativo.";
         let facilidadeTxt = "Concorrência moderada; preço acessível ajuda no giro.";
         let recomendacao: "bom" | "mediano" | "ruim" = "mediano";
 
         if (apiKey) {
-          try {
-            const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                model: "google/gemini-3-flash-preview",
-                messages: [
-                  {
-                    role: "system",
-                    content:
-                      "Você avalia produtos de dropshipping BR. Responda APENAS JSON válido com as chaves potencial_viral (string curta), facilidade_venda (string curta), recomendacao ('bom'|'mediano'|'ruim').",
-                  },
-                  {
-                    role: "user",
-                    content: `Produto: ${topProd.title}\nCategoria: ${topProd.category}\nPreço sugerido: R$${Number(topProd.suggested_price ?? 0).toFixed(2)}\nMargem: ${marginPct.toFixed(0)}%\nPedidos: ${orders}\nAvalie potencial em vídeos curtos (TikTok/Reels) e facilidade de venda.`,
-                  },
-                ],
-              }),
-            });
-            if (aiResp.ok) {
-              const j = await aiResp.json();
-              const raw = String(j?.choices?.[0]?.message?.content ?? "");
-              const m = raw.match(/\{[\s\S]*\}/);
-              if (m) {
-                const parsed = JSON.parse(m[0]);
-                if (typeof parsed.potencial_viral === "string") viralTxt = parsed.potencial_viral;
-                if (typeof parsed.facilidade_venda === "string") facilidadeTxt = parsed.facilidade_venda;
-                if (parsed.recomendacao === "bom" || parsed.recomendacao === "mediano" || parsed.recomendacao === "ruim") {
-                  recomendacao = parsed.recomendacao;
-                }
+          const raw = await callAI(apiKey, [
+            { role: "system", content: "Avalie produto dropshipping BR. Responda APENAS JSON: {\"potencial_viral\":string,\"facilidade_venda\":string,\"recomendacao\":\"bom\"|\"mediano\"|\"ruim\"}." },
+            { role: "user", content: `Produto: ${topProd.title}\nCategoria: ${topProd.category}\nPreço R$${Number(topProd.suggested_price ?? 0).toFixed(2)}\nMargem ${marginPct.toFixed(0)}%\nPedidos ${orders}` },
+          ]);
+          if (raw) {
+            const parsed = extractJsonObject(raw);
+            if (parsed) {
+              if (typeof parsed.potencial_viral === "string") viralTxt = parsed.potencial_viral;
+              if (typeof parsed.facilidade_venda === "string") facilidadeTxt = parsed.facilidade_venda;
+              if (parsed.recomendacao === "bom" || parsed.recomendacao === "mediano" || parsed.recomendacao === "ruim") {
+                recomendacao = parsed.recomendacao;
               }
             }
-          } catch (e) {
-            console.error("analise IA falhou", e);
           }
+        } else {
+          const s = (avgMargin !== null ? (marginPct >= avgMargin ? 1 : 0) : (marginPct >= 40 ? 1 : 0))
+            + (orders >= 300 ? 1 : orders >= 50 ? 0.5 : 0);
+          recomendacao = s >= 1.5 ? "bom" : s >= 0.5 ? "mediano" : "ruim";
         }
 
-        // Heurística de fallback para recomendação
-        if (!apiKey) {
-          const scoreMargin = avgMargin !== null ? (marginPct >= avgMargin ? 1 : 0) : (marginPct >= 40 ? 1 : 0);
-          const scoreOrders = orders >= 300 ? 1 : orders >= 50 ? 0.5 : 0;
-          const score = scoreMargin + scoreOrders;
-          recomendacao = score >= 1.5 ? "bom" : score >= 0.5 ? "mediano" : "ruim";
-        }
-
-        analise = {
-          margem: margemTxt,
-          demanda: demandaTxt,
-          potencial_viral: viralTxt,
-          facilidade_venda: facilidadeTxt,
-          recomendacao,
-        };
-
-        const veredito = recomendacao === "bom"
-          ? "Vale a pena testar."
-          : recomendacao === "mediano"
-          ? "Vale com ressalvas — teste com verba controlada."
+        analise = { margem: margemTxt, demanda: demandaTxt, potencial_viral: viralTxt, facilidade_venda: facilidadeTxt, recomendacao };
+        const veredito = recomendacao === "bom" ? "Vale a pena testar."
+          : recomendacao === "mediano" ? "Vale com ressalvas — teste com verba controlada."
           : "Não recomendado no momento.";
         mensagem = `${filters.resposta_chat} ${margemTxt} ${demandaTxt} ${viralTxt} ${facilidadeTxt} ${veredito}`;
       }
+    } else {
+      mensagem = "Não encontrei produtos que atendam a esse pedido no catálogo. Quer tentar palavras diferentes?";
     }
 
-    return new Response(
-      JSON.stringify({
-        // contrato novo
-        mensagem,
-        produto,
-        analise,
-        // contrato legado (mantido p/ compatibilidade com o frontend atual)
-        ids,
-        count: ids.length,
-        filters,
-        resposta_chat: mensagem,
-        used_fallback: usedFallback,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({
+      mode: "search",
+      mensagem, produto, analise,
+      ids, count: ids.length, filters,
+      resposta_chat: mensagem, used_fallback: usedFallback,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     console.error("atlas-search error", err);
-    return new Response(
-      JSON.stringify({ error: "internal_error", message: String(err) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ error: "internal_error", message: String(err) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

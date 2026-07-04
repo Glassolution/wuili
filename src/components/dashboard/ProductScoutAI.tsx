@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
   ArrowUp,
   Boxes,
   ChevronDown,
+  ExternalLink,
+  Eye,
   Mic,
   PackageSearch,
   Plus,
@@ -43,6 +46,8 @@ type SuggestedProduct = Product & {
   costPrice: number | null;
   suggestedPrice: number | null;
   stockQuantity: number | null;
+  catalogoUrl: string;
+  fornecedorUrl: string | null;
 };
 
 type PromptOption = {
@@ -183,29 +188,50 @@ const ProductScoutAI = ({
 
     try {
       const startTime = Date.now();
+      const currentProductId = lastSuggestedProducts[0]?.id ?? null;
 
-      // 1. Invoca a Edge Function atlas-search com o contexto incremental da conversa
       const { data, error: invokeError } = await supabase.functions.invoke("atlas-search", {
         body: {
           query: cleanText,
           history: formattedHistory,
+          current_product_id: currentProductId,
         },
       });
 
       if (invokeError) throw invokeError;
 
-      const ids = Array.isArray(data?.ids) ? (data.ids as string[]) : [];
-      const aiResponseText = typeof data?.resposta_chat === "string" && data.resposta_chat.length > 0
-        ? data.resposta_chat
-        : "Selecionei este produto no catálogo para você:";
+      const mode = typeof data?.mode === "string" ? data.mode : "search";
+      const aiResponseText = typeof data?.mensagem === "string" && data.mensagem.length > 0
+        ? data.mensagem
+        : (typeof data?.resposta_chat === "string" && data.resposta_chat.length > 0
+          ? data.resposta_chat
+          : "Ok!");
 
+      // Garante ~750ms de "Thinking"
+      const elapsed = Date.now() - startTime;
+      const delay = Math.max(0, 750 - elapsed);
+      if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+
+      // Modo chat: só responde textualmente, mantém produto atual em contexto
+      if (mode === "chat") {
+        const aiMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: aiResponseText,
+        };
+        setChatMessages((prev) => [...prev, aiMsg]);
+        return;
+      }
+
+      // Modo search: busca produtos e monta card
+      const ids = Array.isArray(data?.ids) ? (data.ids as string[]) : [];
       let fetchedProducts: SuggestedProduct[] = [];
 
       if (ids.length > 0) {
         const orderedIds = ids.filter((id): id is string => typeof id === "string").slice(0, 6);
         const { data: productsData, error: dbError } = await supabase
           .from("catalog_products")
-          .select("id, title, images, cost_price, suggested_price, category, stock_quantity")
+          .select("id, title, images, cost_price, suggested_price, category, stock_quantity, product_url")
           .in("id", orderedIds);
 
         if (!dbError && productsData) {
@@ -236,17 +262,12 @@ const ProductScoutAI = ({
                 costPrice: prodData.cost_price ?? null,
                 suggestedPrice: prodData.suggested_price ?? null,
                 stockQuantity: prodData.stock_quantity ?? null,
-              };
+                catalogoUrl: `/dashboard/catalogo/${prodData.id}`,
+                fornecedorUrl: prodData.product_url ?? null,
+              } as SuggestedProduct;
             })
             .filter((product): product is SuggestedProduct => product !== null);
         }
-      }
-
-      // Garante uma duração visual mínima de 750ms para a animação de "Thinking"
-      const elapsed = Date.now() - startTime;
-      const delay = Math.max(0, 750 - elapsed);
-      if (delay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
       setLastSuggestedProducts(fetchedProducts);
@@ -255,8 +276,8 @@ const ProductScoutAI = ({
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: recommendedProduct 
-          ? aiResponseText 
+        content: recommendedProduct
+          ? aiResponseText
           : "Não encontrei produtos que atendam exatamente a essa solicitação no catálogo. Que tal tentar outras palavras-chave?",
         product: recommendedProduct || undefined,
         products: fetchedProducts,
@@ -276,7 +297,7 @@ const ProductScoutAI = ({
       setChatInput("");
       setCustomPrompt("");
     }
-  }, [busy, chatMessages]);
+  }, [busy, chatMessages, lastSuggestedProducts]);
 
   const handleSendChat = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -395,6 +416,28 @@ const ProductScoutAI = ({
               <span className="shrink-0 text-white/78">{formatPrice(primaryProduct.preco)}</span>
             </div>
           </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Link
+            to={primaryProduct.catalogoUrl}
+            onClick={close}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12.5px] font-semibold tracking-[-0.01em] text-black shadow-[0_6px_16px_rgba(0,0,0,0.22)] transition-transform hover:scale-[1.02]"
+          >
+            <Eye size={14} strokeWidth={1.8} />
+            Ver no catálogo
+          </Link>
+          {primaryProduct.fornecedorUrl ? (
+            <a
+              href={primaryProduct.fornecedorUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/[0.14] bg-white/[0.04] px-3.5 text-[12.5px] font-semibold tracking-[-0.01em] text-white/85 transition-colors hover:bg-white/[0.09] hover:text-white"
+            >
+              <ExternalLink size={14} strokeWidth={1.8} />
+              Ver no fornecedor
+            </a>
+          ) : null}
         </div>
       </div>
     );
