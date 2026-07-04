@@ -33,6 +33,228 @@ const DEFAULT_FILTERS: AtlasFilters = {
 };
 
 type ChatHistoryItem = { role: string; content: string };
+type UserContext = {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+};
+
+type AtlasActionType = "navigate" | "diagnose" | "publish_start" | "publish_complete" | "product_search";
+
+type AtlasAction = {
+  type: AtlasActionType;
+  label: string;
+  path?: string;
+  payload?: Record<string, unknown>;
+  variant?: "primary" | "secondary";
+};
+
+type MlStatus = {
+  connected: boolean;
+  token_valid: boolean;
+  last_sync: string | null;
+};
+
+type PublishRequirements = {
+  has_images: boolean;
+  has_price: boolean;
+  has_stock: boolean;
+  missing: string[];
+};
+
+type CatalogProductFull = {
+  id: string;
+  title: string | null;
+  category: string | null;
+  description: string | null;
+  cost_price: number | null;
+  suggested_price: number | null;
+  margin_percent: number | null;
+  orders_count: number | null;
+  images: unknown;
+  product_url: string | null;
+  stock_quantity: number | null;
+};
+
+type SearchProductRow = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  category: string | null;
+  orders_count: number | null;
+  margin_percent: number | null;
+};
+
+type SupabaseClient = ReturnType<typeof createClient>;
+
+const ROUTE_MAP = [
+  {
+    key: "catalogo",
+    label: "Catálogo",
+    path: "/dashboard/catalogo",
+    description: "Buscar, filtrar, favoritar e abrir produtos do catálogo Velo.",
+    terms: ["catalogo", "produto", "produtos", "buscar", "busca", "c7drop"],
+  },
+  {
+    key: "colecoes",
+    label: "Coleções",
+    path: "/dashboard",
+    description: "Organizar produtos em pastas e coleções dentro do painel inicial.",
+    terms: ["colecao", "colecoes", "pasta", "pastas", "organizar"],
+  },
+  {
+    key: "integracoes",
+    label: "Integrações",
+    path: "/dashboard/configuracoes",
+    description: "Conectar Mercado Livre e revisar integrações da conta.",
+    terms: ["integracao", "integracoes", "mercado livre", "ml", "conectar", "token"],
+  },
+  {
+    key: "assinatura",
+    label: "Assinatura",
+    path: "/checkout",
+    description: "Ver planos, upgrade e assinatura da Velo.",
+    terms: ["assinatura", "plano", "premium", "upgrade", "pagamento", "checkout"],
+  },
+  {
+    key: "metricas",
+    label: "Métricas",
+    path: "/dashboard",
+    description: "Acompanhar visão geral, resultados e indicadores do dashboard.",
+    terms: ["metrica", "metricas", "dashboard", "resultado", "relatorio", "relatorios"],
+  },
+  {
+    key: "publicacoes",
+    label: "Publicações",
+    path: "/dashboard/publicacoes",
+    description: "Ver anúncios e produtos publicados.",
+    terms: ["publicacao", "publicacoes", "anuncio", "anuncios", "publicado", "publicados"],
+  },
+] as const;
+
+const STOPWORDS = new Set([
+  "quero", "queria", "preciso", "procurar", "procuro", "procurando", "buscar", "busca",
+  "busque", "encontre", "encontrar", "achar", "ache", "outro", "outros", "outra", "outras",
+  "produto", "produtos", "item", "itens", "opcao", "opcoes", "para", "sobre", "com", "uma",
+  "uns", "umas", "meu", "minha", "esse", "essa", "isso", "aquele", "aquela", "novo", "nova",
+  "mais", "bom", "boa", "bons", "boas", "catalogo", "vender", "venda",
+]);
+
+function readUserContext(value: unknown): UserContext {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  return {
+    id: typeof record.id === "string" ? record.id : null,
+    name: typeof record.name === "string" ? record.name : null,
+    email: typeof record.email === "string" ? record.email : null,
+  };
+}
+
+function userContextLine(userContext: UserContext) {
+  const safeName = userContext.name?.trim();
+  if (!safeName || safeName.toLowerCase() === "usuario") return "";
+  return `\nUsuário atual: ${safeName}. Use o nome com naturalidade apenas quando fizer sentido, sem repetir em toda resposta.`;
+}
+
+function normalizeText(text: string) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function extractFallbackKeywords(text: string) {
+  const normalized = normalizeText(text);
+  const words = normalized
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 2 && !STOPWORDS.has(word));
+
+  const expanded = new Set(words);
+
+  if (/\b(copa|fifa|mundial|futebol|brasil|selecao)\b/.test(normalized)) {
+    ["copa", "fifa", "mundial", "futebol", "album", "figurinha", "brasil", "bola"].forEach((word) => expanded.add(word));
+  }
+
+  if (/\b(cozinha|casa|louca|prato|organizador)\b/.test(normalized)) {
+    ["cozinha", "casa", "organizador", "prato", "louca"].forEach((word) => expanded.add(word));
+  }
+
+  if (/\b(tiktok|viral|virais|reels|anuncio|anuncios)\b/.test(normalized)) {
+    ["viral", "tiktok", "criativo", "demonstracao"].forEach((word) => expanded.add(word));
+  }
+
+  return Array.from(expanded).slice(0, 8);
+}
+
+function extractProtectedKeywords(text: string) {
+  const normalized = normalizeText(text);
+
+  if (/\b(copa|fifa|mundial|futebol|brasil|selecao)\b/.test(normalized)) {
+    return ["copa", "fifa", "world cup", "mundial", "album", "figurinha", "brasil", "bola"];
+  }
+
+  return [];
+}
+
+function scoreSearchProduct(row: SearchProductRow, keywords: string[]) {
+  const title = normalizeText(row.title ?? "");
+  const description = normalizeText(row.description ?? "");
+  const category = normalizeText(row.category ?? "");
+  const searchable = `${title} ${description} ${category}`;
+  let score = 0;
+
+  keywords.forEach((keyword) => {
+    const cleanKeyword = normalizeText(keyword).trim();
+    if (!cleanKeyword) return;
+
+    if (title.includes(cleanKeyword)) score += 14;
+    if (category.includes(cleanKeyword)) score += 7;
+    if (description.includes(cleanKeyword)) score += 4;
+
+    cleanKeyword.split(/\s+/).forEach((part) => {
+      if (part.length <= 2) return;
+      if (title.includes(part)) score += 4;
+      else if (searchable.includes(part)) score += 1;
+    });
+  });
+
+  return score;
+}
+
+function orderResultsByRelevance(rows: SearchProductRow[], keywords: string[]) {
+  if (keywords.length === 0) return rows;
+
+  return [...rows].sort((a, b) => {
+    const scoreDiff = scoreSearchProduct(b, keywords) - scoreSearchProduct(a, keywords);
+    if (scoreDiff !== 0) return scoreDiff;
+
+    const ordersDiff = Number(b.orders_count ?? 0) - Number(a.orders_count ?? 0);
+    if (ordersDiff !== 0) return ordersDiff;
+
+    return Number(b.margin_percent ?? 0) - Number(a.margin_percent ?? 0);
+  });
+}
+
+function isExplicitSearchRequest(text: string) {
+  const normalized = normalizeText(text);
+  return [
+    /\b(encontre|encontrar|achar|busca|buscar|busque|procure|procurar|descubra|descobrir|mostre|recomende|indique)\b/,
+    /\b(ajuda|ajude|preciso)\b.*\b(achar|encontrar|buscar|procurar|descobrir)\b/,
+    /\b(outro|outros|outra|outras|alternativa|alternativas|trocar|troque|substituir|substitua)\b.*\b(produto|produtos|opcao|opcoes)\b/,
+    /\b(produto|produtos|item|itens|opcao|opcoes)\b.*\b(barato|baratos|margem|viral|virais|estoque|categoria|casa|cozinha|eletronico|eletronicos|moda|pet|bebe|automotivo|decoracao)\b/,
+    /\b(item|itens|produto|produtos|algo|coisa|opcao|opcoes)\s+(de|da|do|para)\s+\w+/,
+  ].some((pattern) => pattern.test(normalized));
+}
+
+function isCasualOrFollowUpChat(text: string) {
+  const normalized = normalizeText(text);
+  return [
+    /\b(oi|ola|opa|e ai|tudo bem|bom dia|boa tarde|boa noite|beleza)\b/,
+    /\b(explica|explique|detalha|detalhe|melhor|vale a pena|compensa|e bom|serve|vender|viraliza|tiktok|reels|anuncio|publico|nicho|margem|preco|concorrencia)\b/,
+  ].some((pattern) => pattern.test(normalized));
+}
 
 function extractJsonObject(raw: string): Record<string, unknown> | null {
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
@@ -70,11 +292,13 @@ async function classifyIntent(
   hasCurrentProduct: boolean,
 ): Promise<"search" | "chat"> {
   if (!hasCurrentProduct) return "search";
+  if (isExplicitSearchRequest(userText)) return "search";
+  if (isCasualOrFollowUpChat(userText) && !isExplicitSearchRequest(userText)) return "chat";
 
   const sys = `Você classifica intenção do usuário no assistente Aquas (dropshipping BR).
 Responda APENAS JSON: {"intencao":"search"|"chat"}.
 - "search": usuário quer NOVOS produtos (ex: "me mostre fones", "encontre algo mais barato", "outros produtos", "algo de cozinha", "trocar produto").
-- "chat": usuário quer discutir/analisar o produto atualmente mostrado (ex: "esse é bom pro meu nicho?", "é fácil de vender?", "e a concorrência?", "explica melhor", "vale a pena?", "como divulgar?").`;
+- "chat": usuário quer discutir/analisar o produto atualmente mostrado ou conversar com o Aquas sem pedir nova busca (ex: "tudo bem?", "esse é bom pro meu nicho?", "é fácil de vender?", "e a concorrência?", "explica melhor", "vale a pena?", "como divulgar?").`;
   const messages = [
     { role: "system", content: sys },
     ...history.slice(-6).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
@@ -90,9 +314,13 @@ async function inferFilters(
   apiKey: string,
   userText: string,
   history: ChatHistoryItem[],
+  userContext: UserContext,
 ): Promise<AtlasFilters | null> {
   const systemPrompt = `Você é o cérebro de busca do Aquas (catálogo Velo, PT-BR).
 Analise a conversa e retorne filtros para a última mensagem do usuário, considerando o contexto anterior para refinamento incremental.
+Você atua como agente pessoal do usuário dentro da Velo: ajuda a descobrir produtos, entender se são vendáveis, orientar publicação no Mercado Livre e explicar onde cada recurso do dashboard fica.${userContextLine(userContext)}
+Fonte de produtos permitida: exclusivamente catálogo Velo alimentado pelo scraper C7Drop. Nunca cite, sugira ou dependa de outra fonte.
+Se o usuário pedir navegação, diagnóstico ou publicação, mantenha filtros simples e deixe as ferramentas do backend criarem ações concretas.
 
 Responda APENAS JSON:
 {"categoria":string|null,"palavras_chave":string[],"ordenar_por":"margem"|"vendas"|"preco_asc"|"preco_desc"|null,"estoque_minimo":number|null,"resposta_chat":string}
@@ -149,6 +377,156 @@ function firstImageOf(images: unknown): string {
   return "";
 }
 
+function getRouteMap() {
+  return ROUTE_MAP.map(({ key, label, path, description }) => ({ key, label, path, description }));
+}
+
+function matchRouteAction(text: string): AtlasAction | null {
+  const normalized = normalizeText(text);
+  const route = ROUTE_MAP.find((item) => item.terms.some((term) => normalized.includes(normalizeText(term))));
+  if (!route) return null;
+
+  return {
+    type: "navigate",
+    label: `Abrir ${route.label}`,
+    path: route.path,
+    payload: { route: route.key, description: route.description },
+  };
+}
+
+function isNavigationRequest(text: string) {
+  const normalized = normalizeText(text);
+  return /\b(onde|como acesso|como abrir|abrir|ir para|me leva|navegar|configuracao|configuracoes|integracao|integracoes|assinatura|plano|colecao|colecoes|publicacoes|metricas|relatorios)\b/.test(normalized);
+}
+
+function isDiagnosisRequest(text: string) {
+  const normalized = normalizeText(text);
+  return /\b(erro|problema|bug|falha|nao consigo|nao publica|nao conecta|token|travou|diagnostico|diagnosticar|ml|mercado livre)\b/.test(normalized);
+}
+
+function isPublishRequest(text: string) {
+  const normalized = normalizeText(text);
+  return /\b(publicar|publicacao|subir anuncio|anunciar|mercado livre|vender agora|colocar a venda)\b/.test(normalized);
+}
+
+async function logAction(
+  supabase: SupabaseClient,
+  userId: string | null | undefined,
+  actionType: AtlasActionType,
+  payload: Record<string, unknown>,
+  conversationId?: string | null,
+) {
+  if (!userId) return;
+  const { error } = await supabase
+    .from("aquas_actions")
+    .insert({
+      user_id: userId,
+      conversation_id: conversationId ?? null,
+      action_type: actionType,
+      payload,
+    });
+
+  if (error) console.warn("aquas_actions log skipped", error.message);
+}
+
+async function getUserMlStatus(supabase: SupabaseClient, userId: string | null | undefined): Promise<MlStatus> {
+  if (!userId) return { connected: false, token_valid: false, last_sync: null };
+
+  const { data, error } = await supabase
+    .from("user_integrations")
+    .select("access_token, expires_at, updated_at, created_at, platform")
+    .eq("user_id", userId)
+    .in("platform", ["mercado_livre", "mercadolivre", "ml"])
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return { connected: false, token_valid: false, last_sync: null };
+
+  const expiresAt = typeof data.expires_at === "string" ? new Date(data.expires_at).getTime() : 0;
+  const hasValidExpiry = Number.isFinite(expiresAt) && expiresAt > Date.now() + 60_000;
+  const connected = Boolean(data.access_token);
+
+  return {
+    connected,
+    token_valid: connected && hasValidExpiry,
+    last_sync: typeof data.updated_at === "string" ? data.updated_at : typeof data.created_at === "string" ? data.created_at : null,
+  };
+}
+
+async function getUserPublishedProducts(supabase: SupabaseClient, userId: string | null | undefined) {
+  if (!userId) return [];
+
+  const { data, error } = await supabase
+    .from("user_publications")
+    .select("id, title, status, price, published_at, permalink")
+    .eq("user_id", userId)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(10);
+
+  if (error) {
+    console.warn("published products unavailable", error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+async function getRecentErrors(_supabase: SupabaseClient, _userId: string | null | undefined, _limit = 5) {
+  return [];
+}
+
+function getPublishRequirements(product: CatalogProductFull): PublishRequirements {
+  const missing: string[] = [];
+  const hasImages = Boolean(firstImageOf(product.images));
+  const hasPrice = Number(product.suggested_price ?? product.cost_price ?? 0) > 0;
+  const hasStock = Number(product.stock_quantity ?? 0) > 0;
+
+  if (!hasImages) missing.push("imagens");
+  if (!hasPrice) missing.push("preço");
+  if (!hasStock) missing.push("estoque");
+
+  return {
+    has_images: hasImages,
+    has_price: hasPrice,
+    has_stock: hasStock,
+    missing,
+  };
+}
+
+function startPublishFlow(product: CatalogProductFull, mlStatus: MlStatus) {
+  const requirements = getPublishRequirements(product);
+
+  if (!mlStatus.connected || !mlStatus.token_valid) {
+    const action: AtlasAction = {
+      type: "navigate",
+      label: "Conectar Mercado Livre",
+      path: "/dashboard/configuracoes",
+      payload: { reason: "ml_disconnected", product_id: product.id },
+    };
+    return { requirements, action, ready: false };
+  }
+
+  if (requirements.missing.length > 0) {
+    const action: AtlasAction = {
+      type: "publish_start",
+      label: "Completar cadastro",
+      path: `/dashboard/catalogo/${product.id}`,
+      payload: { product_id: product.id, missing: requirements.missing },
+    };
+    return { requirements, action, ready: false };
+  }
+
+  const action: AtlasAction = {
+    type: "publish_start",
+    label: "Publicar agora",
+    path: `/dashboard/catalogo/${product.id}`,
+    payload: { product_id: product.id },
+  };
+
+  return { requirements, action, ready: true };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -157,6 +535,13 @@ serve(async (req) => {
     const userText = typeof body?.query === "string" ? body.query.trim() : "";
     const history: ChatHistoryItem[] = Array.isArray(body?.history) ? body.history : [];
     const currentProductId: string | null = typeof body?.current_product_id === "string" ? body.current_product_id : null;
+    const forceMode: "chat" | "search" | null =
+      body?.force_mode === "chat" ? "chat" : body?.force_mode === "search" ? "search" : null;
+    const userContext = readUserContext(body?.user_context);
+    const conversationId = typeof body?.conversation_id === "string" ? body.conversation_id : null;
+    const excludeIds = Array.isArray(body?.exclude_ids)
+      ? body.exclude_ids.filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
+      : [];
 
     if (!userText) {
       return new Response(JSON.stringify({ error: "missing_query" }),
@@ -168,7 +553,108 @@ serve(async (req) => {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
 
     // --- Roteamento por intenção ---
-    const intent = apiKey
+    if (!forceMode && isNavigationRequest(userText)) {
+      const routeAction = matchRouteAction(userText);
+      if (routeAction) {
+        await logAction(supabase, userContext.id, "navigate", {
+          query: userText,
+          route: routeAction.payload,
+        }, conversationId);
+
+        return new Response(JSON.stringify({
+          mode: "navigate",
+          mensagem: `Posso te levar direto para ${routeAction.label.replace(/^Abrir\s+/i, "")}.`,
+          actions: [routeAction],
+          route_map: getRouteMap(),
+          ids: [],
+          count: 0,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    if (!forceMode && !isPublishRequest(userText) && isDiagnosisRequest(userText)) {
+      const [mlStatus, publications, recentErrors] = await Promise.all([
+        getUserMlStatus(supabase, userContext.id),
+        getUserPublishedProducts(supabase, userContext.id),
+        getRecentErrors(supabase, userContext.id, 5),
+      ]);
+      const actions: AtlasAction[] = [];
+
+      if (!mlStatus.connected || !mlStatus.token_valid) {
+        actions.push({
+          type: "navigate",
+          label: "Abrir integrações",
+          path: "/dashboard/configuracoes",
+          payload: { reason: "ml_disconnected" },
+        });
+      } else {
+        actions.push({
+          type: "navigate",
+          label: "Ver publicações",
+          path: "/dashboard/publicacoes",
+          payload: { reason: "check_publications" },
+        });
+      }
+
+      await logAction(supabase, userContext.id, "diagnose", {
+        query: userText,
+        ml_status: mlStatus,
+        publications_count: publications.length,
+        recent_errors_count: recentErrors.length,
+      }, conversationId);
+
+      const statusText = mlStatus.connected && mlStatus.token_valid
+        ? "Sua integração do Mercado Livre parece conectada e com token válido."
+        : "Sua integração do Mercado Livre precisa de atenção antes de publicar com segurança.";
+
+      return new Response(JSON.stringify({
+        mode: "diagnose",
+        mensagem: `${statusText} Encontrei ${publications.length} publicação recente na sua conta. O próximo passo mais seguro é revisar o ponto indicado abaixo.`,
+        actions,
+        ml_status: mlStatus,
+        published_products: publications,
+        recent_errors: recentErrors,
+        ids: [],
+        count: 0,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (!forceMode && isPublishRequest(userText) && currentProductId) {
+      const product = await loadProductFull(supabase, currentProductId);
+      if (product) {
+        const mlStatus = await getUserMlStatus(supabase, userContext.id);
+        const publishFlow = startPublishFlow(product as CatalogProductFull, mlStatus);
+        await logAction(supabase, userContext.id, "publish_start", {
+          query: userText,
+          product_id: currentProductId,
+          requirements: publishFlow.requirements,
+          ready: publishFlow.ready,
+        }, conversationId);
+
+        const missingText = publishFlow.requirements.missing.length > 0
+          ? `Antes disso, falta completar: ${publishFlow.requirements.missing.join(", ")}.`
+          : "O cadastro parece pronto para iniciar o fluxo.";
+        const mlText = mlStatus.connected && mlStatus.token_valid
+          ? "O Mercado Livre está conectado."
+          : "Primeiro conecte o Mercado Livre.";
+
+        return new Response(JSON.stringify({
+          mode: "publish_start",
+          mensagem: `${mlText} ${missingText}`,
+          actions: [publishFlow.action],
+          product_actions: { [currentProductId]: publishFlow.action },
+          publish_requirements: publishFlow.requirements,
+          ids: [currentProductId],
+          count: 1,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    const intent = forceMode === "search"
+      ? "search"
+      : forceMode === "chat" && currentProductId
+      ? "chat"
+      : apiKey
       ? await classifyIntent(apiKey, userText, history, Boolean(currentProductId))
       : "search";
 
@@ -176,7 +662,9 @@ serve(async (req) => {
     if (intent === "chat" && currentProductId && apiKey) {
       const prod = await loadProductFull(supabase, currentProductId);
       if (prod) {
-        const sys = `Você é o Aquas, assistente de dropshipping BR da Velo. Responda em PT-BR, tom direto, útil, sem enrolação (3-6 frases).
+        const sys = `Você é o Aquas, assistente pessoal de dropshipping BR da Velo. Responda em PT-BR, tom direto, útil, sem enrolação (3-6 frases).${userContextLine(userContext)}
+Responsabilidades: orientar navegação no dashboard, diagnosticar problemas, ajudar no fluxo de publicação e descobrir produtos vendáveis.
+Fonte de produtos: somente catálogo Velo via C7Drop. Nunca invente fornecedores, secrets, credenciais ou dados não disponíveis.
 Você está analisando este produto para o usuário:
 - Nome: ${prod.title}
 - Categoria: ${prod.category}
@@ -216,21 +704,38 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
     let filters: AtlasFilters | null = null;
     let usedFallback = false;
 
-    if (apiKey) filters = await inferFilters(apiKey, userText, history);
+    if (apiKey) filters = await inferFilters(apiKey, userText, history, userContext);
     if (!filters) {
       usedFallback = true;
       filters = {
         ...DEFAULT_FILTERS,
-        palavras_chave: userText.split(/\s+/).filter((w) => w.length > 2).slice(0, 4),
+        palavras_chave: extractFallbackKeywords(userText),
       };
+    }
+
+    filters.palavras_chave = filters.palavras_chave
+      .map((word) => normalizeText(word).trim())
+      .filter((word) => word.length > 2 && !STOPWORDS.has(word))
+      .slice(0, 8);
+
+    if (filters.palavras_chave.length === 0) {
+      filters.palavras_chave = extractFallbackKeywords(userText);
+    }
+
+    const protectedKeywords = extractProtectedKeywords(userText);
+    if (protectedKeywords.length > 0) {
+      filters.categoria = null;
+      filters.palavras_chave = Array.from(new Set([...protectedKeywords, ...filters.palavras_chave])).slice(0, 10);
     }
 
     let q = supabase
       .from("catalog_products")
-      .select("id")
+      .select("id, title, description, category, orders_count, margin_percent")
       .in("source", ALLOWED_SOURCES)
       .eq("is_blocked", false)
       .gt("stock_quantity", filters.estoque_minimo && filters.estoque_minimo > 0 ? filters.estoque_minimo - 1 : 0);
+
+    if (excludeIds.length > 0) q = q.not("id", "in", `(${excludeIds.join(",")})`);
 
     if (filters.categoria) q = q.ilike("category", `%${filters.categoria}%`);
 
@@ -265,20 +770,23 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
       const safe = userText.replace(/[%,]/g, " ").trim();
       const fb = await supabase
         .from("catalog_products")
-        .select("id")
+        .select("id, title, description, category, orders_count, margin_percent")
         .in("source", ALLOWED_SOURCES)
         .eq("is_blocked", false)
         .gt("stock_quantity", 0)
-        .or(`title.ilike.%${safe}%,category.ilike.%${safe}%`)
+        .not("id", "in", `(${excludeIds.join(",") || "00000000-0000-0000-0000-000000000000"})`)
+        .or(`title.ilike.%${safe}%,description.ilike.%${safe}%,category.ilike.%${safe}%`)
         .order("orders_count", { ascending: false, nullsFirst: false })
         .limit(RESULT_LIMIT);
       data = fb.data ?? [];
       usedFallback = true;
     }
 
-    const ids = (data ?? []).map((r) => r.id as string);
+    const rankedRows = orderResultsByRelevance((data ?? []) as SearchProductRow[], filters.palavras_chave);
+    const ids = rankedRows.map((r) => r.id);
     let produto: Record<string, unknown> | null = null;
     let analise: Record<string, unknown> | null = null;
+    const productActions: Record<string, AtlasAction> = {};
     let mensagem = filters.resposta_chat;
 
     if (ids.length > 0) {
@@ -294,6 +802,10 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
           catalogo_url: `/dashboard/catalogo/${topProd.id}`,
           fornecedor_url: topProd.product_url ?? "",
         };
+
+        const mlStatus = await getUserMlStatus(supabase, userContext.id);
+        const publishFlow = startPublishFlow(topProd as CatalogProductFull, mlStatus);
+        productActions[topProd.id] = publishFlow.action;
 
         const marginPct = Number(topProd.margin_percent ?? 0);
         const orders = Number(topProd.orders_count ?? 0);
@@ -353,6 +865,14 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
           : recomendacao === "mediano" ? "Vale com ressalvas — teste com verba controlada."
           : "Não recomendado no momento.";
         mensagem = `${filters.resposta_chat} ${margemTxt} ${demandaTxt} ${viralTxt} ${facilidadeTxt} ${veredito}`;
+
+        await logAction(supabase, userContext.id, "product_search", {
+          query: userText,
+          product_id: topProd.id,
+          ids,
+          filters,
+          publish_requirements: publishFlow.requirements,
+        }, conversationId);
       }
     } else {
       mensagem = "Não encontrei produtos que atendam a esse pedido no catálogo. Quer tentar palavras diferentes?";
@@ -361,6 +881,7 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
     return new Response(JSON.stringify({
       mode: "search",
       mensagem, produto, analise,
+      product_actions: productActions,
       ids, count: ids.length, filters,
       resposta_chat: mensagem, used_fallback: usedFallback,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
