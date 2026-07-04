@@ -46,6 +46,8 @@ type SuggestedProduct = Product & {
   costPrice: number | null;
   suggestedPrice: number | null;
   stockQuantity: number | null;
+  catalogoUrl: string;
+  fornecedorUrl: string | null;
 };
 
 type PromptOption = {
