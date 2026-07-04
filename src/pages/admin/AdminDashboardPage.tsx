@@ -138,6 +138,14 @@ type SubscriptionRow = {
   mp_payment_id?: string | null;
 };
 
+const MOCK_ACCOUNT = {
+  userId: "mock-xavier-luis-felipe",
+  name: "Xavier Luis Felipe",
+  email: "xavierluisfelipe12@gmail.com",
+  amount: 7500,
+  createdAt: "2026-07-04T12:00:00.000Z",
+};
+
 const emptyPayload: AdminDashboardPayload = {
   metrics: {
     total_users: 0,
@@ -352,7 +360,19 @@ async function fetchAdminOverviewDevFallback(): Promise<AdminDashboardPayload> {
   const profilesByUser = new Map<string, ProfileRow>();
   for (const profile of profiles) profilesByUser.set(getProfileUserId(profile), profile);
 
-  const paidSubscriptions = (paidGrossSubsRes.data ?? []) as SubscriptionRow[];
+  const paidSubscriptions = [
+    ...((paidGrossSubsRes.data ?? []) as SubscriptionRow[]),
+    {
+      id: "mock-subscription-xavier-luis-felipe",
+      user_id: MOCK_ACCOUNT.userId,
+      plan: "business",
+      amount: MOCK_ACCOUNT.amount,
+      status: "active",
+      created_at: MOCK_ACCOUNT.createdAt,
+      updated_at: MOCK_ACCOUNT.createdAt,
+      mp_payment_id: "mock-mp-xavier-7500",
+    },
+  ];
   const monthlyRevenue = buildMonthlyRevenue(paidSubscriptions);
   const grossRevenue = paidSubscriptions.reduce((sum, subscription) => sum + Number(subscription.amount ?? 0), 0);
   const mrr = ((activeSubsRes.data ?? []) as Array<{ amount: number | null }>).reduce(
@@ -360,13 +380,28 @@ async function fetchAdminOverviewDevFallback(): Promise<AdminDashboardPayload> {
     0
   );
 
-  const transactions = ((transactionsRes.data ?? []) as SubscriptionRow[]).map((subscription) => {
+  const transactionRows = [
+    {
+      id: "mock-subscription-xavier-luis-felipe",
+      user_id: MOCK_ACCOUNT.userId,
+      plan: "business",
+      amount: MOCK_ACCOUNT.amount,
+      status: "active",
+      created_at: MOCK_ACCOUNT.createdAt,
+      updated_at: MOCK_ACCOUNT.createdAt,
+      mp_payment_id: "mock-mp-xavier-7500",
+    },
+    ...((transactionsRes.data ?? []) as SubscriptionRow[]),
+  ];
+
+  const transactions = transactionRows.map((subscription) => {
     const profile = profilesByUser.get(subscription.user_id);
+    const isMockAccount = subscription.user_id === MOCK_ACCOUNT.userId;
     return {
       id: subscription.id,
       user_id: subscription.user_id,
-      user_name: profile?.full_name ?? profile?.display_name ?? profile?.email ?? null,
-      email: profile?.email ?? null,
+      user_name: isMockAccount ? MOCK_ACCOUNT.name : profile?.full_name ?? profile?.display_name ?? profile?.email ?? null,
+      email: isMockAccount ? MOCK_ACCOUNT.email : profile?.email ?? null,
       avatar_url: profile?.avatar_url ?? null,
       plan: subscription.plan,
       amount: Number(subscription.amount ?? 0),
@@ -379,8 +414,8 @@ async function fetchAdminOverviewDevFallback(): Promise<AdminDashboardPayload> {
   return {
     metrics: {
       total_users: totalUsersRes.count ?? 0,
-      paid_users: paidUsersRes.count ?? 0,
-      mrr,
+      paid_users: (paidUsersRes.count ?? 0) + 1,
+      mrr: mrr + MOCK_ACCOUNT.amount,
       total_orders: totalOrdersRes.count ?? 0,
       gross_revenue: grossRevenue,
       growth_rate: calculateGrowth(monthlyRevenue),

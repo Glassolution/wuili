@@ -60,6 +60,14 @@ type UserPlanFilter = "all" | "free" | "pro" | "business";
 type UserSortKey = "id" | "name" | "email" | "created_at" | "status" | "ml_connected" | "orders_count";
 type SortDirection = "asc" | "desc";
 
+const MOCK_ACCOUNT = {
+  userId: "mock-xavier-luis-felipe",
+  name: "Xavier Luis Felipe",
+  email: "xavierluisfelipe12@gmail.com",
+  amount: 7500,
+  createdAt: "2026-07-04T12:00:00.000Z",
+};
+
 const getProfileUserId = (profile: ProfileRow) => profile.user_id ?? profile.id;
 
 async function loadProfiles(): Promise<ProfileRow[]> {
@@ -134,7 +142,7 @@ async function fetchAdminUsersDevFallback(): Promise<AdminUserRow[]> {
     ordersByUser.set(order.user_id, (ordersByUser.get(order.user_id) ?? 0) + 1);
   }
 
-  return profiles.map((profile) => {
+  const rows = profiles.map((profile) => {
     const profileUserId = getProfileUserId(profile);
     const subscription = latestSubByUser.get(profileUserId);
 
@@ -150,9 +158,35 @@ async function fetchAdminUsersDevFallback(): Promise<AdminUserRow[]> {
       orders_count: ordersByUser.get(profileUserId) ?? 0,
     };
   });
+
+  if (!rows.some((row) => row.email?.toLowerCase() === MOCK_ACCOUNT.email)) {
+    rows.unshift({
+      user_id: MOCK_ACCOUNT.userId,
+      name: MOCK_ACCOUNT.name,
+      email: MOCK_ACCOUNT.email,
+      avatar_url: null,
+      plan: "business",
+      subscription_status: "active",
+      created_at: MOCK_ACCOUNT.createdAt,
+      ml_connected: true,
+      orders_count: 0,
+    });
+  }
+
+  return rows;
 }
 
 async function fetchAdminUserDetails(userId: string): Promise<AdminUserDetails> {
+  if (userId === MOCK_ACCOUNT.userId) {
+    return {
+      email: MOCK_ACCOUNT.email,
+      phone: null,
+      total_pago: MOCK_ACCOUNT.amount,
+      total_transacoes: 1,
+      ultima_transacao: MOCK_ACCOUNT.createdAt,
+    };
+  }
+
   const { data, error } = await supabase.functions.invoke("get-user-details", {
     body: { user_id: userId },
   });

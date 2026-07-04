@@ -18,6 +18,7 @@ type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
 type PlanData = {
   name: string;
   price: string;
+  originalPrice?: string;
   description: string;
   badge?: string;
   features: string[];
@@ -46,6 +47,7 @@ const PLANS_DATA: Record<string, PlanData> = {
   business: {
     name: "Business",
     price: "R$ 149,90",
+    originalPrice: "R$ 249,90",
     description: "Para quem quer escalar catálogo, automações e análise avançada sem limites.",
     badge: "Escala",
     features: [
@@ -71,6 +73,44 @@ const PLAN_AMOUNTS: Record<string, number> = {
   business: 149.9,
 };
 
+const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
+  pro: 1079.9,
+  business: 1619.9,
+};
+
+const splitPlanPrice = (price: string) => {
+  const [main, cents = ""] = price.split(",");
+  return { main, cents: cents ? `,${cents}` : "" };
+};
+
+const formatBRL = (value: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+  }).format(value);
+
+const parseBRL = (price: string) => Number(price.replace(/[^\d,]/g, "").replace(",", "."));
+
+const getDisplayPrice = (planId: string, billingCycle: "monthly" | "annual") => {
+  const monthlyAmount = PLAN_AMOUNTS[planId] ?? 0;
+  if (billingCycle === "annual") return formatBRL(ANNUAL_PLAN_AMOUNTS[planId] ?? monthlyAmount * 12 * 0.9);
+  return PLANS_DATA[planId]?.price ?? formatBRL(monthlyAmount);
+};
+
+const getOriginalDisplayPrice = (planId: string, billingCycle: "monthly" | "annual") => {
+  const originalPrice = PLANS_DATA[planId]?.originalPrice;
+  if (!originalPrice) return null;
+  if (billingCycle === "annual") return formatBRL(parseBRL(originalPrice) * 12);
+  return originalPrice;
+};
+
+const getSavingsDisplay = (originalPrice: string | null, currentPrice: string) => {
+  if (!originalPrice) return null;
+  const savings = parseBRL(originalPrice) - parseBRL(currentPrice);
+  return savings > 0 ? formatBRL(savings) : null;
+};
+
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -80,6 +120,7 @@ const CheckoutPage = () => {
   const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
   const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
   const [showPaymentStep, setShowPaymentStep] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const planId = selectedPlanId;
   const plan = PLANS_DATA[planId];
 
@@ -170,12 +211,15 @@ const CheckoutPage = () => {
     try {
       const payload: Record<string, unknown> = {
         plan: planId,
+        billing_cycle: billingCycle,
         payment_method: selectedMethod,
       };
       const referralCode = getReferralCode();
       if (referralCode) {
         payload.affiliate_ref = referralCode;
-        payload.plan_price = PLAN_AMOUNTS[planId] ?? undefined;
+        payload.plan_price = billingCycle === "annual"
+          ? ANNUAL_PLAN_AMOUNTS[planId] ?? (PLAN_AMOUNTS[planId] ?? 0) * 12 * 0.9
+          : PLAN_AMOUNTS[planId] ?? undefined;
       }
 
       if (selectedMethod === "credit_card") {
@@ -270,12 +314,9 @@ const CheckoutPage = () => {
     const plans = Object.entries(PLANS_DATA);
 
     return (
-      <div className="min-h-screen overflow-hidden bg-[#0A0A0A] px-4 py-6 font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111] sm:px-6 lg:px-10">
-        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(255,255,255,0.14),transparent_26%),radial-gradient(circle_at_82%_8%,rgba(180,180,180,0.18),transparent_22%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent_38%)]" />
-        <div className="pointer-events-none fixed inset-0 opacity-[0.055] [background-image:radial-gradient(circle,rgba(255,255,255,0.8)_0.7px,transparent_0.8px)] [background-size:7px_7px]" />
-
-        <div className="relative mx-auto flex min-h-[calc(100vh-48px)] max-w-6xl items-center justify-center">
-          <section className="w-full rounded-[34px] bg-white p-5 shadow-[0_34px_120px_rgba(0,0,0,0.42)] sm:p-7 lg:p-10">
+      <div className="min-h-screen overflow-hidden bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
+        <div className="relative min-h-screen w-full">
+          <section className="min-h-screen w-full bg-white px-4 py-6 sm:px-6 lg:px-10">
             <div className="mb-8 flex items-center justify-between">
               <button
                 type="button"
@@ -285,7 +326,6 @@ const CheckoutPage = () => {
               >
                 <ArrowLeft size={18} />
               </button>
-              <VeloLogo size="md" variant="dark" />
               <span className="h-10 w-10" aria-hidden="true" />
             </div>
 
@@ -293,58 +333,108 @@ const CheckoutPage = () => {
               <p className="mx-auto mb-3 w-fit rounded-full bg-[#F5F5F4] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#8B8B88]">
                 Planos Velo
               </p>
-              <h1 className="text-[34px] font-semibold leading-none tracking-[-0.055em] text-black sm:text-[44px]">
+              <h1 className="text-[34px] font-semibold leading-none tracking-[-0.055em] text-black sm:text-[43px]">
                 Escolha o plano para crescer
               </h1>
               <p className="mx-auto mt-3 max-w-xl text-[14px] leading-6 text-[#8A8A86]">
                 Antes do pagamento, selecione o plano que combina com o seu momento. O checkout continua seguro via Mercado Pago.
               </p>
+              <button
+                type="button"
+                onClick={() => setBillingCycle((current) => (current === "monthly" ? "annual" : "monthly"))}
+                className="mx-auto mt-5 flex w-fit items-center gap-2 p-1 text-[12px] font-semibold text-[#77746F] transition"
+                aria-pressed={billingCycle === "annual"}
+              >
+                <span className={`px-3 leading-8 transition ${billingCycle === "monthly" ? "text-black" : ""}`}>
+                  Mensal
+                </span>
+                <span className="relative h-6 w-11 rounded-full bg-[#DFDEDA] shadow-[inset_0_1px_3px_rgba(0,0,0,0.14)]">
+                  <span
+                    className={`absolute left-1 top-1/2 h-[18px] w-[18px] -translate-y-1/2 rounded-full bg-white shadow-[0_1px_5px_rgba(0,0,0,0.22)] transition-transform duration-200 ${
+                      billingCycle === "annual" ? "translate-x-[18px]" : "translate-x-0"
+                    }`}
+                  />
+                </span>
+                <span className={`px-3 leading-8 transition ${billingCycle === "annual" ? "text-black" : ""}`}>
+                  Anual <span className="ml-1 text-[10px] font-bold text-emerald-600">-10%</span>
+                </span>
+              </button>
             </div>
 
-            <div className="mx-auto mt-8 grid max-w-4xl items-stretch gap-4 rounded-[28px] bg-[#F4F3F1] p-3 md:grid-cols-2">
+            <div className="mx-auto mt-6 grid max-w-4xl items-stretch gap-4 rounded-[36px] bg-[#FAFAF8] p-3 md:grid-cols-2">
               {plans.map(([id, currentPlan]) => {
-                const isRecommended = id === "pro";
+                const isSelected = id === selectedPlanId;
+                const displayPrice = getDisplayPrice(id, billingCycle);
+                const priceParts = splitPlanPrice(displayPrice);
+                const originalPrice = getOriginalDisplayPrice(id, billingCycle);
+                const savings = getSavingsDisplay(originalPrice, displayPrice);
 
                 return (
                   <article
                     key={id}
-                    className={`relative flex min-h-[430px] flex-col rounded-[24px] p-6 transition duration-200 ${
-                      isRecommended
+                    onClick={() => setSelectedPlanId(id)}
+                    className={`relative flex min-h-[420px] cursor-pointer flex-col rounded-[30px] p-5 transition duration-200 ${
+                      isSelected
                         ? "bg-white shadow-[0_18px_60px_rgba(0,0,0,0.10)]"
                         : "bg-transparent hover:bg-white/60"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                        isRecommended
+                        isSelected
                           ? "bg-black text-white"
                           : "border border-black/12 bg-white text-black"
                       }`}>
-                        <Check size={18} strokeWidth={2.5} />
+                        <span className={`h-3 w-3 rounded-full ${isSelected ? "bg-white" : "bg-[#D8D8D4]"}`} />
                       </div>
                       {currentPlan.badge && (
                         <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                          isRecommended ? "bg-black text-white" : "bg-white/80 text-[#777]"
+                          isSelected ? "bg-black text-white" : "bg-white/80 text-[#777]"
                         }`}>
                           {currentPlan.badge}
                         </span>
                       )}
                     </div>
 
-                    <div className="mt-8">
-                      <h2 className="text-[22px] font-semibold tracking-[-0.03em] text-black">{currentPlan.name}</h2>
+                    <div className="mt-6">
+                      <h2 className="text-[24px] font-semibold tracking-[-0.035em] text-black">{currentPlan.name}</h2>
                       <p className="mt-1 min-h-[42px] text-[13px] leading-5 text-[#777]">{currentPlan.description}</p>
                     </div>
 
-                    <div className="mt-7 flex items-end gap-1">
-                      <span className="text-[38px] font-semibold tracking-[-0.06em] text-black">{currentPlan.price}</span>
-                      <span className="pb-2 text-[12px] font-medium text-[#7A7A77]">/mês</span>
+                    <div className="mt-5">
+                      {originalPrice && (
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white">
+                            Oferta aplicada
+                          </span>
+                          <span className="text-[14px] font-semibold text-[#7C7C76]">
+                            De <span className="text-[#8A8A84] line-through decoration-[#555] decoration-2">{originalPrice}</span>
+                          </span>
+                          {savings && (
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-100">
+                              Economize {savings}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-end gap-1">
+                        <span className="text-[38px] font-semibold tracking-[-0.06em] text-black">
+                          {priceParts.main}
+                          <span className="text-[#A8A8A3]">{priceParts.cents}</span>
+                        </span>
+                        <span className="pb-1.5 text-[17px] font-medium text-[#7A7A77]">
+                          {billingCycle === "annual" ? "/ano" : "/mês"}
+                        </span>
+                      </div>
+                      {billingCycle === "annual" && (
+                        <p className="mt-1 text-[12px] font-medium text-[#8A8A86]">10% de desconto no plano anual</p>
+                      )}
                     </div>
 
-                    <div className="my-6 h-px bg-black/10" />
+                    <div className="my-4 h-px bg-black/10" />
 
-                    <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.12em] text-[#8A8A86]">Inclui</p>
-                    <ul className="space-y-2.5">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#8A8A86]">Inclui</p>
+                    <ul className="mb-5 space-y-1.5">
                       {currentPlan.features.slice(0, 5).map((feature) => (
                         <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-[#3D3D3A]">
                           <Check size={14} className="mt-0.5 shrink-0 text-black" strokeWidth={2.4} />
@@ -356,7 +446,7 @@ const CheckoutPage = () => {
                     <button
                       type="button"
                       onClick={() => startCheckout(id)}
-                      className="mt-auto h-11 w-full rounded-full bg-black px-5 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(0,0,0,0.20)] transition hover:bg-[#1A1A1A]"
+                      className="relative isolate mt-auto h-11 w-full overflow-hidden rounded-full bg-black px-5 text-[13px] font-semibold text-white shadow-[0_13px_30px_rgba(0,0,0,0.24),0_0_30px_rgba(96,142,255,0.34),0_0_16px_rgba(244,114,182,0.16)] transition before:absolute before:inset-x-8 before:bottom-0 before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(170,196,255,1),rgba(244,114,182,0.78),transparent)] before:content-[''] hover:bg-[#1A1A1A] hover:shadow-[0_15px_36px_rgba(0,0,0,0.28),0_0_36px_rgba(96,142,255,0.42),0_0_20px_rgba(244,114,182,0.22)]"
                     >
                       Assinar {currentPlan.name}
                     </button>
@@ -376,7 +466,7 @@ const CheckoutPage = () => {
               <button
                 type="button"
                 onClick={() => startCheckout("pro")}
-                className="mx-auto mt-4 h-10 rounded-full bg-black px-7 text-[12px] font-semibold text-white shadow-[0_14px_30px_rgba(0,0,0,0.22)] transition hover:bg-[#1A1A1A]"
+                className="mx-auto mt-4 h-10 rounded-full bg-black px-7 text-[12px] font-semibold text-white shadow-[0_14px_30px_rgba(0,0,0,0.24),0_0_26px_rgba(96,142,255,0.30)] transition hover:bg-[#1A1A1A] hover:shadow-[0_16px_34px_rgba(0,0,0,0.28),0_0_34px_rgba(96,142,255,0.38)]"
               >
                 Continuar com Pro
               </button>
