@@ -417,6 +417,28 @@ const ProductScoutAI = ({
             </div>
           </div>
         </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Link
+            to={primaryProduct.catalogoUrl}
+            onClick={close}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-3.5 text-[12.5px] font-semibold tracking-[-0.01em] text-black shadow-[0_6px_16px_rgba(0,0,0,0.22)] transition-transform hover:scale-[1.02]"
+          >
+            <Eye size={14} strokeWidth={1.8} />
+            Ver no catálogo
+          </Link>
+          {primaryProduct.fornecedorUrl ? (
+            <a
+              href={primaryProduct.fornecedorUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/[0.14] bg-white/[0.04] px-3.5 text-[12.5px] font-semibold tracking-[-0.01em] text-white/85 transition-colors hover:bg-white/[0.09] hover:text-white"
+            >
+              <ExternalLink size={14} strokeWidth={1.8} />
+              Ver no fornecedor
+            </a>
+          ) : null}
+        </div>
       </div>
     );
   };
