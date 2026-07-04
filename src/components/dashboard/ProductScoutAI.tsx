@@ -317,12 +317,14 @@ const ProductScoutAI = ({
       const sidebarRect = sidebar?.getBoundingClientRect();
       const contentLeft = sidebarRect && sidebarRect.width > 0 ? Math.max(0, sidebarRect.right) : 0;
       const availableWidth = Math.max(320, window.innerWidth - contentLeft);
-      const horizontalInset = window.innerWidth < 768 ? 16 : 32;
+      const horizontalInset = window.innerWidth < 768 ? 12 : 32;
       const width = Math.max(320, Math.min(860, availableWidth - horizontalInset));
-      const height = Math.min(660, window.innerHeight - 96);
+      const maxHeight = Math.round(window.innerHeight * 0.8);
+      const height = Math.min(660, maxHeight);
+      const top = window.innerWidth < 768 ? 56 : 80;
 
       setPanelPosition({
-        top: window.innerWidth < 768 ? 48 : 64,
+        top,
         left: contentLeft + Math.max(horizontalInset / 2, (availableWidth - width) / 2),
         width,
         height,
@@ -641,6 +643,7 @@ const ProductScoutAI = ({
         borderColor: { duration: 0.34, ease: "easeOut" },
       }}
       className="relative overflow-hidden border shadow-[0_28px_84px_rgba(0,0,0,0.46)]"
+      style={{ maxHeight: panelPosition.height }}
     >
       <AnimatePresence initial={false}>
         {!chatMode && (
