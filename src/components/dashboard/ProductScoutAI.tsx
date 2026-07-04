@@ -643,6 +643,7 @@ const ProductScoutAI = ({
         borderColor: { duration: 0.34, ease: "easeOut" },
       }}
       className="relative overflow-hidden border shadow-[0_28px_84px_rgba(0,0,0,0.46)]"
+      style={{ maxHeight: panelPosition.height }}
     >
       <AnimatePresence initial={false}>
         {!chatMode && (
