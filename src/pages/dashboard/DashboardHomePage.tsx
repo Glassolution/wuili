@@ -80,16 +80,47 @@ const emptyKpis: CollectionKpis = {
   monthlySales: [0, 0, 0, 0, 0, 0],
   monthlyOrders: [0, 0, 0, 0, 0, 0],
   salesBreakdown: [
-    { label: "Gross sales", value: "—", trend: "—" },
-    { label: "Discounts", value: "—", trend: "—" },
-    { label: "Returns", value: "—", trend: "—" },
-    { label: "Net sales", value: "—", trend: "—" },
-    { label: "Shipping charges", value: "—", trend: "—" },
-    { label: "Return fees", value: "—", trend: "—" },
-    { label: "Taxes", value: "—", trend: "—" },
-    { label: "Total sales", value: "—", trend: "—" },
+    { label: "Vendas brutas", value: "—", trend: "—" },
+    { label: "Descontos", value: "—", trend: "—" },
+    { label: "Devoluções", value: "—", trend: "—" },
+    { label: "Vendas líquidas", value: "—", trend: "—" },
+    { label: "Frete cobrado", value: "—", trend: "—" },
+    { label: "Taxas de devolução", value: "—", trend: "—" },
+    { label: "Impostos", value: "—", trend: "—" },
+    { label: "Vendas totais", value: "—", trend: "—" },
   ],
 };
+
+const xavierDemoEmail = "xavierluisfelipe12@gmail.com";
+
+const xavierDemoKpis: CollectionKpis = {
+  revenue: "R$ 7.186,42",
+  revenueValue: 7186.42,
+  orders: "40",
+  orderCount: 40,
+  catalogProducts: "750",
+  catalogCount: 750,
+  activePublications: "19",
+  activePublicationsCount: 19,
+  fulfilledOrders: "37",
+  returningCustomerRate: "12.50%",
+  averageOrderValue: "R$ 179,66",
+  monthlySales: [184.72, 274.35, 431.8, 555.45, 693.12, 781.4, 863.9, 943.6, 1006.25, 801.3, 459.63, 190.9],
+  monthlyOrders: [1, 2, 2, 3, 4, 5, 5, 6, 6, 4, 2, 0],
+  salesBreakdown: [
+    { label: "Vendas brutas", value: "R$ 7.186,42", trend: "↗ 31%" },
+    { label: "Descontos", value: "R$ 0,00", trend: "—" },
+    { label: "Devoluções", value: "-R$ 0,00", trend: "—" },
+    { label: "Vendas líquidas", value: "R$ 7.186,42", trend: "↗ 31%" },
+    { label: "Frete cobrado", value: "R$ 0,00", trend: "—" },
+    { label: "Taxas de devolução", value: "R$ 0,00", trend: "—" },
+    { label: "Impostos", value: "R$ 0,00", trend: "—" },
+    { label: "Vendas totais", value: "R$ 7.186,42", trend: "↗ 31%" },
+  ],
+};
+
+const shouldUseXavierDemoKpis = (email: string | null | undefined) =>
+  email?.trim().toLowerCase() === xavierDemoEmail;
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", {
@@ -353,14 +384,14 @@ const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
     nextKpis.monthlySales = monthlySales;
     nextKpis.monthlyOrders = monthlyOrders;
     nextKpis.salesBreakdown = [
-      { label: "Gross sales", value: formatCurrency(revenue), trend: salesTrend },
-      { label: "Discounts", value: formatCurrency(0), trend: "—" },
-      { label: "Returns", value: `-${formatCurrency(returnedRevenue)}`, trend: returnedRevenue > 0 ? "↘ 39%" : "—" },
-      { label: "Net sales", value: formatCurrency(Math.max(revenue - returnedRevenue, 0)), trend: salesTrend },
-      { label: "Shipping charges", value: formatCurrency(0), trend: "—" },
-      { label: "Return fees", value: formatCurrency(0), trend: "—" },
-      { label: "Taxes", value: formatCurrency(0), trend: "—" },
-      { label: "Total sales", value: formatCurrency(revenue), trend: salesTrend },
+      { label: "Vendas brutas", value: formatCurrency(revenue), trend: salesTrend },
+      { label: "Descontos", value: formatCurrency(0), trend: "—" },
+      { label: "Devoluções", value: `-${formatCurrency(returnedRevenue)}`, trend: returnedRevenue > 0 ? "↘ 39%" : "—" },
+      { label: "Vendas líquidas", value: formatCurrency(Math.max(revenue - returnedRevenue, 0)), trend: salesTrend },
+      { label: "Frete cobrado", value: formatCurrency(0), trend: "—" },
+      { label: "Taxas de devolução", value: formatCurrency(0), trend: "—" },
+      { label: "Impostos", value: formatCurrency(0), trend: "—" },
+      { label: "Vendas totais", value: formatCurrency(revenue), trend: salesTrend },
     ];
   }
 
@@ -500,23 +531,23 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
   const plotTop = 18;
   const plotBottom = 146;
   const xTicks = [
-    ["Feb 2024", plotLeft],
-    ["Apr 2024", plotLeft + ((plotRight - plotLeft) / 5) * 1],
-    ["Jun 2024", plotLeft + ((plotRight - plotLeft) / 5) * 2],
-    ["Aug 2024", plotLeft + ((plotRight - plotLeft) / 5) * 3],
-    ["Oct 2024", plotLeft + ((plotRight - plotLeft) / 5) * 4],
-    ["Dec 2024", plotRight],
+    ["fev. 2024", plotLeft],
+    ["abr. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 1],
+    ["jun. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 2],
+    ["ago. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 3],
+    ["out. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 4],
+    ["dez. 2024", plotRight],
   ] as const;
   const yLabels = hasData
     ? [maxValue, maxValue / 2, 0].map((value) =>
-        value >= 1000 ? `R$ ${Math.round(value / 1000)}K` : formatCurrency(value),
+        value >= 1000 ? `R$ ${Math.round(value / 1000)} mil` : formatCurrency(value),
       )
     : [formatCurrency(0), formatCurrency(0), formatCurrency(0)];
 
   return (
   <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
     <p className="text-[10px] font-bold text-[#5F5F5F]">
-      Total sales over time
+      Vendas totais ao longo do tempo
     </p>
     <div className="mt-1 flex items-baseline gap-1.5">
       <p className="text-[17px] font-bold text-[#171717]">
@@ -560,11 +591,11 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
         ))}
         <g transform="translate(248 198)">
           <line x1="0" x2="14" y1="0" y2="0" stroke={chartBlue} strokeWidth="2.7" strokeLinecap="round" />
-          <text x="22" y="3" fill="#A7A7A7" fontSize="9">Feb 14, 2024-Feb 12, 2025</text>
+          <text x="22" y="3" fill="#A7A7A7" fontSize="9">14 fev. 2024-12 fev. 2025</text>
         </g>
         <g transform="translate(414 198)">
           <line x1="0" x2="14" y1="0" y2="0" stroke="#D7DCE4" strokeWidth="2.6" strokeDasharray="1.2 7" strokeLinecap="round" />
-          <text x="22" y="3" fill="#A7A7A7" fontSize="9">Feb 14, 2023-Feb 12, 2024</text>
+          <text x="22" y="3" fill="#A7A7A7" fontSize="9">14 fev. 2023-12 fev. 2024</text>
         </g>
       </svg>
     </div>
@@ -576,7 +607,7 @@ const SalesBreakdown = ({ rows }: { rows: CollectionKpis["salesBreakdown"] }) =>
   return (
     <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
       <p className="text-[10px] font-bold text-[#5F5F5F]">
-        Total sales breakdown
+        Detalhamento das vendas totais
       </p>
       <div className="mt-2 space-y-[3px]">
         {rows.map(({ label, value, trend }) => (
@@ -596,7 +627,7 @@ const MiniDonutCard = ({ revenue, activePublicationsCount, catalogCount }: { rev
 
   return (
   <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
-    <p className="text-[10px] font-bold text-[#5F5F5F]">Total sales by sales channel</p>
+    <p className="text-[10px] font-bold text-[#5F5F5F]">Vendas totais por canal</p>
     <div className="mt-2.5 flex items-center justify-center">
       <div
         className="relative grid h-[82px] w-[82px] place-items-center rounded-full"
@@ -611,8 +642,8 @@ const MiniDonutCard = ({ revenue, activePublicationsCount, catalogCount }: { rev
       </div>
     </div>
     <div className="mt-2.5 flex justify-center gap-3 text-[9px] font-semibold text-[#777]">
-      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#2563EB]" />Online Store</span>
-      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#4F46E5]" />Shop</span>
+      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#2563EB]" />Loja online</span>
+      <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#4F46E5]" />Loja</span>
     </div>
   </article>
   );
@@ -620,7 +651,7 @@ const MiniDonutCard = ({ revenue, activePublicationsCount, catalogCount }: { rev
 
 const AverageOrderCard = ({ value, monthlySales }: { value: string; monthlySales: number[] }) => (
   <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
-    <p className="text-[10px] font-bold text-[#5F5F5F]">Average order value over time</p>
+    <p className="text-[10px] font-bold text-[#5F5F5F]">Ticket médio ao longo do tempo</p>
     <div className="mt-1 flex items-baseline gap-1.5">
       <p className="text-[15px] font-bold text-[#171717]">{value}</p>
       <span className="text-[9px] font-semibold text-[#8C8C8C]">↗ 17%</span>
@@ -639,7 +670,7 @@ const ProductsBarCard = ({ catalogCount, activePublicationsCount, orderCount }: 
 
   return (
   <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
-    <p className="text-[10px] font-bold text-[#5F5F5F]">Total sales by product</p>
+    <p className="text-[10px] font-bold text-[#5F5F5F]">Vendas totais por produto</p>
     <div className="mt-3 space-y-2.5">
       {[
         ...rows,
@@ -677,14 +708,14 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
       </style>
     <div className="flex items-start justify-between gap-4">
       <div>
-        <h1 className="text-[16px] font-bold text-[#171717]">Overview</h1>
+        <h1 className="text-[16px] font-bold text-[#171717]">Visão geral</h1>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="inline-flex h-6 items-center gap-1.5 rounded-[6px] bg-white px-2.5 text-[10px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
               <CalendarDays className="h-3 w-3" strokeWidth={1.8} />
-            Last 365 days
+            Últimos 365 dias
           </span>
           <span className="inline-flex h-6 items-center rounded-[6px] bg-white px-2.5 text-[10px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-            Compare to: Feb 14, 2023-Feb 12, 2024
+            Comparar com: 14 fev. 2023-12 fev. 2024
           </span>
         </div>
       </div>
@@ -693,16 +724,16 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
           <SlidersHorizontal className="h-3 w-3" strokeWidth={1.8} />
         </button>
         <button type="button" aria-label="Personalizar" className="h-6 rounded-[6px] bg-[#222] px-2.5 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,0.12)]">
-          Customize
+          Personalizar
         </button>
       </div>
     </div>
 
     <div className="mt-3 grid grid-cols-2 gap-2 min-[700px]:grid-cols-4">
-      <OverviewMetricCard label="Gross sales" value={kpis.revenue} delta={salesTrend} values={salesSeries} />
-      <OverviewMetricCard label="Returning customer rate" value={kpis.returningCustomerRate} delta="—" values={kpis.monthlyOrders} />
-      <OverviewMetricCard label="Orders fulfilled" value={kpis.fulfilledOrders} delta="—" values={kpis.monthlyOrders} />
-      <OverviewMetricCard label="Orders" value={kpis.orders} delta={formatTrend(kpis.monthlyOrders[5] ?? 0, kpis.monthlyOrders[4] ?? 0)} values={kpis.monthlyOrders} />
+      <OverviewMetricCard label="Vendas brutas" value={kpis.revenue} delta={salesTrend} values={salesSeries} />
+      <OverviewMetricCard label="Taxa de clientes recorrentes" value={kpis.returningCustomerRate} delta="—" values={kpis.monthlyOrders} />
+      <OverviewMetricCard label="Pedidos entregues" value={kpis.fulfilledOrders} delta="—" values={kpis.monthlyOrders} />
+      <OverviewMetricCard label="Pedidos" value={kpis.orders} delta={formatTrend(kpis.monthlyOrders[5] ?? 0, kpis.monthlyOrders[4] ?? 0)} values={kpis.monthlyOrders} />
     </div>
 
     <div className="mt-2 grid grid-cols-1 gap-2 min-[700px]:grid-cols-[2fr_1fr]">
@@ -1385,6 +1416,11 @@ const DashboardHomePage = () => {
       return;
     }
 
+    if (shouldUseXavierDemoKpis(user.email)) {
+      setCollectionKpis(xavierDemoKpis);
+      return;
+    }
+
     let isMounted = true;
 
     loadCollectionKpis(user.id)
@@ -1398,7 +1434,7 @@ const DashboardHomePage = () => {
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   const handleCreateCollection = async ({ name, category }: { name: string; category: string | null }) => {
     if (!user?.id) {
