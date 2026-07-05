@@ -289,11 +289,6 @@ const CheckoutPage = () => {
     }
   };
 
-  const startCheckout = (nextPlanId = selectedPlanId) => {
-    setSelectedPlanId(nextPlanId);
-    setShowPaymentStep(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   if (checkoutState === "success") {
     return (
