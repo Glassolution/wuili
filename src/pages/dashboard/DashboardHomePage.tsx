@@ -758,6 +758,70 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
   );
 };
 
+type TrialStatus = {
+  active: boolean;
+  expired?: boolean;
+  dayOfTrial: number;
+  daysTotal: number;
+};
+
+// TODO: substituir por dado real do Supabase (Lovable)
+const mockTrialStatus: TrialStatus = {
+  active: true,
+  expired: false,
+  dayOfTrial: 2,
+  daysTotal: 5,
+};
+
+const TrialStatusBanner = ({
+  trialStatus,
+  onManageSubscription,
+  onUpgradeBusiness,
+}: {
+  trialStatus: TrialStatus;
+  onManageSubscription: () => void;
+  onUpgradeBusiness: () => void;
+}) => {
+  if (trialStatus.active) {
+    return (
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-full border border-black/10 bg-white px-4 py-2 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="h-2 w-2 rounded-full bg-black" />
+          <p className="truncate text-[13px] font-semibold text-[#171717]">
+            Trial ativo — dia {trialStatus.dayOfTrial} de {trialStatus.daysTotal}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onManageSubscription}
+          className="rounded-full bg-[#F2F2F1] px-3 py-1.5 text-[12px] font-semibold text-[#171717] transition hover:bg-[#E6E6E3]"
+        >
+          Gerenciar assinatura
+        </button>
+      </div>
+    );
+  }
+
+  if (trialStatus.expired) {
+    return (
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-black/10 bg-white px-4 py-3 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
+        <p className="text-[13px] font-semibold text-[#171717]">
+          Seu trial acabou. Você está no plano Pro (R$99,90/mês).
+        </p>
+        <button
+          type="button"
+          onClick={onUpgradeBusiness}
+          className="rounded-full bg-[#F2F2F1] px-3 py-1.5 text-[12px] font-semibold text-[#171717] transition hover:bg-[#E6E6E3]"
+        >
+          Fazer upgrade para Business (R$149,90/mês)
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+};
+
 const CreateCollectionModal = ({
   open,
   creating,
@@ -1587,15 +1651,20 @@ const DashboardHomePage = () => {
     }
   };
 
-  return (
-    <main
-      className="relative -m-5 min-h-screen overflow-visible bg-white pb-24 text-[#111111] sm:-m-6 lg:-m-7"
-      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" }}
-    >
-      {collections.length > 0 ? (
-        <section className="min-h-screen bg-[#F2F2F1] px-3 py-3 sm:px-5">
-          <div className="mx-auto w-full max-w-[1180px]">
-            <CollectionsOverview kpis={collectionKpis} />
+	  return (
+	    <main
+	      className="relative -m-5 min-h-screen overflow-visible bg-white pb-24 text-[#111111] sm:-m-6 lg:-m-7"
+	      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" }}
+	    >
+	      {collections.length > 0 ? (
+	        <section className="min-h-screen bg-[#F2F2F1] px-3 py-3 sm:px-5">
+	          <div className="mx-auto w-full max-w-[1180px]">
+	            <TrialStatusBanner
+	              trialStatus={mockTrialStatus}
+	              onManageSubscription={() => navigate("/checkout")}
+	              onUpgradeBusiness={() => navigate("/checkout?plan=business&businessCard=1")}
+	            />
+	            <CollectionsOverview kpis={collectionKpis} />
 
             <div className="mt-4 overflow-visible rounded-[16px] border-[0.5px] border-[#E5E5E5] bg-white px-6 py-5 shadow-[0_10px_26px_rgba(17,17,17,0.025)]">
               <header className="flex items-center justify-between gap-6">

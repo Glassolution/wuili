@@ -37,6 +37,7 @@ const CriarVideoPage = lazy(() => import("./pages/dashboard/CriarVideoPage"));
 const ChatFornecedoresPage = lazy(() => import("./pages/dashboard/ChatFornecedoresPage"));
 const DashboardHomePage = lazy(() => import("./pages/dashboard/DashboardHomePage"));
 const AtlasChatPage = lazy(() => import("./pages/dashboard/AtlasChatPage"));
+const IntegracoesPage = lazy(() => import("./pages/dashboard/IntegracoesPage"));
 const Docs = lazy(() => import("./pages/Docs"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
@@ -133,7 +134,7 @@ const App = () => (
                 <Route path="publicacoes/:id" element={<ProductDetailPage />} />
                 <Route path="relatorios" element={<ReportsPage />} />
                 <Route path="mais" element={<MorePage />} />
-                <Route path="integracoes" element={<Navigate to="/dashboard/produtos" replace />} />
+                <Route path="integracoes" element={<IntegracoesPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />
                 <Route path="criar-video" element={<CriarVideoPage />} />
                 <Route path="chat-fornecedores" element={<ChatFornecedoresPage />} />

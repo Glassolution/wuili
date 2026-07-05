@@ -30,6 +30,7 @@ const routes: RouteMeta[] = [
   { test: (p) => p.startsWith("/dashboard/produtos"), title: "Produtos", icon: Package },
   { test: (p) => p.startsWith("/dashboard/publicacoes"), title: "Publicações", icon: FileText },
   { test: (p) => p.startsWith("/dashboard/pedidos"), title: "Pedidos", icon: ShoppingCart },
+  { test: (p) => p.startsWith("/dashboard/integracoes"), title: "Integrações", icon: Package },
   { test: (p) => p.startsWith("/dashboard/criar-video"), title: "Criar Vídeos", icon: Video },
   { test: (p) => p.startsWith("/dashboard/chat-fornecedores"), title: "Chat", icon: MessageSquare },
   { test: (p) => p.startsWith("/dashboard/comissoes"), title: "Comissões", icon: Percent },

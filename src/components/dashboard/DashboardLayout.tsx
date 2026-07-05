@@ -64,6 +64,7 @@ const mobileRoutes: MobileRouteMeta[] = [
   { test: (p) => p.startsWith("/dashboard/publicacoes"), title: "Publicações" },
   { test: (p) => p.startsWith("/dashboard/criar-video"), title: "Vídeos" },
   { test: (p) => p.startsWith("/dashboard/chat-fornecedores"), title: "Chat" },
+  { test: (p) => p.startsWith("/dashboard/integracoes"), title: "Integrações" },
   { test: (p) => p.startsWith("/dashboard/comissoes"), title: "Comissões" },
   { test: (p) => p.startsWith("/dashboard/configuracoes"), title: "Perfil" },
 ];

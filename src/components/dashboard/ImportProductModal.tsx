@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
-import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store } from "lucide-react";
+import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store, ShieldCheck } from "lucide-react";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -54,6 +54,7 @@ const getImage = (images: any): string | null => {
 const STEPS = [
   { num: 1, label: "Detalhes" },
   { num: 2, label: "Revisão" },
+  { num: 3, label: "Trial" },
 ];
 
 const ImportProductModal = ({ open, onClose, product }: Props) => {
@@ -83,7 +84,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const [translatingDescription, setTranslatingDescription] = useState(false);
   const [translated, setTranslated] = useState(false);
 
-  // Platforms (step 3)
+  // Platforms (review step)
   const [platforms, setPlatforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
     ml: true,
     shopee: false,
@@ -381,7 +382,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       }
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
-      setStep(3);
+      setStep(4);
       incrementStorePublishedCount(activeStore.id);
 
       veloToast.success("Produto publicado com sucesso", {
@@ -771,8 +772,70 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
               </div>
             )}
 
-            {/* STEP 3 — Success */}
-            {step === 3 && publishResult && (
+            {/* STEP 3 — Trial */}
+            {step === 3 && (
+              <div key="s3-trial" className="step-fade pb-6">
+                <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_24px_60px_-44px_rgba(0,0,0,0.45)]">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0A0A0A] text-white">
+                      <ShieldCheck size={22} strokeWidth={1.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Trial Velo</p>
+                      <h3 className="mt-1 text-[22px] font-semibold leading-tight text-[#0A0A0A]">
+                        Ative seu trial para publicar este produto
+                      </h3>
+                      <p className="mt-2 max-w-[520px] text-[13.5px] leading-relaxed text-gray-500">
+                        Seu anúncio já está pronto. Revise o produto abaixo e inicie o trial antes da publicação final.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 rounded-3xl bg-gray-50 p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
+                        {img ? <img src={img} alt={title} className="h-full w-full object-cover" /> : null}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-medium text-gray-500">Produto customizado</p>
+                        <p className="mt-1 line-clamp-2 text-[15px] font-semibold leading-snug text-[#0A0A0A]">
+                          {title || product.title}
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px] text-gray-500">
+                          <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-100">
+                            Preço definido: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice)}</strong>
+                          </span>
+                          <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-100">
+                            Lucro estimado: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(profit)}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/checkout?trial=1&plan=pro&product=${product.id}`)}
+                    className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#0A0A0A] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A]"
+                  >
+                    Iniciar trial — R$29,90 por 5 dias
+                  </button>
+                  <p className="mt-3 text-center text-[12.5px] leading-relaxed text-gray-500">
+                    Publique agora mesmo. Após 5 dias, sua assinatura continua automaticamente no plano Pro (R$99,90/mês). Cancele quando quiser.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/checkout?plan=business&businessCard=1")}
+                    className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#0A0A0A]"
+                  >
+                    Prefere começar direto no Business (R$149,90/mês, promoção) com automações ilimitadas?
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4 — Success */}
+            {step === 4 && publishResult && (
               <div key="s4" className="step-fade flex flex-col items-center justify-center py-14 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full mb-5" style={{ background: ACCENT }}>
                   <Check size={26} strokeWidth={3} className="text-white" />
@@ -826,15 +889,14 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
               )}
               {step === 2 && (
                 <button
-                  onClick={handlePublish}
-                  disabled={publishing}
+                  onClick={() => setStep(3)}
                   className="btn-primary btn-primary--md"
                 >
-                  {publishing && <Loader2 size={13} className="animate-spin" />}
-                  {publishing ? "Publicando" : "Publicar"}
+                  Continuar
+                  <ArrowRight size={13} />
                 </button>
               )}
-              {step === 3 && (
+              {step === 4 && (
                 <button
                   onClick={handleClose}
                   className="btn-primary btn-primary--md"
