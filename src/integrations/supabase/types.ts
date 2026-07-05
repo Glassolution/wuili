@@ -730,11 +730,16 @@ export type Database = {
           current_period_end: string | null
           current_period_start: string | null
           id: string
+          is_trial: boolean
           mp_payment_id: string | null
           mp_subscription_id: string | null
+          next_charge_amount: number | null
+          next_charge_at: string | null
           payment_method: string | null
           plan: string
+          post_trial_plan: string | null
           status: string
+          trial_ends_at: string | null
           updated_at: string
           user_id: string
         }
@@ -744,11 +749,16 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
+          is_trial?: boolean
           mp_payment_id?: string | null
           mp_subscription_id?: string | null
+          next_charge_amount?: number | null
+          next_charge_at?: string | null
           payment_method?: string | null
           plan?: string
+          post_trial_plan?: string | null
           status?: string
+          trial_ends_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -758,11 +768,16 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
+          is_trial?: boolean
           mp_payment_id?: string | null
           mp_subscription_id?: string | null
+          next_charge_amount?: number | null
+          next_charge_at?: string | null
           payment_method?: string | null
           plan?: string
+          post_trial_plan?: string | null
           status?: string
+          trial_ends_at?: string | null
           updated_at?: string
           user_id?: string
         }
