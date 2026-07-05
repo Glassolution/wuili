@@ -832,7 +832,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                     onClick={() => navigate(`/checkout?trial=1&plan=pro&product=${product.id}`)}
                     className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#0A0A0A] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A]"
                   >
-                    Iniciar trial — R$1,00 por 5 dias
+                    Iniciar trial — R$29,90 por 5 dias
                   </button>
                   <p className="mt-3 text-center text-[12.5px] leading-relaxed text-gray-500">
                     Publique agora mesmo. Após 5 dias, sua assinatura continua automaticamente no plano Pro (R$99,90/mês). Cancele quando quiser.

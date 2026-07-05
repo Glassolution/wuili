@@ -1,0 +1,42 @@
+
+[1m[33mwarn[39m[22m - The class `duration-[120ms]` is ambiguous and matches multiple utilities.
+[1m[33mwarn[39m[22m - If this is content and not a class, replace it with `duration-&lsqb;120ms&rsqb;` to silence this warning.
+
+[1m[33mwarn[39m[22m - The class `duration-[150ms]` is ambiguous and matches multiple utilities.
+[1m[33mwarn[39m[22m - If this is content and not a class, replace it with `duration-&lsqb;150ms&rsqb;` to silence this warning.
+[2m16:15:57[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Unterminated regexp literal
+     ,-[C:/Dev/Velo V2/src/components/dashboard/DashboardSidebar.tsx:723:1]
+ 720 |                 </button>
+ 721 |               </div>
+ 722 |             </div>
+ 723 |           </div>
+     :            ^^^^^
+ 724 |         ) : null}
+ 725 |       </div>
+ 725 |     </aside>
+     `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Dev/Velo V2/src/components/dashboard/DashboardSidebar.tsx[39m
+  
+[2m16:15:57[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Unterminated regexp literal
+     ,-[C:/Dev/Velo V2/src/components/dashboard/DashboardSidebar.tsx:723:1]
+ 720 |                 </button>
+ 721 |               </div>
+ 722 |             </div>
+ 723 |           </div>
+     :            ^^^^^
+ 724 |         ) : null}
+ 725 |       </div>
+ 725 |     </aside>
+     `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Dev/Velo V2/src/components/dashboard/DashboardSidebar.tsx[39m
+  

@@ -1,0 +1,40 @@
+
+> vite_react_shadcn_ts@0.0.0 dev
+> vite --host 127.0.0.1 --port 8080
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m699[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m8080[22m/[39m
+[2m15:55:36[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CheckoutPage.tsx, /src/index.css[22m
+[2m15:59:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/dashboard/ImportProductModal.tsx, /src/index.css[22m
+[2m16:00:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CheckoutPage.tsx, /src/index.css[22m
+[2m16:01:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CheckoutPage.tsx, /src/index.css[22m
+[2m16:02:30[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/CheckoutPage.tsx, /src/index.css[22m
+[2m16:04:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/dashboard/ProductCard.tsx, /src/index.css[22m
+[2m16:04:28[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/components/dashboard/ProductCard.tsx[22m Could not Fast Refresh ("formatPrice" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react-swc#consistent-components-exports
+[2m16:04:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/dashboard/CatalogoPage.tsx, /src/components/dashboard/ProductScoutAI.tsx, /src/pages/dashboard/CatalogoProductDetailPage.tsx[22m
+[2m16:09:54[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dashboard/SettingsPage.tsx, /src/index.css[22m
+[2m16:10:38[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dashboard/SettingsPage.tsx, /src/index.css[22m
+[2m16:11:12[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dashboard/SettingsPage.tsx, /src/index.css[22m
+[2m16:14:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/dashboard/SettingsPage.tsx, /src/index.css[22m
+[2m16:15:06[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/dashboard/DashboardSidebar.tsx, /src/index.css[22m
+[2m16:15:56[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/dashboard/DashboardSidebar.tsx, /src/index.css[22m
+[2m16:16:26[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/dashboard/DashboardSidebar.tsx, /src/index.css[22m
+[2m16:19:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m16:19:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/dashboard/DashboardSidebar.tsx, /src/index.css[22m
+[2m16:20:47[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AdminRoute.tsx, /src/index.css[22m
+[2m16:25:57[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AdminRoute.tsx, /src/index.css[22m
+[2m16:25:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/dashboard/DashboardSidebar.tsx, /src/index.css[22m
+[2m16:26:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/contexts/AuthContext.tsx, /src/index.css[22m
+[2m16:26:00[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/contexts/AuthContext.tsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react-swc#consistent-components-exports
+[2m16:26:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css, /src/components/AdminRoute.tsx, /src/lib/profileContext.tsx, /src/components/ProtectedRoute.tsx, /src/pages/Index.tsx, /src/components/dashboard/DashboardLayout.tsx, /src/components/dashboard/NotificacoesPopover.tsx, /src/components/dashboard/DashboardSidebar.tsx, /src/pages/dashboard/DashboardHomePage.tsx, /src/pages/CheckoutPage.tsx, /src/pages/dashboard/CatalogoPage.tsx, /src/components/dashboard/ProductScoutAI.tsx, /src/components/dashboard/ImportProductModal.tsx, /src/pages/dashboard/ReportsPage.tsx, /src/pages/dashboard/SettingsPage.tsx, /src/components/PlanBadge.tsx, /src/pages/dashboard/OrdersPage.tsx, /src/pages/dashboard/PublicationsPage.tsx, /src/components/dashboard/SupportTab.tsx, /src/components/dashboard/RefundSection.tsx[22m
+[2m16:26:00[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/lib/profileContext.tsx[22m Could not Fast Refresh ("useProfile" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react-swc#consistent-components-exports
+[2m16:26:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css, /src/components/dashboard/DashboardLayout.tsx, /src/components/dashboard/DashboardSidebar.tsx, /src/components/dashboard/ProductScoutAI.tsx, /src/pages/dashboard/SettingsPage.tsx, /src/components/dashboard/SupportTab.tsx[22m
+[2m16:36:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/AdminBlankPage.tsx, /src/index.css[22m
+[2m16:36:33[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/AdminBlankPage.tsx[22m
+[2m16:45:07[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AdminRoute.tsx, /src/index.css[22m
+[2m16:45:08[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/dashboard/DashboardSidebar.tsx, /src/index.css[22m
+[2m16:48:08[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AdminRoute.tsx, /src/index.css[22m
+[2m16:56:10[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/AdminBlankPage.tsx, /src/index.css[22m
+[2m16:56:11[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/admin/AdminBlankPage.tsx[22m

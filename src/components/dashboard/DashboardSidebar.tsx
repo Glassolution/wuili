@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ChevronDown, ChevronUp, ClipboardList, Copy, CreditCard, Home, Info, LogOut, MessagesSquare, Plus, Search, Settings2, ShoppingCart, Sparkles, ToggleLeft, Users, X } from "lucide-react";
+import { Archive, BadgeCheck, ChevronDown, ChevronUp, ClipboardList, Copy, CreditCard, Home, Info, LogOut, MessagesSquare, Plus, Search, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
+import { isAdminEmail } from "@/lib/adminAccess";
 
 type NavItem = {
   label: string;
@@ -486,7 +487,7 @@ const DashboardSidebar = () => {
       return;
     }
 
-    const hasAdminRole = role === "admin" || metadataRole === "admin";
+    const hasAdminRole = role === "admin" || metadataRole === "admin" || isAdminEmail(user.email);
     setIsAdmin(hasAdminRole);
 
     if (!isSupabaseEnabled) return;
@@ -494,20 +495,21 @@ const DashboardSidebar = () => {
     let active = true;
 
     const resolveAdminRole = async () => {
-      const [hasRoleResult, profileByUserId, profileById] = await Promise.allSettled([
+      const [hasRoleResult, profileByUserId, profileById, userRole] = await Promise.allSettled([
         supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
         (supabase as any).from("profiles").select("role").eq("user_id", user.id).maybeSingle(),
         (supabase as any).from("profiles").select("role").eq("id", user.id).maybeSingle(),
+        (supabase as any).from("user_roles").select("role").eq("user_id", user.id).maybeSingle(),
       ]);
 
       if (!active) return;
 
-      const roleCandidates = [role, metadataRole];
+      const roleCandidates = [role, metadataRole, isAdminEmail(user.email) ? "admin" : null];
 
       if (hasRoleResult.status === "fulfilled" && hasRoleResult.value.data === true) {
         roleCandidates.push("admin");
       }
-      for (const result of [profileByUserId, profileById]) {
+      for (const result of [profileByUserId, profileById, userRole]) {
         if (result.status === "fulfilled" && result.value?.data?.role) {
           roleCandidates.push(String(result.value.data.role));
         }
@@ -680,6 +682,19 @@ const DashboardSidebar = () => {
                     <span style={styles.profilePanelRowLabel}>Configurações</span>
                   </span>
                 </button>
+
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => handlePanelNavigate("/admin/painel")}
+                    style={styles.profilePanelRow}
+                  >
+                    <span style={styles.profilePanelRowLeft}>
+                      <ShieldCheck size={16} strokeWidth={2.05} style={styles.profilePanelIcon} />
+                      <span style={styles.profilePanelRowLabel}>Painel Admin</span>
+                    </span>
+                  </button>
+                ) : null}
               </div>
 
               <div style={styles.profilePanelDivider} />

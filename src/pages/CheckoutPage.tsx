@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Check, QrCode, CreditCard, Copy,
-  CheckCircle2, Loader2, ShieldCheck, HelpCircle,
+  CheckCircle2, HelpCircle, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -90,6 +90,10 @@ const formatBRL = (value: number) =>
     minimumFractionDigits: 2,
   }).format(value);
 
+const TRIAL_AMOUNT = 29.9;
+const TRIAL_DAYS = 5;
+const TRIAL_AMOUNT_BRL = formatBRL(TRIAL_AMOUNT);
+
 const parseBRL = (price: string) => Number(price.replace(/[^\d,]/g, "").replace(",", "."));
 
 const getDisplayPrice = (planId: string, billingCycle: "monthly" | "annual") => {
@@ -118,16 +122,17 @@ const CheckoutPage = () => {
 
   const rawPlan = searchParams.get("plan") ?? "pro";
   const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
-  // Trial pago só se aplica ao Pro. Se o usuário escolheu Business, ignoramos o flag.
   const isTrial = searchParams.get("trial") === "1" && initialPlanId === "pro";
-  const isPaymentStep = isTrial || searchParams.get("checkout") === "1";
-  const TRIAL_AMOUNT_BRL = "R$ 1,00";
-  const TRIAL_DAYS = 5;
-
   const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
+  const [showPaymentStep, setShowPaymentStep] = useState(isTrial);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const planId = selectedPlanId;
   const plan = PLANS_DATA[planId];
+  const checkoutPrice = isTrial ? TRIAL_AMOUNT_BRL : plan.price;
+  const checkoutPeriodLabel = isTrial ? `por ${TRIAL_DAYS} dias` : "por mês";
+  const checkoutDescription = isTrial
+    ? `Trial de ${TRIAL_DAYS} dias do plano Pro. Depois, sua assinatura continua automaticamente no plano Pro (R$99,90/mês).`
+    : `Assinatura mensal do plano ${plan.name}`;
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("pix");
   const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle");
@@ -150,10 +155,10 @@ const CheckoutPage = () => {
   }, [session, email]);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
+    if (!showPaymentStep || !session?.user?.id) return;
     void markReachedPayment(session.user.id, { route: "/checkout", plan: planId });
-    void markAffiliateReachedPayment(session.user.id, PLAN_AMOUNTS[planId] ?? 0);
-  }, [planId, session?.user?.id]);
+    void markAffiliateReachedPayment(session.user.id, isTrial ? TRIAL_AMOUNT : PLAN_AMOUNTS[planId] ?? 0);
+  }, [isTrial, planId, session?.user?.id, showPaymentStep]);
 
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
@@ -225,7 +230,7 @@ const CheckoutPage = () => {
         payload.affiliate_ref = referralCode;
         payload.plan_price = billingCycle === "annual"
           ? ANNUAL_PLAN_AMOUNTS[planId] ?? (PLAN_AMOUNTS[planId] ?? 0) * 12 * 0.9
-          : PLAN_AMOUNTS[planId] ?? undefined;
+          : isTrial ? TRIAL_AMOUNT : PLAN_AMOUNTS[planId] ?? undefined;
       }
 
       if (selectedMethod === "credit_card") {
@@ -290,10 +295,11 @@ const CheckoutPage = () => {
     }
   };
 
-  const startCheckout = (targetPlanId: string) => {
-    navigate(`/checkout?plan=${targetPlanId}&checkout=1`);
+  const startCheckout = (nextPlanId = selectedPlanId) => {
+    setSelectedPlanId(nextPlanId);
+    setShowPaymentStep(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
 
   if (checkoutState === "success") {
     return (
@@ -315,147 +321,172 @@ const CheckoutPage = () => {
     );
   }
 
-  if (!isPaymentStep) {
-    const selectedPlan = PLANS_DATA[selectedPlanId];
+  if (!showPaymentStep) {
+    const plans = Object.entries(PLANS_DATA);
 
     return (
-      <div className="min-h-screen bg-[#111111] px-4 py-8 font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111] sm:px-8 lg:px-12">
-        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_66%_8%,rgba(255,255,255,0.25),transparent_22%),radial-gradient(circle_at_10%_88%,rgba(255,255,255,0.10),transparent_26%)]" />
-        <div className="pointer-events-none fixed inset-0 opacity-[0.12] [background-image:radial-gradient(circle,rgba(255,255,255,0.7)_0.7px,transparent_0.7px)] [background-size:5px_5px]" />
-
-        <main className="relative mx-auto flex min-h-[calc(100vh-64px)] max-w-[1040px] items-center justify-center">
-          <section className="w-full rounded-[36px] bg-white px-5 py-8 shadow-[0_36px_100px_rgba(0,0,0,0.35)] sm:px-8 lg:px-14 lg:py-12">
-            <div className="mx-auto max-w-[760px] text-center">
+      <div className="min-h-screen overflow-hidden bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
+        <div className="relative min-h-screen w-full">
+          <section className="min-h-screen w-full bg-white px-4 py-6 sm:px-6 lg:px-10">
+            <div className="mb-8 flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="mx-auto mb-7 flex h-9 w-9 items-center justify-center rounded-full bg-[#F4F4F3] text-[#111111] transition hover:bg-[#E8E8E7]"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F3F2] text-black transition hover:bg-[#E9E9E7]"
                 aria-label="Voltar"
               >
-                <ArrowLeft size={16} strokeWidth={1.8} />
+                <ArrowLeft size={18} />
               </button>
-              <div className="mx-auto mb-3 w-fit rounded-full bg-[#F7F7F6] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8A8A8A]">
-                Planos
-              </div>
-              <h1 className="text-[34px] font-semibold leading-tight tracking-[-0.05em] text-[#111111] sm:text-[44px]">
-                Escolha o plano para crescer
-              </h1>
-              <p className="mx-auto mt-2 max-w-[480px] text-[13px] leading-5 text-[#8B8B8B]">
-                Comece com a estrutura certa para publicar produtos, operar com IA e escalar sua loja sem complicar o checkout.
-              </p>
+              <span className="h-10 w-10" aria-hidden="true" />
             </div>
 
-            <div className="mx-auto mt-10 grid max-w-[760px] items-stretch gap-4 md:grid-cols-2">
-              {(["pro", "business"] as const).map((cardPlanId) => {
-                const cardPlan = PLANS_DATA[cardPlanId];
-                const isSelected = selectedPlanId === cardPlanId;
-                const isPro = cardPlanId === "pro";
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="mx-auto mb-3 w-fit rounded-full bg-[#F5F5F4] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#8B8B88]">
+                Planos Velo
+              </p>
+              <h1 className="text-[34px] font-semibold leading-none tracking-[-0.055em] text-black sm:text-[43px]">
+                Escolha o plano para crescer
+              </h1>
+              <p className="mx-auto mt-3 max-w-xl text-[14px] leading-6 text-[#8A8A86]">
+                Antes do pagamento, selecione o plano que combina com o seu momento. O checkout continua seguro via Mercado Pago.
+              </p>
+              <button
+                type="button"
+                onClick={() => setBillingCycle((current) => (current === "monthly" ? "annual" : "monthly"))}
+                className="mx-auto mt-5 flex w-fit items-center gap-2 p-1 text-[12px] font-semibold text-[#77746F] transition"
+                aria-pressed={billingCycle === "annual"}
+              >
+                <span className={`px-3 leading-8 transition ${billingCycle === "monthly" ? "text-black" : ""}`}>
+                  Mensal
+                </span>
+                <span className="relative h-6 w-11 rounded-full bg-[#DFDEDA] shadow-[inset_0_1px_3px_rgba(0,0,0,0.14)]">
+                  <span
+                    className={`absolute left-1 top-1/2 h-[18px] w-[18px] -translate-y-1/2 rounded-full bg-white shadow-[0_1px_5px_rgba(0,0,0,0.22)] transition-transform duration-200 ${
+                      billingCycle === "annual" ? "translate-x-[18px]" : "translate-x-0"
+                    }`}
+                  />
+                </span>
+                <span className={`px-3 leading-8 transition ${billingCycle === "annual" ? "text-black" : ""}`}>
+                  Anual <span className="ml-1 text-[10px] font-bold text-emerald-600">-10%</span>
+                </span>
+              </button>
+            </div>
+
+            <div className="mx-auto mt-6 grid max-w-4xl items-stretch gap-4 rounded-[36px] bg-[#FAFAF8] p-3 md:grid-cols-2">
+              {plans.map(([id, currentPlan]) => {
+                const isSelected = id === selectedPlanId;
+                const displayPrice = getDisplayPrice(id, billingCycle);
+                const priceParts = splitPlanPrice(displayPrice);
+                const originalPrice = getOriginalDisplayPrice(id, billingCycle);
+                const savings = getSavingsDisplay(originalPrice, displayPrice);
 
                 return (
                   <article
-                    key={cardPlanId}
-                    onClick={() => setSelectedPlanId(cardPlanId)}
-                    className={`flex min-h-[430px] cursor-pointer flex-col rounded-[28px] p-6 transition ${
+                    key={id}
+                    onClick={() => setSelectedPlanId(id)}
+                    className={`relative flex min-h-[420px] cursor-pointer flex-col rounded-[30px] p-5 transition duration-200 ${
                       isSelected
-                        ? "bg-white shadow-[0_16px_50px_rgba(0,0,0,0.10)] ring-1 ring-black/[0.06]"
-                        : "bg-[#F4F4F3] hover:bg-[#F0F0EF]"
+                        ? "bg-white shadow-[0_18px_60px_rgba(0,0,0,0.10)]"
+                        : "bg-transparent hover:bg-white/60"
                     }`}
                   >
-                    <div className="mb-6 flex items-start justify-between gap-4">
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${
-                        isPro ? "bg-[#111111] text-white" : "border border-[#D9D9D7] bg-white text-[#111111]"
+                    <div className="flex items-start justify-between gap-4">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                        isSelected
+                          ? "bg-black text-white"
+                          : "border border-black/12 bg-white text-black"
                       }`}>
-                        <Check size={15} strokeWidth={2} />
+                        <span className={`h-3 w-3 rounded-full ${isSelected ? "bg-white" : "bg-[#D8D8D4]"}`} />
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-[10px] font-semibold ${
-                        isPro
-                          ? "bg-[#111111] text-white"
-                          : "bg-white text-[#777777] ring-1 ring-black/[0.05]"
-                      }`}>
-                        {cardPlan.badge}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#111111]">
-                        {cardPlan.name}
-                      </h2>
-                      <p className="mt-1 min-h-[40px] text-[12px] leading-5 text-[#8A8A8A]">
-                        {cardPlan.description}
-                      </p>
-                    </div>
-
-                    <div className="mt-7 flex items-end gap-1 border-b border-black/[0.08] pb-6">
-                      {cardPlan.originalPrice && (
-                        <span className="mb-1 mr-1 text-[16px] font-semibold text-[#B8B8B8] line-through">
-                          {cardPlan.originalPrice}
+                      {currentPlan.badge && (
+                        <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                          isSelected ? "bg-black text-white" : "bg-white/80 text-[#777]"
+                        }`}>
+                          {currentPlan.badge}
                         </span>
                       )}
-                      <span className="text-[36px] font-semibold leading-none tracking-[-0.06em] text-[#111111]">
-                        {cardPlan.price}
-                      </span>
-                      <span className="mb-1 text-[12px] font-medium text-[#777777]">/mês</span>
+                    </div>
+
+                    <div className="mt-6">
+                      <h2 className="text-[24px] font-semibold tracking-[-0.035em] text-black">{currentPlan.name}</h2>
+                      <p className="mt-1 min-h-[42px] text-[13px] leading-5 text-[#777]">{currentPlan.description}</p>
                     </div>
 
                     <div className="mt-5">
-                      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8C8C8C]">
-                        Inclui
-                      </p>
-                      <ul className="space-y-2">
-                        {cardPlan.features.slice(0, 5).map((feature) => (
-                          <li key={feature} className="flex items-start gap-2 text-[12px] leading-4 text-[#555555]">
-                            <Check size={12} className="mt-0.5 shrink-0 text-[#111111]" strokeWidth={2} />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
+                      {originalPrice && (
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white">
+                            Oferta aplicada
+                          </span>
+                          <span className="text-[14px] font-semibold text-[#7C7C76]">
+                            De <span className="text-[#8A8A84] line-through decoration-[#555] decoration-2">{originalPrice}</span>
+                          </span>
+                          {savings && (
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-100">
+                              Economize {savings}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-end gap-1">
+                        <span className="text-[38px] font-semibold tracking-[-0.06em] text-black">
+                          {priceParts.main}
+                          <span className="text-[#A8A8A3]">{priceParts.cents}</span>
+                        </span>
+                        <span className="pb-1.5 text-[17px] font-medium text-[#7A7A77]">
+                          {billingCycle === "annual" ? "/ano" : "/mês"}
+                        </span>
+                      </div>
+                      {billingCycle === "annual" && (
+                        <p className="mt-1 text-[12px] font-medium text-[#8A8A86]">10% de desconto no plano anual</p>
+                      )}
                     </div>
+
+                    <div className="my-4 h-px bg-black/10" />
+
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#8A8A86]">Inclui</p>
+                    <ul className="mb-5 space-y-1.5">
+                      {currentPlan.features.slice(0, 5).map((feature) => (
+                        <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-[#3D3D3A]">
+                          <Check size={14} className="mt-0.5 shrink-0 text-black" strokeWidth={2.4} />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
 
                     <button
                       type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        startCheckout(cardPlanId);
-                      }}
-                      className="mt-auto flex h-11 w-full items-center justify-center rounded-full bg-[#111111] px-4 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition hover:bg-black"
+                      onClick={() => startCheckout(id)}
+                      className="relative isolate mt-auto h-11 w-full overflow-hidden rounded-full bg-black px-5 text-[13px] font-semibold text-white shadow-[0_13px_30px_rgba(0,0,0,0.24),0_0_30px_rgba(96,142,255,0.34),0_0_16px_rgba(244,114,182,0.16)] transition before:absolute before:inset-x-8 before:bottom-0 before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(170,196,255,1),rgba(244,114,182,0.78),transparent)] before:content-[''] hover:bg-[#1A1A1A] hover:shadow-[0_15px_36px_rgba(0,0,0,0.28),0_0_36px_rgba(96,142,255,0.42),0_0_20px_rgba(244,114,182,0.22)]"
                     >
-                      {isPro ? "Assinar Pro" : "Assinar Business"}
+                      Assinar {currentPlan.name}
                     </button>
                   </article>
                 );
               })}
             </div>
 
-            <div className="mx-auto mt-5 max-w-[760px] rounded-[28px] bg-[radial-gradient(circle_at_15%_30%,rgba(255,246,176,0.85),transparent_35%),radial-gradient(circle_at_70%_22%,rgba(211,225,255,0.95),transparent_34%),radial-gradient(circle_at_85%_82%,rgba(180,230,255,0.9),transparent_38%),radial-gradient(circle_at_25%_86%,rgba(255,204,235,0.85),transparent_36%),#F6F7F9] px-6 py-7 text-center">
-              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#111111] shadow-[0_8px_22px_rgba(0,0,0,0.08)]">
-                <HelpCircle size={20} strokeWidth={1.6} />
+            <div className="mx-auto mt-5 max-w-4xl overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_16%_22%,rgba(255,239,164,0.88),transparent_26%),radial-gradient(circle_at_48%_18%,rgba(255,184,229,0.76),transparent_30%),radial-gradient(circle_at_86%_48%,rgba(139,218,255,0.82),transparent_32%),linear-gradient(135deg,#F8F1CB,#F8DDF1_46%,#BDEEFF)] px-6 py-7 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.70),0_18px_50px_rgba(0,0,0,0.08)]">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-black shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
+                <HelpCircle size={24} strokeWidth={2.1} />
               </div>
-              <h3 className="mt-4 text-[17px] font-semibold tracking-[-0.02em] text-[#111111]">
-                Não tem certeza de qual plano escolher?
-              </h3>
-              <p className="mx-auto mt-1 max-w-[410px] text-[12px] leading-5 text-[#555555]">
+              <p className="mt-4 text-[15px] font-semibold text-black">Não tem certeza de qual plano escolher?</p>
+              <p className="mx-auto mt-1 max-w-md text-[12px] font-medium leading-5 text-black/56">
                 Comece pelo Pro. Você pode ajustar o plano depois sem mudar o fluxo de checkout.
               </p>
               <button
                 type="button"
                 onClick={() => startCheckout("pro")}
-                className="mx-auto mt-5 flex h-10 w-fit min-w-[190px] items-center justify-center rounded-full bg-[#111111] px-5 text-[12px] font-semibold text-white transition hover:bg-black"
+                className="mx-auto mt-4 h-10 rounded-full bg-black px-7 text-[12px] font-semibold text-white shadow-[0_14px_30px_rgba(0,0,0,0.24),0_0_26px_rgba(96,142,255,0.30)] transition hover:bg-[#1A1A1A] hover:shadow-[0_16px_34px_rgba(0,0,0,0.28),0_0_34px_rgba(96,142,255,0.38)]"
               >
                 Continuar com Pro
               </button>
             </div>
-
-            <p className="mt-6 text-center text-[11px] text-[#9A9A9A]">
-              Plano selecionado: <span className="font-semibold text-[#555555]">{selectedPlan.name}</span>
-            </p>
           </section>
-        </main>
+        </div>
       </div>
     );
   }
-
-
-
 
   return (
     <div className="min-h-screen bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
@@ -467,7 +498,7 @@ const CheckoutPage = () => {
           <div className="relative w-full max-w-[440px]">
           <div className="mb-12 flex items-center gap-3">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => setShowPaymentStep(false)}
               className="flex h-8 w-8 items-center justify-center rounded-full text-white/42 transition-colors hover:bg-white/[0.06] hover:text-white"
               aria-label="Voltar"
             >
@@ -477,35 +508,23 @@ const CheckoutPage = () => {
           </div>
 
           <div>
-            <p className="mb-3 text-[13px] font-medium text-white/45">
-              {isTrial ? "Trial de publicação" : `Assinar plano ${plan.name}`}
-            </p>
+            <p className="mb-3 text-[13px] font-medium text-white/45">{isTrial ? "Iniciar trial Pro" : `Assinar plano ${plan.name}`}</p>
             <h1 className="text-[44px] font-semibold leading-none tracking-[-0.045em] text-white sm:text-[52px]">
-              {isTrial ? `${TRIAL_AMOUNT_BRL} por ${TRIAL_DAYS} dias` : `${plan.price} por mês`}
+              {checkoutPrice} {checkoutPeriodLabel}
             </h1>
             <p className="mt-4 max-w-[320px] text-[15px] font-medium leading-6 text-white/54">
-              {isTrial
-                ? `Publique agora com segurança. Após ${TRIAL_DAYS} dias, sua assinatura continua automaticamente no plano ${plan.name} (${plan.price}/mês). Cancele quando quiser.`
-                : `Assinatura mensal do plano ${plan.name}`}
+              {checkoutDescription}
             </p>
 
             <div className="mt-12 border-y border-white/[0.08] py-6">
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <p className="text-[14px] font-semibold text-white">
-                    {isTrial ? "Trial Velo — Pro" : plan.name}
-                  </p>
-                  <p className="mt-1 text-[12px] text-white/42">
-                    {isTrial ? `${TRIAL_DAYS} dias de acesso` : "Cobrança mensal"}
-                  </p>
+                  <p className="text-[14px] font-semibold text-white">{isTrial ? "Trial Pro" : plan.name}</p>
+                  <p className="mt-1 text-[12px] text-white/42">{isTrial ? `${TRIAL_DAYS} dias de trial` : "Cobrança mensal"}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[13px] font-semibold text-white">
-                    {isTrial ? TRIAL_AMOUNT_BRL : plan.price}
-                  </p>
-                  <p className="mt-1 text-[12px] text-white/42">
-                    {isTrial ? `/ ${TRIAL_DAYS} dias` : "/ mês"}
-                  </p>
+                  <p className="text-[13px] font-semibold text-white">{checkoutPrice}</p>
+                  <p className="mt-1 text-[12px] text-white/42">{isTrial ? `/ ${TRIAL_DAYS} dias` : "/ mês"}</p>
                 </div>
               </div>
 
@@ -522,7 +541,7 @@ const CheckoutPage = () => {
             <div className="space-y-5 py-7 text-[14px]">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-white/66">Subtotal</span>
-                <span className="font-semibold text-white">{isTrial ? TRIAL_AMOUNT_BRL : plan.price}</span>
+                <span className="font-semibold text-white">{checkoutPrice}</span>
               </div>
 
               <div>
@@ -536,29 +555,14 @@ const CheckoutPage = () => {
               </div>
 
               <div className="border-t border-white/[0.08] pt-6">
-                {isTrial ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-white/66">A partir do dia {TRIAL_DAYS + 1}</span>
-                      <span className="font-semibold text-white">{plan.price} / mês</span>
-                    </div>
-                    <div className="mt-7 flex items-center justify-between">
-                      <span className="font-semibold text-white/66">Total devido hoje</span>
-                      <span className="font-semibold text-white">{TRIAL_AMOUNT_BRL}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-white/66">Total mensal</span>
-                      <span className="font-semibold text-white">{plan.price}</span>
-                    </div>
-                    <div className="mt-7 flex items-center justify-between">
-                      <span className="font-semibold text-white/66">Total devido hoje</span>
-                      <span className="font-semibold text-white">{plan.price}</span>
-                    </div>
-                  </>
-                )}
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white/66">{isTrial ? "Depois do trial" : "Total mensal"}</span>
+                  <span className="font-semibold text-white">{isTrial ? "R$ 99,90/mês" : plan.price}</span>
+                </div>
+                <div className="mt-7 flex items-center justify-between">
+                  <span className="font-semibold text-white/66">Total devido hoje</span>
+                  <span className="font-semibold text-white">{checkoutPrice}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -756,7 +760,7 @@ const CheckoutPage = () => {
                 {checkoutState === "loading" ? (
                   <><Loader2 size={16} className="animate-spin" /> Processando...</>
                 ) : (
-                  isTrial ? `Iniciar trial — ${TRIAL_AMOUNT_BRL} por ${TRIAL_DAYS} dias` : `Pagar ${plan.price}`
+                  `Pagar ${checkoutPrice}`
                 )}
               </button>
             )}

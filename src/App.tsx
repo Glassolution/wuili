@@ -46,6 +46,7 @@ const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage")
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
 const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsPage"));
 const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsPage"));
+const AdminBlankPage = lazy(() => import("./pages/admin/AdminBlankPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,6 +110,7 @@ const App = () => (
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/docs" element={<Docs />} />
               <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+              <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
               <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
               <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
               <Route path="/admin/comissoes" element={<AdminRoute><AdminCommissionsPage /></AdminRoute>} />

@@ -22,6 +22,7 @@ import {
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { isAdminEmail } from "@/lib/adminAccess";
 import { cn } from "@/lib/utils";
 import {
   Bar,
@@ -433,7 +434,9 @@ const adminRoleChecks = (userId: string) => [
   { user_id: userId, role: "admin" },
 ];
 
-async function checkAdminAccess(userId: string) {
+async function checkAdminAccess(userId: string, email?: string | null) {
+  if (isAdminEmail(email)) return true;
+
   for (const params of adminRoleChecks(userId)) {
     const { data, error } = await (supabase as any).rpc("has_role", params);
     if (!error && data === true) return true;
@@ -540,7 +543,7 @@ const AdminDashboardPage = () => {
   const { data: isAdmin = false, isLoading: loadingRole } = useQuery({
     queryKey: ["admin-dashboard-access", user?.id],
     enabled: !!user?.id,
-    queryFn: () => checkAdminAccess(user!.id),
+    queryFn: () => checkAdminAccess(user!.id, user!.email),
   });
 
   const { data: dashboard = emptyPayload, isLoading: loadingDashboard, isError } = useQuery({

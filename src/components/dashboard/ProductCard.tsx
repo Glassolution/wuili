@@ -177,14 +177,21 @@ export const ProductCard = ({
             />
             <span>Favoritar</span>
           </button>
-          <button
-            type="button"
+          <Link
+            to={`/dashboard/catalogo/${product.id}`}
+            onClick={() => {
+              veloToast.loading("Carregando produto...", {
+                id: `loading-product-${product.id}`,
+                fullscreen: true,
+                minDuration: 3000,
+              });
+            }}
             className={`inline-flex items-center justify-center rounded-[14px] bg-[#111111] text-[12px] font-medium text-white transition-opacity hover:opacity-90 ${
               compact ? "h-9 px-2.5" : "h-10 px-3"
             }`}
           >
             Importar
-          </button>
+          </Link>
         </div>
       </div>
     </article>
