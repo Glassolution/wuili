@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties, type ElementType } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Archive, BadgeCheck, ChevronDown, ChevronUp, ClipboardList, Copy, CreditCard, Home, Info, LogOut, MessagesSquare, Plus, Search, Settings2, ShoppingCart, Sparkles, ToggleLeft, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 
 type NavItem = {
   label: string;
@@ -13,16 +13,17 @@ type NavItem = {
   dimmed?: boolean;
 };
 
-const navItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
   { label: "Início", icon: Home, to: "/dashboard", end: true },
   { label: "Catálogo", icon: ShoppingCart, to: "/dashboard/catalogo" },
   { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
-  { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true },
   { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
   { label: "Ajuda & Central", icon: Info, to: "/docs", dimmed: true },
   { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes", dimmed: true },
 ];
+
+const affiliatesNavItem: NavItem = { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
 
 const normalizePath = (path: string) => path.split("?")[0].replace(/\/$/, "");
 
@@ -427,14 +428,27 @@ const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) =>
 const DashboardSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, signOut, role } = useAuth();
   const { nome, foto } = useProfile();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [plan, setPlan] = useState("gratis");
+  const [isAdmin, setIsAdmin] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileName = nome || user?.user_metadata?.full_name || user?.email || "Usuario";
   const profileEmail = user?.email || "conta@velo.app";
   const initials = getInitials(profileName, user?.email);
+  const metadataRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined) ??
+    null;
+
+  const visibleNavItems = useMemo(() => {
+    const items = [...baseNavItems];
+    if (isAdmin) {
+      items.splice(4, 0, affiliatesNavItem);
+    }
+    return items;
+  }, [isAdmin]);
 
   const isActive = (item: NavItem) => {
     const currentPath = normalizePath(location.pathname);
@@ -465,6 +479,52 @@ const DashboardSidebar = () => {
       active = false;
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+
+    const hasAdminRole = role === "admin" || metadataRole === "admin";
+    setIsAdmin(hasAdminRole);
+
+    if (!isSupabaseEnabled) return;
+
+    let active = true;
+
+    const resolveAdminRole = async () => {
+      const [hasRoleResult, profileByUserId, profileById] = await Promise.allSettled([
+        supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
+        (supabase as any).from("profiles").select("role").eq("user_id", user.id).maybeSingle(),
+        (supabase as any).from("profiles").select("role").eq("id", user.id).maybeSingle(),
+      ]);
+
+      if (!active) return;
+
+      const roleCandidates = [role, metadataRole];
+
+      if (hasRoleResult.status === "fulfilled" && hasRoleResult.value.data === true) {
+        roleCandidates.push("admin");
+      }
+      for (const result of [profileByUserId, profileById]) {
+        if (result.status === "fulfilled" && result.value?.data?.role) {
+          roleCandidates.push(String(result.value.data.role));
+        }
+      }
+
+      setIsAdmin(roleCandidates.includes("admin"));
+    };
+
+    void resolveAdminRole().catch((error) => {
+      console.error("[DashboardSidebar] erro ao resolver permissao admin:", error);
+      if (active) setIsAdmin(hasAdminRole);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [metadataRole, role, user]);
 
   useEffect(() => {
     if (!profileMenuOpen) return;
@@ -517,7 +577,7 @@ const DashboardSidebar = () => {
       </button>
 
       <nav aria-label="Navegação principal" style={styles.nav}>
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <SidebarNavLink key={item.label} item={item} active={isActive(item)} />
         ))}
       </nav>

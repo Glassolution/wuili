@@ -65,10 +65,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Trial pago: cobra R$29,90 hoje e, no dia 5, passa a cobrar o valor do plano (R$99,90 Pro).
+    // Trial pago de teste: cobra R$1,00 hoje e, no dia 5, passa a cobrar o valor do plano (R$99,90 Pro).
     // Trial só é permitido no plano Pro. Business vai direto no valor cheio.
     const isTrial = Boolean(trial) && plan === "pro";
-    const TRIAL_AMOUNT = 29.9;
+    const TRIAL_AMOUNT = 1;
     const TRIAL_DAYS = 5;
     const selectedPlan = isTrial
       ? { amount: TRIAL_AMOUNT, description: "Velo — Trial de publicação (5 dias)" }

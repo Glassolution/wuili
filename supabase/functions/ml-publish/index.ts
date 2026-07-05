@@ -284,6 +284,33 @@ Deno.serve(async (req) => {
       : product.title
     console.log('Título final:', title, `(${title.length} chars)`)
 
+    // Prevent duplicate Mercado Livre listings for the same active publication.
+    // user_publications does not currently store catalog_product_id/SKU, so the
+    // best stable key available in this function is the final ML title per user.
+    const duplicatePublicationQuery = await supabase
+      .from('user_publications')
+      .select('id, ml_item_id, permalink, status')
+      .eq('user_id', user_id)
+      .eq('title', title)
+      .in('status', ['active', 'published'])
+      .limit(1)
+
+    if (duplicatePublicationQuery.error) {
+      console.error('Erro ao verificar publicação duplicada:', duplicatePublicationQuery.error)
+      return json({ error: 'Não foi possível verificar se este produto já foi publicado. Tente novamente.' }, 500)
+    }
+
+    const existingPublication = duplicatePublicationQuery.data?.[0]
+    if (existingPublication) {
+      console.warn('Publicação duplicada bloqueada:', existingPublication.id)
+      return json({
+        error: 'Este produto já foi publicado.',
+        code: 'DUPLICATE_PUBLICATION',
+        item_id: existingPublication.ml_item_id,
+        permalink: existingPublication.permalink,
+      }, 409)
+    }
+
     // === CATEGORY (leaf only) ===
     const categoryId = await predictCategory(title)
     console.log('Categoria final (leaf):', categoryId)
@@ -350,6 +377,8 @@ Deno.serve(async (req) => {
     console.log('Payload:', JSON.stringify(mlPayload).substring(0, 800))
 
     // === PUBLISH ===
+    // Official Mercado Livre item creation docs do not document an idempotency
+    // header for POST /items. Keep idempotency on our side before this request.
     const itemResponse = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {

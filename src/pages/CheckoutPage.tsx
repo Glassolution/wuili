@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Check, QrCode, CreditCard, Copy,
-  CheckCircle2, Loader2, ShieldCheck,
+  CheckCircle2, Loader2, ShieldCheck, HelpCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -120,10 +120,11 @@ const CheckoutPage = () => {
   const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
   // Trial pago só se aplica ao Pro. Se o usuário escolheu Business, ignoramos o flag.
   const isTrial = searchParams.get("trial") === "1" && initialPlanId === "pro";
-  const TRIAL_AMOUNT_BRL = "R$ 29,90";
+  const isPaymentStep = isTrial || searchParams.get("checkout") === "1";
+  const TRIAL_AMOUNT_BRL = "R$ 1,00";
   const TRIAL_DAYS = 5;
 
-  const [selectedPlanId] = useState(initialPlanId);
+  const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const planId = selectedPlanId;
   const plan = PLANS_DATA[planId];
@@ -289,6 +290,10 @@ const CheckoutPage = () => {
     }
   };
 
+  const startCheckout = (targetPlanId: string) => {
+    navigate(`/checkout?plan=${targetPlanId}&checkout=1`);
+  };
+
 
   if (checkoutState === "success") {
     return (
@@ -306,6 +311,145 @@ const CheckoutPage = () => {
             Ir para o dashboard
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (!isPaymentStep) {
+    const selectedPlan = PLANS_DATA[selectedPlanId];
+
+    return (
+      <div className="min-h-screen bg-[#111111] px-4 py-8 font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111] sm:px-8 lg:px-12">
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_66%_8%,rgba(255,255,255,0.25),transparent_22%),radial-gradient(circle_at_10%_88%,rgba(255,255,255,0.10),transparent_26%)]" />
+        <div className="pointer-events-none fixed inset-0 opacity-[0.12] [background-image:radial-gradient(circle,rgba(255,255,255,0.7)_0.7px,transparent_0.7px)] [background-size:5px_5px]" />
+
+        <main className="relative mx-auto flex min-h-[calc(100vh-64px)] max-w-[1040px] items-center justify-center">
+          <section className="w-full rounded-[36px] bg-white px-5 py-8 shadow-[0_36px_100px_rgba(0,0,0,0.35)] sm:px-8 lg:px-14 lg:py-12">
+            <div className="mx-auto max-w-[760px] text-center">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="mx-auto mb-7 flex h-9 w-9 items-center justify-center rounded-full bg-[#F4F4F3] text-[#111111] transition hover:bg-[#E8E8E7]"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={16} strokeWidth={1.8} />
+              </button>
+              <div className="mx-auto mb-3 w-fit rounded-full bg-[#F7F7F6] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8A8A8A]">
+                Planos
+              </div>
+              <h1 className="text-[34px] font-semibold leading-tight tracking-[-0.05em] text-[#111111] sm:text-[44px]">
+                Escolha o plano para crescer
+              </h1>
+              <p className="mx-auto mt-2 max-w-[480px] text-[13px] leading-5 text-[#8B8B8B]">
+                Comece com a estrutura certa para publicar produtos, operar com IA e escalar sua loja sem complicar o checkout.
+              </p>
+            </div>
+
+            <div className="mx-auto mt-10 grid max-w-[760px] items-stretch gap-4 md:grid-cols-2">
+              {(["pro", "business"] as const).map((cardPlanId) => {
+                const cardPlan = PLANS_DATA[cardPlanId];
+                const isSelected = selectedPlanId === cardPlanId;
+                const isPro = cardPlanId === "pro";
+
+                return (
+                  <article
+                    key={cardPlanId}
+                    onClick={() => setSelectedPlanId(cardPlanId)}
+                    className={`flex min-h-[430px] cursor-pointer flex-col rounded-[28px] p-6 transition ${
+                      isSelected
+                        ? "bg-white shadow-[0_16px_50px_rgba(0,0,0,0.10)] ring-1 ring-black/[0.06]"
+                        : "bg-[#F4F4F3] hover:bg-[#F0F0EF]"
+                    }`}
+                  >
+                    <div className="mb-6 flex items-start justify-between gap-4">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${
+                        isPro ? "bg-[#111111] text-white" : "border border-[#D9D9D7] bg-white text-[#111111]"
+                      }`}>
+                        <Check size={15} strokeWidth={2} />
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-[10px] font-semibold ${
+                        isPro
+                          ? "bg-[#111111] text-white"
+                          : "bg-white text-[#777777] ring-1 ring-black/[0.05]"
+                      }`}>
+                        {cardPlan.badge}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-[#111111]">
+                        {cardPlan.name}
+                      </h2>
+                      <p className="mt-1 min-h-[40px] text-[12px] leading-5 text-[#8A8A8A]">
+                        {cardPlan.description}
+                      </p>
+                    </div>
+
+                    <div className="mt-7 flex items-end gap-1 border-b border-black/[0.08] pb-6">
+                      {cardPlan.originalPrice && (
+                        <span className="mb-1 mr-1 text-[16px] font-semibold text-[#B8B8B8] line-through">
+                          {cardPlan.originalPrice}
+                        </span>
+                      )}
+                      <span className="text-[36px] font-semibold leading-none tracking-[-0.06em] text-[#111111]">
+                        {cardPlan.price}
+                      </span>
+                      <span className="mb-1 text-[12px] font-medium text-[#777777]">/mês</span>
+                    </div>
+
+                    <div className="mt-5">
+                      <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8C8C8C]">
+                        Inclui
+                      </p>
+                      <ul className="space-y-2">
+                        {cardPlan.features.slice(0, 5).map((feature) => (
+                          <li key={feature} className="flex items-start gap-2 text-[12px] leading-4 text-[#555555]">
+                            <Check size={12} className="mt-0.5 shrink-0 text-[#111111]" strokeWidth={2} />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startCheckout(cardPlanId);
+                      }}
+                      className="mt-auto flex h-11 w-full items-center justify-center rounded-full bg-[#111111] px-4 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition hover:bg-black"
+                    >
+                      {isPro ? "Assinar Pro" : "Assinar Business"}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="mx-auto mt-5 max-w-[760px] rounded-[28px] bg-[radial-gradient(circle_at_15%_30%,rgba(255,246,176,0.85),transparent_35%),radial-gradient(circle_at_70%_22%,rgba(211,225,255,0.95),transparent_34%),radial-gradient(circle_at_85%_82%,rgba(180,230,255,0.9),transparent_38%),radial-gradient(circle_at_25%_86%,rgba(255,204,235,0.85),transparent_36%),#F6F7F9] px-6 py-7 text-center">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#111111] shadow-[0_8px_22px_rgba(0,0,0,0.08)]">
+                <HelpCircle size={20} strokeWidth={1.6} />
+              </div>
+              <h3 className="mt-4 text-[17px] font-semibold tracking-[-0.02em] text-[#111111]">
+                Não tem certeza de qual plano escolher?
+              </h3>
+              <p className="mx-auto mt-1 max-w-[410px] text-[12px] leading-5 text-[#555555]">
+                Comece pelo Pro. Você pode ajustar o plano depois sem mudar o fluxo de checkout.
+              </p>
+              <button
+                type="button"
+                onClick={() => startCheckout("pro")}
+                className="mx-auto mt-5 flex h-10 w-fit min-w-[190px] items-center justify-center rounded-full bg-[#111111] px-5 text-[12px] font-semibold text-white transition hover:bg-black"
+              >
+                Continuar com Pro
+              </button>
+            </div>
+
+            <p className="mt-6 text-center text-[11px] text-[#9A9A9A]">
+              Plano selecionado: <span className="font-semibold text-[#555555]">{selectedPlan.name}</span>
+            </p>
+          </section>
+        </main>
       </div>
     );
   }
