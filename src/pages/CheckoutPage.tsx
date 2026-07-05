@@ -333,23 +333,35 @@ const CheckoutPage = () => {
           </div>
 
           <div>
-            <p className="mb-3 text-[13px] font-medium text-white/45">Assinar plano {plan.name}</p>
+            <p className="mb-3 text-[13px] font-medium text-white/45">
+              {isTrial ? "Trial de publicação" : `Assinar plano ${plan.name}`}
+            </p>
             <h1 className="text-[44px] font-semibold leading-none tracking-[-0.045em] text-white sm:text-[52px]">
-              {plan.price} por mês
+              {isTrial ? `${TRIAL_AMOUNT_BRL} por ${TRIAL_DAYS} dias` : `${plan.price} por mês`}
             </h1>
             <p className="mt-4 max-w-[320px] text-[15px] font-medium leading-6 text-white/54">
-              Assinatura mensal do plano {plan.name}
+              {isTrial
+                ? `Publique agora com segurança. Após ${TRIAL_DAYS} dias, sua assinatura continua automaticamente no plano ${plan.name} (${plan.price}/mês). Cancele quando quiser.`
+                : `Assinatura mensal do plano ${plan.name}`}
             </p>
 
             <div className="mt-12 border-y border-white/[0.08] py-6">
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <p className="text-[14px] font-semibold text-white">{plan.name}</p>
-                  <p className="mt-1 text-[12px] text-white/42">Cobrança mensal</p>
+                  <p className="text-[14px] font-semibold text-white">
+                    {isTrial ? "Trial Velo — Pro" : plan.name}
+                  </p>
+                  <p className="mt-1 text-[12px] text-white/42">
+                    {isTrial ? `${TRIAL_DAYS} dias de acesso` : "Cobrança mensal"}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[13px] font-semibold text-white">{plan.price}</p>
-                  <p className="mt-1 text-[12px] text-white/42">/ mês</p>
+                  <p className="text-[13px] font-semibold text-white">
+                    {isTrial ? TRIAL_AMOUNT_BRL : plan.price}
+                  </p>
+                  <p className="mt-1 text-[12px] text-white/42">
+                    {isTrial ? `/ ${TRIAL_DAYS} dias` : "/ mês"}
+                  </p>
                 </div>
               </div>
 
@@ -366,7 +378,7 @@ const CheckoutPage = () => {
             <div className="space-y-5 py-7 text-[14px]">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-white/66">Subtotal</span>
-                <span className="font-semibold text-white">{plan.price}</span>
+                <span className="font-semibold text-white">{isTrial ? TRIAL_AMOUNT_BRL : plan.price}</span>
               </div>
 
               <div>
@@ -380,16 +392,32 @@ const CheckoutPage = () => {
               </div>
 
               <div className="border-t border-white/[0.08] pt-6">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-white/66">Total mensal</span>
-                  <span className="font-semibold text-white">{plan.price}</span>
-                </div>
-                <div className="mt-7 flex items-center justify-between">
-                  <span className="font-semibold text-white/66">Total devido hoje</span>
-                  <span className="font-semibold text-white">{plan.price}</span>
-                </div>
+                {isTrial ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-white/66">A partir do dia {TRIAL_DAYS + 1}</span>
+                      <span className="font-semibold text-white">{plan.price} / mês</span>
+                    </div>
+                    <div className="mt-7 flex items-center justify-between">
+                      <span className="font-semibold text-white/66">Total devido hoje</span>
+                      <span className="font-semibold text-white">{TRIAL_AMOUNT_BRL}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-white/66">Total mensal</span>
+                      <span className="font-semibold text-white">{plan.price}</span>
+                    </div>
+                    <div className="mt-7 flex items-center justify-between">
+                      <span className="font-semibold text-white/66">Total devido hoje</span>
+                      <span className="font-semibold text-white">{plan.price}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
+          </div>
           </div>
           </div>
         </aside>
