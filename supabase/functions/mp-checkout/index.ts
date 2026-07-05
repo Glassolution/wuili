@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const userEmail = claimsData.claims.email as string;
 
     const body = await req.json();
-    const { plan, payment_method, affiliate_ref, plan_price } = body;
+    const { plan, payment_method, affiliate_ref, plan_price, trial } = body;
 
     if (!plan || !payment_method) {
       return new Response(JSON.stringify({ error: "plan e payment_method são obrigatórios" }), {
@@ -57,13 +57,22 @@ Deno.serve(async (req) => {
       business: { amount: 149.90, description: "Velo Business" },
     };
 
-    const selectedPlan = plans[plan];
-    if (!selectedPlan) {
+    const basePlan = plans[plan];
+    if (!basePlan) {
       return new Response(JSON.stringify({ error: "Plano inválido" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Trial pago: cobra R$29,90 hoje e, no dia 5, passa a cobrar o valor do plano (R$99,90 Pro).
+    // Trial só é permitido no plano Pro. Business vai direto no valor cheio.
+    const isTrial = Boolean(trial) && plan === "pro";
+    const TRIAL_AMOUNT = 29.9;
+    const TRIAL_DAYS = 5;
+    const selectedPlan = isTrial
+      ? { amount: TRIAL_AMOUNT, description: "Velo — Trial de publicação (5 dias)" }
+      : basePlan;
 
     // === COOLDOWN ANTI-ABUSO (pós-reembolso) ===
     {
@@ -103,6 +112,9 @@ Deno.serve(async (req) => {
         plan: plan,
         affiliate_ref: cleanAffiliateRef || undefined,
         plan_price: typeof plan_price === "number" ? plan_price : selectedPlan.amount,
+        is_trial: isTrial,
+        trial_days: isTrial ? TRIAL_DAYS : undefined,
+        post_trial_amount: isTrial ? basePlan.amount : undefined,
       },
     };
 
@@ -149,9 +161,13 @@ Deno.serve(async (req) => {
 
     const now = new Date();
     const periodEnd = new Date(now);
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    if (isTrial) {
+      periodEnd.setDate(periodEnd.getDate() + TRIAL_DAYS);
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
 
-    const subStatus = mpData.status === "approved" ? "active" : "pending";
+    const subStatus = mpData.status === "approved" ? (isTrial ? "trialing" : "active") : "pending";
 
     await adminClient.from("subscriptions").upsert({
       user_id: userId,
@@ -162,6 +178,14 @@ Deno.serve(async (req) => {
       amount: selectedPlan.amount,
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),
+      is_trial: isTrial,
+      trial_ends_at: isTrial ? periodEnd.toISOString() : null,
+      // No dia 5, um job/cron deve iniciar a cobrança recorrente de basePlan.amount
+      // ancorado em next_charge_at. MP preapproval nativo não permite trial pago
+      // com valor diferente do recorrente, por isso agendamos aqui.
+      next_charge_amount: isTrial ? basePlan.amount : null,
+      next_charge_at: isTrial ? periodEnd.toISOString() : null,
+      post_trial_plan: isTrial ? plan : null,
       updated_at: now.toISOString(),
     }, { onConflict: "user_id" });
 

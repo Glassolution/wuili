@@ -118,12 +118,13 @@ const CheckoutPage = () => {
 
   const rawPlan = searchParams.get("plan") ?? "pro";
   const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
-  const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
-  const [showPaymentStep, setShowPaymentStep] = useState(false);
+  // Trial pago só se aplica ao Pro. Se o usuário escolheu Business, ignoramos o flag.
+  const isTrial = searchParams.get("trial") === "1" && initialPlanId === "pro";
+  const TRIAL_AMOUNT_BRL = "R$ 29,90";
+  const TRIAL_DAYS = 5;
+
+  const [selectedPlanId] = useState(initialPlanId);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
-  const [showBusinessDirectCard, setShowBusinessDirectCard] = useState(
-    searchParams.get("businessCard") === "1" || initialPlanId === "business"
-  );
   const planId = selectedPlanId;
   const plan = PLANS_DATA[planId];
 
@@ -148,10 +149,10 @@ const CheckoutPage = () => {
   }, [session, email]);
 
   useEffect(() => {
-    if (!showPaymentStep || !session?.user?.id) return;
+    if (!session?.user?.id) return;
     void markReachedPayment(session.user.id, { route: "/checkout", plan: planId });
     void markAffiliateReachedPayment(session.user.id, PLAN_AMOUNTS[planId] ?? 0);
-  }, [planId, session?.user?.id, showPaymentStep]);
+  }, [planId, session?.user?.id]);
 
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
@@ -216,6 +217,7 @@ const CheckoutPage = () => {
         plan: planId,
         billing_cycle: billingCycle,
         payment_method: selectedMethod,
+        trial: isTrial,
       };
       const referralCode = getReferralCode();
       if (referralCode) {
@@ -287,11 +289,6 @@ const CheckoutPage = () => {
     }
   };
 
-  const startCheckout = (nextPlanId = selectedPlanId) => {
-    setSelectedPlanId(nextPlanId);
-    setShowPaymentStep(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   if (checkoutState === "success") {
     return (
@@ -313,149 +310,8 @@ const CheckoutPage = () => {
     );
   }
 
-  if (!showPaymentStep) {
-    const businessPlan = PLANS_DATA.business;
 
-    return (
-      <div className="min-h-screen overflow-hidden bg-[#F5F5F3] font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
-        <section className="flex min-h-screen w-full items-center justify-center px-4 py-8 sm:px-6">
-          <div className="w-full max-w-[760px] rounded-[36px] bg-white p-5 shadow-[0_30px_100px_rgba(0,0,0,0.12)] sm:p-8">
-            <div className="mb-7 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F3F2] text-black transition hover:bg-[#E9E9E7]"
-                aria-label="Voltar"
-              >
-                <ArrowLeft size={18} strokeWidth={1.5} />
-              </button>
-              <VeloLogo size="md" variant="dark" />
-              <span className="h-10 w-10" aria-hidden="true" />
-            </div>
 
-            <div className="mx-auto max-w-[560px] text-center">
-              <p className="mx-auto mb-3 w-fit rounded-full bg-[#F4F4F2] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#858581]">
-                Trial Velo
-              </p>
-              <h1 className="text-[34px] font-semibold leading-[0.98] tracking-[-0.055em] text-black sm:text-[44px]">
-                Comece publicando com segurança
-              </h1>
-              <p className="mx-auto mt-3 max-w-[500px] text-[14px] leading-6 text-[#777772]">
-                Ative o trial para publicar agora, validar sua operação e manter o checkout seguro pelo Mercado Pago.
-              </p>
-            </div>
-
-            {!showBusinessDirectCard ? (
-              <div className="mx-auto mt-8 max-w-[560px] rounded-[30px] bg-[#F7F7F5] p-4">
-                <div className="rounded-[26px] bg-white p-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-white">
-                      <ShieldCheck size={22} strokeWidth={1.5} />
-                    </div>
-                    <span className="rounded-full bg-[#F1F1EF] px-3 py-1 text-[11px] font-semibold text-[#6F6F6A]">
-                      5 dias
-                    </span>
-                  </div>
-
-                  <div className="mt-6">
-                    <p className="text-[13px] font-semibold text-[#777772]">Trial de publicação</p>
-                    <div className="mt-2 flex items-end gap-2">
-                      <span className="text-[42px] font-semibold tracking-[-0.06em] text-black">R$ 29,90</span>
-                      <span className="pb-2 text-[15px] font-medium text-[#8A8A86]">por 5 dias</span>
-                    </div>
-                  </div>
-
-                  <div className="my-6 h-px bg-black/10" />
-
-                  <ul className="space-y-2.5">
-                    {[
-                      "Publicação do produto customizado",
-                      "IA para título, descrição e análise",
-                      "Continua automaticamente no Pro após o trial",
-                    ].map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-[#3D3D3A]">
-                        <Check size={14} className="mt-0.5 shrink-0 text-black" strokeWidth={2.2} />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <button
-                    type="button"
-                    onClick={() => startCheckout("pro")}
-                    className="mt-7 h-[52px] w-full rounded-full bg-black px-5 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(0,0,0,0.22)] transition hover:bg-[#1A1A1A]"
-                  >
-                    Iniciar trial — R$29,90 por 5 dias
-                  </button>
-                  <p className="mt-3 text-center text-[12.5px] leading-relaxed text-[#777772]">
-                    Publique agora mesmo. Após 5 dias, sua assinatura continua automaticamente no plano Pro (R$99,90/mês). Cancele quando quiser.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowBusinessDirectCard(true)}
-                  className="mx-auto mt-5 block max-w-[460px] text-center text-[12.5px] font-medium leading-relaxed text-[#6F6F6A] underline underline-offset-4 transition hover:text-black"
-                >
-                  Prefere começar direto no Business (R$149,90/mês, promoção) com automações ilimitadas?
-                </button>
-              </div>
-            ) : (
-              <div className="mx-auto mt-8 max-w-[560px] rounded-[30px] bg-[#F7F7F5] p-4">
-                <div className="rounded-[26px] bg-white p-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-black/12 bg-white text-black">
-                      <span className="h-3 w-3 rounded-full bg-[#D8D8D4]" />
-                    </div>
-                    <span className="rounded-full bg-[#F1F1EF] px-3 py-1 text-[11px] font-semibold text-[#777772]">
-                      {businessPlan.badge}
-                    </span>
-                  </div>
-
-                  <div className="mt-6">
-                    <h2 className="text-[24px] font-semibold tracking-[-0.035em] text-black">Business</h2>
-                    <p className="mt-1 text-[13px] leading-5 text-[#777772]">{businessPlan.description}</p>
-                    <div className="mt-4 flex flex-wrap items-end gap-2">
-                      <span className="text-[42px] font-semibold tracking-[-0.06em] text-black">R$ 149,90</span>
-                      <span className="pb-2 text-[15px] font-medium text-[#8A8A86]">/mês</span>
-                      <span className="pb-2 text-[13px] font-semibold text-[#8A8A86] line-through">{businessPlan.originalPrice}</span>
-                    </div>
-                  </div>
-
-                  <div className="my-6 h-px bg-black/10" />
-
-                  <ul className="space-y-2.5">
-                    {businessPlan.features.slice(0, 5).map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-[#3D3D3A]">
-                        <Check size={14} className="mt-0.5 shrink-0 text-black" strokeWidth={2.2} />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <button
-                    type="button"
-                    onClick={() => startCheckout("business")}
-                    className="mt-7 h-[52px] w-full rounded-full bg-black px-5 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(0,0,0,0.22)] transition hover:bg-[#1A1A1A]"
-                  >
-                    Assinar Business
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowBusinessDirectCard(false)}
-                  className="mx-auto mt-5 block text-center text-[12.5px] font-medium text-[#6F6F6A] underline underline-offset-4 transition hover:text-black"
-                >
-                  Voltar para o trial de R$29,90
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
@@ -467,7 +323,7 @@ const CheckoutPage = () => {
           <div className="relative w-full max-w-[440px]">
           <div className="mb-12 flex items-center gap-3">
             <button
-              onClick={() => setShowPaymentStep(false)}
+              onClick={() => navigate(-1)}
               className="flex h-8 w-8 items-center justify-center rounded-full text-white/42 transition-colors hover:bg-white/[0.06] hover:text-white"
               aria-label="Voltar"
             >
@@ -477,23 +333,35 @@ const CheckoutPage = () => {
           </div>
 
           <div>
-            <p className="mb-3 text-[13px] font-medium text-white/45">Assinar plano {plan.name}</p>
+            <p className="mb-3 text-[13px] font-medium text-white/45">
+              {isTrial ? "Trial de publicação" : `Assinar plano ${plan.name}`}
+            </p>
             <h1 className="text-[44px] font-semibold leading-none tracking-[-0.045em] text-white sm:text-[52px]">
-              {plan.price} por mês
+              {isTrial ? `${TRIAL_AMOUNT_BRL} por ${TRIAL_DAYS} dias` : `${plan.price} por mês`}
             </h1>
             <p className="mt-4 max-w-[320px] text-[15px] font-medium leading-6 text-white/54">
-              Assinatura mensal do plano {plan.name}
+              {isTrial
+                ? `Publique agora com segurança. Após ${TRIAL_DAYS} dias, sua assinatura continua automaticamente no plano ${plan.name} (${plan.price}/mês). Cancele quando quiser.`
+                : `Assinatura mensal do plano ${plan.name}`}
             </p>
 
             <div className="mt-12 border-y border-white/[0.08] py-6">
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <p className="text-[14px] font-semibold text-white">{plan.name}</p>
-                  <p className="mt-1 text-[12px] text-white/42">Cobrança mensal</p>
+                  <p className="text-[14px] font-semibold text-white">
+                    {isTrial ? "Trial Velo — Pro" : plan.name}
+                  </p>
+                  <p className="mt-1 text-[12px] text-white/42">
+                    {isTrial ? `${TRIAL_DAYS} dias de acesso` : "Cobrança mensal"}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[13px] font-semibold text-white">{plan.price}</p>
-                  <p className="mt-1 text-[12px] text-white/42">/ mês</p>
+                  <p className="text-[13px] font-semibold text-white">
+                    {isTrial ? TRIAL_AMOUNT_BRL : plan.price}
+                  </p>
+                  <p className="mt-1 text-[12px] text-white/42">
+                    {isTrial ? `/ ${TRIAL_DAYS} dias` : "/ mês"}
+                  </p>
                 </div>
               </div>
 
@@ -510,7 +378,7 @@ const CheckoutPage = () => {
             <div className="space-y-5 py-7 text-[14px]">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-white/66">Subtotal</span>
-                <span className="font-semibold text-white">{plan.price}</span>
+                <span className="font-semibold text-white">{isTrial ? TRIAL_AMOUNT_BRL : plan.price}</span>
               </div>
 
               <div>
@@ -524,14 +392,29 @@ const CheckoutPage = () => {
               </div>
 
               <div className="border-t border-white/[0.08] pt-6">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-white/66">Total mensal</span>
-                  <span className="font-semibold text-white">{plan.price}</span>
-                </div>
-                <div className="mt-7 flex items-center justify-between">
-                  <span className="font-semibold text-white/66">Total devido hoje</span>
-                  <span className="font-semibold text-white">{plan.price}</span>
-                </div>
+                {isTrial ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-white/66">A partir do dia {TRIAL_DAYS + 1}</span>
+                      <span className="font-semibold text-white">{plan.price} / mês</span>
+                    </div>
+                    <div className="mt-7 flex items-center justify-between">
+                      <span className="font-semibold text-white/66">Total devido hoje</span>
+                      <span className="font-semibold text-white">{TRIAL_AMOUNT_BRL}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-white/66">Total mensal</span>
+                      <span className="font-semibold text-white">{plan.price}</span>
+                    </div>
+                    <div className="mt-7 flex items-center justify-between">
+                      <span className="font-semibold text-white/66">Total devido hoje</span>
+                      <span className="font-semibold text-white">{plan.price}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -729,7 +612,7 @@ const CheckoutPage = () => {
                 {checkoutState === "loading" ? (
                   <><Loader2 size={16} className="animate-spin" /> Processando...</>
                 ) : (
-                  `Pagar ${plan.price}`
+                  isTrial ? `Iniciar trial — ${TRIAL_AMOUNT_BRL} por ${TRIAL_DAYS} dias` : `Pagar ${plan.price}`
                 )}
               </button>
             )}
