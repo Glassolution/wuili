@@ -419,7 +419,6 @@ const CheckoutPage = () => {
             </div>
           </div>
           </div>
-          </div>
         </aside>
 
         {/* RIGHT — payment form */}
