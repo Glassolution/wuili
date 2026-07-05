@@ -161,9 +161,13 @@ Deno.serve(async (req) => {
 
     const now = new Date();
     const periodEnd = new Date(now);
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    if (isTrial) {
+      periodEnd.setDate(periodEnd.getDate() + TRIAL_DAYS);
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
 
-    const subStatus = mpData.status === "approved" ? "active" : "pending";
+    const subStatus = mpData.status === "approved" ? (isTrial ? "trialing" : "active") : "pending";
 
     await adminClient.from("subscriptions").upsert({
       user_id: userId,
@@ -174,6 +178,14 @@ Deno.serve(async (req) => {
       amount: selectedPlan.amount,
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),
+      is_trial: isTrial,
+      trial_ends_at: isTrial ? periodEnd.toISOString() : null,
+      // No dia 5, um job/cron deve iniciar a cobrança recorrente de basePlan.amount
+      // ancorado em next_charge_at. MP preapproval nativo não permite trial pago
+      // com valor diferente do recorrente, por isso agendamos aqui.
+      next_charge_amount: isTrial ? basePlan.amount : null,
+      next_charge_at: isTrial ? periodEnd.toISOString() : null,
+      post_trial_plan: isTrial ? plan : null,
       updated_at: now.toISOString(),
     }, { onConflict: "user_id" });
 
