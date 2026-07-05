@@ -112,6 +112,9 @@ Deno.serve(async (req) => {
         plan: plan,
         affiliate_ref: cleanAffiliateRef || undefined,
         plan_price: typeof plan_price === "number" ? plan_price : selectedPlan.amount,
+        is_trial: isTrial,
+        trial_days: isTrial ? TRIAL_DAYS : undefined,
+        post_trial_amount: isTrial ? basePlan.amount : undefined,
       },
     };
 
