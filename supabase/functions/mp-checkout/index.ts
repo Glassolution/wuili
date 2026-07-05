@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     const userEmail = claimsData.claims.email as string;
 
     const body = await req.json();
-    const { plan, payment_method, affiliate_ref, plan_price } = body;
+    const { plan, payment_method, affiliate_ref, plan_price, trial } = body;
 
     if (!plan || !payment_method) {
       return new Response(JSON.stringify({ error: "plan e payment_method são obrigatórios" }), {
@@ -57,13 +57,22 @@ Deno.serve(async (req) => {
       business: { amount: 149.90, description: "Velo Business" },
     };
 
-    const selectedPlan = plans[plan];
-    if (!selectedPlan) {
+    const basePlan = plans[plan];
+    if (!basePlan) {
       return new Response(JSON.stringify({ error: "Plano inválido" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Trial pago: cobra R$29,90 hoje e, no dia 5, passa a cobrar o valor do plano (R$99,90 Pro).
+    // Trial só é permitido no plano Pro. Business vai direto no valor cheio.
+    const isTrial = Boolean(trial) && plan === "pro";
+    const TRIAL_AMOUNT = 29.9;
+    const TRIAL_DAYS = 5;
+    const selectedPlan = isTrial
+      ? { amount: TRIAL_AMOUNT, description: "Velo — Trial de publicação (5 dias)" }
+      : basePlan;
 
     // === COOLDOWN ANTI-ABUSO (pós-reembolso) ===
     {
