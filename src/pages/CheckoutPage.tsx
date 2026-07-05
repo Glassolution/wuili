@@ -118,12 +118,13 @@ const CheckoutPage = () => {
 
   const rawPlan = searchParams.get("plan") ?? "pro";
   const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
-  const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
-  const [showPaymentStep, setShowPaymentStep] = useState(false);
+  // Trial pago só se aplica ao Pro. Se o usuário escolheu Business, ignoramos o flag.
+  const isTrial = searchParams.get("trial") === "1" && initialPlanId === "pro";
+  const TRIAL_AMOUNT_BRL = "R$ 29,90";
+  const TRIAL_DAYS = 5;
+
+  const [selectedPlanId] = useState(initialPlanId);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
-  const [showBusinessDirectCard, setShowBusinessDirectCard] = useState(
-    searchParams.get("businessCard") === "1" || initialPlanId === "business"
-  );
   const planId = selectedPlanId;
   const plan = PLANS_DATA[planId];
 
