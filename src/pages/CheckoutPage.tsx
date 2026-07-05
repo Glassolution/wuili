@@ -217,6 +217,7 @@ const CheckoutPage = () => {
         plan: planId,
         billing_cycle: billingCycle,
         payment_method: selectedMethod,
+        trial: isTrial,
       };
       const referralCode = getReferralCode();
       if (referralCode) {
