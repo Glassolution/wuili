@@ -149,10 +149,10 @@ const CheckoutPage = () => {
   }, [session, email]);
 
   useEffect(() => {
-    if (!showPaymentStep || !session?.user?.id) return;
+    if (!session?.user?.id) return;
     void markReachedPayment(session.user.id, { route: "/checkout", plan: planId });
     void markAffiliateReachedPayment(session.user.id, PLAN_AMOUNTS[planId] ?? 0);
-  }, [planId, session?.user?.id, showPaymentStep]);
+  }, [planId, session?.user?.id]);
 
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
