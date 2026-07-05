@@ -612,7 +612,7 @@ const CheckoutPage = () => {
                 {checkoutState === "loading" ? (
                   <><Loader2 size={16} className="animate-spin" /> Processando...</>
                 ) : (
-                  `Pagar ${plan.price}`
+                  isTrial ? `Iniciar trial — ${TRIAL_AMOUNT_BRL} por ${TRIAL_DAYS} dias` : `Pagar ${plan.price}`
                 )}
               </button>
             )}
