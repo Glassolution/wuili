@@ -28,6 +28,8 @@ export type CatalogProduct = {
   stock_quantity?: number | null;
   external_id?: string;
   variants?: any;
+  brand?: string | null;
+  model?: string | null;
 };
 
 type Props = {
