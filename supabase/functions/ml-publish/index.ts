@@ -284,32 +284,43 @@ Deno.serve(async (req) => {
       : product.title
     console.log('Título final:', title, `(${title.length} chars)`)
 
-    // Prevent duplicate Mercado Livre listings for the same active publication.
-    // user_publications does not currently store catalog_product_id/SKU, so the
-    // best stable key available in this function is the final ML title per user.
-    const duplicatePublicationQuery = await supabase
-      .from('user_publications')
-      .select('id, ml_item_id, permalink, status')
-      .eq('user_id', user_id)
-      .eq('title', title)
-      .in('status', ['active', 'published'])
-      .limit(1)
+    // Prevent duplicate Mercado Livre listings for the same catalog product.
+    // The DB also enforces a partial unique index on
+    // (user_id, catalog_product_id) WHERE status IN ('active','published'),
+    // so a race between two simultaneous requests will still be caught at
+    // insert time (see catch below).
+    const catalogProductId: string | null =
+      (product.catalog_product_id as string | undefined) ??
+      (product.cj_product_id as string | undefined) ??
+      (product.external_id as string | undefined) ??
+      null
 
-    if (duplicatePublicationQuery.error) {
-      console.error('Erro ao verificar publicação duplicada:', duplicatePublicationQuery.error)
-      return json({ error: 'Não foi possível verificar se este produto já foi publicado. Tente novamente.' }, 500)
+    if (catalogProductId) {
+      const dup = await supabase
+        .from('user_publications')
+        .select('id, ml_item_id, permalink, status')
+        .eq('user_id', user_id)
+        .eq('catalog_product_id', catalogProductId)
+        .in('status', ['active', 'published'])
+        .limit(1)
+
+      if (dup.error) {
+        console.error('Erro ao verificar publicação duplicada:', dup.error)
+        return json({ error: 'Não foi possível verificar se este produto já foi publicado. Tente novamente.' }, 500)
+      }
+
+      const existing = dup.data?.[0]
+      if (existing) {
+        console.warn('Publicação duplicada bloqueada (catalog_product_id):', existing.id)
+        return json({
+          error: 'Este produto já foi publicado.',
+          code: 'DUPLICATE_PUBLICATION',
+          item_id: existing.ml_item_id,
+          permalink: existing.permalink,
+        }, 409)
+      }
     }
 
-    const existingPublication = duplicatePublicationQuery.data?.[0]
-    if (existingPublication) {
-      console.warn('Publicação duplicada bloqueada:', existingPublication.id)
-      return json({
-        error: 'Este produto já foi publicado.',
-        code: 'DUPLICATE_PUBLICATION',
-        item_id: existingPublication.ml_item_id,
-        permalink: existingPublication.permalink,
-      }, 409)
-    }
 
     // === CATEGORY (leaf only) ===
     const categoryId = await predictCategory(title)
@@ -436,20 +447,35 @@ Deno.serve(async (req) => {
     // === SAVE PUBLICATION ===
     // Campos legados mantidos somente por compatibilidade com o schema atual.
     try {
-      await supabase.from('user_publications').insert({
+      const insertRes = await supabase.from('user_publications').insert({
         user_id,
-        ml_item_id:     itemId,
+        ml_item_id:         itemId,
         title,
-        thumbnail:      publicImages[0] || null,
-        price:          product.price,
-        cost_price:     product.cost_price || null,
-        status:         'active',
-        permalink:      itemData.permalink,
-        published_at:   new Date().toISOString(),
-        cj_product_id:  product.cj_product_id  ?? null,
-        cj_product_url: product.cj_product_url ?? null,
-        cj_variant_id:  product.cj_variant_id  ?? null,
+        thumbnail:          publicImages[0] || null,
+        price:              product.price,
+        cost_price:         product.cost_price || null,
+        status:             'active',
+        permalink:          itemData.permalink,
+        published_at:       new Date().toISOString(),
+        catalog_product_id: catalogProductId,
+        cj_product_id:      product.cj_product_id  ?? null,
+        cj_product_url:     product.cj_product_url ?? null,
+        cj_variant_id:      product.cj_variant_id  ?? null,
       })
+      if (insertRes.error) {
+        // 23505 = unique_violation → race lost against another concurrent publish.
+        const code = (insertRes.error as { code?: string }).code
+        if (code === '23505') {
+          console.warn('Publicação duplicada detectada pela constraint única:', catalogProductId)
+          return json({
+            error: 'Este produto já foi publicado.',
+            code: 'DUPLICATE_PUBLICATION',
+            item_id: itemId,
+            permalink: itemData.permalink,
+          }, 409)
+        }
+        console.error('Erro ao salvar publicação:', insertRes.error)
+      }
     } catch (pubErr) {
       console.error('Erro ao salvar publicação:', pubErr)
     }
@@ -463,3 +489,4 @@ Deno.serve(async (req) => {
     return json({ error: message }, 500)
   }
 })
+
