@@ -13,6 +13,11 @@ function json(body: Record<string, unknown>, status = 200) {
 }
 
 type PlanName = 'gratis' | 'go' | 'pro' | 'business'
+type MLAttribute = {
+  id: string
+  value_id?: string
+  value_name?: string
+}
 
 const PRODUCT_LIMITS: Record<PlanName, number | null> = {
   gratis: 0,
@@ -27,6 +32,90 @@ function normalizePlanName(plan: unknown): PlanName {
   if (value === 'plus') return 'pro'
   if (value === 'go' || value === 'pro' || value === 'business') return value
   return 'gratis'
+}
+
+function cleanText(value: unknown): string {
+  return String(value ?? '').trim()
+}
+
+function normalizeText(value: unknown): string {
+  return cleanText(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function isStickerAlbumCategory(categoryId: string, title: string): boolean {
+  const text = normalizeText(title)
+  return (
+    categoryId === 'MLB1965' ||
+    text.includes('figurinha') ||
+    text.includes('album') ||
+    text.includes('copa do mundo') ||
+    text.includes('fifa')
+  )
+}
+
+function inferBrand(product: Record<string, unknown>, title: string): string {
+  const explicitBrand = cleanText(product.brand)
+  if (explicitBrand) return explicitBrand
+
+  const text = normalizeText(title)
+  if (text.includes('panini') || text.includes('fifa') || text.includes('copa do mundo') || text.includes('figurinha')) {
+    return 'Panini'
+  }
+
+  return 'Generico'
+}
+
+function inferAlbumName(product: Record<string, unknown>, title: string): string {
+  const explicitAlbum = cleanText(product.album_name)
+  if (explicitAlbum) return explicitAlbum
+
+  const text = normalizeText(title)
+  if (text.includes('fifa') || text.includes('copa do mundo')) {
+    return 'Copa do Mundo FIFA 2026'
+  }
+
+  return 'Álbum colecionável'
+}
+
+function inferSaleFormat(title: string): MLAttribute {
+  return normalizeText(title).includes('kit')
+    ? { id: 'SALE_FORMAT', value_id: '1359392', value_name: 'Kit' }
+    : { id: 'SALE_FORMAT', value_id: '1359391', value_name: 'Unidade' }
+}
+
+function mergeAttribute(attributes: MLAttribute[], incoming: MLAttribute) {
+  const attr = {
+    id: cleanText(incoming.id),
+    ...(cleanText(incoming.value_id) ? { value_id: cleanText(incoming.value_id) } : {}),
+    ...(cleanText(incoming.value_name) ? { value_name: cleanText(incoming.value_name) } : {}),
+  }
+  if (!attr.id || (!attr.value_id && !attr.value_name)) return
+
+  const index = attributes.findIndex((existing) => existing.id === attr.id)
+  if (index >= 0) attributes[index] = attr
+  else attributes.push(attr)
+}
+
+function parseIncomingAttributes(value: unknown): MLAttribute[] {
+  if (!Array.isArray(value)) return []
+
+  return value.flatMap((rawAttr) => {
+    if (!rawAttr || typeof rawAttr !== 'object') return []
+    const attr = rawAttr as Record<string, unknown>
+    const id = cleanText(attr.id)
+    const valueId = cleanText(attr.value_id)
+    const valueName = cleanText(attr.value_name)
+
+    if (!id || (!valueId && !valueName)) return []
+    return [{
+      id,
+      ...(valueId ? { value_id: valueId } : {}),
+      ...(valueName ? { value_name: valueName } : {}),
+    }]
+  })
 }
 
 // Resolve to a leaf category by walking children_categories until empty
@@ -99,8 +188,13 @@ function mapMLError(mlData: Record<string, unknown>): string {
   }
 
   if (causeStr.includes('category_id')) return 'Categoria inválida. Tente editar o título para melhor detecção automática.'
-  if (causeStr.includes('missing_required') || causeStr.includes('attributes'))
-    return 'Atributos obrigatórios faltando (marca/modelo). O Mercado Livre exige esses dados para esta categoria.'
+  if (causeStr.includes('missing_required') || causeStr.includes('attributes')) {
+    const messages = causeArr
+      .map((cause) => cause && typeof cause === 'object' ? cleanText((cause as Record<string, unknown>).message) : '')
+      .filter(Boolean)
+    const details = messages.length > 0 ? `: ${messages.join(' | ')}` : ''
+    return `Atributos obrigatórios faltando ou inválidos no Mercado Livre${details}.`
+  }
   if (msgLower.includes('title') || causeStr.includes('title.length'))
     return 'Título muito longo. Máximo 60 caracteres.'
   if (msgLower.includes('picture') || causeStr.includes('download_error'))
@@ -324,76 +418,71 @@ Deno.serve(async (req) => {
 
     // === CATEGORY (leaf only) ===
     const categoryId = await predictCategory(title)
-    console.log('Categoria final (leaf):', categoryId)
-
-    // === ATTRIBUTES ===
-    // Buscamos a ficha de atributos da categoria para saber quais são
-    // obrigatórios (tags.required) e quais têm lista fechada de valores
-    // permitidos (values). Isso evita mandar strings livres em atributos que
-    // o ML rejeita.
+    console.log('Categoria final (leaf):', categoryId)    // === ATTRIBUTES ===
+    // Buscamos a ficha de atributos da categoria para saber quais sao
+    // obrigatorios e quais tem lista fechada de valores permitidos.
     let categoryAttrs: Record<string, unknown>[] = []
     try {
       const attrRes = await fetch(`https://api.mercadolibre.com/categories/${categoryId}/attributes`)
       if (attrRes.ok) categoryAttrs = await attrRes.json()
     } catch (_e) { /* ignore */ }
 
-    // Helper: escolhe um valor válido para um atributo com lista fechada.
-    // Se o valor sugerido bater com algum "name" da lista, usamos o id oficial.
+    const productRecord = product as Record<string, unknown>
+
     const pickAttrValue = (attr: Record<string, unknown> | undefined, suggested: string | null | undefined) => {
       const values = (attr?.values as Array<{ id?: string; name?: string }> | undefined) ?? []
       if (values.length > 0) {
         if (suggested) {
-          const match = values.find(v => v.name?.toLowerCase() === suggested.toLowerCase())
+          const match = values.find(v => normalizeText(v.name) === normalizeText(suggested))
           if (match) return { value_id: match.id, value_name: match.name }
         }
-        // categoria com lista fechada — usar primeiro valor permitido
         return { value_id: values[0].id, value_name: values[0].name }
       }
-      // atributo de texto livre
       return { value_name: suggested || 'Genérica' }
     }
 
     const brandAttrDef = categoryAttrs.find(a => a.id === 'BRAND') as Record<string, unknown> | undefined
     const modelAttrDef = categoryAttrs.find(a => a.id === 'MODEL') as Record<string, unknown> | undefined
+    const brandInput = cleanText(productRecord.brand) || inferBrand(productRecord, title)
+    const rawModel = cleanText(productRecord.model)
+    const modelFallback = rawModel || title.substring(0, 60).trim()
 
-    // Marca: prioriza o valor vindo do catálogo (extraído no scraper). Se
-    // vazio, tentamos "Genérica" — que o ML aceita em BRAND para a maioria
-    // das categorias que não têm lista fechada.
-    const brandInput: string = (product.brand as string | undefined)?.trim() || 'Genérica'
-    const brandChoice = pickAttrValue(brandAttrDef, brandInput)
-
-    // Modelo: se o catálogo trouxe, usamos. Caso contrário, e o atributo for
-    // texto livre (sem "values"), usamos uma versão curta do título como
-    // rótulo — não inventamos algo como "Genérico" que categorias validam.
-    const rawModel = (product.model as string | undefined)?.trim()
-    const modelFallback = rawModel || product.title.substring(0, 60).trim()
-    const modelChoice = pickAttrValue(modelAttrDef, modelFallback)
-
-    const baseAttrs: Array<Record<string, unknown>> = [
-      { id: 'BRAND', ...brandChoice },
-      { id: 'MODEL', ...modelChoice },
-      { id: 'SELLER_SKU', value_name: product.external_id || 'SKU-001' },
+    const allAttrs: MLAttribute[] = [
+      { id: 'BRAND', ...pickAttrValue(brandAttrDef, brandInput) },
+      { id: 'MODEL', ...pickAttrValue(modelAttrDef, modelFallback) },
+      { id: 'SELLER_SKU', value_name: cleanText(productRecord.external_id) || 'SKU-001' },
     ]
+
+    if (isStickerAlbumCategory(categoryId, title)) {
+      mergeAttribute(allAttrs, { id: 'BRAND', value_name: inferBrand(productRecord, title) })
+      mergeAttribute(allAttrs, { id: 'ALBUM_NAME', value_name: inferAlbumName(productRecord, title) })
+      mergeAttribute(allAttrs, inferSaleFormat(title))
+    }
+
+    for (const incomingAttr of parseIncomingAttributes(productRecord.ml_attributes)) {
+      mergeAttribute(allAttrs, incomingAttr)
+    }
 
     const requiredAttrs = categoryAttrs
       .filter((a: Record<string, unknown>) => (a.tags as Record<string, unknown>)?.required)
       .filter((a: Record<string, unknown>) => a.id !== 'BRAND' && a.id !== 'MODEL' && a.id !== 'SELLER_SKU')
       .map((a: Record<string, unknown>) => {
-        const values = (a.values as Array<{ id?: string; name?: string }> | undefined) ?? []
-        if (values.length > 0) {
-          return { id: a.id as string, value_id: values[0].id, value_name: values[0].name }
+        const firstValue = (a.values as Record<string, unknown>[] | undefined)?.[0]
+        const valueId = cleanText(firstValue?.id)
+        const valueName = cleanText(firstValue?.name) || 'Genérica'
+        return {
+          id: a.id as string,
+          ...(valueId ? { value_id: valueId } : {}),
+          value_name: valueName,
         }
-        return { id: a.id as string, value_name: 'Genérica' }
       })
 
-    const allAttrs = [...baseAttrs]
     for (const req of requiredAttrs) {
-      if (!allAttrs.find(a => a.id === req.id)) allAttrs.push(req)
+      if (!allAttrs.find(a => a.id === req.id)) mergeAttribute(allAttrs, req)
     }
-    console.log('Atributos:', allAttrs.map(a => `${a.id}=${a.value_name}`))
+    console.log('Atributos:', allAttrs.map(a => `${a.id}=${a.value_id ?? a.value_name}`))
 
-    // === PICTURES ===
-    // ML exige foto de capa com FUNDO BRANCO digitalizado em várias categorias
+    // === PICTURES ===    // ML exige foto de capa com FUNDO BRANCO digitalizado em várias categorias
     // (beleza, saúde, moda etc). As imagens do catálogo Velo nem sempre vêm
     // assim — então normalizamos via proxy gratuito images.weserv.nl, que
     // redimensiona para 1200x1200 com `fit=contain` e preenche o canvas com

@@ -59,6 +59,28 @@ const STEPS = [
   { num: 3, label: "Trial" },
 ];
 
+const normalizeText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const isStickerAlbumProduct = (product: CatalogProduct | null, title: string) => {
+  const haystack = normalizeText(`${title} ${product?.title ?? ""} ${product?.category ?? ""}`);
+  return (
+    haystack.includes("figurinha") ||
+    haystack.includes("album") ||
+    haystack.includes("copa do mundo") ||
+    haystack.includes("fifa")
+  );
+};
+
+const inferStickerAlbumName = (product: CatalogProduct | null, title: string) => {
+  const haystack = normalizeText(`${title} ${product?.title ?? ""}`);
+  if (haystack.includes("fifa") || haystack.includes("copa do mundo")) return "Copa do Mundo FIFA 2026";
+  return "Álbum colecionável";
+};
+
 const ImportProductModal = ({ open, onClose, product }: Props) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -80,6 +102,10 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   // AI description
   const [description, setDescription] = useState("");
   const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [albumName, setAlbumName] = useState("");
+  const [saleFormat, setSaleFormat] = useState<"unit" | "kit">("unit");
 
   // Translation
   const [translating, setTranslating] = useState(false);
@@ -97,9 +123,6 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   // São pré-preenchidos com o que veio do scraper (quando existir) e podem
   // ser editados pelo usuário na etapa de Revisão. Sem marca, o backend usa
   // "Genérica" como fallback; sem modelo, cai para uma versão curta do título.
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
-
   // Check ML connection
   useEffect(() => {
     if (!user || !open) return;
@@ -135,8 +158,10 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     setPublishing(false);
     setDescription("");
     setTranslated(false);
-    setBrand((product.brand ?? "").trim());
+    setBrand((product.brand ?? "").trim() || (/panini|fifa|copa do mundo|figurinha/i.test(product.title) ? "Panini" : ""));
     setModel((product.model ?? "").trim());
+    setAlbumName(inferStickerAlbumName(product, truncated));
+    setSaleFormat(product.title.toLowerCase().includes("kit") ? "kit" : "unit");
   }
 
   const costPrice = product?.cost_price ?? 0;
@@ -171,6 +196,16 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const img = product ? getImage(product.images) : null;
   const stockQty = product?.stock_quantity ?? 0;
   const hasStock = stockQty > 0;
+  const requiresStickerAttrs = isStickerAlbumProduct(product, title);
+  const saleFormatAttribute = saleFormat === "kit"
+    ? { id: "SALE_FORMAT", value_id: "1359392", value_name: "Kit" }
+    : { id: "SALE_FORMAT", value_id: "1359391", value_name: "Unidade" };
+  const mlAttributes = [
+    ...(brand.trim() ? [{ id: "BRAND", value_name: brand.trim() }] : []),
+    ...(model.trim() ? [{ id: "MODEL", value_name: model.trim() }] : []),
+    ...(requiresStickerAttrs && albumName.trim() ? [{ id: "ALBUM_NAME", value_name: albumName.trim() }] : []),
+    ...(requiresStickerAttrs ? [saleFormatAttribute] : []),
+  ];
 
   useEffect(() => {
     if (!open || !product?.description) return;
@@ -318,6 +353,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
     if (!platforms.ml && !platforms.shopee && !platforms.tiktok) return veloToast.error("Selecione ao menos uma plataforma"), false;
     if (platforms.ml && !isConnectedToML) return veloToast.error("Conecte sua conta do Mercado Livre"), false;
     if (!hasStock) return veloToast.error("Produto sem estoque"), false;
+    if (platforms.ml && !brand.trim()) return veloToast.error("Informe a marca do produto"), false;
+    if (platforms.ml && requiresStickerAttrs && !albumName.trim()) return veloToast.error("Informe o nome do álbum"), false;
     return true;
   };
 
@@ -374,6 +411,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
             condition: "new",
             brand: brand.trim() || null,
             model: model.trim() || null,
+            ml_attributes: mlAttributes,
           },
         },
       });
@@ -733,26 +771,44 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                   <Row label="Lucro" value={formatBRL(profit)} strong />
                 </div>
 
-                {/* Marca/Modelo — exigidos pelo Mercado Livre em várias categorias */}
+                {/* Mercado Livre attributes */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-[12px] font-medium text-gray-600">Marca e modelo</label>
-                    <span className="text-[11px] text-gray-400">Exigido pelo Mercado Livre</span>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <label className="text-[12px] font-medium text-gray-600">Marca e atributos</label>
+                    <span className="text-[11px] font-medium text-gray-400">Exigido pelo Mercado Livre</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid gap-2.5 sm:grid-cols-2">
                     <input
                       value={brand}
                       onChange={(e) => setBrand(e.target.value)}
-                      placeholder="Marca (ex.: Genérica)"
-                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13px] text-[#0A0A0A] focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
+                      placeholder="Marca"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400 placeholder:text-gray-400"
                     />
                     <input
                       value={model}
                       onChange={(e) => setModel(e.target.value)}
                       placeholder="Modelo (opcional)"
-                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13px] text-[#0A0A0A] focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400 placeholder:text-gray-400"
                     />
                   </div>
+                  {requiresStickerAttrs && (
+                    <div className="mt-2.5 grid gap-2.5 sm:grid-cols-[1fr_150px]">
+                      <input
+                        value={albumName}
+                        onChange={(e) => setAlbumName(e.target.value)}
+                        placeholder="Nome do álbum"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400 placeholder:text-gray-400"
+                      />
+                      <select
+                        value={saleFormat}
+                        onChange={(e) => setSaleFormat(e.target.value === "kit" ? "kit" : "unit")}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400"
+                      >
+                        <option value="unit">Unidade</option>
+                        <option value="kit">Kit</option>
+                      </select>
+                    </div>
+                  )}
                   {!brand.trim() && (
                     <p className="mt-1.5 text-[11.5px] text-red-600">
                       Informe a marca antes de publicar. Se o produto não tem marca formal, use "Genérica".
