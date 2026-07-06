@@ -30,6 +30,11 @@ type WCProduct = {
     price_range?: { min_amount?: string; max_amount?: string } | null;
   };
   images?: Array<{ src?: string; thumbnail?: string }>;
+  attributes?: Array<{
+    name?: string;
+    taxonomy?: string;
+    terms?: Array<{ name?: string; slug?: string }>;
+  }>;
 };
 
 function parsePriceMinor(p: WCProduct): number {
