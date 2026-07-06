@@ -93,6 +93,13 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     tiktok: false,
   });
 
+  // Marca/Modelo — obrigatórios para publicar em várias categorias do ML.
+  // São pré-preenchidos com o que veio do scraper (quando existir) e podem
+  // ser editados pelo usuário na etapa de Revisão. Sem marca, o backend usa
+  // "Genérica" como fallback; sem modelo, cai para uma versão curta do título.
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+
   // Check ML connection
   useEffect(() => {
     if (!user || !open) return;
