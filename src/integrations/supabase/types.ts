@@ -210,6 +210,7 @@ export type Database = {
       }
       catalog_products: {
         Row: {
+          brand: string | null
           category: string | null
           cost_price: number
           created_at: string | null
@@ -220,6 +221,7 @@ export type Database = {
           is_active: boolean | null
           is_blocked: boolean
           margin_percent: number
+          model: string | null
           orders_count: number | null
           original_price: number | null
           product_url: string | null
@@ -236,6 +238,7 @@ export type Database = {
           weight: number | null
         }
         Insert: {
+          brand?: string | null
           category?: string | null
           cost_price: number
           created_at?: string | null
@@ -246,6 +249,7 @@ export type Database = {
           is_active?: boolean | null
           is_blocked?: boolean
           margin_percent: number
+          model?: string | null
           orders_count?: number | null
           original_price?: number | null
           product_url?: string | null
@@ -262,6 +266,7 @@ export type Database = {
           weight?: number | null
         }
         Update: {
+          brand?: string | null
           category?: string | null
           cost_price?: number
           created_at?: string | null
@@ -272,6 +277,7 @@ export type Database = {
           is_active?: boolean | null
           is_blocked?: boolean
           margin_percent?: number
+          model?: string | null
           orders_count?: number | null
           original_price?: number | null
           product_url?: string | null
