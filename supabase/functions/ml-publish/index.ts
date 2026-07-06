@@ -327,30 +327,70 @@ Deno.serve(async (req) => {
     console.log('Categoria final (leaf):', categoryId)
 
     // === ATTRIBUTES ===
+    // Buscamos a ficha de atributos da categoria para saber quais são
+    // obrigatórios (tags.required) e quais têm lista fechada de valores
+    // permitidos (values). Isso evita mandar strings livres em atributos que
+    // o ML rejeita.
     let categoryAttrs: Record<string, unknown>[] = []
     try {
       const attrRes = await fetch(`https://api.mercadolibre.com/categories/${categoryId}/attributes`)
       if (attrRes.ok) categoryAttrs = await attrRes.json()
     } catch (_e) { /* ignore */ }
 
-    const baseAttrs = [
-      { id: 'BRAND', value_name: 'Genérico' },
-      { id: 'MODEL', value_name: 'Genérico' },
+    // Helper: escolhe um valor válido para um atributo com lista fechada.
+    // Se o valor sugerido bater com algum "name" da lista, usamos o id oficial.
+    const pickAttrValue = (attr: Record<string, unknown> | undefined, suggested: string | null | undefined) => {
+      const values = (attr?.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+      if (values.length > 0) {
+        if (suggested) {
+          const match = values.find(v => v.name?.toLowerCase() === suggested.toLowerCase())
+          if (match) return { value_id: match.id, value_name: match.name }
+        }
+        // categoria com lista fechada — usar primeiro valor permitido
+        return { value_id: values[0].id, value_name: values[0].name }
+      }
+      // atributo de texto livre
+      return { value_name: suggested || 'Genérica' }
+    }
+
+    const brandAttrDef = categoryAttrs.find(a => a.id === 'BRAND') as Record<string, unknown> | undefined
+    const modelAttrDef = categoryAttrs.find(a => a.id === 'MODEL') as Record<string, unknown> | undefined
+
+    // Marca: prioriza o valor vindo do catálogo (extraído no scraper). Se
+    // vazio, tentamos "Genérica" — que o ML aceita em BRAND para a maioria
+    // das categorias que não têm lista fechada.
+    const brandInput: string = (product.brand as string | undefined)?.trim() || 'Genérica'
+    const brandChoice = pickAttrValue(brandAttrDef, brandInput)
+
+    // Modelo: se o catálogo trouxe, usamos. Caso contrário, e o atributo for
+    // texto livre (sem "values"), usamos uma versão curta do título como
+    // rótulo — não inventamos algo como "Genérico" que categorias validam.
+    const rawModel = (product.model as string | undefined)?.trim()
+    const modelFallback = rawModel || product.title.substring(0, 60).trim()
+    const modelChoice = pickAttrValue(modelAttrDef, modelFallback)
+
+    const baseAttrs: Array<Record<string, unknown>> = [
+      { id: 'BRAND', ...brandChoice },
+      { id: 'MODEL', ...modelChoice },
       { id: 'SELLER_SKU', value_name: product.external_id || 'SKU-001' },
     ]
 
     const requiredAttrs = categoryAttrs
       .filter((a: Record<string, unknown>) => (a.tags as Record<string, unknown>)?.required)
-      .map((a: Record<string, unknown>) => ({
-        id: a.id as string,
-        value_name: ((a.values as Record<string, unknown>[])?.[0]?.name as string) || 'Genérico',
-      }))
+      .filter((a: Record<string, unknown>) => a.id !== 'BRAND' && a.id !== 'MODEL' && a.id !== 'SELLER_SKU')
+      .map((a: Record<string, unknown>) => {
+        const values = (a.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+        if (values.length > 0) {
+          return { id: a.id as string, value_id: values[0].id, value_name: values[0].name }
+        }
+        return { id: a.id as string, value_name: 'Genérica' }
+      })
 
     const allAttrs = [...baseAttrs]
     for (const req of requiredAttrs) {
       if (!allAttrs.find(a => a.id === req.id)) allAttrs.push(req)
     }
-    console.log('Atributos:', allAttrs.map(a => a.id))
+    console.log('Atributos:', allAttrs.map(a => `${a.id}=${a.value_name}`))
 
     // === PICTURES ===
     // ML exige foto de capa com FUNDO BRANCO digitalizado em várias categorias
