@@ -372,6 +372,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
             images,
             available_quantity: Math.min(stockQty, 10),
             condition: "new",
+            brand: brand.trim() || null,
+            model: model.trim() || null,
           },
         },
       });
