@@ -979,6 +979,7 @@ export type Database = {
       }
       user_publications: {
         Row: {
+          catalog_product_id: string | null
           cj_product_id: string | null
           cj_product_url: string | null
           cj_variant_id: string | null
@@ -996,6 +997,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          catalog_product_id?: string | null
           cj_product_id?: string | null
           cj_product_url?: string | null
           cj_variant_id?: string | null
@@ -1013,6 +1015,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          catalog_product_id?: string | null
           cj_product_id?: string | null
           cj_product_url?: string | null
           cj_variant_id?: string | null
