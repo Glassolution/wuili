@@ -447,20 +447,35 @@ Deno.serve(async (req) => {
     // === SAVE PUBLICATION ===
     // Campos legados mantidos somente por compatibilidade com o schema atual.
     try {
-      await supabase.from('user_publications').insert({
+      const insertRes = await supabase.from('user_publications').insert({
         user_id,
-        ml_item_id:     itemId,
+        ml_item_id:         itemId,
         title,
-        thumbnail:      publicImages[0] || null,
-        price:          product.price,
-        cost_price:     product.cost_price || null,
-        status:         'active',
-        permalink:      itemData.permalink,
-        published_at:   new Date().toISOString(),
-        cj_product_id:  product.cj_product_id  ?? null,
-        cj_product_url: product.cj_product_url ?? null,
-        cj_variant_id:  product.cj_variant_id  ?? null,
+        thumbnail:          publicImages[0] || null,
+        price:              product.price,
+        cost_price:         product.cost_price || null,
+        status:             'active',
+        permalink:          itemData.permalink,
+        published_at:       new Date().toISOString(),
+        catalog_product_id: catalogProductId,
+        cj_product_id:      product.cj_product_id  ?? null,
+        cj_product_url:     product.cj_product_url ?? null,
+        cj_variant_id:      product.cj_variant_id  ?? null,
       })
+      if (insertRes.error) {
+        // 23505 = unique_violation → race lost against another concurrent publish.
+        const code = (insertRes.error as { code?: string }).code
+        if (code === '23505') {
+          console.warn('Publicação duplicada detectada pela constraint única:', catalogProductId)
+          return json({
+            error: 'Este produto já foi publicado.',
+            code: 'DUPLICATE_PUBLICATION',
+            item_id: itemId,
+            permalink: itemData.permalink,
+          }, 409)
+        }
+        console.error('Erro ao salvar publicação:', insertRes.error)
+      }
     } catch (pubErr) {
       console.error('Erro ao salvar publicação:', pubErr)
     }
@@ -474,3 +489,4 @@ Deno.serve(async (req) => {
     return json({ error: message }, 500)
   }
 })
+
