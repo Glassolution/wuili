@@ -28,6 +28,8 @@ export type CatalogProduct = {
   stock_quantity?: number | null;
   external_id?: string;
   variants?: any;
+  brand?: string | null;
+  model?: string | null;
 };
 
 type Props = {
@@ -91,6 +93,13 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     tiktok: false,
   });
 
+  // Marca/Modelo — obrigatórios para publicar em várias categorias do ML.
+  // São pré-preenchidos com o que veio do scraper (quando existir) e podem
+  // ser editados pelo usuário na etapa de Revisão. Sem marca, o backend usa
+  // "Genérica" como fallback; sem modelo, cai para uma versão curta do título.
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+
   // Check ML connection
   useEffect(() => {
     if (!user || !open) return;
@@ -126,6 +135,8 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     setPublishing(false);
     setDescription("");
     setTranslated(false);
+    setBrand((product.brand ?? "").trim());
+    setModel((product.model ?? "").trim());
   }
 
   const costPrice = product?.cost_price ?? 0;
@@ -361,6 +372,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
             images,
             available_quantity: Math.min(stockQty, 10),
             condition: "new",
+            brand: brand.trim() || null,
+            model: model.trim() || null,
           },
         },
       });
@@ -401,6 +414,11 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
   const handleContinueFromReview = () => {
     if (planLimits.loading) {
       veloToast.info("Verificando seu plano...");
+      return;
+    }
+
+    if (!brand.trim()) {
+      veloToast.error("Informe a marca do produto (use 'Genérica' se não houver).");
       return;
     }
 
@@ -713,6 +731,33 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                   <Row label="Preço" value={formatBRL(sellPrice)} />
                   <Row label="Estoque publicado" value={`${Math.min(stockQty, 10)} un`} />
                   <Row label="Lucro" value={formatBRL(profit)} strong />
+                </div>
+
+                {/* Marca/Modelo — exigidos pelo Mercado Livre em várias categorias */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[12px] font-medium text-gray-600">Marca e modelo</label>
+                    <span className="text-[11px] text-gray-400">Exigido pelo Mercado Livre</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <input
+                      value={brand}
+                      onChange={(e) => setBrand(e.target.value)}
+                      placeholder="Marca (ex.: Genérica)"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13px] text-[#0A0A0A] focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
+                    />
+                    <input
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      placeholder="Modelo (opcional)"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13px] text-[#0A0A0A] focus:outline-none focus:border-gray-400 placeholder:text-gray-400"
+                    />
+                  </div>
+                  {!brand.trim() && (
+                    <p className="mt-1.5 text-[11.5px] text-red-600">
+                      Informe a marca antes de publicar. Se o produto não tem marca formal, use "Genérica".
+                    </p>
+                  )}
                 </div>
 
                 {/* Description */}

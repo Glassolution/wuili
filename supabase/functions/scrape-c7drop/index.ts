@@ -6,7 +6,7 @@
 //   curl -X POST https://<project>.supabase.co/functions/v1/scrape-c7drop \
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { decodeHtmlEntities, inferCategory, isBlocked, isFakeAdProduct } from "../_shared/catalog-filters.ts";
+import { decodeHtmlEntities, detectBrand, extractAttribute, inferCategory, isBlocked, isFakeAdProduct } from "../_shared/catalog-filters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +30,11 @@ type WCProduct = {
     price_range?: { min_amount?: string; max_amount?: string } | null;
   };
   images?: Array<{ src?: string; thumbnail?: string }>;
+  attributes?: Array<{
+    name?: string;
+    taxonomy?: string;
+    terms?: Array<{ name?: string; slug?: string }>;
+  }>;
 };
 
 function parsePriceMinor(p: WCProduct): number {
@@ -120,6 +125,15 @@ Deno.serve(async (req) => {
         const title = decodeHtmlEntities(p.name);
         const blockedFlag = isBlocked(title);
         if (blockedFlag) blocked++;
+        // Marca: prioriza atributo do fornecedor; se não houver, tenta reconhecer
+        // no título por lista de marcas conhecidas. NÃO salva "Genérica" aqui —
+        // esse fallback é responsabilidade do ml-publish para não poluir o banco.
+        const brandFromAttr = extractAttribute(p.attributes, ["marca", "brand", "pa_marca"]);
+        const brand = brandFromAttr ?? detectBrand(title);
+        // Modelo: só grava quando o fornecedor informa explicitamente. Algumas
+        // categorias do ML rejeitam texto livre inventado — deixamos o usuário
+        // preencher no modal de revisão quando ausente.
+        const model = extractAttribute(p.attributes, ["modelo", "model", "pa_modelo"]);
         return {
           source: SOURCE,
           external_id: p.slug,
@@ -135,6 +149,8 @@ Deno.serve(async (req) => {
           is_active: true,
           product_url: p.permalink,
           is_blocked: blockedFlag,
+          brand,
+          model,
           scraped_at: now,
           updated_at: now,
         };

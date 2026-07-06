@@ -76,3 +76,54 @@ export function inferCategory(title: string): string {
   }
   return "Outros";
 }
+
+// Marcas conhecidas usadas na detecção automática a partir do título do produto.
+// Ordem importa: nomes compostos primeiro para evitar match parcial.
+export const KNOWN_BRANDS: string[] = [
+  "Xiaomi", "JBL", "Samsung", "Apple", "Motorola", "LG", "Philips", "Panasonic",
+  "Sony", "Lenovo", "Multilaser", "Elgin", "Britânia", "Britania", "Mondial",
+  "Electrolux", "Philco", "Cadence", "Arno", "Oster", "Nike", "Adidas", "Puma",
+  "Havaianas", "Tramontina", "Fischer", "Black+Decker", "Black & Decker",
+  "Bosch", "Makita", "DeWalt", "Vonder", "Nautika", "Intelbras", "TP-Link",
+  "Xtrad", "Kaisi", "Baseus", "Ugreen", "Anker", "Redmi", "Realme", "Positivo",
+  "Havit", "Logitech", "HP", "Dell", "Asus", "Acer", "Razer", "Kingston",
+  "SanDisk", "Toshiba", "Seagate", "Western Digital", "WD",
+];
+
+/**
+ * Detecta a marca do produto a partir do título comparando com uma lista de
+ * marcas conhecidas. Retorna null quando nenhuma marca é reconhecida (o chamador
+ * decide se aplica o fallback "Genérica" exigido pelo Mercado Livre).
+ */
+export function detectBrand(title: string): string | null {
+  if (!title) return null;
+  const haystack = stripAccents(title).toLowerCase();
+  for (const brand of KNOWN_BRANDS) {
+    const needle = stripAccents(brand).toLowerCase();
+    // \b não funciona bem com "Black+Decker" — fazemos match tolerante.
+    const re = new RegExp(`(^|[^a-z0-9])${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "i");
+    if (re.test(haystack)) return brand;
+  }
+  return null;
+}
+
+/**
+ * Tenta extrair o modelo de um atributo WooCommerce cujo nome bata com
+ * "Modelo"/"Model". Retorna null quando não encontrado. NÃO inventa um valor —
+ * o Mercado Livre valida algumas categorias e recusa strings genéricas.
+ */
+export function extractAttribute(
+  attributes: Array<{ name?: string; taxonomy?: string; terms?: Array<{ name?: string }> }> | undefined,
+  wantedNames: string[],
+): string | null {
+  if (!Array.isArray(attributes)) return null;
+  const wanted = wantedNames.map((n) => stripAccents(n).toLowerCase());
+  for (const attr of attributes) {
+    const n = stripAccents(String(attr?.name ?? attr?.taxonomy ?? "")).toLowerCase();
+    if (wanted.some((w) => n === w || n.endsWith(w))) {
+      const val = attr?.terms?.[0]?.name;
+      if (val && typeof val === "string" && val.trim().length > 0) return val.trim();
+    }
+  }
+  return null;
+}
