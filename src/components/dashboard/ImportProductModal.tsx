@@ -417,6 +417,11 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       return;
     }
 
+    if (!brand.trim()) {
+      veloToast.error("Informe a marca do produto (use 'Genérica' se não houver).");
+      return;
+    }
+
     if (planLimits.canPublishProducts) {
       void handlePublish();
       return;
