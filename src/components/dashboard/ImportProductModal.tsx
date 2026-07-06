@@ -135,6 +135,8 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     setPublishing(false);
     setDescription("");
     setTranslated(false);
+    setBrand((product.brand ?? "").trim());
+    setModel((product.model ?? "").trim());
   }
 
   const costPrice = product?.cost_price ?? 0;
