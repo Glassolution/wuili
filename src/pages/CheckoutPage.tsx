@@ -14,6 +14,7 @@ import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFun
 
 type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
+type BillingCycle = "monthly" | "annual";
 
 type PlanData = {
   name: string;
@@ -96,13 +97,13 @@ const TRIAL_AMOUNT_BRL = formatBRL(TRIAL_AMOUNT);
 
 const parseBRL = (price: string) => Number(price.replace(/[^\d,]/g, "").replace(",", "."));
 
-const getDisplayPrice = (planId: string, billingCycle: "monthly" | "annual") => {
+const getDisplayPrice = (planId: string, billingCycle: BillingCycle) => {
   const monthlyAmount = PLAN_AMOUNTS[planId] ?? 0;
   if (billingCycle === "annual") return formatBRL(ANNUAL_PLAN_AMOUNTS[planId] ?? monthlyAmount * 12 * 0.9);
   return PLANS_DATA[planId]?.price ?? formatBRL(monthlyAmount);
 };
 
-const getOriginalDisplayPrice = (planId: string, billingCycle: "monthly" | "annual") => {
+const getOriginalDisplayPrice = (planId: string, billingCycle: BillingCycle) => {
   const originalPrice = PLANS_DATA[planId]?.originalPrice;
   if (!originalPrice) return null;
   if (billingCycle === "annual") return formatBRL(parseBRL(originalPrice) * 12);
@@ -123,16 +124,29 @@ const CheckoutPage = () => {
   const rawPlan = searchParams.get("plan") ?? "pro";
   const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
   const isTrial = searchParams.get("trial") === "1" && initialPlanId === "pro";
+  const initialBillingCycleParam = (
+    searchParams.get("billing_cycle") ??
+    searchParams.get("billing") ??
+    searchParams.get("period") ??
+    searchParams.get("cycle") ??
+    ""
+  ).toLowerCase();
+  const initialBillingCycle: BillingCycle = ["annual", "anual", "yearly", "ano"].includes(initialBillingCycleParam)
+    ? "annual"
+    : "monthly";
   const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
   const [showPaymentStep, setShowPaymentStep] = useState(isTrial);
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(initialBillingCycle);
   const planId = selectedPlanId;
   const plan = PLANS_DATA[planId];
-  const checkoutPrice = isTrial ? TRIAL_AMOUNT_BRL : plan.price;
-  const checkoutPeriodLabel = isTrial ? `por ${TRIAL_DAYS} dias` : "por mês";
+  const recurringPrice = getDisplayPrice(planId, billingCycle);
+  const recurringCycleLabel = billingCycle === "annual" ? "anual" : "mensal";
+  const recurringPeriodLabel = billingCycle === "annual" ? "/ ano" : "/ mês";
+  const checkoutPrice = isTrial ? TRIAL_AMOUNT_BRL : recurringPrice;
+  const checkoutPeriodLabel = isTrial ? `por ${TRIAL_DAYS} dias` : billingCycle === "annual" ? "por ano" : "por mês";
   const checkoutDescription = isTrial
     ? `Trial de ${TRIAL_DAYS} dias do plano Pro. Depois, sua assinatura continua automaticamente no plano Pro (R$99,90/mês).`
-    : `Assinatura mensal do plano ${plan.name}`;
+    : `Assinatura ${recurringCycleLabel} do plano ${plan.name}`;
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("pix");
   const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle");
@@ -157,8 +171,15 @@ const CheckoutPage = () => {
   useEffect(() => {
     if (!showPaymentStep || !session?.user?.id) return;
     void markReachedPayment(session.user.id, { route: "/checkout", plan: planId });
-    void markAffiliateReachedPayment(session.user.id, isTrial ? TRIAL_AMOUNT : PLAN_AMOUNTS[planId] ?? 0);
-  }, [isTrial, planId, session?.user?.id, showPaymentStep]);
+    void markAffiliateReachedPayment(
+      session.user.id,
+      isTrial
+        ? TRIAL_AMOUNT
+        : billingCycle === "annual"
+          ? ANNUAL_PLAN_AMOUNTS[planId] ?? (PLAN_AMOUNTS[planId] ?? 0) * 12 * 0.9
+          : PLAN_AMOUNTS[planId] ?? 0
+    );
+  }, [billingCycle, isTrial, planId, session?.user?.id, showPaymentStep]);
 
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
@@ -520,11 +541,13 @@ const CheckoutPage = () => {
               <div className="flex items-start justify-between gap-6">
                 <div>
                   <p className="text-[14px] font-semibold text-white">{isTrial ? "Trial Pro" : plan.name}</p>
-                  <p className="mt-1 text-[12px] text-white/42">{isTrial ? `${TRIAL_DAYS} dias de trial` : "Cobrança mensal"}</p>
+                  <p className="mt-1 text-[12px] text-white/42">
+                    {isTrial ? `${TRIAL_DAYS} dias de trial` : `Cobrança ${recurringCycleLabel}`}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-[13px] font-semibold text-white">{checkoutPrice}</p>
-                  <p className="mt-1 text-[12px] text-white/42">{isTrial ? `/ ${TRIAL_DAYS} dias` : "/ mês"}</p>
+                  <p className="mt-1 text-[12px] text-white/42">{isTrial ? `/ ${TRIAL_DAYS} dias` : recurringPeriodLabel}</p>
                 </div>
               </div>
 
@@ -556,8 +579,10 @@ const CheckoutPage = () => {
 
               <div className="border-t border-white/[0.08] pt-6">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-white/66">{isTrial ? "Depois do trial" : "Total mensal"}</span>
-                  <span className="font-semibold text-white">{isTrial ? "R$ 99,90/mês" : plan.price}</span>
+                  <span className="font-semibold text-white/66">
+                    {isTrial ? "Depois do trial" : billingCycle === "annual" ? "Total anual" : "Total mensal"}
+                  </span>
+                  <span className="font-semibold text-white">{isTrial ? "R$ 99,90/mês" : checkoutPrice}</span>
                 </div>
                 <div className="mt-7 flex items-center justify-between">
                   <span className="font-semibold text-white/66">Total devido hoje</span>

@@ -30,6 +30,7 @@ export type CatalogProduct = {
   variants?: any;
   brand?: string | null;
   model?: string | null;
+  supplier_name?: string | null;
 };
 
 type Props = {
@@ -65,6 +66,120 @@ const normalizeText = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
+const KNOWN_BRANDS: Array<{ label: string; patterns: string[] }> = [
+  { label: "Panini", patterns: ["panini"] },
+  { label: "X-Cell", patterns: ["x-cell", "x cell", "xcell"] },
+  { label: "Laikou", patterns: ["laikou"] },
+  { label: "Hegai", patterns: ["hegai"] },
+  { label: "Vortita", patterns: ["vortita"] },
+  { label: "Queen Oil", patterns: ["queen oil", "queenoil"] },
+  { label: "OleAura", patterns: ["oleaura", "ole aura"] },
+  { label: "Samsung", patterns: ["samsung"] },
+  { label: "Apple", patterns: ["apple", "iphone", "ipad", "macbook"] },
+  { label: "Xiaomi", patterns: ["xiaomi", "redmi", "poco"] },
+  { label: "Motorola", patterns: ["motorola", "moto g", "moto e"] },
+  { label: "LG", patterns: ["lg"] },
+  { label: "Philips", patterns: ["philips"] },
+  { label: "Mondial", patterns: ["mondial"] },
+  { label: "Britânia", patterns: ["britania"] },
+  { label: "Philco", patterns: ["philco"] },
+  { label: "Cadence", patterns: ["cadence"] },
+  { label: "Oster", patterns: ["oster"] },
+  { label: "Arno", patterns: ["arno"] },
+  { label: "Tramontina", patterns: ["tramontina"] },
+  { label: "Stanley", patterns: ["stanley"] },
+  { label: "JBL", patterns: ["jbl"] },
+  { label: "Sony", patterns: ["sony"] },
+  { label: "Intelbras", patterns: ["intelbras"] },
+  { label: "Multilaser", patterns: ["multilaser"] },
+  { label: "Positivo", patterns: ["positivo"] },
+  { label: "Logitech", patterns: ["logitech"] },
+  { label: "Baseus", patterns: ["baseus"] },
+  { label: "Ugreen", patterns: ["ugreen"] },
+  { label: "Anker", patterns: ["anker"] },
+  { label: "Lenovo", patterns: ["lenovo"] },
+  { label: "Dell", patterns: ["dell"] },
+  { label: "HP", patterns: ["hp"] },
+  { label: "Canon", patterns: ["canon"] },
+  { label: "Epson", patterns: ["epson"] },
+  { label: "Elgin", patterns: ["elgin"] },
+  { label: "WAP", patterns: ["wap"] },
+  { label: "Karcher", patterns: ["karcher", "kärcher"] },
+  { label: "Black+Decker", patterns: ["black+decker", "black decker", "black-decker"] },
+  { label: "Fisher-Price", patterns: ["fisher-price", "fisher price"] },
+  { label: "Hot Wheels", patterns: ["hot wheels"] },
+  { label: "Barbie", patterns: ["barbie"] },
+  { label: "Lego", patterns: ["lego"] },
+  { label: "Hasbro", patterns: ["hasbro"] },
+  { label: "Mattel", patterns: ["mattel"] },
+  { label: "Nike", patterns: ["nike"] },
+  { label: "Adidas", patterns: ["adidas"] },
+  { label: "Puma", patterns: ["puma"] },
+  { label: "Olympikus", patterns: ["olympikus"] },
+  { label: "Mizuno", patterns: ["mizuno"] },
+  { label: "Asics", patterns: ["asics"] },
+  { label: "Havaianas", patterns: ["havaianas"] },
+  { label: "Crocs", patterns: ["crocs"] },
+  { label: "Nivea", patterns: ["nivea", "nívea"] },
+  { label: "L'Oréal", patterns: ["loreal", "l'oreal", "l'oréal"] },
+  { label: "Garnier", patterns: ["garnier"] },
+  { label: "Maybelline", patterns: ["maybelline"] },
+  { label: "Ruby Rose", patterns: ["ruby rose"] },
+  { label: "Macrilan", patterns: ["macrilan"] },
+  { label: "Vult", patterns: ["vult"] },
+  { label: "Eudora", patterns: ["eudora"] },
+  { label: "Natura", patterns: ["natura"] },
+  { label: "O Boticário", patterns: ["o boticario", "boticario"] },
+  { label: "Avon", patterns: ["avon"] },
+  { label: "Pantene", patterns: ["pantene"] },
+  { label: "Dove", patterns: ["dove"] },
+  { label: "Oral-B", patterns: ["oral-b", "oral b"] },
+  { label: "Colgate", patterns: ["colgate"] },
+  { label: "Gillette", patterns: ["gillette"] },
+];
+
+const GENERIC_BRAND = "Genérica";
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const hasBrandPattern = (haystack: string, pattern: string) => {
+  const normalizedPattern = normalizeText(pattern);
+  if (/^[a-z0-9]{1,3}$/.test(normalizedPattern)) {
+    return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedPattern)}([^a-z0-9]|$)`).test(haystack);
+  }
+  return haystack.includes(normalizedPattern);
+};
+
+const cleanBrandCandidate = (value: string | null | undefined) => {
+  const cleaned = (value ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/^[:"'`´\-–—\s]+|[:"'`´\-–—\s]+$/g, "")
+    .replace(/\b(modelo|model|produto|product)\b.*$/i, "")
+    .trim();
+
+  const normalized = normalizeText(cleaned);
+  const invalid = [
+    "c7drop",
+    "c7 drop",
+    "fornecedor",
+    "fornecedor verificado",
+    "sem marca",
+    "nao informado",
+    "não informado",
+    "generico",
+    "genérico",
+  ];
+
+  if (!cleaned || cleaned.length > 36 || invalid.includes(normalized)) return "";
+  if (/^(maquina|descascador|caixa|kit|suporte|envelope|produto|album|figurinha)\b/i.test(cleaned)) return "";
+  return cleaned;
+};
+
+const extractExplicitBrand = (value: string) => {
+  const match = value.match(/\b(?:marca|brand)\s*[:\-–—]\s*([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9&+.'’\-\s]{1,34})/i);
+  return cleanBrandCandidate(match?.[1]);
+};
+
 const isStickerAlbumProduct = (product: CatalogProduct | null, title: string) => {
   const haystack = normalizeText(`${title} ${product?.title ?? ""} ${product?.category ?? ""}`);
   return (
@@ -73,6 +188,35 @@ const isStickerAlbumProduct = (product: CatalogProduct | null, title: string) =>
     haystack.includes("copa do mundo") ||
     haystack.includes("fifa")
   );
+};
+
+const inferProductBrand = (product: CatalogProduct | null, title: string) => {
+  const savedBrand = cleanBrandCandidate(product?.brand);
+  if (savedBrand) return savedBrand;
+
+  const sourceText = [
+    title,
+    product?.title,
+    product?.description,
+    product?.category,
+    product?.supplier_name,
+  ].filter(Boolean).join(" ");
+
+  if (isStickerAlbumProduct(product, title)) return "Panini";
+
+  const explicitBrand = extractExplicitBrand(sourceText);
+  if (explicitBrand) return explicitBrand;
+
+  const normalizedSource = normalizeText(sourceText);
+  const knownBrand = KNOWN_BRANDS.find((entry) =>
+    entry.patterns.some((pattern) => hasBrandPattern(normalizedSource, pattern))
+  );
+  if (knownBrand) return knownBrand.label;
+
+  const supplierBrand = cleanBrandCandidate(product?.supplier_name);
+  if (supplierBrand) return supplierBrand;
+
+  return GENERIC_BRAND;
 };
 
 const inferStickerAlbumName = (product: CatalogProduct | null, title: string) => {
@@ -158,7 +302,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
     setPublishing(false);
     setDescription("");
     setTranslated(false);
-    setBrand((product.brand ?? "").trim() || (/panini|fifa|copa do mundo|figurinha/i.test(product.title) ? "Panini" : ""));
+    setBrand(inferProductBrand(product, truncated));
     setModel((product.model ?? "").trim());
     setAlbumName(inferStickerAlbumName(product, truncated));
     setSaleFormat(product.title.toLowerCase().includes("kit") ? "kit" : "unit");
