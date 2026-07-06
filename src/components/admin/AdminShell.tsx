@@ -3,16 +3,13 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  BarChart3,
   Bell,
-  FileText,
   HelpCircle,
   Home,
   LayoutDashboard,
   LifeBuoy,
   PackageSearch,
   Percent,
-  ReceiptText,
   Settings,
   ShieldCheck,
   Trash2,
@@ -44,10 +41,7 @@ export const AdminShell = ({ active, userId, children }: AdminShellProps) => {
   });
 
   const mainItems = [
-    { icon: LayoutDashboard, label: "Dashboard", to: "/admin/dashboard", active: active === "dashboard" },
-    { icon: BarChart3, label: "Product Analytics", to: "/admin/dashboard#analytics", active: active === "revenue" },
-    { icon: FileText, label: "Reporting", to: "/admin/dashboard#historico", active: active === "plans" },
-    { icon: ReceiptText, label: "Order summary", to: "/admin/dashboard#orders", active: false },
+    { icon: LayoutDashboard, label: "Dashboard", to: "/admin/painel", active: active === "dashboard" },
     { icon: Percent, label: "Comissões", to: "/admin/comissoes", active: active === "commissions" },
     { icon: Users, label: "Usuários", to: "/admin/usuarios", active: active === "users" },
     { icon: LifeBuoy, label: "Suporte", to: "/admin/suporte", active: active === "support", badge: counts?.tickets || 0 },
@@ -71,7 +65,7 @@ export const AdminShell = ({ active, userId, children }: AdminShellProps) => {
       <div className="flex h-full overflow-hidden bg-[#151515]">
         <aside className="hidden h-full w-[280px] shrink-0 overflow-y-auto border-r border-white/[0.07] bg-[#111111] md:flex md:flex-col">
           <div className="flex h-[74px] items-center justify-between border-b border-white/[0.06] px-7">
-            <Link to="/admin/dashboard" className="flex items-center gap-3">
+            <Link to="/admin/painel" className="flex items-center gap-3">
               <VeloMetricLogo />
               <span className="text-[19px] font-semibold tracking-[-0.04em]">VeloMetric</span>
             </Link>
@@ -83,8 +77,8 @@ export const AdminShell = ({ active, userId, children }: AdminShellProps) => {
           <div className="flex-1 px-5 py-6">
             <nav className="space-y-8">
               <div className="space-y-2">
-                <SideLink icon={PackageSearch} label="Inbox" to="/admin/dashboard" />
-                <SideLink icon={Bell} label="Notifications" to="/admin/dashboard" />
+                <SideLink icon={PackageSearch} label="Inbox" to="/admin/painel" />
+                <SideLink icon={Bell} label="Notifications" to="/admin/painel" />
               </div>
 
               <div>

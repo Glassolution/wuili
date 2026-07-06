@@ -354,7 +354,7 @@ const CommissionsPage = () => {
   }, [localCommissions]);
 
   const chartSeries = useMemo(() => {
-    // Ãšltimos 12 meses: 2 sÃ©ries (Pagas x Pendentes)
+    // Últimos 12 meses: 2 séries (Pagas x Pendentes)
     const months = Array.from({ length: 12 }).map((_, idx) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (11 - idx), 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -378,7 +378,7 @@ const CommissionsPage = () => {
 
   const periodTotal = useMemo(() => chartSeries.reduce((s, p) => s + (p.total ?? 0), 0), [chartSeries]);
   const periodTotalPrevYear = useMemo(() => {
-    // â€œAno anteriorâ€ aproximado: 12 meses imediatamente anteriores aos 12 atuais
+    // “Ano anterior” aproximado: 12 meses imediatamente anteriores aos 12 atuais
     const prev = Array.from({ length: 12 }).map((_, idx) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (23 - idx), 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -448,8 +448,8 @@ const CommissionsPage = () => {
     });
   }, [user, affiliateLink]);
   const deltaBadgeText = (currCount: number) => {
-    if (!prevMonthHasData && currCount > 0) return "Primeiro mÃªs";
-    if (!prevMonthHasData && currCount === 0) return "â€”";
+    if (!prevMonthHasData && currCount > 0) return "Primeiro mês";
+    if (!prevMonthHasData && currCount === 0) return "—";
     return null;
   };
 
@@ -468,7 +468,7 @@ const CommissionsPage = () => {
       {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">ComissÃµes</h1>
+          <h1 className="text-[22px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">Comissões</h1>
           <p className="mt-0.5 text-[13px] text-[#A3A3A3] dark:text-zinc-400">
             Acompanhe os valores pagos e pendentes e compartilhe seu link de afiliado.
           </p>
@@ -478,7 +478,7 @@ const CommissionsPage = () => {
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#0A0A0A] bg-transparent px-4 py-2 text-[13px] font-medium text-[#0A0A0A] transition hover:bg-[#0A0A0A] hover:text-white dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-[#0A0A0A]"
         >
           <Download size={15} />
-          Exportar relatÃ³rio
+          Exportar relatório
         </button>
       </div>
 
@@ -514,7 +514,7 @@ const CommissionsPage = () => {
           },
           {
             key: "rate",
-            title: "Taxa de comissÃ£o",
+            title: "Taxa de comissão",
             icon: Percent,
             value: "20%",
             delta: 0,
@@ -537,7 +537,7 @@ const CommissionsPage = () => {
               <button
                 type="button"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-[#A3A3A3] transition hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:hover:bg-zinc-800 dark:hover:text-white"
-                title="AÃ§Ãµes"
+                title="Ações"
               >
                 <MoreHorizontal size={18} />
               </button>
@@ -577,7 +577,7 @@ const CommissionsPage = () => {
                 )}
               </span>
               <span className="text-[12px] text-[#A3A3A3] dark:text-zinc-400">
-                {c.key === "rate" ? "Sempre 20%" : "vs mÃªs anterior"}
+                {c.key === "rate" ? "Sempre 20%" : "vs mês anterior"}
               </span>
             </div>
           </div>
@@ -589,8 +589,8 @@ const CommissionsPage = () => {
         <div className="rounded-xl border border-[#ECECEC] bg-white p-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-zinc-800 dark:bg-zinc-900 lg:col-span-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">EvoluÃ§Ã£o</p>
-              <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">Pagas x Pendentes (Ãºltimos 12 meses)</p>
+              <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Evolução</p>
+              <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">Pagas x Pendentes (últimos 12 meses)</p>
             </div>
             <div className="flex items-center gap-2">
               <p className="text-[28px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">{formatMoney(periodTotal)}</p>
@@ -646,7 +646,7 @@ const CommissionsPage = () => {
                     return (
                       <div className="rounded-xl border border-[#E5E5E5] bg-white px-3.5 py-2.5 shadow-lg text-[12px] dark:border-zinc-800 dark:bg-zinc-950">
                         <p className="mb-2 font-medium text-[#737373] dark:text-zinc-400">
-                          ComissÃµes â€” {label}
+                          Comissões — {label}
                         </p>
                         <div className="space-y-1">
                           <div className="flex items-center justify-between gap-6">
@@ -681,12 +681,12 @@ const CommissionsPage = () => {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Top planos</p>
-                <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">DistribuiÃ§Ã£o de vendas</p>
+                <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">Distribuição de vendas</p>
               </div>
               <button
                 type="button"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-[#A3A3A3] transition hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:hover:bg-zinc-800 dark:hover:text-white"
-                title="AÃ§Ãµes"
+                title="Ações"
               >
                 <MoreHorizontal size={18} />
               </button>
@@ -741,7 +741,7 @@ const CommissionsPage = () => {
               <button
                 type="button"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-[#A3A3A3] transition hover:bg-[#F5F5F5] hover:text-[#0A0A0A] dark:hover:bg-zinc-800 dark:hover:text-white"
-                title="AÃ§Ãµes"
+                title="Ações"
               >
                 <MoreHorizontal size={18} />
               </button>
@@ -802,9 +802,9 @@ const CommissionsPage = () => {
       <div className="rounded-xl border border-[#ECECEC] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-col gap-4 border-b border-[#F5F5F5] p-5 dark:border-zinc-800 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
-            <p className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white">ComissÃµes recentes</p>
+            <p className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white">Comissões recentes</p>
             <p className="mt-0.5 text-[12px] text-[#A3A3A3] dark:text-zinc-400">
-              Busque por pedido/descriÃ§Ã£o e filtre por status.
+              Busque por pedido/descrição e filtre por status.
             </p>
           </div>
 
@@ -813,7 +813,7 @@ const CommissionsPage = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3A3A3] dark:text-zinc-400" size={16} />
               <input
                 type="text"
-                placeholder="Buscar por descriÃ§Ã£o ou nÃºmero do pedido..."
+                placeholder="Buscar por descrição ou número do pedido..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full rounded-xl border border-[#E5E5E5] bg-white py-2 pl-10 pr-3 text-[13px] text-[#0A0A0A] outline-none transition focus:border-[#D4D4D4] dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-zinc-700"
@@ -843,7 +843,7 @@ const CommissionsPage = () => {
           <table className="w-full min-w-[980px] text-left" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
             <thead>
               <tr className="border-b border-[#F5F5F5] dark:border-zinc-800">
-                {["Data", "ID do pedido", "Nome do cliente", "Plano assinado", "Valor do plano", "ComissÃ£o gerada", "Status"].map((h) => (
+                {["Data", "ID do pedido", "Nome do cliente", "Plano assinado", "Valor do plano", "Comissão gerada", "Status"].map((h) => (
                   <th
                     key={h}
                     className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#C0C0C0] dark:text-zinc-500"
@@ -857,13 +857,13 @@ const CommissionsPage = () => {
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-10 text-center text-[13px] text-[#737373] dark:text-zinc-400">
-                    Carregando comissÃµes...
+                    Carregando comissões...
                   </td>
                 </tr>
               ) : filteredCommissions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-10 text-center text-[13px] text-[#737373] dark:text-zinc-400">
-                    Nenhuma comissÃ£o encontrada.
+                    Nenhuma comissão encontrada.
                   </td>
                 </tr>
               ) : (

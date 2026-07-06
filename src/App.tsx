@@ -42,7 +42,6 @@ const Docs = lazy(() => import("./pages/Docs"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
-const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
 const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsPage"));
 const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsPage"));
@@ -109,9 +108,12 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/docs" element={<Docs />} />
-              <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+              <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
-              <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+              <Route path="/admin/dashboard" element={<Navigate to="/admin/painel" replace />} />
+              <Route path="/admin/product-analytics" element={<Navigate to="/admin/painel" replace />} />
+              <Route path="/admin/reporting" element={<Navigate to="/admin/painel" replace />} />
+              <Route path="/admin/order-summary" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
               <Route path="/admin/comissoes" element={<AdminRoute><AdminCommissionsPage /></AdminRoute>} />
               <Route path="/admin/suporte" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />

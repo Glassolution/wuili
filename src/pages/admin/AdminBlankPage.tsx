@@ -1,31 +1,23 @@
-import { type ElementType, type ReactNode, useMemo } from "react";
+import { type ElementType, type ReactNode, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
   ArrowLeft,
-  BarChart3,
   Bell,
   Boxes,
   CalendarDays,
   ChevronDown,
   CircleDollarSign,
   Download,
-  FileText,
   Headphones,
-  Home,
   LayoutDashboard,
-  LifeBuoy,
   Loader2,
   PackageCheck,
   Percent,
   Plus,
-  ReceiptText,
   Search,
-  Settings,
   ShieldCheck,
   ShoppingCart,
-  Store,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -100,6 +92,14 @@ type DayPoint = {
   usuarios: number;
 };
 
+type RevenueRange = 3 | 6 | 12;
+
+const revenueRangeLabels: Record<RevenueRange, string> = {
+  3: "Últimos 3 meses",
+  6: "Últimos 6 meses",
+  12: "Últimos 12 meses",
+};
+
 const emptyData: AdminPanelData = {
   counts: {
     users: 0,
@@ -132,10 +132,10 @@ const formatNumber = (value: number) =>
 const getMonthKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
-const buildMonthSeries = (subscriptions: SubscriptionRow[]): MonthPoint[] => {
+const buildMonthSeries = (subscriptions: SubscriptionRow[], monthsCount: RevenueRange): MonthPoint[] => {
   const now = new Date();
-  const months = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+  const months = Array.from({ length: monthsCount }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - (monthsCount - 1 - index), 1);
     return {
       key: getMonthKey(date),
       label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", ""),
@@ -155,6 +155,21 @@ const buildMonthSeries = (subscriptions: SubscriptionRow[]): MonthPoint[] => {
 
   return months;
 };
+
+const getDateInRange = (value: string | null, monthsCount: RevenueRange) => {
+  if (!value) return false;
+  const date = new Date(value);
+  const start = new Date();
+  start.setMonth(start.getMonth() - (monthsCount - 1));
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  return date >= start;
+};
+
+const getRevenueInPeriod = (subscriptions: SubscriptionRow[], monthsCount: RevenueRange) =>
+  subscriptions
+    .filter((subscription) => getDateInRange(subscription.updated_at ?? subscription.created_at, monthsCount))
+    .reduce((sum, subscription) => sum + Number(subscription.amount ?? 0), 0);
 
 const buildUserDaySeries = (profiles: ProfileRow[]): DayPoint[] => {
   const now = new Date();
@@ -206,7 +221,7 @@ const fetchAdminPanelData = async (): Promise<AdminPanelData> => {
       .from("subscriptions")
       .select("amount,created_at,updated_at,status,plan,is_trial")
       .order("updated_at", { ascending: false })
-      .limit(120),
+      .limit(1000),
     supabase
       .from("orders")
       .select("created_at,ordered_at,platform,profit,status,total_amount")
@@ -250,15 +265,18 @@ const fetchAdminPanelData = async (): Promise<AdminPanelData> => {
 
 const AdminBlankPage = () => {
   const { user } = useAuth();
+  const [revenueRange, setRevenueRange] = useState<RevenueRange>(6);
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const { data = emptyData, isLoading } = useQuery({
     queryKey: ["admin-panel-command-center"],
     queryFn: fetchAdminPanelData,
     refetchInterval: 30000,
   });
 
-  const monthSeries = useMemo(() => buildMonthSeries(data.subscriptions), [data.subscriptions]);
+  const monthSeries = useMemo(() => buildMonthSeries(data.subscriptions, revenueRange), [data.subscriptions, revenueRange]);
   const usersByDay = useMemo(() => buildUserDaySeries(data.profiles), [data.profiles]);
   const activeRevenue = useMemo(() => getActiveRevenue(data.subscriptions), [data.subscriptions]);
+  const periodRevenue = useMemo(() => getRevenueInPeriod(data.subscriptions, revenueRange), [data.subscriptions, revenueRange]);
   const grossRevenue = useMemo(() => getGrossRevenue(data.orders, data.subscriptions), [data.orders, data.subscriptions]);
   const openWork = data.counts.openTickets + data.counts.pendingRefunds;
   const avgMargin = data.products.length
@@ -275,61 +293,34 @@ const AdminBlankPage = () => {
   }, [data.orders]);
 
   return (
-    <div className="min-h-screen bg-[#111111] text-white">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-[280px] shrink-0 border-r border-white/[0.07] bg-[#111111] lg:flex lg:flex-col">
+    <div className="min-h-screen bg-[#f5f5f4] text-white">
+      <div className="flex min-h-screen items-start">
+        <aside className="sticky top-0 hidden h-screen w-[280px] shrink-0 border-r border-white/[0.07] bg-[#111111] lg:flex lg:flex-col">
           <div className="flex h-[74px] items-center justify-between border-b border-white/[0.06] px-7">
-            <Link to="/admin/dashboard" className="flex items-center gap-3">
+            <Link to="/admin/painel" className="flex items-center gap-3">
               <VeloMark />
               <div>
                 <p className="text-[19px] font-semibold tracking-[-0.04em]">VeloMetric</p>
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/36">Admin</p>
               </div>
             </Link>
-            <Link
-              to="/dashboard"
-              className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-white/10 bg-white/[0.03] text-white/70 transition hover:bg-white hover:text-black"
-              aria-label="Voltar para a Velo"
-            >
-              <Home size={15} />
-            </Link>
           </div>
 
           <div className="flex-1 px-5 py-6">
-            <Link
-              to="/admin/painel"
-              className="mb-6 flex h-10 w-full items-center justify-center gap-2 rounded-[10px] border border-white/[0.08] bg-white/[0.055] text-[13px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-            >
-              <Activity size={15} />
-              Visão operacional
-            </Link>
-
             <nav className="space-y-8">
               <AdminNavGroup
                 title="Monitoramento"
                 items={[
                   { icon: LayoutDashboard, label: "Painel", to: "/admin/painel", active: true },
-                  { icon: BarChart3, label: "Product Analytics", to: "/admin/dashboard#analytics" },
-                  { icon: FileText, label: "Reporting", to: "/admin/dashboard#historico" },
-                  { icon: ReceiptText, label: "Order summary", to: "/dashboard/pedidos" },
                   { icon: Percent, label: "Comissões", to: "/admin/comissoes" },
                   { icon: Users, label: "Usuários", to: "/admin/usuarios" },
-                ]}
-              />
-              <AdminNavGroup
-                title="Preferences"
-                items={[
-                  { icon: Store, label: "Lojas", to: "/dashboard/configuracoes?tab=Minhas%20Lojas" },
-                  { icon: PackageCheck, label: "Catálogo", to: "/dashboard/catalogo" },
                   { icon: Headphones, label: "Suporte", to: "/admin/suporte" },
-                  { icon: Settings, label: "Settings", to: "/dashboard/configuracoes" },
-                  { icon: LifeBuoy, label: "Help and support", to: "/admin/suporte" },
                 ]}
               />
             </nav>
           </div>
 
-          <div className="space-y-5 border-t border-white/[0.06] p-5">
+          <div className="mt-auto space-y-5 border-t border-white/[0.06] p-5">
             <div className="rounded-[12px] border border-white/[0.08] bg-white/[0.035] p-4">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black">
@@ -345,7 +336,7 @@ const AdminBlankPage = () => {
             </div>
             <Link
               to="/dashboard"
-              className="flex items-center gap-2 rounded-[10px] px-2 py-2 text-[13px] font-medium text-white/54 transition hover:bg-white/[0.04] hover:text-white"
+              className="flex h-10 items-center gap-2 rounded-[10px] px-2 text-[13px] font-semibold text-white transition hover:bg-white/[0.06]"
             >
               <ArrowLeft size={15} />
               Voltar à Velo
@@ -354,7 +345,7 @@ const AdminBlankPage = () => {
         </aside>
 
         <main className="min-w-0 flex-1 bg-[#f5f5f4] text-[#111111]">
-          <header className="sticky top-0 z-10 border-b border-black/[0.08] bg-white/94 px-4 py-4 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur-xl sm:px-6 lg:px-7">
+          <header className="border-b border-black/[0.08] bg-white/94 px-4 py-4 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur-xl sm:px-6 lg:px-7">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex items-center gap-3">
                 <div className="lg:hidden">
@@ -442,16 +433,38 @@ const AdminBlankPage = () => {
                       eyebrow="Revenue"
                       title="Receita recorrente"
                       right={
-                        <FilterButton>
+                        <FilterButton onClick={() => setPeriodMenuOpen((open) => !open)}>
                           <CalendarDays size={14} />
-                          Últimos 6 meses
+                          {revenueRangeLabels[revenueRange]}
                           <ChevronDown size={14} />
                         </FilterButton>
                       }
                     />
+                    {periodMenuOpen && (
+                      <div className="ml-auto mt-2 w-44 overflow-hidden rounded-[12px] border border-black/[0.10] bg-white p-1 shadow-[0_18px_45px_rgba(0,0,0,0.14)]">
+                        {([3, 6, 12] as RevenueRange[]).map((range) => (
+                          <button
+                            key={range}
+                            type="button"
+                            onClick={() => {
+                              setRevenueRange(range);
+                              setPeriodMenuOpen(false);
+                            }}
+                            className={cn(
+                              "flex h-9 w-full items-center rounded-[9px] px-3 text-left text-[12px] font-medium transition",
+                              revenueRange === range
+                                ? "bg-black text-white"
+                                : "text-black/62 hover:bg-black/[0.05] hover:text-black"
+                            )}
+                          >
+                            {revenueRangeLabels[range]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="mt-4 flex items-end gap-3">
-                      <p className="text-[34px] font-semibold tracking-[-0.06em]">{formatBRL(activeRevenue)}</p>
-                      <p className="pb-2 text-[13px] text-emerald-600">assinaturas ativas</p>
+                      <p className="text-[34px] font-semibold tracking-[-0.06em]">{formatBRL(periodRevenue)}</p>
+                      <p className="pb-2 text-[13px] text-emerald-600">no período selecionado</p>
                     </div>
                     <div className="mt-6 h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -598,28 +611,35 @@ const AdminNavGroup = ({
   items,
 }: {
   title: string;
-  items: Array<{ icon: ElementType; label: string; to: string; active?: boolean }>;
+  items: Array<{ icon: ElementType; label: string; to?: string; active?: boolean; disabled?: boolean }>;
 }) => (
   <div>
     <p className="mb-3 px-2 text-[11px] font-medium uppercase tracking-[0.12em] text-white/58">{title}</p>
-    <div className="space-y-1.5">
-      {items.map(({ icon: Icon, label, to, active }) => (
-        <Link
-          key={label}
-          to={to}
-          className={cn(
-            "group flex min-h-9 items-center justify-between rounded-[8px] border px-3 text-[14px] transition duration-200",
-            active
-              ? "border-white/[0.10] bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]"
-              : "border-transparent text-white/55 hover:border-white/[0.07] hover:bg-white/[0.035] hover:text-white"
-          )}
-        >
+    <div className="space-y-1">
+      {items.map(({ icon: Icon, label, to, active, disabled }) => {
+        const isDisabled = disabled || !to;
+        const className = cn(
+          "group flex min-h-10 w-full items-center justify-between rounded-[9px] px-2.5 text-left text-[14px] font-medium transition duration-200",
+          active ? "bg-white/[0.08] text-white" : "text-white/55 hover:bg-white/[0.04] hover:text-white",
+          isDisabled && !active && "cursor-default hover:bg-transparent hover:text-white/55"
+        );
+        const content = (
           <span className="flex items-center gap-2.5">
             <Icon size={15} strokeWidth={1.75} />
             {label}
           </span>
-        </Link>
-      ))}
+        );
+
+        return isDisabled ? (
+          <button key={label} type="button" className={className}>
+            {content}
+          </button>
+        ) : (
+          <Link key={label} to={to} className={className}>
+            {content}
+          </Link>
+        );
+      })}
     </div>
   </div>
 );
@@ -650,7 +670,6 @@ const MetricCard = ({
         <span className={cn("flex h-8 w-8 items-center justify-center rounded-[9px]", toneClass)}>
           <Icon size={16} />
         </span>
-        <span className="text-[11px] text-black/34">ao vivo</span>
       </div>
       <p className="mt-6 text-[13px] text-black/56">{label}</p>
       <p className="mt-2 text-[27px] font-semibold tracking-[-0.055em] text-black">{value}</p>
@@ -680,8 +699,12 @@ const PanelHeader = ({ eyebrow, title, right }: { eyebrow: string; title: string
   </div>
 );
 
-const FilterButton = ({ children }: { children: ReactNode }) => (
-  <button className="inline-flex h-9 items-center gap-2 rounded-[10px] border border-black/[0.10] bg-white px-3 text-[12px] font-medium text-black/58">
+const FilterButton = ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="inline-flex h-9 items-center gap-2 rounded-[10px] border border-black/[0.10] bg-white px-3 text-[12px] font-medium text-black/58 transition hover:border-black/[0.20] hover:text-black"
+  >
     {children}
   </button>
 );

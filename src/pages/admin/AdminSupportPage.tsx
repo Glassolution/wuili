@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { VeloLogo } from "@/components/VeloLogo";
+import { isAdminEmail } from "@/lib/adminAccess";
 
 type AdminTicket = {
   id: string;
@@ -44,6 +45,7 @@ const AdminSupportPage = () => {
   const qc = useQueryClient();
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
+  const fallbackAdmin = isAdminEmail(user?.email);
 
   const { data: profile, isLoading: loadingProfile } = useQuery({
     queryKey: ["admin-profile", user?.id],
@@ -60,7 +62,7 @@ const AdminSupportPage = () => {
     },
   });
 
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = profile?.role === "admin" || fallbackAdmin;
 
   const { data: tickets = [], isLoading: loadingTickets } = useQuery({
     queryKey: ["admin-support-tickets"],
@@ -69,9 +71,14 @@ const AdminSupportPage = () => {
       const { data, error } = await (supabase as any)
         .rpc("get_support_tickets_admin", { p_status: "open" });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(
+          "O Supabase ainda nao reconhece este usuario como admin para suporte. Marque este usuario como admin em profiles/user_roles para responder clientes."
+        );
+      }
       return (data ?? []) as AdminTicket[];
     },
+    retry: false,
   });
 
   const selectedTicket = useMemo(
@@ -235,6 +242,13 @@ const AdminSupportPage = () => {
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
         <header className="flex flex-col gap-4 rounded-3xl border border-[#E5E5E5] bg-white px-6 py-5 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
+            <Link
+              to="/admin/painel"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E5E5E5] bg-white text-[#0A0A0A] transition hover:border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white"
+              aria-label="Voltar para o painel admin"
+            >
+              <ArrowLeft size={18} />
+            </Link>
             <VeloLogo size="sm" variant="dark" />
             <div>
               <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#A3A3A3]">Admin</p>

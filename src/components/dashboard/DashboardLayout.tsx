@@ -396,7 +396,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
                   <span className="min-w-0 flex-1">Suporte</span>
                 </a>
 
-                {isAdmin && <MobileDrawerLink to="/admin/dashboard" label="Painel Admin" icon={ShieldCheck} onClick={closeMenu} badge="Admin" />}
+                {isAdmin && <MobileDrawerLink to="/admin/painel" label="Painel Admin" icon={ShieldCheck} onClick={closeMenu} badge="Admin" />}
                 {canAccessCommissions && <MobileDrawerLink to="/dashboard/comissoes" label="Painel de Comissão" icon={BadgeDollarSign} onClick={closeMenu} />}
                 <MobileDrawerLink to="/dashboard/configuracoes" label="Perfil e configurações" icon={Settings} onClick={closeMenu} />
               </div>

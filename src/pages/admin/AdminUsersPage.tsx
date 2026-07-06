@@ -1,20 +1,23 @@
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Check,
-  Eye,
+  ArrowLeft,
+  CheckCircle2,
+  Copy,
+  Headphones,
+  LayoutDashboard,
   Loader2,
-  Lock,
-  MoreVertical,
-  Pencil,
+  Mail,
+  Percent,
   Search,
-  UserX,
+  ShieldCheck,
+  Store,
+  UserRound,
+  Users,
 } from "lucide-react";
-import { AdminShell } from "@/components/admin/AdminShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isAdminEmail } from "@/lib/adminAccess";
 import { cn } from "@/lib/utils";
 
 type AdminUserRow = {
@@ -37,158 +40,31 @@ type AdminUserDetails = {
   ultima_transacao: string | null;
 };
 
-type ProfileRow = {
-  id: string;
-  user_id?: string | null;
-  full_name?: string | null;
-  display_name?: string | null;
-  email?: string | null;
-  avatar_url?: string | null;
-  created_at: string;
-};
+type UserStatusFilter = "todos" | "ativos" | "gratis" | "ml";
+type SortKey = "created_at" | "name" | "plan" | "orders_count";
 
-type SubscriptionRow = {
-  id: string;
-  user_id: string;
-  plan: string;
-  amount: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-};
+const statusFilters: Array<{ key: UserStatusFilter; label: string }> = [
+  { key: "todos", label: "Todos" },
+  { key: "ativos", label: "Ativos" },
+  { key: "gratis", label: "Gratuitos" },
+  { key: "ml", label: "Mercado Livre" },
+];
 
-type UserPlanFilter = "all" | "free" | "pro" | "business";
-type UserSortKey = "id" | "name" | "email" | "created_at" | "status" | "ml_connected" | "orders_count";
-type SortDirection = "asc" | "desc";
+const sortOptions: Array<{ key: SortKey; label: string }> = [
+  { key: "created_at", label: "Mais recentes" },
+  { key: "name", label: "Nome" },
+  { key: "plan", label: "Plano" },
+  { key: "orders_count", label: "Pedidos" },
+];
 
-const MOCK_ACCOUNT = {
-  userId: "mock-xavier-luis-felipe",
-  name: "Xavier Luis Felipe",
-  email: "xavierluisfelipe12@gmail.com",
-  amount: 7500,
-  createdAt: "2026-07-04T12:00:00.000Z",
-};
-
-const getProfileUserId = (profile: ProfileRow) => profile.user_id ?? profile.id;
-
-async function loadProfiles(): Promise<ProfileRow[]> {
-  const fullSelect = await (supabase as any)
-    .from("profiles")
-    .select("id,user_id,full_name,display_name,email,avatar_url,created_at")
-    .order("created_at", { ascending: false });
-
-  if (!fullSelect.error) return (fullSelect.data ?? []) as ProfileRow[];
-
-  const fallback = await (supabase as any)
-    .from("profiles")
-    .select("id,user_id,display_name,avatar_url,created_at")
-    .order("created_at", { ascending: false });
-
-  if (fallback.error) throw fallback.error;
-  return (fallback.data ?? []) as ProfileRow[];
-}
-
-async function fetchAdminUsers(): Promise<AdminUserRow[]> {
-  const { data, error } = await supabase.functions.invoke("admin-users");
-  if (error) {
-    if (import.meta.env.DEV) return fetchAdminUsersDevFallback();
-    throw error;
-  }
-  return (data ?? []) as AdminUserRow[];
-}
-
-async function fetchAdminUsersDevFallback(): Promise<AdminUserRow[]> {
-  const profiles = await loadProfiles();
-  const userIds = profiles.map(getProfileUserId).filter(Boolean);
-
-  const [subsRes, integrationsRes, ordersRes] = await Promise.all([
-    userIds.length
-      ? (supabase as any)
-          .from("subscriptions")
-          .select("id,user_id,plan,amount,status,created_at,updated_at")
-          .in("user_id", userIds)
-          .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [], error: null }),
-    userIds.length
-      ? (supabase as any)
-          .from("user_integrations")
-          .select("user_id,platform")
-          .in("user_id", userIds)
-          .eq("platform", "mercadolivre")
-      : Promise.resolve({ data: [], error: null }),
-    userIds.length
-      ? (supabase as any).from("orders").select("user_id").in("user_id", userIds)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  const error = subsRes.error ?? integrationsRes.error ?? ordersRes.error;
+const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
+  const { data, error } = await supabase.functions.invoke<AdminUserRow[]>("admin-users");
   if (error) throw error;
+  return Array.isArray(data) ? data : [];
+};
 
-  const latestSubByUser = new Map<string, SubscriptionRow>();
-  for (const subscription of (subsRes.data ?? []) as SubscriptionRow[]) {
-    if (!latestSubByUser.has(subscription.user_id)) {
-      latestSubByUser.set(subscription.user_id, subscription);
-    }
-  }
-
-  const mlConnectedUsers = new Set<string>(
-    ((integrationsRes.data ?? []) as Array<{ user_id: string | null }>)
-      .map((item) => item.user_id)
-      .filter(Boolean) as string[]
-  );
-
-  const ordersByUser = new Map<string, number>();
-  for (const order of (ordersRes.data ?? []) as Array<{ user_id: string | null }>) {
-    if (!order.user_id) continue;
-    ordersByUser.set(order.user_id, (ordersByUser.get(order.user_id) ?? 0) + 1);
-  }
-
-  const rows = profiles.map((profile) => {
-    const profileUserId = getProfileUserId(profile);
-    const subscription = latestSubByUser.get(profileUserId);
-
-    return {
-      user_id: profileUserId,
-      name: profile.full_name ?? profile.display_name ?? profile.email ?? null,
-      email: profile.email ?? null,
-      avatar_url: profile.avatar_url ?? null,
-      plan: subscription?.plan ?? null,
-      subscription_status: subscription?.status ?? null,
-      created_at: profile.created_at,
-      ml_connected: mlConnectedUsers.has(profileUserId),
-      orders_count: ordersByUser.get(profileUserId) ?? 0,
-    };
-  });
-
-  if (!rows.some((row) => row.email?.toLowerCase() === MOCK_ACCOUNT.email)) {
-    rows.unshift({
-      user_id: MOCK_ACCOUNT.userId,
-      name: MOCK_ACCOUNT.name,
-      email: MOCK_ACCOUNT.email,
-      avatar_url: null,
-      plan: "business",
-      subscription_status: "active",
-      created_at: MOCK_ACCOUNT.createdAt,
-      ml_connected: true,
-      orders_count: 0,
-    });
-  }
-
-  return rows;
-}
-
-async function fetchAdminUserDetails(userId: string): Promise<AdminUserDetails> {
-  if (userId === MOCK_ACCOUNT.userId) {
-    return {
-      email: MOCK_ACCOUNT.email,
-      phone: null,
-      total_pago: MOCK_ACCOUNT.amount,
-      total_transacoes: 1,
-      ultima_transacao: MOCK_ACCOUNT.createdAt,
-    };
-  }
-
-  const { data, error } = await supabase.functions.invoke("get-user-details", {
+const fetchAdminUserDetails = async (userId: string): Promise<AdminUserDetails> => {
+  const { data, error } = await supabase.functions.invoke<AdminUserDetails>("get-user-details", {
     body: { user_id: userId },
   });
 
@@ -201,40 +77,20 @@ async function fetchAdminUserDetails(userId: string): Promise<AdminUserDetails> 
     total_transacoes: Number(data?.total_transacoes ?? 0),
     ultima_transacao: data?.ultima_transacao ?? null,
   };
-}
-
-const adminRoleChecks = (userId: string) => [
-  { _role: "admin" },
-  { role: "admin" },
-  { _user_id: userId, _role: "admin" },
-  { user_id: userId, role: "admin" },
-];
-
-async function checkAdminAccess(userId: string, email?: string | null) {
-  if (isAdminEmail(email)) return true;
-
-  for (const params of adminRoleChecks(userId)) {
-    const { data, error } = await (supabase as any).rpc("has_role", params);
-    if (!error && data === true) return true;
-  }
-
-  const { data, error } = await (supabase as any)
-    .from("profiles")
-    .select("role")
-    .or(`id.eq.${userId},user_id.eq.${userId}`)
-    .maybeSingle();
-
-  if (error) return false;
-  return data?.role === "admin";
-}
+};
 
 const formatDate = (value: string | null) => {
   if (!value) return "Sem data";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sem data";
+
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
-    month: "2-digit",
+    month: "short",
     year: "numeric",
-  }).format(new Date(value));
+  })
+    .format(date)
+    .replace(".", "");
 };
 
 const formatBRL = (value: number) =>
@@ -242,42 +98,30 @@ const formatBRL = (value: number) =>
     style: "currency",
     currency: "BRL",
     maximumFractionDigits: 2,
-  }).format(Number(value ?? 0));
+  }).format(Number(value || 0));
 
 const formatPlan = (plan?: string | null) => {
-  const normalized = (plan ?? "free").toLowerCase();
+  const normalized = (plan ?? "gratis").toLowerCase();
   if (normalized === "business") return "Business";
   if (normalized === "pro") return "Pro";
-  if (normalized === "gratis" || normalized === "free") return "Gratuito";
-  return plan ?? "Gratuito";
-};
-
-const getPlanKey = (plan?: string | null): Exclude<UserPlanFilter, "all"> => {
-  const normalized = (plan ?? "free").toLowerCase();
-  if (normalized === "business") return "business";
-  if (normalized === "pro") return "pro";
-  return "free";
-};
-
-const userPlanTabs: Array<{ key: UserPlanFilter; label: string }> = [
-  { key: "all", label: "Todos" },
-  { key: "free", label: "Plano Gratuito" },
-  { key: "pro", label: "Plano Pro" },
-  { key: "business", label: "Plano Business" },
-];
-
-const formatStatus = (status?: string | null) => {
-  const normalized = (status ?? "inactive").toLowerCase();
-  if (["active", "approved", "authorized", "paid"].includes(normalized)) return "Ativo";
-  if (["cancelled", "canceled"].includes(normalized)) return "Cancelado";
-  return "Inativo";
+  if (normalized === "plus") return "Plus";
+  if (normalized === "trial") return "Trial";
+  return "Gratuito";
 };
 
 const isActiveStatus = (status?: string | null) =>
-  ["active", "approved", "authorized", "paid"].includes((status ?? "").toLowerCase());
+  ["active", "paid", "approved", "authorized"].includes((status ?? "").toLowerCase());
+
+const formatStatus = (status?: string | null) => {
+  if (isActiveStatus(status)) return "Ativo";
+  const normalized = (status ?? "").toLowerCase();
+  if (normalized === "trial") return "Trial";
+  if (["cancelled", "canceled"].includes(normalized)) return "Cancelado";
+  return "Sem assinatura";
+};
 
 const getInitials = (name?: string | null, email?: string | null) => {
-  const source = name || email || "VL";
+  const source = name || email || "Velo";
   return source
     .split(/[\s._@-]+/)
     .filter(Boolean)
@@ -287,521 +131,540 @@ const getInitials = (name?: string | null, email?: string | null) => {
     .toUpperCase();
 };
 
-const getUserSortValue = (row: AdminUserRow, key: UserSortKey) => {
-  if (key === "id") return row.user_id.slice(0, 8);
-  if (key === "name") return row.name ?? "";
-  if (key === "email") return row.email ?? "";
-  if (key === "created_at") return new Date(row.created_at).getTime();
-  if (key === "status") return formatStatus(row.subscription_status);
-  if (key === "ml_connected") return row.ml_connected ? 1 : 0;
-  if (key === "orders_count") return row.orders_count ?? 0;
-  return "";
+const isFreePlan = (plan?: string | null) => {
+  const normalized = (plan ?? "gratis").toLowerCase();
+  return ["gratis", "free", "gratuito"].includes(normalized);
 };
 
-const getWhatsAppHref = (phone?: string | null) => {
-  const digits = (phone ?? "").replace(/\D/g, "");
-  if (!digits) return null;
-  return `https://wa.me/${digits}`;
+const getSortValue = (user: AdminUserRow, key: SortKey) => {
+  if (key === "created_at") return new Date(user.created_at).getTime();
+  if (key === "orders_count") return Number(user.orders_count ?? 0);
+  if (key === "plan") return formatPlan(user.plan);
+  return user.name ?? user.email ?? "";
 };
 
 const AdminUsersPage = () => {
   const { user, loading } = useAuth();
-  const [userTab, setUserTab] = useState<UserPlanFilter>("all");
-  const [userSearch, setUserSearch] = useState("");
-  const [userPage, setUserPage] = useState(1);
-  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(() => new Set());
-  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [sortConfig, setSortConfig] = useState<{ key: UserSortKey; direction: SortDirection }>({
-    key: "created_at",
-    direction: "desc",
-  });
-  const [openActionUserId, setOpenActionUserId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<UserStatusFilter>("todos");
+  const [sortBy, setSortBy] = useState<SortKey>("created_at");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const { data: isAdmin = false, isLoading: loadingRole } = useQuery({
-    queryKey: ["admin-users-access", user?.id],
-    enabled: !!user?.id,
-    queryFn: () => checkAdminAccess(user!.id, user!.email),
-  });
-
-  const { data: users = [], isLoading: loadingUsers, isError } = useQuery({
-    queryKey: ["admin-users-table"],
-    enabled: !!user?.id && isAdmin,
+  const {
+    data: users = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["admin-users-clean"],
     queryFn: fetchAdminUsers,
+    enabled: !!user?.id,
+    refetchInterval: 30000,
   });
 
-  const { data: expandedDetails, isLoading: loadingExpandedDetails } = useQuery({
-    queryKey: ["admin-user-details", expandedUserId],
-    enabled: !!expandedUserId && isAdmin,
-    queryFn: () => fetchAdminUserDetails(expandedUserId!),
+  const selectedUser = useMemo(
+    () => users.find((item) => item.user_id === selectedUserId) ?? null,
+    [selectedUserId, users]
+  );
+
+  const { data: selectedDetails, isLoading: isLoadingDetails } = useQuery({
+    queryKey: ["admin-user-details-clean", selectedUserId],
+    queryFn: () => fetchAdminUserDetails(selectedUserId!),
+    enabled: !!selectedUserId,
   });
 
   const filteredUsers = useMemo(() => {
-    const query = userSearch.trim().toLowerCase();
-    const list = users.filter((item) => {
-      const matchesTab = userTab === "all" || getPlanKey(item.plan) === userTab;
-      const matchesSearch =
-        !query ||
-        (item.name ?? "").toLowerCase().includes(query) ||
-        (item.email ?? "").toLowerCase().includes(query);
+    const query = search.trim().toLowerCase();
 
-      return matchesTab && matchesSearch;
-    });
+    return users
+      .filter((item) => {
+        const matchesSearch =
+          !query ||
+          (item.name ?? "").toLowerCase().includes(query) ||
+          (item.email ?? "").toLowerCase().includes(query) ||
+          item.user_id.toLowerCase().includes(query);
 
-    return [...list].sort((a, b) => {
-      const dir = sortConfig.direction === "asc" ? 1 : -1;
-      const valueA = getUserSortValue(a, sortConfig.key);
-      const valueB = getUserSortValue(b, sortConfig.key);
+        const matchesFilter =
+          filter === "todos" ||
+          (filter === "ativos" && isActiveStatus(item.subscription_status)) ||
+          (filter === "gratis" && isFreePlan(item.plan)) ||
+          (filter === "ml" && item.ml_connected);
 
-      if (typeof valueA === "number" && typeof valueB === "number") {
-        return (valueA - valueB) * dir;
-      }
+        return matchesSearch && matchesFilter;
+      })
+      .sort((a, b) => {
+        const valueA = getSortValue(a, sortBy);
+        const valueB = getSortValue(b, sortBy);
 
-      return String(valueA).localeCompare(String(valueB), "pt-BR", { sensitivity: "base" }) * dir;
-    });
-  }, [sortConfig.direction, sortConfig.key, userSearch, userTab, users]);
+        if (typeof valueA === "number" && typeof valueB === "number") {
+          return valueB - valueA;
+        }
 
-  const totalUserPages = Math.max(Math.ceil(filteredUsers.length / 20), 1);
-  const currentUserPage = Math.min(userPage, totalUserPages);
-  const paginatedUsers = filteredUsers.slice((currentUserPage - 1) * 20, currentUserPage * 20);
-  const allVisibleSelected = paginatedUsers.length > 0 && paginatedUsers.every((item) => selectedUsers.has(item.user_id));
+        return String(valueA).localeCompare(String(valueB), "pt-BR", { sensitivity: "base" });
+      });
+  }, [filter, search, sortBy, users]);
 
-  const updateSort = (key: UserSortKey) => {
-    setSortConfig((prev) => ({
-      key,
-      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-    }));
-  };
+  const stats = useMemo(() => {
+    const activeUsers = users.filter((item) => isActiveStatus(item.subscription_status)).length;
+    const mlUsers = users.filter((item) => item.ml_connected).length;
+    const totalOrders = users.reduce((sum, item) => sum + Number(item.orders_count ?? 0), 0);
+    const newThisWeek = users.filter((item) => {
+      const createdAt = new Date(item.created_at);
+      const start = new Date();
+      start.setDate(start.getDate() - 7);
+      return !Number.isNaN(createdAt.getTime()) && createdAt >= start;
+    }).length;
 
-  const updateUserTab = (tab: UserPlanFilter) => {
-    setUserTab(tab);
-    setUserPage(1);
-    setSelectedUsers(new Set());
-  };
+    return [
+      { label: "Usuários", value: users.length.toLocaleString("pt-BR"), hint: "perfis carregados" },
+      { label: "Assinaturas ativas", value: activeUsers.toLocaleString("pt-BR"), hint: "status ativo ou pago" },
+      { label: "Mercado Livre", value: mlUsers.toLocaleString("pt-BR"), hint: "contas conectadas" },
+      { label: "Pedidos", value: totalOrders.toLocaleString("pt-BR"), hint: `${newThisWeek} novos em 7 dias` },
+    ];
+  }, [users]);
 
-  const updateSearch = (value: string) => {
-    setUserSearch(value);
-    setUserPage(1);
-  };
-
-  const toggleUser = (userId: string) => {
-    setSelectedUsers((prev) => {
-      const next = new Set(prev);
-      if (next.has(userId)) next.delete(userId);
-      else next.add(userId);
-      return next;
-    });
-  };
-
-  const toggleAllVisible = () => {
-    setSelectedUsers((prev) => {
-      const next = new Set(prev);
-      if (allVisibleSelected) {
-        paginatedUsers.forEach((item) => next.delete(item.user_id));
-      } else {
-        paginatedUsers.forEach((item) => next.add(item.user_id));
-      }
-      return next;
-    });
-  };
-
-  if (loading || loadingRole) {
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f4] text-black">
+        <Loader2 className="h-7 w-7 animate-spin" />
       </div>
     );
   }
 
   if (!user) return <Navigate to="/login" replace />;
 
-  if (!isAdmin) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
-        <div className="w-full max-w-md rounded-[28px] border border-[#333] bg-[#111] p-8 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-black">
-            <Lock size={21} />
+  return (
+    <div className="min-h-screen bg-[#f5f5f4] text-[#111111]">
+      <div className="flex min-h-screen items-start">
+        <AdminSidebar userId={user.id} />
+
+        <main className="min-w-0 flex-1">
+          <header className="border-b border-black/[0.08] bg-white px-4 py-5 sm:px-6 lg:px-7">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-black/55">Admin Velo</p>
+                <h1 className="mt-3 text-[32px] font-semibold tracking-[-0.045em] text-black sm:text-[40px]">
+                  Usuários
+                </h1>
+                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-black/58">
+                  Acompanhe contas reais, planos, conexão com Mercado Livre e atividade de pedidos.
+                </p>
+              </div>
+
+              <div className="flex w-full items-center gap-2 rounded-[14px] border border-black/10 bg-[#f7f7f7] px-4 py-3 xl:w-[390px]">
+                <Search size={18} className="text-black/45" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar usuário, email ou ID..."
+                  className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-black/38"
+                />
+              </div>
+            </div>
+          </header>
+
+          <div className="space-y-5 px-4 py-5 sm:px-6 lg:px-7">
+            <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {stats.map((item) => (
+                <article key={item.label} className="rounded-[18px] border border-black/[0.08] bg-white p-5 shadow-sm">
+                  <p className="text-[13px] text-black/62">{item.label}</p>
+                  <strong className="mt-5 block text-[29px] font-semibold tracking-[-0.05em] text-black">
+                    {item.value}
+                  </strong>
+                  <p className="mt-3 text-[12px] text-black/52">{item.hint}</p>
+                </article>
+              ))}
+            </section>
+
+            <section className="rounded-[22px] border border-black/[0.08] bg-white shadow-sm">
+              <div className="flex flex-col gap-4 border-b border-black/[0.08] p-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap gap-2">
+                  {statusFilters.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setFilter(item.key)}
+                      className={cn(
+                        "h-10 rounded-full px-4 text-[13px] font-semibold transition",
+                        filter === item.key
+                          ? "bg-black text-white"
+                          : "border border-black/10 bg-white text-black/62 hover:border-black/20 hover:text-black"
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+
+                <label className="flex w-full items-center justify-between gap-3 rounded-full border border-black/10 px-4 py-2 text-[13px] text-black/56 lg:w-auto">
+                  Ordenar
+                  <select
+                    value={sortBy}
+                    onChange={(event) => setSortBy(event.target.value as SortKey)}
+                    className="bg-transparent font-semibold text-black outline-none"
+                  >
+                    {sortOptions.map((item) => (
+                      <option key={item.key} value={item.key}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {isLoading ? (
+                <div className="flex min-h-[360px] items-center justify-center">
+                  <Loader2 className="h-7 w-7 animate-spin text-black" />
+                </div>
+              ) : isError ? (
+                <div className="flex min-h-[360px] items-center justify-center p-8 text-center">
+                  <div>
+                    <p className="text-[18px] font-semibold text-black">Não foi possível carregar usuários.</p>
+                    <p className="mt-2 max-w-md text-[13px] leading-6 text-black/54">
+                      {error instanceof Error ? error.message : "Confira a Edge Function admin-users e as permissões de admin."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid min-h-[620px] lg:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="overflow-x-auto p-4">
+                    <table className="w-full min-w-[850px] border-separate border-spacing-y-2">
+                      <thead>
+                        <tr className="text-left text-[12px] font-semibold text-black/45">
+                          <th className="px-4 py-2">Usuário</th>
+                          <th className="px-4 py-2">Plano</th>
+                          <th className="px-4 py-2">Status</th>
+                          <th className="px-4 py-2">ML</th>
+                          <th className="px-4 py-2 text-right">Pedidos</th>
+                          <th className="px-4 py-2">Cadastro</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="rounded-2xl bg-[#f7f7f7] px-4 py-14 text-center text-[14px] text-black/50">
+                              Nenhum usuário encontrado.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredUsers.map((item) => (
+                            <UserRow
+                              key={item.user_id}
+                              user={item}
+                              selected={selectedUserId === item.user_id}
+                              onClick={() => setSelectedUserId(item.user_id)}
+                            />
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <UserDetailsPanel
+                    user={selectedUser}
+                    details={selectedDetails}
+                    loading={isLoadingDetails}
+                    onClose={() => setSelectedUserId(null)}
+                  />
+                </div>
+              )}
+            </section>
           </div>
-          <h1 className="mt-5 text-[24px] font-bold">Acesso restrito</h1>
-          <p className="mt-2 text-[14px] leading-6 text-white/55">
-            Este dashboard é exclusivo para usuários com role admin.
+        </main>
+      </div>
+    </div>
+  );
+};
+
+const AdminSidebar = ({ userId }: { userId: string }) => (
+  <aside className="sticky top-0 hidden h-screen w-[280px] shrink-0 border-r border-white/[0.07] bg-[#111111] text-white lg:flex lg:flex-col">
+    <div className="flex h-[74px] items-center border-b border-white/[0.06] px-7">
+      <Link to="/admin/painel" className="flex items-center gap-3">
+        <VeloMark />
+        <div>
+          <p className="text-[19px] font-semibold tracking-[-0.04em]">VeloMetric</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-white/36">Admin</p>
+        </div>
+      </Link>
+    </div>
+
+    <div className="flex-1 px-5 py-6">
+      <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Monitoramento</p>
+      <div className="space-y-1">
+        <AdminNavLink icon={LayoutDashboard} label="Painel" to="/admin/painel" />
+        <AdminNavLink icon={Percent} label="Comissões" to="/admin/comissoes" />
+        <AdminNavLink icon={Users} label="Usuários" to="/admin/usuarios" active />
+        <AdminNavLink icon={Headphones} label="Suporte" to="/admin/suporte" />
+      </div>
+    </div>
+
+    <div className="mt-auto space-y-5 border-t border-white/[0.06] p-5">
+      <div className="rounded-[12px] border border-white/[0.08] bg-white/[0.035] p-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black">
+            <ShieldCheck size={17} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[13px] text-white/58">Admin ID</p>
+            <p className="truncate text-[14px] font-semibold tracking-[-0.02em]">
+              {userId.slice(0, 8).toUpperCase()}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <Link
+        to="/dashboard"
+        className="flex h-10 items-center gap-2 rounded-[10px] px-2 text-[13px] font-semibold text-white transition hover:bg-white/[0.06]"
+      >
+        <ArrowLeft size={15} />
+        Voltar à Velo
+      </Link>
+    </div>
+  </aside>
+);
+
+const AdminNavLink = ({
+  icon: Icon,
+  label,
+  to,
+  active = false,
+}: {
+  icon: typeof LayoutDashboard;
+  label: string;
+  to: string;
+  active?: boolean;
+}) => (
+  <Link
+    to={to}
+    className={cn(
+      "group flex h-10 items-center gap-3 rounded-[9px] px-3 text-[14px] font-semibold transition",
+      active ? "bg-white/[0.10] text-white" : "text-white/56 hover:bg-white/[0.06] hover:text-white"
+    )}
+  >
+    <Icon size={16} strokeWidth={1.8} />
+    {label}
+  </Link>
+);
+
+const VeloMark = () => (
+  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white text-black shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+    <svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="M33 18A11 11 0 1 0 33 30" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+      <path
+        d="M30 26L34 30L38 26"
+        stroke="currentColor"
+        strokeWidth="4.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  </span>
+);
+
+const UserRow = ({
+  user,
+  selected,
+  onClick,
+}: {
+  user: AdminUserRow;
+  selected: boolean;
+  onClick: () => void;
+}) => (
+  <tr
+    onClick={onClick}
+    className={cn(
+      "cursor-pointer text-[13px] transition",
+      selected ? "bg-black text-white" : "bg-[#fbfbfb] text-black hover:bg-[#f1f1f1]"
+    )}
+  >
+    <td className="rounded-l-2xl px-4 py-4">
+      <div className="flex items-center gap-3">
+        <Avatar user={user} selected={selected} />
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-semibold">{user.name || "Usuário sem nome"}</p>
+          <p className={cn("mt-0.5 truncate text-[12px]", selected ? "text-white/54" : "text-black/45")}>
+            {user.email || user.user_id.slice(0, 8)}
           </p>
         </div>
       </div>
-    );
-  }
+    </td>
+    <td className="px-4 py-4">
+      <span className={cn("rounded-full px-3 py-1 text-[12px] font-semibold", selected ? "bg-white/12" : "bg-black/[0.04]")}>
+        {formatPlan(user.plan)}
+      </span>
+    </td>
+    <td className="px-4 py-4">
+      <StatusPill status={user.subscription_status} selected={selected} />
+    </td>
+    <td className="px-4 py-4">
+      <span className={cn("inline-flex items-center gap-1.5 font-semibold", user.ml_connected ? "text-emerald-600" : selected ? "text-white/45" : "text-black/38")}>
+        <Store size={14} />
+        {user.ml_connected ? "Conectado" : "Não"}
+      </span>
+    </td>
+    <td className="px-4 py-4 text-right font-semibold">{Number(user.orders_count ?? 0).toLocaleString("pt-BR")}</td>
+    <td className="rounded-r-2xl px-4 py-4 text-black/48">{formatDate(user.created_at)}</td>
+  </tr>
+);
 
+const Avatar = ({ user, selected }: { user: AdminUserRow; selected: boolean }) => (
+  <span
+    className={cn(
+      "flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full text-[12px] font-semibold",
+      selected ? "bg-white text-black" : "bg-black text-white"
+    )}
+  >
+    {user.avatar_url ? (
+      <img src={user.avatar_url} alt={user.name ?? "Usuário"} className="h-full w-full object-cover" />
+    ) : (
+      getInitials(user.name, user.email)
+    )}
+  </span>
+);
+
+const StatusPill = ({ status, selected }: { status?: string | null; selected: boolean }) => {
+  const active = isActiveStatus(status);
   return (
-    <AdminShell active="users" userId={user.id}>
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold",
+        active
+          ? "bg-emerald-100 text-emerald-700"
+          : selected
+            ? "bg-white/10 text-white/58"
+            : "bg-black/[0.04] text-black/48"
+      )}
+    >
+      {active && <CheckCircle2 size={13} />}
+      {formatStatus(status)}
+    </span>
+  );
+};
+
+const UserDetailsPanel = ({
+  user,
+  details,
+  loading,
+  onClose,
+}: {
+  user: AdminUserRow | null;
+  details?: AdminUserDetails;
+  loading: boolean;
+  onClose: () => void;
+}) => (
+  <aside className="border-t border-black/[0.08] bg-[#fafafa] p-5 lg:border-l lg:border-t-0">
+    {!user ? (
+      <div className="flex min-h-full items-center justify-center rounded-[18px] border border-dashed border-black/12 p-8 text-center">
         <div>
-          <h1 className="font-sans text-[38px] font-bold tracking-normal text-white md:text-[48px]">
-            Usuários
-          </h1>
-          <p className="mt-3 text-[15px] text-white/48">
-            Perfis, planos, Mercado Livre e pedidos acumulados.
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-black text-white">
+            <UserRound size={20} />
+          </span>
+          <p className="mt-4 text-[15px] font-semibold">Selecione um usuário</p>
+          <p className="mt-2 text-[13px] leading-6 text-black/48">
+            Clique em uma linha para ver email, pagamento e dados de contato.
           </p>
         </div>
-
-        <div className="flex h-12 w-full items-center gap-2 rounded-full border border-[#222] bg-[#111] px-4 text-white/45 lg:w-[360px]">
-          <Search size={17} />
-          <input
-            value={userSearch}
-            onChange={(event) => updateSearch(event.target.value)}
-            placeholder="Buscar nome ou email..."
-            className="min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none placeholder:text-white/35"
-          />
-        </div>
-      </header>
-
-      <section className="mt-8 rounded-[20px] border border-[#222] bg-[#0a0a0a]">
-        <div className="border-b border-[#222] px-5 pt-5">
-          <div className="flex flex-wrap gap-7">
-            {userPlanTabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => updateUserTab(tab.key)}
-                className={cn(
-                  "relative pb-4 text-[14px] font-medium transition",
-                  userTab === tab.key ? "text-white" : "text-white/45 hover:text-white/75"
-                )}
-              >
-                {tab.label}
-                {userTab === tab.key && (
-                  <span className="absolute bottom-[-1px] left-0 h-[2px] w-full rounded-full bg-white" />
-                )}
-              </button>
-            ))}
+      </div>
+    ) : (
+      <div className="space-y-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Avatar user={user} selected={false} />
+            <div className="min-w-0">
+              <h2 className="truncate text-[18px] font-semibold tracking-[-0.03em]">{user.name || "Usuário"}</h2>
+              <p className="mt-1 truncate text-[12px] text-black/45">{user.user_id}</p>
+            </div>
           </div>
+          <button type="button" onClick={onClose} className="text-[12px] font-semibold text-black/42 hover:text-black">
+            Fechar
+          </button>
         </div>
 
-        {isError ? (
-          <div className="px-5 py-14 text-center">
-            <p className="text-[16px] font-bold text-white">Não foi possível carregar os usuários.</p>
-            <p className="mt-2 text-[13px] text-white/45">
-              Verifique permissões de leitura em profiles, subscriptions, user_integrations e orders.
-            </p>
-          </div>
-        ) : loadingUsers ? (
-          <div className="flex items-center justify-center px-5 py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-white" />
+        {loading ? (
+          <div className="flex h-44 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin" />
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto p-4">
-              <table className="w-full min-w-[1120px] border-separate border-spacing-y-2">
-                <thead>
-                  <tr className="text-left text-[12px] font-bold text-[#888]">
-                    <th className="rounded-l-xl border-y border-l border-[#222] bg-[#111] px-4 py-4">
-                      <AdminCheckbox checked={allVisibleSelected} onChange={toggleAllVisible} />
-                    </th>
-                    <SortableHeader label="ID" sortKey="id" current={sortConfig} onSort={updateSort} />
-                    <SortableHeader label="Usuário" sortKey="name" current={sortConfig} onSort={updateSort} />
-                    <SortableHeader label="Email" sortKey="email" current={sortConfig} onSort={updateSort} />
-                    <SortableHeader label="Data cadastro" sortKey="created_at" current={sortConfig} onSort={updateSort} />
-                    <SortableHeader label="Status" sortKey="status" current={sortConfig} onSort={updateSort} />
-                    <SortableHeader label="ML Conectado" sortKey="ml_connected" current={sortConfig} onSort={updateSort} />
-                    <SortableHeader label="Pedidos" sortKey="orders_count" current={sortConfig} onSort={updateSort} />
-                    <th className="rounded-r-xl border-y border-r border-[#222] bg-[#111] px-4 py-4 text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="rounded-2xl border border-[#222] bg-black px-5 py-12 text-center text-[14px] text-white/45">
-                        Nenhum usuário encontrado.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedUsers.map((row) => (
-                      <UserTableRow
-                        key={row.user_id}
-                        row={row}
-                        selected={selectedUsers.has(row.user_id)}
-                        onToggle={() => toggleUser(row.user_id)}
-                        expanded={expandedUserId === row.user_id}
-                        details={expandedUserId === row.user_id ? expandedDetails : undefined}
-                        loadingDetails={expandedUserId === row.user_id && loadingExpandedDetails}
-                        onToggleExpand={() =>
-                          setExpandedUserId((current) => current === row.user_id ? null : row.user_id)
-                        }
-                        actionsOpen={openActionUserId === row.user_id}
-                        onToggleActions={() => setOpenActionUserId((current) => current === row.user_id ? null : row.user_id)}
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div className="grid gap-3">
+              <DetailCard label="Email" value={details?.email ?? user.email ?? "Não informado"} icon={Mail} copyValue={details?.email ?? user.email} />
+              <DetailCard label="Telefone" value={details?.phone ?? "Não informado"} icon={UserRound} />
+              <DetailCard label="Plano" value={`${formatPlan(user.plan)} · ${formatStatus(user.subscription_status)}`} icon={ShieldCheck} />
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-[#222] px-5 py-4 text-[13px] text-white/50 md:flex-row md:items-center md:justify-between">
-              <span>
-                Mostrando {paginatedUsers.length} de {filteredUsers.length} usuários
-                {selectedUsers.size > 0 ? ` • ${selectedUsers.size} selecionado(s)` : ""}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={currentUserPage <= 1}
-                  onClick={() => setUserPage((page) => Math.max(page - 1, 1))}
-                  className="rounded-full border border-[#333] px-4 py-2 font-semibold text-white transition hover:border-white disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  Anterior
-                </button>
-                <span className="px-2 text-white/60">
-                  {currentUserPage} / {totalUserPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={currentUserPage >= totalUserPages}
-                  onClick={() => setUserPage((page) => Math.min(page + 1, totalUserPages))}
-                  className="rounded-full border border-[#333] px-4 py-2 font-semibold text-white transition hover:border-white disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  Próximo
-                </button>
+            <div className="rounded-[18px] border border-black/[0.08] bg-white p-4">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-black/44">Financeiro</p>
+              <strong className="mt-4 block text-[30px] font-semibold tracking-[-0.05em]">
+                {formatBRL(details?.total_pago ?? 0)}
+              </strong>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-[12px]">
+                <div className="rounded-[14px] bg-[#f5f5f4] p-3">
+                  <p className="text-black/44">Transações</p>
+                  <p className="mt-2 font-semibold">{details?.total_transacoes ?? 0}</p>
+                </div>
+                <div className="rounded-[14px] bg-[#f5f5f4] p-3">
+                  <p className="text-black/44">Última</p>
+                  <p className="mt-2 font-semibold">{formatDate(details?.ultima_transacao ?? null)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[18px] border border-black/[0.08] bg-white p-4">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-black/44">Operação</p>
+              <div className="mt-4 space-y-3 text-[13px]">
+                <DetailLine label="Mercado Livre" value={user.ml_connected ? "Conectado" : "Não conectado"} />
+                <DetailLine label="Pedidos" value={Number(user.orders_count ?? 0).toLocaleString("pt-BR")} />
+                <DetailLine label="Cadastro" value={formatDate(user.created_at)} />
               </div>
             </div>
           </>
         )}
-      </section>
-    </AdminShell>
-  );
-};
-
-const AdminCheckbox = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
-  <button
-    type="button"
-    onClick={(event) => {
-      event.stopPropagation();
-      onChange();
-    }}
-    className={cn(
-      "flex h-5 w-5 items-center justify-center rounded-md border transition",
-      checked ? "border-[#00C853] bg-[#00C853] text-white" : "border-[#444] bg-transparent text-transparent hover:border-white/70"
+      </div>
     )}
-    aria-pressed={checked}
-  >
-    <Check size={14} strokeWidth={3} />
-  </button>
+  </aside>
 );
 
-const SortableHeader = ({
-  label,
-  sortKey,
-  current,
-  onSort,
-}: {
-  label: string;
-  sortKey: UserSortKey;
-  current: { key: UserSortKey; direction: SortDirection };
-  onSort: (key: UserSortKey) => void;
-}) => (
-  <th className="border-y border-[#222] bg-[#111] px-4 py-4">
-    <button
-      type="button"
-      onClick={() => onSort(sortKey)}
-      className="inline-flex items-center gap-2 whitespace-nowrap text-left transition hover:text-white"
-    >
-      {label}
-      <span className={cn("text-[12px]", current.key === sortKey ? "text-white" : "text-white/25")}>
-        {current.key === sortKey ? (current.direction === "asc" ? "↑" : "↓") : "↕"}
-      </span>
-    </button>
-  </th>
-);
-
-const StatusBadge = ({ status }: { status?: string | null }) => (
-  <span
-    className={cn(
-      "inline-flex rounded-full px-3 py-1 text-[11px] font-bold",
-      isActiveStatus(status) ? "bg-[#00C853] text-black" : "bg-[#333] text-[#888]"
-    )}
-  >
-    {formatStatus(status)}
-  </span>
-);
-
-const ConnectionBadge = ({ connected }: { connected: boolean }) => (
-  <span
-    className={cn(
-      "inline-flex rounded-full px-3 py-1 text-[11px] font-bold",
-      connected ? "bg-[#00C853] text-black" : "bg-[#333] text-[#888]"
-    )}
-  >
-    {connected ? "Sim" : "Não"}
-  </span>
-);
-
-const UserTableRow = ({
-  row,
-  selected,
-  onToggle,
-  expanded,
-  details,
-  loadingDetails,
-  onToggleExpand,
-  actionsOpen,
-  onToggleActions,
-}: {
-  row: AdminUserRow;
-  selected: boolean;
-  onToggle: () => void;
-  expanded: boolean;
-  details?: AdminUserDetails;
-  loadingDetails: boolean;
-  onToggleExpand: () => void;
-  actionsOpen: boolean;
-  onToggleActions: () => void;
-}) => (
-  <>
-    <tr
-      onClick={onToggleExpand}
-      className={cn(
-        "group cursor-pointer text-[13px] text-[#888] transition",
-        expanded || selected ? "bg-[#1a1a1a]" : "bg-transparent hover:bg-[#111]"
-      )}
-    >
-      <td className="rounded-l-xl border-y border-l border-[#222] px-4 py-4">
-        <AdminCheckbox checked={selected} onChange={onToggle} />
-      </td>
-      <td className="border-y border-[#222] px-4 py-4 font-semibold text-[#888]">
-        {row.user_id.slice(0, 8)}
-      </td>
-      <td className="border-y border-[#222] px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#222] text-[12px] font-bold text-white">
-            {row.avatar_url ? (
-              <img src={row.avatar_url} alt={row.name ?? "Usuário"} className="h-full w-full object-cover" />
-            ) : (
-              getInitials(row.name, row.email)
-            )}
-          </div>
-          <div>
-            <p className="font-bold text-white">{row.name || row.email || "Usuário"}</p>
-            <p className="mt-0.5 text-[11px] text-[#888]">{formatPlan(row.plan)}</p>
-          </div>
-        </div>
-      </td>
-      <td className="border-y border-[#222] px-4 py-4 text-[#888]">{row.email || "Email indisponível"}</td>
-      <td className="border-y border-[#222] px-4 py-4 text-[#888]">{formatDate(row.created_at)}</td>
-      <td className="border-y border-[#222] px-4 py-4">
-        <StatusBadge status={row.subscription_status} />
-      </td>
-      <td className="border-y border-[#222] px-4 py-4">
-        <ConnectionBadge connected={row.ml_connected} />
-      </td>
-      <td className="border-y border-[#222] px-4 py-4 font-bold text-white">{row.orders_count ?? 0}</td>
-      <td className="relative rounded-r-xl border-y border-r border-[#222] px-4 py-4 text-right">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleActions();
-          }}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/60 transition hover:bg-[#2a2a2a] hover:text-white"
-          aria-label="Abrir ações"
-        >
-          <MoreVertical size={18} />
-        </button>
-        {actionsOpen && (
-          <div
-            onClick={(event) => event.stopPropagation()}
-            className="absolute right-4 top-12 z-20 w-44 overflow-hidden rounded-2xl border border-[#333] bg-black p-1 text-left shadow-2xl"
-          >
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-white/75 transition hover:bg-[#1a1a1a] hover:text-white"
-            >
-              <Eye size={14} />
-              Ver detalhes
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-red-300 transition hover:bg-red-500/10 hover:text-red-200"
-            >
-              <UserX size={14} />
-              Suspender conta
-            </button>
-          </div>
-        )}
-      </td>
-    </tr>
-    {expanded && (
-      <tr className="bg-[#1a1a1a] text-[13px]">
-        <td colSpan={9} className="rounded-b-xl border-x border-b border-[#222] px-8 py-6">
-          <div className="flex items-start justify-between gap-5">
-            {loadingDetails ? (
-              <div className="flex min-h-[120px] flex-1 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-white" />
-              </div>
-            ) : (
-              <div className="grid flex-1 gap-6 md:grid-cols-2">
-                <div className="space-y-3">
-                  <DetailItem label="Email" value={details?.email ?? row.email ?? "Não informado"} />
-                  <DetailItem
-                    label="WhatsApp"
-                    value={details?.phone ?? "Não informado"}
-                    href={getWhatsAppHref(details?.phone)}
-                  />
-                  <DetailItem label="Cadastro" value={formatDate(row.created_at)} />
-                </div>
-                <div className="space-y-3">
-                  <DetailItem label="Total pago" value={formatBRL(details?.total_pago ?? 0)} highlight />
-                  <DetailItem label="Transações" value={String(details?.total_transacoes ?? 0)} />
-                  <DetailItem label="Última transação" value={formatDate(details?.ultima_transacao ?? null)} />
-                </div>
-              </div>
-            )}
-            <div className="flex shrink-0 flex-col items-end gap-4">
-              <button
-                type="button"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#333] text-white/65 transition hover:border-white/70 hover:text-white"
-                aria-label="Editar usuário"
-              >
-                <Pencil size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={onToggleExpand}
-                className="text-[12px] font-semibold text-[#888] transition hover:text-white"
-              >
-                ▲ Ocultar
-              </button>
-            </div>
-          </div>
-        </td>
-      </tr>
-    )}
-  </>
-);
-
-const DetailItem = ({
+const DetailCard = ({
   label,
   value,
-  href,
-  highlight = false,
+  icon: Icon,
+  copyValue,
 }: {
   label: string;
   value: string;
-  href?: string | null;
-  highlight?: boolean;
+  icon: typeof Mail;
+  copyValue?: string | null;
 }) => (
-  <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-4">
-    <span className="text-[#888]">{label}</span>
-    {href ? (
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className={cn("break-words font-semibold transition hover:text-white", highlight ? "text-[#00C853]" : "text-white")}
-      >
-        {value}
-      </a>
-    ) : (
-      <span className={cn("break-words font-semibold", highlight ? "text-[#00C853]" : "text-white")}>
-        {value}
-      </span>
-    )}
+  <div className="rounded-[18px] border border-black/[0.08] bg-white p-4">
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-white">
+          <Icon size={16} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[12px] text-black/45">{label}</p>
+          <p className="mt-1 break-words text-[13px] font-semibold text-black">{value}</p>
+        </div>
+      </div>
+      {copyValue && (
+        <button
+          type="button"
+          onClick={() => void navigator.clipboard?.writeText(copyValue)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-black/42 transition hover:bg-black/[0.05] hover:text-black"
+          aria-label={`Copiar ${label}`}
+        >
+          <Copy size={14} />
+        </button>
+      )}
+    </div>
+  </div>
+);
+
+const DetailLine = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex items-center justify-between gap-4">
+    <span className="text-black/45">{label}</span>
+    <strong className="text-right font-semibold">{value}</strong>
   </div>
 );
 

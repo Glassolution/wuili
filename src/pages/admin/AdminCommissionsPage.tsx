@@ -91,7 +91,7 @@ const AdminCommissionsPage = () => {
       } catch (e) {
         if (!isMissingRpcError(e)) throw e;
 
-        // Fallback: mesma abordagem usada na seção "Affiliate tracking" do AdminDashboardPage
+        // Fallback: mesma abordagem usada no painel admin para rastrear afiliados.
         const [affRes, clicksRes, convRes, profRes] = await Promise.all([
           (supabase as any).from("affiliates").select("code, user_id, link, created_at").order("created_at", { ascending: false }),
           (supabase as any).from("affiliate_clicks").select("affiliate_code"),
