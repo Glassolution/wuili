@@ -155,13 +155,22 @@ function mapMLError(mlData: Record<string, unknown>): string {
   }
 
   if (causeStr.includes('category_id')) return 'Categoria inválida. Tente editar o título para melhor detecção automática.'
-  if (causeStr.includes('missing_required') || causeStr.includes('attributes')) {
+  // Repassa a mensagem/atributo real da API do ML, sem mascarar como
+  // "Atributos obrigatórios faltando" (isso dificultava diagnóstico).
+  if (causeStr.includes('missing_required') || causeStr.includes('attributes') || causeStr.includes('value')) {
     const messages = causeArr
-      .map((cause) => cause && typeof cause === 'object' ? cleanText((cause as Record<string, unknown>).message) : '')
+      .map((cause) => {
+        if (!cause || typeof cause !== 'object') return ''
+        const c = cause as Record<string, unknown>
+        const attr = cleanText(c.attribute_id) || cleanText(c.code)
+        const m = cleanText(c.message)
+        return attr ? `${attr}: ${m}` : m
+      })
       .filter(Boolean)
-    const details = messages.length > 0 ? `: ${messages.join(' | ')}` : ''
-    return `Atributos obrigatórios faltando ou inválidos no Mercado Livre${details}.`
+    const details = messages.length > 0 ? messages.join(' | ') : msg || JSON.stringify(causeArr)
+    return `Mercado Livre rejeitou atributos: ${details}`
   }
+
   if (msgLower.includes('title') || causeStr.includes('title.length'))
     return 'Título muito longo. Máximo 60 caracteres.'
   if (msgLower.includes('picture') || causeStr.includes('download_error'))
