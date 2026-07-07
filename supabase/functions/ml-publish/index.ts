@@ -405,58 +405,116 @@ Deno.serve(async (req) => {
 
     const productRecord = product as Record<string, unknown>
 
-    const pickAttrValue = (attr: Record<string, unknown> | undefined, suggested: string | null | undefined) => {
-      const values = (attr?.values as Array<{ id?: string; name?: string }> | undefined) ?? []
-      if (values.length > 0) {
-        if (suggested) {
-          const match = values.find(v => normalizeText(v.name) === normalizeText(suggested))
-          if (match) return { value_id: match.id, value_name: match.name }
-        }
-        return { value_id: values[0].id, value_name: values[0].name }
+    // Resolve o valor digitado pelo usuário contra a lista fechada de valores
+    // do ML (quando existe). NUNCA cai para values[0] silenciosamente — se o
+    // usuário digitou algo específico e não bate com a lista, mandamos o
+    // value_name livre e deixamos o ML devolver o erro real (que agora é
+    // repassado pelo mapMLError).
+    const resolveAgainstList = (
+      attrDef: Record<string, unknown> | undefined,
+      userValue: { value_id?: string; value_name?: string },
+    ): { value_id?: string; value_name?: string } => {
+      const values = (attrDef?.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+      if (values.length === 0) return userValue
+      if (userValue.value_id) {
+        const byId = values.find(v => v.id === userValue.value_id)
+        if (byId) return { value_id: byId.id, value_name: byId.name }
       }
-      return { value_name: suggested || 'Genérica' }
+      if (userValue.value_name) {
+        const norm = normalizeText(userValue.value_name)
+        const exact = values.find(v => normalizeText(v.name) === norm)
+        if (exact) return { value_id: exact.id, value_name: exact.name }
+        const partial = values.find(v => {
+          const vn = normalizeText(v.name)
+          return vn && (vn.includes(norm) || norm.includes(vn))
+        })
+        if (partial) return { value_id: partial.id, value_name: partial.name }
+      }
+      // Lista fechada e nenhum match: mandamos value_name livre (o ML pode
+      // aceitar como "Outro" ou devolver erro claro que agora é repassado).
+      return userValue
     }
 
-    const brandAttrDef = categoryAttrs.find(a => a.id === 'BRAND') as Record<string, unknown> | undefined
-    const modelAttrDef = categoryAttrs.find(a => a.id === 'MODEL') as Record<string, unknown> | undefined
-    const brandInput = cleanText(productRecord.brand) || inferBrand(productRecord, title)
-    const rawModel = cleanText(productRecord.model)
-    const modelFallback = rawModel || title.substring(0, 60).trim()
-
-    const allAttrs: MLAttribute[] = [
-      { id: 'BRAND', ...pickAttrValue(brandAttrDef, brandInput) },
-      { id: 'MODEL', ...pickAttrValue(modelAttrDef, modelFallback) },
-      { id: 'SELLER_SKU', value_name: cleanText(productRecord.external_id) || 'SKU-001' },
-    ]
-
-    if (isStickerAlbumCategory(categoryId, title)) {
-      mergeAttribute(allAttrs, { id: 'BRAND', value_name: inferBrand(productRecord, title) })
-      mergeAttribute(allAttrs, { id: 'ALBUM_NAME', value_name: inferAlbumName(productRecord, title) })
-      mergeAttribute(allAttrs, inferSaleFormat(title))
-    }
-
-    for (const incomingAttr of parseIncomingAttributes(productRecord.ml_attributes)) {
-      mergeAttribute(allAttrs, incomingAttr)
-    }
-
-    const requiredAttrs = categoryAttrs
-      .filter((a: Record<string, unknown>) => (a.tags as Record<string, unknown>)?.required)
-      .filter((a: Record<string, unknown>) => a.id !== 'BRAND' && a.id !== 'MODEL' && a.id !== 'SELLER_SKU')
-      .map((a: Record<string, unknown>) => {
-        const firstValue = (a.values as Record<string, unknown>[] | undefined)?.[0]
-        const valueId = cleanText(firstValue?.id)
-        const valueName = cleanText(firstValue?.name) || 'Genérica'
-        return {
-          id: a.id as string,
-          ...(valueId ? { value_id: valueId } : {}),
-          value_name: valueName,
-        }
+    // 1) Junta o que o usuário mandou: campos top-level (brand/model) +
+    //    ml_attributes (BRAND, MODEL, ALBUM_NAME, SALE_FORMAT, ...).
+    const userAttrsMap = new Map<string, { value_id?: string; value_name?: string }>()
+    for (const inc of parseIncomingAttributes(productRecord.ml_attributes)) {
+      userAttrsMap.set(inc.id, {
+        ...(inc.value_id ? { value_id: inc.value_id } : {}),
+        ...(inc.value_name ? { value_name: inc.value_name } : {}),
       })
-
-    for (const req of requiredAttrs) {
-      if (!allAttrs.find(a => a.id === req.id)) mergeAttribute(allAttrs, req)
     }
+    const topBrand = cleanText(productRecord.brand)
+    if (topBrand && !userAttrsMap.has('BRAND')) {
+      userAttrsMap.set('BRAND', { value_name: topBrand })
+    }
+    const topModel = cleanText(productRecord.model)
+    if (topModel && !userAttrsMap.has('MODEL')) {
+      userAttrsMap.set('MODEL', { value_name: topModel })
+    }
+
+    const allAttrs: MLAttribute[] = []
+
+    // 2) Aplica cada atributo do usuário resolvido contra a lista da categoria.
+    for (const [id, val] of userAttrsMap.entries()) {
+      const def = categoryAttrs.find(a => a.id === id) as Record<string, unknown> | undefined
+      const resolved = resolveAgainstList(def, val)
+      mergeAttribute(allAttrs, { id, ...resolved })
+    }
+
+    // 3) SELLER_SKU (nosso, não é atributo do catálogo).
+    mergeAttribute(allAttrs, {
+      id: 'SELLER_SKU',
+      value_name: cleanText(productRecord.external_id) || 'SKU-001',
+    })
+
+    // 4) Atributos obrigatórios que o usuário NÃO enviou:
+    //    - BRAND: fallback seguro "Genérica"
+    //    - MODEL: fallback seguro (título curto)
+    //    - Outros: só preenche automaticamente se houver lista fechada de
+    //      valores (aí pegar o primeiro é razoável para atributos técnicos como
+    //      SALE_FORMAT/ITEM_CONDITION). Para atributos identificadores
+    //      abertos (ALBUM_NAME, GAME_TITLE, LINE etc.) NÃO chutamos —
+    //      preferimos deixar o ML retornar erro claro do que colocar
+    //      "Dragon Ball Super" num produto de Copa do Mundo.
+    const OPEN_IDENTIFYING_ATTRS = new Set([
+      'ALBUM_NAME', 'GAME_TITLE', 'BOOK_TITLE', 'MOVIE_TITLE', 'LINE',
+      'COLLECTION', 'ARTIST', 'AUTHOR',
+    ])
+    for (const attrDef of categoryAttrs) {
+      const id = attrDef.id as string
+      const tags = (attrDef.tags as Record<string, unknown>) ?? {}
+      if (!tags.required) continue
+      if (allAttrs.find(a => a.id === id)) continue
+
+      if (id === 'BRAND') {
+        const def = attrDef as Record<string, unknown>
+        const resolved = resolveAgainstList(def, { value_name: 'Genérica' })
+        mergeAttribute(allAttrs, { id, ...resolved })
+        continue
+      }
+      if (id === 'MODEL') {
+        mergeAttribute(allAttrs, { id, value_name: title.substring(0, 60).trim() })
+        continue
+      }
+      if (OPEN_IDENTIFYING_ATTRS.has(id)) {
+        // Não chutar. Deixa o ML devolver o erro real.
+        continue
+      }
+      const firstValue = (attrDef.values as Record<string, unknown>[] | undefined)?.[0]
+      const valueId = cleanText(firstValue?.id)
+      const valueName = cleanText(firstValue?.name)
+      if (valueId || valueName) {
+        mergeAttribute(allAttrs, {
+          id,
+          ...(valueId ? { value_id: valueId } : {}),
+          ...(valueName ? { value_name: valueName } : {}),
+        })
+      }
+    }
+
     console.log('Atributos:', allAttrs.map(a => `${a.id}=${a.value_id ?? a.value_name}`))
+
 
     // === PICTURES ===    // ML exige foto de capa com FUNDO BRANCO digitalizado em várias categorias
     // (beleza, saúde, moda etc). As imagens do catálogo Velo nem sempre vêm
