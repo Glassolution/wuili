@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Cloud, Headphones, Loader2, UserRound } from "lucide-react";
+import { ArrowUp, Headphones, Loader2, UserRound } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import RefundSection from "@/components/dashboard/RefundSection";
-
-type AiMsg = { role: "user" | "assistant"; content: string };
 
 type SupportTicket = {
   id: string;
@@ -27,51 +25,47 @@ type SupportMessage = {
   created_at: string;
 };
 
-const SUGGESTIONS = [
-  "Como importar um produto?",
-  "Meu plano não foi ativado",
-  "Como conectar o Mercado Livre?",
-  "Falar com suporte humano",
-];
-
 const SupportTab = () => {
   const { user } = useAuth();
   const { nome } = useProfile();
   const firstName = (nome || "").split(" ")[0] || "tudo bem";
-
-  const greeting = `Olá, ${firstName}! Sou a IA de suporte da Velo. Posso te ajudar com:
-• Dúvidas sobre importar produtos do catálogo
-• Como publicar no Mercado Livre e Shopee
-• Problemas com integrações
-• Dúvidas sobre seu plano e faturamento
-• Qualquer outra questão sobre a plataforma
-
-Como posso te ajudar hoje?`;
-
-  const [messages, setMessages] = useState<AiMsg[]>([
-    { role: "assistant", content: greeting },
-  ]);
-  const [humanMode, setHumanMode] = useState(false);
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [ticketLoading, setTicketLoading] = useState(false);
-  const [returningToAi, setReturningToAi] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const supportBootstrappedRef = useRef(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, supportMessages, loading, ticketLoading, humanMode]);
+  }, [supportMessages, loading, ticketLoading]);
 
-  useEffect(() => {
-    if (!user?.id) return;
+  const startHumanSupport = async (): Promise<SupportTicket | null> => {
+    if (!user?.id) {
+      toast.error("Faça login para falar com o suporte.");
+      return null;
+    }
 
-    let cancelled = false;
+    setTicketLoading(true);
 
-    const loadOpenTicket = async () => {
-      const { data, error } = await (supabase as any)
+    try {
+      if (ticket?.status === "open") {
+        if (ticket.ai_active) {
+          const { error: pauseError } = await (supabase as any)
+            .from("support_tickets")
+            .update({ ai_active: false })
+            .eq("id", ticket.id)
+            .eq("user_id", user.id);
+
+          if (pauseError) throw pauseError;
+          setTicket({ ...ticket, ai_active: false });
+        }
+        return ticket;
+      }
+
+      const { data: existing, error: existingError } = await (supabase as any)
         .from("support_tickets")
         .select("*")
         .eq("user_id", user.id)
@@ -80,17 +74,49 @@ Como posso te ajudar hoje?`;
         .limit(1)
         .maybeSingle();
 
-      if (cancelled || error || !data) return;
+      if (existingError) throw existingError;
 
-      setTicket(data as SupportTicket);
-      setHumanMode(true);
-    };
+      if (existing) {
+        const openTicket = existing as SupportTicket;
+        if (openTicket.ai_active) {
+          const { error: pauseError } = await (supabase as any)
+            .from("support_tickets")
+            .update({ ai_active: false })
+            .eq("id", openTicket.id)
+            .eq("user_id", user.id);
 
-    void loadOpenTicket();
+          if (pauseError) throw pauseError;
+          openTicket.ai_active = false;
+        }
+        setTicket(openTicket);
+        return openTicket;
+      }
 
-    return () => {
-      cancelled = true;
-    };
+      const { data, error } = await (supabase as any)
+        .from("support_tickets")
+        .insert({ user_id: user.id, status: "open", ai_active: false })
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      const newTicket = data as SupportTicket;
+      setTicket(newTicket);
+      setSupportMessages([]);
+      return newTicket;
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível iniciar o atendimento com o suporte.");
+      return null;
+    } finally {
+      setTicketLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id || supportBootstrappedRef.current) return;
+    supportBootstrappedRef.current = true;
+    void startHumanSupport();
   }, [user?.id]);
 
   useEffect(() => {
@@ -152,128 +178,6 @@ Como posso te ajudar hoje?`;
     };
   }, [ticket?.id]);
 
-  const startHumanSupport = async (): Promise<SupportTicket | null> => {
-    if (!user?.id) {
-      toast.error("Faça login para falar com o suporte.");
-      return null;
-    }
-
-    setTicketLoading(true);
-    const toastId = toast.loading("Acionando suporte humano...");
-
-    try {
-      if (ticket?.status === "open") {
-        if (ticket.ai_active) {
-          const { error: pauseError } = await (supabase as any)
-            .from("support_tickets")
-            .update({ ai_active: false })
-            .eq("id", ticket.id)
-            .eq("user_id", user.id);
-
-          if (pauseError) throw pauseError;
-          setTicket({ ...ticket, ai_active: false });
-        }
-        setHumanMode(true);
-        toast.success("Suporte humano acionado.", { id: toastId });
-        return ticket;
-      }
-
-      const { data: existing, error: existingError } = await (supabase as any)
-        .from("support_tickets")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("status", "open")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingError) throw existingError;
-
-      if (existing) {
-        const openTicket = existing as SupportTicket;
-        if (openTicket.ai_active) {
-          const { error: pauseError } = await (supabase as any)
-            .from("support_tickets")
-            .update({ ai_active: false })
-            .eq("id", openTicket.id)
-            .eq("user_id", user.id);
-
-          if (pauseError) throw pauseError;
-          openTicket.ai_active = false;
-        }
-        setTicket(openTicket);
-        setHumanMode(true);
-        toast.success("Suporte humano acionado.", { id: toastId });
-        return openTicket;
-      }
-
-      const { data, error } = await (supabase as any)
-        .from("support_tickets")
-        .insert({ user_id: user.id, status: "open", ai_active: false })
-        .select("*")
-        .single();
-
-      if (error) throw error;
-
-      const newTicket = data as SupportTicket;
-      setTicket(newTicket);
-      setSupportMessages([]);
-      setHumanMode(true);
-      toast.success("Suporte humano acionado.", { id: toastId });
-      return newTicket;
-    } catch (error) {
-      console.error(error);
-      toast.error("Não foi possível abrir o suporte humano.", { id: toastId });
-      return null;
-    } finally {
-      setTicketLoading(false);
-    }
-  };
-
-  const sendAiMessage = async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || loading) return;
-
-    if (trimmed.toLowerCase() === "falar com suporte humano") {
-      setInput("");
-      await startHumanSupport();
-      return;
-    }
-
-    const next: AiMsg[] = [...messages, { role: "user", content: trimmed }];
-    setMessages(next);
-    setInput("");
-    setLoading(true);
-
-    try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/support-chat`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ messages: next }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        if (res.status === 429) toast.error("Muitas requisições. Aguarde um momento.");
-        else if (res.status === 402) toast.error("Créditos de IA esgotados.");
-        else toast.error(err.error || "Erro ao falar com a IA.");
-        return;
-      }
-
-      const data = await res.json();
-      setMessages((prev) => [...prev, { role: "assistant", content: data.response }]);
-    } catch (e) {
-      console.error(e);
-      toast.error("Erro de conexão. Tente novamente.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const sendHumanMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || loading || ticketLoading || !user?.id) return;
@@ -314,122 +218,14 @@ Como posso te ajudar hoje?`;
     }
   };
 
-  const sendAiTicketMessage = async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || loading || ticketLoading || !user?.id || !ticket?.id) return;
-
-    setInput("");
-    setLoading(true);
-
-    try {
-      const { data: userMessage, error: userMessageError } = await (supabase as any)
-        .from("support_messages")
-        .insert({
-          ticket_id: ticket.id,
-          user_id: user.id,
-          message: trimmed,
-          sender: "user",
-        })
-        .select("*")
-        .single();
-
-      if (userMessageError) throw userMessageError;
-
-      setSupportMessages((prev) =>
-        prev.some((item) => item.id === userMessage.id) ? prev : [...prev, userMessage as SupportMessage]
-      );
-
-      const aiContext = [
-        ...supportMessages,
-        userMessage as SupportMessage,
-      ].map((m) => ({
-        role: m.sender === "user" ? "user" : "assistant",
-        content: m.message,
-      }));
-
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/support-chat`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ messages: aiContext }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Erro ao falar com a IA.");
-      }
-
-      const aiData = await res.json();
-      const aiText = String(aiData.response || "").trim();
-      if (!aiText) return;
-
-      const { data: aiMessage, error: aiMessageError } = await (supabase as any)
-        .from("support_messages")
-        .insert({
-          ticket_id: ticket.id,
-          user_id: user.id,
-          message: aiText,
-          sender: "ai",
-        })
-        .select("*")
-        .single();
-
-      if (aiMessageError) throw aiMessageError;
-
-      setSupportMessages((prev) =>
-        prev.some((item) => item.id === aiMessage.id) ? prev : [...prev, aiMessage as SupportMessage]
-      );
-    } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : "Não foi possível falar com a IA.");
-      setInput(trimmed);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const send = async (text: string) => {
-    if (humanMode && ticket?.ai_active) await sendAiTicketMessage(text);
-    else if (humanMode) await sendHumanMessage(text);
-    else await sendAiMessage(text);
+    await sendHumanMessage(text);
   };
 
-  const returnToAi = async () => {
-    if (!user || !ticket) return;
-    setReturningToAi(true);
-    const toastId = toast.loading("Voltando ao suporte automático...");
-    try {
-      const { error } = await (supabase as any)
-        .from("support_tickets")
-        .update({ status: "closed" })
-        .eq("id", ticket.id)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      setHumanMode(false);
-      setTicket(null);
-      setSupportMessages([]);
-      setInput("");
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Você voltou ao suporte automático." },
-      ]);
-      toast.success("Você voltou ao suporte automático.", { id: toastId });
-    } catch (error) {
-      console.error(error);
-      toast.error("Não foi possível voltar ao suporte automático.", { id: toastId });
-    } finally {
-      setReturningToAi(false);
-    }
-  };
-
-  const userHasTyped = messages.some((m) => m.role === "user");
-  const hasAdminReply = supportMessages.some((m) => m.sender === "admin");
+  const visibleSupportMessages = supportMessages.filter((m) => m.sender !== "ai");
+  const hasAdminReply = visibleSupportMessages.some((m) => m.sender === "admin");
   const supportClosed = ticket?.status === "closed";
+  const supportReady = ticketLoading || (!!ticket && !supportClosed);
 
   return (
     <div>
@@ -437,42 +233,15 @@ Como posso te ajudar hoje?`;
         <div>
           <h2 className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white">Suporte Velo</h2>
           <p className="mt-0.5 text-[13px] text-[#737373] dark:text-zinc-400">
-            {humanMode
-              ? ticket?.ai_active
-                ? "A IA está ativa neste ticket. Nossa equipe pode pausar e assumir quando necessário."
-                : "Converse com nossa equipe de suporte."
-              : "Tire suas dúvidas com a IA ou peça atendimento humano."}
+            Fale com nosso suporte para tirar dúvidas sobre sua conta, plano, integrações e operação na plataforma.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-black px-2.5 py-1 text-[11px] font-semibold text-white dark:bg-white dark:text-black">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            {humanMode ? (ticket?.ai_active ? "IA Ativa" : "Humano") : "IA Online"}
+            Suporte humano
           </span>
-
-          {humanMode && ticket && !ticket.ai_active && !supportClosed && (
-            <button
-              type="button"
-              onClick={returnToAi}
-              disabled={returningToAi}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#D4D4D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#525252] transition hover:border-black hover:text-black disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-[#111111] dark:text-zinc-300 dark:hover:border-white dark:hover:text-white"
-            >
-              {returningToAi && <Loader2 size={12} className="animate-spin" />}
-              Voltar ao suporte IA
-            </button>
-          )}
-
-          {!humanMode && (
-            <button
-              onClick={startHumanSupport}
-              disabled={ticketLoading}
-              className="inline-flex items-center gap-1.5 rounded-full border border-black px-3 py-1.5 text-[12px] font-semibold text-black transition hover:bg-black hover:text-white disabled:opacity-50 dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
-            >
-              {ticketLoading ? <Loader2 size={13} className="animate-spin" /> : <Headphones size={13} />}
-              Falar com suporte humano
-            </button>
-          )}
         </div>
       </div>
 
@@ -481,60 +250,36 @@ Como posso te ajudar hoje?`;
           ref={scrollRef}
           className="h-[480px] space-y-3 overflow-y-auto p-4 scroll-smooth"
         >
-          {humanMode ? (
-            <>
-              <div className="rounded-2xl border border-[#E5E5E5] bg-white p-4 text-[13px] leading-6 text-[#525252] dark:border-white/10 dark:bg-[#151515] dark:text-zinc-300">
-                <p className="font-semibold text-[#0A0A0A] dark:text-white">Atendimento humano iniciado</p>
-                <p className="mt-1">
-                  Suporte acionado. Em breve um atendente entrará em contato.
-                </p>
+          <>
+            <div className="rounded-2xl border border-[#E5E5E5] bg-white p-4 text-[13px] leading-6 text-[#525252] dark:border-white/10 dark:bg-[#151515] dark:text-zinc-300">
+              <p className="font-semibold text-[#0A0A0A] dark:text-white">
+                {supportReady ? "Atendimento em andamento" : `Olá, ${firstName}!`}
+              </p>
+              <p className="mt-1">
+                {supportReady
+                  ? "Sua conversa com o suporte foi iniciada. Envie sua mensagem e nossa equipe responderá por aqui."
+                  : "Estamos preparando seu atendimento com a equipe da Velo."}
+              </p>
+            </div>
+
+            {ticket && !hasAdminReply && !supportClosed && (
+              <div className="rounded-full bg-amber-50 px-4 py-2 text-center text-[12px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                Aguardando resposta do suporte
               </div>
+            )}
 
-              {!ticket?.ai_active && !hasAdminReply && !supportClosed && (
-                <div className="rounded-full bg-amber-50 px-4 py-2 text-center text-[12px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                  Aguardando resposta do suporte
-                </div>
-              )}
+            {supportClosed && (
+              <div className="rounded-full bg-emerald-50 px-4 py-2 text-center text-[12px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                Este ticket foi marcado como resolvido.
+              </div>
+            )}
 
-              {ticket?.ai_active && !supportClosed && (
-                <div className="rounded-full bg-zinc-100 px-4 py-2 text-center text-[12px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                  IA ativa neste atendimento. Você receberá respostas automáticas enquanto o suporte humano acompanha.
-                </div>
-              )}
+            {visibleSupportMessages.map((m) => (
+              <HumanMessageBubble key={m.id} msg={m} />
+            ))}
+          </>
 
-              {supportClosed && (
-                <div className="rounded-full bg-emerald-50 px-4 py-2 text-center text-[12px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                  Este ticket foi marcado como resolvido.
-                </div>
-              )}
-
-              {supportMessages.map((m) => (
-                <HumanMessageBubble key={m.id} msg={m} />
-              ))}
-            </>
-          ) : (
-            <>
-              {messages.map((m, i) => (
-                <AiMessageBubble key={i} msg={m} />
-              ))}
-
-              {!userHasTyped && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {SUGGESTIONS.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => s === "Falar com suporte humano" ? startHumanSupport() : sendAiMessage(s)}
-                      className="rounded-full border border-black bg-white px-3 py-1.5 text-[12px] text-black transition-colors hover:bg-black hover:text-white dark:border-white dark:bg-[#111111] dark:text-white dark:hover:bg-white dark:hover:text-black"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {(loading || ticketLoading) && <TypingBubble humanMode={humanMode} />}
+          {(loading || ticketLoading) && <TypingBubble />}
           <div ref={endRef} />
         </div>
 
@@ -548,7 +293,7 @@ Como posso te ajudar hoje?`;
                 void send(input);
               }
             }}
-            placeholder={humanMode ? "Digite sua mensagem para o suporte..." : "Digite sua dúvida..."}
+            placeholder="Digite sua mensagem para o suporte..."
             disabled={loading || ticketLoading || supportClosed}
             className="h-10 flex-1 rounded-full border border-[#E5E5E5] bg-white px-4 text-[14px] text-[#0A0A0A] outline-none transition-colors placeholder:text-[#A3A3A3] focus:border-black disabled:opacity-60 dark:border-white/10 dark:bg-[#0f0f0f] dark:text-white dark:focus:border-white"
           />
@@ -568,32 +313,8 @@ Como posso te ajudar hoje?`;
   );
 };
 
-const AiMessageBubble = ({ msg }: { msg: AiMsg }) => {
-  if (msg.role === "user") {
-    return (
-      <div className="flex justify-end">
-        <div className="max-w-[75%] rounded-[16px_4px_16px_16px] bg-black px-4 py-2.5 text-[14px] leading-[1.6] text-white whitespace-pre-wrap dark:bg-white dark:text-black">
-          {msg.content}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-start gap-2">
-      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black text-white dark:bg-white dark:text-black">
-        <Cloud size={14} strokeWidth={2.2} />
-      </div>
-      <div className="max-w-[75%] rounded-[4px_16px_16px_16px] bg-[#F0F0F0] px-4 py-2.5 text-[14px] leading-[1.6] text-[#0A0A0A] whitespace-pre-wrap dark:bg-zinc-800 dark:text-white">
-        {msg.content}
-      </div>
-    </div>
-  );
-};
-
 const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
   const isUser = msg.sender === "user";
-  const isAi = msg.sender === "ai";
 
   if (isUser) {
     return (
@@ -607,20 +328,12 @@ const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
 
   return (
     <div className="flex items-start gap-2">
-      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-        isAi
-          ? "bg-zinc-800 text-white dark:bg-white dark:text-black"
-          : "bg-[#0A0A0A] text-white dark:bg-white dark:text-black"
-      }`}>
-        {isAi ? <Cloud size={14} strokeWidth={2.2} /> : <UserRound size={14} strokeWidth={2.2} />}
+      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white dark:bg-white dark:text-black">
+        <UserRound size={14} strokeWidth={2.2} />
       </div>
-      <div className={`max-w-[75%] rounded-[4px_16px_16px_16px] px-4 py-2.5 text-[14px] leading-[1.6] shadow-sm whitespace-pre-wrap ${
-        isAi
-          ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-          : "bg-white text-[#0A0A0A] dark:bg-zinc-800 dark:text-white"
-      }`}>
+      <div className="max-w-[75%] rounded-[4px_16px_16px_16px] bg-white px-4 py-2.5 text-[14px] leading-[1.6] text-[#0A0A0A] shadow-sm whitespace-pre-wrap dark:bg-zinc-800 dark:text-white">
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#737373] dark:text-zinc-400">
-          {isAi ? "IA Velo" : "Suporte Velo"}
+          Suporte Velo
         </p>
         {msg.message}
       </div>
@@ -628,10 +341,10 @@ const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
   );
 };
 
-const TypingBubble = ({ humanMode }: { humanMode: boolean }) => (
+const TypingBubble = () => (
   <div className="flex items-start gap-2">
     <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black text-white dark:bg-white dark:text-black">
-      {humanMode ? <Headphones size={14} strokeWidth={2.2} /> : <Cloud size={14} strokeWidth={2.2} />}
+      <Headphones size={14} strokeWidth={2.2} />
     </div>
     <div className="flex items-center gap-1.5 rounded-[4px_16px_16px_16px] bg-[#F0F0F0] px-4 py-3 dark:bg-zinc-800">
       {[0, 150, 300].map((d) => (
