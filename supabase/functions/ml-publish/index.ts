@@ -45,46 +45,13 @@ function normalizeText(value: unknown): string {
     .toLowerCase()
 }
 
-function isStickerAlbumCategory(categoryId: string, title: string): boolean {
-  const text = normalizeText(title)
-  return (
-    categoryId === 'MLB1965' ||
-    text.includes('figurinha') ||
-    text.includes('album') ||
-    text.includes('copa do mundo') ||
-    text.includes('fifa')
-  )
-}
+// NOTE: heurísticas antigas de "sticker/album/fifa" foram removidas de propósito.
+// Elas sobrescreviam a marca/álbum digitados pelo usuário (ex.: Panini virava
+// "Genérico", ALBUM_NAME caía no primeiro valor da lista do ML — "Dragon Ball
+// Super" — para produtos de Copa do Mundo). Hoje TODO valor de BRAND, MODEL,
+// ALBUM_NAME e SALE_FORMAT vem do frontend (ImportProductModal), via
+// product.brand / product.model / product.ml_attributes.
 
-function inferBrand(product: Record<string, unknown>, title: string): string {
-  const explicitBrand = cleanText(product.brand)
-  if (explicitBrand) return explicitBrand
-
-  const text = normalizeText(title)
-  if (text.includes('panini') || text.includes('fifa') || text.includes('copa do mundo') || text.includes('figurinha')) {
-    return 'Panini'
-  }
-
-  return 'Generico'
-}
-
-function inferAlbumName(product: Record<string, unknown>, title: string): string {
-  const explicitAlbum = cleanText(product.album_name)
-  if (explicitAlbum) return explicitAlbum
-
-  const text = normalizeText(title)
-  if (text.includes('fifa') || text.includes('copa do mundo')) {
-    return 'Copa do Mundo FIFA 2026'
-  }
-
-  return 'Álbum colecionável'
-}
-
-function inferSaleFormat(title: string): MLAttribute {
-  return normalizeText(title).includes('kit')
-    ? { id: 'SALE_FORMAT', value_id: '1359392', value_name: 'Kit' }
-    : { id: 'SALE_FORMAT', value_id: '1359391', value_name: 'Unidade' }
-}
 
 function mergeAttribute(attributes: MLAttribute[], incoming: MLAttribute) {
   const attr = {
