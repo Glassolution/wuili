@@ -27,9 +27,29 @@ type AdminUserRow = {
   avatar_url: string | null;
   plan: string | null;
   subscription_status: string | null;
+  subscription_amount?: number | null;
+  subscription_updated_at?: string | null;
   created_at: string;
   ml_connected: boolean;
   orders_count: number;
+};
+
+type ProfileRow = {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  plano: string | null;
+  created_at: string;
+};
+
+type SubscriptionRow = {
+  user_id: string;
+  plan: string | null;
+  status: string | null;
+  amount: number | null;
+  is_trial: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 type AdminUserDetails = {
@@ -40,14 +60,13 @@ type AdminUserDetails = {
   ultima_transacao: string | null;
 };
 
-type UserStatusFilter = "todos" | "ativos" | "gratis" | "ml";
+type UserStatusFilter = "todos" | "ativos" | "gratis";
 type SortKey = "created_at" | "name" | "plan" | "orders_count";
 
 const statusFilters: Array<{ key: UserStatusFilter; label: string }> = [
   { key: "todos", label: "Todos" },
   { key: "ativos", label: "Ativos" },
   { key: "gratis", label: "Gratuitos" },
-  { key: "ml", label: "Mercado Livre" },
 ];
 
 const sortOptions: Array<{ key: SortKey; label: string }> = [
@@ -57,10 +76,83 @@ const sortOptions: Array<{ key: SortKey; label: string }> = [
   { key: "orders_count", label: "Pedidos" },
 ];
 
+const chooseSubscription = (current: SubscriptionRow | undefined, next: SubscriptionRow) => {
+  if (!current) return next;
+
+  const currentActive = isActiveStatus(current.status);
+  const nextActive = isActiveStatus(next.status);
+  if (nextActive && !currentActive) return next;
+  if (currentActive && !nextActive) return current;
+
+  const currentDate = new Date(current.updated_at ?? current.created_at ?? 0).getTime();
+  const nextDate = new Date(next.updated_at ?? next.created_at ?? 0).getTime();
+  return nextDate > currentDate ? next : current;
+};
+
 const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
-  const { data, error } = await supabase.functions.invoke<AdminUserRow[]>("admin-users");
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  const [functionResult, profilesResult, subscriptionsResult] = await Promise.all([
+    supabase.functions.invoke<AdminUserRow[]>("admin-users"),
+    supabase
+      .from("profiles")
+      .select("user_id,display_name,avatar_url,plano,created_at")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("subscriptions")
+      .select("user_id,plan,status,amount,is_trial,created_at,updated_at")
+      .order("updated_at", { ascending: false }),
+  ]);
+
+  if (profilesResult.error && functionResult.error) {
+    throw profilesResult.error;
+  }
+
+  const usersById = new Map<string, AdminUserRow>();
+  const functionUsers = Array.isArray(functionResult.data) ? functionResult.data : [];
+  for (const item of functionUsers) {
+    usersById.set(item.user_id, item);
+  }
+
+  const subscriptionsByUser = new Map<string, SubscriptionRow>();
+  for (const subscription of (subscriptionsResult.data ?? []) as SubscriptionRow[]) {
+    subscriptionsByUser.set(
+      subscription.user_id,
+      chooseSubscription(subscriptionsByUser.get(subscription.user_id), subscription)
+    );
+  }
+
+  for (const profile of (profilesResult.data ?? []) as ProfileRow[]) {
+    const subscription = subscriptionsByUser.get(profile.user_id);
+    const existing = usersById.get(profile.user_id);
+
+    usersById.set(profile.user_id, {
+      user_id: profile.user_id,
+      name: existing?.name ?? profile.display_name,
+      email: existing?.email ?? null,
+      avatar_url: existing?.avatar_url ?? profile.avatar_url,
+      plan: subscription?.plan ?? existing?.plan ?? profile.plano ?? "gratis",
+      subscription_status: subscription?.status ?? existing?.subscription_status ?? null,
+      subscription_amount: subscription?.amount ?? existing?.subscription_amount ?? null,
+      subscription_updated_at: subscription?.updated_at ?? subscription?.created_at ?? existing?.subscription_updated_at ?? null,
+      created_at: existing?.created_at ?? profile.created_at,
+      ml_connected: existing?.ml_connected ?? false,
+      orders_count: existing?.orders_count ?? 0,
+    });
+  }
+
+  for (const [userId, existing] of usersById) {
+    const subscription = subscriptionsByUser.get(userId);
+    if (!subscription) continue;
+
+    usersById.set(userId, {
+      ...existing,
+      plan: subscription.plan ?? existing.plan,
+      subscription_status: subscription.status ?? existing.subscription_status,
+      subscription_amount: subscription.amount ?? existing.subscription_amount ?? null,
+      subscription_updated_at: subscription.updated_at ?? subscription.created_at ?? existing.subscription_updated_at ?? null,
+    });
+  }
+
+  return Array.from(usersById.values());
 };
 
 const fetchAdminUserDetails = async (userId: string): Promise<AdminUserDetails> => {
@@ -99,6 +191,9 @@ const formatBRL = (value: number) =>
     currency: "BRL",
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
+
+const formatSubscriptionValue = (value?: number | null) =>
+  typeof value === "number" && value > 0 ? formatBRL(value) : "Sem valor registrado";
 
 const formatPlan = (plan?: string | null) => {
   const normalized = (plan ?? "gratis").toLowerCase();
@@ -187,8 +282,7 @@ const AdminUsersPage = () => {
         const matchesFilter =
           filter === "todos" ||
           (filter === "ativos" && isActiveStatus(item.subscription_status)) ||
-          (filter === "gratis" && isFreePlan(item.plan)) ||
-          (filter === "ml" && item.ml_connected);
+          (filter === "gratis" && isFreePlan(item.plan));
 
         return matchesSearch && matchesFilter;
       })
@@ -490,9 +584,14 @@ const UserRow = ({
       </div>
     </td>
     <td className="px-4 py-4">
-      <span className={cn("rounded-full px-3 py-1 text-[12px] font-semibold", selected ? "bg-white/12" : "bg-black/[0.04]")}>
-        {formatPlan(user.plan)}
-      </span>
+      <div className="flex flex-col items-start gap-1.5">
+        <span className={cn("rounded-full px-3 py-1 text-[12px] font-semibold", selected ? "bg-white/12" : "bg-black/[0.04]")}>
+          {formatPlan(user.plan)}
+        </span>
+        <span className={cn("text-[11px] font-medium", selected ? "text-white/54" : "text-black/45")}>
+          {formatSubscriptionValue(user.subscription_amount)}
+        </span>
+      </div>
     </td>
     <td className="px-4 py-4">
       <StatusPill status={user.subscription_status} selected={selected} />
@@ -590,7 +689,11 @@ const UserDetailsPanel = ({
             <div className="grid gap-3">
               <DetailCard label="Email" value={details?.email ?? user.email ?? "Não informado"} icon={Mail} copyValue={details?.email ?? user.email} />
               <DetailCard label="Telefone" value={details?.phone ?? "Não informado"} icon={UserRound} />
-              <DetailCard label="Plano" value={`${formatPlan(user.plan)} · ${formatStatus(user.subscription_status)}`} icon={ShieldCheck} />
+              <DetailCard
+                label="Assinatura"
+                value={`${formatPlan(user.plan)} · ${formatStatus(user.subscription_status)} · ${formatSubscriptionValue(user.subscription_amount)}`}
+                icon={ShieldCheck}
+              />
             </div>
 
             <div className="rounded-[18px] border border-black/[0.08] bg-white p-4">

@@ -68,15 +68,100 @@ const AdminSupportPage = () => {
     queryKey: ["admin-support-tickets"],
     enabled: !!user?.id && isAdmin,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      // 1. Tentar obter os dados usando a RPC get_support_tickets_admin
+      const { data: rpcData, error: rpcError } = await (supabase as any)
         .rpc("get_support_tickets_admin", { p_status: "open" });
 
-      if (error) {
+      if (!rpcError && Array.isArray(rpcData)) {
+        return rpcData as AdminTicket[];
+      }
+
+      console.warn("RPC get_support_tickets_admin falhou ou não existe. Iniciando fallback local...", rpcError);
+
+      // 2. Fallback: Consulta direta às tabelas support_tickets, profiles e support_messages
+      const { data: ticketsData, error: ticketsError } = await (supabase as any)
+        .from("support_tickets")
+        .select("id,user_id,status,created_at,updated_at")
+        .eq("status", "open")
+        .order("updated_at", { ascending: false });
+
+      if (ticketsError) {
+        console.error("Erro no fallback de support_tickets:", ticketsError);
         throw new Error(
           "O Supabase ainda nao reconhece este usuario como admin para suporte. Marque este usuario como admin em profiles/user_roles para responder clientes."
         );
       }
-      return (data ?? []) as AdminTicket[];
+
+      const ticketsList = (ticketsData ?? []) as any[];
+      if (ticketsList.length === 0) return [];
+
+      const ticketIds = ticketsList.map((t) => t.id);
+      const userIds = Array.from(new Set(ticketsList.map((t) => t.user_id)));
+
+      // Buscar informações de exibição nos perfis dos usuários
+      const profilesByUser = new Map<string, { display_name: string | null; email?: string | null }>();
+      const { data: profilesWithEmail, error: profilesWithEmailError } = await (supabase as any)
+        .from("profiles")
+        .select("user_id,display_name,email")
+        .in("user_id", userIds);
+
+      if (!profilesWithEmailError && profilesWithEmail) {
+        for (const profile of profilesWithEmail) {
+          profilesByUser.set(profile.user_id, {
+            display_name: profile.display_name ?? null,
+            email: profile.email ?? null,
+          });
+        }
+      } else {
+        const { data: profiles } = await (supabase as any)
+          .from("profiles")
+          .select("user_id,display_name")
+          .in("user_id", userIds);
+
+        if (profiles) {
+          for (const profile of profiles) {
+            profilesByUser.set(profile.user_id, {
+              display_name: profile.display_name ?? null,
+            });
+          }
+        }
+      }
+
+      // Buscar a última mensagem de cada ticket aberto
+      const { data: messagesData, error: messagesError } = await (supabase as any)
+        .from("support_messages")
+        .select("id,ticket_id,user_id,message,sender,created_at")
+        .in("ticket_id", ticketIds)
+        .order("created_at", { ascending: false });
+
+      if (messagesError) {
+        console.error("Erro no fallback de support_messages:", messagesError);
+        throw messagesError;
+      }
+
+      const lastMessageByTicket = new Map<string, any>();
+      for (const message of (messagesData ?? []) as any[]) {
+        if (!lastMessageByTicket.has(message.ticket_id)) {
+          lastMessageByTicket.set(message.ticket_id, message);
+        }
+      }
+
+      return ticketsList.map((t) => {
+        const profile = profilesByUser.get(t.user_id);
+        const lastMessage = lastMessageByTicket.get(t.id);
+
+        return {
+          id: t.id,
+          user_id: t.user_id,
+          status: t.status,
+          created_at: t.created_at,
+          updated_at: t.updated_at,
+          user_name: profile?.display_name ?? null,
+          user_email: profile?.email ?? null,
+          last_message: lastMessage?.message ?? null,
+          last_message_at: lastMessage?.created_at ?? null,
+        } as AdminTicket;
+      });
     },
     retry: false,
   });

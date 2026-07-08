@@ -8,14 +8,12 @@ import {
   CalendarDays,
   ChevronDown,
   CircleDollarSign,
-  Download,
   Headphones,
   LayoutDashboard,
   Loader2,
   MoreHorizontal,
   PackageCheck,
   Percent,
-  Plus,
   Search,
   ShieldCheck,
   ShoppingCart,
@@ -453,38 +451,36 @@ const AdminBlankPage = () => {
   const activeTrials = data.subscriptions.filter((item) => item.is_trial).length;
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-[#F5F5F5]">
+    <div className="min-h-screen bg-[#F7F7F7] text-[#0A0A0A]">
       <div className="flex min-h-screen">
-        <aside className="hidden w-[252px] shrink-0 bg-[#111111] px-4 py-4 lg:flex lg:flex-col">
-          <Link to="/admin/painel" className="flex items-center gap-3 rounded-[14px] px-2 py-2">
+        <aside className="sticky top-0 flex h-screen w-[270px] shrink-0 flex-col border-r border-white/10 bg-[#101010] text-white">
+          <div className="flex items-center gap-3.5 border-b border-white/10 px-6 py-5">
             <VeloMark />
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="truncate text-[18px] font-semibold tracking-[-0.04em] text-[#F5F5F5]">VeloMetric</p>
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9CA3AF]">
-                  Admin
-                </span>
-              </div>
-              <p className="mt-1 text-[12px] text-[#6B7280]">Painel interno da operação Velo</p>
+              <p className="text-[19px] font-bold tracking-[-0.04em] text-white">VeloMetric</p>
+              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.25em] text-white">ADMIN</p>
             </div>
-          </Link>
+          </div>
 
-          <nav className="mt-8 space-y-1">
-            <SidebarLink icon={LayoutDashboard} label="Painel" to="/admin/painel" active />
-            <SidebarLink icon={Percent} label="Comissões" to="/admin/comissoes" />
-            <SidebarLink icon={Users} label="Usuários" to="/admin/usuarios" />
-            <SidebarLink icon={Headphones} label="Suporte" to="/admin/suporte" />
-          </nav>
+          <div className="flex-1 px-4 py-7">
+            <p className="mb-4 px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-white">MONITORAMENTO</p>
+            <nav className="space-y-2">
+              <SidebarLink icon={LayoutDashboard} label="Painel" to="/admin/painel" active />
+              <SidebarLink icon={Percent} label="Comissões" to="/admin/comissoes" />
+              <SidebarLink icon={Users} label="Usuários" to="/admin/usuarios" />
+              <SidebarLink icon={Headphones} label="Suporte" to="/admin/suporte" />
+            </nav>
+          </div>
 
-          <div className="mt-auto space-y-3 pt-6">
-            <div className="rounded-[12px] border border-[#262626] bg-[#171717] p-4">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-white/[0.06] text-white">
-                  <ShieldCheck size={17} />
+          <div className="mt-auto space-y-5 border-t border-white/10 px-4 py-6">
+            <div className="rounded-[10px] border border-white/10 bg-[#181818] p-4">
+              <div className="flex items-center gap-3.5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-black">
+                  <ShieldCheck size={18} />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-medium text-[#9CA3AF]">Admin ID</p>
-                  <p className="truncate text-[14px] font-semibold tracking-[0.04em] text-[#F5F5F5]">
+                  <p className="text-[12px] text-[#8E8E93]">Admin ID</p>
+                  <p className="truncate text-[14px] font-bold tracking-[0.02em] text-white">
                     {(user?.id ?? "VELOADMIN").slice(0, 8).toUpperCase()}
                   </p>
                 </div>
@@ -493,51 +489,32 @@ const AdminBlankPage = () => {
 
             <Link
               to="/dashboard"
-              className="flex h-11 items-center gap-2 rounded-[12px] border border-transparent px-3 text-[13px] font-medium text-[#D1D5DB] transition hover:border-white/5 hover:bg-white/[0.03] hover:text-white"
+              className="group flex items-center gap-2.5 rounded-[10px] px-2 py-2 text-[13px] font-semibold text-white transition duration-150 hover:bg-white/5"
             >
-              <ArrowLeft size={15} />
+              <ArrowLeft size={15} className="text-white transition duration-150" />
               Voltar à Velo
             </Link>
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1">
-          <header className="border-b border-white/5 px-4 py-4 sm:px-5 lg:px-6">
+        <main className="min-w-0 flex-1 pl-4">
+          <header className="border border-[#E5E5E5] bg-white px-4 py-4 sm:px-5 lg:px-6 my-4 mr-4 rounded-[20px] shadow-sm">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex items-center gap-3">
                 <div className="lg:hidden">
                   <VeloMark />
                 </div>
-                <label className="flex h-11 min-w-0 items-center gap-3 rounded-full border border-[#262626] bg-[#121212] px-4 text-[#6B7280] sm:w-[360px]">
+                <label className="flex h-11 min-w-0 items-center gap-3 rounded-full border border-[#E5E5E5] bg-[#F5F5F5] px-4 text-[#737373] sm:w-[360px]">
                   <Search size={15} />
                   <input
-                    className="min-w-0 flex-1 bg-transparent text-[13px] text-[#F5F5F5] outline-none placeholder:text-[#6B7280]"
+                    className="min-w-0 flex-1 bg-transparent text-[13px] text-[#0A0A0A] outline-none placeholder:text-[#A3A3A3]"
                     placeholder="Buscar usuário, pedido ou produto..."
                   />
                 </label>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="inline-flex items-center rounded-full border border-[#262626] bg-[#121212] p-1">
-                  <button className="rounded-full bg-[#1D1D1D] px-4 py-2 text-[12px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                    Mensal
-                  </button>
-                  <button className="rounded-full px-4 py-2 text-[12px] font-medium text-[#6B7280] transition hover:text-white">
-                    Anual
-                  </button>
-                </div>
-
-                <button className="inline-flex h-11 items-center gap-2 rounded-full border border-[#2A2A2A] bg-transparent px-4 text-[13px] font-medium text-[#D1D5DB] transition hover:border-[#3A3A3A] hover:bg-white/[0.03] hover:text-white">
-                  <Download size={15} />
-                  Exportar
-                </button>
-
-                <button className="inline-flex h-11 items-center gap-2 rounded-full bg-[#22C55E] px-4 text-[13px] font-semibold text-white transition hover:bg-[#1fb455]">
-                  <Plus size={15} />
-                  Relatório
-                </button>
-
-                <button className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[#262626] bg-[#121212] text-[#D1D5DB] transition hover:border-[#3A3A3A] hover:text-white">
+                <button className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E5E5] bg-white text-[#525252] transition hover:bg-[#FAFAFA] hover:text-black">
                   <Bell size={16} />
                   <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-[#22C55E]" />
                 </button>
@@ -545,10 +522,10 @@ const AdminBlankPage = () => {
             </div>
           </header>
 
-          <div className="space-y-4 px-4 py-4 sm:px-5 lg:px-6 lg:py-6">
+          <div className="space-y-4 pr-4 lg:pr-6 pb-6">
             {isLoading ? (
-              <div className="flex min-h-[520px] items-center justify-center rounded-[20px] border border-[#262626] bg-[#111111]">
-                <Loader2 className="h-8 w-8 animate-spin text-white/80" />
+              <div className="flex min-h-[520px] items-center justify-center rounded-[20px] border border-[#E5E5E5] bg-white">
+                <Loader2 className="h-8 w-8 animate-spin text-black/80" />
               </div>
             ) : (
               <>
@@ -591,9 +568,9 @@ const AdminBlankPage = () => {
                   <SurfaceCard className="p-5 sm:p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-[12px] font-medium text-[#9CA3AF]">Receita recorrente</p>
+                        <p className="text-[12px] font-medium text-[#737373]">Receita recorrente</p>
                         <div className="mt-3 flex flex-wrap items-end gap-3">
-                          <p className="text-[34px] font-bold tracking-[-0.04em] text-[#F5F5F5]">
+                          <p className="text-[34px] font-bold tracking-[-0.04em] text-[#0A0A0A]">
                             {formatBRL(revenuePeriod.current)}
                           </p>
                           <DeltaInline delta={revenueDelta} />
@@ -604,7 +581,7 @@ const AdminBlankPage = () => {
                         <button
                           type="button"
                           onClick={() => setPeriodMenuOpen((open) => !open)}
-                          className="inline-flex h-10 items-center gap-2 rounded-full border border-[#2A2A2A] bg-[#121212] px-4 text-[12px] font-medium text-[#D1D5DB] transition hover:border-[#3A3A3A] hover:text-white"
+                          className="inline-flex h-10 items-center gap-2 rounded-full border border-[#E5E5E5] bg-[#F5F5F5] px-4 text-[12px] font-medium text-[#525252] transition hover:bg-[#FAFAFA] hover:text-black"
                         >
                           <CalendarDays size={14} />
                           {revenueRangeLabels[revenueRange]}
@@ -612,7 +589,7 @@ const AdminBlankPage = () => {
                         </button>
 
                         {periodMenuOpen && (
-                          <div className="absolute right-0 top-12 z-10 w-44 overflow-hidden rounded-[14px] border border-[#2A2A2A] bg-[#151515] p-1 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
+                          <div className="absolute right-0 top-12 z-10 w-44 overflow-hidden rounded-[14px] border border-[#E5E5E5] bg-white p-1 shadow-lg">
                             {([3, 6, 12] as RevenueRange[]).map((range) => (
                               <button
                                 key={range}
@@ -624,8 +601,8 @@ const AdminBlankPage = () => {
                                 className={cn(
                                   "flex h-10 w-full items-center rounded-[10px] px-3 text-left text-[12px] font-medium transition",
                                   range === revenueRange
-                                    ? "bg-[#202020] text-white"
-                                    : "text-[#9CA3AF] hover:bg-white/[0.03] hover:text-white"
+                                    ? "bg-zinc-100 text-black font-semibold"
+                                    : "text-[#525252] hover:bg-zinc-50 hover:text-black"
                                 )}
                               >
                                 {revenueRangeLabels[range]}
@@ -646,17 +623,17 @@ const AdminBlankPage = () => {
                               <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                          <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
                           <XAxis
                             dataKey="label"
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: "#6B7280", fontSize: 12 }}
+                            tick={{ fill: "#737373", fontSize: 12 }}
                           />
                           <YAxis
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: "#6B7280", fontSize: 11 }}
+                            tick={{ fill: "#737373", fontSize: 11 }}
                             width={56}
                             tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`}
                           />
@@ -701,7 +678,7 @@ const AdminBlankPage = () => {
                               fill="url(#miniUsersFill)"
                               dot={false}
                             />
-                            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#6B7280", fontSize: 11 }} />
+                            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#737373", fontSize: 11 }} />
                             <YAxis hide />
                           </AreaChart>
                         </ResponsiveContainer>
@@ -720,7 +697,7 @@ const AdminBlankPage = () => {
                           <BarChart data={ordersByDay}>
                             <Tooltip content={<ChartTooltip />} />
                             <Bar dataKey="valor" fill="#22C55E" radius={[6, 6, 2, 2]} />
-                            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#6B7280", fontSize: 11 }} />
+                            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#737373", fontSize: 11 }} />
                             <YAxis hide />
                           </BarChart>
                         </ResponsiveContainer>
@@ -776,14 +753,14 @@ const AdminBlankPage = () => {
                       title="Publicações recentes"
                       subtitle={`${formatNumber(data.counts.publications)} anúncios publicados no total`}
                       action={
-                        <span className="rounded-full border border-[#2A2A2A] bg-[#121212] px-3 py-1.5 text-[11px] font-medium text-[#D1D5DB]">
+                        <span className="rounded-full border border-[#E5E5E5] bg-[#F5F5F5] px-3 py-1.5 text-[11px] font-medium text-[#525252]">
                           {formatNumber(data.counts.publications)} anúncios
                         </span>
                       }
                     />
-                    <div className="mt-5 overflow-hidden rounded-[14px] border border-[#262626]">
+                    <div className="mt-5 overflow-hidden rounded-[14px] border border-[#E5E5E5]">
                       <table className="w-full min-w-[720px] text-left">
-                        <thead className="bg-[#141414] text-[11px] uppercase tracking-[0.12em] text-[#6B7280]">
+                        <thead className="bg-[#FAFAFA] text-[11px] uppercase tracking-[0.12em] text-[#737373]">
                           <tr>
                             <th className="px-4 py-3 font-medium">Publicação</th>
                             <th className="px-4 py-3 font-medium">Status</th>
@@ -794,24 +771,24 @@ const AdminBlankPage = () => {
                         <tbody>
                           {data.publications.length ? (
                             data.publications.slice(0, 6).map((publication, index) => (
-                              <tr key={`${publication.title}-${index}`} className="border-t border-[#262626] text-[13px] text-[#D1D5DB]">
-                                <td className="max-w-[340px] truncate px-4 py-3 font-medium text-[#F5F5F5]">
+                              <tr key={`${publication.title}-${index}`} className="border-t border-[#F0F0F0] text-[13px] text-[#525252]">
+                                <td className="max-w-[340px] truncate px-4 py-3 font-medium text-[#0A0A0A]">
                                   {publication.title}
                                 </td>
                                 <td className="px-4 py-3">
                                   <StatusPill value={publication.status ?? "pendente"} />
                                 </td>
-                                <td className="px-4 py-3 text-[#9CA3AF]">
+                                <td className="px-4 py-3 text-[#737373]">
                                   {formatDate(publication.published_at ?? publication.created_at)}
                                 </td>
-                                <td className="px-4 py-3 text-right font-semibold text-[#F5F5F5]">
+                                <td className="px-4 py-3 text-right font-semibold text-[#0A0A0A]">
                                   {formatBRL(Number(publication.price ?? 0))}
                                 </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={4} className="px-4 py-10 text-center text-[13px] text-[#6B7280]">
+                              <td colSpan={4} className="px-4 py-10 text-center text-[13px] text-[#737373]">
                                 Nenhuma publicação encontrada.
                               </td>
                             </tr>
@@ -872,13 +849,13 @@ const SidebarLink = ({
   <Link
     to={to}
     className={cn(
-      "group flex h-11 items-center gap-3 rounded-[12px] px-3 text-[14px] font-medium transition",
+      "group flex h-10 items-center gap-3 rounded-[8px] px-3 text-[14px] font-semibold transition duration-150",
       active
-        ? "bg-[#1B1B1B] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-        : "text-[#9CA3AF] hover:bg-white/[0.03] hover:text-white"
+        ? "bg-[#2A2A2A] text-white"
+        : "text-white hover:bg-white/[0.06]"
     )}
   >
-    <Icon size={16} strokeWidth={active ? 2.15 : 1.9} />
+    <Icon size={16} className="text-white transition duration-150" strokeWidth={1.8} />
     {label}
   </Link>
 );
@@ -886,7 +863,7 @@ const SidebarLink = ({
 const SurfaceCard = ({ children, className }: { children: ReactNode; className?: string }) => (
   <section
     className={cn(
-      "rounded-[12px] border border-[#262626] bg-[#171717] shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
+      "rounded-[20px] border border-[#E5E5E5] bg-white shadow-sm",
       className
     )}
   >
@@ -910,10 +887,10 @@ const MetricCard = ({
   accent: "violet" | "green" | "blue" | "rose";
 }) => {
   const accentClass = {
-    violet: "bg-violet-500/15 text-violet-400",
-    green: "bg-emerald-500/15 text-emerald-400",
-    blue: "bg-sky-500/15 text-sky-400",
-    rose: "bg-rose-500/15 text-rose-400",
+    violet: "bg-violet-50 text-violet-600 dark:bg-violet-950/20 dark:text-violet-400",
+    green: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400",
+    blue: "bg-sky-50 text-sky-600 dark:bg-sky-950/20 dark:text-sky-400",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400",
   }[accent];
 
   return (
@@ -923,11 +900,11 @@ const MetricCard = ({
           <Icon size={18} />
         </span>
         <div>
-          <p className="text-[12px] font-medium text-[#9CA3AF]">{label}</p>
+          <p className="text-[12px] font-medium text-[#737373]">{label}</p>
         </div>
       </div>
-      <p className="mt-5 text-[31px] font-bold tracking-[-0.04em] text-[#F5F5F5]">{value}</p>
-      <p className="mt-2 text-[12px] text-[#9CA3AF]">{description}</p>
+      <p className="mt-5 text-[31px] font-bold tracking-[-0.04em] text-[#0A0A0A]">{value}</p>
+      <p className="mt-2 text-[12px] text-[#737373]">{description}</p>
       <div className="mt-4">
         <DeltaInline delta={delta} />
       </div>
@@ -952,7 +929,7 @@ const MiniTrendCard = ({
   accent: "violet" | "green";
   chart: ReactNode;
 }) => {
-  const accentClass = accent === "violet" ? "bg-violet-500/15 text-violet-400" : "bg-emerald-500/15 text-emerald-400";
+  const accentClass = accent === "violet" ? "bg-violet-50 text-violet-600" : "bg-emerald-50 text-emerald-600";
 
   return (
     <SurfaceCard className="p-5">
@@ -962,8 +939,8 @@ const MiniTrendCard = ({
             <Icon size={16} />
           </span>
           <div>
-            <p className="text-[12px] font-medium text-[#9CA3AF]">{label}</p>
-            <p className="mt-2 text-[28px] font-bold tracking-[-0.04em] text-[#F5F5F5]">{value}</p>
+            <p className="text-[12px] font-medium text-[#737373]">{label}</p>
+            <p className="mt-2 text-[28px] font-bold tracking-[-0.04em] text-[#0A0A0A]">{value}</p>
           </div>
         </div>
         <IconButton />
@@ -975,7 +952,7 @@ const MiniTrendCard = ({
 
       <div className="mt-4 h-[124px]">{chart}</div>
 
-      <button className="mt-3 text-[12px] font-semibold text-[#22C55E] transition hover:text-[#4ade80]">
+      <button className="mt-3 text-[12px] font-semibold text-emerald-600 transition hover:text-emerald-700">
         {linkLabel}
       </button>
     </SurfaceCard>
@@ -993,8 +970,8 @@ const CardHeader = ({
 }) => (
   <div className="flex items-start justify-between gap-3">
     <div>
-      <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-[#F5F5F5]">{title}</h2>
-      <p className="mt-1 text-[12px] text-[#9CA3AF]">{subtitle}</p>
+      <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-[#0A0A0A]">{title}</h2>
+      <p className="mt-1 text-[12px] text-[#737373]">{subtitle}</p>
     </div>
     {action}
   </div>
@@ -1007,29 +984,29 @@ const DeltaInline = ({ delta }: { delta: { tone: DeltaTone; value: number } }) =
         "font-semibold",
         delta.tone === "positive" && "text-[#22C55E]",
         delta.tone === "negative" && "text-[#EF4444]",
-        delta.tone === "neutral" && "text-[#9CA3AF]"
+        delta.tone === "neutral" && "text-[#737373]"
       )}
     >
       {formatDelta(delta.value)}
     </span>
-    <span className="text-[#9CA3AF]">vs período anterior</span>
+    <span className="text-[#737373]">vs período anterior</span>
   </div>
 );
 
 const ProductRow = ({ product, index }: { product: CatalogProductRow; index: number }) => (
-  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[12px] border border-[#262626] bg-[#121212] px-4 py-3">
-    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.05] text-[12px] font-semibold text-[#F5F5F5]">
+  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[12px] border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3">
+    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-200/60 text-[12px] font-semibold text-[#0A0A0A]">
       {index + 1}
     </span>
     <div className="min-w-0">
-      <p className="truncate text-[13px] font-medium text-[#F5F5F5]">{product.title}</p>
-      <p className="mt-1 truncate text-[11px] text-[#9CA3AF]">
+      <p className="truncate text-[13px] font-medium text-[#0A0A0A]">{product.title}</p>
+      <p className="mt-1 truncate text-[11px] text-[#737373]">
         {product.category ?? "Sem categoria"} · margem {Math.round(Number(product.margin_percent ?? 0))}%
       </p>
     </div>
     <div className="text-right">
       <p className="text-[12px] font-semibold text-[#22C55E]">{formatNumber(product.orders_count ?? 0)}</p>
-      <p className="mt-1 text-[10px] text-[#6B7280]">
+      <p className="mt-1 text-[10px] text-[#737373]">
         {formatBRL(Number(product.suggested_price ?? 0))}
       </p>
     </div>
@@ -1041,10 +1018,10 @@ const PlatformRow = ({ label, value, total }: { label: string; value: number; to
   return (
     <div>
       <div className="mb-2 flex items-center justify-between text-[12px]">
-        <span className="font-medium text-[#D1D5DB]">{label}</span>
-        <span className="text-[#9CA3AF]">{formatNumber(value)}</span>
+        <span className="font-medium text-[#525252]">{label}</span>
+        <span className="text-[#737373]">{formatNumber(value)}</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+      <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
         <div className="h-full rounded-full bg-[#22C55E]" style={{ width: `${percent}%` }} />
       </div>
     </div>
@@ -1060,14 +1037,14 @@ const SignalRow = ({
   value: number;
   tone: "ok" | "warning" | "neutral";
 }) => (
-  <div className="flex items-center justify-between rounded-[12px] border border-[#262626] bg-[#121212] px-4 py-3">
-    <span className="text-[13px] text-[#D1D5DB]">{label}</span>
+  <div className="flex items-center justify-between rounded-[12px] border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3">
+    <span className="text-[13px] text-[#525252]">{label}</span>
     <span
       className={cn(
         "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-        tone === "ok" && "bg-emerald-500/15 text-emerald-400",
-        tone === "warning" && "bg-rose-500/15 text-rose-400",
-        tone === "neutral" && "bg-white/[0.06] text-[#D1D5DB]"
+        tone === "ok" && "bg-emerald-500/10 text-emerald-700",
+        tone === "warning" && "bg-rose-500/10 text-rose-700",
+        tone === "neutral" && "bg-zinc-200 text-[#0A0A0A]"
       )}
     >
       {formatNumber(value)}
@@ -1084,9 +1061,9 @@ const QuickStat = ({
   value: string;
   tone: "positive" | "neutral";
 }) => (
-  <div className="rounded-[12px] border border-[#262626] bg-[#121212] px-4 py-3">
-    <p className="text-[12px] text-[#9CA3AF]">{label}</p>
-    <p className={cn("mt-2 text-[20px] font-bold tracking-[-0.03em]", tone === "positive" ? "text-[#F5F5F5]" : "text-[#D1D5DB]")}>
+  <div className="rounded-[12px] border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3">
+    <p className="text-[12px] text-[#737373]">{label}</p>
+    <p className={cn("mt-2 text-[20px] font-bold tracking-[-0.03em]", tone === "positive" ? "text-emerald-700" : "text-[#525252]")}>
       {value}
     </p>
   </div>
@@ -1099,7 +1076,7 @@ const StatusPill = ({ value }: { value: string }) => {
     <span
       className={cn(
         "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-        isActive ? "bg-emerald-500/15 text-emerald-400" : "bg-white/[0.06] text-[#D1D5DB]"
+        isActive ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-700"
       )}
     >
       {value}
@@ -1108,13 +1085,13 @@ const StatusPill = ({ value }: { value: string }) => {
 };
 
 const EmptyState = ({ text }: { text: string }) => (
-  <div className="flex min-h-[148px] items-center justify-center rounded-[12px] border border-dashed border-[#2A2A2A] bg-[#121212] px-4 text-center text-[13px] leading-6 text-[#6B7280]">
+  <div className="flex min-h-[148px] items-center justify-center rounded-[12px] border border-dashed border-[#E5E5E5] bg-[#FAFAFA] px-4 text-center text-[13px] leading-6 text-[#737373]">
     {text}
   </div>
 );
 
 const IconButton = () => (
-  <button className="flex h-9 w-9 items-center justify-center rounded-full border border-[#262626] bg-[#121212] text-[#9CA3AF] transition hover:border-[#343434] hover:text-white">
+  <button className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E5E5] bg-white text-[#737373] transition hover:bg-[#FAFAFA] hover:text-black">
     <MoreHorizontal size={15} />
   </button>
 );
@@ -1132,10 +1109,10 @@ const ChartTooltip = ({
 }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-[12px] border border-[#2A2A2A] bg-[#111111] px-3 py-2 text-[12px] text-white shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
-      <p className="mb-1 text-[#9CA3AF]">{label}</p>
+    <div className="rounded-[12px] border border-[#E5E5E5] bg-white px-3 py-2 text-[12px] text-zinc-950 shadow-lg">
+      <p className="mb-1 text-zinc-500">{label}</p>
       {payload.map((item) => (
-        <p key={item.name ?? "valor"} className="font-semibold text-[#F5F5F5]">
+        <p key={item.name ?? "valor"} className="font-semibold text-zinc-950">
           {formatter ? formatter(Number(item.value ?? 0)) : formatNumber(Number(item.value ?? 0))}
         </p>
       ))}

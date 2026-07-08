@@ -88,10 +88,18 @@ Deno.serve(async (req) => {
       return json({ error: "Acesso restrito a admins" }, 403);
     }
 
-    const profiles = await loadProfiles(adminClient);
-    const userIds = profiles.map(getProfileUserId).filter(Boolean);
+    const { data: { users: authUsers }, error: authError } = await adminClient.auth.admin.listUsers();
+    if (authError) throw authError;
 
-    const [subsRes, integrationsRes, ordersRes] = await Promise.all([
+    const userIds = authUsers.map((u) => u.id).filter(Boolean);
+
+    const [profilesRes, subsRes, integrationsRes, ordersRes] = await Promise.all([
+      userIds.length
+        ? adminClient
+            .from("profiles")
+            .select("id,user_id,full_name,display_name,email,avatar_url,created_at")
+            .in("id", userIds)
+        : Promise.resolve({ data: [], error: null }),
       userIds.length
         ? adminClient
             .from("subscriptions")
@@ -111,8 +119,14 @@ Deno.serve(async (req) => {
         : Promise.resolve({ data: [], error: null }),
     ]);
 
-    const error = subsRes.error ?? integrationsRes.error ?? ordersRes.error;
+    const error = profilesRes.error ?? subsRes.error ?? integrationsRes.error ?? ordersRes.error;
     if (error) throw error;
+
+    const profileByUserId = new Map<string, any>();
+    for (const profile of (profilesRes.data ?? [])) {
+      const pId = profile.user_id ?? profile.id;
+      if (pId) profileByUserId.set(pId, profile);
+    }
 
     const latestSubByUser = new Map<string, SubscriptionRow>();
     for (const subscription of (subsRes.data ?? []) as SubscriptionRow[]) {
@@ -134,20 +148,25 @@ Deno.serve(async (req) => {
     }
 
     return json(
-      profiles.map((profile) => {
-        const profileUserId = getProfileUserId(profile);
-        const subscription = latestSubByUser.get(profileUserId);
+      authUsers.map((authUser) => {
+        const userId = authUser.id;
+        const profile = profileByUserId.get(userId);
+        const subscription = latestSubByUser.get(userId);
+
+        const name = profile?.full_name ?? profile?.display_name ?? authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? authUser.email ?? null;
+        const email = authUser.email ?? profile?.email ?? null;
+        const avatarUrl = profile?.avatar_url ?? authUser.user_metadata?.avatar_url ?? null;
 
         return {
-          user_id: profileUserId,
-          name: profile.full_name ?? profile.display_name ?? profile.email ?? null,
-          email: profile.email ?? null,
-          avatar_url: profile.avatar_url ?? null,
+          user_id: userId,
+          name,
+          email,
+          avatar_url: avatarUrl,
           plan: subscription?.plan ?? null,
           subscription_status: subscription?.status ?? null,
-          created_at: profile.created_at,
-          ml_connected: mlConnectedUsers.has(profileUserId),
-          orders_count: ordersByUser.get(profileUserId) ?? 0,
+          created_at: authUser.created_at || profile?.created_at || new Date().toISOString(),
+          ml_connected: mlConnectedUsers.has(userId),
+          orders_count: ordersByUser.get(userId) ?? 0,
         };
       })
     );
