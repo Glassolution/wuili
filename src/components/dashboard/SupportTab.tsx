@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Headphones, Loader2, UserRound } from "lucide-react";
+import { ArrowUp, Check, CheckCheck, Headphones, Loader2, UserRound } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +25,8 @@ type SupportMessage = {
   created_at: string;
 };
 
+type MessageReceipt = "sent" | "seen";
+
 const SupportTab = () => {
   const { user } = useAuth();
   const { nome } = useProfile();
@@ -40,6 +42,47 @@ const SupportTab = () => {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [supportMessages, loading, ticketLoading]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setTicket(null);
+      setSupportMessages([]);
+      return;
+    }
+
+    let active = true;
+
+    const loadOpenTicket = async () => {
+      setTicketLoading(true);
+
+      try {
+        const { data, error } = await (supabase as any)
+          .from("support_tickets")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("status", "open")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!active) return;
+        if (error) throw error;
+
+        setTicket((data as SupportTicket | null) ?? null);
+      } catch (error) {
+        console.error(error);
+        if (active) toast.error("Não foi possível carregar seu ticket aberto.");
+      } finally {
+        if (active) setTicketLoading(false);
+      }
+    };
+
+    void loadOpenTicket();
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   const startHumanSupport = async (): Promise<SupportTicket | null> => {
     if (!user?.id) {
@@ -217,6 +260,16 @@ const SupportTab = () => {
 
   const visibleSupportMessages = supportMessages.filter((m) => m.sender !== "ai");
   const hasAdminReply = visibleSupportMessages.some((m) => m.sender === "admin");
+  const getMessageReceipt = (message: SupportMessage): MessageReceipt => {
+    if (message.sender === "admin") return "seen";
+
+    const messageTime = new Date(message.created_at).getTime();
+    const hasReplyAfter = visibleSupportMessages.some((item) => {
+      return item.sender === "admin" && new Date(item.created_at).getTime() > messageTime;
+    });
+
+    return hasReplyAfter ? "seen" : "sent";
+  };
   const supportClosed = ticket?.status === "closed";
   const supportReady = ticketLoading || (!!ticket && !supportClosed);
 
@@ -275,7 +328,7 @@ const SupportTab = () => {
             )}
 
             {visibleSupportMessages.map((m) => (
-              <HumanMessageBubble key={m.id} msg={m} />
+              <HumanMessageBubble key={m.id} msg={m} receipt={getMessageReceipt(m)} />
             ))}
           </>
 
@@ -313,7 +366,7 @@ const SupportTab = () => {
   );
 };
 
-const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
+const HumanMessageBubble = ({ msg, receipt }: { msg: SupportMessage; receipt: MessageReceipt }) => {
   const isUser = msg.sender === "user";
 
   if (isUser) {
@@ -321,6 +374,7 @@ const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
       <div className="flex justify-end">
         <div className="max-w-[75%] rounded-[16px_4px_16px_16px] bg-black px-4 py-2.5 text-[14px] leading-[1.6] text-white whitespace-pre-wrap dark:bg-white dark:text-black">
           {msg.message}
+          <MessageReceiptLabel receipt={receipt} inverted />
         </div>
       </div>
     );
@@ -336,8 +390,25 @@ const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
           Suporte Velo
         </p>
         {msg.message}
+        <MessageReceiptLabel receipt={receipt} />
       </div>
     </div>
+  );
+};
+
+const MessageReceiptLabel = ({ receipt, inverted = false }: { receipt: MessageReceipt; inverted?: boolean }) => {
+  const Icon = receipt === "seen" ? CheckCheck : Check;
+
+  return (
+    <span
+      className={[
+        "mt-1.5 flex items-center justify-end gap-1 text-[10px] font-semibold leading-none",
+        inverted ? "text-white/65 dark:text-black/60" : "text-[#A3A3A3] dark:text-zinc-400",
+      ].join(" ")}
+    >
+      <Icon size={12} strokeWidth={2.4} />
+      {receipt === "seen" ? "Visto" : "Enviado"}
+    </span>
   );
 };
 

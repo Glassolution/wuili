@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { VeloLogo } from "@/components/VeloLogo";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { notifyTicketReplyEmail } from "@/lib/supportEmail";
 
 type AdminTicket = {
   id: string;
@@ -28,6 +29,8 @@ type SupportMessage = {
   sender: "user" | "admin";
   created_at: string;
 };
+
+type MessageReceipt = "sent" | "seen";
 
 const formatDateTime = (value: string | null) => {
   if (!value) return "Sem data";
@@ -257,6 +260,10 @@ const AdminSupportPage = () => {
         (prev = []) => prev.some((item) => item.id === message.id) ? prev : [...prev, message]
       );
       void qc.invalidateQueries({ queryKey: ["admin-support-tickets"] });
+      notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
+        console.error(error);
+        toast.error("Resposta enviada, mas não foi possível notificar por email.");
+      });
     },
     onError: (error) => {
       console.error(error);
@@ -440,9 +447,11 @@ const AdminSupportPage = () => {
                       <AdminChatBubble
                         key={message.id}
                         msg={message}
-                        seenByUser={
-                          message.sender === "admin" &&
+                        receipt={
+                          message.sender === "user" ||
                           messages.slice(index + 1).some((item) => item.sender === "user")
+                            ? "seen"
+                            : "sent"
                         }
                       />
                     ))
@@ -488,7 +497,7 @@ const AdminSupportPage = () => {
   );
 };
 
-const AdminChatBubble = ({ msg, seenByUser }: { msg: SupportMessage; seenByUser?: boolean }) => {
+const AdminChatBubble = ({ msg, receipt }: { msg: SupportMessage; receipt: MessageReceipt }) => {
   const isAdmin = msg.sender === "admin";
 
   return (
@@ -507,14 +516,21 @@ const AdminChatBubble = ({ msg, seenByUser }: { msg: SupportMessage; seenByUser?
         <p className="whitespace-pre-wrap">{msg.message}</p>
         <p className={`mt-1 flex items-center gap-1 text-[10px] ${isAdmin ? "justify-end text-white/50" : "text-[#A3A3A3]"}`}>
           <span>{formatDateTime(msg.created_at)}</span>
-          {isAdmin && (
-            <span className="font-semibold text-white/70">
-              {seenByUser ? "✓✓ visto" : "✓ enviado"}
-            </span>
-          )}
+          <MessageReceiptLabel receipt={receipt} inverted={isAdmin} />
         </p>
       </div>
     </div>
+  );
+};
+
+const MessageReceiptLabel = ({ receipt, inverted = false }: { receipt: MessageReceipt; inverted?: boolean }) => {
+  const Icon = receipt === "seen" ? CheckCheck : Check;
+
+  return (
+    <span className={`flex items-center gap-1 font-semibold ${inverted ? "text-white/70" : "text-[#737373]"}`}>
+      <Icon size={12} strokeWidth={2.4} />
+      {receipt === "seen" ? "Visto" : "Enviado"}
+    </span>
   );
 };
 

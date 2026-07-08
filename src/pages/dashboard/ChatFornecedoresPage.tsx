@@ -10,6 +10,7 @@ import { veloToast as toast } from "@/components/ui/velo-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyTicketReplyEmail } from "@/lib/supportEmail";
 import {
   useSupplierThreads,
   useSupplierMessages,
@@ -668,6 +669,10 @@ function AdminSupportPanel() {
         (prev = []) => prev.some((item) => item.id === message.id) ? prev : [...prev, message]
       );
       void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
+      notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
+        console.error(error);
+        toast.error("Resposta enviada, mas não foi possível notificar por email.");
+      });
     },
     onError: (error) => {
       console.error(error);
