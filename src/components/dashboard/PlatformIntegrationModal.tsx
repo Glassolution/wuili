@@ -66,11 +66,6 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
   const connectML = async () => {
     if (!user) return;
 
-    if (!planLimits.loading && !connectedML && !planLimits.canConnectMarketplace) {
-      setUpgradeModalOpen(true);
-      return;
-    }
-
     const { data, error } = await supabase.functions.invoke("ml-connect");
     const authUrl = data?.authUrl ?? data?.auth_url;
     if (error || !authUrl) {

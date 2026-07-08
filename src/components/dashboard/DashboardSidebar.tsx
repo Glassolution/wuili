@@ -28,6 +28,29 @@ const affiliatesNavItem: NavItem = { label: "Afiliados", icon: Users, to: "/dash
 
 const normalizePath = (path: string) => path.split("?")[0].replace(/\/$/, "");
 
+type SidebarSubscription = {
+  plan: string | null;
+  status: string | null;
+  is_trial: boolean | null;
+  trial_ends_at: string | null;
+};
+
+const activeSubscriptionStatuses = new Set(["active", "paid", "approved"]);
+
+const formatTrialTimeLeft = (endsAt: string | null, now: Date) => {
+  if (!endsAt) return null;
+  const diff = new Date(endsAt).getTime() - now.getTime();
+  if (diff <= 0) return null;
+
+  const totalHours = Math.ceil(diff / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+
+  if (days <= 0) return `${hours}h`;
+  if (hours <= 0) return `${days}d`;
+  return `${days}d ${hours}h`;
+};
+
 const getInitials = (name: string, email?: string | null) => {
   const raw = (name || email || "Velo").trim();
   const parts = raw.split(/[\s._@-]+/).filter(Boolean);
@@ -433,6 +456,8 @@ const DashboardSidebar = () => {
   const { nome, foto } = useProfile();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [plan, setPlan] = useState("gratis");
+  const [subscription, setSubscription] = useState<SidebarSubscription | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const [isAdmin, setIsAdmin] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileName = nome || user?.user_metadata?.full_name || user?.email || "Usuario";
@@ -466,20 +491,39 @@ const DashboardSidebar = () => {
 
     let active = true;
 
-    supabase
-      .from("profiles")
-      .select("plano")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
+    Promise.all([
+      supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle(),
+      supabase
+        .from("subscriptions")
+        .select("plan,status,is_trial,trial_ends_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]).then(([profileResult, subscriptionResult]) => {
         if (!active) return;
-        if (data?.plano) setPlan(String(data.plano));
+
+        const currentSubscription = subscriptionResult.data as SidebarSubscription | null;
+        setSubscription(currentSubscription);
+
+        if (currentSubscription?.plan && activeSubscriptionStatuses.has(String(currentSubscription.status))) {
+          setPlan(String(currentSubscription.plan));
+          return;
+        }
+
+        if (profileResult.data?.plano) setPlan(String(profileResult.data.plano));
       });
 
     return () => {
       active = false;
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!subscription?.is_trial || !subscription.trial_ends_at) return;
+    const interval = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, [subscription?.is_trial, subscription?.trial_ends_at]);
 
   useEffect(() => {
     if (!user) {
@@ -551,6 +595,9 @@ const DashboardSidebar = () => {
   }, [profileMenuOpen]);
 
   const planLabel = plan === "business" ? "BUSINESS" : plan === "pro" ? "PRO" : plan === "go" ? "GO" : "GRATIS";
+  const normalizedPlan = plan === "plus" ? "pro" : plan;
+  const trialTimeLeft = subscription?.is_trial ? formatTrialTimeLeft(subscription.trial_ends_at, now) : null;
+  const showUpgradeCard = Boolean(trialTimeLeft) || !["pro", "business"].includes(normalizedPlan);
 
   const handlePanelNavigate = (to: string) => {
     setProfileMenuOpen(false);
@@ -586,25 +633,39 @@ const DashboardSidebar = () => {
 
       <div aria-hidden="true" style={styles.spacer} />
 
-      <section aria-label="Upgrade para Premium" style={styles.upgradeCard}>
-        <div style={styles.upgradeTop}>
-          <span style={styles.upgradeIcon} aria-hidden="true">
-            <SignatureUpgradeIcon />
-          </span>
-          <button type="button" aria-label="Fechar upgrade" style={styles.upgradeClose}>
-            <X size={15} strokeWidth={1.8} />
+      {showUpgradeCard && (
+        <section aria-label={trialTimeLeft ? "Tempo restante do trial" : "Upgrade para Premium"} style={styles.upgradeCard}>
+          <div style={styles.upgradeTop}>
+            <span style={styles.upgradeIcon} aria-hidden="true">
+              <SignatureUpgradeIcon />
+            </span>
+            {!trialTimeLeft && (
+              <button type="button" aria-label="Fechar upgrade" style={styles.upgradeClose}>
+                <X size={15} strokeWidth={1.8} />
+              </button>
+            )}
+          </div>
+          <p style={styles.upgradeTitle}>{trialTimeLeft ? "Trial ativo" : "Upgrade para o Premium!"}</p>
+          <p style={styles.upgradeCopy}>
+            {trialTimeLeft ? (
+              <>
+                Termina em
+                <br />
+                {trialTimeLeft}
+              </>
+            ) : (
+              <>
+                Publique sem limites
+                <br />
+                Personalize sua marca
+              </>
+            )}
+          </p>
+          <button type="button" onClick={() => navigate("/dashboard/planos")} style={styles.upgradeButton}>
+            {trialTimeLeft ? "Gerenciar trial" : "Fazer upgrade"}
           </button>
-        </div>
-        <p style={styles.upgradeTitle}>Upgrade para o Premium!</p>
-        <p style={styles.upgradeCopy}>
-          Publique sem limites
-          <br />
-          Personalize sua marca
-        </p>
-        <button type="button" onClick={() => navigate("/dashboard/planos")} style={styles.upgradeButton}>
-          Fazer upgrade
-        </button>
-      </section>
+        </section>
+      )}
 
       <div ref={profileMenuRef} style={styles.profileWrap}>
         <button

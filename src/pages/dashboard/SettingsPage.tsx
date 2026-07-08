@@ -424,13 +424,6 @@ const IntegrationsTab = () => {
   }, [user]);
 
   const handleConnect = async (platform: string) => {
-    if (planLimits.loading) return;
-
-    if (!planLimits.canConnectMarketplace) {
-      setUpgradeModalOpen(true);
-      return;
-    }
-
     if (platform === "mercadolivre" && user) {
       const toastId = veloToast.loading("Conectando com o Mercado Livre...");
       const { data, error } = await supabase.functions.invoke("ml-connect");
@@ -442,6 +435,41 @@ const IntegrationsTab = () => {
       veloToast.dismiss(toastId);
       window.location.href = authUrl;
     }
+
+    if (platform !== "mercadolivre") {
+      if (planLimits.loading) return;
+
+      if (!planLimits.canConnectMarketplace) {
+        setUpgradeModalOpen(true);
+      }
+    }
+  };
+
+  const handleDisconnect = async (platform: string) => {
+    if (platform !== "mercadolivre" || !user) return;
+
+    setIntegrations((prev) =>
+      prev.map((item) => (item.platform === platform ? { ...item, loading: true } : item))
+    );
+    const toastId = veloToast.loading("Desconectando Mercado Livre...");
+    const { error } = await supabase
+      .from("user_integrations")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("platform", platform);
+
+    if (error) {
+      veloToast.error("Não foi possível desconectar o Mercado Livre", { id: toastId });
+      setIntegrations((prev) =>
+        prev.map((item) => (item.platform === platform ? { ...item, loading: false } : item))
+      );
+      return;
+    }
+
+    veloToast.success("Mercado Livre desconectado", { id: toastId });
+    setIntegrations((prev) =>
+      prev.map((item) => (item.platform === platform ? { ...item, connected: false, loading: false } : item))
+    );
   };
   const marketplaceUpgradeTargetPlan: "pro" | "business" = planLimits.plan === "pro" ? "business" : "pro";
   const marketplaceUpgradeBenefits = marketplaceUpgradeTargetPlan === "business"
@@ -475,9 +503,18 @@ const IntegrationsTab = () => {
                 Em breve
               </span>
             ) : i.connected ? (
-              <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black font-semibold">
-                <CheckCircle2 size={12} /> Conectado
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black font-semibold">
+                  <CheckCircle2 size={12} /> Conectado
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleDisconnect(i.platform)}
+                  className="rounded-full border border-[#E5E5E5] bg-white px-3 py-1 text-[11px] font-semibold text-[#0A0A0A] transition hover:border-[#0A0A0A] dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:hover:border-white"
+                >
+                  Desconectar
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => handleConnect(i.platform)}

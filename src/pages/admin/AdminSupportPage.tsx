@@ -436,8 +436,15 @@ const AdminSupportPage = () => {
                       O usuário ainda não enviou mensagens neste ticket.
                     </div>
                   ) : (
-                    messages.map((message) => (
-                      <AdminChatBubble key={message.id} msg={message} />
+                    messages.map((message, index) => (
+                      <AdminChatBubble
+                        key={message.id}
+                        msg={message}
+                        seenByUser={
+                          message.sender === "admin" &&
+                          messages.slice(index + 1).some((item) => item.sender === "user")
+                        }
+                      />
                     ))
                   )}
                 </div>
@@ -481,7 +488,7 @@ const AdminSupportPage = () => {
   );
 };
 
-const AdminChatBubble = ({ msg }: { msg: SupportMessage }) => {
+const AdminChatBubble = ({ msg, seenByUser }: { msg: SupportMessage; seenByUser?: boolean }) => {
   const isAdmin = msg.sender === "admin";
 
   return (
@@ -498,8 +505,13 @@ const AdminChatBubble = ({ msg }: { msg: SupportMessage }) => {
           {isAdmin ? "Admin" : "Usuário"}
         </p>
         <p className="whitespace-pre-wrap">{msg.message}</p>
-        <p className={`mt-1 text-[10px] ${isAdmin ? "text-white/50" : "text-[#A3A3A3]"}`}>
-          {formatDateTime(msg.created_at)}
+        <p className={`mt-1 flex items-center gap-1 text-[10px] ${isAdmin ? "justify-end text-white/50" : "text-[#A3A3A3]"}`}>
+          <span>{formatDateTime(msg.created_at)}</span>
+          {isAdmin && (
+            <span className="font-semibold text-white/70">
+              {seenByUser ? "✓✓ visto" : "✓ enviado"}
+            </span>
+          )}
         </p>
       </div>
     </div>

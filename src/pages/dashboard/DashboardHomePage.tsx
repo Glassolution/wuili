@@ -166,6 +166,23 @@ const formatCollectionDate = (value: string | null) => {
 
 const formatInteger = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
+type OverviewPeriod = "30d" | "90d" | "180d" | "365d";
+
+const overviewPeriods: Array<{
+  value: OverviewPeriod;
+  label: string;
+  points: number;
+  compare: string;
+}> = [
+  { value: "30d", label: "Ultimos 30 dias", points: 2, compare: "periodo anterior" },
+  { value: "90d", label: "Ultimos 90 dias", points: 3, compare: "90 dias anteriores" },
+  { value: "180d", label: "Ultimos 180 dias", points: 4, compare: "180 dias anteriores" },
+  { value: "365d", label: "Ultimos 365 dias", points: 6, compare: "ano anterior" },
+];
+
+const latestValue = (values: number[]) => values[values.length - 1] ?? 0;
+const previousValue = (values: number[]) => values[values.length - 2] ?? 0;
+
 const formatTrend = (current: number, previous: number) => {
   if (previous <= 0) return current > 0 ? "↗ 100%" : "—";
 
@@ -967,8 +984,13 @@ const ProductsBarCard = ({ catalogCount, activePublicationsCount, orderCount }: 
 };
 
 const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
-  const salesTrend = formatTrend(kpis.monthlySales[5] ?? 0, kpis.monthlySales[4] ?? 0);
-  const salesSeries = kpis.monthlySales.some((value) => value > 0) ? kpis.monthlySales : kpis.monthlyOrders;
+  const [period, setPeriod] = useState<OverviewPeriod>("365d");
+  const selectedPeriod = overviewPeriods.find((item) => item.value === period) ?? overviewPeriods[3];
+  const baseSalesSeries = kpis.monthlySales.some((value) => value > 0) ? kpis.monthlySales : kpis.monthlyOrders;
+  const salesSeries = baseSalesSeries.slice(-selectedPeriod.points);
+  const orderSeries = kpis.monthlyOrders.slice(-selectedPeriod.points);
+  const salesTrend = formatTrend(latestValue(salesSeries), previousValue(salesSeries));
+  const orderTrend = formatTrend(latestValue(orderSeries), previousValue(orderSeries));
 
   return (
   <section className="rounded-[14px] bg-[#F2F2F1] p-3">
@@ -983,30 +1005,40 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
       <div>
         <h1 className="text-[16px] font-bold text-[#171717]">Visão geral</h1>
         <div className="mt-3 flex flex-wrap gap-2">
-          <span className="inline-flex h-6 items-center gap-1.5 rounded-[6px] bg-white px-2.5 text-[10px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-              <CalendarDays className="h-3 w-3" strokeWidth={1.8} />
-            Últimos 365 dias
-          </span>
+          <div className="inline-flex flex-wrap items-center gap-1 rounded-[8px] bg-white p-1 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+            {overviewPeriods.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setPeriod(item.value)}
+                className={`inline-flex h-6 items-center gap-1.5 rounded-[6px] px-2 text-[10px] font-semibold transition ${
+                  period === item.value
+                    ? "bg-[#171717] text-white"
+                    : "text-[#5F5F5F] hover:bg-[#F2F2F1] hover:text-[#171717]"
+                }`}
+              >
+                <CalendarDays className="h-3 w-3" strokeWidth={1.8} />
+                {item.label}
+              </button>
+            ))}
+          </div>
           <span className="inline-flex h-6 items-center rounded-[6px] bg-white px-2.5 text-[10px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-            Comparar com: 14 fev. 2023-12 fev. 2024
+            Comparar com: {selectedPeriod.compare}
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="hidden">
         <button type="button" aria-label="Configurar visão" className="grid h-6 w-6 place-items-center rounded-[6px] bg-white text-[#171717] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
           <SlidersHorizontal className="h-3 w-3" strokeWidth={1.8} />
-        </button>
-        <button type="button" aria-label="Personalizar" className="h-6 rounded-[6px] bg-[#222] px-2.5 text-[10px] font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,0.12)]">
-          Personalizar
         </button>
       </div>
     </div>
 
     <div className="mt-3 grid grid-cols-2 gap-2 min-[700px]:grid-cols-4">
       <OverviewMetricCard label="Vendas brutas" value={kpis.revenue} delta={salesTrend} values={salesSeries} />
-      <OverviewMetricCard label="Taxa de clientes recorrentes" value={kpis.returningCustomerRate} delta="—" values={kpis.monthlyOrders} />
-      <OverviewMetricCard label="Pedidos entregues" value={kpis.fulfilledOrders} delta="—" values={kpis.monthlyOrders} />
-      <OverviewMetricCard label="Pedidos" value={kpis.orders} delta={formatTrend(kpis.monthlyOrders[5] ?? 0, kpis.monthlyOrders[4] ?? 0)} values={kpis.monthlyOrders} />
+      <OverviewMetricCard label="Taxa de clientes recorrentes" value={kpis.returningCustomerRate} delta={orderTrend} values={orderSeries} />
+      <OverviewMetricCard label="Pedidos entregues" value={kpis.fulfilledOrders} delta={orderTrend} values={orderSeries} />
+      <OverviewMetricCard label="Pedidos" value={kpis.orders} delta={orderTrend} values={orderSeries} />
     </div>
 
     <div className="mt-2 grid grid-cols-1 gap-2 min-[700px]:grid-cols-[2fr_1fr]">

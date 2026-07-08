@@ -47,13 +47,6 @@ const IntegracoesPage = () => {
   }, [user]);
 
   const handleConnect = async (platformId: string) => {
-    if (planLimits.loading) return;
-
-    if (!planLimits.canConnectMarketplace && statuses[platformId] !== "connected") {
-      setUpgradeModalOpen(true);
-      return;
-    }
-
     if (platformId === "mercadolivre" && user) {
       const toastId = veloToast.loading("Conectando com o Mercado Livre...");
       const { data, error } = await supabase.functions.invoke("ml-connect");
@@ -64,6 +57,14 @@ const IntegracoesPage = () => {
       }
       veloToast.dismiss(toastId);
       window.location.href = authUrl;
+    }
+
+    if (platformId !== "mercadolivre") {
+      if (planLimits.loading) return;
+
+      if (!planLimits.canConnectMarketplace && statuses[platformId] !== "connected") {
+        setUpgradeModalOpen(true);
+      }
     }
   };
 
