@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -328,12 +329,10 @@ const AdminUsersPage = () => {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div className="min-h-screen bg-[#f5f5f4] text-[#111111]">
-      <div className="flex min-h-screen items-start">
-        <AdminSidebar userId={user.id} />
-
-        <main className="min-w-0 flex-1">
-          <header className="border-b border-black/[0.08] bg-white px-4 py-5 sm:px-6 lg:px-7">
+    <AdminShell active="users" userId={user.id}>
+      <div className="min-h-full bg-[#f5f5f4] text-[#111111]">
+        <main className="min-w-0">
+          <header className="border-b border-black/[0.08] bg-white px-4 py-5 sm:px-6 lg:px-4">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-black/55">Admin Velo</p>
@@ -357,7 +356,7 @@ const AdminUsersPage = () => {
             </div>
           </header>
 
-          <div className="space-y-5 px-4 py-5 sm:px-6 lg:px-7">
+          <div className="space-y-5 px-4 py-5 sm:px-6 lg:px-4">
             <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {stats.map((item) => (
                 <article key={item.label} className="rounded-[18px] border border-black/[0.08] bg-white p-5 shadow-sm">
@@ -390,20 +389,22 @@ const AdminUsersPage = () => {
                   ))}
                 </div>
 
-                <label className="flex w-full items-center justify-between gap-3 rounded-full border border-black/10 px-4 py-2 text-[13px] text-black/56 lg:w-auto">
-                  Ordenar
-                  <select
-                    value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value as SortKey)}
-                    className="bg-transparent font-semibold text-black outline-none"
-                  >
-                    {sortOptions.map((item) => (
-                      <option key={item.key} value={item.key}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="flex w-full flex-wrap items-center gap-2 rounded-full border border-black/10 bg-white px-2 py-2 text-[13px] lg:w-auto">
+                  <span className="px-2 font-medium text-black/45">Ordenar</span>
+                  {sortOptions.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setSortBy(item.key)}
+                      className={cn(
+                        "h-8 rounded-full px-3 text-[12px] font-semibold transition",
+                        sortBy === item.key ? "bg-black text-white" : "text-black/48 hover:bg-black/[0.04] hover:text-black"
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {isLoading ? (
@@ -466,13 +467,13 @@ const AdminUsersPage = () => {
           </div>
         </main>
       </div>
-    </div>
+    </AdminShell>
   );
 };
 
 const AdminSidebar = ({ userId }: { userId: string }) => (
-  <aside className="sticky top-0 hidden h-screen w-[280px] shrink-0 border-r border-white/[0.07] bg-[#111111] text-white lg:flex lg:flex-col">
-    <div className="flex h-[74px] items-center border-b border-white/[0.06] px-7">
+  <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 border-r border-[#2A2926] bg-[#171714] text-white lg:flex lg:flex-col">
+    <div className="flex h-[74px] items-center border-b border-[#2A2926] px-4">
       <Link to="/admin/painel" className="flex items-center gap-3">
         <VeloMark />
         <div>
@@ -482,8 +483,8 @@ const AdminSidebar = ({ userId }: { userId: string }) => (
       </Link>
     </div>
 
-    <div className="flex-1 px-5 py-6">
-      <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Monitoramento</p>
+    <div className="flex-1 px-4 py-6">
+      <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/62">Monitoramento</p>
       <div className="space-y-1">
         <AdminNavLink icon={LayoutDashboard} label="Painel" to="/admin/painel" />
         <AdminNavLink icon={Percent} label="Comissões" to="/admin/comissoes" />
@@ -492,7 +493,7 @@ const AdminSidebar = ({ userId }: { userId: string }) => (
       </div>
     </div>
 
-    <div className="mt-auto space-y-5 border-t border-white/[0.06] p-5">
+    <div className="mt-auto space-y-5 border-t border-[#2A2926] p-5">
       <div className="rounded-[12px] border border-white/[0.08] bg-white/[0.035] p-4">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black">
@@ -509,7 +510,7 @@ const AdminSidebar = ({ userId }: { userId: string }) => (
 
       <Link
         to="/dashboard"
-        className="flex h-10 items-center gap-2 rounded-[10px] px-2 text-[13px] font-semibold text-white transition hover:bg-white/[0.06]"
+        className="flex h-10 items-center gap-2 rounded-[10px] px-2 text-[13px] font-semibold text-white transition hover:bg-[#24231F]"
       >
         <ArrowLeft size={15} />
         Voltar à Velo
@@ -533,7 +534,7 @@ const AdminNavLink = ({
     to={to}
     className={cn(
       "group flex h-10 items-center gap-3 rounded-[9px] px-3 text-[14px] font-semibold transition",
-      active ? "bg-white/[0.10] text-white" : "text-white/56 hover:bg-white/[0.06] hover:text-white"
+      active ? "bg-[#2B2B29] text-white" : "text-white/72 hover:bg-[#24231F] hover:text-white"
     )}
   >
     <Icon size={16} strokeWidth={1.8} />
@@ -653,18 +654,7 @@ const UserDetailsPanel = ({
   onClose: () => void;
 }) => (
   <aside className="border-t border-black/[0.08] bg-[#fafafa] p-5 lg:border-l lg:border-t-0">
-    {!user ? (
-      <div className="flex min-h-full items-center justify-center rounded-[18px] border border-dashed border-black/12 p-8 text-center">
-        <div>
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-black text-white">
-            <UserRound size={20} />
-          </span>
-          <p className="mt-4 text-[15px] font-semibold">Selecione um usuário</p>
-          <p className="mt-2 text-[13px] leading-6 text-black/48">
-            Clique em uma linha para ver email, pagamento e dados de contato.
-          </p>
-        </div>
-      </div>
+    {!user ? (       <div className="space-y-5 opacity-70">         <div className="flex items-center gap-3">           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/[0.08] text-black/35">             <UserRound size={19} />           </span>           <div>             <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-black/55">Nenhum usuário selecionado</h2>             <p className="mt-1 text-[12px] text-black/40">Clique em uma conta para carregar os dados reais.</p>           </div>         </div>          <div className="grid gap-3">           <DetailCard label="Email" value="Ainda não selecionado" icon={Mail} />           <DetailCard label="Telefone" value="Ainda não selecionado" icon={UserRound} />           <DetailCard label="Assinatura" value="Plano, status e valor aparecem aqui" icon={ShieldCheck} />         </div>          <div className="rounded-[18px] border border-dashed border-black/[0.10] bg-white p-4">           <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-black/36">Financeiro</p>           <strong className="mt-4 block text-[30px] font-semibold tracking-[-0.05em] text-black/28">R$ 0,00</strong>           <div className="mt-4 grid grid-cols-2 gap-3 text-[12px]">             <div className="rounded-[14px] bg-[#f5f5f4] p-3">               <p className="text-black/36">Transações</p>               <p className="mt-2 font-semibold text-black/32">0</p>             </div>             <div className="rounded-[14px] bg-[#f5f5f4] p-3">               <p className="text-black/36">Última</p>               <p className="mt-2 font-semibold text-black/32">--</p>             </div>           </div>         </div>          <div className="rounded-[18px] border border-dashed border-black/[0.10] bg-white p-4">           <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-black/36">Operação</p>           <div className="mt-4 space-y-3 text-[13px]">             <DetailLine label="Mercado Livre" value="Aguardando seleção" />             <DetailLine label="Pedidos" value="--" />             <DetailLine label="Cadastro" value="--" />           </div>         </div>       </div>
     ) : (
       <div className="space-y-5">
         <div className="flex items-start justify-between gap-4">
@@ -675,9 +665,6 @@ const UserDetailsPanel = ({
               <p className="mt-1 truncate text-[12px] text-black/45">{user.user_id}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-[12px] font-semibold text-black/42 hover:text-black">
-            Fechar
-          </button>
         </div>
 
         {loading ? (
@@ -772,3 +759,4 @@ const DetailLine = ({ label, value }: { label: string; value: string }) => (
 );
 
 export default AdminUsersPage;
+

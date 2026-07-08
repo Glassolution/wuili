@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Loader2 } from "lucide-react";
@@ -271,8 +271,8 @@ const AdminCommissionsPage = () => {
   return (
     <AdminShell active="commissions" userId={user.id}>
       <header className="flex flex-col gap-3">
-        <h1 className="font-sans text-[40px] font-bold tracking-normal text-white md:text-[48px]">Comissões</h1>
-        <p className="text-[15px] text-white/48">Rastreie o funil completo por afiliado (visitas, cadastros e pagamentos).</p>
+        <h1 className="font-sans text-[40px] font-bold tracking-normal text-black md:text-[48px]">Comissões</h1>
+        <p className="text-[15px] text-black/52">Rastreie o funil completo por afiliado (visitas, cadastros e pagamentos).</p>
       </header>
 
       <section className="mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
@@ -285,9 +285,9 @@ const AdminCommissionsPage = () => {
         <MetricCard label="Comissão paga" value={money(totals.commissionPaid)} highlight="emerald" />
       </section>
 
-      <section className="mt-8 overflow-hidden rounded-[20px] border border-[#222] bg-[#0a0a0a]">
-        <div className="border-b border-[#222] px-5 py-4">
-          <h2 className="text-[16px] font-semibold text-white">Afiliados</h2>
+      <section className="mt-8 overflow-hidden rounded-[20px] border border-black/[0.08] bg-white">
+        <div className="border-b border-black/[0.08] px-5 py-4">
+          <h2 className="text-[16px] font-semibold text-black">Afiliados</h2>
           {error && <p className="mt-1 text-[13px] text-red-300">Erro ao carregar: {String((error as any)?.message ?? error)}</p>}
         </div>
 
@@ -296,11 +296,11 @@ const AdminCommissionsPage = () => {
             <Loader2 className="h-7 w-7 animate-spin text-white" />
           </div>
         ) : affiliates.length === 0 ? (
-          <div className="px-5 py-10 text-[14px] text-white/55">Nenhum afiliado encontrado.</div>
+          <div className="px-5 py-10 text-[14px] text-black/50">Nenhum afiliado encontrado.</div>
         ) : (
           <div className="overflow-auto">
             <table className="w-full min-w-[1220px] text-left text-[13px]">
-              <thead className="bg-white/[0.035] text-white/60">
+              <thead className="bg-white/[0.035] text-black/45">
                 <tr>
                   <Th>Afiliado</Th>
                   <Th>Email</Th>
@@ -318,16 +318,16 @@ const AdminCommissionsPage = () => {
               </thead>
               <tbody>
                 {affiliates.map((row) => (
-                  <tr key={row.code} className="border-b border-white/[0.055] text-white/70 last:border-0">
-                    <Td className="font-medium text-white">{row.affiliate_name ?? row.affiliate_user_id}</Td>
-                    <Td className="text-white/55">{row.affiliate_email ?? "-"}</Td>
-                    <Td className="font-mono text-[12px] font-semibold text-white">{row.code}</Td>
+                  <tr key={row.code} className="border-b border-white/[0.055] text-black/62 last:border-0">
+                    <Td className="font-medium text-black">{row.affiliate_name ?? row.affiliate_user_id}</Td>
+                    <Td className="text-black/50">{row.affiliate_email ?? "-"}</Td>
+                    <Td className="font-mono text-[12px] font-semibold text-black">{row.code}</Td>
                     <Td>
                       <a
                         href={row.link}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-white/70 hover:text-white"
+                        className="inline-flex items-center gap-1.5 text-black/62 hover:text-white"
                       >
                         <span className="max-w-[260px] truncate">{row.link}</span>
                         <ExternalLink size={14} />
@@ -339,12 +339,12 @@ const AdminCommissionsPage = () => {
                     <Td className="text-right">{row.payers ?? 0}</Td>
                     <Td className="text-right font-semibold text-amber-200">{money(Number(row.commission_pending ?? 0))}</Td>
                     <Td className="text-right font-semibold text-emerald-200">{money(Number(row.commission_paid ?? 0))}</Td>
-                    <Td className="text-white/55">{date(row.created_at)}</Td>
+                    <Td className="text-black/50">{date(row.created_at)}</Td>
                     <Td>
                       <button
                         type="button"
                         onClick={() => setSelectedCode(row.code)}
-                        className="rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2 text-[12px] font-semibold text-white/85 transition hover:bg-white/[0.07]"
+                        className="rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2 text-[12px] font-semibold text-black/75 transition hover:bg-white/[0.07]"
                       >
                         Ver detalhes
                       </button>
@@ -369,7 +369,7 @@ const AdminCommissionsPage = () => {
                 <Loader2 className="h-6 w-6 animate-spin text-white" />
               </div>
             ) : !details?.affiliate ? (
-              <p className="text-[14px] text-white/60">Não foi possível carregar os detalhes.</p>
+              <p className="text-[14px] text-black/45">Não foi possível carregar os detalhes.</p>
             ) : (
               <div className="space-y-6">
                 <div className="rounded-[16px] border border-white/10 bg-white/[0.03] p-4">
@@ -386,18 +386,18 @@ const AdminCommissionsPage = () => {
                     <ExternalLink size={14} />
                   </a>
                   <p className="mt-3 text-[12px] text-white/45">Criado em</p>
-                  <p className="mt-1 text-[13px] text-white/70">{date(details.affiliate.created_at)}</p>
+                  <p className="mt-1 text-[13px] text-black/62">{date(details.affiliate.created_at)}</p>
                 </div>
 
                 <div className="rounded-[16px] border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-[14px] font-semibold text-white">Indicados</p>
+                  <p className="text-[14px] font-semibold text-black">Indicados</p>
                   <p className="mt-1 text-[12px] text-white/45">
                     {details.conversions.length} registro(s) — status do funil e comissão gerada.
                   </p>
 
                   <div className="mt-4 overflow-auto">
                     <table className="w-full min-w-[460px] text-left text-[12px]">
-                      <thead className="text-white/55">
+                      <thead className="text-black/50">
                         <tr>
                           <Th>Indicado</Th>
                           <Th>Status</Th>
@@ -408,10 +408,10 @@ const AdminCommissionsPage = () => {
                       </thead>
                       <tbody>
                         {details.conversions.map((c) => (
-                          <tr key={c.id} className="border-t border-white/10 text-white/70">
+                          <tr key={c.id} className="border-t border-white/10 text-black/62">
                             <Td className="py-3">
                               <div className="min-w-0">
-                                <p className="truncate font-medium text-white">{c.subscriber_name ?? c.subscriber_email ?? c.subscriber_user_id}</p>
+                                <p className="truncate font-medium text-black">{c.subscriber_name ?? c.subscriber_email ?? c.subscriber_user_id}</p>
                                 <p className="truncate text-[11px] text-white/45">{c.subscriber_email ?? "-"}</p>
                               </div>
                             </Td>
@@ -423,7 +423,7 @@ const AdminCommissionsPage = () => {
                                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
                                     : c.status === "reached_payment"
                                       ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                                      : "border-white/15 bg-white/[0.03] text-white/70",
+                                      : "border-white/15 bg-white/[0.03] text-black/62",
                                 )}
                               >
                                 {c.status}
@@ -451,7 +451,7 @@ const AdminCommissionsPage = () => {
                 </div>
 
                 <div className="rounded-[16px] border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-[14px] font-semibold text-white">Visitas</p>
+                  <p className="text-[14px] font-semibold text-black">Visitas</p>
                   <p className="mt-1 text-[12px] text-white/45">{details.clicks.length} registro(s) (últimos 200).</p>
                 </div>
               </div>
@@ -472,7 +472,7 @@ const MetricCard = ({
   value: string;
   highlight?: "amber" | "emerald";
 }) => (
-  <div className="rounded-[20px] border border-[#222] bg-[#0a0a0a] p-5">
+  <div className="rounded-[20px] border border-black/[0.08] bg-white p-5">
     <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-white/38">{label}</p>
     <p
       className={cn(
@@ -495,3 +495,4 @@ const Td = ({ children, className }: { children: React.ReactNode; className?: st
 );
 
 export default AdminCommissionsPage;
+

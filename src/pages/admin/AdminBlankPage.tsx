@@ -1,4 +1,4 @@
-import { type ElementType, type ReactNode, useMemo, useState } from "react";
+﻿import { type ElementType, type ReactNode, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -31,6 +31,7 @@ import {
   YAxis,
 } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
@@ -451,10 +452,11 @@ const AdminBlankPage = () => {
   const activeTrials = data.subscriptions.filter((item) => item.is_trial).length;
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] text-[#0A0A0A]">
-      <div className="flex min-h-screen">
-        <aside className="sticky top-0 flex h-screen w-[270px] shrink-0 flex-col border-r border-white/10 bg-[#101010] text-white">
-          <div className="flex items-center gap-3.5 border-b border-white/10 px-6 py-5">
+    <AdminShell active="dashboard" userId={user?.id ?? "VELOADMIN"}>
+      <div className="min-h-full bg-[#F7F7F7] text-[#0A0A0A]">
+        <div className="hidden">
+        <aside className="sticky top-0 flex h-screen w-[248px] shrink-0 flex-col border-r border-[#2A2926] bg-[#171714] text-white">
+          <div className="flex items-center gap-3.5 border-b border-[#2A2926] px-4 py-4">
             <VeloMark />
             <div className="min-w-0">
               <p className="text-[19px] font-bold tracking-[-0.04em] text-white">VeloMetric</p>
@@ -462,7 +464,7 @@ const AdminBlankPage = () => {
             </div>
           </div>
 
-          <div className="flex-1 px-4 py-7">
+          <div className="flex-1 px-4 py-6">
             <p className="mb-4 px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-white">MONITORAMENTO</p>
             <nav className="space-y-2">
               <SidebarLink icon={LayoutDashboard} label="Painel" to="/admin/painel" active />
@@ -472,8 +474,8 @@ const AdminBlankPage = () => {
             </nav>
           </div>
 
-          <div className="mt-auto space-y-5 border-t border-white/10 px-4 py-6">
-            <div className="rounded-[10px] border border-white/10 bg-[#181818] p-4">
+          <div className="mt-auto space-y-5 border-t border-[#2A2926] px-4 py-6">
+            <div className="rounded-[10px] border border-[#2A2926] bg-[#181818] p-4">
               <div className="flex items-center gap-3.5">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-black">
                   <ShieldCheck size={18} />
@@ -497,31 +499,9 @@ const AdminBlankPage = () => {
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 pl-4">
-          <header className="border border-[#E5E5E5] bg-white px-4 py-4 sm:px-5 lg:px-6 my-4 mr-4 rounded-[20px] shadow-sm">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="lg:hidden">
-                  <VeloMark />
-                </div>
-                <label className="flex h-11 min-w-0 items-center gap-3 rounded-full border border-[#E5E5E5] bg-[#F5F5F5] px-4 text-[#737373] sm:w-[360px]">
-                  <Search size={15} />
-                  <input
-                    className="min-w-0 flex-1 bg-transparent text-[13px] text-[#0A0A0A] outline-none placeholder:text-[#A3A3A3]"
-                    placeholder="Buscar usuário, pedido ou produto..."
-                  />
-                </label>
-              </div>
+        </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <button className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[#E5E5E5] bg-white text-[#525252] transition hover:bg-[#FAFAFA] hover:text-black">
-                  <Bell size={16} />
-                  <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-[#22C55E]" />
-                </button>
-              </div>
-            </div>
-          </header>
-
+        <main className="min-w-0 pl-4 pt-4">
           <div className="space-y-4 pr-4 lg:pr-6 pb-6">
             {isLoading ? (
               <div className="flex min-h-[520px] items-center justify-center rounded-[20px] border border-[#E5E5E5] bg-white">
@@ -831,7 +811,7 @@ const AdminBlankPage = () => {
           </div>
         </main>
       </div>
-    </div>
+    </AdminShell>
   );
 };
 
@@ -852,7 +832,7 @@ const SidebarLink = ({
       "group flex h-10 items-center gap-3 rounded-[8px] px-3 text-[14px] font-semibold transition duration-150",
       active
         ? "bg-[#2A2A2A] text-white"
-        : "text-white hover:bg-white/[0.06]"
+        : "text-white hover:bg-[#24231F]"
     )}
   >
     <Icon size={16} className="text-white transition duration-150" strokeWidth={1.8} />
@@ -1139,3 +1119,4 @@ const VeloMark = () => (
 );
 
 export default AdminBlankPage;
+

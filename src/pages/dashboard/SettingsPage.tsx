@@ -172,9 +172,18 @@ const ProfileTab = () => {
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setFotoPreview(url);
-    setFotoFile(url);
+    if (file.size > 900_000) {
+      veloToast.error("Escolha uma imagem menor que 900 KB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result || "");
+      setFotoPreview(url);
+      setFotoFile(url);
+    };
+    reader.readAsDataURL(file);
   };
 
   useEffect(() => {
@@ -193,15 +202,28 @@ const ProfileTab = () => {
     const toastId = veloToast.loading("Salvando configurações...");
     try {
       if (user?.id) {
-        const { error } = await supabase
+        const profilePayload = {
+          display_name: nomeEditado,
+          whatsapp: telefone,
+          ...(fotoFile ? { avatar_url: fotoFile } : {}),
+        };
+
+        const { error, count } = await supabase
           .from("profiles")
-          .upsert({
-            user_id: user.id,
-            display_name: nomeEditado,
-            whatsapp: telefone,
-          });
+          .update(profilePayload)
+          .eq("user_id", user.id)
+          .select("user_id", { count: "exact", head: true });
 
         if (error) throw error;
+
+        if (!count) {
+          const { error: insertError } = await supabase.from("profiles").insert({
+            user_id: user.id,
+            ...profilePayload,
+          });
+
+          if (insertError) throw insertError;
+        }
       }
 
       setNome(nomeEditado);
@@ -220,9 +242,14 @@ const ProfileTab = () => {
       {/* Avatar header */}
       <div className="flex flex-col items-center text-center pb-2">
         <div className="relative">
-          <div className="w-[72px] h-[72px] rounded-full bg-black text-white flex items-center justify-center text-[24px] font-semibold overflow-hidden">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="w-[72px] h-[72px] rounded-full bg-black text-white flex items-center justify-center text-[24px] font-semibold overflow-hidden transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+            aria-label="Trocar foto de perfil"
+          >
             {avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" /> : iniciais}
-          </div>
+          </button>
           <button
             onClick={() => inputRef.current?.click()}
             className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-black text-white shadow-md hover:opacity-90"

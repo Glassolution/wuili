@@ -2040,11 +2040,6 @@ const DashboardHomePage = () => {
               <ToolbarIcon label="Ajuda">
                 <CircleHelp className="h-[15px] w-[15px]" strokeWidth={2} />
               </ToolbarIcon>
-              <button
-                type="button"
-                aria-label="Conta"
-                className="h-7 w-7 rounded-full bg-[radial-gradient(circle_at_72%_26%,#FFB84D_0%,#F97316_26%,#EC4899_58%,#7C3AED_100%)] shadow-[0_6px_18px_rgba(236,72,153,0.22)]"
-              />
             </div>
           </header>
 

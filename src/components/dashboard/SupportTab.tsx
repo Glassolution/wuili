@@ -36,7 +36,6 @@ const SupportTab = () => {
   const [ticketLoading, setTicketLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  const supportBootstrappedRef = useRef(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -112,12 +111,6 @@ const SupportTab = () => {
       setTicketLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!user?.id || supportBootstrappedRef.current) return;
-    supportBootstrappedRef.current = true;
-    void startHumanSupport();
-  }, [user?.id]);
 
   useEffect(() => {
     if (!ticket?.id) return;
@@ -238,10 +231,17 @@ const SupportTab = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-black px-2.5 py-1 text-[11px] font-semibold text-white dark:bg-white dark:text-black">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            Suporte humano
-          </span>
+          {!ticket && (
+            <button
+              type="button"
+              onClick={() => void startHumanSupport()}
+              disabled={ticketLoading}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-black px-5 text-[13px] font-semibold leading-none text-white shadow-sm transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black"
+            >
+              {ticketLoading ? <Loader2 size={14} className="animate-spin" /> : <Headphones size={14} />}
+              Chamar Ticket
+            </button>
+          )}
         </div>
       </div>
 
@@ -294,12 +294,12 @@ const SupportTab = () => {
               }
             }}
             placeholder="Digite sua mensagem para o suporte..."
-            disabled={loading || ticketLoading || supportClosed}
+            disabled={loading || ticketLoading || supportClosed || !ticket}
             className="h-10 flex-1 rounded-full border border-[#E5E5E5] bg-white px-4 text-[14px] text-[#0A0A0A] outline-none transition-colors placeholder:text-[#A3A3A3] focus:border-black disabled:opacity-60 dark:border-white/10 dark:bg-[#0f0f0f] dark:text-white dark:focus:border-white"
           />
           <button
             onClick={() => send(input)}
-            disabled={loading || ticketLoading || supportClosed || !input.trim()}
+            disabled={loading || ticketLoading || supportClosed || !ticket || !input.trim()}
             aria-label="Enviar"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-black"
           >
