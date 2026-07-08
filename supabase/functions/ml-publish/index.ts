@@ -468,6 +468,89 @@ Deno.serve(async (req) => {
       value_name: cleanText(productRecord.external_id) || 'SKU-001',
     })
 
+    // 3.5) PACKAGE_WEIGHT (peso da embalagem para frete)
+    let rawWeight = null
+    
+    // PRIORIDADE 1: Tenta scraping direto da página do produto (via flavorProduct/JSON-LD)
+    if (typeof productRecord.product_url === 'string' && productRecord.product_url.startsWith('http')) {
+      try {
+        console.log(`[ml-publish] Obtendo peso real via scraping direto de ${productRecord.product_url}...`)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 4000) // Timeout de 4 segundos
+        const pageRes = await fetch(productRecord.product_url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId))
+
+        if (pageRes.ok) {
+          const html = await pageRes.text()
+          const flavorMatch = html.match(/flavorProduct\s*=\s*(\{[\s\S]*?\});/)
+          let parsedWeight = null
+          if (flavorMatch) {
+            try {
+              const data = JSON.parse(flavorMatch[1])
+              if (data.weight) {
+                const parsed = parseFloat(data.weight)
+                if (!isNaN(parsed) && parsed > 0) parsedWeight = parsed
+              }
+            } catch (_e) { /* ignore */ }
+          }
+          if (!parsedWeight) {
+            const regexWeight = html.match(/"weight"\s*:\s*"([^"]+)"/)
+            if (regexWeight) {
+              const parsed = parseFloat(regexWeight[1])
+              if (!isNaN(parsed) && parsed > 0) parsedWeight = parsed
+            }
+          }
+          if (parsedWeight) {
+            rawWeight = parsedWeight
+            console.log(`[ml-publish] Peso real obtido via scraping direto: ${rawWeight} kg`)
+            
+            // Atualiza de forma assíncrona no banco para futuras publicações/dashboard
+            const catalogProductId = productRecord.external_id
+            if (catalogProductId) {
+              supabase
+                .from('catalog_products')
+                .update({ weight: rawWeight })
+                .eq('source', 'c7drop')
+                .eq('external_id', catalogProductId)
+                .then(({ error: dbErr }) => {
+                  if (dbErr) console.error('[ml-publish] Erro ao atualizar peso no banco:', dbErr.message)
+                  else console.log('[ml-publish] Peso atualizado com sucesso no banco de dados.')
+                })
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[ml-publish] Erro ou Timeout ao obter peso da página (usará fallbacks):', err.message || err)
+      }
+    }
+
+    // PRIORIDADE 2: Fallback para o peso extraído via regex da description no catálogo
+    if (!rawWeight || rawWeight <= 0) {
+      const dbWeight = typeof productRecord.weight === 'number' ? productRecord.weight : null
+      if (dbWeight && dbWeight > 0) {
+        rawWeight = dbWeight
+        console.log(`[ml-publish] Peso obtido via fallback (dados do catálogo): ${rawWeight} kg`)
+      }
+    }
+
+    // PRIORIDADE 3: Fallback padrão de segurança (0.5 kg / 500g)
+    if (!rawWeight || rawWeight <= 0) {
+      rawWeight = 0.5
+      console.log(`[ml-publish] Peso não obtido em nenhuma das fontes. Usando fallback de segurança: ${rawWeight} kg`)
+    }
+
+    // Para SELLER_PACKAGE_WEIGHT, a API do Mercado Livre permite APENAS a unidade 'g' (gramas)
+    const weightValName = `${Math.round(rawWeight * 1000)} g`
+      
+    mergeAttribute(allAttrs, {
+      id: 'SELLER_PACKAGE_WEIGHT',
+      value_name: weightValName,
+    })
+
     // 4) Atributos obrigatórios que o usuário NÃO enviou:
     //    - BRAND: fallback seguro "Genérica"
     //    - MODEL: fallback seguro (título curto)
