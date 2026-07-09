@@ -97,8 +97,8 @@ Deno.serve(async (req) => {
       userIds.length
         ? adminClient
             .from("profiles")
-            .select("id,user_id,full_name,display_name,email,avatar_url,created_at")
-            .in("id", userIds)
+            .select("id,user_id,display_name,avatar_url,created_at")
+            .in("user_id", userIds)
         : Promise.resolve({ data: [], error: null }),
       userIds.length
         ? adminClient
