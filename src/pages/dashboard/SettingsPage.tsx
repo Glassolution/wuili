@@ -546,9 +546,42 @@ const IntegrationsTab = () => {
 
 /* ══ Plan ════════════════════════════════════════════════ */
 const PLAN_DATA = [
-  { id: "gratis", name: "Grátis", price: "R$0", period: "/mês", features: ["Exploração do catálogo", "Dashboard demonstrativo", "IA básica de teste", "1 marketplace conectado", "Sem publicação de produtos", "Sem automações operacionais"] },
-  { id: "pro", name: "Pro", price: "R$99,90", period: "/mês", features: ["Até 30 produtos publicados", "Até 2 marketplaces", "Até 3 agentes IA", "Automações limitadas", "Analytics básico", "Monitoramento básico 24h", "Suporte prioritário"] },
-  { id: "business", name: "Business", price: "R$149,90", period: "/mês", features: ["Produtos ilimitados", "Marketplaces ilimitados", "Agentes IA ilimitados", "Automações ilimitadas", "Analytics premium", "IA estratégica avançada", "Suporte dedicado", "Operação sem limites"] },
+  {
+    id: "gratis",
+    name: "Grátis",
+    price: "R$0",
+    period: "/mês",
+    description: "Para explorar a Velo sem compromisso antes de começar a vender.",
+    features: ["Exploração do catálogo", "Dashboard demonstrativo", "IA básica de teste"],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "R$99,90",
+    period: "/mês",
+    description: "Para validar produtos, publicar com segurança e operar com IA sem complexidade.",
+    features: [
+      "Até 30 produtos publicados",
+      "Até 2 marketplaces conectados",
+      "Até 3 agentes IA",
+      "Automações limitadas",
+      "Analytics básico",
+    ],
+  },
+  {
+    id: "business",
+    name: "Business",
+    price: "R$149,90",
+    period: "/mês",
+    description: "Para quem quer escalar catálogo, automações e análise avançada sem limites.",
+    features: [
+      "Produtos ilimitados",
+      "Marketplaces ilimitados",
+      "Agentes IA ilimitados",
+      "Automações ilimitadas",
+      "IA estratégica avançada",
+    ],
+  },
 ];
 
 const PlanTab = () => {
@@ -575,6 +608,7 @@ const PlanTab = () => {
             {current.price}<span className="text-[13px] text-[#737373] dark:text-zinc-400 font-normal">{current.period}</span>
           </p>
         </div>
+        <p className="text-[13px] text-[#525252] dark:text-zinc-300 mb-4 max-w-xl">{current.description}</p>
         <ul className="space-y-2 mb-5">
           {current.features.map((f) => (
             <li key={f} className="flex items-center gap-2 text-[13px] text-[#0A0A0A] dark:text-white">
@@ -608,9 +642,10 @@ const PlanTab = () => {
               <p className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white mt-1">
                 {p.price}<span className="text-[11px] text-[#737373] dark:text-zinc-400 font-normal">{p.period}</span>
               </p>
+              <p className="mt-2 text-[11.5px] leading-relaxed text-[#737373] dark:text-zinc-400 line-clamp-3">{p.description}</p>
               <ul className="mt-3 space-y-1.5">
-                {p.features.slice(0, 3).map((f) => (
-                  <li key={f} className="text-[11px] text-[#737373] dark:text-zinc-400 flex items-start gap-1.5">
+                {p.features.slice(0, 4).map((f) => (
+                  <li key={f} className="text-[11px] text-[#525252] dark:text-zinc-300 flex items-start gap-1.5">
                     <CheckCircle2 size={11} className="text-black dark:text-white mt-0.5 shrink-0" /> <span>{f}</span>
                   </li>
                 ))}
