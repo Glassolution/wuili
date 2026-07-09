@@ -387,7 +387,7 @@ const AdminUsersPage = () => {
             ) : (
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {pagedUsers.map((u) => (
-                  <UserCard key={u.user_id} user={u} />
+                  <UserCard key={u.user_id} user={u} onClick={() => setSelectedUserId(u.user_id)} />
                 ))}
               </div>
             )}
