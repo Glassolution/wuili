@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ArrowUp, Check, CheckCheck, Headphones, Loader2, UserRound } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import RefundSection from "@/components/dashboard/RefundSection";
+
+const TRIAL_REASON_MESSAGES: Record<string, string> = {
+  bug: "Olá! Estou no período de trial e encontrei um bug na plataforma. Poderiam me ajudar?",
+  refund: "Olá! Estou no período de trial e gostaria de solicitar um reembolso. Poderiam me orientar?",
+  billing: "Olá! Tenho uma dúvida sobre cobrança relacionada ao meu trial. Podem me ajudar?",
+  other: "Olá! Preciso de ajuda com um assunto relacionado ao meu trial.",
+};
+
 
 type SupportTicket = {
   id: string;
