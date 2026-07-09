@@ -80,7 +80,7 @@ const AdminSupportPage = () => {
   const qc = useQueryClient();
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
-  const [activeCategory, setActiveCategory] = useState<TicketCategory | "todos">("todos");
+  
   const fallbackAdmin = isAdminEmail(user?.email);
 
   const { data: profile, isLoading: loadingProfile } = useQuery({
