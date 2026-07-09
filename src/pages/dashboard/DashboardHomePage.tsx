@@ -832,7 +832,7 @@ const OverviewMetricCard = ({ label, value, delta, values }: { label: string; va
   </article>
 );
 
-const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: number[] }) => {
+const SalesOverTimeChart = ({ revenue, values, labels, currentRange, previousRange }: { revenue: string; values: number[]; labels: string[]; currentRange: string; previousRange: string }) => {
   const chartValues = normalizeSeries(values, 0);
   const hasData = chartValues.some((value) => value > 0);
   const chartMax = Math.max(...chartValues, 1);
@@ -848,14 +848,9 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
   const plotRight = 720;
   const plotTop = 18;
   const plotBottom = 146;
-  const xTicks = [
-    ["fev. 2024", plotLeft],
-    ["abr. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 1],
-    ["jun. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 2],
-    ["ago. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 3],
-    ["out. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 4],
-    ["dez. 2024", plotRight],
-  ] as const;
+  const xTicks = labels.map((label, index) =>
+    [label, plotLeft + ((plotRight - plotLeft) / (labels.length - 1)) * index] as const
+  );
   const yLabels = hasData
     ? [maxValue, maxValue / 2, 0].map((value) =>
         value >= 1000 ? `R$ ${Math.round(value / 1000)} mil` : formatCurrency(value),
