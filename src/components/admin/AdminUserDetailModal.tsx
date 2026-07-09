@@ -342,7 +342,7 @@ const Panel = ({
   children,
 }: {
   title: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: any;
   children: React.ReactNode;
 }) => (
   <section className="rounded-2xl border border-white/[0.06] bg-[#0B0B0B] p-5">
