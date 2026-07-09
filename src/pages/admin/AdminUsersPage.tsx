@@ -461,25 +461,42 @@ const Th = ({ children, first }: { children: React.ReactNode; first?: boolean })
 
 const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }) => {
   const temp = leadTemperature(user);
+  const online = isOnline(user.last_seen_at);
   return (
     <tr onClick={onClick} className="group cursor-pointer transition hover:bg-white/[0.02]">
       <td className="py-3.5 pl-2 pr-4">
         <div className="flex items-center gap-3">
-          <Avatar user={user} />
+          <Avatar user={user} online={online} />
           <span className="truncate font-medium text-white">{user.name || "Sem nome"}</span>
         </div>
       </td>
       <td className="px-4 py-3.5 text-white/70">{user.email || "—"}</td>
       <td className="px-4 py-3.5 text-white/60">
-        <span className="inline-flex items-center gap-1.5">
-          <Store size={12} className="text-white/40" />
-          {formatDateShort(user.subscription_updated_at ?? user.created_at)}
-        </span>
+        {online ? (
+          <span className="inline-flex items-center gap-1.5 text-[#4ADE80]">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22C55E] opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#22C55E]" />
+            </span>
+            Online agora
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5">
+            <Store size={12} className="text-white/40" />
+            {user.last_seen_at ? relativeTime(user.last_seen_at) : "—"}
+          </span>
+        )}
       </td>
       <td className="px-4 py-3.5">
-        <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
-          {tempLabel[temp]}
-        </span>
+        {online ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#22C55E]/25 bg-[#22C55E]/10 px-2.5 py-1 text-[11px] font-medium text-[#4ADE80]">
+            Online
+          </span>
+        ) : (
+          <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
+            {tempLabel[temp]}
+          </span>
+        )}
       </td>
       <td className="px-4 py-3.5 text-white/55">{relativeTime(user.created_at)}</td>
       <td className="px-4 py-3.5">
