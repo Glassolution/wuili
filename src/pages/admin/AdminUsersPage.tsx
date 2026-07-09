@@ -92,7 +92,7 @@ const chooseSubscription = (current: SubscriptionRow | undefined, next: Subscrip
 
 const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
   const [functionResult, profilesResult, subscriptionsResult] = await Promise.all([
-    supabase.functions.invoke<AdminUserRow[]>("admin-users"),
+    supabase.functions.invoke("admin-users") as Promise<{ data: AdminUserRow[] | null; error: unknown }>,
     supabase
       .from("profiles")
       .select("user_id,display_name,avatar_url,plano,created_at")
@@ -157,9 +157,9 @@ const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
 };
 
 const fetchAdminUserDetails = async (userId: string): Promise<AdminUserDetails> => {
-  const { data, error } = await supabase.functions.invoke<AdminUserDetails>("get-user-details", {
+  const { data, error } = (await supabase.functions.invoke("get-user-details", {
     body: { user_id: userId },
-  });
+  })) as { data: AdminUserDetails | null; error: unknown };
 
   if (error) throw error;
 
