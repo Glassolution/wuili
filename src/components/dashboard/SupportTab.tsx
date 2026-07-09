@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowUp, Check, CheckCheck, Headphones, Loader2, UserRound } from "lucide-react";
+import { ArrowUp, Check, CheckCheck, Headphones, Loader2, UserRound, X } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,16 @@ const TRIAL_REASON_MESSAGES: Record<string, string> = {
   other: "Olá! Preciso de ajuda com um assunto relacionado ao meu trial.",
 };
 
+export const SUPPORT_CATEGORIES: Array<{ key: TicketCategory; label: string; description: string }> = [
+  { key: "financeiro", label: "Financeiro", description: "Cobranças, planos e pagamentos" },
+  { key: "bug", label: "Bug / Erro", description: "Problemas técnicos na plataforma" },
+  { key: "integracao", label: "Integrações", description: "Mercado Livre, Shopee e outras" },
+  { key: "conta", label: "Conta", description: "Login, dados pessoais, acessos" },
+  { key: "reembolso", label: "Reembolso", description: "Solicitações de devolução" },
+  { key: "outros", label: "Outros", description: "Dúvidas gerais e outros assuntos" },
+];
+
+type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
 
 type SupportTicket = {
   id: string;
@@ -21,6 +31,8 @@ type SupportTicket = {
   status: "open" | "closed";
   ai_active: boolean;
   admin_last_seen_at: string | null;
+  category: TicketCategory;
+  subject: string | null;
   created_at: string;
   updated_at: string;
 };
