@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminUserDetailModal } from "@/components/admin/AdminUserDetailModal";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
