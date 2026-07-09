@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
+import SearchPalette from "@/components/dashboard/SearchPalette";
 
 type NavItem = {
   label: string;
