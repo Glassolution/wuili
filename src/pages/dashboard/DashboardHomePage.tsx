@@ -1173,84 +1173,112 @@ const TrialStatusBanner = ({
     ? new Date(endsAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
     : "—";
 
+  const countdownTime = countdown
+    ? `${String(Math.floor((countdown.totalSeconds % 86400) / 3600)).padStart(2, "0")}:${String(
+        Math.floor((countdown.totalSeconds % 3600) / 60),
+      ).padStart(2, "0")}:${String(countdown.totalSeconds % 60).padStart(2, "0")}`
+    : "00:00:00";
+
   const modal = modalOpen ? (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-md"
       onClick={closeModal}
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="w-full max-w-[420px] overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.25)]"
         onClick={(e) => e.stopPropagation()}
+        style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" }}
       >
         {modalStep === "info" ? (
           <>
-            <div className="flex items-start justify-between px-6 pt-6">
-              <div>
-                <h3 className="text-lg font-semibold text-neutral-900">Seu trial</h3>
-                <p className="mt-1 text-sm text-neutral-500">Acompanhe o status do seu período de teste</p>
-              </div>
+            {/* Hero visual */}
+            <div
+              className="relative flex h-40 items-center justify-center overflow-hidden rounded-2xl"
+              style={{
+                background:
+                  "radial-gradient(120% 100% at 20% 20%, #a5b4fc 0%, transparent 55%), radial-gradient(140% 100% at 90% 30%, #fda4af 0%, transparent 60%), radial-gradient(120% 120% at 60% 100%, #fbbf24 0%, transparent 55%), linear-gradient(135deg, #fce7f3 0%, #e0e7ff 50%, #fef3c7 100%)",
+              }}
+            >
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-full p-1 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700"
+                className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-neutral-700 backdrop-blur-sm transition hover:bg-white"
                 aria-label="Fechar"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" strokeWidth={2.4} />
               </button>
-            </div>
-
-            <div className="px-6 pt-5">
-              <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">Tempo restante</div>
-                {countdown ? (
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="font-mono text-3xl font-semibold tabular-nums text-neutral-900">
-                      {String(Math.floor((countdown.totalSeconds % 86400) / 3600)).padStart(2, "0")}:
-                      {String(Math.floor((countdown.totalSeconds % 3600) / 60)).padStart(2, "0")}:
-                      {String(countdown.totalSeconds % 60).padStart(2, "0")}
-                    </span>
-                    <span className="text-sm text-neutral-500">· {countdown.days} dias</span>
-                  </div>
-                ) : (
-                  <div className="mt-2 text-lg font-semibold text-neutral-900">Trial encerrado</div>
-                )}
+              <div className="text-center">
+                <div className="font-mono text-[42px] font-semibold leading-none tracking-tight text-neutral-900 tabular-nums">
+                  {countdownTime}
+                </div>
+                <div className="mt-2 text-[13px] font-medium text-neutral-700">
+                  {countdown ? `Restam ${countdown.days} dias` : "Trial encerrado"}
+                </div>
               </div>
-
-              <dl className="mt-4 space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <dt className="text-neutral-500">Plano</dt>
-                  <dd className="font-medium text-neutral-900">{trialPlanLabel}</dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-neutral-500">Início</dt>
-                  <dd className="font-medium text-neutral-900">{trialStartLabel}</dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-neutral-500">Encerra em</dt>
-                  <dd className="font-medium text-neutral-900">{trialEndLabel}</dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-neutral-500">Status</dt>
-                  <dd className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    {countdown ? "Ativo" : "Expirado"}
-                  </dd>
-                </div>
-              </dl>
             </div>
 
-            <div className="mt-6 flex items-center justify-end gap-2 border-t border-neutral-100 bg-neutral-50 px-6 py-4">
+            {/* Title */}
+            <h3 className="mt-6 text-[26px] font-bold leading-tight tracking-tight text-neutral-950">
+              Seu trial
+            </h3>
+
+            {/* Meta list */}
+            <p className="mt-4 text-[14px] text-neutral-500">Detalhes:</p>
+            <ul className="mt-3 space-y-3.5">
+              <li className="flex items-center gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-white">
+                  <Flame className="h-4 w-4" strokeWidth={2.2} />
+                </span>
+                <span className="text-[15px] text-neutral-800">
+                  Plano <span className="font-semibold capitalize text-neutral-950">{trialPlanLabel}</span>
+                </span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-white">
+                  <CalendarDays className="h-4 w-4" strokeWidth={2.2} />
+                </span>
+                <span className="text-[15px] text-neutral-800">
+                  Iniciou em <span className="font-semibold text-neutral-950">{trialStartLabel}</span>
+                </span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-white">
+                  <Clock3 className="h-4 w-4" strokeWidth={2.2} />
+                </span>
+                <span className="text-[15px] text-neutral-800">
+                  Encerra em <span className="font-semibold text-neutral-950">{trialEndLabel}</span>
+                </span>
+              </li>
+            </ul>
+
+            {/* Status pill row */}
+            <div className="mt-5 flex items-center justify-between rounded-2xl bg-neutral-100 px-4 py-3">
+              <span className="text-[14px] text-neutral-600">Status atual</span>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-semibold ${
+                  countdown ? "bg-emerald-100 text-emerald-800" : "bg-neutral-200 text-neutral-700"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${countdown ? "bg-emerald-500" : "bg-neutral-500"}`}
+                />
+                {countdown ? "Ativo" : "Expirado"}
+              </span>
+            </div>
+
+            {/* Footer actions */}
+            <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-neutral-100"
+                className="rounded-full px-4 py-2.5 text-[14px] font-medium text-neutral-600 transition hover:text-neutral-900"
               >
                 Fechar
               </button>
               <button
                 type="button"
                 onClick={() => setModalStep("reason")}
-                className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className="rounded-full bg-neutral-950 px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-neutral-800"
               >
                 Acessar suporte
               </button>
@@ -1258,58 +1286,68 @@ const TrialStatusBanner = ({
           </>
         ) : (
           <>
-            <div className="flex items-start justify-between px-6 pt-6">
+            <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-neutral-900">Qual o motivo do contato?</h3>
-                <p className="mt-1 text-sm text-neutral-500">Selecione o motivo para agilizarmos seu atendimento</p>
+                <h3 className="text-[24px] font-bold leading-tight tracking-tight text-neutral-950">
+                  Qual o motivo?
+                </h3>
+                <p className="mt-1.5 text-[14px] text-neutral-500">
+                  Selecione o motivo do contato para agilizarmos o atendimento
+                </p>
               </div>
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-full p-1 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition hover:bg-neutral-200"
                 aria-label="Fechar"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" strokeWidth={2.4} />
               </button>
             </div>
 
-            <div className="px-6 pt-5">
-              <div className="space-y-2">
-                {supportReasons.map((r) => {
-                  const active = selectedReason === r.id;
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setSelectedReason(r.id)}
-                      className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${
-                        active
-                          ? "border-neutral-900 bg-neutral-900/[0.03]"
-                          : "border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50"
+            <div className="mt-5 space-y-2">
+              {supportReasons.map((r) => {
+                const active = selectedReason === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setSelectedReason(r.id)}
+                    className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition ${
+                      active
+                        ? "bg-neutral-950 text-white"
+                        : "bg-neutral-100 text-neutral-900 hover:bg-neutral-200/70"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                        active ? "bg-white text-neutral-950" : "bg-neutral-950 text-white"
                       }`}
                     >
-                      <span
-                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                          active ? "border-neutral-900 bg-neutral-900" : "border-neutral-300"
-                        }`}
+                      {active ? (
+                        <Check className="h-4 w-4" strokeWidth={3} />
+                      ) : (
+                        <CircleHelp className="h-4 w-4" strokeWidth={2.2} />
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="text-[15px] font-semibold">{r.label}</div>
+                      <div
+                        className={`text-[12.5px] ${active ? "text-white/70" : "text-neutral-500"}`}
                       >
-                        {active && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
-                      </span>
-                      <div>
-                        <div className="text-sm font-medium text-neutral-900">{r.label}</div>
-                        <div className="text-xs text-neutral-500">{r.description}</div>
+                        {r.description}
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="mt-6 flex items-center justify-between gap-2 border-t border-neutral-100 bg-neutral-50 px-6 py-4">
+            <div className="mt-5 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setModalStep("info")}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-neutral-100"
+                className="rounded-full px-4 py-2.5 text-[14px] font-medium text-neutral-600 transition hover:text-neutral-900"
               >
                 Voltar
               </button>
@@ -1317,7 +1355,7 @@ const TrialStatusBanner = ({
                 type="button"
                 disabled={!selectedReason}
                 onClick={() => selectedReason && goToSupport(selectedReason)}
-                className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-full bg-neutral-950 px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Ir para o suporte
               </button>
@@ -1327,6 +1365,8 @@ const TrialStatusBanner = ({
       </div>
     </div>
   ) : null;
+
+
 
   if (countdown) {
     const pad = (n: number) => String(n).padStart(2, "0");
