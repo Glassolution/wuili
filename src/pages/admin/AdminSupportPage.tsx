@@ -414,15 +414,20 @@ const CategoryColumn = ({
                 </div>
               </div>
 
-              {t.user_email && (
-                <div className="flex items-center gap-1.5 text-[12px] text-[#525252]">
-                  <Mail size={12} className="shrink-0 text-[#A3A3A3]" />
-                  <span className="truncate">{t.user_email}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 text-[12px] text-[#525252]">
+                <Mail size={12} className="shrink-0 text-[#A3A3A3]" />
+                <span className="truncate">{t.user_email || "email indisponível"}</span>
+              </div>
 
-              {t.subject && (
-                <p className="line-clamp-2 text-[12px] leading-5 text-[#525252]">{t.subject}</p>
+              {(t.last_message || t.subject) && (
+                <div className="rounded-lg bg-[#F5F5F4] px-2.5 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#A3A3A3]">
+                    Última mensagem
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#0A0A0A]">
+                    {t.last_message || t.subject}
+                  </p>
+                </div>
               )}
 
               <span
