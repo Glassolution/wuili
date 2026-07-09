@@ -1066,7 +1066,7 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
     </div>
 
     <div className="mt-2 grid grid-cols-1 gap-2 min-[700px]:grid-cols-[2fr_1fr]">
-      <SalesOverTimeChart revenue={kpis.revenue} values={salesSeries} />
+      <SalesOverTimeChart revenue={kpis.revenue} values={salesSeries} labels={labels} currentRange={currentRange} previousRange={previousRange} />
       <SalesBreakdown rows={kpis.salesBreakdown} />
     </div>
 
