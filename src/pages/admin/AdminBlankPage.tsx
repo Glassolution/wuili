@@ -1,1122 +1,641 @@
-﻿import { type ElementType, type ReactNode, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Bell,
-  Boxes,
-  CalendarDays,
+  ChevronLeft,
   ChevronDown,
-  CircleDollarSign,
-  Headphones,
+  Download,
+  HelpCircle,
   LayoutDashboard,
-  Loader2,
-  MoreHorizontal,
-  PackageCheck,
-  Percent,
+  ListChecks,
+  Users as UsersIcon,
+  Workflow,
+  BarChart3,
+  Sparkles,
+  Star,
+  Briefcase,
+  DollarSign,
+  Plug,
+  Settings,
+  FileText,
+  User,
+  Plus,
   Search,
-  ShieldCheck,
-  ShoppingCart,
-  Users,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   Area,
   AreaChart,
   Bar,
   BarChart,
-  CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
-import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
 type SubscriptionRow = Pick<
   Database["public"]["Tables"]["subscriptions"]["Row"],
-  "amount" | "created_at" | "updated_at" | "status" | "plan" | "is_trial"
+  "amount" | "created_at" | "updated_at" | "status"
 >;
-
 type OrderRow = Pick<
   Database["public"]["Tables"]["orders"]["Row"],
-  "created_at" | "ordered_at" | "platform" | "profit" | "status" | "total_amount"
+  "created_at" | "ordered_at" | "status" | "total_amount"
 >;
-
 type PublicationRow = Pick<
   Database["public"]["Tables"]["user_publications"]["Row"],
-  "created_at" | "price" | "published_at" | "status" | "title"
+  "created_at" | "status"
 >;
+type ProfileRow = Pick<Database["public"]["Tables"]["profiles"]["Row"], "created_at">;
 
-type CatalogProductRow = Pick<
-  Database["public"]["Tables"]["catalog_products"]["Row"],
-  "category" | "margin_percent" | "orders_count" | "suggested_price" | "title"
->;
-
-type ProfileRow = Pick<Database["public"]["Tables"]["profiles"]["Row"], "created_at" | "display_name" | "store_name">;
-type SupportTicketHistoryRow = Pick<Database["public"]["Tables"]["support_tickets"]["Row"], "created_at" | "status">;
-type RefundRequestRow = Pick<Database["public"]["Tables"]["refund_requests"]["Row"], "created_at" | "status">;
-
-type CountResult = {
-  count: number | null;
-  error: { message?: string } | null;
-};
-
-type AdminPanelData = {
-  counts: {
-    users: number;
-    products: number;
-    publications: number;
-    orders: number;
-    activeSubscriptions: number;
-    openTickets: number;
-    pendingRefunds: number;
-  };
+type PanelData = {
+  counts: { users: number; publications: number; orders: number; activeSubs: number };
   subscriptions: SubscriptionRow[];
   orders: OrderRow[];
   publications: PublicationRow[];
-  products: CatalogProductRow[];
   profiles: ProfileRow[];
-  supportTickets: SupportTicketHistoryRow[];
-  refundRequests: RefundRequestRow[];
 };
 
-type MonthPoint = {
-  key: string;
-  label: string;
-  receita: number;
-};
-
-type DayPoint = {
-  label: string;
-  valor: number;
-};
-
-type RevenueRange = 3 | 6 | 12;
-
-type DeltaTone = "positive" | "negative" | "neutral";
-
-const revenueRangeLabels: Record<RevenueRange, string> = {
-  3: "Últimos 3 meses",
-  6: "Últimos 6 meses",
-  12: "Últimos 12 meses",
-};
-
-const emptyData: AdminPanelData = {
-  counts: {
-    users: 0,
-    products: 0,
-    publications: 0,
-    orders: 0,
-    activeSubscriptions: 0,
-    openTickets: 0,
-    pendingRefunds: 0,
-  },
+const empty: PanelData = {
+  counts: { users: 0, publications: 0, orders: 0, activeSubs: 0 },
   subscriptions: [],
   orders: [],
   publications: [],
-  products: [],
   profiles: [],
-  supportTickets: [],
-  refundRequests: [],
 };
 
-const readCount = (result: CountResult) => (result.error ? 0 : result.count ?? 0);
+const formatBRL = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(v || 0);
 
-const formatBRL = (value: number) =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
+const formatNumber = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { maximumFractionDigits: v >= 1000 ? 1 : 0 }).format(v || 0);
 
-const formatNumber = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(Number(value || 0));
-
-const getMonthKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-
-const getSourceDate = (value: string | null) => (value ? new Date(value) : null);
-
-const isWithinDateWindow = (value: string | null, start: Date, end: Date) => {
-  const date = getSourceDate(value);
-  if (!date) return false;
-  return date >= start && date <= end;
+const formatCompact = (v: number) => {
+  if (v >= 1000) return `${(v / 1000).toFixed(1).replace(".", ",")}K`;
+  return formatNumber(v);
 };
 
-const getDayWindow = (days: number, offsetDays = 0) => {
+const getWindow = (days: number, offset = 0) => {
   const end = new Date();
   end.setHours(23, 59, 59, 999);
-  end.setDate(end.getDate() - offsetDays);
-
+  end.setDate(end.getDate() - offset);
   const start = new Date(end);
   start.setDate(start.getDate() - (days - 1));
   start.setHours(0, 0, 0, 0);
   return { start, end };
 };
 
-const getMonthWindow = (monthsCount: RevenueRange, offsetPeriods = 0) => {
-  const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth() + 1 - offsetPeriods * monthsCount, 0, 23, 59, 59, 999);
-  const start = new Date(end.getFullYear(), end.getMonth() - (monthsCount - 1), 1, 0, 0, 0, 0);
-  return { start, end };
+const inRange = (v: string | null, s: Date, e: Date) => {
+  if (!v) return false;
+  const d = new Date(v);
+  return d >= s && d <= e;
 };
 
-const buildMonthSeries = (subscriptions: SubscriptionRow[], monthsCount: RevenueRange): MonthPoint[] => {
-  const { start } = getMonthWindow(monthsCount, 0);
-  const months = Array.from({ length: monthsCount }, (_, index) => {
-    const date = new Date(start.getFullYear(), start.getMonth() + index, 1);
-    return {
-      key: getMonthKey(date),
-      label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", ""),
-      receita: 0,
-    };
-  });
-
-  const byKey = new Map(months.map((month) => [month.key, month]));
-  subscriptions.forEach((subscription) => {
-    const sourceDate = subscription.updated_at ?? subscription.created_at;
-    if (!sourceDate) return;
-    const month = byKey.get(getMonthKey(new Date(sourceDate)));
-    if (!month) return;
-    month.receita += Number(subscription.amount ?? 0);
-  });
-
-  return months;
+const deltaPct = (cur: number, prev: number) => {
+  if (cur === 0 && prev === 0) return 0;
+  if (prev === 0) return 100;
+  return ((cur - prev) / Math.abs(prev)) * 100;
 };
 
-const buildDailyCountSeries = (dates: Array<string | null>, days = 7): DayPoint[] => {
-  const now = new Date();
-  return Array.from({ length: days }, (_, index) => {
-    const date = new Date(now);
-    date.setDate(now.getDate() - (days - 1 - index));
-    const key = date.toISOString().slice(0, 10);
-    return {
-      label: new Intl.DateTimeFormat("pt-BR", { weekday: "short" }).format(date).replace(".", ""),
-      valor: dates.filter((value) => (value ?? "").slice(0, 10) === key).length,
-    };
-  });
-};
+const formatDelta = (d: number) => `${d > 0 ? "+" : d < 0 ? "-" : ""}${Math.abs(d).toFixed(1).replace(".", ",")}%`;
 
-const getCurrentVsPreviousCount = (dates: Array<string | null>, days: number) => {
-  const current = getDayWindow(days, 0);
-  const previous = getDayWindow(days, days);
-  return {
-    current: dates.filter((value) => isWithinDateWindow(value, current.start, current.end)).length,
-    previous: dates.filter((value) => isWithinDateWindow(value, previous.start, previous.end)).length,
-  };
-};
-
-const getCurrentVsPreviousRevenue = (subscriptions: SubscriptionRow[], monthsCount: RevenueRange) => {
-  const currentWindow = getMonthWindow(monthsCount, 0);
-  const previousWindow = getMonthWindow(monthsCount, 1);
-
-  const sumInWindow = (start: Date, end: Date) =>
-    subscriptions.reduce((sum, subscription) => {
-      const sourceDate = subscription.updated_at ?? subscription.created_at;
-      if (!isWithinDateWindow(sourceDate, start, end)) return sum;
-      return sum + Number(subscription.amount ?? 0);
-    }, 0);
-
-  return {
-    current: sumInWindow(currentWindow.start, currentWindow.end),
-    previous: sumInWindow(previousWindow.start, previousWindow.end),
-  };
-};
-
-const getCurrentVsPreviousSubscriptionRevenue = (subscriptions: SubscriptionRow[], days: number) => {
-  const currentWindow = getDayWindow(days, 0);
-  const previousWindow = getDayWindow(days, days);
-
-  const sumInWindow = (start: Date, end: Date) =>
-    subscriptions.reduce((sum, subscription) => {
-      const sourceDate = subscription.updated_at ?? subscription.created_at;
-      if (!isWithinDateWindow(sourceDate, start, end)) return sum;
-      return sum + Number(subscription.amount ?? 0);
-    }, 0);
-
-  return {
-    current: sumInWindow(currentWindow.start, currentWindow.end),
-    previous: sumInWindow(previousWindow.start, previousWindow.end),
-  };
-};
-
-const getCurrentVsPreviousPendingActivity = (supportTickets: SupportTicketHistoryRow[], refundRequests: RefundRequestRow[], days: number) => {
-  const supportDates = supportTickets
-    .filter((ticket) => ticket.status === "open")
-    .map((ticket) => ticket.created_at);
-  const refundDates = refundRequests
-    .filter((refund) => refund.status === "pending")
-    .map((refund) => refund.created_at);
-
-  const currentSupport = getCurrentVsPreviousCount(supportDates, days);
-  const currentRefunds = getCurrentVsPreviousCount(refundDates, days);
-
-  return {
-    current: currentSupport.current + currentRefunds.current,
-    previous: currentSupport.previous + currentRefunds.previous,
-  };
-};
-
-const getDeltaMeta = (current: number, previous: number) => {
-  if (current === 0 && previous === 0) {
-    return { tone: "neutral" as DeltaTone, value: 0 };
-  }
-
-  if (previous === 0) {
-    return { tone: "positive" as DeltaTone, value: 100 };
-  }
-
-  const raw = ((current - previous) / Math.abs(previous)) * 100;
-  if (raw > 0) return { tone: "positive" as DeltaTone, value: raw };
-  if (raw < 0) return { tone: "negative" as DeltaTone, value: raw };
-  return { tone: "neutral" as DeltaTone, value: 0 };
-};
-
-const formatDelta = (delta: number) => {
-  const sign = delta > 0 ? "+" : delta < 0 ? "-" : "";
-  return `${sign}${Math.abs(delta).toFixed(1).replace(".", ",")}%`;
-};
-
-const getActiveRevenue = (subscriptions: SubscriptionRow[]) =>
-  subscriptions
-    .filter((subscription) => ["active", "paid", "approved", "authorized"].includes(String(subscription.status).toLowerCase()))
-    .reduce((sum, subscription) => sum + Number(subscription.amount ?? 0), 0);
-
-const getGrossRevenue = (orders: OrderRow[], subscriptions: SubscriptionRow[]) => {
-  const ordersRevenue = orders.reduce((sum, order) => sum + Number(order.total_amount ?? 0), 0);
-  const subscriptionsRevenue = subscriptions.reduce((sum, subscription) => sum + Number(subscription.amount ?? 0), 0);
-  return ordersRevenue + subscriptionsRevenue;
-};
-
-const fetchAdminPanelData = async (): Promise<AdminPanelData> => {
-  const [
-    usersCount,
-    productsCount,
-    publicationsCount,
-    ordersCount,
-    activeSubscriptionsCount,
-    openTicketsCount,
-    pendingRefundsCount,
-    subscriptionsResult,
-    ordersResult,
-    publicationsResult,
-    productsResult,
-    profilesResult,
-    supportTicketsResult,
-    refundRequestsResult,
-  ] = await Promise.all([
+const fetchPanel = async (): Promise<PanelData> => {
+  const [users, pubs, ord, subs, subsData, ordData, pubData, profData] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
-    supabase.from("catalog_products").select("id", { count: "exact", head: true }).eq("is_blocked", false),
     supabase.from("user_publications").select("id", { count: "exact", head: true }),
     supabase.from("orders").select("id", { count: "exact", head: true }),
     supabase.from("subscriptions").select("id", { count: "exact", head: true }).in("status", ["active", "paid", "approved"]),
-    supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
-    supabase.from("refund_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    supabase
-      .from("subscriptions")
-      .select("amount,created_at,updated_at,status,plan,is_trial")
-      .order("updated_at", { ascending: false })
-      .limit(1000),
-    supabase
-      .from("orders")
-      .select("created_at,ordered_at,platform,profit,status,total_amount")
-      .order("created_at", { ascending: false })
-      .limit(180),
-    supabase
-      .from("user_publications")
-      .select("created_at,price,published_at,status,title")
-      .order("created_at", { ascending: false })
-      .limit(20),
-    supabase
-      .from("catalog_products")
-      .select("category,margin_percent,orders_count,suggested_price,title")
-      .eq("is_blocked", false)
-      .order("orders_count", { ascending: false, nullsFirst: false })
-      .limit(8),
-    supabase
-      .from("profiles")
-      .select("created_at,display_name,store_name")
-      .order("created_at", { ascending: false })
-      .limit(160),
-    supabase
-      .from("support_tickets")
-      .select("created_at,status")
-      .order("created_at", { ascending: false })
-      .limit(160),
-    supabase
-      .from("refund_requests")
-      .select("created_at,status")
-      .order("created_at", { ascending: false })
-      .limit(160),
+    supabase.from("subscriptions").select("amount,created_at,updated_at,status").order("updated_at", { ascending: false }).limit(1000),
+    supabase.from("orders").select("created_at,ordered_at,status,total_amount").order("created_at", { ascending: false }).limit(500),
+    supabase.from("user_publications").select("created_at,status").order("created_at", { ascending: false }).limit(500),
+    supabase.from("profiles").select("created_at").order("created_at", { ascending: false }).limit(500),
   ]);
-
   return {
     counts: {
-      users: readCount(usersCount),
-      products: readCount(productsCount),
-      publications: readCount(publicationsCount),
-      orders: readCount(ordersCount),
-      activeSubscriptions: readCount(activeSubscriptionsCount),
-      openTickets: readCount(openTicketsCount),
-      pendingRefunds: readCount(pendingRefundsCount),
+      users: users.count ?? 0,
+      publications: pubs.count ?? 0,
+      orders: ord.count ?? 0,
+      activeSubs: subs.count ?? 0,
     },
-    subscriptions: subscriptionsResult.error ? [] : subscriptionsResult.data ?? [],
-    orders: ordersResult.error ? [] : ordersResult.data ?? [],
-    publications: publicationsResult.error ? [] : publicationsResult.data ?? [],
-    products: productsResult.error ? [] : productsResult.data ?? [],
-    profiles: profilesResult.error ? [] : profilesResult.data ?? [],
-    supportTickets: supportTicketsResult.error ? [] : supportTicketsResult.data ?? [],
-    refundRequests: refundRequestsResult.error ? [] : refundRequestsResult.data ?? [],
+    subscriptions: subsData.data ?? [],
+    orders: ordData.data ?? [],
+    publications: pubData.data ?? [],
+    profiles: profData.data ?? [],
   };
 };
 
-const AdminBlankPage = () => {
+const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+type Period = "monthly" | "annually";
+
+const AdminPainelPage = () => {
   const { user } = useAuth();
-  const [revenueRange, setRevenueRange] = useState<RevenueRange>(6);
-  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
-  const { data = emptyData, isLoading } = useQuery({
-    queryKey: ["admin-panel-command-center"],
-    queryFn: fetchAdminPanelData,
-    refetchInterval: 30000,
-  });
+  const navigate = useNavigate();
+  const [period, setPeriod] = useState<Period>("monthly");
+  const { data = empty } = useQuery({ queryKey: ["admin-panel-v2"], queryFn: fetchPanel, refetchInterval: 30000 });
 
-  const monthSeries = useMemo(() => buildMonthSeries(data.subscriptions, revenueRange), [data.subscriptions, revenueRange]);
-  const usersByDay = useMemo(
-    () => buildDailyCountSeries(data.profiles.map((profile) => profile.created_at)),
-    [data.profiles]
-  );
-  const ordersByDay = useMemo(
-    () => buildDailyCountSeries(data.orders.map((order) => order.ordered_at ?? order.created_at)),
-    [data.orders]
-  );
+  const daysWindow = period === "monthly" ? 30 : 365;
 
-  const activeRevenue = useMemo(() => getActiveRevenue(data.subscriptions), [data.subscriptions]);
-  const grossRevenue = useMemo(() => getGrossRevenue(data.orders, data.subscriptions), [data.orders, data.subscriptions]);
-  const openWork = data.counts.openTickets + data.counts.pendingRefunds;
-  const avgMargin = data.products.length
-    ? data.products.reduce((sum, product) => sum + Number(product.margin_percent ?? 0), 0) / data.products.length
-    : 0;
+  // Metric calculations
+  const pubsDelta = useMemo(() => {
+    const cur = getWindow(daysWindow, 0);
+    const prev = getWindow(daysWindow, daysWindow);
+    const c = data.publications.filter((p) => inRange(p.created_at, cur.start, cur.end)).length;
+    const p = data.publications.filter((x) => inRange(x.created_at, prev.start, prev.end)).length;
+    return { current: c, delta: deltaPct(c, p) };
+  }, [data.publications, daysWindow]);
 
-  const revenuePeriod = useMemo(
-    () => getCurrentVsPreviousRevenue(data.subscriptions, revenueRange),
-    [data.subscriptions, revenueRange]
-  );
-  const usersPeriod = useMemo(
-    () => getCurrentVsPreviousCount(data.profiles.map((profile) => profile.created_at), 30),
-    [data.profiles]
-  );
-  const revenueCardPeriod = useMemo(
-    () => getCurrentVsPreviousSubscriptionRevenue(data.subscriptions, 30),
-    [data.subscriptions]
-  );
-  const catalogPeriod = useMemo(
-    () => getCurrentVsPreviousCount(data.publications.map((publication) => publication.created_at), 30),
-    [data.publications]
-  );
-  const pendingPeriod = useMemo(
-    () => getCurrentVsPreviousPendingActivity(data.supportTickets, data.refundRequests, 14),
-    [data.supportTickets, data.refundRequests]
-  );
-  const usersWeek = useMemo(
-    () => getCurrentVsPreviousCount(data.profiles.map((profile) => profile.created_at), 7),
-    [data.profiles]
-  );
-  const ordersWeek = useMemo(
-    () => getCurrentVsPreviousCount(data.orders.map((order) => order.ordered_at ?? order.created_at), 7),
-    [data.orders]
-  );
+  const usersDelta = useMemo(() => {
+    const cur = getWindow(daysWindow, 0);
+    const prev = getWindow(daysWindow, daysWindow);
+    const c = data.profiles.filter((p) => inRange(p.created_at, cur.start, cur.end)).length;
+    const p = data.profiles.filter((x) => inRange(x.created_at, prev.start, prev.end)).length;
+    return { current: data.counts.users, delta: deltaPct(c, p) };
+  }, [data.profiles, data.counts.users, daysWindow]);
 
-  const revenueDelta = getDeltaMeta(revenuePeriod.current, revenuePeriod.previous);
-  const usersDelta = getDeltaMeta(usersPeriod.current, usersPeriod.previous);
-  const revenueCardDelta = getDeltaMeta(revenueCardPeriod.current, revenueCardPeriod.previous);
-  const catalogDelta = getDeltaMeta(catalogPeriod.current, catalogPeriod.previous);
-  const pendingDelta = getDeltaMeta(pendingPeriod.current, pendingPeriod.previous);
-  const usersWeekDelta = getDeltaMeta(usersWeek.current, usersWeek.previous);
-  const ordersWeekDelta = getDeltaMeta(ordersWeek.current, ordersWeek.previous);
+  const ordersDelta = useMemo(() => {
+    const cur = getWindow(daysWindow, 0);
+    const prev = getWindow(daysWindow, daysWindow);
+    const c = data.orders.filter((o) => inRange(o.ordered_at ?? o.created_at, cur.start, cur.end)).length;
+    const p = data.orders.filter((o) => inRange(o.ordered_at ?? o.created_at, prev.start, prev.end)).length;
+    return { current: c, delta: deltaPct(c, p) };
+  }, [data.orders, daysWindow]);
 
-  const platformSummary = useMemo(() => {
-    const byPlatform = new Map<string, number>();
-    data.orders.forEach((order) => {
-      const platform = order.platform || "Sem origem";
-      byPlatform.set(platform, (byPlatform.get(platform) ?? 0) + 1);
+  const revenueDelta = useMemo(() => {
+    const cur = getWindow(daysWindow, 0);
+    const prev = getWindow(daysWindow, daysWindow);
+    const sum = (s: Date, e: Date) =>
+      data.subscriptions.reduce((acc, sub) => {
+        const d = sub.updated_at ?? sub.created_at;
+        return inRange(d, s, e) ? acc + Number(sub.amount ?? 0) : acc;
+      }, 0);
+    const c = sum(cur.start, cur.end);
+    const p = sum(prev.start, prev.end);
+    return { current: c, delta: deltaPct(c, p) };
+  }, [data.subscriptions, daysWindow]);
+
+  // Revenue chart — 6 months of subscription revenue
+  const revenueSeries = useMemo(() => {
+    const now = new Date();
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return {
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        label: MONTHS[d.getMonth()],
+        value: 0,
+      };
     });
-    return Array.from(byPlatform, ([name, value]) => ({ name, value })).slice(0, 5);
+    const byKey = new Map(months.map((m) => [m.key, m]));
+    data.subscriptions.forEach((s) => {
+      const src = s.updated_at ?? s.created_at;
+      if (!src) return;
+      const d = new Date(src);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const m = byKey.get(key);
+      if (m) m.value += Number(s.amount ?? 0);
+    });
+    return months;
+  }, [data.subscriptions]);
+
+  const revenueTotal = useMemo(
+    () => revenueSeries.reduce((a, b) => a + b.value, 0),
+    [revenueSeries]
+  );
+
+  // Daily bars — new users last 12 days
+  const newUsersBars = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(now.getDate() - (11 - i));
+      const key = d.toISOString().slice(0, 10);
+      return {
+        label: `${d.getHours()}`,
+        value: data.profiles.filter((p) => (p.created_at ?? "").slice(0, 10) === key).length,
+      };
+    });
+  }, [data.profiles]);
+
+  // Orders line — 14 days
+  const ordersLine = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(now.getDate() - (13 - i));
+      const key = d.toISOString().slice(0, 10);
+      return {
+        label: key,
+        value: data.orders.filter((o) => ((o.ordered_at ?? o.created_at) ?? "").slice(0, 10) === key).length,
+      };
+    });
   }, [data.orders]);
 
-  const topProducts = data.products.slice(0, 5);
-  const topProductsOrders = topProducts.reduce((sum, product) => sum + Number(product.orders_count ?? 0), 0);
-  const activeTrials = data.subscriptions.filter((item) => item.is_trial).length;
+  const totalOrders = ordersLine.reduce((a, b) => a + b.value, 0);
+  const newUsersTotal = newUsersBars.reduce((a, b) => a + b.value, 0);
 
   return (
-    <AdminShell active="dashboard" userId={user?.id ?? "VELOADMIN"}>
-      <div className="min-h-full bg-[#F7F7F7] text-[#0A0A0A]">
-        <div className="hidden">
-        <aside className="sticky top-0 flex h-screen w-[248px] shrink-0 flex-col border-r border-[#2A2926] bg-[#171714] text-white">
-          <div className="flex items-center gap-3.5 border-b border-[#2A2926] px-4 py-4">
-            <VeloMark />
-            <div className="min-w-0">
-              <p className="text-[19px] font-bold tracking-[-0.04em] text-white">VeloMetric</p>
-              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.25em] text-white">ADMIN</p>
-            </div>
-          </div>
-
-          <div className="flex-1 px-4 py-6">
-            <p className="mb-4 px-2 text-[11px] font-bold uppercase tracking-[0.22em] text-white">MONITORAMENTO</p>
-            <nav className="space-y-2">
-              <SidebarLink icon={LayoutDashboard} label="Painel" to="/admin/painel" active />
-              <SidebarLink icon={Percent} label="Comissões" to="/admin/comissoes" />
-              <SidebarLink icon={Users} label="Usuários" to="/admin/usuarios" />
-              <SidebarLink icon={Headphones} label="Suporte" to="/admin/suporte" />
-            </nav>
-          </div>
-
-          <div className="mt-auto space-y-5 border-t border-[#2A2926] px-4 py-6">
-            <div className="rounded-[10px] border border-[#2A2926] bg-[#181818] p-4">
-              <div className="flex items-center gap-3.5">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-black">
-                  <ShieldCheck size={18} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[12px] text-[#8E8E93]">Admin ID</p>
-                  <p className="truncate text-[14px] font-bold tracking-[0.02em] text-white">
-                    {(user?.id ?? "VELOADMIN").slice(0, 8).toUpperCase()}
-                  </p>
-                </div>
+    <div className="min-h-screen bg-[#0A0A0A] text-white" style={{ fontFamily: '"Inter", ui-sans-serif, system-ui' }}>
+      <div className="flex min-h-screen">
+        {/* Sidebar */}
+        <aside className="sticky top-0 flex h-screen w-[240px] shrink-0 flex-col border-r border-white/5 bg-[#0F0F0F] px-3 py-4">
+          <div className="mb-5 flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#22C55E]">
+                <ChevronLeft className="h-4 w-4 rotate-180 text-black" strokeWidth={2.5} />
               </div>
+              <span className="text-[15px] font-semibold tracking-tight">VeloMetric</span>
             </div>
+            <button className="rounded-md p-1 text-white/40 hover:bg-white/5 hover:text-white/80">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </div>
 
-            <Link
-              to="/dashboard"
-              className="group flex items-center gap-2.5 rounded-[10px] px-2 py-2 text-[13px] font-semibold text-white transition duration-150 hover:bg-white/5"
+          <button className="mb-4 flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.03] py-2 text-[13px] font-medium text-white/80 transition hover:bg-white/[0.06]">
+            <Sparkles className="h-3.5 w-3.5" />
+            Sugestões da IA
+          </button>
+
+          <nav className="flex-1 space-y-1 text-[13px]">
+            <SideItem icon={LayoutDashboard} label="Painel" active />
+            <div className="ml-6 space-y-0.5 border-l border-white/5 pl-3 py-1">
+              <SideSub label="Visão geral" active />
+              <SideSub label="Relatórios & análises" to="/admin/painel" />
+              <SideSub label="Atividade do time" />
+              <SideSub label="Workflow" />
+            </div>
+            <SideItem icon={Star} label="Funcionalidades" />
+            <SideItem icon={UsersIcon} label="Usuários & times" to="/admin/usuarios" />
+            <SideItem icon={DollarSign} label="Comissões" to="/admin/comissoes" />
+            <SideItem icon={Plug} label="Integrações" />
+          </nav>
+
+          <div className="space-y-1 border-t border-white/5 pt-3 text-[13px]">
+            <SideItem icon={Settings} label="Configurações" />
+            <SideItem icon={FileText} label="Templates" />
+            <SideItem icon={User} label="Perfil" />
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="mt-2 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[12px] text-white/50 hover:bg-white/5 hover:text-white/80"
             >
-              <ArrowLeft size={15} className="text-white transition duration-150" />
-              Voltar à Velo
-            </Link>
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Voltar a Velo
+            </button>
           </div>
         </aside>
 
-        </div>
-
-        <main className="min-w-0 pl-4 pt-4">
-          <div className="space-y-4 pr-4 lg:pr-6 pb-6">
-            {isLoading ? (
-              <div className="flex min-h-[520px] items-center justify-center rounded-[20px] border border-[#E5E5E5] bg-white">
-                <Loader2 className="h-8 w-8 animate-spin text-black/80" />
+        {/* Main */}
+        <main className="min-w-0 flex-1 px-8 py-6">
+          {/* Top bar */}
+          <div className="mb-6 flex items-center gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+              <input
+                placeholder="Buscar..."
+                className="w-full rounded-full border border-white/10 bg-[#0F0F0F] py-2 pl-9 pr-4 text-[13px] text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="flex rounded-full border border-white/10 bg-[#0F0F0F] p-0.5 text-[12px]">
+                <button
+                  onClick={() => setPeriod("monthly")}
+                  className={cn(
+                    "rounded-full px-4 py-1.5 transition",
+                    period === "monthly" ? "bg-white/10 text-white" : "text-white/50 hover:text-white/80",
+                  )}
+                >
+                  Mensal
+                </button>
+                <button
+                  onClick={() => setPeriod("annually")}
+                  className={cn(
+                    "rounded-full px-4 py-1.5 transition",
+                    period === "annually" ? "bg-white/10 text-white" : "text-white/50 hover:text-white/80",
+                  )}
+                >
+                  Anual
+                </button>
               </div>
-            ) : (
-              <>
-                <section className="grid gap-4 xl:grid-cols-4">
-                  <MetricCard
-                    icon={Users}
-                    label="Usuários totais"
-                    value={formatNumber(data.counts.users)}
-                    description={`${formatNumber(data.counts.activeSubscriptions)} assinaturas ativas`}
-                    delta={usersDelta}
-                    accent="violet"
-                  />
-                  <MetricCard
-                    icon={CircleDollarSign}
-                    label="Receita ativa"
-                    value={formatBRL(activeRevenue)}
-                    description={`${formatBRL(grossRevenue)} no histórico carregado`}
-                    delta={revenueCardDelta}
-                    accent="green"
-                  />
-                  <MetricCard
-                    icon={Boxes}
-                    label="Catálogo Velo"
-                    value={formatNumber(data.counts.products)}
-                    description={`${Math.round(avgMargin)}% margem média dos destaques`}
-                    delta={catalogDelta}
-                    accent="blue"
-                  />
-                  <MetricCard
-                    icon={Headphones}
-                    label="Pendências"
-                    value={formatNumber(openWork)}
-                    description={`${data.counts.openTickets} suporte · ${data.counts.pendingRefunds} reembolsos`}
-                    delta={pendingDelta}
-                    accent="rose"
-                  />
-                </section>
-
-                <section className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.95fr)]">
-                  <SurfaceCard className="p-5 sm:p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="text-[12px] font-medium text-[#737373]">Receita recorrente</p>
-                        <div className="mt-3 flex flex-wrap items-end gap-3">
-                          <p className="text-[34px] font-bold tracking-[-0.04em] text-[#0A0A0A]">
-                            {formatBRL(revenuePeriod.current)}
-                          </p>
-                          <DeltaInline delta={revenueDelta} />
-                        </div>
-                      </div>
-
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setPeriodMenuOpen((open) => !open)}
-                          className="inline-flex h-10 items-center gap-2 rounded-full border border-[#E5E5E5] bg-[#F5F5F5] px-4 text-[12px] font-medium text-[#525252] transition hover:bg-[#FAFAFA] hover:text-black"
-                        >
-                          <CalendarDays size={14} />
-                          {revenueRangeLabels[revenueRange]}
-                          <ChevronDown size={14} />
-                        </button>
-
-                        {periodMenuOpen && (
-                          <div className="absolute right-0 top-12 z-10 w-44 overflow-hidden rounded-[14px] border border-[#E5E5E5] bg-white p-1 shadow-lg">
-                            {([3, 6, 12] as RevenueRange[]).map((range) => (
-                              <button
-                                key={range}
-                                type="button"
-                                onClick={() => {
-                                  setRevenueRange(range);
-                                  setPeriodMenuOpen(false);
-                                }}
-                                className={cn(
-                                  "flex h-10 w-full items-center rounded-[10px] px-3 text-left text-[12px] font-medium transition",
-                                  range === revenueRange
-                                    ? "bg-zinc-100 text-black font-semibold"
-                                    : "text-[#525252] hover:bg-zinc-50 hover:text-black"
-                                )}
-                              >
-                                {revenueRangeLabels[range]}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-5 h-[280px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={monthSeries}>
-                          <defs>
-                            <linearGradient id="adminRevenueFill" x1="0" x2="0" y1="0" y2="1">
-                              <stop offset="0%" stopColor="#22C55E" stopOpacity={0.28} />
-                              <stop offset="75%" stopColor="#22C55E" stopOpacity={0.04} />
-                              <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
-                          <XAxis
-                            dataKey="label"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "#737373", fontSize: 12 }}
-                          />
-                          <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "#737373", fontSize: 11 }}
-                            width={56}
-                            tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`}
-                          />
-                          <Tooltip content={<ChartTooltip formatter={formatBRL} />} />
-                          <Area
-                            type="monotone"
-                            dataKey="receita"
-                            stroke="#22C55E"
-                            strokeWidth={2.4}
-                            fill="url(#adminRevenueFill)"
-                            dot={{ r: 0 }}
-                            activeDot={{ r: 4, fill: "#22C55E", strokeWidth: 0 }}
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </SurfaceCard>
-
-                  <div className="grid gap-4">
-                    <MiniTrendCard
-                      icon={Users}
-                      label="Novos usuários"
-                      value={formatNumber(usersWeek.current)}
-                      delta={usersWeekDelta}
-                      linkLabel="Ver relatório"
-                      accent="violet"
-                      chart={
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={usersByDay}>
-                            <defs>
-                              <linearGradient id="miniUsersFill" x1="0" x2="0" y1="0" y2="1">
-                                <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.26} />
-                                <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <Tooltip content={<ChartTooltip />} />
-                            <Area
-                              type="monotone"
-                              dataKey="valor"
-                              stroke="#8B5CF6"
-                              strokeWidth={2}
-                              fill="url(#miniUsersFill)"
-                              dot={false}
-                            />
-                            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#737373", fontSize: 11 }} />
-                            <YAxis hide />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      }
-                    />
-
-                    <MiniTrendCard
-                      icon={ShoppingCart}
-                      label="Pedidos recentes"
-                      value={formatNumber(ordersWeek.current)}
-                      delta={ordersWeekDelta}
-                      linkLabel="Ver relatório"
-                      accent="green"
-                      chart={
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={ordersByDay}>
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="valor" fill="#22C55E" radius={[6, 6, 2, 2]} />
-                            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#737373", fontSize: 11 }} />
-                            <YAxis hide />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      }
-                    />
-                  </div>
-                </section>
-
-                <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.75fr)]">
-                  <SurfaceCard className="p-5 sm:p-6">
-                    <CardHeader
-                      title="Produtos em alta"
-                      subtitle="Itens do catálogo com maior volume de pedidos"
-                      action={<IconButton />}
-                    />
-                    <div className="mt-5 space-y-3">
-                      {topProducts.length ? (
-                        topProducts.map((product, index) => (
-                          <ProductRow key={`${product.title}-${index}`} product={product} index={index} />
-                        ))
-                      ) : (
-                        <EmptyState text="Nenhum produto do catálogo disponível para ranquear no momento." />
-                      )}
-                    </div>
-                  </SurfaceCard>
-
-                  <SurfaceCard className="p-5 sm:p-6">
-                    <CardHeader
-                      title="Pedidos por plataforma"
-                      subtitle={`${formatNumber(data.counts.orders)} pedidos monitorados`}
-                      action={<IconButton />}
-                    />
-                    <div className="mt-5 space-y-4">
-                      {platformSummary.length ? (
-                        platformSummary.map((item) => (
-                          <PlatformRow
-                            key={item.name}
-                            label={item.name}
-                            value={item.value}
-                            total={data.counts.orders}
-                          />
-                        ))
-                      ) : (
-                        <EmptyState text="Os canais com pedidos aparecerão aqui assim que o painel receber volume suficiente." />
-                      )}
-                    </div>
-                  </SurfaceCard>
-                </section>
-
-                <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.7fr)]">
-                  <SurfaceCard className="p-5 sm:p-6">
-                    <CardHeader
-                      title="Publicações recentes"
-                      subtitle={`${formatNumber(data.counts.publications)} anúncios publicados no total`}
-                      action={
-                        <span className="rounded-full border border-[#E5E5E5] bg-[#F5F5F5] px-3 py-1.5 text-[11px] font-medium text-[#525252]">
-                          {formatNumber(data.counts.publications)} anúncios
-                        </span>
-                      }
-                    />
-                    <div className="mt-5 overflow-hidden rounded-[14px] border border-[#E5E5E5]">
-                      <table className="w-full min-w-[720px] text-left">
-                        <thead className="bg-[#FAFAFA] text-[11px] uppercase tracking-[0.12em] text-[#737373]">
-                          <tr>
-                            <th className="px-4 py-3 font-medium">Publicação</th>
-                            <th className="px-4 py-3 font-medium">Status</th>
-                            <th className="px-4 py-3 font-medium">Data</th>
-                            <th className="px-4 py-3 text-right font-medium">Preço</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.publications.length ? (
-                            data.publications.slice(0, 6).map((publication, index) => (
-                              <tr key={`${publication.title}-${index}`} className="border-t border-[#F0F0F0] text-[13px] text-[#525252]">
-                                <td className="max-w-[340px] truncate px-4 py-3 font-medium text-[#0A0A0A]">
-                                  {publication.title}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <StatusPill value={publication.status ?? "pendente"} />
-                                </td>
-                                <td className="px-4 py-3 text-[#737373]">
-                                  {formatDate(publication.published_at ?? publication.created_at)}
-                                </td>
-                                <td className="px-4 py-3 text-right font-semibold text-[#0A0A0A]">
-                                  {formatBRL(Number(publication.price ?? 0))}
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={4} className="px-4 py-10 text-center text-[13px] text-[#737373]">
-                                Nenhuma publicação encontrada.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </SurfaceCard>
-
-                  <div className="grid gap-4">
-                    <SurfaceCard className="p-5">
-                      <CardHeader
-                        title="Pendências abertas"
-                        subtitle="Fila atual de suporte e reembolso"
-                        action={<IconButton />}
-                      />
-                      <div className="mt-5 grid gap-3">
-                        <SignalRow label="Suporte aberto" value={data.counts.openTickets} tone={data.counts.openTickets ? "warning" : "ok"} />
-                        <SignalRow label="Reembolsos pendentes" value={data.counts.pendingRefunds} tone={data.counts.pendingRefunds ? "warning" : "ok"} />
-                        <SignalRow label="Trials ativos" value={activeTrials} tone="neutral" />
-                      </div>
-                    </SurfaceCard>
-
-                    <SurfaceCard className="p-5">
-                      <CardHeader
-                        title="Leitura rápida"
-                        subtitle="Resumo operacional do painel"
-                        action={<IconButton />}
-                      />
-                      <div className="mt-5 grid gap-3">
-                        <QuickStat label="Receita ativa" value={formatBRL(activeRevenue)} tone="positive" />
-                        <QuickStat label="Pedidos carregados" value={formatNumber(data.counts.orders)} tone="neutral" />
-                        <QuickStat label="Top produtos" value={formatNumber(topProductsOrders)} tone="positive" />
-                      </div>
-                    </SurfaceCard>
-                  </div>
-                </section>
-              </>
-            )}
+              <button className="flex items-center gap-2 rounded-full border border-white/10 bg-[#0F0F0F] px-4 py-2 text-[12px] text-white/80 hover:bg-white/[0.06]">
+                <Download className="h-3.5 w-3.5" />
+                Exportar dados
+              </button>
+              <button className="flex items-center gap-2 rounded-full bg-[#22C55E] px-4 py-2 text-[12px] font-medium text-black hover:bg-[#16A34A]">
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                Criar relatório
+              </button>
+              <button className="rounded-full border border-white/10 bg-[#0F0F0F] p-2 text-white/60 hover:text-white">
+                <HelpCircle className="h-4 w-4" />
+              </button>
+              <button className="rounded-full border border-white/10 bg-[#0F0F0F] p-2 text-white/60 hover:text-white">
+                <Bell className="h-4 w-4" />
+              </button>
+            </div>
           </div>
+
+          {/* KPI row */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <KpiCard
+              dotClass="bg-gradient-to-br from-[#F472B6] to-[#EC4899]"
+              label="Publicações"
+              value={formatNumber(data.counts.publications)}
+              delta={pubsDelta.delta}
+            />
+            <KpiCard
+              dotClass="bg-gradient-to-br from-[#818CF8] to-[#4F46E5]"
+              label="Usuários ativos"
+              value={formatCompact(data.counts.users)}
+              delta={usersDelta.delta}
+            />
+            <KpiCard
+              dotClass="bg-gradient-to-br from-[#22D3EE] to-[#0891B2]"
+              label="Pedidos automatizados"
+              value={formatNumber(data.counts.orders)}
+              delta={ordersDelta.delta}
+            />
+            <KpiCard
+              dotClass="bg-gradient-to-br from-[#4ADE80] to-[#16A34A]"
+              label="Receita ativa"
+              value={formatBRL(revenueDelta.current)}
+              delta={revenueDelta.delta}
+            />
+          </div>
+
+          {/* Chart row */}
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+            {/* Revenue */}
+            <div className="rounded-2xl border border-white/5 bg-[#0F0F0F] p-6 xl:col-span-2">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[13px] text-white/60">Receita</p>
+                  <p className="mt-2 text-[26px] font-semibold tracking-tight">{formatBRL(revenueTotal)}</p>
+                  <p className="mt-1 text-[12px] text-white/50">
+                    <span className={revenueDelta.delta >= 0 ? "text-[#22C55E]" : "text-red-400"}>
+                      {formatDelta(revenueDelta.delta)}
+                    </span>{" "}
+                    vs período anterior
+                  </p>
+                </div>
+                <PeriodPill />
+              </div>
+              <div className="mt-4 h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueSeries} margin={{ top: 10, right: 8, left: -12, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22C55E" stopOpacity={0.5} />
+                        <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="label"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "#6b7280", fontSize: 11 }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "#6b7280", fontSize: 11 }}
+                      tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 1000)}K` : String(v))}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "#0F0F0F",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      labelStyle={{ color: "#fff" }}
+                      formatter={(v: number) => [formatBRL(v), "Receita"]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#22C55E"
+                      strokeWidth={2}
+                      fill="url(#revGrad)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Right column */}
+            <div className="flex flex-col gap-4">
+              <MiniCard
+                icon={<BarChart3 className="h-3.5 w-3.5 text-[#22C55E]" />}
+                title="Novos usuários"
+                value={formatNumber(newUsersTotal)}
+                delta={usersDelta.delta}
+              >
+                <div className="h-[120px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={newUsersBars} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                      <Bar dataKey="value" fill="#22C55E" radius={[3, 3, 3, 3]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </MiniCard>
+
+              <MiniCard
+                icon={<Workflow className="h-3.5 w-3.5 text-[#22C55E]" />}
+                title="Total de pedidos"
+                value={formatNumber(totalOrders)}
+                delta={ordersDelta.delta}
+              >
+                <div className="h-[120px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={ordersLine} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        stroke="#22C55E"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </MiniCard>
+            </div>
+          </div>
+
+          {/* Reports overview */}
+          <div className="mt-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-[15px] font-semibold">Visão geral dos relatórios</h3>
+              <div className="flex items-center gap-2">
+                <PeriodPill />
+                <button className="flex items-center gap-2 rounded-full border border-white/10 bg-[#0F0F0F] px-3 py-1.5 text-[12px] text-white/80 hover:bg-white/[0.06]">
+                  <Download className="h-3.5 w-3.5" />
+                  Exportar
+                </button>
+                <button className="rounded-full border border-white/10 bg-[#0F0F0F] p-1.5 text-white/60 hover:text-white">
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <ReportCard
+                title="Overview"
+                value={formatBRL(revenueTotal)}
+                delta={revenueDelta.delta}
+                subtitle="Receita total no período"
+              />
+              <ReportCard
+                title="Tarefas automatizadas concluídas"
+                value={formatNumber(data.orders.filter((o) => o.status === "delivered" || o.status === "shipped").length)}
+                delta={ordersDelta.delta}
+                subtitle="Pedidos entregues + enviados"
+              />
+            </div>
+          </div>
+
+          <p className="mt-8 text-[11px] text-white/30">Admin ID · {(user?.id ?? "VELOADMIN").slice(0, 8).toUpperCase()}</p>
         </main>
       </div>
-    </AdminShell>
+    </div>
   );
 };
 
-const SidebarLink = ({
+/* ---------- Subcomponents ---------- */
+
+const SideItem = ({
   icon: Icon,
   label,
+  active,
   to,
-  active = false,
 }: {
-  icon: ElementType;
+  icon: React.ElementType;
   label: string;
-  to: string;
   active?: boolean;
-}) => (
-  <Link
-    to={to}
-    className={cn(
-      "group flex h-10 items-center gap-3 rounded-[8px] px-3 text-[14px] font-semibold transition duration-150",
-      active
-        ? "bg-[#2A2A2A] text-white"
-        : "text-white hover:bg-[#24231F]"
-    )}
-  >
-    <Icon size={16} className="text-white transition duration-150" strokeWidth={1.8} />
-    {label}
-  </Link>
-);
-
-const SurfaceCard = ({ children, className }: { children: ReactNode; className?: string }) => (
-  <section
-    className={cn(
-      "rounded-[20px] border border-[#E5E5E5] bg-white shadow-sm",
-      className
-    )}
-  >
-    {children}
-  </section>
-);
-
-const MetricCard = ({
-  icon: Icon,
-  label,
-  value,
-  description,
-  delta,
-  accent,
-}: {
-  icon: ElementType;
-  label: string;
-  value: string;
-  description: string;
-  delta: { tone: DeltaTone; value: number };
-  accent: "violet" | "green" | "blue" | "rose";
+  to?: string;
 }) => {
-  const accentClass = {
-    violet: "bg-violet-50 text-violet-600 dark:bg-violet-950/20 dark:text-violet-400",
-    green: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400",
-    blue: "bg-sky-50 text-sky-600 dark:bg-sky-950/20 dark:text-sky-400",
-    rose: "bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400",
-  }[accent];
-
-  return (
-    <SurfaceCard className="p-4">
-      <div className="flex items-center gap-3">
-        <span className={cn("flex h-10 w-10 items-center justify-center rounded-[12px]", accentClass)}>
-          <Icon size={18} />
-        </span>
-        <div>
-          <p className="text-[12px] font-medium text-[#737373]">{label}</p>
-        </div>
-      </div>
-      <p className="mt-5 text-[31px] font-bold tracking-[-0.04em] text-[#0A0A0A]">{value}</p>
-      <p className="mt-2 text-[12px] text-[#737373]">{description}</p>
-      <div className="mt-4">
-        <DeltaInline delta={delta} />
-      </div>
-    </SurfaceCard>
+  const inner = (
+    <div
+      className={cn(
+        "flex items-center gap-2.5 rounded-lg px-3 py-2 transition",
+        active
+          ? "bg-white/[0.06] text-white"
+          : "text-white/60 hover:bg-white/[0.04] hover:text-white",
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+    </div>
   );
+  return to ? <Link to={to}>{inner}</Link> : <button className="w-full text-left">{inner}</button>;
 };
 
-const MiniTrendCard = ({
-  icon: Icon,
+const SideSub = ({ label, active, to }: { label: string; active?: boolean; to?: string }) => {
+  const inner = (
+    <div
+      className={cn(
+        "rounded-md px-2 py-1.5 text-[12.5px] transition",
+        active ? "text-white" : "text-white/45 hover:text-white/80",
+      )}
+    >
+      {label}
+    </div>
+  );
+  return to ? <Link to={to}>{inner}</Link> : <button className="w-full text-left">{inner}</button>;
+};
+
+const KpiCard = ({
+  dotClass,
   label,
   value,
   delta,
-  linkLabel,
-  accent,
-  chart,
 }: {
-  icon: ElementType;
+  dotClass: string;
   label: string;
   value: string;
-  delta: { tone: DeltaTone; value: number };
-  linkLabel: string;
-  accent: "violet" | "green";
-  chart: ReactNode;
-}) => {
-  const accentClass = accent === "violet" ? "bg-violet-50 text-violet-600" : "bg-emerald-50 text-emerald-600";
-
-  return (
-    <SurfaceCard className="p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className={cn("flex h-9 w-9 items-center justify-center rounded-[12px]", accentClass)}>
-            <Icon size={16} />
-          </span>
-          <div>
-            <p className="text-[12px] font-medium text-[#737373]">{label}</p>
-            <p className="mt-2 text-[28px] font-bold tracking-[-0.04em] text-[#0A0A0A]">{value}</p>
-          </div>
-        </div>
-        <IconButton />
-      </div>
-
-      <div className="mt-3">
-        <DeltaInline delta={delta} />
-      </div>
-
-      <div className="mt-4 h-[124px]">{chart}</div>
-
-      <button className="mt-3 text-[12px] font-semibold text-emerald-600 transition hover:text-emerald-700">
-        {linkLabel}
-      </button>
-    </SurfaceCard>
-  );
-};
-
-const CardHeader = ({
-  title,
-  subtitle,
-  action,
-}: {
-  title: string;
-  subtitle: string;
-  action?: ReactNode;
+  delta: number;
 }) => (
-  <div className="flex items-start justify-between gap-3">
-    <div>
-      <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-[#0A0A0A]">{title}</h2>
-      <p className="mt-1 text-[12px] text-[#737373]">{subtitle}</p>
+  <div className="rounded-2xl border border-white/5 bg-[#0F0F0F] p-5">
+    <div className="flex items-center gap-2">
+      <span className={cn("h-4 w-4 rounded-full", dotClass)} />
+      <span className="text-[12.5px] text-white/60">{label}</span>
     </div>
-    {action}
-  </div>
-);
-
-const DeltaInline = ({ delta }: { delta: { tone: DeltaTone; value: number } }) => (
-  <div className="flex items-center gap-2 text-[12px]">
-    <span
-      className={cn(
-        "font-semibold",
-        delta.tone === "positive" && "text-[#22C55E]",
-        delta.tone === "negative" && "text-[#EF4444]",
-        delta.tone === "neutral" && "text-[#737373]"
-      )}
-    >
-      {formatDelta(delta.value)}
-    </span>
-    <span className="text-[#737373]">vs período anterior</span>
-  </div>
-);
-
-const ProductRow = ({ product, index }: { product: CatalogProductRow; index: number }) => (
-  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[12px] border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3">
-    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-200/60 text-[12px] font-semibold text-[#0A0A0A]">
-      {index + 1}
-    </span>
-    <div className="min-w-0">
-      <p className="truncate text-[13px] font-medium text-[#0A0A0A]">{product.title}</p>
-      <p className="mt-1 truncate text-[11px] text-[#737373]">
-        {product.category ?? "Sem categoria"} · margem {Math.round(Number(product.margin_percent ?? 0))}%
-      </p>
-    </div>
-    <div className="text-right">
-      <p className="text-[12px] font-semibold text-[#22C55E]">{formatNumber(product.orders_count ?? 0)}</p>
-      <p className="mt-1 text-[10px] text-[#737373]">
-        {formatBRL(Number(product.suggested_price ?? 0))}
-      </p>
-    </div>
-  </div>
-);
-
-const PlatformRow = ({ label, value, total }: { label: string; value: number; total: number }) => {
-  const percent = total ? Math.max((value / total) * 100, 4) : 0;
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between text-[12px]">
-        <span className="font-medium text-[#525252]">{label}</span>
-        <span className="text-[#737373]">{formatNumber(value)}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
-        <div className="h-full rounded-full bg-[#22C55E]" style={{ width: `${percent}%` }} />
-      </div>
-    </div>
-  );
-};
-
-const SignalRow = ({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: "ok" | "warning" | "neutral";
-}) => (
-  <div className="flex items-center justify-between rounded-[12px] border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3">
-    <span className="text-[13px] text-[#525252]">{label}</span>
-    <span
-      className={cn(
-        "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-        tone === "ok" && "bg-emerald-500/10 text-emerald-700",
-        tone === "warning" && "bg-rose-500/10 text-rose-700",
-        tone === "neutral" && "bg-zinc-200 text-[#0A0A0A]"
-      )}
-    >
-      {formatNumber(value)}
-    </span>
-  </div>
-);
-
-const QuickStat = ({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: "positive" | "neutral";
-}) => (
-  <div className="rounded-[12px] border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3">
-    <p className="text-[12px] text-[#737373]">{label}</p>
-    <p className={cn("mt-2 text-[20px] font-bold tracking-[-0.03em]", tone === "positive" ? "text-emerald-700" : "text-[#525252]")}>
-      {value}
+    <p className="mt-4 text-[28px] font-semibold tracking-tight text-white">{value}</p>
+    <p className="mt-2 text-[11.5px] text-white/50">
+      <span className={delta >= 0 ? "text-[#22C55E]" : "text-red-400"}>{formatDelta(delta)}</span>{" "}
+      vs período anterior
     </p>
   </div>
 );
 
-const StatusPill = ({ value }: { value: string }) => {
-  const normalized = value.toLowerCase();
-  const isActive = ["active", "published", "approved", "ativo", "publicado"].includes(normalized);
-  return (
-    <span
-      className={cn(
-        "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-        isActive ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-700"
-      )}
-    >
-      {value}
-    </span>
-  );
-};
-
-const EmptyState = ({ text }: { text: string }) => (
-  <div className="flex min-h-[148px] items-center justify-center rounded-[12px] border border-dashed border-[#E5E5E5] bg-[#FAFAFA] px-4 text-center text-[13px] leading-6 text-[#737373]">
-    {text}
+const MiniCard = ({
+  icon,
+  title,
+  value,
+  delta,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  delta: number;
+  children: React.ReactNode;
+}) => (
+  <div className="rounded-2xl border border-white/5 bg-[#0F0F0F] p-5">
+    <div className="flex items-start justify-between">
+      <div>
+        <div className="flex items-center gap-1.5 text-[12px] text-white/60">
+          {icon}
+          <span>{title}</span>
+        </div>
+        <p className="mt-2 text-[20px] font-semibold tracking-tight">{value}</p>
+        <p className="mt-0.5 text-[11px] text-white/45">
+          <span className={delta >= 0 ? "text-[#22C55E]" : "text-red-400"}>{formatDelta(delta)}</span>{" "}
+          vs período anterior
+        </p>
+      </div>
+      <button className="rounded-full p-1 text-white/40 hover:bg-white/5 hover:text-white">
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+    </div>
+    <div className="mt-3">{children}</div>
   </div>
 );
 
-const IconButton = () => (
-  <button className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E5E5] bg-white text-[#737373] transition hover:bg-[#FAFAFA] hover:text-black">
-    <MoreHorizontal size={15} />
+const PeriodPill = () => (
+  <button className="flex items-center gap-1.5 rounded-full border border-white/10 bg-[#0F0F0F] px-3 py-1.5 text-[11.5px] text-white/70 hover:bg-white/[0.06]">
+    Últimos 6 meses
+    <ChevronDown className="h-3 w-3" />
   </button>
 );
 
-const ChartTooltip = ({
-  active,
-  payload,
-  label,
-  formatter,
+const ReportCard = ({
+  title,
+  value,
+  delta,
+  subtitle,
 }: {
-  active?: boolean;
-  payload?: Array<{ value?: number; name?: string }>;
-  label?: string;
-  formatter?: (value: number) => string;
-}) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-[12px] border border-[#E5E5E5] bg-white px-3 py-2 text-[12px] text-zinc-950 shadow-lg">
-      <p className="mb-1 text-zinc-500">{label}</p>
-      {payload.map((item) => (
-        <p key={item.name ?? "valor"} className="font-semibold text-zinc-950">
-          {formatter ? formatter(Number(item.value ?? 0)) : formatNumber(Number(item.value ?? 0))}
-        </p>
-      ))}
+  title: string;
+  value: string;
+  delta: number;
+  subtitle: string;
+}) => (
+  <div className="rounded-2xl border border-white/5 bg-[#0F0F0F] p-5">
+    <div className="flex items-center justify-between">
+      <span className="text-[13px] text-white/70">{title}</span>
+      <PeriodPill />
     </div>
-  );
-};
-
-const formatDate = (value: string | null) => {
-  if (!value) return "Sem data";
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
-};
-
-const VeloMark = () => (
-  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white text-black shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
-    <svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <path d="M33 18A11 11 0 1 0 33 30" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-      <path d="M30 26L34 30L38 26" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </span>
+    <p className="mt-3 text-[26px] font-semibold tracking-tight">{value}</p>
+    <p className="mt-1 text-[12px] text-white/50">
+      <span className={delta >= 0 ? "text-[#22C55E]" : "text-red-400"}>{formatDelta(delta)}</span>{" "}
+      {subtitle}
+    </p>
+  </div>
 );
 
-export default AdminBlankPage;
-
+export default AdminPainelPage;
