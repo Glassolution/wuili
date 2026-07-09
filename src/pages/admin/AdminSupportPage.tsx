@@ -119,10 +119,36 @@ const AdminSupportPage = () => {
       const profilesByUser = new Map<string, { display_name: string | null; email?: string | null }>();
       const { data: profs } = await (supabase as any)
         .from("profiles")
-        .select("user_id,display_name,email")
+        .select("user_id,display_name,email,full_name")
         .in("user_id", userIds);
       for (const p of (profs ?? []) as any[]) {
-        profilesByUser.set(p.user_id, { display_name: p.display_name ?? null, email: p.email ?? null });
+        profilesByUser.set(p.user_id, {
+          display_name: p.full_name ?? p.display_name ?? null,
+          email: p.email ?? null,
+        });
+      }
+
+      // Fallback: fetch emails/names via admin-users edge function for users missing data
+      const needsFallback = userIds.filter((uid) => {
+        const p = profilesByUser.get(uid);
+        return !p || !p.email || !p.display_name;
+      });
+      if (needsFallback.length > 0) {
+        try {
+          const { data: adminData } = await supabase.functions.invoke("admin-users", {
+            body: { user_ids: needsFallback },
+          });
+          const list = (adminData as any)?.users ?? (adminData as any) ?? [];
+          for (const u of list as any[]) {
+            const existing = profilesByUser.get(u.user_id ?? u.id) ?? { display_name: null, email: null };
+            profilesByUser.set(u.user_id ?? u.id, {
+              display_name: existing.display_name ?? u.display_name ?? u.full_name ?? u.name ?? null,
+              email: existing.email ?? u.email ?? null,
+            });
+          }
+        } catch (e) {
+          console.warn("admin-users fallback failed", e);
+        }
       }
 
       const { data: msgs } = await (supabase as any)
@@ -388,15 +414,20 @@ const CategoryColumn = ({
                 </div>
               </div>
 
-              {t.user_email && (
-                <div className="flex items-center gap-1.5 text-[12px] text-[#525252]">
-                  <Mail size={12} className="shrink-0 text-[#A3A3A3]" />
-                  <span className="truncate">{t.user_email}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 text-[12px] text-[#525252]">
+                <Mail size={12} className="shrink-0 text-[#A3A3A3]" />
+                <span className="truncate">{t.user_email || "email indisponível"}</span>
+              </div>
 
-              {t.subject && (
-                <p className="line-clamp-2 text-[12px] leading-5 text-[#525252]">{t.subject}</p>
+              {(t.last_message || t.subject) && (
+                <div className="rounded-lg bg-[#F5F5F4] px-2.5 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#A3A3A3]">
+                    Última mensagem
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#0A0A0A]">
+                    {t.last_message || t.subject}
+                  </p>
+                </div>
               )}
 
               <span
