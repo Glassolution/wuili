@@ -297,56 +297,22 @@ const AdminSupportPage = () => {
             </div>
           </header>
 
-          <div className="flex flex-wrap gap-2">
-            <CategoryPill
-              active={activeCategory === "todos"}
-              label="Todos"
-              count={tickets.length}
-              onClick={() => setActiveCategory("todos")}
-            />
-            {CATEGORY_ORDER.map((k) => (
-              <CategoryPill
-                key={k}
-                active={activeCategory === k}
-                label={CATEGORY_META[k].label}
-                icon={CATEGORY_META[k].icon}
-                count={countsByCategory[k]}
-                onClick={() => setActiveCategory(k)}
-              />
-            ))}
-          </div>
-
           {loadingTickets ? (
             <div className="flex items-center justify-center rounded-3xl border border-[#E5E5E5] bg-white py-24">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
-          ) : activeCategory === "todos" ? (
-            <div className="space-y-6">
-              {CATEGORY_ORDER.map((k) => {
-                const list = tickets.filter((t) => t.category === k);
-                if (list.length === 0) return null;
-                return (
-                  <CategorySection
-                    key={k}
-                    category={k}
-                    tickets={list}
-                    onOpen={(id) => setOpenTicketId(id)}
-                  />
-                );
-              })}
-              {tickets.length === 0 && <EmptyState />}
-            </div>
+          ) : tickets.length === 0 ? (
+            <EmptyState />
           ) : (
-            <div>
-              {filtered.length === 0 ? (
-                <EmptyState />
-              ) : (
-                <CategorySection
-                  category={activeCategory}
-                  tickets={filtered}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {CATEGORY_ORDER.map((k) => (
+                <CategoryColumn
+                  key={k}
+                  category={k}
+                  tickets={tickets.filter((t) => t.category === k)}
                   onOpen={(id) => setOpenTicketId(id)}
                 />
-              )}
+              ))}
             </div>
           )}
         </div>
