@@ -48,9 +48,11 @@ type SupportMessage = {
   created_at: string;
 };
 
+import type { LucideIcon } from "lucide-react";
+
 const CATEGORY_META: Record<
   TicketCategory,
-  { label: string; icon: React.ComponentType<{ size?: number; className?: string }>; accent: string }
+  { label: string; icon: LucideIcon; accent: string }
 > = {
   financeiro: { label: "Financeiro", icon: CreditCard, accent: "bg-emerald-100 text-emerald-700" },
   bug: { label: "Bug / Erro", icon: Bug, accent: "bg-red-100 text-red-700" },
