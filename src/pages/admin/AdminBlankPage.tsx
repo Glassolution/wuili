@@ -342,51 +342,8 @@ const AdminPainelPage = () => {
     <div className="min-h-screen bg-[#0A0A0A] text-white" style={{ fontFamily: '"Inter", ui-sans-serif, system-ui' }}>
       <div className="flex min-h-screen">
         {/* Sidebar */}
-        <aside className="sticky top-0 flex h-screen w-[240px] shrink-0 flex-col border-r border-white/5 bg-[#0F0F0F] px-3 py-4">
-          <div className="mb-5 flex items-center justify-between px-2">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#22C55E]">
-                <ChevronLeft className="h-4 w-4 rotate-180 text-black" strokeWidth={2.5} />
-              </div>
-              <span className="text-[15px] font-semibold tracking-tight">VeloMetric</span>
-            </div>
-            <button className="rounded-md p-1 text-white/40 hover:bg-white/5 hover:text-white/80">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-          </div>
+        <AdminNewSidebar activeSub="overview" />
 
-          <button className="mb-4 flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.03] py-2 text-[13px] font-medium text-white/80 transition hover:bg-white/[0.06]">
-            <Sparkles className="h-3.5 w-3.5" />
-            Sugestões da IA
-          </button>
-
-          <nav className="flex-1 space-y-1 text-[13px]">
-            <SideItem icon={LayoutDashboard} label="Painel" active />
-            <div className="ml-6 space-y-0.5 border-l border-white/5 pl-3 py-1">
-              <SideSub label="Visão geral" active />
-              <SideSub label="Relatórios & análises" to="/admin/painel" />
-              <SideSub label="Atividade do time" />
-              <SideSub label="Workflow" />
-            </div>
-            <SideItem icon={Star} label="Funcionalidades" />
-            <SideItem icon={UsersIcon} label="Usuários & times" to="/admin/usuarios" />
-            <SideItem icon={DollarSign} label="Comissões" to="/admin/comissoes" />
-            <SideItem icon={Plug} label="Integrações" />
-          </nav>
-
-          <div className="space-y-1 border-t border-white/5 pt-3 text-[13px]">
-            <SideItem icon={Settings} label="Configurações" />
-            <SideItem icon={FileText} label="Templates" />
-            <SideItem icon={User} label="Perfil" />
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="mt-2 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[12px] text-white/50 hover:bg-white/5 hover:text-white/80"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Voltar a Velo
-            </button>
-          </div>
-        </aside>
 
         {/* Main */}
         <main className="min-w-0 flex-1 px-8 py-6">
