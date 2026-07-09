@@ -16,6 +16,7 @@ import {
   Plus,
   Search,
   Settings,
+  ShieldCheck,
   SlidersHorizontal,
   Trash2,
   X,
