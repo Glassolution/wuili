@@ -1063,43 +1063,83 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
   );
 };
 
-type TrialStatus = {
-  active: boolean;
-  expired?: boolean;
-  dayOfTrial: number;
-  daysTotal: number;
+type TrialSubscription = {
+  status: string | null;
+  is_trial: boolean | null;
+  trial_ends_at: string | null;
+  plan: string | null;
 };
 
-// TODO: substituir por dado real do Supabase (Lovable)
-const mockTrialStatus: TrialStatus = {
-  active: true,
-  expired: false,
-  dayOfTrial: 2,
-  daysTotal: 5,
+const formatCountdown = (endsAt: string, now: Date) => {
+  const diff = new Date(endsAt).getTime() - now.getTime();
+  if (diff <= 0) return null;
+  const totalSeconds = Math.floor(diff / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { days, label: `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}` };
 };
 
 const TrialStatusBanner = ({
-  trialStatus,
   onManageSubscription,
   onUpgradeBusiness,
 }: {
-  trialStatus: TrialStatus;
   onManageSubscription: () => void;
   onUpgradeBusiness: () => void;
 }) => {
-  if (trialStatus.active) {
+  const { user } = useAuth();
+  const [subscription, setSubscription] = useState<TrialSubscription | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    supabase
+      .from("subscriptions")
+      .select("status,is_trial,trial_ends_at,plan")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setSubscription(data as TrialSubscription | null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!subscription?.is_trial || !subscription.trial_ends_at) return;
+    const interval = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(interval);
+  }, [subscription?.is_trial, subscription?.trial_ends_at]);
+
+  if (!subscription) return null;
+
+  const countdown = subscription.is_trial && subscription.trial_ends_at
+    ? formatCountdown(subscription.trial_ends_at, now)
+    : null;
+
+  if (subscription.is_trial && countdown) {
     return (
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-full border border-black/10 bg-white px-4 py-2 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-full bg-black px-5 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.15)]">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="h-2 w-2 rounded-full bg-black" />
-          <p className="truncate text-[13px] font-semibold text-[#171717]">
-            Trial ativo — dia {trialStatus.dayOfTrial} de {trialStatus.daysTotal}
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+          </span>
+          <p className="truncate text-[13px] font-semibold text-white">
+            Trial ativo — restam{" "}
+            <span className="font-mono tabular-nums tracking-tight">{countdown.label}</span>
           </p>
         </div>
         <button
           type="button"
           onClick={onManageSubscription}
-          className="rounded-full bg-[#F2F2F1] px-3 py-1.5 text-[12px] font-semibold text-[#171717] transition hover:bg-[#E6E6E3]"
+          className="rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-black transition hover:bg-white/90"
         >
           Gerenciar assinatura
         </button>
@@ -1107,16 +1147,16 @@ const TrialStatusBanner = ({
     );
   }
 
-  if (trialStatus.expired) {
+  if (subscription.is_trial && !countdown) {
     return (
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-black/10 bg-white px-4 py-3 shadow-[0_10px_24px_rgba(17,17,17,0.04)]">
-        <p className="text-[13px] font-semibold text-[#171717]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-full bg-black px-5 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.15)]">
+        <p className="text-[13px] font-semibold text-white">
           Seu trial acabou. Você está no plano Pro (R$99,90/mês).
         </p>
         <button
           type="button"
           onClick={onUpgradeBusiness}
-          className="rounded-full bg-[#F2F2F1] px-3 py-1.5 text-[12px] font-semibold text-[#171717] transition hover:bg-[#E6E6E3]"
+          className="rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-black transition hover:bg-white/90"
         >
           Fazer upgrade para Business (R$149,90/mês)
         </button>
