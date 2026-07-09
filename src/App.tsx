@@ -110,6 +110,8 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/docs" element={<Docs />} />
+              <Route path="/termos" element={<TermsPage />} />
+              <Route path="/privacidade" element={<PrivacyPage />} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
               <Route path="/admin/dashboard" element={<Navigate to="/admin/painel" replace />} />
