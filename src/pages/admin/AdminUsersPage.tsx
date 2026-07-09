@@ -421,6 +421,7 @@ const AdminUsersPage = () => {
           </section>
         </div>
       </div>
+      <AdminUserDetailModal userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
     </AdminShell>
   );
 };
