@@ -108,7 +108,7 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
           </div>
         )}
 
-        <SideItem icon={Star} label="Funcionalidades" />
+        <SideItem icon={LifeBuoy} label="Suporte" to="/admin/suporte" active={activeSection === "support"} />
         <SideItem icon={UsersIcon} label="Usuários & times" to="/admin/usuarios" active={activeSection === "users"} />
         <SideItem icon={DollarSign} label="Comissões" to="/admin/comissoes" active={activeSection === "commissions"} />
         <SideItem icon={Plug} label="Integrações" />
