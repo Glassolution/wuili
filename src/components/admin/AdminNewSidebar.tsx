@@ -112,7 +112,7 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
         <SideItem icon={LifeBuoy} label="Suporte" to="/admin/suporte" active={activeSection === "support"} />
         <SideItem icon={UsersIcon} label="Usuários & times" to="/admin/usuarios" active={activeSection === "users"} />
         <SideItem icon={DollarSign} label="Comissões" to="/admin/comissoes" active={activeSection === "commissions"} />
-        <SideItem icon={Plug} label="Integrações" />
+        <SideItem icon={RefreshCcw} label="Reembolsos" to="/admin/reembolsos" active={activeSection === "refunds"} />
       </nav>
 
       <div className="space-y-1 pt-3 text-[13px]">
