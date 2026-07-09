@@ -30,6 +30,7 @@ import {
   AreaChart,
   Bar,
   BarChart,
+  CartesianGrid,
   Line,
   LineChart,
   ResponsiveContainer,
