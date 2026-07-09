@@ -661,7 +661,7 @@ const PlanTab = () => {
                     : "bg-black text-white hover:opacity-85 transition-opacity dark:bg-white dark:text-black"
                 }`}
               >
-                {isCurrent ? "Plano atual" : p.id === "gratis" ? "Modo teste" : "Selecionar"}
+                {isCurrent ? "Plano atual" : p.id === "gratis" ? "Modo teste" : "Fazer upgrade"}
               </button>
             </div>
           );
