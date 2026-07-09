@@ -375,7 +375,8 @@ const ReportModal = ({
           </div>
         </aside>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
