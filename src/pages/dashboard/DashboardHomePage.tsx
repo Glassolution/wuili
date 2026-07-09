@@ -1014,6 +1014,7 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
   const orderSeries = kpis.monthlyOrders.slice(-selectedPeriod.points);
   const salesTrend = formatTrend(latestValue(salesSeries), previousValue(salesSeries));
   const orderTrend = formatTrend(latestValue(orderSeries), previousValue(orderSeries));
+  const { labels, currentRange, previousRange } = useMemo(() => getChartDateRange(selectedPeriod.points), [selectedPeriod.points]);
 
   return (
   <section className="rounded-[14px] bg-[#F2F2F1] p-3">
