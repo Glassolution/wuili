@@ -787,17 +787,51 @@ const CheckoutPage = () => {
             )}
 
             {checkoutState !== "pix_pending" && (
-              <button
-                onClick={handleCheckout}
-                disabled={checkoutState === "loading"}
-                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-gray-950 px-4 text-[15px] font-semibold text-white transition hover:bg-black disabled:cursor-wait disabled:opacity-60"
-              >
-                {checkoutState === "loading" ? (
-                  <><Loader2 size={16} className="animate-spin" /> Processando...</>
-                ) : (
-                  `Pagar ${checkoutPrice}`
-                )}
-              </button>
+              <>
+                <div className="mt-6 space-y-2.5 text-[12.5px] leading-[1.55] text-white/70">
+                  <label className="flex cursor-pointer items-start gap-2.5">
+                    <input
+                      type="checkbox"
+                      checked={acceptTerms}
+                      onChange={(e) => setAcceptTerms(e.target.checked)}
+                      className="mt-[3px] h-4 w-4 shrink-0 cursor-pointer accent-white"
+                    />
+                    <span>
+                      Li e aceito os{" "}
+                      <Link to="/termos" target="_blank" className="text-white underline decoration-white/30 underline-offset-2 hover:decoration-white">
+                        Termos de Uso
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-2.5">
+                    <input
+                      type="checkbox"
+                      checked={acceptPrivacy}
+                      onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                      className="mt-[3px] h-4 w-4 shrink-0 cursor-pointer accent-white"
+                    />
+                    <span>
+                      Li e aceito a{" "}
+                      <Link to="/privacidade" target="_blank" className="text-white underline decoration-white/30 underline-offset-2 hover:decoration-white">
+                        Política de Privacidade
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                </div>
+                <button
+                  onClick={handleCheckout}
+                  disabled={checkoutState === "loading" || !acceptTerms || !acceptPrivacy}
+                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-gray-950 px-4 text-[15px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {checkoutState === "loading" ? (
+                    <><Loader2 size={16} className="animate-spin" /> Processando...</>
+                  ) : (
+                    `Pagar ${checkoutPrice}`
+                  )}
+                </button>
+              </>
             )}
           </div>
         </main>
