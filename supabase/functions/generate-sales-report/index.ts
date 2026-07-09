@@ -181,10 +181,15 @@ serve(async (req) => {
   ]
 }
 
-Regras:
-- Escreva em português brasileiro, tom consultivo, direto, com números reais.
+Regras OBRIGATÓRIAS:
+- Escreva em português brasileiro, tom consultivo e direto.
+- SEMPRE cite números REAIS extraídos dos dados (receita, lucro, ticket médio, margem, quantidade de pedidos, nomes exatos dos produtos, estados dos compradores).
+- SEMPRE mencione pelo menos 2 produtos pelo nome exato ao falar de "Produtos em Destaque".
+- Se o Mercado Livre não estiver conectado, deixe isso claro no "Diagnóstico Mercado Livre" e recomende conectar.
+- Se houver muitas publicações sem vendas, aponte o número exato e sugira ações (foto, título, preço).
+- Compare meses quando houver mais de um mês de dados.
 - Cada 'content' pode ter parágrafos separados por \\n\\n e listas com "- ".
-- Se não houver pedidos, dê recomendações para primeiro venda.
+- Se não houver pedidos, foque em recomendações para a primeira venda com base nas publicações existentes.
 - Retorne SOMENTE o JSON, nada mais.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -194,9 +199,9 @@ Regras:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM },
-          { role: "user", content: `Dados do vendedor:\n${JSON.stringify(summaryPayload, null, 2)}` },
+          { role: "user", content: `Dados REAIS do vendedor (use estes números exatos na análise):\n${JSON.stringify(dataPayload, null, 2)}` },
         ],
-        temperature: 0.5,
+        temperature: 0.4,
         response_format: { type: "json_object" },
       }),
     });
