@@ -272,13 +272,6 @@ const AdminSupportPage = () => {
     );
   }
 
-  const filtered =
-    activeCategory === "todos" ? tickets : tickets.filter((t) => t.category === activeCategory);
-
-  const countsByCategory = CATEGORY_ORDER.reduce<Record<TicketCategory, number>>((acc, k) => {
-    acc[k] = tickets.filter((t) => t.category === k).length;
-    return acc;
-  }, {} as Record<TicketCategory, number>);
 
   return (
     <AdminShell active="support" userId={user.id}>
