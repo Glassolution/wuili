@@ -166,6 +166,34 @@ const formatCollectionDate = (value: string | null) => {
 
 const formatInteger = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
+const MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+const formatChartMonth = (date: Date) => `${MONTHS_SHORT[date.getMonth()]}. ${date.getFullYear()}`;
+
+const formatChartLegendDate = (date: Date) => {
+  const day = date.getDate();
+  const month = MONTHS_SHORT[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${month}. ${year}`;
+};
+
+const getChartDateRange = (points: number) => {
+  const now = new Date();
+  const currentStart = new Date(now.getFullYear(), now.getMonth() - (points - 1), 14);
+  const currentEnd = new Date(now.getFullYear(), now.getMonth(), 12);
+  const previousStart = new Date(now.getFullYear(), now.getMonth() - (2 * points - 1), 14);
+  const previousEnd = new Date(now.getFullYear(), now.getMonth() - points, 12);
+  const labels = Array.from({ length: points }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (points - 1 - i), 1);
+    return formatChartMonth(d);
+  });
+  return {
+    labels,
+    currentRange: `${formatChartLegendDate(currentStart)}-${formatChartLegendDate(currentEnd)}`,
+    previousRange: `${formatChartLegendDate(previousStart)}-${formatChartLegendDate(previousEnd)}`,
+  };
+};
+
 type OverviewPeriod = "30d" | "90d" | "180d" | "365d";
 
 const overviewPeriods: Array<{
