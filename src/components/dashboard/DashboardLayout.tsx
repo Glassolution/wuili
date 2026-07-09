@@ -426,6 +426,9 @@ const DashboardLayoutInner = () => {
     void attachReferralToCurrentUser(user.id);
   }, [user?.id]);
 
+  // Broadcast presence on shared realtime channel (used by admin panel to count live users).
+  useOnlinePresence(user?.id ?? null);
+
   const isStartMode = false;
 
   useEffect(() => {
