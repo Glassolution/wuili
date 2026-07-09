@@ -729,6 +729,42 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_reports: {
+        Row: {
+          created_at: string
+          id: string
+          metrics: Json
+          overall_score: number
+          scores: Json
+          sections: Json
+          summary: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics?: Json
+          overall_score?: number
+          scores?: Json
+          sections?: Json
+          summary?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics?: Json
+          overall_score?: number
+          scores?: Json
+          sections?: Json
+          summary?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number
