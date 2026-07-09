@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, CheckCheck, CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
+import { Check, CheckCheck, CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { VeloLogo } from "@/components/VeloLogo";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { notifyTicketReplyEmail } from "@/lib/supportEmail";
 
