@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowUp, Check, CheckCheck, Headphones, Loader2, UserRound } from "lucide-react";
+import { ArrowUp, Check, CheckCheck, Headphones, Loader2, UserRound, X } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,16 @@ const TRIAL_REASON_MESSAGES: Record<string, string> = {
   other: "Olá! Preciso de ajuda com um assunto relacionado ao meu trial.",
 };
 
+export const SUPPORT_CATEGORIES: Array<{ key: TicketCategory; label: string; description: string }> = [
+  { key: "financeiro", label: "Financeiro", description: "Cobranças, planos e pagamentos" },
+  { key: "bug", label: "Bug / Erro", description: "Problemas técnicos na plataforma" },
+  { key: "integracao", label: "Integrações", description: "Mercado Livre, Shopee e outras" },
+  { key: "conta", label: "Conta", description: "Login, dados pessoais, acessos" },
+  { key: "reembolso", label: "Reembolso", description: "Solicitações de devolução" },
+  { key: "outros", label: "Outros", description: "Dúvidas gerais e outros assuntos" },
+];
+
+type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
 
 type SupportTicket = {
   id: string;
@@ -21,6 +31,8 @@ type SupportTicket = {
   status: "open" | "closed";
   ai_active: boolean;
   admin_last_seen_at: string | null;
+  category: TicketCategory;
+  subject: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -49,6 +61,10 @@ const SupportTab = () => {
   const endRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const trialAutoOpenRef = useRef(false);
+  const [openModal, setOpenModal] = useState(false);
+  const [modalCategory, setModalCategory] = useState<TicketCategory>("outros");
+  const [modalSubject, setModalSubject] = useState("");
+  const [creatingTicket, setCreatingTicket] = useState(false);
 
 
   useEffect(() => {
@@ -96,7 +112,9 @@ const SupportTab = () => {
     };
   }, [user?.id]);
 
-  const startHumanSupport = async (): Promise<SupportTicket | null> => {
+  const startHumanSupport = async (
+    opts?: { category?: TicketCategory; subject?: string | null }
+  ): Promise<SupportTicket | null> => {
     if (!user?.id) {
       toast.error("Faça login para falar com o suporte.");
       return null;
@@ -146,9 +164,17 @@ const SupportTab = () => {
         return openTicket;
       }
 
+      const insertPayload: Record<string, unknown> = {
+        user_id: user.id,
+        status: "open",
+        ai_active: false,
+        category: opts?.category ?? "outros",
+      };
+      if (opts?.subject) insertPayload.subject = opts.subject;
+
       const { data, error } = await (supabase as any)
         .from("support_tickets")
-        .insert({ user_id: user.id, status: "open", ai_active: false })
+        .insert(insertPayload)
         .select("*")
         .single();
 
@@ -318,16 +344,51 @@ const SupportTab = () => {
           {!ticket && (
             <button
               type="button"
-              onClick={() => void startHumanSupport()}
+              onClick={() => setOpenModal(true)}
               disabled={ticketLoading}
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-black px-5 text-[13px] font-semibold leading-none text-white shadow-sm transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black"
             >
               {ticketLoading ? <Loader2 size={14} className="animate-spin" /> : <Headphones size={14} />}
-              Chamar Ticket
+              Abrir novo ticket
             </button>
           )}
         </div>
       </div>
+
+      {openModal && (
+        <NewTicketModal
+          category={modalCategory}
+          subject={modalSubject}
+          onCategoryChange={setModalCategory}
+          onSubjectChange={setModalSubject}
+          submitting={creatingTicket}
+          onClose={() => setOpenModal(false)}
+          onSubmit={async () => {
+            const subj = modalSubject.trim();
+            if (!subj) {
+              toast.error("Descreva brevemente o motivo do ticket.");
+              return;
+            }
+            setCreatingTicket(true);
+            try {
+              const created = await startHumanSupport({ category: modalCategory, subject: subj });
+              if (created) {
+                await (supabase as any).from("support_messages").insert({
+                  ticket_id: created.id,
+                  user_id: user!.id,
+                  message: subj,
+                  sender: "user",
+                });
+                setOpenModal(false);
+                setModalSubject("");
+                setModalCategory("outros");
+              }
+            } finally {
+              setCreatingTicket(false);
+            }
+          }}
+        />
+      )}
 
       <div className="flex flex-col overflow-hidden rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] dark:border-white/10 dark:bg-[#0f0f0f]">
         <div
@@ -456,6 +517,100 @@ const TypingBubble = () => (
           style={{ animationDelay: `${d}ms` }}
         />
       ))}
+    </div>
+  </div>
+);
+
+const NewTicketModal = ({
+  category,
+  subject,
+  onCategoryChange,
+  onSubjectChange,
+  submitting,
+  onClose,
+  onSubmit,
+}: {
+  category: TicketCategory;
+  subject: string;
+  onCategoryChange: (c: TicketCategory) => void;
+  onSubjectChange: (s: string) => void;
+  submitting: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div
+      className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#141414]"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="mb-4 flex items-start justify-between">
+        <div>
+          <h3 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white">Abrir novo ticket</h3>
+          <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">
+            Escolha o setor e descreva brevemente o motivo. Nosso time responde por aqui.
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Fechar"
+          className="rounded-full p-1 text-[#737373] hover:bg-[#F0F0F0] dark:text-zinc-400 dark:hover:bg-white/10"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#737373] dark:text-zinc-400">
+        Setor
+      </label>
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        {SUPPORT_CATEGORIES.map((cat) => {
+          const active = cat.key === category;
+          return (
+            <button
+              key={cat.key}
+              type="button"
+              onClick={() => onCategoryChange(cat.key)}
+              className={[
+                "rounded-xl border p-3 text-left transition",
+                active
+                  ? "border-black bg-[#FAFAFA] dark:border-white dark:bg-white/5"
+                  : "border-[#E5E5E5] hover:border-[#0A0A0A] dark:border-white/10 dark:hover:border-white/40",
+              ].join(" ")}
+            >
+              <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{cat.label}</p>
+              <p className="mt-0.5 text-[11px] text-[#737373] dark:text-zinc-400">{cat.description}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#737373] dark:text-zinc-400">
+        Motivo do ticket
+      </label>
+      <textarea
+        value={subject}
+        onChange={(e) => onSubjectChange(e.target.value)}
+        placeholder="Ex.: Não recebi o comprovante da minha última cobrança..."
+        rows={4}
+        className="w-full resize-none rounded-xl border border-[#E5E5E5] bg-white p-3 text-[14px] text-[#0A0A0A] outline-none placeholder:text-[#A3A3A3] focus:border-black dark:border-white/10 dark:bg-[#0f0f0f] dark:text-white"
+      />
+
+      <div className="mt-5 flex justify-end gap-2">
+        <button
+          onClick={onClose}
+          className="rounded-full border border-[#E5E5E5] px-5 py-2 text-[13px] font-semibold text-[#0A0A0A] hover:bg-[#F5F5F5] dark:border-white/10 dark:text-white dark:hover:bg-white/5"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={onSubmit}
+          disabled={submitting || !subject.trim()}
+          className="inline-flex items-center gap-2 rounded-full bg-black px-5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+        >
+          {submitting && <Loader2 size={14} className="animate-spin" />}
+          Abrir ticket
+        </button>
+      </div>
     </div>
   </div>
 );

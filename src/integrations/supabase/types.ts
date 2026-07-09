@@ -957,27 +957,33 @@ export type Database = {
         Row: {
           admin_last_seen_at: string | null
           ai_active: boolean | null
+          category: string
           created_at: string | null
           id: string
           status: string | null
+          subject: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           admin_last_seen_at?: string | null
           ai_active?: boolean | null
+          category?: string
           created_at?: string | null
           id?: string
           status?: string | null
+          subject?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           admin_last_seen_at?: string | null
           ai_active?: boolean | null
+          category?: string
           created_at?: string | null
           id?: string
           status?: string | null
+          subject?: string | null
           updated_at?: string | null
           user_id?: string
         }
