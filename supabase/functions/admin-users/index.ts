@@ -97,8 +97,8 @@ Deno.serve(async (req) => {
       userIds.length
         ? adminClient
             .from("profiles")
-            .select("id,user_id,full_name,display_name,email,avatar_url,created_at")
-            .in("id", userIds)
+            .select("id,user_id,display_name,avatar_url,created_at")
+            .in("user_id", userIds)
         : Promise.resolve({ data: [], error: null }),
       userIds.length
         ? adminClient
@@ -171,8 +171,10 @@ Deno.serve(async (req) => {
       })
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[admin-users] error:", message);
-    return json({ error: "Erro interno" }, 500);
+    const message = error instanceof Error
+      ? error.message
+      : (typeof error === "object" ? JSON.stringify(error) : String(error));
+    console.error("[admin-users] error:", message, error);
+    return json({ error: "Erro interno", detail: message }, 500);
   }
 });
