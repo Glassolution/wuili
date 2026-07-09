@@ -56,6 +56,7 @@ type PublicationRow = Pick<
   "created_at" | "status"
 >;
 type ProfileRow = Pick<Database["public"]["Tables"]["profiles"]["Row"], "created_at">;
+type RefundRow = { refund_amount: number | string | null; processed_at: string | null; status: string | null };
 
 type PanelData = {
   counts: { users: number; publications: number; orders: number; activeSubs: number };
@@ -63,6 +64,7 @@ type PanelData = {
   orders: OrderRow[];
   publications: PublicationRow[];
   profiles: ProfileRow[];
+  refunds: RefundRow[];
 };
 
 const empty: PanelData = {
