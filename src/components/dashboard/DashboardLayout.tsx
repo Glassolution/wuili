@@ -430,6 +430,7 @@ const DashboardLayoutInner = () => {
 
   // Broadcast presence on shared realtime channel (used by admin panel to count live users).
   useOnlinePresence(user?.id ?? null);
+  useActivityTracker(user?.id ?? null);
 
   const isStartMode = false;
 
