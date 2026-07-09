@@ -434,10 +434,10 @@ const Th = ({ children, first }: { children: React.ReactNode; first?: boolean })
   </th>
 );
 
-const UserRow = ({ user }: { user: AdminUserRow }) => {
+const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }) => {
   const temp = leadTemperature(user);
   return (
-    <tr className="group transition hover:bg-white/[0.02]">
+    <tr onClick={onClick} className="group cursor-pointer transition hover:bg-white/[0.02]">
       <td className="py-3.5 pl-2 pr-4">
         <div className="flex items-center gap-3">
           <Avatar user={user} />
