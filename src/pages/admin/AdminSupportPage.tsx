@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, CheckCheck, CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
+import { Check, CheckCheck, CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { VeloLogo } from "@/components/VeloLogo";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { notifyTicketReplyEmail } from "@/lib/supportEmail";
 
@@ -330,170 +330,163 @@ const AdminSupportPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] p-5 text-[#0A0A0A] md:p-8">
-      <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
-        <header className="flex flex-col gap-4 rounded-3xl border border-[#E5E5E5] bg-white px-6 py-5 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              to="/admin/painel"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E5E5E5] bg-white text-[#0A0A0A] transition hover:border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white"
-              aria-label="Voltar para o painel admin"
-            >
-              <ArrowLeft size={18} />
-            </Link>
-            <VeloLogo size="sm" variant="dark" />
+    <AdminShell active="support" userId={user.id}>
+      <div className="min-h-full bg-[#f5f5f4] p-5 text-[#0A0A0A] md:p-8">
+        <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
+          <header className="flex flex-col gap-4 rounded-3xl border border-[#E5E5E5] bg-white px-6 py-5 shadow-sm md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#A3A3A3]">Admin</p>
               <h1 className="text-[24px] font-black tracking-tight">Suporte humano</h1>
+              <p className="mt-1 text-[13px] text-[#737373]">Responda os tickets abertos pelos usuários em tempo real.</p>
             </div>
-          </div>
-          <div className="rounded-full bg-[#0A0A0A] px-4 py-2 text-[13px] font-semibold text-white">
-            {tickets.length} tickets abertos
-          </div>
-        </header>
-
-        <main className="grid min-h-[calc(100vh-180px)] gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
-          <aside className="overflow-hidden rounded-3xl border border-[#E5E5E5] bg-white shadow-sm">
-            <div className="border-b border-[#F0F0F0] px-5 py-4">
-              <p className="text-[15px] font-bold">Fila de atendimento</p>
-              <p className="mt-0.5 text-[12px] text-[#737373]">Tickets abertos em tempo real</p>
+            <div className="rounded-full bg-[#0A0A0A] px-4 py-2 text-[13px] font-semibold text-white">
+              {tickets.length} tickets abertos
             </div>
+          </header>
 
-            <div className="max-h-[calc(100vh-260px)] overflow-y-auto p-3">
-              {loadingTickets ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                </div>
-              ) : tickets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
-                  <MessageCircle className="h-8 w-8 text-[#D4D4D4]" />
-                  <p className="mt-3 text-[14px] font-semibold">Nenhum ticket aberto</p>
-                  <p className="mt-1 text-[12px] text-[#737373]">Novas solicitações aparecerão aqui.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {tickets.map((ticket) => {
-                    const active = ticket.id === selectedTicket?.id;
+          <main className="grid min-h-[calc(100vh-220px)] gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
+            <aside className="overflow-hidden rounded-3xl border border-[#E5E5E5] bg-white shadow-sm">
+              <div className="border-b border-[#F0F0F0] px-5 py-4">
+                <p className="text-[15px] font-bold">Fila de atendimento</p>
+                <p className="mt-0.5 text-[12px] text-[#737373]">Tickets abertos em tempo real</p>
+              </div>
 
-                    return (
-                      <button
-                        key={ticket.id}
-                        onClick={() => setSelectedTicketId(ticket.id)}
-                        className={[
-                          "w-full rounded-2xl border p-4 text-left transition",
-                          active
-                            ? "border-[#0A0A0A] bg-[#FAFAFA]"
-                            : "border-transparent hover:border-[#E5E5E5] hover:bg-[#FAFAFA]",
-                        ].join(" ")}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-[14px] font-bold">{ticket.user_name || "Usuário"}</p>
-                            <p className="truncate text-[12px] text-[#737373]">{ticket.user_email || "Email indisponível"}</p>
-                          </div>
-                          <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.05em] text-emerald-700">
-                            open
-                          </span>
-                        </div>
-                        <p className="mt-3 line-clamp-2 text-[12px] leading-5 text-[#525252]">
-                          {ticket.last_message || "Ticket aberto sem mensagens ainda."}
-                        </p>
-                        <p className="mt-3 text-[11px] text-[#A3A3A3]">
-                          Aberto em {formatDateTime(ticket.created_at)}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </aside>
-
-          <section className="flex min-h-[560px] flex-col overflow-hidden rounded-3xl border border-[#E5E5E5] bg-white shadow-sm">
-            {selectedTicket ? (
-              <>
-                <div className="flex flex-col gap-3 border-b border-[#F0F0F0] px-5 py-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0A0A0A] text-white">
-                      <UserRound size={18} />
-                    </div>
-                    <div>
-                      <p className="text-[15px] font-bold">{selectedTicket.user_name || "Usuário"}</p>
-                      <p className="text-[12px] text-[#737373]">{selectedTicket.user_email || "Email indisponível"}</p>
-                    </div>
+              <div className="max-h-[calc(100vh-300px)] overflow-y-auto p-3">
+                {loadingTickets ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-5 w-5 animate-spin" />
                   </div>
+                ) : tickets.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
+                    <MessageCircle className="h-8 w-8 text-[#D4D4D4]" />
+                    <p className="mt-3 text-[14px] font-semibold">Nenhum ticket aberto</p>
+                    <p className="mt-1 text-[12px] text-[#737373]">Novas solicitações aparecerão aqui.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {tickets.map((ticket) => {
+                      const active = ticket.id === selectedTicket?.id;
 
-                  <button
-                    onClick={() => closeTicket.mutate()}
-                    disabled={closeTicket.isPending}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[#0A0A0A] px-4 py-2 text-[13px] font-semibold text-[#0A0A0A] transition hover:bg-[#0A0A0A] hover:text-white disabled:opacity-50"
-                  >
-                    {closeTicket.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                    Marcar como resolvido
-                  </button>
-                </div>
+                      return (
+                        <button
+                          key={ticket.id}
+                          onClick={() => setSelectedTicketId(ticket.id)}
+                          className={[
+                            "w-full rounded-2xl border p-4 text-left transition",
+                            active
+                              ? "border-[#0A0A0A] bg-[#FAFAFA]"
+                              : "border-transparent hover:border-[#E5E5E5] hover:bg-[#FAFAFA]",
+                          ].join(" ")}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-[14px] font-bold">{ticket.user_name || "Usuário"}</p>
+                              <p className="truncate text-[12px] text-[#737373]">{ticket.user_email || "Email indisponível"}</p>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.05em] text-emerald-700">
+                              open
+                            </span>
+                          </div>
+                          <p className="mt-3 line-clamp-2 text-[12px] leading-5 text-[#525252]">
+                            {ticket.last_message || "Ticket aberto sem mensagens ainda."}
+                          </p>
+                          <p className="mt-3 text-[11px] text-[#A3A3A3]">
+                            Aberto em {formatDateTime(ticket.created_at)}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </aside>
 
-                <div className="flex-1 space-y-3 overflow-y-auto bg-[#FAFAFA] p-5">
-                  {loadingMessages ? (
-                    <div className="flex h-full items-center justify-center">
-                      <Loader2 className="h-5 w-5 animate-spin" />
+            <section className="flex min-h-[560px] flex-col overflow-hidden rounded-3xl border border-[#E5E5E5] bg-white shadow-sm">
+              {selectedTicket ? (
+                <>
+                  <div className="flex flex-col gap-3 border-b border-[#F0F0F0] px-5 py-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0A0A0A] text-white">
+                        <UserRound size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-bold">{selectedTicket.user_name || "Usuário"}</p>
+                        <p className="text-[12px] text-[#737373]">{selectedTicket.user_email || "Email indisponível"}</p>
+                      </div>
                     </div>
-                  ) : messages.length === 0 ? (
-                    <div className="flex h-full items-center justify-center text-center text-[13px] text-[#737373]">
-                      O usuário ainda não enviou mensagens neste ticket.
-                    </div>
-                  ) : (
-                    messages.map((message, index) => (
-                      <AdminChatBubble
-                        key={message.id}
-                        msg={message}
-                        receipt={
-                          message.sender === "user" ||
-                          messages.slice(index + 1).some((item) => item.sender === "user")
-                            ? "seen"
-                            : "sent"
-                        }
-                      />
-                    ))
-                  )}
-                </div>
 
-                <div className="border-t border-[#F0F0F0] bg-white p-4">
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      value={reply}
-                      onChange={(event) => setReply(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !event.shiftKey) {
-                          event.preventDefault();
-                          sendReply.mutate();
-                        }
-                      }}
-                      placeholder="Digite a resposta para o usuário..."
-                      className="min-h-[48px] flex-1 resize-none rounded-2xl border border-[#E5E5E5] bg-white px-4 py-3 text-[14px] leading-5 outline-none transition focus:border-[#0A0A0A]"
-                    />
                     <button
-                      onClick={() => sendReply.mutate()}
-                      disabled={sendReply.isPending || !reply.trim()}
-                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label="Enviar resposta"
+                      onClick={() => closeTicket.mutate()}
+                      disabled={closeTicket.isPending}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-[#0A0A0A] px-4 py-2 text-[13px] font-semibold text-[#0A0A0A] transition hover:bg-[#0A0A0A] hover:text-white disabled:opacity-50"
                     >
-                      {sendReply.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      {closeTicket.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                      Marcar como resolvido
                     </button>
                   </div>
+
+                  <div className="flex-1 space-y-3 overflow-y-auto bg-[#FAFAFA] p-5">
+                    {loadingMessages ? (
+                      <div className="flex h-full items-center justify-center">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      </div>
+                    ) : messages.length === 0 ? (
+                      <div className="flex h-full items-center justify-center text-center text-[13px] text-[#737373]">
+                        O usuário ainda não enviou mensagens neste ticket.
+                      </div>
+                    ) : (
+                      messages.map((message, index) => (
+                        <AdminChatBubble
+                          key={message.id}
+                          msg={message}
+                          receipt={
+                            message.sender === "user" ||
+                            messages.slice(index + 1).some((item) => item.sender === "user")
+                              ? "seen"
+                              : "sent"
+                          }
+                        />
+                      ))
+                    )}
+                  </div>
+
+                  <div className="border-t border-[#F0F0F0] bg-white p-4">
+                    <div className="flex items-end gap-2">
+                      <textarea
+                        value={reply}
+                        onChange={(event) => setReply(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && !event.shiftKey) {
+                            event.preventDefault();
+                            sendReply.mutate();
+                          }
+                        }}
+                        placeholder="Digite a resposta para o usuário..."
+                        className="min-h-[48px] flex-1 resize-none rounded-2xl border border-[#E5E5E5] bg-white px-4 py-3 text-[14px] leading-5 outline-none transition focus:border-[#0A0A0A]"
+                      />
+                      <button
+                        onClick={() => sendReply.mutate()}
+                        disabled={sendReply.isPending || !reply.trim()}
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label="Enviar resposta"
+                      >
+                        {sendReply.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+                  <MessageCircle className="h-10 w-10 text-[#D4D4D4]" />
+                  <p className="mt-4 text-[17px] font-bold">Selecione um ticket</p>
+                  <p className="mt-1 text-[13px] text-[#737373]">A conversa completa aparecerá aqui.</p>
                 </div>
-              </>
-            ) : (
-              <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-                <MessageCircle className="h-10 w-10 text-[#D4D4D4]" />
-                <p className="mt-4 text-[17px] font-bold">Selecione um ticket</p>
-                <p className="mt-1 text-[13px] text-[#737373]">A conversa completa aparecerá aqui.</p>
-              </div>
-            )}
-          </section>
-        </main>
+              )}
+            </section>
+          </main>
+        </div>
       </div>
-    </div>
+    </AdminShell>
   );
 };
 
