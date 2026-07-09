@@ -149,6 +149,8 @@ const CheckoutPage = () => {
     : `Assinatura ${recurringCycleLabel} do plano ${plan.name}`;
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("pix");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle");
   const [pixData, setPixData] = useState<{ qr_code_base64: string; copy_paste: string } | null>(null);
   const [copied, setCopied] = useState(false);
