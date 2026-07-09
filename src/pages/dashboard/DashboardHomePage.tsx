@@ -1094,7 +1094,7 @@ const formatCountdown = (endsAt: string, now: Date) => {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   const pad = (n: number) => String(n).padStart(2, "0");
-  return { days, label: `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}` };
+  return { days, totalSeconds, hours, minutes, seconds, label: `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}` };
 };
 
 const TrialStatusBanner = ({
