@@ -608,6 +608,7 @@ const PlanTab = () => {
             {current.price}<span className="text-[13px] text-[#737373] dark:text-zinc-400 font-normal">{current.period}</span>
           </p>
         </div>
+        <p className="text-[13px] text-[#525252] dark:text-zinc-300 mb-4 max-w-xl">{current.description}</p>
         <ul className="space-y-2 mb-5">
           {current.features.map((f) => (
             <li key={f} className="flex items-center gap-2 text-[13px] text-[#0A0A0A] dark:text-white">
