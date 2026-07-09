@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
+import SearchPalette from "@/components/dashboard/SearchPalette";
 
 type NavItem = {
   label: string;
@@ -459,6 +460,7 @@ const DashboardSidebar = () => {
   const [subscription, setSubscription] = useState<SidebarSubscription | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [isAdmin, setIsAdmin] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileName = nome || user?.user_metadata?.full_name || user?.email || "Usuario";
   const profileEmail = user?.email || "conta@velo.app";
@@ -485,6 +487,19 @@ const DashboardSidebar = () => {
   useEffect(() => {
     setProfileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key !== "/") return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (target?.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      event.preventDefault();
+      setSearchOpen(true);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -619,11 +634,13 @@ const DashboardSidebar = () => {
         </Link>
       </header>
 
-      <button type="button" aria-label="Buscar" style={styles.search}>
+      <button type="button" aria-label="Buscar" style={styles.search} onClick={() => setSearchOpen(true)}>
         <Search size={15} strokeWidth={1.7} aria-hidden="true" />
         <span style={styles.searchText}>Buscar</span>
         <span style={styles.searchBadge}>/</span>
       </button>
+
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin={isAdmin} />
 
       <nav aria-label="Navegação principal" style={styles.nav}>
         {visibleNavItems.map((item) => (
