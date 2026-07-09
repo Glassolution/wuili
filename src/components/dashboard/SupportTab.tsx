@@ -344,16 +344,51 @@ const SupportTab = () => {
           {!ticket && (
             <button
               type="button"
-              onClick={() => void startHumanSupport()}
+              onClick={() => setOpenModal(true)}
               disabled={ticketLoading}
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-black px-5 text-[13px] font-semibold leading-none text-white shadow-sm transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black"
             >
               {ticketLoading ? <Loader2 size={14} className="animate-spin" /> : <Headphones size={14} />}
-              Chamar Ticket
+              Abrir novo ticket
             </button>
           )}
         </div>
       </div>
+
+      {openModal && (
+        <NewTicketModal
+          category={modalCategory}
+          subject={modalSubject}
+          onCategoryChange={setModalCategory}
+          onSubjectChange={setModalSubject}
+          submitting={creatingTicket}
+          onClose={() => setOpenModal(false)}
+          onSubmit={async () => {
+            const subj = modalSubject.trim();
+            if (!subj) {
+              toast.error("Descreva brevemente o motivo do ticket.");
+              return;
+            }
+            setCreatingTicket(true);
+            try {
+              const created = await startHumanSupport({ category: modalCategory, subject: subj });
+              if (created) {
+                await (supabase as any).from("support_messages").insert({
+                  ticket_id: created.id,
+                  user_id: user!.id,
+                  message: subj,
+                  sender: "user",
+                });
+                setOpenModal(false);
+                setModalSubject("");
+                setModalCategory("outros");
+              }
+            } finally {
+              setCreatingTicket(false);
+            }
+          }}
+        />
+      )}
 
       <div className="flex flex-col overflow-hidden rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] dark:border-white/10 dark:bg-[#0f0f0f]">
         <div
