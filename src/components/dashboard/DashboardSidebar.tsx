@@ -679,7 +679,7 @@ const DashboardSidebar = () => {
             )}
           </p>
           <button type="button" onClick={() => navigate("/dashboard/planos")} style={styles.upgradeButton}>
-            {trialTimeLeft ? "Gerenciar trial" : "Fazer upgrade"}
+            Fazer upgrade
           </button>
         </section>
       )}
