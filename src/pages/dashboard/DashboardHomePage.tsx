@@ -1146,7 +1146,7 @@ const TrialStatusBanner = ({
 
     return (
       <div
-        className="sticky top-4 z-50 mx-4 mb-4 flex h-12 w-[calc(100%-2rem)] items-center justify-between rounded-2xl bg-[#0A0A0A] px-4 sm:px-6"
+        className="sticky top-2 z-50 mx-4 mb-4 flex h-12 w-[calc(100%-2rem)] items-center justify-between rounded-2xl bg-[#0A0A0A] px-4 sm:px-6"
         style={{
           borderBottom: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 1px 0 rgba(255,255,255,0.04), 0 2px 12px rgba(0,0,0,0.4)",
