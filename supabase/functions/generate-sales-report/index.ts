@@ -235,12 +235,12 @@ Regras OBRIGATÓRIAS:
     const overall = Math.max(0, Math.min(10, Number(parsed.overall_score ?? 0)));
 
     const metrics = {
-      revenue: summaryPayload.revenue,
-      profit: summaryPayload.profit,
-      orders: summaryPayload.active_orders,
-      avg_ticket: summaryPayload.avg_ticket,
-      margin_pct: summaryPayload.margin_pct,
-      publications_active: summaryPayload.publications_active,
+      revenue: dataPayload.totals.receita,
+      profit: dataPayload.totals.lucro,
+      orders: dataPayload.totals.orders_ativos,
+      avg_ticket: dataPayload.totals.ticket_medio,
+      margin_pct: dataPayload.totals.margem_pct,
+      publications_active: dataPayload.publicacoes.ativas,
     };
 
     const { data: inserted, error: insertErr } = await admin
