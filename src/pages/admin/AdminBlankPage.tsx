@@ -505,10 +505,10 @@ const AdminPainelPage = () => {
             </div>
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               <ReportCard
-                title="Overview"
+                title="Faturamento real"
                 value={formatBRL(revenueTotal)}
                 delta={revenueDelta.delta}
-                subtitle="Receita total no período"
+                subtitle="líquido de reembolsos nos últimos 6 meses"
               />
               <ReportCard
                 title="Tarefas automatizadas concluídas"
