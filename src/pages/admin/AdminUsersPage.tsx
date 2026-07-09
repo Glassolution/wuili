@@ -157,9 +157,9 @@ const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
 };
 
 const fetchAdminUserDetails = async (userId: string): Promise<AdminUserDetails> => {
-  const { data, error } = await supabase.functions.invoke<AdminUserDetails>("get-user-details", {
+  const { data, error } = (await supabase.functions.invoke("get-user-details", {
     body: { user_id: userId },
-  });
+  })) as { data: AdminUserDetails | null; error: unknown };
 
   if (error) throw error;
 
