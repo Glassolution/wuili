@@ -460,6 +460,7 @@ const DashboardSidebar = () => {
   const [subscription, setSubscription] = useState<SidebarSubscription | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [isAdmin, setIsAdmin] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileName = nome || user?.user_metadata?.full_name || user?.email || "Usuario";
   const profileEmail = user?.email || "conta@velo.app";
