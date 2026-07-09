@@ -237,6 +237,14 @@ const CheckoutPage = () => {
       navigate("/login");
       return;
     }
+    if (!acceptTerms) {
+      toast.error("Você precisa aceitar os Termos de Uso.");
+      return;
+    }
+    if (!acceptPrivacy) {
+      toast.error("Você precisa aceitar a Política de Privacidade.");
+      return;
+    }
 
     setCheckoutState("loading");
     const toastId = toast.loading(selectedMethod === "pix" ? "Gerando pagamento Pix..." : "Processando pagamento...");
