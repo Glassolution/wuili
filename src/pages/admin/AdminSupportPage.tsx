@@ -329,42 +329,16 @@ const AdminSupportPage = () => {
   );
 };
 
-const CategoryPill = ({
-  active,
-  label,
-  count,
-  onClick,
-  icon: Icon,
-}: {
-  active: boolean;
-  label: string;
-  count: number;
-  onClick: () => void;
-  icon?: LucideIcon;
-}) => (
-  <button
-    onClick={onClick}
-    className={[
-      "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-semibold transition",
-      active
-        ? "border-[#0A0A0A] bg-[#0A0A0A] text-white"
-        : "border-[#E5E5E5] bg-white text-[#0A0A0A] hover:border-[#0A0A0A]",
-    ].join(" ")}
-  >
-    {Icon && <Icon size={14} />}
-    {label}
-    <span
-      className={[
-        "rounded-full px-2 py-0.5 text-[11px] font-bold",
-        active ? "bg-white/15 text-white" : "bg-[#F5F5F5] text-[#525252]",
-      ].join(" ")}
-    >
-      {count}
-    </span>
-  </button>
-);
+const COLUMN_ACCENTS: Record<TicketCategory, { dot: string; badge: string; statusBadge: string }> = {
+  financeiro: { dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-700", statusBadge: "bg-emerald-50 text-emerald-700" },
+  bug: { dot: "bg-red-500", badge: "bg-red-50 text-red-700", statusBadge: "bg-red-50 text-red-700" },
+  integracao: { dot: "bg-blue-500", badge: "bg-blue-50 text-blue-700", statusBadge: "bg-blue-50 text-blue-700" },
+  conta: { dot: "bg-purple-500", badge: "bg-purple-50 text-purple-700", statusBadge: "bg-purple-50 text-purple-700" },
+  reembolso: { dot: "bg-amber-500", badge: "bg-amber-50 text-amber-700", statusBadge: "bg-amber-50 text-amber-700" },
+  outros: { dot: "bg-neutral-400", badge: "bg-neutral-100 text-neutral-700", statusBadge: "bg-neutral-100 text-neutral-700" },
+};
 
-const CategorySection = ({
+const CategoryColumn = ({
   category,
   tickets,
   onOpen,
@@ -374,50 +348,66 @@ const CategorySection = ({
   onOpen: (id: string) => void;
 }) => {
   const meta = CATEGORY_META[category];
-  const Icon = meta.icon;
+  const accent = COLUMN_ACCENTS[category];
   return (
-    <section className="rounded-3xl border border-[#E5E5E5] bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-[#F0F0F0] px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${meta.accent}`}>
-            <Icon size={16} />
-          </div>
-          <div>
-            <p className="text-[15px] font-bold">{meta.label}</p>
-            <p className="text-[12px] text-[#737373]">{tickets.length} ticket(s) abertos</p>
-          </div>
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex items-center justify-between rounded-2xl border border-[#E5E5E5] bg-white px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className={`h-2.5 w-2.5 rounded-full ${accent.dot}`} />
+          <p className="text-[13px] font-semibold text-[#0A0A0A]">{meta.label}</p>
         </div>
+        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${accent.badge}`}>
+          {tickets.length} {tickets.length === 1 ? "Ticket" : "Tickets"}
+        </span>
       </div>
-      <div className="divide-y divide-[#F0F0F0]">
-        {tickets.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => onOpen(t.id)}
-            className="flex w-full items-start gap-4 px-6 py-4 text-left transition hover:bg-[#FAFAFA]"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white">
-              <UserRound size={16} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[14px] font-bold text-[#0A0A0A]">{t.user_name || "Usuário"}</p>
-                <span className="text-[12px] text-[#A3A3A3]">·</span>
-                <p className="truncate text-[12px] text-[#737373]">{t.user_email || "sem email"}</p>
+
+      <div className="flex flex-col gap-3">
+        {tickets.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#E5E5E5] bg-white/50 px-4 py-6 text-center text-[11px] text-[#A3A3A3]">
+            Nenhum ticket
+          </div>
+        ) : (
+          tickets.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => onOpen(t.id)}
+              className="group flex w-full flex-col gap-3 rounded-2xl border border-[#E5E5E5] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white">
+                    <UserRound size={15} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-bold text-[#0A0A0A]">
+                      {t.user_name || "Usuário"}
+                    </p>
+                    <p className="text-[11px] text-[#A3A3A3]">{formatDateTime(t.created_at)}</p>
+                  </div>
+                </div>
               </div>
-              <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-[#0A0A0A]">
-                {t.subject || t.last_message || "Sem descrição."}
-              </p>
-              <p className="mt-1.5 text-[11px] text-[#A3A3A3]">
-                Aberto em {formatDateTime(t.created_at)}
-              </p>
-            </div>
-            <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.05em] text-emerald-700">
-              open
-            </span>
-          </button>
-        ))}
+
+              {t.user_email && (
+                <div className="flex items-center gap-1.5 text-[12px] text-[#525252]">
+                  <Mail size={12} className="shrink-0 text-[#A3A3A3]" />
+                  <span className="truncate">{t.user_email}</span>
+                </div>
+              )}
+
+              {t.subject && (
+                <p className="line-clamp-2 text-[12px] leading-5 text-[#525252]">{t.subject}</p>
+              )}
+
+              <span
+                className={`inline-flex w-fit items-center rounded-md px-2 py-0.5 text-[10px] font-semibold ${accent.statusBadge}`}
+              >
+                {meta.label}
+              </span>
+            </button>
+          ))
+        )}
       </div>
-    </section>
+    </div>
   );
 };
 
