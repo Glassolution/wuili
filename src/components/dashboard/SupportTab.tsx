@@ -47,6 +47,9 @@ const SupportTab = () => {
   const [ticketLoading, setTicketLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const trialAutoOpenRef = useRef(false);
+
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
