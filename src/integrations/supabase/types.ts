@@ -1019,6 +1019,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_page_views: {
+        Row: {
+          id: string
+          path: string
+          product_id: string | null
+          product_title: string | null
+          title: string | null
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          id?: string
+          path: string
+          product_id?: string | null
+          product_title?: string | null
+          title?: string | null
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          id?: string
+          path?: string
+          product_id?: string | null
+          product_title?: string | null
+          title?: string | null
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: []
+      }
       user_publications: {
         Row: {
           catalog_product_id: string | null
@@ -1093,6 +1123,33 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          last_seen_at: string
+          started_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          started_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          started_at?: string
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
