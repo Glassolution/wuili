@@ -87,7 +87,7 @@ const chooseSubscription = (current: SubscriptionRow | undefined, next: Subscrip
 };
 
 const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
-  const [functionResult, profilesResult, subscriptionsResult] = await Promise.all([
+  const [functionResult, profilesResult, subscriptionsResult, sessionsResult] = await Promise.all([
     supabase.functions.invoke("admin-users") as Promise<{ data: AdminUserRow[] | null; error: unknown }>,
     supabase
       .from("profiles")
@@ -97,13 +97,25 @@ const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
       .from("subscriptions")
       .select("user_id,plan,status,amount,is_trial,created_at,updated_at")
       .order("updated_at", { ascending: false }),
+    supabase
+      .from("user_sessions")
+      .select("user_id,last_seen_at")
+      .order("last_seen_at", { ascending: false })
+      .limit(2000),
   ]);
 
   if (profilesResult.error && functionResult.error) throw profilesResult.error;
 
+  const lastSeenByUser = new Map<string, string>();
+  for (const row of (sessionsResult.data ?? []) as Array<{ user_id: string; last_seen_at: string | null }>) {
+    if (!row.user_id || !row.last_seen_at) continue;
+    if (!lastSeenByUser.has(row.user_id)) lastSeenByUser.set(row.user_id, row.last_seen_at);
+  }
+
   const usersById = new Map<string, AdminUserRow>();
   const functionUsers = Array.isArray(functionResult.data) ? functionResult.data : [];
-  for (const item of functionUsers) usersById.set(item.user_id, item);
+  for (const item of functionUsers)
+    usersById.set(item.user_id, { ...item, last_seen_at: lastSeenByUser.get(item.user_id) ?? null });
 
   const subscriptionsByUser = new Map<string, SubscriptionRow>();
   for (const s of (subscriptionsResult.data ?? []) as SubscriptionRow[]) {
