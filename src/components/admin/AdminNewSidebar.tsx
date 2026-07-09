@@ -8,7 +8,7 @@ import {
   FileText,
   LayoutDashboard,
   LifeBuoy,
-  Plug,
+  RefreshCcw,
   Settings,
   Sparkles,
   User,
