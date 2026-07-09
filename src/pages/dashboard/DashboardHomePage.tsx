@@ -16,7 +16,6 @@ import {
   Plus,
   Search,
   Settings,
-  ShieldCheck,
   SlidersHorizontal,
   Trash2,
   X,
@@ -1147,20 +1146,17 @@ const TrialStatusBanner = ({
 
     return (
       <div
-        className="sticky top-0 z-50 mb-4 flex h-12 w-full items-center justify-between bg-[#0A0A0A] px-4 sm:px-6"
+        className="sticky top-4 z-50 mx-4 mb-4 flex h-12 w-[calc(100%-2rem)] items-center justify-between rounded-2xl bg-[#0A0A0A] px-4 sm:px-6"
         style={{
           borderBottom: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 1px 0 rgba(255,255,255,0.04), 0 2px 12px rgba(0,0,0,0.4)",
         }}
       >
         <div className="flex items-center gap-2.5">
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-            style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)",
-            }}
-          >
-            <ShieldCheck className="h-4 w-4 text-white" strokeWidth={1.5} />
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2a2a2a]">
+            <svg viewBox="0 0 12 12" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="2.5,6.5 5,9 9.5,3.5" />
+            </svg>
           </span>
           <span className="text-[13px] font-semibold text-white">Trial ativo</span>
           <span className="text-[13px] text-[#555]">·</span>
@@ -1188,20 +1184,17 @@ const TrialStatusBanner = ({
   if (endsAt && !countdown) {
     return (
       <div
-        className="sticky top-0 z-50 mb-4 flex h-12 w-full items-center justify-between bg-[#0A0A0A] px-4 sm:px-6"
+        className="sticky top-4 z-50 mx-4 mb-4 flex h-12 w-[calc(100%-2rem)] items-center justify-between rounded-2xl bg-[#0A0A0A] px-4 sm:px-6"
         style={{
           borderBottom: "1px solid rgba(255,255,255,0.08)",
           boxShadow: "0 1px 0 rgba(255,255,255,0.04), 0 2px 12px rgba(0,0,0,0.4)",
         }}
       >
         <div className="flex items-center gap-2.5">
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-            style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)",
-            }}
-          >
-            <ShieldCheck className="h-4 w-4 text-white" strokeWidth={1.5} />
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2a2a2a]">
+            <svg viewBox="0 0 12 12" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="2.5,6.5 5,9 9.5,3.5" />
+            </svg>
           </span>
           <span className="text-[13px] font-semibold text-white">Trial ativo</span>
           <span className="text-[13px] text-[#555]">·</span>
