@@ -112,7 +112,7 @@ const deltaPct = (cur: number, prev: number) => {
 const formatDelta = (d: number) => `${d > 0 ? "+" : d < 0 ? "-" : ""}${Math.abs(d).toFixed(1).replace(".", ",")}%`;
 
 const fetchPanel = async (): Promise<PanelData> => {
-  const [users, pubs, ord, subs, subsData, ordData, pubData, profData] = await Promise.all([
+  const [users, pubs, ord, subs, subsData, ordData, pubData, profData, refundData] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase.from("user_publications").select("id", { count: "exact", head: true }),
     supabase.from("orders").select("id", { count: "exact", head: true }),
@@ -121,6 +121,7 @@ const fetchPanel = async (): Promise<PanelData> => {
     supabase.from("orders").select("created_at,ordered_at,status,total_amount").order("created_at", { ascending: false }).limit(500),
     supabase.from("user_publications").select("created_at,status").order("created_at", { ascending: false }).limit(500),
     supabase.from("profiles").select("created_at").order("created_at", { ascending: false }).limit(500),
+    (supabase as any).from("refund_requests").select("refund_amount,processed_at,status").in("status", ["approved", "processed", "completed", "refunded"]).limit(1000),
   ]);
   return {
     counts: {
@@ -133,6 +134,7 @@ const fetchPanel = async (): Promise<PanelData> => {
     orders: ordData.data ?? [],
     publications: pubData.data ?? [],
     profiles: profData.data ?? [],
+    refunds: (refundData?.data as RefundRow[] | null) ?? [],
   };
 };
 
