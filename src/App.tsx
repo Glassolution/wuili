@@ -39,6 +39,8 @@ const DashboardHomePage = lazy(() => import("./pages/dashboard/DashboardHomePage
 const AtlasChatPage = lazy(() => import("./pages/dashboard/AtlasChatPage"));
 const IntegracoesPage = lazy(() => import("./pages/dashboard/IntegracoesPage"));
 const Docs = lazy(() => import("./pages/Docs"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
@@ -108,6 +110,8 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/docs" element={<Docs />} />
+              <Route path="/termos" element={<TermsPage />} />
+              <Route path="/privacidade" element={<PrivacyPage />} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
               <Route path="/admin/dashboard" element={<Navigate to="/admin/painel" replace />} />

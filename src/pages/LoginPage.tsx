@@ -83,6 +83,8 @@ const LoginPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [resetMode, setResetMode]         = useState(false);
+  const [acceptTerms, setAcceptTerms]     = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
 
   const passwordRef = useRef<HTMLInputElement>(null);
   const nomeRef     = useRef<HTMLInputElement>(null);
@@ -136,6 +138,8 @@ const LoginPage = () => {
     e.preventDefault();
     if (nome.trim().length < 2) { veloToast.error("Informe seu nome."); return; }
     if (password.length < 8)    { veloToast.error("Senha precisa ter pelo menos 8 caracteres."); return; }
+    if (!acceptTerms)   { veloToast.error("Você precisa aceitar os Termos de Uso."); return; }
+    if (!acceptPrivacy) { veloToast.error("Você precisa aceitar a Política de Privacidade."); return; }
     setLoading(true);
     const toastId = veloToast.loading("Criando conta...", { fullscreen: true, minDuration: 3000 });
     const [{ data, error }] = await Promise.all([
@@ -410,10 +414,37 @@ const LoginPage = () => {
                             </div>
                           </Field>
 
-                          <AgreementText />
+                          <LegalCheckbox
+                            checked={acceptTerms}
+                            onChange={setAcceptTerms}
+                            label={
+                              <>
+                                Li e aceito os{" "}
+                                <Link to="/termos" target="_blank" className="text-white/85 underline decoration-white/25 underline-offset-2 hover:text-white">
+                                  Termos de Uso
+                                </Link>
+                              </>
+                            }
+                          />
+                          <LegalCheckbox
+                            checked={acceptPrivacy}
+                            onChange={setAcceptPrivacy}
+                            label={
+                              <>
+                                Li e aceito a{" "}
+                                <Link to="/privacidade" target="_blank" className="text-white/85 underline decoration-white/25 underline-offset-2 hover:text-white">
+                                  Política de Privacidade
+                                </Link>
+                              </>
+                            }
+                          />
 
                           <div className="flex justify-center pt-1">
-                            <button type="submit" disabled={loading} className={subtleBtnCls}>
+                            <button
+                              type="submit"
+                              disabled={loading || !acceptTerms || !acceptPrivacy}
+                              className={`${subtleBtnCls} disabled:cursor-not-allowed disabled:opacity-50`}
+                            >
                               {loading ? "Criando..." : "Criar conta"}
                             </button>
                           </div>
@@ -469,15 +500,42 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 const AgreementText = () => (
   <p className="max-w-[320px] text-[10px] font-[400] leading-[1.55] text-white/42">
     Ao continuar, você concorda com a{" "}
-    <Link to="/docs" className="text-white/62 underline decoration-white/18 underline-offset-2 transition hover:text-white">
+    <Link to="/privacidade" className="text-white/62 underline decoration-white/18 underline-offset-2 transition hover:text-white">
       Política de Privacidade
     </Link>{" "}
     e com os{" "}
-    <Link to="/docs" className="text-white/62 underline decoration-white/18 underline-offset-2 transition hover:text-white">
-      Termos de Serviço
+    <Link to="/termos" className="text-white/62 underline decoration-white/18 underline-offset-2 transition hover:text-white">
+      Termos de Uso
     </Link>
     .
   </p>
+);
+
+const LegalCheckbox = ({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: React.ReactNode;
+}) => (
+  <label className="flex cursor-pointer items-start gap-2.5 text-[11.5px] font-[400] leading-[1.55] text-white/62">
+    <span className="relative mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer h-4 w-4 cursor-pointer appearance-none rounded-[3px] border border-white/25 bg-white/5 transition checked:border-white checked:bg-white"
+      />
+      {checked && (
+        <svg viewBox="0 0 12 12" className="pointer-events-none absolute h-2.5 w-2.5 text-[#0a0a0a]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="2.5,6.5 5,9 9.5,3.5" />
+        </svg>
+      )}
+    </span>
+    <span>{label}</span>
+  </label>
 );
 
 export default LoginPage;
