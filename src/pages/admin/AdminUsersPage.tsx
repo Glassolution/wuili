@@ -508,19 +508,26 @@ const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }
 
 const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }) => {
   const temp = leadTemperature(user);
+  const online = isOnline(user.last_seen_at);
   return (
     <div onClick={onClick} className="cursor-pointer rounded-2xl border border-white/[0.06] bg-[#0F0F0F] p-4 transition hover:border-white/15">
       <div className="flex items-center gap-3">
-        <Avatar user={user} />
+        <Avatar user={user} online={online} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-medium">{user.name || "Sem nome"}</p>
           <p className="truncate text-[11px] text-white/45">{user.email || user.user_id.slice(0, 8)}</p>
         </div>
       </div>
       <div className="mt-4 flex items-center justify-between">
-        <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
-          {tempLabel[temp]}
-        </span>
+        {online ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#22C55E]/25 bg-[#22C55E]/10 px-2.5 py-1 text-[11px] font-medium text-[#4ADE80]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" /> Online
+          </span>
+        ) : (
+          <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
+            {tempLabel[temp]}
+          </span>
+        )}
         <span className="text-[11px] text-white/45">{relativeTime(user.created_at)}</span>
       </div>
       <div className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3 text-[11px] text-white/50">
