@@ -45,7 +45,8 @@ const DashboardHeader = () => {
   const shouldHideHeader =
     location.pathname === "/dashboard" ||
     location.pathname === "/colecoes" ||
-    location.pathname.startsWith("/dashboard/catalogo");
+    location.pathname.startsWith("/dashboard/catalogo") ||
+    location.pathname.startsWith("/dashboard/configuracoes");
 
   if (shouldHideHeader) {
     return null;
