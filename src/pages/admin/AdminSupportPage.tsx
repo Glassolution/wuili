@@ -381,7 +381,7 @@ const CategoryPill = ({
   label: string;
   count: number;
   onClick: () => void;
-  icon?: React.ComponentType<{ size?: number; className?: string }>;
+  icon?: LucideIcon;
 }) => (
   <button
     onClick={onClick}
