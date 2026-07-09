@@ -92,7 +92,7 @@ const chooseSubscription = (current: SubscriptionRow | undefined, next: Subscrip
 
 const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
   const [functionResult, profilesResult, subscriptionsResult] = await Promise.all([
-    supabase.functions.invoke<AdminUserRow[]>("admin-users"),
+    supabase.functions.invoke("admin-users") as Promise<{ data: AdminUserRow[] | null; error: unknown }>,
     supabase
       .from("profiles")
       .select("user_id,display_name,avatar_url,plano,created_at")
