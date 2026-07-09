@@ -904,11 +904,11 @@ const SalesOverTimeChart = ({ revenue, values, labels, currentRange, previousRan
         ))}
         <g transform="translate(248 198)">
           <line x1="0" x2="14" y1="0" y2="0" stroke={chartBlue} strokeWidth="2.7" strokeLinecap="round" />
-          <text x="22" y="3" fill="#A7A7A7" fontSize="9">14 fev. 2024-12 fev. 2025</text>
+          <text x="22" y="3" fill="#A7A7A7" fontSize="9">{currentRange}</text>
         </g>
         <g transform="translate(414 198)">
           <line x1="0" x2="14" y1="0" y2="0" stroke="#D7DCE4" strokeWidth="2.6" strokeDasharray="1.2 7" strokeLinecap="round" />
-          <text x="22" y="3" fill="#A7A7A7" fontSize="9">14 fev. 2023-12 fev. 2024</text>
+          <text x="22" y="3" fill="#A7A7A7" fontSize="9">{previousRange}</text>
         </g>
       </svg>
     </div>
