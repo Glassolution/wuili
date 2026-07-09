@@ -464,10 +464,10 @@ const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }
   );
 };
 
-const UserCard = ({ user }: { user: AdminUserRow }) => {
+const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }) => {
   const temp = leadTemperature(user);
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-[#0F0F0F] p-4 transition hover:border-white/15">
+    <div onClick={onClick} className="cursor-pointer rounded-2xl border border-white/[0.06] bg-[#0F0F0F] p-4 transition hover:border-white/15">
       <div className="flex items-center gap-3">
         <Avatar user={user} />
         <div className="min-w-0 flex-1">
