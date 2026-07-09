@@ -171,8 +171,10 @@ Deno.serve(async (req) => {
       })
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[admin-users] error:", message);
-    return json({ error: "Erro interno" }, 500);
+    const message = error instanceof Error
+      ? error.message
+      : (typeof error === "object" ? JSON.stringify(error) : String(error));
+    console.error("[admin-users] error:", message, error);
+    return json({ error: "Erro interno", detail: message }, 500);
   }
 });
