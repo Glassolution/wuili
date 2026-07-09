@@ -197,9 +197,10 @@ const AdminPainelPage = () => {
     return { current: c, delta: deltaPct(c, p) };
   }, [data.subscriptions, data.refunds, daysWindow]);
 
-  // Revenue chart — 6 months of subscription revenue
+  // Revenue chart — real applied revenue per month (paid subs minus approved refunds).
   const revenueSeries = useMemo(() => {
     const now = new Date();
+    const paidStatuses = new Set(["active", "paid", "approved"]);
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
       return {
@@ -210,6 +211,7 @@ const AdminPainelPage = () => {
     });
     const byKey = new Map(months.map((m) => [m.key, m]));
     data.subscriptions.forEach((s) => {
+      if (!paidStatuses.has(String(s.status ?? "").toLowerCase())) return;
       const src = s.updated_at ?? s.created_at;
       if (!src) return;
       const d = new Date(src);
@@ -217,8 +219,15 @@ const AdminPainelPage = () => {
       const m = byKey.get(key);
       if (m) m.value += Number(s.amount ?? 0);
     });
+    data.refunds.forEach((r) => {
+      if (!r.processed_at) return;
+      const d = new Date(r.processed_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const m = byKey.get(key);
+      if (m) m.value -= Number(r.refund_amount ?? 0);
+    });
     return months;
-  }, [data.subscriptions]);
+  }, [data.subscriptions, data.refunds]);
 
   const revenueTotal = useMemo(
     () => revenueSeries.reduce((a, b) => a + b.value, 0),
