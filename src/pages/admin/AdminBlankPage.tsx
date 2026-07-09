@@ -147,6 +147,7 @@ const AdminPainelPage = () => {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>("monthly");
   const { data = empty } = useQuery({ queryKey: ["admin-panel-v2"], queryFn: fetchPanel, refetchInterval: 30000 });
+  const onlineNow = useOnlinePresence(user?.id ?? null);
 
   const daysWindow = period === "monthly" ? 30 : 365;
 
