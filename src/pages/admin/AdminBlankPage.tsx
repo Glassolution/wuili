@@ -394,7 +394,7 @@ const AdminPainelPage = () => {
             <div className="rounded-2xl border border-white/5 bg-[#0F0F0F] p-6 xl:col-span-2">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-[13px] text-white/60">Receita</p>
+                  <p className="text-[13px] text-white/60">Faturamento real · líquido de reembolsos</p>
                   <p className="mt-2 text-[26px] font-semibold tracking-tight">{formatBRL(revenueTotal)}</p>
                   <p className="mt-1 text-[12px] text-white/50">
                     <span className={revenueDelta.delta >= 0 ? "text-[#22C55E]" : "text-red-400"}>
