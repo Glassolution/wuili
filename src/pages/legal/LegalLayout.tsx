@@ -14,7 +14,7 @@ export const LegalLayout = ({ title, updatedAt, children }: Props) => (
     <header className="border-b border-white/8">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
         <Link to="/" className="flex items-center gap-2 text-white/80 transition hover:text-white">
-          <VeloLogo className="h-6 w-auto" />
+          <VeloLogo />
         </Link>
         <Link
           to="/"
