@@ -176,18 +176,26 @@ const AdminPainelPage = () => {
     return { current: c, delta: deltaPct(c, p) };
   }, [data.orders, daysWindow]);
 
+  // Real applied revenue: paid subscriptions minus approved refunds within window.
   const revenueDelta = useMemo(() => {
     const cur = getWindow(daysWindow, 0);
     const prev = getWindow(daysWindow, daysWindow);
-    const sum = (s: Date, e: Date) =>
+    const paidStatuses = new Set(["active", "paid", "approved"]);
+    const sumSubs = (s: Date, e: Date) =>
       data.subscriptions.reduce((acc, sub) => {
+        if (!paidStatuses.has(String(sub.status ?? "").toLowerCase())) return acc;
         const d = sub.updated_at ?? sub.created_at;
         return inRange(d, s, e) ? acc + Number(sub.amount ?? 0) : acc;
       }, 0);
-    const c = sum(cur.start, cur.end);
-    const p = sum(prev.start, prev.end);
+    const sumRefunds = (s: Date, e: Date) =>
+      data.refunds.reduce(
+        (acc, r) => (inRange(r.processed_at, s, e) ? acc + Number(r.refund_amount ?? 0) : acc),
+        0,
+      );
+    const c = sumSubs(cur.start, cur.end) - sumRefunds(cur.start, cur.end);
+    const p = sumSubs(prev.start, prev.end) - sumRefunds(prev.start, prev.end);
     return { current: c, delta: deltaPct(c, p) };
-  }, [data.subscriptions, daysWindow]);
+  }, [data.subscriptions, data.refunds, daysWindow]);
 
   // Revenue chart — 6 months of subscription revenue
   const revenueSeries = useMemo(() => {
