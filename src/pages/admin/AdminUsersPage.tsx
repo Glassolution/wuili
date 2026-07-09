@@ -531,13 +531,16 @@ const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void 
   );
 };
 
-const Avatar = ({ user }: { user: AdminUserRow }) => (
-  <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.08] text-[11px] font-semibold text-white/80">
+const Avatar = ({ user, online }: { user: AdminUserRow; online?: boolean }) => (
+  <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.08] text-[11px] font-semibold text-white/80">
     {user.avatar_url ? (
       <img src={user.avatar_url} alt={user.name ?? "Usuário"} className="h-full w-full object-cover" />
     ) : (
       getInitials(user.name, user.email)
     )}
+    {online ? (
+      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0B0B0B] bg-[#22C55E]" />
+    ) : null}
   </span>
 );
 
