@@ -166,6 +166,34 @@ const formatCollectionDate = (value: string | null) => {
 
 const formatInteger = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
+const MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+const formatChartMonth = (date: Date) => `${MONTHS_SHORT[date.getMonth()]}. ${date.getFullYear()}`;
+
+const formatChartLegendDate = (date: Date) => {
+  const day = date.getDate();
+  const month = MONTHS_SHORT[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${month}. ${year}`;
+};
+
+const getChartDateRange = (points: number) => {
+  const now = new Date();
+  const currentStart = new Date(now.getFullYear(), now.getMonth() - (points - 1), 14);
+  const currentEnd = new Date(now.getFullYear(), now.getMonth(), 12);
+  const previousStart = new Date(now.getFullYear(), now.getMonth() - (2 * points - 1), 14);
+  const previousEnd = new Date(now.getFullYear(), now.getMonth() - points, 12);
+  const labels = Array.from({ length: points }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (points - 1 - i), 1);
+    return formatChartMonth(d);
+  });
+  return {
+    labels,
+    currentRange: `${formatChartLegendDate(currentStart)}-${formatChartLegendDate(currentEnd)}`,
+    previousRange: `${formatChartLegendDate(previousStart)}-${formatChartLegendDate(previousEnd)}`,
+  };
+};
+
 type OverviewPeriod = "30d" | "90d" | "180d" | "365d";
 
 const overviewPeriods: Array<{
@@ -804,7 +832,7 @@ const OverviewMetricCard = ({ label, value, delta, values }: { label: string; va
   </article>
 );
 
-const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: number[] }) => {
+const SalesOverTimeChart = ({ revenue, values, labels, currentRange, previousRange }: { revenue: string; values: number[]; labels: string[]; currentRange: string; previousRange: string }) => {
   const chartValues = normalizeSeries(values, 0);
   const hasData = chartValues.some((value) => value > 0);
   const chartMax = Math.max(...chartValues, 1);
@@ -820,14 +848,9 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
   const plotRight = 720;
   const plotTop = 18;
   const plotBottom = 146;
-  const xTicks = [
-    ["fev. 2024", plotLeft],
-    ["abr. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 1],
-    ["jun. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 2],
-    ["ago. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 3],
-    ["out. 2024", plotLeft + ((plotRight - plotLeft) / 5) * 4],
-    ["dez. 2024", plotRight],
-  ] as const;
+  const xTicks = labels.map((label, index) =>
+    [label, plotLeft + ((plotRight - plotLeft) / (labels.length - 1)) * index] as const
+  );
   const yLabels = hasData
     ? [maxValue, maxValue / 2, 0].map((value) =>
         value >= 1000 ? `R$ ${Math.round(value / 1000)} mil` : formatCurrency(value),
@@ -881,11 +904,11 @@ const SalesOverTimeChart = ({ revenue, values }: { revenue: string; values: numb
         ))}
         <g transform="translate(248 198)">
           <line x1="0" x2="14" y1="0" y2="0" stroke={chartBlue} strokeWidth="2.7" strokeLinecap="round" />
-          <text x="22" y="3" fill="#A7A7A7" fontSize="9">14 fev. 2024-12 fev. 2025</text>
+          <text x="22" y="3" fill="#A7A7A7" fontSize="9">{currentRange}</text>
         </g>
         <g transform="translate(414 198)">
           <line x1="0" x2="14" y1="0" y2="0" stroke="#D7DCE4" strokeWidth="2.6" strokeDasharray="1.2 7" strokeLinecap="round" />
-          <text x="22" y="3" fill="#A7A7A7" fontSize="9">14 fev. 2023-12 fev. 2024</text>
+          <text x="22" y="3" fill="#A7A7A7" fontSize="9">{previousRange}</text>
         </g>
       </svg>
     </div>
@@ -991,6 +1014,7 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
   const orderSeries = kpis.monthlyOrders.slice(-selectedPeriod.points);
   const salesTrend = formatTrend(latestValue(salesSeries), previousValue(salesSeries));
   const orderTrend = formatTrend(latestValue(orderSeries), previousValue(orderSeries));
+  const { labels, currentRange, previousRange } = useMemo(() => getChartDateRange(selectedPeriod.points), [selectedPeriod.points]);
 
   return (
   <section className="rounded-[14px] bg-[#F2F2F1] p-3">
@@ -1042,7 +1066,7 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
     </div>
 
     <div className="mt-2 grid grid-cols-1 gap-2 min-[700px]:grid-cols-[2fr_1fr]">
-      <SalesOverTimeChart revenue={kpis.revenue} values={salesSeries} />
+      <SalesOverTimeChart revenue={kpis.revenue} values={salesSeries} labels={labels} currentRange={currentRange} previousRange={previousRange} />
       <SalesBreakdown rows={kpis.salesBreakdown} />
     </div>
 
