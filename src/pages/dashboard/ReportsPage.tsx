@@ -213,8 +213,8 @@ const ReportModal = ({
     URL.revokeObjectURL(url);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div
         className={`flex w-full overflow-hidden rounded-3xl bg-white shadow-2xl transition-all ${
           expanded ? "h-[95vh] max-w-[1400px]" : "h-[85vh] max-w-[1150px]"
@@ -223,9 +223,9 @@ const ReportModal = ({
         {/* Left — article */}
         <div className="flex flex-1 flex-col border-r border-zinc-100">
           <div className="flex items-center justify-between px-8 pt-6">
-            <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-700">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-black">
-                <Sparkles className="h-3 w-3 text-white" />
+            <div className="flex items-center gap-2.5 text-[14px] font-semibold text-zinc-800">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black">
+                <Sparkles className="h-3.5 w-3.5 text-white" fill="white" />
               </div>
               Velo Insights
             </div>
