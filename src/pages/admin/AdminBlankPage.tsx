@@ -39,6 +39,7 @@ import {
 } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +56,7 @@ type PublicationRow = Pick<
   "created_at" | "status"
 >;
 type ProfileRow = Pick<Database["public"]["Tables"]["profiles"]["Row"], "created_at">;
+type RefundRow = { refund_amount: number | string | null; processed_at: string | null; status: string | null };
 
 type PanelData = {
   counts: { users: number; publications: number; orders: number; activeSubs: number };
@@ -62,6 +64,7 @@ type PanelData = {
   orders: OrderRow[];
   publications: PublicationRow[];
   profiles: ProfileRow[];
+  refunds: RefundRow[];
 };
 
 const empty: PanelData = {
@@ -70,6 +73,7 @@ const empty: PanelData = {
   orders: [],
   publications: [],
   profiles: [],
+  refunds: [],
 };
 
 const formatBRL = (v: number) =>
@@ -108,7 +112,7 @@ const deltaPct = (cur: number, prev: number) => {
 const formatDelta = (d: number) => `${d > 0 ? "+" : d < 0 ? "-" : ""}${Math.abs(d).toFixed(1).replace(".", ",")}%`;
 
 const fetchPanel = async (): Promise<PanelData> => {
-  const [users, pubs, ord, subs, subsData, ordData, pubData, profData] = await Promise.all([
+  const [users, pubs, ord, subs, subsData, ordData, pubData, profData, refundData] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase.from("user_publications").select("id", { count: "exact", head: true }),
     supabase.from("orders").select("id", { count: "exact", head: true }),
@@ -117,6 +121,7 @@ const fetchPanel = async (): Promise<PanelData> => {
     supabase.from("orders").select("created_at,ordered_at,status,total_amount").order("created_at", { ascending: false }).limit(500),
     supabase.from("user_publications").select("created_at,status").order("created_at", { ascending: false }).limit(500),
     supabase.from("profiles").select("created_at").order("created_at", { ascending: false }).limit(500),
+    (supabase as any).from("refund_requests").select("refund_amount,processed_at,status").in("status", ["approved", "processed", "completed", "refunded"]).limit(1000),
   ]);
   return {
     counts: {
@@ -129,6 +134,7 @@ const fetchPanel = async (): Promise<PanelData> => {
     orders: ordData.data ?? [],
     publications: pubData.data ?? [],
     profiles: profData.data ?? [],
+    refunds: (refundData?.data as RefundRow[] | null) ?? [],
   };
 };
 
@@ -141,6 +147,7 @@ const AdminPainelPage = () => {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>("monthly");
   const { data = empty } = useQuery({ queryKey: ["admin-panel-v2"], queryFn: fetchPanel, refetchInterval: 30000 });
+  const onlineNow = useOnlinePresence(user?.id ?? null);
 
   const daysWindow = period === "monthly" ? 30 : 365;
 
@@ -169,22 +176,31 @@ const AdminPainelPage = () => {
     return { current: c, delta: deltaPct(c, p) };
   }, [data.orders, daysWindow]);
 
+  // Real applied revenue: paid subscriptions minus approved refunds within window.
   const revenueDelta = useMemo(() => {
     const cur = getWindow(daysWindow, 0);
     const prev = getWindow(daysWindow, daysWindow);
-    const sum = (s: Date, e: Date) =>
+    const paidStatuses = new Set(["active", "paid", "approved"]);
+    const sumSubs = (s: Date, e: Date) =>
       data.subscriptions.reduce((acc, sub) => {
+        if (!paidStatuses.has(String(sub.status ?? "").toLowerCase())) return acc;
         const d = sub.updated_at ?? sub.created_at;
         return inRange(d, s, e) ? acc + Number(sub.amount ?? 0) : acc;
       }, 0);
-    const c = sum(cur.start, cur.end);
-    const p = sum(prev.start, prev.end);
+    const sumRefunds = (s: Date, e: Date) =>
+      data.refunds.reduce(
+        (acc, r) => (inRange(r.processed_at, s, e) ? acc + Number(r.refund_amount ?? 0) : acc),
+        0,
+      );
+    const c = sumSubs(cur.start, cur.end) - sumRefunds(cur.start, cur.end);
+    const p = sumSubs(prev.start, prev.end) - sumRefunds(prev.start, prev.end);
     return { current: c, delta: deltaPct(c, p) };
-  }, [data.subscriptions, daysWindow]);
+  }, [data.subscriptions, data.refunds, daysWindow]);
 
-  // Revenue chart — 6 months of subscription revenue
+  // Revenue chart — real applied revenue per month (paid subs minus approved refunds).
   const revenueSeries = useMemo(() => {
     const now = new Date();
+    const paidStatuses = new Set(["active", "paid", "approved"]);
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
       return {
@@ -195,6 +211,7 @@ const AdminPainelPage = () => {
     });
     const byKey = new Map(months.map((m) => [m.key, m]));
     data.subscriptions.forEach((s) => {
+      if (!paidStatuses.has(String(s.status ?? "").toLowerCase())) return;
       const src = s.updated_at ?? s.created_at;
       if (!src) return;
       const d = new Date(src);
@@ -202,8 +219,15 @@ const AdminPainelPage = () => {
       const m = byKey.get(key);
       if (m) m.value += Number(s.amount ?? 0);
     });
+    data.refunds.forEach((r) => {
+      if (!r.processed_at) return;
+      const d = new Date(r.processed_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const m = byKey.get(key);
+      if (m) m.value -= Number(r.refund_amount ?? 0);
+    });
     return months;
-  }, [data.subscriptions]);
+  }, [data.subscriptions, data.refunds]);
 
   const revenueTotal = useMemo(
     () => revenueSeries.reduce((a, b) => a + b.value, 0),
@@ -354,19 +378,15 @@ const AdminPainelPage = () => {
               value={formatCompact(data.counts.users)}
               delta={usersDelta.delta}
             />
-            <KpiCard
-              dotClass="bg-gradient-to-br from-[#22D3EE] to-[#0891B2]"
-              label="Pedidos automatizados"
-              value={formatNumber(data.counts.orders)}
-              delta={ordersDelta.delta}
-            />
+            <OnlineNowCard value={onlineNow} />
             <KpiCard
               dotClass="bg-gradient-to-br from-[#4ADE80] to-[#16A34A]"
-              label="Receita ativa"
+              label="Faturamento real (líquido de reembolsos)"
               value={formatBRL(revenueDelta.current)}
               delta={revenueDelta.delta}
             />
           </div>
+
 
           {/* Chart row */}
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -374,7 +394,7 @@ const AdminPainelPage = () => {
             <div className="rounded-2xl border border-white/5 bg-[#0F0F0F] p-6 xl:col-span-2">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-[13px] text-white/60">Receita</p>
+                  <p className="text-[13px] text-white/60">Faturamento real · líquido de reembolsos</p>
                   <p className="mt-2 text-[26px] font-semibold tracking-tight">{formatBRL(revenueTotal)}</p>
                   <p className="mt-1 text-[12px] text-white/50">
                     <span className={revenueDelta.delta >= 0 ? "text-[#22C55E]" : "text-red-400"}>
@@ -485,10 +505,10 @@ const AdminPainelPage = () => {
             </div>
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               <ReportCard
-                title="Overview"
+                title="Faturamento real"
                 value={formatBRL(revenueTotal)}
                 delta={revenueDelta.delta}
-                subtitle="Receita total no período"
+                subtitle="líquido de reembolsos nos últimos 6 meses"
               />
               <ReportCard
                 title="Tarefas automatizadas concluídas"
@@ -569,6 +589,22 @@ const KpiCard = ({
     <p className="mt-2 text-[11.5px] text-white/50">
       <span className={delta >= 0 ? "text-[#22C55E]" : "text-red-400"}>{formatDelta(delta)}</span>{" "}
       vs período anterior
+    </p>
+  </div>
+);
+
+const OnlineNowCard = ({ value }: { value: number }) => (
+  <div className="rounded-2xl border border-white/5 bg-[#0F0F0F] p-5">
+    <div className="flex items-center gap-2">
+      <span className="relative flex h-4 w-4 items-center justify-center">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22D3EE] opacity-60" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-gradient-to-br from-[#22D3EE] to-[#0891B2]" />
+      </span>
+      <span className="text-[12.5px] text-white/60">Usuários online agora</span>
+    </div>
+    <p className="mt-4 text-[28px] font-semibold tracking-tight text-white">{formatNumber(value)}</p>
+    <p className="mt-2 text-[11.5px] text-white/50">
+      <span className="text-[#22D3EE]">● ao vivo</span> conectados simultaneamente
     </p>
   </div>
 );

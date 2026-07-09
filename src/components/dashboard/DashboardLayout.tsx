@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { useStartMode } from "@/hooks/useStartMode";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import { useProfile } from "@/lib/profileContext";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
@@ -425,6 +426,9 @@ const DashboardLayoutInner = () => {
     if (!user?.id) return;
     void attachReferralToCurrentUser(user.id);
   }, [user?.id]);
+
+  // Broadcast presence on shared realtime channel (used by admin panel to count live users).
+  useOnlinePresence(user?.id ?? null);
 
   const isStartMode = false;
 
