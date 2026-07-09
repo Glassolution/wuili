@@ -2006,7 +2006,6 @@ const DashboardHomePage = () => {
 	        <section className="min-h-screen bg-[#F2F2F1] px-3 py-3 sm:px-5">
 	          <div className="mx-auto w-full max-w-[1180px]">
 	            <TrialStatusBanner
-	              trialStatus={mockTrialStatus}
 	              onManageSubscription={() => navigate("/checkout")}
 	              onUpgradeBusiness={() => navigate("/checkout?plan=business&businessCard=1")}
 	            />
