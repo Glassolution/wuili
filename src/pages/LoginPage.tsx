@@ -83,6 +83,8 @@ const LoginPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [resetMode, setResetMode]         = useState(false);
+  const [acceptTerms, setAcceptTerms]     = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
 
   const passwordRef = useRef<HTMLInputElement>(null);
   const nomeRef     = useRef<HTMLInputElement>(null);
