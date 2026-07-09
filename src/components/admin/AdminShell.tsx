@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { AdminSidebar, type AdminSidebarSection } from "@/components/admin/AdminSidebar";
+import { AdminNewSidebar, type AdminSubKey } from "@/components/admin/AdminNewSidebar";
 
 type AdminSection = "dashboard" | "users" | "revenue" | "plans" | "commissions" | "support" | "refunds" | "settings";
 
@@ -9,23 +9,19 @@ type AdminShellProps = {
   children: ReactNode;
 };
 
-const toSidebarSection = (active: AdminSection): AdminSidebarSection => {
-  if (active === "commissions") return "commissions";
-  if (active === "users") return "users";
-  if (active === "support") return "support";
-  return "dashboard";
-};
+const toActiveSub = (active: AdminSection): AdminSubKey | undefined =>
+  active === "dashboard" ? "overview" : undefined;
 
-export const AdminShell = ({ active, userId, children }: AdminShellProps) => (
+export const AdminShell = ({ active, children }: AdminShellProps) => (
   <div
-    className="h-screen overflow-hidden bg-[#171714] text-white"
+    className="h-screen overflow-hidden bg-[#0F0F0F] text-white"
     style={{
       fontFamily:
         '"Hanken Grotesk", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}
   >
     <div className="flex h-full overflow-hidden">
-      <AdminSidebar active={toSidebarSection(active)} userId={userId} />
+      <AdminNewSidebar activeSub={toActiveSub(active)} />
       <main className="h-full min-w-0 flex-1 overflow-y-auto bg-[#f5f5f4] text-[#111111]">{children}</main>
     </div>
   </div>
