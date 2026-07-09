@@ -642,9 +642,10 @@ const PlanTab = () => {
               <p className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white mt-1">
                 {p.price}<span className="text-[11px] text-[#737373] dark:text-zinc-400 font-normal">{p.period}</span>
               </p>
+              <p className="mt-2 text-[11.5px] leading-relaxed text-[#737373] dark:text-zinc-400 line-clamp-3">{p.description}</p>
               <ul className="mt-3 space-y-1.5">
-                {p.features.slice(0, 3).map((f) => (
-                  <li key={f} className="text-[11px] text-[#737373] dark:text-zinc-400 flex items-start gap-1.5">
+                {p.features.slice(0, 4).map((f) => (
+                  <li key={f} className="text-[11px] text-[#525252] dark:text-zinc-300 flex items-start gap-1.5">
                     <CheckCircle2 size={11} className="text-black dark:text-white mt-0.5 shrink-0" /> <span>{f}</span>
                   </li>
                 ))}
