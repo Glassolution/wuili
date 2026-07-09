@@ -1,181 +1,105 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
-  Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend,
-} from "recharts";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import { Sparkles, X, Maximize2, Download, FileText, Plus, Loader2, ChevronRight } from "lucide-react";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type Order = {
+// ── Types ────────────────────────────────────────────────────────────────────
+type ReportSection = { title: string; content: string };
+type SalesReport = {
   id: string;
-  platform: string | null;
-  product_title: string | null;
-  sale_price: number;
-  cost_price: number | null;
-  profit: number | null;
-  status: string;
-  ordered_at: string | null;
+  title: string;
+  overall_score: number;
+  scores: Record<string, number>;
+  metrics: {
+    revenue?: number;
+    profit?: number;
+    orders?: number;
+    avg_ticket?: number;
+    margin_pct?: number;
+    publications_active?: number;
+  };
+  sections: ReportSection[];
+  summary: string | null;
   created_at: string;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const ACTIVE_STATUSES = ["paid", "delivered", "shipped", "approved", "completed"];
-const MONTH_LABELS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-const PIE_COLORS = [
-  "hsl(0,0%,10%)", "hsl(0,0%,35%)", "hsl(0,0%,55%)",
-  "hsl(0,0%,72%)", "hsl(0,0%,24%)", "hsl(0,0%,46%)", "hsl(0,0%,64%)",
-];
-
 const fmt = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
-const tooltipStyle = {
-  background: "white",
-  border: "1px solid hsl(216,30%,91%)",
-  borderRadius: "12px",
-  boxShadow: "0 8px 24px rgba(10,37,64,0.1)",
-};
+const scoreColor = (n: number) =>
+  n >= 8 ? "text-emerald-600" : n >= 6 ? "text-amber-600" : "text-rose-600";
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+const scoreBadge = (n: number) =>
+  n >= 8
+    ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+    : n >= 6
+    ? "bg-amber-50 text-amber-700 border-amber-100"
+    : "bg-rose-50 text-rose-700 border-rose-100";
 
+// ── Page ─────────────────────────────────────────────────────────────────────
 const ReportsPage = () => {
   const { user } = useAuth();
   const planLimits = usePlanLimits();
+  const qc = useQueryClient();
+  const [openReport, setOpenReport] = useState<SalesReport | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
-  const { data: orders = [], isLoading } = useQuery<Order[]>({
-    queryKey: ["reports-orders", user?.id],
-    enabled: !!user && !planLimits.loading && planLimits.hasAdvancedReports,
-    staleTime: 5 * 60 * 1000,
+  const { data: reports = [], isLoading } = useQuery<SalesReport[]>({
+    queryKey: ["sales-reports", user?.id],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from("orders")
-        .select("id, platform, product_title, sale_price, cost_price, profit, status, ordered_at, created_at")
+        .from("sales_reports")
+        .select("*")
         .eq("user_id", user!.id)
-        .order("ordered_at", { ascending: false });
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Order[];
+      return (data ?? []) as SalesReport[];
     },
   });
 
-  // Only active orders for financial metrics
-  const active = useMemo(
-    () => orders.filter(o => ACTIVE_STATUSES.includes(o.status)),
-    [orders]
-  );
+  const generate = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("generate-sales-report");
+      if (error) throw error;
+      return data.report as SalesReport;
+    },
+    onSuccess: (r) => {
+      toast.success("Relatório criado com sucesso");
+      qc.invalidateQueries({ queryKey: ["sales-reports", user?.id] });
+      setOpenReport(r);
+    },
+    onError: (e: any) => toast.error(e?.message || "Erro ao gerar relatório"),
+  });
 
-  // ── KPIs ──────────────────────────────────────────────────────────────────
-  const totalRevenue = active.reduce((s, o) => s + (o.sale_price ?? 0), 0);
-  const totalCost    = active.reduce((s, o) => s + (o.cost_price ?? 0), 0);
-  const totalProfit  = active.reduce((s, o) => s + (o.profit ?? (o.sale_price - (o.cost_price ?? 0))), 0);
-  const totalOrders  = active.length;
-  const avgTicket    = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-  const kpis = [
-    { label: "Ticket médio",  value: fmt(avgTicket)    },
-    { label: "Total pedidos", value: String(totalOrders) },
-    { label: "Receita total", value: fmt(totalRevenue) },
-    { label: "Lucro total",   value: fmt(totalProfit)  },
-  ];
-
-  // ── Revenue vs Profit by month ────────────────────────────────────────────
-  const revenueData = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const map = new Map<string, { faturamento: number; lucro: number }>(
-      MONTH_LABELS.map(m => [m, { faturamento: 0, lucro: 0 }])
-    );
-    for (const o of active) {
-      const d = new Date(o.ordered_at ?? o.created_at);
-      if (d.getFullYear() !== year) continue;
-      const label = MONTH_LABELS[d.getMonth()];
-      const cur = map.get(label)!;
-      cur.faturamento += o.sale_price ?? 0;
-      cur.lucro       += o.profit ?? (o.sale_price - (o.cost_price ?? 0));
-    }
-    return MONTH_LABELS.map(m => ({ month: m, ...map.get(m)! }));
-  }, [active]);
-
-  // ── Orders by platform ────────────────────────────────────────────────────
-  const platformData = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const o of active) {
-      const p = o.platform ?? "outros";
-      map[p] = (map[p] ?? 0) + 1;
-    }
-    return Object.entries(map).map(([platform, count]) => ({
-      day: platform === "mercadolivre" ? "Mercado Livre" : platform,
-      ml: count,
-    }));
-  }, [active]);
-
-  // ── Top 5 products ────────────────────────────────────────────────────────
-  const topProducts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const o of active) {
-      const name = o.product_title ?? "Sem título";
-      counts[name] = (counts[name] ?? 0) + 1;
-    }
-    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const max = sorted[0]?.[1] ?? 1;
-    return sorted.map(([name, sales]) => ({ name, sales, max }));
-  }, [active]);
-
-  // ── Platform distribution (%) ─────────────────────────────────────────────
-  const pieData = useMemo(() => {
-    if (totalOrders === 0) return [];
-    const map: Record<string, number> = {};
-    for (const o of active) {
-      const p = o.platform ?? "outros";
-      map[p] = (map[p] ?? 0) + 1;
-    }
-    return Object.entries(map).map(([platform, count]) => ({
-      name: platform === "mercadolivre" ? "Mercado Livre" : platform,
-      value: Math.round((count / totalOrders) * 100),
-    }));
-  }, [active, totalOrders]);
-
-  // ── Empty state ───────────────────────────────────────────────────────────
-  const isEmpty = !isLoading && active.length === 0;
-
+  // ── Plan gate ─────────────────────────────────────────────────────────────
   if (!planLimits.loading && !planLimits.hasAdvancedReports) {
     return (
       <div className="space-y-6">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <span className="inline-flex rounded-full bg-black px-3 py-1 text-[11px] font-normal uppercase tracking-[0.12em] text-white dark:bg-white dark:text-black">
+              <span className="inline-flex rounded-full bg-black px-3 py-1 text-[11px] font-normal uppercase tracking-[0.12em] text-white">
                 Disponível no plano Pro
               </span>
               <h2 className="mt-4 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
                 Relatórios avançados bloqueados
               </h2>
               <p className="mt-2 max-w-2xl text-[14px] leading-6 text-muted-foreground">
-                O plano gratuito não inclui relatórios completos. Faça upgrade para acompanhar faturamento, lucro, pedidos por plataforma e produtos mais vendidos.
+                Faça upgrade para gerar relatórios de vendas analisados por IA com base nos seus pedidos, publicações e desempenho no Mercado Livre.
               </p>
             </div>
             <Link
               to="/dashboard/planos"
-              className="inline-flex h-11 items-center justify-center rounded-xl bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800"
             >
               Fazer upgrade
             </Link>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 opacity-60 pointer-events-none lg:grid-cols-4">
-          {["Ticket médio", "Total pedidos", "Receita total", "Lucro total"].map((label) => (
-            <div key={label} className="card-wuili p-5">
-              <p className="text-xs font-normal text-muted-foreground">{label}</p>
-              <p className="mt-1 text-2xl font-semibold">R$ --</p>
-            </div>
-          ))}
         </div>
       </div>
     );
@@ -183,132 +107,273 @@ const ReportsPage = () => {
 
   return (
     <div className="space-y-6">
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((k) => (
-          <div key={k.label} className="card-wuili p-5">
-            <p className="text-xs text-muted-foreground font-normal">{k.label}</p>
-            {isLoading
-              ? <div className="mt-2 h-7 w-28 animate-pulse rounded bg-muted" />
-              : <p className="text-2xl font-semibold mt-1">{k.value}</p>}
-          </div>
-        ))}
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-foreground">Relatórios</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Gere análises inteligentes das suas vendas com um clique.
+          </p>
+        </div>
+        <button
+          onClick={() => generate.mutate()}
+          disabled={generate.isPending}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60"
+        >
+          {generate.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Gerando…
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" /> Criar relatório
+            </>
+          )}
+        </button>
       </div>
 
-      {isEmpty && (
-        <div className="card-wuili flex flex-col items-center justify-center gap-2 py-20 text-center">
-          <p className="text-[15px] font-semibold text-foreground">Você ainda não possui pedidos.</p>
-          <p className="text-[13px] text-muted-foreground">Os relatórios serão gerados automaticamente quando houver vendas.</p>
+      {/* List / empty */}
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-40 animate-pulse rounded-2xl border border-zinc-200 bg-zinc-50" />
+          ))}
         </div>
-      )}
-
-      {!isEmpty && (
-        <div className="grid lg:grid-cols-2 gap-6">
-
-          {/* Revenue vs Profit */}
-          <div className="card-wuili p-6">
-            <h3 className="text-sm font-semibold mb-4">Faturamento vs Lucro</h3>
-            {isLoading
-              ? <Skeleton className="h-60 w-full rounded-xl" />
-              : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <AreaChart data={revenueData}>
-                    <defs>
-                      <linearGradient id="gFat" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="hsl(0,0%,85%)" stopOpacity={0.12} />
-                        <stop offset="95%" stopColor="hsl(0,0%,85%)" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="gLuc" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="hsl(0,0%,50%)" stopOpacity={0.12} />
-                        <stop offset="95%" stopColor="hsl(0,0%,50%)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(216,30%,91%)" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R${(v/1000).toFixed(0)}k`} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => fmt(v)} />
-                    <Legend />
-                    <Area type="monotone" dataKey="faturamento" stroke="hsl(0,0%,85%)" fill="url(#gFat)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="lucro"       stroke="hsl(0,0%,50%)" fill="url(#gLuc)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
+      ) : reports.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white py-20 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
+            <FileText className="h-6 w-6 text-zinc-500" />
           </div>
-
-          {/* Orders by platform */}
-          <div className="card-wuili p-6">
-            <h3 className="text-sm font-semibold mb-4">Pedidos por plataforma</h3>
-            {isLoading
-              ? <Skeleton className="h-60 w-full rounded-xl" />
-              : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={platformData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(216,30%,91%)" />
-                    <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="ml" name="Pedidos" fill="hsl(0,0%,85%)" radius={[4,4,0,0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-          </div>
-
-          {/* Top 5 products */}
-          <div className="card-wuili p-6">
-            <h3 className="text-sm font-semibold mb-4">Top 5 produtos mais vendidos</h3>
-            {isLoading
-              ? <Skeleton className="h-40 w-full rounded-xl" />
-              : topProducts.length === 0
-              ? <p className="text-sm text-muted-foreground">Sem dados suficientes.</p>
-              : (
-                <div className="space-y-4">
-                  {topProducts.map((p, i) => (
-                    <div key={p.name}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-normal truncate max-w-[70%]">{i + 1}. {p.name}</span>
-                        <span className="text-sm font-normal text-foreground">{p.sales} vendas</span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-black rounded-full transition-all dark:bg-white"
-                          style={{ width: `${(p.sales / p.max) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+          <h3 className="mt-4 text-[16px] font-semibold text-foreground">Nenhum relatório ainda</h3>
+          <p className="mt-1 max-w-sm text-[13px] text-muted-foreground">
+            Clique em <span className="font-medium text-foreground">Criar relatório</span> para gerar sua primeira análise inteligente.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {reports.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => { setOpenReport(r); setExpanded(false); }}
+              className="group relative flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-sm transition hover:border-zinc-300 hover:shadow-md"
+            >
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">
+                  <Sparkles className="h-3 w-3" /> Análise IA
                 </div>
-              )}
-          </div>
-
-          {/* Distribution pie */}
-          <div className="card-wuili p-6">
-            <h3 className="text-sm font-semibold mb-4">Distribuição por plataforma</h3>
-            {isLoading
-              ? <Skeleton className="h-60 w-full rounded-xl" />
-              : pieData.length === 0
-              ? <p className="text-sm text-muted-foreground">Sem dados suficientes.</p>
-              : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie
-                      data={pieData} cx="50%" cy="50%"
-                      innerRadius={60} outerRadius={90}
-                      paddingAngle={4} dataKey="value"
-                      label={({ name, value }) => `${name} ${value}%`}
-                    >
-                      {pieData.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-          </div>
-
+                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${scoreBadge(r.overall_score)}`}>
+                  {Number(r.overall_score).toFixed(1)}
+                </span>
+              </div>
+              <h3 className="mt-4 line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">
+                {r.title}
+              </h3>
+              <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">
+                {r.summary || "Análise de vendas do período."}
+              </p>
+              <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3 text-[12px] text-muted-foreground">
+                <span>{new Date(r.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                <ChevronRight className="h-4 w-4 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+              </div>
+            </button>
+          ))}
         </div>
       )}
+
+      {/* Report modal */}
+      {openReport && (
+        <ReportModal
+          report={openReport}
+          expanded={expanded}
+          onExpand={() => setExpanded((v) => !v)}
+          onClose={() => setOpenReport(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+// ── Modal ────────────────────────────────────────────────────────────────────
+const ReportModal = ({
+  report, expanded, onExpand, onClose,
+}: {
+  report: SalesReport;
+  expanded: boolean;
+  onExpand: () => void;
+  onClose: () => void;
+}) => {
+  const downloadJson = () => {
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${report.title.replace(/\s+/g, "_")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div
+        className={`flex w-full overflow-hidden rounded-3xl bg-white shadow-2xl transition-all ${
+          expanded ? "h-[95vh] max-w-[1400px]" : "h-[85vh] max-w-[1150px]"
+        }`}
+      >
+        {/* Left — article */}
+        <div className="flex flex-1 flex-col border-r border-zinc-100">
+          <div className="flex items-center justify-between px-8 pt-6">
+            <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-700">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-black">
+                <Sparkles className="h-3 w-3 text-white" />
+              </div>
+              Velo Insights
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-8 pb-8 pt-4">
+            <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+              {report.title}
+            </h1>
+            {report.summary && (
+              <p className="mt-4 text-[14px] leading-7 text-zinc-600">{report.summary}</p>
+            )}
+            <div className="mt-8 space-y-8">
+              {report.sections.map((s, i) => (
+                <section key={i}>
+                  <h2 className="text-[15px] font-semibold text-foreground">{s.title}</h2>
+                  <div className="mt-2 space-y-3 text-[13.5px] leading-7 text-zinc-700">
+                    {s.content.split(/\n\n+/).map((p, j) => (
+                      <p key={j} className="whitespace-pre-wrap">{p}</p>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 border-t border-zinc-100 px-8 py-4">
+            <button
+              onClick={downloadJson}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-[12.5px] font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              <Download className="h-3.5 w-3.5" /> Baixar
+            </button>
+          </div>
+        </div>
+
+        {/* Right — sidebar */}
+        <aside className="flex w-[340px] flex-col bg-zinc-50/60">
+          <div className="flex items-center justify-between px-6 pt-6">
+            <h3 className="text-[14px] font-semibold text-foreground">Análise do relatório</h3>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={onExpand}
+                className="rounded-md p-1.5 text-zinc-500 transition hover:bg-white hover:text-foreground"
+                aria-label="Expandir"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={onClose}
+                className="rounded-md p-1.5 text-zinc-500 transition hover:bg-white hover:text-foreground"
+                aria-label="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 pb-6 pt-5">
+            {/* Overall score */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-full bg-gradient-to-br from-violet-300 via-sky-300 to-emerald-300" />
+                  <span className="text-[13px] font-medium text-zinc-700">Score geral</span>
+                </div>
+                <span className={`text-[20px] font-semibold ${scoreColor(report.overall_score)}`}>
+                  {Number(report.overall_score).toFixed(2)}
+                </span>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {[
+                  { k: "vendas", label: "Vendas" },
+                  { k: "produtos", label: "Produtos" },
+                  { k: "mercado_livre", label: "ML" },
+                ].map(({ k, label }) => {
+                  const n = Number(report.scores?.[k] ?? 0);
+                  return (
+                    <div key={k} className="rounded-xl bg-zinc-50 p-2 text-center">
+                      <div className={`text-[15px] font-semibold ${scoreColor(n)}`}>{n.toFixed(2)}</div>
+                      <div className="mt-0.5 text-[10.5px] uppercase tracking-wider text-zinc-500">{label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Section list */}
+            <div className="mt-4 space-y-2">
+              {report.sections.map((s, i) => {
+                // Attach one of the scores as small badge cycling
+                const keys = ["vendas", "produtos", "mercado_livre", "oportunidades"];
+                const badgeVal = Number(report.scores?.[keys[i % keys.length]] ?? 0);
+                const showBadge = badgeVal > 0 && badgeVal < 7;
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3.5 py-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
+                      <span className="text-[12.5px] font-medium text-zinc-700">{s.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {showBadge && (
+                        <span className="rounded-full bg-rose-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-rose-600">
+                          {Math.round(10 - badgeVal)}
+                        </span>
+                      )}
+                      <Maximize2 className="h-3.5 w-3.5 text-zinc-400" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Metrics */}
+            <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+              <h4 className="text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
+                Métricas do período
+              </h4>
+              <dl className="mt-3 space-y-2 text-[12.5px]">
+                <div className="flex items-center justify-between">
+                  <dt className="text-zinc-500">Receita</dt>
+                  <dd className="font-semibold text-foreground">{fmt(report.metrics.revenue ?? 0)}</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-zinc-500">Lucro</dt>
+                  <dd className="font-semibold text-foreground">{fmt(report.metrics.profit ?? 0)}</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-zinc-500">Pedidos</dt>
+                  <dd className="font-semibold text-foreground">{report.metrics.orders ?? 0}</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-zinc-500">Ticket médio</dt>
+                  <dd className="font-semibold text-foreground">{fmt(report.metrics.avg_ticket ?? 0)}</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-zinc-500">Margem</dt>
+                  <dd className="font-semibold text-foreground">{(report.metrics.margin_pct ?? 0).toFixed(1)}%</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-zinc-500">Anúncios ativos</dt>
+                  <dd className="font-semibold text-foreground">{report.metrics.publications_active ?? 0}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 };
