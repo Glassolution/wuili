@@ -138,6 +138,7 @@ const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
       created_at: existing?.created_at ?? profile.created_at,
       ml_connected: existing?.ml_connected ?? false,
       orders_count: existing?.orders_count ?? 0,
+      last_seen_at: lastSeenByUser.get(profile.user_id) ?? existing?.last_seen_at ?? null,
     });
   }
 
