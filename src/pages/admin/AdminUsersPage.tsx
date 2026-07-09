@@ -33,6 +33,15 @@ type AdminUserRow = {
   created_at: string;
   ml_connected: boolean;
   orders_count: number;
+  last_seen_at?: string | null;
+};
+
+const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+const isOnline = (lastSeenAt?: string | null) => {
+  if (!lastSeenAt) return false;
+  const t = new Date(lastSeenAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < ONLINE_WINDOW_MS;
 };
 
 type ProfileRow = {
@@ -53,11 +62,12 @@ type SubscriptionRow = {
   updated_at: string | null;
 };
 
-type UserStatusFilter = "todos" | "ativos" | "gratis";
+type UserStatusFilter = "todos" | "online" | "ativos" | "gratis";
 type SortKey = "created_at" | "name" | "plan" | "orders_count";
 
 const statusFilters: Array<{ key: UserStatusFilter; label: string }> = [
   { key: "todos", label: "Todos" },
+  { key: "online", label: "Online" },
   { key: "ativos", label: "Ativos" },
   { key: "gratis", label: "Gratuitos" },
 ];
@@ -77,7 +87,7 @@ const chooseSubscription = (current: SubscriptionRow | undefined, next: Subscrip
 };
 
 const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
-  const [functionResult, profilesResult, subscriptionsResult] = await Promise.all([
+  const [functionResult, profilesResult, subscriptionsResult, sessionsResult] = await Promise.all([
     supabase.functions.invoke("admin-users") as Promise<{ data: AdminUserRow[] | null; error: unknown }>,
     supabase
       .from("profiles")
@@ -87,13 +97,25 @@ const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
       .from("subscriptions")
       .select("user_id,plan,status,amount,is_trial,created_at,updated_at")
       .order("updated_at", { ascending: false }),
+    supabase
+      .from("user_sessions")
+      .select("user_id,last_seen_at")
+      .order("last_seen_at", { ascending: false })
+      .limit(2000),
   ]);
 
   if (profilesResult.error && functionResult.error) throw profilesResult.error;
 
+  const lastSeenByUser = new Map<string, string>();
+  for (const row of (sessionsResult.data ?? []) as Array<{ user_id: string; last_seen_at: string | null }>) {
+    if (!row.user_id || !row.last_seen_at) continue;
+    if (!lastSeenByUser.has(row.user_id)) lastSeenByUser.set(row.user_id, row.last_seen_at);
+  }
+
   const usersById = new Map<string, AdminUserRow>();
   const functionUsers = Array.isArray(functionResult.data) ? functionResult.data : [];
-  for (const item of functionUsers) usersById.set(item.user_id, item);
+  for (const item of functionUsers)
+    usersById.set(item.user_id, { ...item, last_seen_at: lastSeenByUser.get(item.user_id) ?? null });
 
   const subscriptionsByUser = new Map<string, SubscriptionRow>();
   for (const s of (subscriptionsResult.data ?? []) as SubscriptionRow[]) {
@@ -116,6 +138,7 @@ const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
       created_at: existing?.created_at ?? profile.created_at,
       ml_connected: existing?.ml_connected ?? false,
       orders_count: existing?.orders_count ?? 0,
+      last_seen_at: lastSeenByUser.get(profile.user_id) ?? existing?.last_seen_at ?? null,
     });
   }
 
@@ -220,7 +243,7 @@ const AdminUsersPage = () => {
     queryKey: ["admin-users-clean"],
     queryFn: fetchAdminUsers,
     enabled: !!user?.id,
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
 
   const filteredUsers = useMemo(() => {
@@ -234,6 +257,7 @@ const AdminUsersPage = () => {
           item.user_id.toLowerCase().includes(q);
         const matchesFilter =
           filter === "todos" ||
+          (filter === "online" && isOnline(item.last_seen_at)) ||
           (filter === "ativos" && isActiveStatus(item.subscription_status)) ||
           (filter === "gratis" && isFreePlan(item.plan));
         return matchesSearch && matchesFilter;
@@ -437,25 +461,42 @@ const Th = ({ children, first }: { children: React.ReactNode; first?: boolean })
 
 const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }) => {
   const temp = leadTemperature(user);
+  const online = isOnline(user.last_seen_at);
   return (
     <tr onClick={onClick} className="group cursor-pointer transition hover:bg-white/[0.02]">
       <td className="py-3.5 pl-2 pr-4">
         <div className="flex items-center gap-3">
-          <Avatar user={user} />
+          <Avatar user={user} online={online} />
           <span className="truncate font-medium text-white">{user.name || "Sem nome"}</span>
         </div>
       </td>
       <td className="px-4 py-3.5 text-white/70">{user.email || "—"}</td>
       <td className="px-4 py-3.5 text-white/60">
-        <span className="inline-flex items-center gap-1.5">
-          <Store size={12} className="text-white/40" />
-          {formatDateShort(user.subscription_updated_at ?? user.created_at)}
-        </span>
+        {online ? (
+          <span className="inline-flex items-center gap-1.5 text-[#4ADE80]">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22C55E] opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#22C55E]" />
+            </span>
+            Online agora
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5">
+            <Store size={12} className="text-white/40" />
+            {user.last_seen_at ? relativeTime(user.last_seen_at) : "—"}
+          </span>
+        )}
       </td>
       <td className="px-4 py-3.5">
-        <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
-          {tempLabel[temp]}
-        </span>
+        {online ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#22C55E]/25 bg-[#22C55E]/10 px-2.5 py-1 text-[11px] font-medium text-[#4ADE80]">
+            Online
+          </span>
+        ) : (
+          <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
+            {tempLabel[temp]}
+          </span>
+        )}
       </td>
       <td className="px-4 py-3.5 text-white/55">{relativeTime(user.created_at)}</td>
       <td className="px-4 py-3.5">
@@ -467,19 +508,26 @@ const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }
 
 const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }) => {
   const temp = leadTemperature(user);
+  const online = isOnline(user.last_seen_at);
   return (
     <div onClick={onClick} className="cursor-pointer rounded-2xl border border-white/[0.06] bg-[#0F0F0F] p-4 transition hover:border-white/15">
       <div className="flex items-center gap-3">
-        <Avatar user={user} />
+        <Avatar user={user} online={online} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-medium">{user.name || "Sem nome"}</p>
           <p className="truncate text-[11px] text-white/45">{user.email || user.user_id.slice(0, 8)}</p>
         </div>
       </div>
       <div className="mt-4 flex items-center justify-between">
-        <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
-          {tempLabel[temp]}
-        </span>
+        {online ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#22C55E]/25 bg-[#22C55E]/10 px-2.5 py-1 text-[11px] font-medium text-[#4ADE80]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" /> Online
+          </span>
+        ) : (
+          <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
+            {tempLabel[temp]}
+          </span>
+        )}
         <span className="text-[11px] text-white/45">{relativeTime(user.created_at)}</span>
       </div>
       <div className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3 text-[11px] text-white/50">
@@ -490,13 +538,16 @@ const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void 
   );
 };
 
-const Avatar = ({ user }: { user: AdminUserRow }) => (
-  <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.08] text-[11px] font-semibold text-white/80">
+const Avatar = ({ user, online }: { user: AdminUserRow; online?: boolean }) => (
+  <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.08] text-[11px] font-semibold text-white/80">
     {user.avatar_url ? (
       <img src={user.avatar_url} alt={user.name ?? "Usuário"} className="h-full w-full object-cover" />
     ) : (
       getInitials(user.name, user.email)
     )}
+    {online ? (
+      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0B0B0B] bg-[#22C55E]" />
+    ) : null}
   </span>
 );
 
