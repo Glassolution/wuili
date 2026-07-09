@@ -159,9 +159,12 @@ const ReportsPage = () => {
               className="group relative flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-sm transition hover:border-zinc-300 hover:shadow-md"
             >
               <div className="flex items-center justify-between">
-                <div className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">
-                  <Sparkles className="h-3 w-3" /> Análise IA
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-black">
+                  <Sparkles className="h-3 w-3 text-white" fill="white" />
                 </div>
+                <span className="text-[12px] font-semibold text-zinc-800">Velo Insights</span>
+              </div>
                 <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${scoreBadge(r.overall_score)}`}>
                   {Number(r.overall_score).toFixed(1)}
                 </span>
