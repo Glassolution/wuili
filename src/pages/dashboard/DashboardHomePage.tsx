@@ -1104,8 +1104,32 @@ const TrialStatusBanner = ({
   onUpgradeBusiness: () => void;
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [subscription, setSubscription] = useState<TrialSubscription | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalStep, setModalStep] = useState<"info" | "reason">("info");
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+
+  const supportReasons = [
+    { id: "bug", label: "Reportar um bug", description: "Algo não está funcionando como esperado" },
+    { id: "refund", label: "Solicitar reembolso", description: "Quero cancelar e receber meu dinheiro de volta" },
+    { id: "billing", label: "Dúvida sobre cobrança", description: "Tenho perguntas sobre valores ou cobranças" },
+    { id: "other", label: "Outro motivo", description: "Preciso de ajuda com outro assunto do trial" },
+  ];
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setTimeout(() => {
+      setModalStep("info");
+      setSelectedReason(null);
+    }, 200);
+  };
+
+  const goToSupport = (reasonId: string) => {
+    closeModal();
+    navigate(`/dashboard/chat-fornecedores?area=support&motivo=trial-${reasonId}`);
+  };
 
   useEffect(() => {
     if (!user) return;
