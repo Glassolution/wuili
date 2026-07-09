@@ -377,7 +377,9 @@ const AdminUsersPage = () => {
                         </td>
                       </tr>
                     ) : (
-                      pagedUsers.map((u) => <UserRow key={u.user_id} user={u} />)
+                      pagedUsers.map((u) => (
+                        <UserRow key={u.user_id} user={u} onClick={() => setSelectedUserId(u.user_id)} />
+                      ))
                     )}
                   </tbody>
                 </table>
