@@ -73,6 +73,7 @@ const empty: PanelData = {
   orders: [],
   publications: [],
   profiles: [],
+  refunds: [],
 };
 
 const formatBRL = (v: number) =>
