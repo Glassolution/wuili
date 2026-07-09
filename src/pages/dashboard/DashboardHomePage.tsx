@@ -1139,60 +1139,91 @@ const TrialStatusBanner = ({
   const countdown = endsAt ? formatCountdown(endsAt, now) : null;
 
   if (countdown) {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const hours = Math.floor((countdown.totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((countdown.totalSeconds % 3600) / 60);
+    const seconds = countdown.totalSeconds % 60;
+    const timeLabel = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
     return (
-      <div className="sticky top-4 z-50 mx-auto mb-4 flex h-[52px] w-full max-w-[480px] items-center justify-between gap-3 rounded-[100px] bg-[#0A0A0A] py-[6px] pl-4 pr-[6px] shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.5)]"
-        style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" }}
+      <div
+        className="sticky top-0 z-50 mb-4 flex h-12 w-full items-center justify-between bg-[#0A0A0A] px-4 sm:px-6"
+        style={{
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 1px 0 rgba(255,255,255,0.04), 0 2px 12px rgba(0,0,0,0.4)",
+        }}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2a2a2a]">
-            <svg viewBox="0 0 12 12" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="2.5,6.5 5,9 9.5,3.5" />
-            </svg>
+        <div className="flex items-center gap-2.5">
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+            style={{
+              background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)",
+            }}
+          >
+            <ShieldCheck className="h-4 w-4 text-white" strokeWidth={1.5} />
           </span>
-          <p className="truncate text-[15px] font-medium text-white">
-            Trial ativo — restam{" "}
-            <span className="font-mono tabular-nums tracking-tight">{countdown.label}</span>
-          </p>
+          <span className="text-[13px] font-semibold text-white">Trial ativo</span>
+          <span className="text-[13px] text-[#555]">·</span>
+          <span className="text-[13px] font-normal text-[#aaa]">Restam {countdown.days} dias</span>
         </div>
-        <span className="h-[60%] w-px shrink-0 bg-[#333]" />
-        <button
-          type="button"
-          onClick={onManageSubscription}
-          className="flex h-full shrink-0 items-center px-4 text-[15px] font-semibold text-white transition hover:opacity-80"
-        >
-          Gerenciar
-        </button>
+
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[13px] font-medium text-white tabular-nums">{timeLabel}</span>
+          <span className="h-5 w-px shrink-0" style={{ background: "rgba(255,255,255,0.12)" }} />
+          <button
+            type="button"
+            onClick={onManageSubscription}
+            className="rounded-md px-3 py-1 text-[13px] font-medium text-white transition"
+            style={{ background: "rgba(255,255,255,0.08)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.14)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+          >
+            Gerenciar
+          </button>
+        </div>
       </div>
     );
   }
 
   if (endsAt && !countdown) {
     return (
-      <div className="sticky top-4 z-50 mx-auto mb-4 flex h-[52px] w-full max-w-[480px] items-center justify-between gap-3 rounded-[100px] bg-[#0A0A0A] py-[6px] pl-4 pr-[6px] shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.5)]"
-        style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" }}
+      <div
+        className="sticky top-0 z-50 mb-4 flex h-12 w-full items-center justify-between bg-[#0A0A0A] px-4 sm:px-6"
+        style={{
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 1px 0 rgba(255,255,255,0.04), 0 2px 12px rgba(0,0,0,0.4)",
+        }}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2a2a2a]">
-            <svg viewBox="0 0 12 12" className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="2.5,6.5 5,9 9.5,3.5" />
-            </svg>
+        <div className="flex items-center gap-2.5">
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+            style={{
+              background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)",
+            }}
+          >
+            <ShieldCheck className="h-4 w-4 text-white" strokeWidth={1.5} />
           </span>
-          <p className="truncate text-[15px] font-medium text-white">
-            Seu trial acabou. Você está no plano Pro.
-          </p>
+          <span className="text-[13px] font-semibold text-white">Trial ativo</span>
+          <span className="text-[13px] text-[#555]">·</span>
+          <span className="text-[13px] font-normal text-[#aaa]">Seu trial acabou</span>
         </div>
-        <span className="h-[60%] w-px shrink-0 bg-[#333]" />
-        <button
-          type="button"
-          onClick={onUpgradeBusiness}
-          className="flex h-full shrink-0 items-center px-4 text-[15px] font-semibold text-white transition hover:opacity-80"
-        >
-          Upgrade
-        </button>
+
+        <div className="flex items-center gap-3">
+          <span className="h-5 w-px shrink-0" style={{ background: "rgba(255,255,255,0.12)" }} />
+          <button
+            type="button"
+            onClick={onUpgradeBusiness}
+            className="rounded-md px-3 py-1 text-[13px] font-medium text-white transition"
+            style={{ background: "rgba(255,255,255,0.08)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.14)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+          >
+            Upgrade
+          </button>
+        </div>
       </div>
     );
   }
-
 
   return null;
 };
