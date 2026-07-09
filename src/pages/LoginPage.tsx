@@ -138,6 +138,8 @@ const LoginPage = () => {
     e.preventDefault();
     if (nome.trim().length < 2) { veloToast.error("Informe seu nome."); return; }
     if (password.length < 8)    { veloToast.error("Senha precisa ter pelo menos 8 caracteres."); return; }
+    if (!acceptTerms)   { veloToast.error("Você precisa aceitar os Termos de Uso."); return; }
+    if (!acceptPrivacy) { veloToast.error("Você precisa aceitar a Política de Privacidade."); return; }
     setLoading(true);
     const toastId = veloToast.loading("Criando conta...", { fullscreen: true, minDuration: 3000 });
     const [{ data, error }] = await Promise.all([
