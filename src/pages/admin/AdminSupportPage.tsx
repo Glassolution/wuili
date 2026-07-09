@@ -8,6 +8,7 @@ import {
   CreditCard,
   Loader2,
   Lock,
+  Mail,
   MessageCircle,
   Plug,
   RefreshCcw,
