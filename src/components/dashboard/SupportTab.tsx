@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ArrowUp, Check, CheckCheck, Headphones, Loader2, UserRound } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import RefundSection from "@/components/dashboard/RefundSection";
+
+const TRIAL_REASON_MESSAGES: Record<string, string> = {
+  bug: "Olá! Estou no período de trial e encontrei um bug na plataforma. Poderiam me ajudar?",
+  refund: "Olá! Estou no período de trial e gostaria de solicitar um reembolso. Poderiam me orientar?",
+  billing: "Olá! Tenho uma dúvida sobre cobrança relacionada ao meu trial. Podem me ajudar?",
+  other: "Olá! Preciso de ajuda com um assunto relacionado ao meu trial.",
+};
+
 
 type SupportTicket = {
   id: string;
@@ -38,6 +47,9 @@ const SupportTab = () => {
   const [ticketLoading, setTicketLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const trialAutoOpenRef = useRef(false);
+
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -257,6 +269,25 @@ const SupportTab = () => {
   const send = async (text: string) => {
     await sendHumanMessage(text);
   };
+
+  // Auto-open a support ticket with a pre-filled message when redirected from the trial banner
+  useEffect(() => {
+    const reason = searchParams.get("trial_reason");
+    if (!reason || !user?.id || ticketLoading || trialAutoOpenRef.current) return;
+    trialAutoOpenRef.current = true;
+
+    const message = TRIAL_REASON_MESSAGES[reason] ?? TRIAL_REASON_MESSAGES.other;
+
+    (async () => {
+      await sendHumanMessage(message);
+      const next = new URLSearchParams(searchParams);
+      next.delete("trial_reason");
+      setSearchParams(next, { replace: true });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, user?.id, ticketLoading]);
+
+
 
   const visibleSupportMessages = supportMessages.filter((m) => m.sender !== "ai");
   const hasAdminReply = visibleSupportMessages.some((m) => m.sender === "admin");
