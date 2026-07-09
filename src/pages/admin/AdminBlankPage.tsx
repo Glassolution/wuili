@@ -378,19 +378,15 @@ const AdminPainelPage = () => {
               value={formatCompact(data.counts.users)}
               delta={usersDelta.delta}
             />
-            <KpiCard
-              dotClass="bg-gradient-to-br from-[#22D3EE] to-[#0891B2]"
-              label="Pedidos automatizados"
-              value={formatNumber(data.counts.orders)}
-              delta={ordersDelta.delta}
-            />
+            <OnlineNowCard value={onlineNow} />
             <KpiCard
               dotClass="bg-gradient-to-br from-[#4ADE80] to-[#16A34A]"
-              label="Receita ativa"
+              label="Faturamento real (líquido de reembolsos)"
               value={formatBRL(revenueDelta.current)}
               delta={revenueDelta.delta}
             />
           </div>
+
 
           {/* Chart row */}
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
