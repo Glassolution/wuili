@@ -257,6 +257,7 @@ const AdminUsersPage = () => {
           item.user_id.toLowerCase().includes(q);
         const matchesFilter =
           filter === "todos" ||
+          (filter === "online" && isOnline(item.last_seen_at)) ||
           (filter === "ativos" && isActiveStatus(item.subscription_status)) ||
           (filter === "gratis" && isFreePlan(item.plan));
         return matchesSearch && matchesFilter;
