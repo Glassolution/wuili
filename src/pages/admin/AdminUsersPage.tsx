@@ -1,20 +1,19 @@
-﻿import { useMemo, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowLeft,
-  CheckCircle2,
-  Copy,
-  Headphones,
-  LayoutDashboard,
+  Bell,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Filter,
+  Grid3x3,
+  List,
   Loader2,
-  Mail,
-  Percent,
+  Plus,
   Search,
-  ShieldCheck,
   Store,
-  UserRound,
-  Users,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -53,14 +52,6 @@ type SubscriptionRow = {
   updated_at: string | null;
 };
 
-type AdminUserDetails = {
-  email: string | null;
-  phone: string | null;
-  total_pago: number;
-  total_transacoes: number;
-  ultima_transacao: string | null;
-};
-
 type UserStatusFilter = "todos" | "ativos" | "gratis";
 type SortKey = "created_at" | "name" | "plan" | "orders_count";
 
@@ -70,21 +61,15 @@ const statusFilters: Array<{ key: UserStatusFilter; label: string }> = [
   { key: "gratis", label: "Gratuitos" },
 ];
 
-const sortOptions: Array<{ key: SortKey; label: string }> = [
-  { key: "created_at", label: "Mais recentes" },
-  { key: "name", label: "Nome" },
-  { key: "plan", label: "Plano" },
-  { key: "orders_count", label: "Pedidos" },
-];
+const isActiveStatus = (status?: string | null) =>
+  ["active", "paid", "approved", "authorized"].includes((status ?? "").toLowerCase());
 
 const chooseSubscription = (current: SubscriptionRow | undefined, next: SubscriptionRow) => {
   if (!current) return next;
-
   const currentActive = isActiveStatus(current.status);
   const nextActive = isActiveStatus(next.status);
   if (nextActive && !currentActive) return next;
   if (currentActive && !nextActive) return current;
-
   const currentDate = new Date(current.updated_at ?? current.created_at ?? 0).getTime();
   const nextDate = new Date(next.updated_at ?? next.created_at ?? 0).getTime();
   return nextDate > currentDate ? next : current;
@@ -103,28 +88,20 @@ const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
       .order("updated_at", { ascending: false }),
   ]);
 
-  if (profilesResult.error && functionResult.error) {
-    throw profilesResult.error;
-  }
+  if (profilesResult.error && functionResult.error) throw profilesResult.error;
 
   const usersById = new Map<string, AdminUserRow>();
   const functionUsers = Array.isArray(functionResult.data) ? functionResult.data : [];
-  for (const item of functionUsers) {
-    usersById.set(item.user_id, item);
-  }
+  for (const item of functionUsers) usersById.set(item.user_id, item);
 
   const subscriptionsByUser = new Map<string, SubscriptionRow>();
-  for (const subscription of (subscriptionsResult.data ?? []) as SubscriptionRow[]) {
-    subscriptionsByUser.set(
-      subscription.user_id,
-      chooseSubscription(subscriptionsByUser.get(subscription.user_id), subscription)
-    );
+  for (const s of (subscriptionsResult.data ?? []) as SubscriptionRow[]) {
+    subscriptionsByUser.set(s.user_id, chooseSubscription(subscriptionsByUser.get(s.user_id), s));
   }
 
   for (const profile of (profilesResult.data ?? []) as ProfileRow[]) {
     const subscription = subscriptionsByUser.get(profile.user_id);
     const existing = usersById.get(profile.user_id);
-
     usersById.set(profile.user_id, {
       user_id: profile.user_id,
       name: existing?.name ?? profile.display_name,
@@ -133,7 +110,8 @@ const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
       plan: subscription?.plan ?? existing?.plan ?? profile.plano ?? "gratis",
       subscription_status: subscription?.status ?? existing?.subscription_status ?? null,
       subscription_amount: subscription?.amount ?? existing?.subscription_amount ?? null,
-      subscription_updated_at: subscription?.updated_at ?? subscription?.created_at ?? existing?.subscription_updated_at ?? null,
+      subscription_updated_at:
+        subscription?.updated_at ?? subscription?.created_at ?? existing?.subscription_updated_at ?? null,
       created_at: existing?.created_at ?? profile.created_at,
       ml_connected: existing?.ml_connected ?? false,
       orders_count: existing?.orders_count ?? 0,
@@ -143,77 +121,51 @@ const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
   for (const [userId, existing] of usersById) {
     const subscription = subscriptionsByUser.get(userId);
     if (!subscription) continue;
-
     usersById.set(userId, {
       ...existing,
       plan: subscription.plan ?? existing.plan,
       subscription_status: subscription.status ?? existing.subscription_status,
       subscription_amount: subscription.amount ?? existing.subscription_amount ?? null,
-      subscription_updated_at: subscription.updated_at ?? subscription.created_at ?? existing.subscription_updated_at ?? null,
+      subscription_updated_at:
+        subscription.updated_at ?? subscription.created_at ?? existing.subscription_updated_at ?? null,
     });
   }
 
   return Array.from(usersById.values());
 };
 
-const fetchAdminUserDetails = async (userId: string): Promise<AdminUserDetails> => {
-  const { data, error } = (await supabase.functions.invoke("get-user-details", {
-    body: { user_id: userId },
-  })) as { data: AdminUserDetails | null; error: unknown };
-
-  if (error) throw error;
-
-  return {
-    email: data?.email ?? null,
-    phone: data?.phone ?? null,
-    total_pago: Number(data?.total_pago ?? 0),
-    total_transacoes: Number(data?.total_transacoes ?? 0),
-    ultima_transacao: data?.ultima_transacao ?? null,
-  };
-};
-
-const formatDate = (value: string | null) => {
-  if (!value) return "Sem data";
+const formatDateShort = (value: string | null) => {
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Sem data";
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
     .format(date)
     .replace(".", "");
 };
 
-const formatBRL = (value: number) =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
-
-const formatSubscriptionValue = (value?: number | null) =>
-  typeof value === "number" && value > 0 ? formatBRL(value) : "Sem valor registrado";
-
-const formatPlan = (plan?: string | null) => {
-  const normalized = (plan ?? "gratis").toLowerCase();
-  if (normalized === "business") return "Business";
-  if (normalized === "pro") return "Pro";
-  if (normalized === "plus") return "Plus";
-  if (normalized === "trial") return "Trial";
-  return "Gratuito";
+const relativeTime = (value: string | null) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const diff = Date.now() - date.getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days < 1) return "hoje";
+  if (days === 1) return "1 dia atrás";
+  if (days < 30) return `${days} dias atrás`;
+  const months = Math.floor(days / 30);
+  if (months === 1) return "1 mês atrás";
+  if (months < 12) return `${months} meses atrás`;
+  const years = Math.floor(months / 12);
+  return years === 1 ? "1 ano atrás" : `${years} anos atrás`;
 };
 
-const isActiveStatus = (status?: string | null) =>
-  ["active", "paid", "approved", "authorized"].includes((status ?? "").toLowerCase());
-
-const formatStatus = (status?: string | null) => {
-  if (isActiveStatus(status)) return "Ativo";
-  const normalized = (status ?? "").toLowerCase();
-  if (normalized === "trial") return "Trial";
-  if (["cancelled", "canceled"].includes(normalized)) return "Cancelado";
-  return "Sem assinatura";
+const formatPlan = (plan?: string | null) => {
+  const n = (plan ?? "gratis").toLowerCase();
+  if (n === "business") return "Business";
+  if (n === "pro") return "Pro";
+  if (n === "plus") return "Plus";
+  if (n === "trial") return "Trial";
+  return "Gratuito";
 };
 
 const getInitials = (name?: string | null, email?: string | null) => {
@@ -222,105 +174,83 @@ const getInitials = (name?: string | null, email?: string | null) => {
     .split(/[\s._@-]+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((part) => part[0])
+    .map((p) => p[0])
     .join("")
     .toUpperCase();
 };
 
-const isFreePlan = (plan?: string | null) => {
-  const normalized = (plan ?? "gratis").toLowerCase();
-  return ["gratis", "free", "gratuito"].includes(normalized);
+const isFreePlan = (plan?: string | null) =>
+  ["gratis", "free", "gratuito"].includes((plan ?? "gratis").toLowerCase());
+
+const getSortValue = (u: AdminUserRow, key: SortKey) => {
+  if (key === "created_at") return new Date(u.created_at).getTime();
+  if (key === "orders_count") return Number(u.orders_count ?? 0);
+  if (key === "plan") return formatPlan(u.plan);
+  return u.name ?? u.email ?? "";
 };
 
-const getSortValue = (user: AdminUserRow, key: SortKey) => {
-  if (key === "created_at") return new Date(user.created_at).getTime();
-  if (key === "orders_count") return Number(user.orders_count ?? 0);
-  if (key === "plan") return formatPlan(user.plan);
-  return user.name ?? user.email ?? "";
+type LeadTemp = "cold" | "warm" | "hot";
+const leadTemperature = (u: AdminUserRow): LeadTemp => {
+  if (isActiveStatus(u.subscription_status)) return "hot";
+  if (u.ml_connected || u.orders_count > 0) return "warm";
+  return "cold";
 };
+
+const tempLabel: Record<LeadTemp, string> = { hot: "Ativo", warm: "Engajado", cold: "Frio" };
+const tempStyle: Record<LeadTemp, string> = {
+  hot: "bg-[#22C55E]/15 text-[#4ADE80] border border-[#22C55E]/20",
+  warm: "bg-[#F59E0B]/15 text-[#FBBF24] border border-[#F59E0B]/20",
+  cold: "bg-[#38BDF8]/10 text-[#38BDF8] border border-[#38BDF8]/20",
+};
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 const AdminUsersPage = () => {
   const { user, loading } = useAuth();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<UserStatusFilter>("todos");
-  const [sortBy, setSortBy] = useState<SortKey>("created_at");
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [sortBy] = useState<SortKey>("created_at");
+  const [view, setView] = useState<"list" | "grid">("list");
+  const [pageSize, setPageSize] = useState(11);
+  const [page, setPage] = useState(1);
 
-  const {
-    data: users = [],
-    isLoading,
-    isError,
-    error,
-  } = useQuery({
+  const { data: users = [], isLoading, isError, error } = useQuery({
     queryKey: ["admin-users-clean"],
     queryFn: fetchAdminUsers,
     enabled: !!user?.id,
     refetchInterval: 30000,
   });
 
-  const selectedUser = useMemo(
-    () => users.find((item) => item.user_id === selectedUserId) ?? null,
-    [selectedUserId, users]
-  );
-
-  const { data: selectedDetails, isLoading: isLoadingDetails } = useQuery({
-    queryKey: ["admin-user-details-clean", selectedUserId],
-    queryFn: () => fetchAdminUserDetails(selectedUserId!),
-    enabled: !!selectedUserId,
-  });
-
   const filteredUsers = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
+    const q = search.trim().toLowerCase();
     return users
       .filter((item) => {
         const matchesSearch =
-          !query ||
-          (item.name ?? "").toLowerCase().includes(query) ||
-          (item.email ?? "").toLowerCase().includes(query) ||
-          item.user_id.toLowerCase().includes(query);
-
+          !q ||
+          (item.name ?? "").toLowerCase().includes(q) ||
+          (item.email ?? "").toLowerCase().includes(q) ||
+          item.user_id.toLowerCase().includes(q);
         const matchesFilter =
           filter === "todos" ||
           (filter === "ativos" && isActiveStatus(item.subscription_status)) ||
           (filter === "gratis" && isFreePlan(item.plan));
-
         return matchesSearch && matchesFilter;
       })
       .sort((a, b) => {
-        const valueA = getSortValue(a, sortBy);
-        const valueB = getSortValue(b, sortBy);
-
-        if (typeof valueA === "number" && typeof valueB === "number") {
-          return valueB - valueA;
-        }
-
-        return String(valueA).localeCompare(String(valueB), "pt-BR", { sensitivity: "base" });
+        const va = getSortValue(a, sortBy);
+        const vb = getSortValue(b, sortBy);
+        if (typeof va === "number" && typeof vb === "number") return vb - va;
+        return String(va).localeCompare(String(vb), "pt-BR", { sensitivity: "base" });
       });
   }, [filter, search, sortBy, users]);
 
-  const stats = useMemo(() => {
-    const activeUsers = users.filter((item) => isActiveStatus(item.subscription_status)).length;
-    const mlUsers = users.filter((item) => item.ml_connected).length;
-    const totalOrders = users.reduce((sum, item) => sum + Number(item.orders_count ?? 0), 0);
-    const newThisWeek = users.filter((item) => {
-      const createdAt = new Date(item.created_at);
-      const start = new Date();
-      start.setDate(start.getDate() - 7);
-      return !Number.isNaN(createdAt.getTime()) && createdAt >= start;
-    }).length;
-
-    return [
-      { label: "Usuários", value: users.length.toLocaleString("pt-BR"), hint: "perfis carregados" },
-      { label: "Assinaturas ativas", value: activeUsers.toLocaleString("pt-BR"), hint: "status ativo ou pago" },
-      { label: "Mercado Livre", value: mlUsers.toLocaleString("pt-BR"), hint: "contas conectadas" },
-      { label: "Pedidos", value: totalOrders.toLocaleString("pt-BR"), hint: `${newThisWeek} novos em 7 dias` },
-    ];
-  }, [users]);
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f4] text-black">
+      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] text-white">
         <Loader2 className="h-7 w-7 animate-spin" />
       </div>
     );
@@ -330,291 +260,233 @@ const AdminUsersPage = () => {
 
   return (
     <AdminShell active="users" userId={user.id}>
-      <div className="min-h-full bg-[#f5f5f4] text-[#111111]">
-        <main className="min-w-0">
-          <header className="border-b border-black/[0.08] bg-white px-4 py-5 sm:px-6 lg:px-4">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-black/55">Admin Velo</p>
-                <h1 className="mt-3 text-[32px] font-semibold tracking-[-0.045em] text-black sm:text-[40px]">
-                  Usuários
-                </h1>
-                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-black/58">
-                  Acompanhe contas reais, planos, conexão com Mercado Livre e atividade de pedidos.
-                </p>
+      <div
+        className="min-h-full bg-[#0A0A0A] text-white"
+        style={{ fontFamily: '"Inter", ui-sans-serif, system-ui' }}
+      >
+        {/* Top bar */}
+        <header className="flex flex-col gap-4 border-b border-white/[0.06] px-6 py-5 md:flex-row md:items-center md:justify-between">
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Usuários</h1>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Buscar"
+                className="h-9 w-64 rounded-full border border-white/10 bg-[#0F0F0F] pl-9 pr-4 text-[13px] text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
+              />
+            </div>
+            <button className="relative rounded-full border border-white/10 bg-[#0F0F0F] p-2 text-white/60 hover:text-white">
+              <Bell size={16} />
+              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#EF4444]" />
+            </button>
+          </div>
+        </header>
+
+        <div className="p-6">
+          <section className="rounded-2xl border border-white/[0.06] bg-[#0B0B0B] p-5">
+            {/* Toolbar */}
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex rounded-full border border-white/10 bg-[#0F0F0F] p-0.5 text-[12px]">
+                {(["list", "grid"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 transition",
+                      view === v ? "bg-white text-black" : "text-white/60 hover:text-white"
+                    )}
+                  >
+                    {v === "list" ? <List size={13} /> : <Grid3x3 size={13} />}
+                    {v === "list" ? "Lista" : "Grade"}
+                  </button>
+                ))}
               </div>
 
-              <div className="flex w-full items-center gap-2 rounded-[14px] border border-black/10 bg-[#f7f7f7] px-4 py-3 xl:w-[390px]">
-                <Search size={18} className="text-black/45" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar usuário, email ou ID..."
-                  className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-black/38"
-                />
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex rounded-full border border-white/10 bg-[#0F0F0F] p-0.5 text-[11px]">
+                  {statusFilters.map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => {
+                        setFilter(s.key);
+                        setPage(1);
+                      }}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 transition",
+                        filter === s.key ? "bg-white text-black" : "text-white/60 hover:text-white"
+                      )}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                <button className="flex items-center gap-2 rounded-full border border-white/10 bg-[#0F0F0F] px-4 py-2 text-[12px] text-white/80 hover:bg-white/[0.06]">
+                  <Filter size={13} />
+                  Filtrar
+                </button>
+                <button className="flex items-center gap-2 rounded-full border border-white/10 bg-[#0F0F0F] px-4 py-2 text-[12px] text-white/80 hover:bg-white/[0.06]">
+                  <Download size={13} />
+                  Exportar
+                </button>
+                <button className="flex items-center gap-2 rounded-full bg-[#22C55E] px-4 py-2 text-[12px] font-medium text-black hover:bg-[#16A34A]">
+                  <Plus size={13} />
+                  Novo usuário
+                </button>
               </div>
             </div>
-          </header>
 
-          <div className="space-y-5 px-4 py-5 sm:px-6 lg:px-4">
-            <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {stats.map((item) => (
-                <article key={item.label} className="rounded-[18px] border border-black/[0.08] bg-white p-5 shadow-sm">
-                  <p className="text-[13px] text-black/62">{item.label}</p>
-                  <strong className="mt-5 block text-[29px] font-semibold tracking-[-0.05em] text-black">
-                    {item.value}
-                  </strong>
-                  <p className="mt-3 text-[12px] text-black/52">{item.hint}</p>
-                </article>
-              ))}
-            </section>
-
-            <section className="rounded-[22px] border border-black/[0.08] bg-white shadow-sm">
-              <div className="flex flex-col gap-4 border-b border-black/[0.08] p-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-wrap gap-2">
-                  {statusFilters.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => setFilter(item.key)}
-                      className={cn(
-                        "h-10 rounded-full px-4 text-[13px] font-semibold transition",
-                        filter === item.key
-                          ? "bg-black text-white"
-                          : "border border-black/10 bg-white text-black/62 hover:border-black/20 hover:text-black"
-                      )}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex w-full flex-wrap items-center gap-2 rounded-full border border-black/10 bg-white px-2 py-2 text-[13px] lg:w-auto">
-                  <span className="px-2 font-medium text-black/45">Ordenar</span>
-                  {sortOptions.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => setSortBy(item.key)}
-                      className={cn(
-                        "h-8 rounded-full px-3 text-[12px] font-semibold transition",
-                        sortBy === item.key ? "bg-black text-white" : "text-black/48 hover:bg-black/[0.04] hover:text-black"
-                      )}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+            {/* Content */}
+            {isLoading ? (
+              <div className="flex min-h-[420px] items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-white/60" />
+              </div>
+            ) : isError ? (
+              <div className="flex min-h-[420px] items-center justify-center p-8 text-center">
+                <div>
+                  <p className="text-[15px] font-semibold">Não foi possível carregar usuários.</p>
+                  <p className="mt-2 max-w-md text-[12px] leading-6 text-white/50">
+                    {error instanceof Error ? error.message : "Confira a Edge Function admin-users."}
+                  </p>
                 </div>
               </div>
+            ) : view === "list" ? (
+              <div className="mt-5 overflow-x-auto">
+                <table className="w-full min-w-[880px] text-left text-[13px]">
+                  <thead>
+                    <tr className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/40">
+                      <Th first>Usuário</Th>
+                      <Th>Email</Th>
+                      <Th>Atividade</Th>
+                      <Th>Status</Th>
+                      <Th>Cadastro</Th>
+                      <Th>Origem</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.05]">
+                    {pagedUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-16 text-center text-[13px] text-white/40">
+                          Nenhum usuário encontrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      pagedUsers.map((u) => <UserRow key={u.user_id} user={u} />)
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {pagedUsers.map((u) => (
+                  <UserCard key={u.user_id} user={u} />
+                ))}
+              </div>
+            )}
 
-              {isLoading ? (
-                <div className="flex min-h-[360px] items-center justify-center">
-                  <Loader2 className="h-7 w-7 animate-spin text-black" />
+            {/* Pagination */}
+            <div className="mt-5 flex flex-col gap-3 border-t border-white/[0.05] pt-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2 text-[12px] text-white/50">
+                <span>Mostrar</span>
+                <div className="relative">
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="appearance-none rounded-full border border-white/10 bg-[#0F0F0F] py-1.5 pl-3 pr-7 text-[12px] text-white focus:border-white/20 focus:outline-none"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((n) => (
+                      <option key={n} value={n} className="bg-[#0F0F0F]">
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/50" />
                 </div>
-              ) : isError ? (
-                <div className="flex min-h-[360px] items-center justify-center p-8 text-center">
-                  <div>
-                    <p className="text-[18px] font-semibold text-black">Não foi possível carregar usuários.</p>
-                    <p className="mt-2 max-w-md text-[13px] leading-6 text-black/54">
-                      {error instanceof Error ? error.message : "Confira a Edge Function admin-users e as permissões de admin."}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid min-h-[620px] lg:grid-cols-[minmax(0,1fr)_360px]">
-                  <div className="overflow-x-auto p-4">
-                    <table className="w-full min-w-[850px] border-separate border-spacing-y-2">
-                      <thead>
-                        <tr className="text-left text-[12px] font-semibold text-black/45">
-                          <th className="px-4 py-2">Usuário</th>
-                          <th className="px-4 py-2">Plano</th>
-                          <th className="px-4 py-2">Status</th>
-                          <th className="px-4 py-2">ML</th>
-                          <th className="px-4 py-2 text-right">Pedidos</th>
-                          <th className="px-4 py-2">Cadastro</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredUsers.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="rounded-2xl bg-[#f7f7f7] px-4 py-14 text-center text-[14px] text-black/50">
-                              Nenhum usuário encontrado.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredUsers.map((item) => (
-                            <UserRow
-                              key={item.user_id}
-                              user={item}
-                              selected={selectedUserId === item.user_id}
-                              onClick={() => setSelectedUserId(item.user_id)}
-                            />
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                <span>por página</span>
+              </div>
 
-                  <UserDetailsPanel
-                    user={selectedUser}
-                    details={selectedDetails}
-                    loading={isLoadingDetails}
-                    onClose={() => setSelectedUserId(null)}
-                  />
-                </div>
-              )}
-            </section>
-          </div>
-        </main>
+              <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+            </div>
+          </section>
+        </div>
       </div>
     </AdminShell>
   );
 };
 
-const AdminSidebar = ({ userId }: { userId: string }) => (
-  <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 border-r border-[#2A2926] bg-[#171714] text-white lg:flex lg:flex-col">
-    <div className="flex h-[74px] items-center border-b border-[#2A2926] px-4">
-      <Link to="/admin/painel" className="flex items-center gap-3">
-        <VeloMark />
-        <div>
-          <p className="text-[19px] font-semibold tracking-[-0.04em]">VeloMetric</p>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-white/36">Admin</p>
-        </div>
-      </Link>
-    </div>
+const Th = ({ children, first }: { children: React.ReactNode; first?: boolean }) => (
+  <th className={cn("py-3 font-medium", first ? "pl-2 pr-4" : "px-4")}>
+    <span className="inline-flex items-center gap-1">
+      {children}
+      <ChevronDown size={11} className="text-white/30" />
+    </span>
+  </th>
+);
 
-    <div className="flex-1 px-4 py-6">
-      <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/62">Monitoramento</p>
-      <div className="space-y-1">
-        <AdminNavLink icon={LayoutDashboard} label="Painel" to="/admin/painel" />
-        <AdminNavLink icon={Percent} label="Comissões" to="/admin/comissoes" />
-        <AdminNavLink icon={Users} label="Usuários" to="/admin/usuarios" active />
-        <AdminNavLink icon={Headphones} label="Suporte" to="/admin/suporte" />
-      </div>
-    </div>
-
-    <div className="mt-auto space-y-5 border-t border-[#2A2926] p-5">
-      <div className="rounded-[12px] border border-white/[0.08] bg-white/[0.035] p-4">
+const UserRow = ({ user }: { user: AdminUserRow }) => {
+  const temp = leadTemperature(user);
+  return (
+    <tr className="group transition hover:bg-white/[0.02]">
+      <td className="py-3.5 pl-2 pr-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black">
-            <ShieldCheck size={17} />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[13px] text-white/58">Admin ID</p>
-            <p className="truncate text-[14px] font-semibold tracking-[-0.02em]">
-              {userId.slice(0, 8).toUpperCase()}
-            </p>
-          </div>
+          <Avatar user={user} />
+          <span className="truncate font-medium text-white">{user.name || "Sem nome"}</span>
         </div>
-      </div>
+      </td>
+      <td className="px-4 py-3.5 text-white/70">{user.email || "—"}</td>
+      <td className="px-4 py-3.5 text-white/60">
+        <span className="inline-flex items-center gap-1.5">
+          <Store size={12} className="text-white/40" />
+          {formatDateShort(user.subscription_updated_at ?? user.created_at)}
+        </span>
+      </td>
+      <td className="px-4 py-3.5">
+        <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
+          {tempLabel[temp]}
+        </span>
+      </td>
+      <td className="px-4 py-3.5 text-white/55">{relativeTime(user.created_at)}</td>
+      <td className="px-4 py-3.5">
+        <SourceBadge user={user} />
+      </td>
+    </tr>
+  );
+};
 
-      <Link
-        to="/dashboard"
-        className="flex h-10 items-center gap-2 rounded-[10px] px-2 text-[13px] font-semibold text-white transition hover:bg-[#24231F]"
-      >
-        <ArrowLeft size={15} />
-        Voltar à Velo
-      </Link>
-    </div>
-  </aside>
-);
-
-const AdminNavLink = ({
-  icon: Icon,
-  label,
-  to,
-  active = false,
-}: {
-  icon: typeof LayoutDashboard;
-  label: string;
-  to: string;
-  active?: boolean;
-}) => (
-  <Link
-    to={to}
-    className={cn(
-      "group flex h-10 items-center gap-3 rounded-[9px] px-3 text-[14px] font-semibold transition",
-      active ? "bg-[#2B2B29] text-white" : "text-white/72 hover:bg-[#24231F] hover:text-white"
-    )}
-  >
-    <Icon size={16} strokeWidth={1.8} />
-    {label}
-  </Link>
-);
-
-const VeloMark = () => (
-  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white text-black shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-    <svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <path d="M33 18A11 11 0 1 0 33 30" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-      <path
-        d="M30 26L34 30L38 26"
-        stroke="currentColor"
-        strokeWidth="4.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  </span>
-);
-
-const UserRow = ({
-  user,
-  selected,
-  onClick,
-}: {
-  user: AdminUserRow;
-  selected: boolean;
-  onClick: () => void;
-}) => (
-  <tr
-    onClick={onClick}
-    className={cn(
-      "cursor-pointer text-[13px] transition",
-      selected ? "bg-black text-white" : "bg-[#fbfbfb] text-black hover:bg-[#f1f1f1]"
-    )}
-  >
-    <td className="rounded-l-2xl px-4 py-4">
+const UserCard = ({ user }: { user: AdminUserRow }) => {
+  const temp = leadTemperature(user);
+  return (
+    <div className="rounded-2xl border border-white/[0.06] bg-[#0F0F0F] p-4 transition hover:border-white/15">
       <div className="flex items-center gap-3">
-        <Avatar user={user} selected={selected} />
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-semibold">{user.name || "Usuário sem nome"}</p>
-          <p className={cn("mt-0.5 truncate text-[12px]", selected ? "text-white/54" : "text-black/45")}>
-            {user.email || user.user_id.slice(0, 8)}
-          </p>
+        <Avatar user={user} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-medium">{user.name || "Sem nome"}</p>
+          <p className="truncate text-[11px] text-white/45">{user.email || user.user_id.slice(0, 8)}</p>
         </div>
       </div>
-    </td>
-    <td className="px-4 py-4">
-      <div className="flex flex-col items-start gap-1.5">
-        <span className={cn("rounded-full px-3 py-1 text-[12px] font-semibold", selected ? "bg-white/12" : "bg-black/[0.04]")}>
-          {formatPlan(user.plan)}
+      <div className="mt-4 flex items-center justify-between">
+        <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
+          {tempLabel[temp]}
         </span>
-        <span className={cn("text-[11px] font-medium", selected ? "text-white/54" : "text-black/45")}>
-          {formatSubscriptionValue(user.subscription_amount)}
-        </span>
+        <span className="text-[11px] text-white/45">{relativeTime(user.created_at)}</span>
       </div>
-    </td>
-    <td className="px-4 py-4">
-      <StatusPill status={user.subscription_status} selected={selected} />
-    </td>
-    <td className="px-4 py-4">
-      <span className={cn("inline-flex items-center gap-1.5 font-semibold", user.ml_connected ? "text-emerald-600" : selected ? "text-white/45" : "text-black/38")}>
-        <Store size={14} />
-        {user.ml_connected ? "Conectado" : "Não"}
-      </span>
-    </td>
-    <td className="px-4 py-4 text-right font-semibold">{Number(user.orders_count ?? 0).toLocaleString("pt-BR")}</td>
-    <td className="rounded-r-2xl px-4 py-4 text-black/48">{formatDate(user.created_at)}</td>
-  </tr>
-);
+      <div className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3 text-[11px] text-white/50">
+        <span>{formatPlan(user.plan)}</span>
+        <SourceBadge user={user} compact />
+      </div>
+    </div>
+  );
+};
 
-const Avatar = ({ user, selected }: { user: AdminUserRow; selected: boolean }) => (
-  <span
-    className={cn(
-      "flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full text-[12px] font-semibold",
-      selected ? "bg-white text-black" : "bg-black text-white"
-    )}
-  >
+const Avatar = ({ user }: { user: AdminUserRow }) => (
+  <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.08] text-[11px] font-semibold text-white/80">
     {user.avatar_url ? (
       <img src={user.avatar_url} alt={user.name ?? "Usuário"} className="h-full w-full object-cover" />
     ) : (
@@ -623,140 +495,80 @@ const Avatar = ({ user, selected }: { user: AdminUserRow; selected: boolean }) =
   </span>
 );
 
-const StatusPill = ({ status, selected }: { status?: string | null; selected: boolean }) => {
-  const active = isActiveStatus(status);
+const SourceBadge = ({ user, compact }: { user: AdminUserRow; compact?: boolean }) => {
+  const source = user.ml_connected ? "Mercado Livre" : "Direto";
+  const dot = user.ml_connected ? "bg-[#FBBF24]" : "bg-white/40";
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold",
-        active
-          ? "bg-emerald-100 text-emerald-700"
-          : selected
-            ? "bg-white/10 text-white/58"
-            : "bg-black/[0.04] text-black/48"
+        "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#0F0F0F] px-2.5 py-1 text-[11px] text-white/70",
+        compact && "border-transparent bg-transparent px-0 py-0"
       )}
     >
-      {active && <CheckCircle2 size={13} />}
-      {formatStatus(status)}
+      <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />
+      {source}
     </span>
   );
 };
 
-const UserDetailsPanel = ({
-  user,
-  details,
-  loading,
-  onClose,
+const Pagination = ({
+  page,
+  totalPages,
+  onChange,
 }: {
-  user: AdminUserRow | null;
-  details?: AdminUserDetails;
-  loading: boolean;
-  onClose: () => void;
-}) => (
-  <aside className="border-t border-black/[0.08] bg-[#fafafa] p-5 lg:border-l lg:border-t-0">
-    {!user ? (       <div className="space-y-5 opacity-70">         <div className="flex items-center gap-3">           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/[0.08] text-black/35">             <UserRound size={19} />           </span>           <div>             <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-black/55">Nenhum usuário selecionado</h2>             <p className="mt-1 text-[12px] text-black/40">Clique em uma conta para carregar os dados reais.</p>           </div>         </div>          <div className="grid gap-3">           <DetailCard label="Email" value="Ainda não selecionado" icon={Mail} />           <DetailCard label="Telefone" value="Ainda não selecionado" icon={UserRound} />           <DetailCard label="Assinatura" value="Plano, status e valor aparecem aqui" icon={ShieldCheck} />         </div>          <div className="rounded-[18px] border border-dashed border-black/[0.10] bg-white p-4">           <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-black/36">Financeiro</p>           <strong className="mt-4 block text-[30px] font-semibold tracking-[-0.05em] text-black/28">R$ 0,00</strong>           <div className="mt-4 grid grid-cols-2 gap-3 text-[12px]">             <div className="rounded-[14px] bg-[#f5f5f4] p-3">               <p className="text-black/36">Transações</p>               <p className="mt-2 font-semibold text-black/32">0</p>             </div>             <div className="rounded-[14px] bg-[#f5f5f4] p-3">               <p className="text-black/36">Última</p>               <p className="mt-2 font-semibold text-black/32">--</p>             </div>           </div>         </div>          <div className="rounded-[18px] border border-dashed border-black/[0.10] bg-white p-4">           <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-black/36">Operação</p>           <div className="mt-4 space-y-3 text-[13px]">             <DetailLine label="Mercado Livre" value="Aguardando seleção" />             <DetailLine label="Pedidos" value="--" />             <DetailLine label="Cadastro" value="--" />           </div>         </div>       </div>
-    ) : (
-      <div className="space-y-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Avatar user={user} selected={false} />
-            <div className="min-w-0">
-              <h2 className="truncate text-[18px] font-semibold tracking-[-0.03em]">{user.name || "Usuário"}</h2>
-              <p className="mt-1 truncate text-[12px] text-black/45">{user.user_id}</p>
-            </div>
-          </div>
-        </div>
+  page: number;
+  totalPages: number;
+  onChange: (p: number) => void;
+}) => {
+  const pages = useMemo(() => {
+    const arr: (number | "…")[] = [];
+    const push = (n: number | "…") => arr.push(n);
+    const window = 1;
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= page - window && i <= page + window)) push(i);
+      else if (arr[arr.length - 1] !== "…") push("…");
+    }
+    return arr;
+  }, [page, totalPages]);
 
-        {loading ? (
-          <div className="flex h-44 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onChange(Math.max(1, page - 1))}
+        disabled={page === 1}
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#0F0F0F] text-white/60 transition hover:text-white disabled:opacity-30"
+      >
+        <ChevronLeft size={14} />
+      </button>
+      {pages.map((p, i) =>
+        p === "…" ? (
+          <span key={`e-${i}`} className="px-1.5 text-[12px] text-white/40">
+            …
+          </span>
         ) : (
-          <>
-            <div className="grid gap-3">
-              <DetailCard label="Email" value={details?.email ?? user.email ?? "Não informado"} icon={Mail} copyValue={details?.email ?? user.email} />
-              <DetailCard label="Telefone" value={details?.phone ?? "Não informado"} icon={UserRound} />
-              <DetailCard
-                label="Assinatura"
-                value={`${formatPlan(user.plan)} · ${formatStatus(user.subscription_status)} · ${formatSubscriptionValue(user.subscription_amount)}`}
-                icon={ShieldCheck}
-              />
-            </div>
-
-            <div className="rounded-[18px] border border-black/[0.08] bg-white p-4">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-black/44">Financeiro</p>
-              <strong className="mt-4 block text-[30px] font-semibold tracking-[-0.05em]">
-                {formatBRL(details?.total_pago ?? 0)}
-              </strong>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-[12px]">
-                <div className="rounded-[14px] bg-[#f5f5f4] p-3">
-                  <p className="text-black/44">Transações</p>
-                  <p className="mt-2 font-semibold">{details?.total_transacoes ?? 0}</p>
-                </div>
-                <div className="rounded-[14px] bg-[#f5f5f4] p-3">
-                  <p className="text-black/44">Última</p>
-                  <p className="mt-2 font-semibold">{formatDate(details?.ultima_transacao ?? null)}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[18px] border border-black/[0.08] bg-white p-4">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-black/44">Operação</p>
-              <div className="mt-4 space-y-3 text-[13px]">
-                <DetailLine label="Mercado Livre" value={user.ml_connected ? "Conectado" : "Não conectado"} />
-                <DetailLine label="Pedidos" value={Number(user.orders_count ?? 0).toLocaleString("pt-BR")} />
-                <DetailLine label="Cadastro" value={formatDate(user.created_at)} />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    )}
-  </aside>
-);
-
-const DetailCard = ({
-  label,
-  value,
-  icon: Icon,
-  copyValue,
-}: {
-  label: string;
-  value: string;
-  icon: typeof Mail;
-  copyValue?: string | null;
-}) => (
-  <div className="rounded-[18px] border border-black/[0.08] bg-white p-4">
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-white">
-          <Icon size={16} />
-        </span>
-        <div className="min-w-0">
-          <p className="text-[12px] text-black/45">{label}</p>
-          <p className="mt-1 break-words text-[13px] font-semibold text-black">{value}</p>
-        </div>
-      </div>
-      {copyValue && (
-        <button
-          type="button"
-          onClick={() => void navigator.clipboard?.writeText(copyValue)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-black/42 transition hover:bg-black/[0.05] hover:text-black"
-          aria-label={`Copiar ${label}`}
-        >
-          <Copy size={14} />
-        </button>
+          <button
+            key={p}
+            onClick={() => onChange(p)}
+            className={cn(
+              "h-8 min-w-8 rounded-full px-2 text-[12px] transition",
+              p === page
+                ? "bg-white text-black"
+                : "border border-white/10 bg-[#0F0F0F] text-white/70 hover:text-white"
+            )}
+          >
+            {p}
+          </button>
+        )
       )}
+      <button
+        onClick={() => onChange(Math.min(totalPages, page + 1))}
+        disabled={page === totalPages}
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#0F0F0F] text-white/60 transition hover:text-white disabled:opacity-30"
+      >
+        <ChevronRight size={14} />
+      </button>
     </div>
-  </div>
-);
-
-const DetailLine = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex items-center justify-between gap-4">
-    <span className="text-black/45">{label}</span>
-    <strong className="text-right font-semibold">{value}</strong>
-  </div>
-);
+  );
+};
 
 export default AdminUsersPage;
-
