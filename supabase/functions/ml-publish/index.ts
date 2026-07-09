@@ -19,6 +19,11 @@ type MLAttribute = {
   value_name?: string
 }
 
+type SellerStatusBlock = {
+  message: string
+  details: Record<string, unknown>
+}
+
 const PRODUCT_LIMITS: Record<PlanName, number | null> = {
   gratis: 0,
   go: 0,
@@ -43,6 +48,138 @@ function normalizeText(value: unknown): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+}
+
+function arrayFromUnknown(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
+function collectSellerStatusCodes(...values: unknown[]): string[] {
+  const codes = new Set<string>()
+
+  const visit = (value: unknown) => {
+    if (!value) return
+    if (typeof value === 'string' || typeof value === 'number') {
+      const code = cleanText(value)
+      if (code) codes.add(code)
+      return
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit)
+      return
+    }
+    if (typeof value === 'object') {
+      const obj = value as Record<string, unknown>
+      for (const key of ['code', 'cause_id', 'cause', 'reason', 'type', 'department']) {
+        const code = cleanText(obj[key])
+        if (code) codes.add(code)
+      }
+      for (const key of ['codes', 'reasons', 'causes']) visit(obj[key])
+    }
+  }
+
+  values.forEach(visit)
+  return Array.from(codes)
+}
+
+function describeSellerStatusCodes(codes: string[]): string {
+  if (codes.length === 0) return 'bloqueio não especificado pelo Mercado Livre'
+
+  const normalized = codes.map((code) => normalizeText(code))
+  const reasons: string[] = []
+
+  const addReason = (condition: boolean, reason: string) => {
+    if (condition && !reasons.includes(reason)) reasons.push(reason)
+  }
+
+  addReason(
+    normalized.some((code) => code.includes('regulation') || code.includes('regul') || code.includes('kyc')),
+    'cadastro regulatório/documentos pendentes no Mercado Livre',
+  )
+  addReason(
+    normalized.some((code) => code.includes('identity') || code.includes('identification') || code.includes('identidade')),
+    'validação de identidade pendente',
+  )
+  addReason(
+    normalized.some((code) => code.includes('address') || code.includes('endereco')),
+    'endereço de venda pendente ou incompleto',
+  )
+  addReason(
+    normalized.some((code) => code.includes('phone') || code.includes('telefone')),
+    'telefone pendente de confirmação',
+  )
+  addReason(
+    normalized.some((code) => code.includes('billing') || code.includes('fiscal') || code.includes('tax')),
+    'dados fiscais/de faturamento pendentes',
+  )
+  addReason(
+    normalized.some((code) => code.includes('payment') || code.includes('mercadopago')),
+    'configuração do Mercado Pago/pagamento pendente',
+  )
+  addReason(
+    normalized.some((code) => code.includes('suspend') || code.includes('disabled') || code.includes('blocked')),
+    'restrição ou bloqueio ativo na conta',
+  )
+
+  return reasons.length > 0 ? reasons.join(', ') : codes.join(', ')
+}
+
+function buildSellerBlockedMessage(codes: string[]): string {
+  const reason = describeSellerStatusCodes(codes)
+  const codeText = codes.length > 0 ? ` Códigos do Mercado Livre: ${codes.join(', ')}.` : ''
+  return `O Mercado Livre bloqueou a criação do anúncio para esta conta: ${reason}.${codeText} Faça uma publicação manual de teste dentro do Mercado Livre com esta mesma conta para ver o aviso oficial e, depois de resolver, reconecte a integração na Velo.`
+}
+
+async function validateSellerCanList(accessToken: string): Promise<SellerStatusBlock | null> {
+  try {
+    const res = await fetch('https://api.mercadolibre.com/users/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    const data = await res.json().catch(() => ({})) as Record<string, unknown>
+
+    if (!res.ok) {
+      console.warn('[ml-publish] Não foi possível validar status do vendedor:', JSON.stringify(data).substring(0, 600))
+      return null
+    }
+
+    const status = (data.status as Record<string, unknown> | undefined) ?? {}
+    const list = (status.list as Record<string, unknown> | undefined) ?? {}
+    const sell = (status.sell as Record<string, unknown> | undefined) ?? {}
+    const shoppingCart = (status.shopping_cart as Record<string, unknown> | undefined) ?? {}
+    const listAllow = list.allow
+    const sellAllow = sell.allow
+    const shoppingCartSell = shoppingCart.sell
+
+    if (listAllow === false || sellAllow === false || shoppingCartSell === 'not_allowed') {
+      const codes = collectSellerStatusCodes(
+        list.codes,
+        list.immediate_payment,
+        sell.codes,
+        sell.immediate_payment,
+        status.required_action,
+        status.site_status,
+      )
+      return {
+        message: buildSellerBlockedMessage(codes),
+        details: {
+          ml_user_id: data.id,
+          status: {
+            list,
+            sell,
+            required_action: status.required_action,
+            site_status: status.site_status,
+            confirmed_email: status.confirmed_email,
+            mercadoenvios: status.mercadoenvios,
+          },
+        },
+      }
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.warn('[ml-publish] Validação de vendedor indisponível:', message)
+  }
+
+  return null
 }
 
 // NOTE: heurísticas antigas de "sticker/album/fifa" foram removidas de propósito.
@@ -140,7 +277,7 @@ async function predictCategory(title: string): Promise<string> {
 // Map ML API errors to user-friendly messages
 function mapMLError(mlData: Record<string, unknown>): string {
   const msg = (mlData?.message as string) || ''
-  const causeArr = (mlData?.cause as unknown[]) || []
+  const causeArr = arrayFromUnknown(mlData?.cause)
   const causeStr = JSON.stringify(causeArr).toLowerCase()
   const msgLower = msg.toLowerCase()
 
@@ -151,7 +288,8 @@ function mapMLError(mlData: Record<string, unknown>): string {
     causeStr.includes('restrictions_') ||
     causeStr.includes('restriction')
   ) {
-    return 'Sua conta do Mercado Livre ainda não está habilitada como VENDEDOR. Acesse mercadolivre.com.br, vá em "Minha conta → Vender" e complete o cadastro de vendedor (dados pessoais, CPF/CNPJ, endereço e dados bancários). Depois reconecte sua conta aqui em Integrações e tente publicar novamente.'
+    const codes = collectSellerStatusCodes(causeArr, mlData.error, mlData.code, mlData.message)
+    return buildSellerBlockedMessage(codes)
   }
 
   if (causeStr.includes('category_id')) return 'Categoria inválida. Tente editar o título para melhor detecção automática.'
