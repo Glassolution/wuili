@@ -1068,6 +1068,20 @@ type TrialSubscription = {
   is_trial: boolean | null;
   trial_ends_at: string | null;
   plan: string | null;
+  created_at: string | null;
+};
+
+const TRIAL_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
+
+const resolveTrialEndsAt = (sub: TrialSubscription | null): string | null => {
+  if (!sub) return null;
+  if (sub.trial_ends_at) return sub.trial_ends_at;
+  // Fallback: derive from created_at + 5 days for trial-priced subscriptions
+  // that were persisted without trial_ends_at set.
+  if (sub.created_at && sub.plan === "pro") {
+    return new Date(new Date(sub.created_at).getTime() + TRIAL_DURATION_MS).toISOString();
+  }
+  return null;
 };
 
 const formatCountdown = (endsAt: string, now: Date) => {
@@ -1098,7 +1112,7 @@ const TrialStatusBanner = ({
     let active = true;
     supabase
       .from("subscriptions")
-      .select("status,is_trial,trial_ends_at,plan")
+      .select("status,is_trial,trial_ends_at,plan,created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -1111,19 +1125,19 @@ const TrialStatusBanner = ({
     };
   }, [user]);
 
+  const endsAt = resolveTrialEndsAt(subscription);
+
   useEffect(() => {
-    if (!subscription?.is_trial || !subscription.trial_ends_at) return;
+    if (!endsAt) return;
     const interval = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(interval);
-  }, [subscription?.is_trial, subscription?.trial_ends_at]);
+  }, [endsAt]);
 
   if (!subscription) return null;
 
-  const countdown = subscription.is_trial && subscription.trial_ends_at
-    ? formatCountdown(subscription.trial_ends_at, now)
-    : null;
+  const countdown = endsAt ? formatCountdown(endsAt, now) : null;
 
-  if (subscription.is_trial && countdown) {
+  if (countdown) {
     return (
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-full bg-black px-5 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.15)]">
         <div className="flex min-w-0 items-center gap-3">
@@ -1147,7 +1161,7 @@ const TrialStatusBanner = ({
     );
   }
 
-  if (subscription.is_trial && !countdown) {
+  if (endsAt && !countdown) {
     return (
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-full bg-black px-5 py-2.5 shadow-[0_10px_24px_rgba(0,0,0,0.15)]">
         <p className="text-[13px] font-semibold text-white">
