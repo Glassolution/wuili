@@ -486,6 +486,16 @@ Deno.serve(async (req) => {
       }).eq('user_id', user_id).eq('platform', 'mercadolivre')
     }
 
+    const sellerBlock = await validateSellerCanList(accessToken)
+    if (sellerBlock) {
+      console.warn('[ml-publish] Conta ML bloqueada para publicar:', JSON.stringify(sellerBlock.details).substring(0, 800))
+      return json({
+        error: sellerBlock.message,
+        code: 'ML_SELLER_CANNOT_LIST',
+        details: sellerBlock.details,
+      }, 409)
+    }
+
     // === TITLE (max 60 chars) ===
     const title = product.title.length > 60
       ? product.title.substring(0, 57) + '...'
