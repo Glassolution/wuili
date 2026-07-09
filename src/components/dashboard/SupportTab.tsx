@@ -112,7 +112,9 @@ const SupportTab = () => {
     };
   }, [user?.id]);
 
-  const startHumanSupport = async (): Promise<SupportTicket | null> => {
+  const startHumanSupport = async (
+    opts?: { category?: TicketCategory; subject?: string | null }
+  ): Promise<SupportTicket | null> => {
     if (!user?.id) {
       toast.error("Faça login para falar com o suporte.");
       return null;
@@ -162,9 +164,17 @@ const SupportTab = () => {
         return openTicket;
       }
 
+      const insertPayload: Record<string, unknown> = {
+        user_id: user.id,
+        status: "open",
+        ai_active: false,
+        category: opts?.category ?? "outros",
+      };
+      if (opts?.subject) insertPayload.subject = opts.subject;
+
       const { data, error } = await (supabase as any)
         .from("support_tickets")
-        .insert({ user_id: user.id, status: "open", ai_active: false })
+        .insert(insertPayload)
         .select("*")
         .single();
 
