@@ -1128,8 +1128,9 @@ const TrialStatusBanner = ({
 
   const goToSupport = (reasonId: string) => {
     closeModal();
-    navigate(`/dashboard/chat-fornecedores?area=support&motivo=trial-${reasonId}`);
+    navigate(`/dashboard/configuracoes?tab=Suporte&trial_reason=${reasonId}`);
   };
+
 
   useEffect(() => {
     if (!user) return;
