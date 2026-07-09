@@ -34,9 +34,10 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
   const { pathname } = useLocation();
   const [panelOpen, setPanelOpen] = useState(true);
 
-  const activeSection: "panel" | "users" | "commissions" | "features" | "integrations" | null = useMemo(() => {
+  const activeSection: "panel" | "users" | "commissions" | "support" | "integrations" | null = useMemo(() => {
     if (pathname.startsWith("/admin/usuarios")) return "users";
     if (pathname.startsWith("/admin/comissoes")) return "commissions";
+    if (pathname.startsWith("/admin/suporte")) return "support";
     if (pathname.startsWith("/admin/painel")) return "panel";
     return null;
   }, [pathname]);
