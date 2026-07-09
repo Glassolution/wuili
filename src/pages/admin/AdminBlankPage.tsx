@@ -39,6 +39,7 @@ import {
 } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
