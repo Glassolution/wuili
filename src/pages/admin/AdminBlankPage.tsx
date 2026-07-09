@@ -593,6 +593,22 @@ const KpiCard = ({
   </div>
 );
 
+const OnlineNowCard = ({ value }: { value: number }) => (
+  <div className="rounded-2xl border border-white/5 bg-[#0F0F0F] p-5">
+    <div className="flex items-center gap-2">
+      <span className="relative flex h-4 w-4 items-center justify-center">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22D3EE] opacity-60" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-gradient-to-br from-[#22D3EE] to-[#0891B2]" />
+      </span>
+      <span className="text-[12.5px] text-white/60">Usuários online agora</span>
+    </div>
+    <p className="mt-4 text-[28px] font-semibold tracking-tight text-white">{formatNumber(value)}</p>
+    <p className="mt-2 text-[11.5px] text-white/50">
+      <span className="text-[#22D3EE]">● ao vivo</span> conectados simultaneamente
+    </p>
+  </div>
+);
+
 const MiniCard = ({
   icon,
   title,
