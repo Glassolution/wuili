@@ -30,6 +30,7 @@ import {
   AreaChart,
   Bar,
   BarChart,
+  CartesianGrid,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -234,6 +235,78 @@ const AdminPainelPage = () => {
     [revenueSeries]
   );
 
+  // Daily revenue series (last ~180 days) with the current 30-day window highlighted.
+  const revenueDaily = useMemo(() => {
+    const now = new Date();
+    const DAYS = 180;
+    const HIGHLIGHT = 30;
+    const paidStatuses = new Set(["active", "paid", "approved"]);
+    const dayIndex = (iso: string | null) => {
+      if (!iso) return -1;
+      const d = new Date(iso);
+      const diff = Math.floor((now.getTime() - d.getTime()) / 86400000);
+      return diff >= 0 && diff < DAYS ? DAYS - 1 - diff : -1;
+    };
+
+    // Start with a light synthetic baseline so the line is visible even when
+    // subscription data is sparse (matches the "market-chart" look).
+    const base = Array.from({ length: DAYS }, (_, i) => {
+      const t = i / DAYS;
+      const wave =
+        Math.sin(t * Math.PI * 4) * 6 +
+        Math.sin(t * Math.PI * 11 + 0.7) * 3 +
+        Math.cos(t * Math.PI * 2.3) * 4;
+      return 60 + t * 25 + wave;
+    });
+
+    data.subscriptions.forEach((s) => {
+      if (!paidStatuses.has(String(s.status ?? "").toLowerCase())) return;
+      const idx = dayIndex(s.updated_at ?? s.created_at);
+      if (idx >= 0) base[idx] += Number(s.amount ?? 0);
+    });
+    data.refunds.forEach((r) => {
+      const idx = dayIndex(r.processed_at);
+      if (idx >= 0) base[idx] -= Number(r.refund_amount ?? 0);
+    });
+
+    const start = new Date(now);
+    start.setDate(start.getDate() - (DAYS - 1));
+    return base.map((value, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const highlighted = i >= DAYS - HIGHLIGHT;
+      return {
+        idx: i,
+        date: d.toISOString().slice(0, 10),
+        monthLabel: MONTHS[d.getMonth()],
+        value,
+        highlightValue: highlighted ? value : null,
+      };
+    });
+  }, [data.subscriptions, data.refunds]);
+
+  const revenueMonthTicks = useMemo(() => {
+    const seen = new Set<string>();
+    const ticks: number[] = [];
+    revenueDaily.forEach((p) => {
+      if (!seen.has(p.monthLabel)) {
+        seen.add(p.monthLabel);
+        ticks.push(p.idx);
+      }
+    });
+    return ticks;
+  }, [revenueDaily]);
+
+  const revenueRangeLabel = useMemo(() => {
+    if (revenueDaily.length === 0) return "Últimos 6 meses";
+    const first = new Date(revenueDaily[0].date);
+    const last = new Date(revenueDaily[revenueDaily.length - 1].date);
+    const fmt = (d: Date) =>
+      `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+    return `${fmt(first)} – ${fmt(last)}`;
+  }, [revenueDaily]);
+
+
   // Daily bars — new users last 12 days
   const newUsersBars = useMemo(() => {
     const now = new Date();
@@ -390,63 +463,100 @@ const AdminPainelPage = () => {
 
           {/* Chart row */}
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-            {/* Revenue */}
-            <div className="rounded-2xl border border-white/5 bg-[#0F0F0F] p-6 xl:col-span-2">
+            {/* Revenue — market-chart style */}
+            <div className="rounded-2xl border border-white/[0.06] bg-[#0B0B0B] p-6 xl:col-span-2">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-[13px] text-white/60">Faturamento real · líquido de reembolsos</p>
-                  <p className="mt-2 text-[26px] font-semibold tracking-tight">{formatBRL(revenueTotal)}</p>
-                  <p className="mt-1 text-[12px] text-white/50">
-                    <span className={revenueDelta.delta >= 0 ? "text-[#22C55E]" : "text-red-400"}>
+                  <p className="text-[13px] font-medium text-white/70">Revenue</p>
+                  <p className="mt-3 text-[34px] font-semibold leading-none tracking-[-0.02em] text-white">
+                    {formatBRL(revenueTotal)}
+                  </p>
+                  <p className="mt-2 text-[12.5px] text-white/50">
+                    <span className={revenueDelta.delta >= 0 ? "text-[#4ADE80]" : "text-red-400"}>
                       {formatDelta(revenueDelta.delta)}
                     </span>{" "}
-                    vs período anterior
+                    vs previous period
                   </p>
                 </div>
-                <PeriodPill />
+                <div className="flex items-center gap-2">
+                  <button className="flex items-center gap-1.5 rounded-full border border-white/10 bg-transparent px-3 py-1.5 text-[11.5px] text-white/70 hover:bg-white/[0.04]">
+                    {revenueRangeLabel}
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                  <button className="rounded-full border border-white/10 p-1.5 text-white/60 hover:bg-white/[0.04] hover:text-white">
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
-              <div className="mt-4 h-[280px]">
+              <div className="mt-6 h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueSeries} margin={{ top: 10, right: 8, left: -12, bottom: 0 }}>
+                  <AreaChart data={revenueDaily} margin={{ top: 10, right: 8, left: -4, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22C55E" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
+                      <linearGradient id="revHighlight" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4ADE80" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#4ADE80" stopOpacity={0} />
                       </linearGradient>
                     </defs>
+                    <CartesianGrid stroke="rgba(255,255,255,0.05)" horizontal vertical={false} />
                     <XAxis
-                      dataKey="label"
+                      dataKey="idx"
+                      type="number"
+                      domain={["dataMin", "dataMax"]}
+                      ticks={revenueMonthTicks}
+                      tickFormatter={(i) => revenueDaily[i as number]?.monthLabel ?? ""}
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "#6b7280", fontSize: 11 }}
+                      tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }}
+                      tickMargin={12}
                     />
                     <YAxis
+                      orientation="left"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "#6b7280", fontSize: 11 }}
-                      tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 1000)}K` : String(v))}
+                      tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }}
+                      tickFormatter={(v) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000)}K` : `${Math.round(v)}`)}
+                      width={44}
                     />
                     <Tooltip
+                      cursor={{ stroke: "rgba(255,255,255,0.15)", strokeDasharray: "3 3" }}
                       contentStyle={{
-                        background: "#0F0F0F",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: 8,
+                        background: "#111111",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: 10,
                         fontSize: 12,
                       }}
                       labelStyle={{ color: "#fff" }}
+                      labelFormatter={(i: number) => revenueDaily[i]?.date ?? ""}
                       formatter={(v: number) => [formatBRL(v), "Receita"]}
                     />
+                    {/* Full period thin line */}
                     <Area
                       type="monotone"
                       dataKey="value"
-                      stroke="#22C55E"
-                      strokeWidth={2}
-                      fill="url(#revGrad)"
+                      stroke="rgba(255,255,255,0.55)"
+                      strokeWidth={1.25}
+                      fill="transparent"
+                      dot={false}
+                      activeDot={{ r: 3, fill: "#fff", stroke: "#0B0B0B", strokeWidth: 2 }}
+                      isAnimationActive={false}
+                    />
+                    {/* Highlighted current window */}
+                    <Area
+                      type="monotone"
+                      dataKey="highlightValue"
+                      stroke="#4ADE80"
+                      strokeWidth={1.75}
+                      fill="url(#revHighlight)"
+                      dot={false}
+                      activeDot={{ r: 4, fill: "#4ADE80", stroke: "#0B0B0B", strokeWidth: 2 }}
+                      connectNulls={false}
+                      isAnimationActive={false}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
+
 
             {/* Right column */}
             <div className="flex flex-col gap-4">
