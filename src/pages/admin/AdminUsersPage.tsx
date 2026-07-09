@@ -62,11 +62,12 @@ type SubscriptionRow = {
   updated_at: string | null;
 };
 
-type UserStatusFilter = "todos" | "ativos" | "gratis";
+type UserStatusFilter = "todos" | "online" | "ativos" | "gratis";
 type SortKey = "created_at" | "name" | "plan" | "orders_count";
 
 const statusFilters: Array<{ key: UserStatusFilter; label: string }> = [
   { key: "todos", label: "Todos" },
+  { key: "online", label: "Online" },
   { key: "ativos", label: "Ativos" },
   { key: "gratis", label: "Gratuitos" },
 ];
