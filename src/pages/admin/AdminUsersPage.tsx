@@ -214,6 +214,7 @@ const AdminUsersPage = () => {
   const [view, setView] = useState<"list" | "grid">("list");
   const [pageSize, setPageSize] = useState(11);
   const [page, setPage] = useState(1);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data: users = [], isLoading, isError, error } = useQuery({
     queryKey: ["admin-users-clean"],
