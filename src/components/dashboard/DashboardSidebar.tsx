@@ -634,11 +634,13 @@ const DashboardSidebar = () => {
         </Link>
       </header>
 
-      <button type="button" aria-label="Buscar" style={styles.search}>
+      <button type="button" aria-label="Buscar" style={styles.search} onClick={() => setSearchOpen(true)}>
         <Search size={15} strokeWidth={1.7} aria-hidden="true" />
         <span style={styles.searchText}>Buscar</span>
         <span style={styles.searchBadge}>/</span>
       </button>
+
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin={isAdmin} />
 
       <nav aria-label="Navegação principal" style={styles.nav}>
         {visibleNavItems.map((item) => (
