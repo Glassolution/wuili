@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -158,9 +159,12 @@ const ReportsPage = () => {
               className="group relative flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 text-left shadow-sm transition hover:border-zinc-300 hover:shadow-md"
             >
               <div className="flex items-center justify-between">
-                <div className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">
-                  <Sparkles className="h-3 w-3" /> Análise IA
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-black">
+                  <Sparkles className="h-3 w-3 text-white" fill="white" />
                 </div>
+                <span className="text-[12px] font-semibold text-zinc-800">Velo Insights</span>
+              </div>
                 <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${scoreBadge(r.overall_score)}`}>
                   {Number(r.overall_score).toFixed(1)}
                 </span>
@@ -212,8 +216,8 @@ const ReportModal = ({
     URL.revokeObjectURL(url);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div
         className={`flex w-full overflow-hidden rounded-3xl bg-white shadow-2xl transition-all ${
           expanded ? "h-[95vh] max-w-[1400px]" : "h-[85vh] max-w-[1150px]"
@@ -222,9 +226,9 @@ const ReportModal = ({
         {/* Left — article */}
         <div className="flex flex-1 flex-col border-r border-zinc-100">
           <div className="flex items-center justify-between px-8 pt-6">
-            <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-700">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-black">
-                <Sparkles className="h-3 w-3 text-white" />
+            <div className="flex items-center gap-2.5 text-[14px] font-semibold text-zinc-800">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-black">
+                <Sparkles className="h-3.5 w-3.5 text-white" fill="white" />
               </div>
               Velo Insights
             </div>
@@ -374,7 +378,8 @@ const ReportModal = ({
           </div>
         </aside>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

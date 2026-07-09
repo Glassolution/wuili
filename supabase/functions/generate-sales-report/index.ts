@@ -32,20 +32,27 @@ serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    const [ordersRes, pubsRes] = await Promise.all([
+    const [ordersRes, pubsRes, integrationsRes, profileRes] = await Promise.all([
       admin.from("orders")
-        .select("platform, product_title, sale_price, cost_price, profit, status, ordered_at, created_at, quantity")
+        .select("platform, product_title, sale_price, cost_price, profit, status, ordered_at, created_at, quantity, buyer_state, fulfillment_status")
         .eq("user_id", user.id)
         .order("ordered_at", { ascending: false })
-        .limit(500),
+        .limit(1000),
       admin.from("user_publications")
-        .select("title, price, cost_price, status, published_at")
+        .select("title, price, cost_price, status, published_at, permalink")
         .eq("user_id", user.id)
-        .limit(200),
+        .order("published_at", { ascending: false })
+        .limit(500),
+      admin.from("user_integrations")
+        .select("platform, connected_at, status")
+        .eq("user_id", user.id),
+      admin.from("profiles").select("full_name, plan").eq("id", user.id).maybeSingle(),
     ]);
 
     const orders = ordersRes.data ?? [];
     const pubs = pubsRes.data ?? [];
+    const integrations = integrationsRes.data ?? [];
+    const profile = profileRes.data ?? null;
     const active = orders.filter((o: any) => ACTIVE.includes(o.status));
 
     const revenue = active.reduce((s: number, o: any) => s + Number(o.sale_price ?? 0), 0);
@@ -57,31 +64,100 @@ serve(async (req) => {
     const avgTicket = ordersCount > 0 ? revenue / ordersCount : 0;
     const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
-    // Top produtos
-    const productMap: Record<string, { sales: number; revenue: number }> = {};
+    // Produtos
+    const productMap: Record<string, { sales: number; revenue: number; profit: number }> = {};
     for (const o of active as any[]) {
       const k = o.product_title ?? "Sem título";
-      productMap[k] ??= { sales: 0, revenue: 0 };
+      productMap[k] ??= { sales: 0, revenue: 0, profit: 0 };
       productMap[k].sales += 1;
       productMap[k].revenue += Number(o.sale_price ?? 0);
+      productMap[k].profit += Number(o.profit ?? (Number(o.sale_price ?? 0) - Number(o.cost_price ?? 0)));
     }
     const topProducts = Object.entries(productMap)
       .sort((a, b) => b[1].revenue - a[1].revenue)
+      .slice(0, 8)
+      .map(([name, v]) => ({
+        name, sales: v.sales,
+        revenue: Number(v.revenue.toFixed(2)),
+        profit: Number(v.profit.toFixed(2)),
+      }));
+
+    // Vendas por plataforma
+    const platformMap: Record<string, { orders: number; revenue: number }> = {};
+    for (const o of active as any[]) {
+      const p = o.platform ?? "outros";
+      platformMap[p] ??= { orders: 0, revenue: 0 };
+      platformMap[p].orders += 1;
+      platformMap[p].revenue += Number(o.sale_price ?? 0);
+    }
+    const byPlatform = Object.entries(platformMap).map(([p, v]) => ({
+      platform: p, orders: v.orders, revenue: Number(v.revenue.toFixed(2)),
+    }));
+
+    // Últimos 6 meses
+    const monthMap: Record<string, { revenue: number; profit: number; orders: number }> = {};
+    for (const o of active as any[]) {
+      const d = new Date(o.ordered_at ?? o.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      monthMap[key] ??= { revenue: 0, profit: 0, orders: 0 };
+      monthMap[key].revenue += Number(o.sale_price ?? 0);
+      monthMap[key].profit += Number(o.profit ?? (Number(o.sale_price ?? 0) - Number(o.cost_price ?? 0)));
+      monthMap[key].orders += 1;
+    }
+    const monthly = Object.entries(monthMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-6)
+      .map(([month, v]) => ({
+        month, orders: v.orders,
+        revenue: Number(v.revenue.toFixed(2)),
+        profit: Number(v.profit.toFixed(2)),
+      }));
+
+    // Estados dos compradores
+    const stateMap: Record<string, number> = {};
+    for (const o of active as any[]) {
+      const s = (o.buyer_state ?? "").toString().toUpperCase();
+      if (s) stateMap[s] = (stateMap[s] ?? 0) + 1;
+    }
+    const topStates = Object.entries(stateMap)
+      .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([name, v]) => ({ name, ...v }));
+      .map(([state, count]) => ({ state, orders: count }));
 
-    const activePubs = pubs.filter((p: any) => p.status === "active").length;
+    // Publicações
+    const activePubs = pubs.filter((p: any) => p.status === "active");
+    const pubsSample = pubs.slice(0, 15).map((p: any) => ({
+      title: p.title, price: Number(p.price ?? 0), status: p.status,
+    }));
 
-    const summaryPayload = {
-      total_orders: orders.length,
-      active_orders: ordersCount,
-      revenue: Number(revenue.toFixed(2)),
-      profit: Number(profit.toFixed(2)),
-      avg_ticket: Number(avgTicket.toFixed(2)),
-      margin_pct: Number(margin.toFixed(1)),
-      publications_total: pubs.length,
-      publications_active: activePubs,
-      top_products: topProducts,
+    // Anúncios sem venda
+    const soldTitles = new Set(topProducts.map(p => p.name));
+    const unsoldPubs = activePubs.filter((p: any) => !soldTitles.has(p.title)).length;
+
+    const mlConnected = integrations.some((i: any) => i.platform === "mercadolivre");
+
+    const dataPayload = {
+      seller: { name: profile?.full_name ?? "Vendedor", plan: profile?.plan ?? "free" },
+      period: { start: monthly[0]?.month, end: monthly[monthly.length - 1]?.month },
+      integrations: { mercado_livre_conectado: mlConnected },
+      totals: {
+        orders_total: orders.length,
+        orders_ativos: ordersCount,
+        receita: Number(revenue.toFixed(2)),
+        lucro: Number(profit.toFixed(2)),
+        ticket_medio: Number(avgTicket.toFixed(2)),
+        margem_pct: Number(margin.toFixed(1)),
+      },
+      publicacoes: {
+        total: pubs.length,
+        ativas: activePubs.length,
+        sem_vendas: unsoldPubs,
+        amostra: pubsSample,
+      },
+      top_produtos: topProducts,
+      vendas_por_plataforma: byPlatform,
+      vendas_mensais: monthly,
+      top_estados_compradores: topStates,
     };
 
     const SYSTEM = `Você é um analista sênior de vendas do Mercado Livre e especialista em dropshipping brasileiro. Analise os dados reais do usuário e devolva UM JSON válido (sem markdown, sem texto fora do JSON) EXATAMENTE neste formato:
@@ -105,10 +181,15 @@ serve(async (req) => {
   ]
 }
 
-Regras:
-- Escreva em português brasileiro, tom consultivo, direto, com números reais.
+Regras OBRIGATÓRIAS:
+- Escreva em português brasileiro, tom consultivo e direto.
+- SEMPRE cite números REAIS extraídos dos dados (receita, lucro, ticket médio, margem, quantidade de pedidos, nomes exatos dos produtos, estados dos compradores).
+- SEMPRE mencione pelo menos 2 produtos pelo nome exato ao falar de "Produtos em Destaque".
+- Se o Mercado Livre não estiver conectado, deixe isso claro no "Diagnóstico Mercado Livre" e recomende conectar.
+- Se houver muitas publicações sem vendas, aponte o número exato e sugira ações (foto, título, preço).
+- Compare meses quando houver mais de um mês de dados.
 - Cada 'content' pode ter parágrafos separados por \\n\\n e listas com "- ".
-- Se não houver pedidos, dê recomendações para primeiro venda.
+- Se não houver pedidos, foque em recomendações para a primeira venda com base nas publicações existentes.
 - Retorne SOMENTE o JSON, nada mais.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -118,9 +199,9 @@ Regras:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM },
-          { role: "user", content: `Dados do vendedor:\n${JSON.stringify(summaryPayload, null, 2)}` },
+          { role: "user", content: `Dados REAIS do vendedor (use estes números exatos na análise):\n${JSON.stringify(dataPayload, null, 2)}` },
         ],
-        temperature: 0.5,
+        temperature: 0.4,
         response_format: { type: "json_object" },
       }),
     });
@@ -154,12 +235,12 @@ Regras:
     const overall = Math.max(0, Math.min(10, Number(parsed.overall_score ?? 0)));
 
     const metrics = {
-      revenue: summaryPayload.revenue,
-      profit: summaryPayload.profit,
-      orders: summaryPayload.active_orders,
-      avg_ticket: summaryPayload.avg_ticket,
-      margin_pct: summaryPayload.margin_pct,
-      publications_active: summaryPayload.publications_active,
+      revenue: dataPayload.totals.receita,
+      profit: dataPayload.totals.lucro,
+      orders: dataPayload.totals.orders_ativos,
+      avg_ticket: dataPayload.totals.ticket_medio,
+      margin_pct: dataPayload.totals.margem_pct,
+      publications_active: dataPayload.publicacoes.ativas,
     };
 
     const { data: inserted, error: insertErr } = await admin
