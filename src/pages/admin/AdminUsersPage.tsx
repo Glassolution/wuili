@@ -243,7 +243,7 @@ const AdminUsersPage = () => {
     queryKey: ["admin-users-clean"],
     queryFn: fetchAdminUsers,
     enabled: !!user?.id,
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
 
   const filteredUsers = useMemo(() => {
