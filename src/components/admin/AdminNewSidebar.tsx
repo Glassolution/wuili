@@ -7,10 +7,10 @@ import {
   DollarSign,
   FileText,
   LayoutDashboard,
+  LifeBuoy,
   Plug,
   Settings,
   Sparkles,
-  Star,
   User,
   Users as UsersIcon,
 } from "lucide-react";
