@@ -8,7 +8,7 @@ import {
   FileText,
   LayoutDashboard,
   LifeBuoy,
-  Plug,
+  RefreshCcw,
   Settings,
   Sparkles,
   User,
@@ -34,10 +34,11 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
   const { pathname } = useLocation();
   const [panelOpen, setPanelOpen] = useState(true);
 
-  const activeSection: "panel" | "users" | "commissions" | "support" | "integrations" | null = useMemo(() => {
+  const activeSection: "panel" | "users" | "commissions" | "support" | "refunds" | null = useMemo(() => {
     if (pathname.startsWith("/admin/usuarios")) return "users";
     if (pathname.startsWith("/admin/comissoes")) return "commissions";
     if (pathname.startsWith("/admin/suporte")) return "support";
+    if (pathname.startsWith("/admin/reembolsos")) return "refunds";
     if (pathname.startsWith("/admin/painel")) return "panel";
     return null;
   }, [pathname]);
@@ -111,7 +112,7 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
         <SideItem icon={LifeBuoy} label="Suporte" to="/admin/suporte" active={activeSection === "support"} />
         <SideItem icon={UsersIcon} label="Usuários & times" to="/admin/usuarios" active={activeSection === "users"} />
         <SideItem icon={DollarSign} label="Comissões" to="/admin/comissoes" active={activeSection === "commissions"} />
-        <SideItem icon={Plug} label="Integrações" />
+        <SideItem icon={RefreshCcw} label="Reembolsos" to="/admin/reembolsos" active={activeSection === "refunds"} />
       </nav>
 
       <div className="space-y-1 pt-3 text-[13px]">
