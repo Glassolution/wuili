@@ -270,6 +270,25 @@ const SupportTab = () => {
     await sendHumanMessage(text);
   };
 
+  // Auto-open a support ticket with a pre-filled message when redirected from the trial banner
+  useEffect(() => {
+    const reason = searchParams.get("trial_reason");
+    if (!reason || !user?.id || ticketLoading || trialAutoOpenRef.current) return;
+    trialAutoOpenRef.current = true;
+
+    const message = TRIAL_REASON_MESSAGES[reason] ?? TRIAL_REASON_MESSAGES.other;
+
+    (async () => {
+      await sendHumanMessage(message);
+      const next = new URLSearchParams(searchParams);
+      next.delete("trial_reason");
+      setSearchParams(next, { replace: true });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, user?.id, ticketLoading]);
+
+
+
   const visibleSupportMessages = supportMessages.filter((m) => m.sender !== "ai");
   const hasAdminReply = visibleSupportMessages.some((m) => m.sender === "admin");
   const getMessageReceipt = (message: SupportMessage): MessageReceipt => {
