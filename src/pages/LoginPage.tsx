@@ -414,10 +414,37 @@ const LoginPage = () => {
                             </div>
                           </Field>
 
-                          <AgreementText />
+                          <LegalCheckbox
+                            checked={acceptTerms}
+                            onChange={setAcceptTerms}
+                            label={
+                              <>
+                                Li e aceito os{" "}
+                                <Link to="/termos" target="_blank" className="text-white/85 underline decoration-white/25 underline-offset-2 hover:text-white">
+                                  Termos de Uso
+                                </Link>
+                              </>
+                            }
+                          />
+                          <LegalCheckbox
+                            checked={acceptPrivacy}
+                            onChange={setAcceptPrivacy}
+                            label={
+                              <>
+                                Li e aceito a{" "}
+                                <Link to="/privacidade" target="_blank" className="text-white/85 underline decoration-white/25 underline-offset-2 hover:text-white">
+                                  Política de Privacidade
+                                </Link>
+                              </>
+                            }
+                          />
 
                           <div className="flex justify-center pt-1">
-                            <button type="submit" disabled={loading} className={subtleBtnCls}>
+                            <button
+                              type="submit"
+                              disabled={loading || !acceptTerms || !acceptPrivacy}
+                              className={`${subtleBtnCls} disabled:cursor-not-allowed disabled:opacity-50`}
+                            >
                               {loading ? "Criando..." : "Criar conta"}
                             </button>
                           </div>
