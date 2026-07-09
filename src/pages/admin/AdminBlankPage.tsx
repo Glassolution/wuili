@@ -41,6 +41,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
+import { AdminNewSidebar } from "@/components/admin/AdminNewSidebar";
 import type { Database } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 
