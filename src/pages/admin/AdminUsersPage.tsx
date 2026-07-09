@@ -33,6 +33,15 @@ type AdminUserRow = {
   created_at: string;
   ml_connected: boolean;
   orders_count: number;
+  last_seen_at?: string | null;
+};
+
+const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+const isOnline = (lastSeenAt?: string | null) => {
+  if (!lastSeenAt) return false;
+  const t = new Date(lastSeenAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < ONLINE_WINDOW_MS;
 };
 
 type ProfileRow = {
