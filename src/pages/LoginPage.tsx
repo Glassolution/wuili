@@ -521,12 +521,19 @@ const LegalCheckbox = ({
   label: React.ReactNode;
 }) => (
   <label className="flex cursor-pointer items-start gap-2.5 text-[11.5px] font-[400] leading-[1.55] text-white/62">
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      className="mt-[3px] h-3.5 w-3.5 shrink-0 cursor-pointer appearance-none rounded-[3px] border border-white/25 bg-white/5 transition checked:border-white checked:bg-white checked:[background-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path fill='none' stroke='%230a0a0a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.5 6.5 5 9l4.5-5.5'/></svg>\")] checked:bg-center checked:bg-no-repeat"
-    />
+    <span className="relative mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer h-4 w-4 cursor-pointer appearance-none rounded-[3px] border border-white/25 bg-white/5 transition checked:border-white checked:bg-white"
+      />
+      {checked && (
+        <svg viewBox="0 0 12 12" className="pointer-events-none absolute h-2.5 w-2.5 text-[#0a0a0a]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="2.5,6.5 5,9 9.5,3.5" />
+        </svg>
+      )}
+    </span>
     <span>{label}</span>
   </label>
 );
