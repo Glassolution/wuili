@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminUserDetailModal } from "@/components/admin/AdminUserDetailModal";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -213,6 +214,7 @@ const AdminUsersPage = () => {
   const [view, setView] = useState<"list" | "grid">("list");
   const [pageSize, setPageSize] = useState(11);
   const [page, setPage] = useState(1);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data: users = [], isLoading, isError, error } = useQuery({
     queryKey: ["admin-users-clean"],
@@ -375,7 +377,9 @@ const AdminUsersPage = () => {
                         </td>
                       </tr>
                     ) : (
-                      pagedUsers.map((u) => <UserRow key={u.user_id} user={u} />)
+                      pagedUsers.map((u) => (
+                        <UserRow key={u.user_id} user={u} onClick={() => setSelectedUserId(u.user_id)} />
+                      ))
                     )}
                   </tbody>
                 </table>
@@ -383,7 +387,7 @@ const AdminUsersPage = () => {
             ) : (
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {pagedUsers.map((u) => (
-                  <UserCard key={u.user_id} user={u} />
+                  <UserCard key={u.user_id} user={u} onClick={() => setSelectedUserId(u.user_id)} />
                 ))}
               </div>
             )}
@@ -417,6 +421,7 @@ const AdminUsersPage = () => {
           </section>
         </div>
       </div>
+      <AdminUserDetailModal userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
     </AdminShell>
   );
 };
@@ -430,10 +435,10 @@ const Th = ({ children, first }: { children: React.ReactNode; first?: boolean })
   </th>
 );
 
-const UserRow = ({ user }: { user: AdminUserRow }) => {
+const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }) => {
   const temp = leadTemperature(user);
   return (
-    <tr className="group transition hover:bg-white/[0.02]">
+    <tr onClick={onClick} className="group cursor-pointer transition hover:bg-white/[0.02]">
       <td className="py-3.5 pl-2 pr-4">
         <div className="flex items-center gap-3">
           <Avatar user={user} />
@@ -460,10 +465,10 @@ const UserRow = ({ user }: { user: AdminUserRow }) => {
   );
 };
 
-const UserCard = ({ user }: { user: AdminUserRow }) => {
+const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }) => {
   const temp = leadTemperature(user);
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-[#0F0F0F] p-4 transition hover:border-white/15">
+    <div onClick={onClick} className="cursor-pointer rounded-2xl border border-white/[0.06] bg-[#0F0F0F] p-4 transition hover:border-white/15">
       <div className="flex items-center gap-3">
         <Avatar user={user} />
         <div className="min-w-0 flex-1">
