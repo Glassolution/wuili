@@ -546,9 +546,42 @@ const IntegrationsTab = () => {
 
 /* ══ Plan ════════════════════════════════════════════════ */
 const PLAN_DATA = [
-  { id: "gratis", name: "Grátis", price: "R$0", period: "/mês", features: ["Exploração do catálogo", "Dashboard demonstrativo", "IA básica de teste", "1 marketplace conectado", "Sem publicação de produtos", "Sem automações operacionais"] },
-  { id: "pro", name: "Pro", price: "R$99,90", period: "/mês", features: ["Até 30 produtos publicados", "Até 2 marketplaces", "Até 3 agentes IA", "Automações limitadas", "Analytics básico", "Monitoramento básico 24h", "Suporte prioritário"] },
-  { id: "business", name: "Business", price: "R$149,90", period: "/mês", features: ["Produtos ilimitados", "Marketplaces ilimitados", "Agentes IA ilimitados", "Automações ilimitadas", "Analytics premium", "IA estratégica avançada", "Suporte dedicado", "Operação sem limites"] },
+  {
+    id: "gratis",
+    name: "Grátis",
+    price: "R$0",
+    period: "/mês",
+    description: "Para explorar a Velo sem compromisso antes de começar a vender.",
+    features: ["Exploração do catálogo", "Dashboard demonstrativo", "IA básica de teste"],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "R$99,90",
+    period: "/mês",
+    description: "Para validar produtos, publicar com segurança e operar com IA sem complexidade.",
+    features: [
+      "Até 30 produtos publicados",
+      "Até 2 marketplaces conectados",
+      "Até 3 agentes IA",
+      "Automações limitadas",
+      "Analytics básico",
+    ],
+  },
+  {
+    id: "business",
+    name: "Business",
+    price: "R$149,90",
+    period: "/mês",
+    description: "Para quem quer escalar catálogo, automações e análise avançada sem limites.",
+    features: [
+      "Produtos ilimitados",
+      "Marketplaces ilimitados",
+      "Agentes IA ilimitados",
+      "Automações ilimitadas",
+      "IA estratégica avançada",
+    ],
+  },
 ];
 
 const PlanTab = () => {
