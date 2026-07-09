@@ -61,6 +61,10 @@ const SupportTab = () => {
   const endRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const trialAutoOpenRef = useRef(false);
+  const [openModal, setOpenModal] = useState(false);
+  const [modalCategory, setModalCategory] = useState<TicketCategory>("outros");
+  const [modalSubject, setModalSubject] = useState("");
+  const [creatingTicket, setCreatingTicket] = useState(false);
 
 
   useEffect(() => {
