@@ -141,29 +141,68 @@ Deno.serve(async (req) => {
     const mlItemId  = item?.item?.id as string | undefined;
     const buyer     = mlOrder.buyer ?? {};
     const shipping  = mlOrder.shipping ?? {};
-    const addr      = shipping.receiver_address ?? {};
+    const shipmentId = shipping.id ? String(shipping.id) : null;
 
-    const buyerName    = buyer.nickname ?? buyer.first_name ?? "Comprador";
+    // ── 4b. Fetch full shipment details for complete receiver_address ─────
+    // The order payload's shipping.receiver_address is often partial (no
+    // complement, sometimes no phone). /shipments/{id} returns the full one.
+    let shipmentAddr: Record<string, any> = shipping.receiver_address ?? {};
+    let shipmentReceiverName: string | null = null;
+    let shipmentReceiverPhone: string | null = null;
+
+    if (shipmentId) {
+      try {
+        const shipRes = await fetch(`https://api.mercadolibre.com/shipments/${shipmentId}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (shipRes.ok) {
+          const shipData = await shipRes.json();
+          if (shipData?.receiver_address) {
+            shipmentAddr = { ...shipmentAddr, ...shipData.receiver_address };
+          }
+          shipmentReceiverName = shipData?.receiver_address?.receiver_name
+            ?? shipData?.destination?.receiver_name
+            ?? null;
+          shipmentReceiverPhone = shipData?.receiver_address?.receiver_phone
+            ?? shipData?.destination?.receiver_phone
+            ?? null;
+        } else {
+          console.warn("[ml-orders-webhook] shipment fetch failed:", shipRes.status);
+        }
+      } catch (e) {
+        console.warn("[ml-orders-webhook] shipment fetch error:", (e as Error).message);
+      }
+    }
+
+    const addr = shipmentAddr;
+
+    const buyerName    = shipmentReceiverName ?? buyer.nickname ?? buyer.first_name ?? "Comprador";
     const buyerEmail   = buyer.email ?? "";
-    const buyerPhone   = buyer.phone?.number ?? buyer.alternative_phone?.number ?? "";
+    const buyerPhone   = shipmentReceiverPhone
+      ?? buyer.phone?.number
+      ?? buyer.alternative_phone?.number
+      ?? "";
     const streetName   = addr.street_name   ?? "";
     const streetNumber = addr.street_number ?? "";
     const buyerAddress = [streetName, streetNumber].filter(Boolean).join(", ");
+    const buyerComplement   = addr.comment ?? addr.complement ?? addr.between_streets ?? "";
     const buyerNeighborhood = addr.neighborhood?.name ?? "";
     const buyerCity    = addr.city?.name    ?? "";
     const buyerState   = addr.state?.name   ?? "";
     const buyerZip     = addr.zip_code      ?? "";
 
-    // ── 5. Look up publication cost metadata ──────────────────────────────
+    // ── 5. Look up publication cost metadata + catalog product link ───────
     let legacyVariantId:  string | null = null;
     let legacyProductId:  string | null = null;
     let legacyProductUrl: string | null = null;
     let costPrice:    number | null = null;
+    let catalogProductId: string | null = null;
+    let supplierUrl: string | null = null;
 
     if (mlItemId) {
       const { data: pub } = await adminClient
         .from("user_publications")
-        .select("cj_variant_id, cj_product_id, cj_product_url, cost_price")
+        .select("cj_variant_id, cj_product_id, cj_product_url, cost_price, catalog_product_id")
         .eq("ml_item_id", mlItemId)
         .eq("user_id", integration.user_id)
         .maybeSingle();
@@ -173,7 +212,19 @@ Deno.serve(async (req) => {
         legacyProductId = pub.cj_product_id ?? null;
         legacyProductUrl = pub.cj_product_url ?? null;
         costPrice   = pub.cost_price    ?? null;
+        catalogProductId = pub.catalog_product_id ?? null;
       }
+    }
+
+    if (catalogProductId) {
+      const { data: cp } = await adminClient
+        .from("catalog_products")
+        .select("product_url")
+        .eq("id", catalogProductId)
+        .maybeSingle();
+      supplierUrl = cp?.product_url ?? legacyProductUrl;
+    } else {
+      supplierUrl = legacyProductUrl;
     }
 
     const salePrice = Number(mlOrder.total_amount ?? item?.unit_price ?? 0);
@@ -188,6 +239,9 @@ Deno.serve(async (req) => {
       .insert({
         user_id:             integration.user_id,
         external_order_id:   String(mlOrderId),
+        ml_order_id:         String(mlOrderId),
+        ml_user_id:          String(mlUserId),
+        shipment_id:         shipmentId,
         platform:            "mercadolivre",
         product_title:       item?.item?.title ?? "Produto ML",
         product_image:       null,
@@ -195,14 +249,19 @@ Deno.serve(async (req) => {
         buyer_email:         buyerEmail      || null,
         buyer_address:       buyerAddress   || null,
         buyer_number:        streetNumber    || null,
+        buyer_complement:    buyerComplement || null,
         buyer_neighborhood:  buyerNeighborhood || null,
         buyer_city:          buyerCity       || null,
         buyer_state:         buyerState      || null,
         buyer_zip:           buyerZip        || null,
         buyer_phone:         buyerPhone      || null,
         sale_price:          salePrice,
+        total_amount:        Number(mlOrder.total_amount ?? salePrice),
         cost_price:          costPrice,
         profit,
+        quantity:            item?.quantity ?? 1,
+        catalog_product_id:  catalogProductId,
+        supplier_url:        supplierUrl,
         cj_product_id:       legacyProductId,
         cj_product_url:      legacyProductUrl,
         cj_variant_id:       legacyVariantId,
@@ -210,6 +269,7 @@ Deno.serve(async (req) => {
         fulfillment_status:  fulfillmentStatus,
         fulfillment_error:   fulfillmentError,
         ordered_at:          mlOrder.date_created ?? new Date().toISOString(),
+        raw:                 mlOrder,
       })
       .select("id")
       .single();
