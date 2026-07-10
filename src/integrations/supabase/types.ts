@@ -508,6 +508,7 @@ export type Database = {
         Row: {
           buyer_address: string | null
           buyer_city: string | null
+          buyer_complement: string | null
           buyer_email: string | null
           buyer_name: string | null
           buyer_neighborhood: string | null
@@ -515,6 +516,7 @@ export type Database = {
           buyer_phone: string | null
           buyer_state: string | null
           buyer_zip: string | null
+          catalog_product_id: string | null
           cj_order_id: string | null
           cj_product_id: string | null
           cj_product_url: string | null
@@ -538,7 +540,9 @@ export type Database = {
           quantity: number
           raw: Json | null
           sale_price: number
+          shipment_id: string | null
           status: string
+          supplier_url: string | null
           total_amount: number | null
           tracking_code: string | null
           user_id: string
@@ -546,6 +550,7 @@ export type Database = {
         Insert: {
           buyer_address?: string | null
           buyer_city?: string | null
+          buyer_complement?: string | null
           buyer_email?: string | null
           buyer_name?: string | null
           buyer_neighborhood?: string | null
@@ -553,6 +558,7 @@ export type Database = {
           buyer_phone?: string | null
           buyer_state?: string | null
           buyer_zip?: string | null
+          catalog_product_id?: string | null
           cj_order_id?: string | null
           cj_product_id?: string | null
           cj_product_url?: string | null
@@ -576,7 +582,9 @@ export type Database = {
           quantity?: number
           raw?: Json | null
           sale_price?: number
+          shipment_id?: string | null
           status?: string
+          supplier_url?: string | null
           total_amount?: number | null
           tracking_code?: string | null
           user_id: string
@@ -584,6 +592,7 @@ export type Database = {
         Update: {
           buyer_address?: string | null
           buyer_city?: string | null
+          buyer_complement?: string | null
           buyer_email?: string | null
           buyer_name?: string | null
           buyer_neighborhood?: string | null
@@ -591,6 +600,7 @@ export type Database = {
           buyer_phone?: string | null
           buyer_state?: string | null
           buyer_zip?: string | null
+          catalog_product_id?: string | null
           cj_order_id?: string | null
           cj_product_id?: string | null
           cj_product_url?: string | null
@@ -614,12 +624,22 @@ export type Database = {
           quantity?: number
           raw?: Json | null
           sale_price?: number
+          shipment_id?: string | null
           status?: string
+          supplier_url?: string | null
           total_amount?: number | null
           tracking_code?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1162,7 +1182,52 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ml_orders_view: {
+        Row: {
+          buyer_address: string | null
+          buyer_city: string | null
+          buyer_complement: string | null
+          buyer_email: string | null
+          buyer_name: string | null
+          buyer_neighborhood: string | null
+          buyer_number: string | null
+          buyer_phone: string | null
+          buyer_state: string | null
+          buyer_zip: string | null
+          catalog_images: Json | null
+          catalog_product_id: string | null
+          catalog_title: string | null
+          cost_price: number | null
+          created_at: string | null
+          external_order_id: string | null
+          fulfillment_status: string | null
+          id: string | null
+          ml_order_id: string | null
+          ml_user_id: string | null
+          ordered_at: string | null
+          product_image: string | null
+          product_title: string | null
+          profit: number | null
+          quantity: number | null
+          sale_price: number | null
+          shipment_id: string | null
+          status: string | null
+          supplier_name: string | null
+          supplier_url: string | null
+          total_amount: number | null
+          tracking_code: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
