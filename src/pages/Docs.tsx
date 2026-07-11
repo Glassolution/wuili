@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Activity,
   BadgeCheck,
   BookOpen,
   ChevronDown,
+  GalleryHorizontalEnd,
   Heart,
   Image as ImageIcon,
-  LifeBuoy,
   MessageCircle,
   MoreHorizontal,
   Pencil,
   Search,
-
-  ShoppingBag,
   Trash2,
   UserRound,
-  Wallet,
+  Users,
   X,
   Zap,
   type LucideIcon,
@@ -31,6 +30,7 @@ import {
 import { guideSections, type GuideSection } from "@/pages/help/guides";
 
 type TabKey = "feed" | "tutorial" | GuideSection["key"];
+
 
 
 const suggestions = [
