@@ -652,7 +652,92 @@ function RightRail() {
   );
 }
 
+function GuidesView({ sectionKey }: { sectionKey: TabKey }) {
+  const section = guideSections.find((s) => s.key === sectionKey);
+  const [query, setQuery] = useState("");
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    if (!section) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return section.items;
+    return section.items.filter(
+      (item) =>
+        item.title.toLowerCase().includes(q) ||
+        item.summary.toLowerCase().includes(q) ||
+        item.steps.some((s) => s.toLowerCase().includes(q)),
+    );
+  }, [section, query]);
+
+  if (!section) return null;
+
+  return (
+    <div className="py-[28px]">
+      <header className="mb-[22px]">
+        <h1 className="text-[26px] font-semibold text-white">{section.label}</h1>
+        <p className="mt-[8px] max-w-[720px] text-[16px] leading-[1.55] text-[#9b9ba1]">{section.intro}</p>
+        <label className="relative mt-[18px] block max-w-[520px]">
+          <Search className="absolute left-[15px] top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#aaaab0]" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Descreva seu problema…"
+            className="h-[46px] w-full rounded-[10px] border-0 bg-[#19191a] pl-[46px] pr-3 text-[16px] text-white outline-none placeholder:text-[#67676c]"
+          />
+        </label>
+      </header>
+
+      {filtered.length === 0 ? (
+        <p className="rounded-[14px] border border-white/[0.08] bg-[#19191a] p-[24px] text-center text-[15px] text-[#9b9ba1]">
+          Nada encontrado para "{query}". Tente outra palavra ou abra um chamado no Suporte.
+        </p>
+      ) : (
+        <ul className="space-y-[12px]">
+          {filtered.map((item) => {
+            const Icon = item.icon;
+            const open = openId === item.id;
+            return (
+              <li key={item.id} className="overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#19191a]">
+                <button
+                  onClick={() => setOpenId(open ? null : item.id)}
+                  className="flex w-full items-start gap-[16px] px-[20px] py-[18px] text-left transition hover:bg-white/[0.02]"
+                >
+                  <span className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[10px] bg-[#242425] text-[#5fbff5]">
+                    <Icon className="h-[19px] w-[19px]" strokeWidth={1.8} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[17px] font-semibold text-white">{item.title}</h3>
+                    <p className="mt-[6px] text-[15px] leading-[1.5] text-[#9b9ba1]">{item.summary}</p>
+                  </div>
+                  <ChevronDown
+                    className={`mt-[10px] h-[18px] w-[18px] shrink-0 text-[#8b8b90] transition ${open ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {open && (
+                  <div className="border-t border-white/[0.06] bg-[#141416] px-[20px] py-[18px] pl-[76px]">
+                    <ol className="list-decimal space-y-[10px] pl-[20px] text-[15px] leading-[1.6] text-[#c8c8cb] marker:text-[#67676c]">
+                      {item.steps.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ol>
+                    {item.tip && (
+                      <p className="mt-[14px] rounded-[10px] border border-[#159ff2]/25 bg-[#159ff2]/10 px-[14px] py-[10px] text-[14px] leading-[1.5] text-[#a9d8f5]">
+                        💡 {item.tip}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function Docs() {
+
   const { user } = useAuth();
   const { nome, foto } = useProfile();
   const {
