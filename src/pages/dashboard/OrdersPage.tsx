@@ -1,331 +1,299 @@
-import { useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
-  LayoutGrid,
-  ChevronDown,
-  Filter,
-  Download,
-  Plus,
-  MoreVertical,
-  ShoppingBag,
-  CheckCircle,
-  Truck,
-  Clock,
   Calendar,
+  ChevronRight,
+  ExternalLink,
   Package,
+  ShoppingBag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { veloToast } from "@/components/ui/velo-toast";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-type OrderStatus = "active" | "success" | "delivery" | "pending";
+type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
 
-type Order = {
-  id: string;
-  code: string;
-  productName: string;
-  productImage: string | null;
-  quantity: number;
-  price: number;
-  date: string;
-  status: OrderStatus;
+const statusLabels: Record<string, string> = {
+  paid: "Pago",
+  approved: "Aprovado",
+  in_process: "Em processamento",
+  processing: "Em processamento",
+  completed: "Concluído",
+  delivered: "Entregue",
+  shipped: "Enviado",
+  in_transit: "Em trânsito",
+  pending: "Pendente",
+  cancelled: "Cancelado",
+  canceled: "Cancelado",
+  failed: "Falhou",
 };
 
-// ─── Map DB status → kanban column ───────────────────────────────────────────
-function mapStatus(dbStatus: string): OrderStatus {
-  switch (dbStatus.toLowerCase()) {
-    case "paid":
-    case "approved":
-    case "in_process":
-    case "processing":
-      return "active";
-    case "completed":
-    case "delivered":
-      return "success";
-    case "shipped":
-    case "in_transit":
-      return "delivery";
-    case "pending":
-    case "cancelled":
-    case "canceled":
-    case "failed":
-    default:
-      return "pending";
-  }
-}
+const pageFont = {
+  fontFamily: 'Inter, "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+};
 
-// ─── Column Config ────────────────────────────────────────────────────────────
-const columns = [
-  {
-    id: "active" as OrderStatus,
-    title: "Pedido ativo",
-    icon: ShoppingBag,
-    color: "#FB923C",
-    bgColor: "#FFF7ED",
-  },
-  {
-    id: "success" as OrderStatus,
-    title: "Sucesso",
-    icon: CheckCircle,
-    color: "#3B82F6",
-    bgColor: "#EFF6FF",
-  },
-  {
-    id: "delivery" as OrderStatus,
-    title: "Entrega",
-    icon: Truck,
-    color: "#10B981",
-    bgColor: "#ECFDF5",
-  },
-  {
-    id: "pending" as OrderStatus,
-    title: "Pendente",
-    icon: Clock,
-    color: "#EF4444",
-    bgColor: "#FEF2F2",
-  },
-];
+const formatBRL = (value: number | null | undefined) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
 
-// ─── Format helpers ───────────────────────────────────────────────────────────
-const formatBRL = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-
-const formatDate = (dateStr: string | null): string => {
+const formatDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return "—";
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-// ─── Order Card ───────────────────────────────────────────────────────────────
-const OrderCard = ({ order }: { order: Order }) => (
-  <div
-    className="group relative rounded-xl border border-black/[0.05] bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
-    style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-  >
-    <div className="flex items-center justify-between mb-3">
-      <span className="text-[13px] font-semibold text-foreground" style={{ letterSpacing: "-0.01em" }}>
-        {order.code}
-      </span>
-      <button className="rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/[0.04]">
-        <MoreVertical size={14} strokeWidth={1.8} className="text-muted-foreground" />
-      </button>
-    </div>
+const clean = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) return "—";
+  const text = String(value).trim();
+  return text.length > 0 ? text : "—";
+};
 
-    <div className="flex items-start gap-2.5 mb-3">
-      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-        {order.productImage ? (
-          <img src={order.productImage} alt={order.productName} className="h-full w-full object-cover" />
-        ) : (
-          <Package size={20} strokeWidth={1.5} className="text-muted-foreground/40" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-foreground" style={{ letterSpacing: "-0.01em" }}>
-          {order.productName}
-        </p>
-        <p className="mt-1 text-[12px] text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-          x{order.quantity}
-        </p>
-      </div>
-    </div>
+const getStatusLabel = (status: string | null | undefined) => {
+  const key = (status ?? "pending").toLowerCase();
+  return statusLabels[key] ?? clean(status);
+};
 
-    <div className="mb-3">
-      <p className="text-[15px] font-semibold text-foreground" style={{ letterSpacing: "-0.02em" }}>
-        {formatBRL(order.price)}
-      </p>
-    </div>
+const getOrderCode = (order: MlOrderRow) => clean(order.ml_order_id ?? order.external_order_id ?? order.id);
 
-    <div className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-2">
-      <Calendar size={12} strokeWidth={1.8} className="text-muted-foreground" />
-      <span className="text-[11px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-        {order.date}
-      </span>
-    </div>
-  </div>
-);
+const getProductName = (order: MlOrderRow) =>
+  clean(order.catalog_title ?? order.product_title);
 
-// ─── Column ───────────────────────────────────────────────────────────────────
-const OrderColumn = ({ column, orders }: { column: typeof columns[0]; orders: Order[] }) => {
-  const Icon = column.icon;
-  return (
-    <div className="flex min-w-[280px] flex-col">
-      <div className="mb-4 flex flex-col gap-3">
-        <div className="h-1 w-full rounded-full" style={{ backgroundColor: column.color }} />
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Icon size={16} strokeWidth={1.8} style={{ color: column.color }} />
-            <h3 className="text-[14px] font-semibold text-foreground" style={{ letterSpacing: "-0.01em" }}>
-              {column.title}
-            </h3>
-            <span
-              className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold"
-              style={{ backgroundColor: column.bgColor, color: column.color }}
+const getOrderImage = (order: MlOrderRow) => {
+  if (order.product_image) return order.product_image;
+  if (Array.isArray(order.catalog_images)) {
+    const first = order.catalog_images.find((image) => typeof image === "string" && image.trim().length > 0);
+    return typeof first === "string" ? first : null;
+  }
+  return null;
+};
+
+const supplierHref = (url: string | null | undefined) => {
+  const trimmed = url?.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null;
+  return `https://${trimmed}`;
+};
+
+const SupplierButton = ({ url, compact = false }: { url: string | null | undefined; compact?: boolean }) => {
+  const href = supplierHref(url);
+  const classes = compact
+    ? "inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 text-[12px] font-semibold text-[#0A0A0A] transition hover:border-black/[0.18] hover:bg-black/[0.02]"
+    : "inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#0A0A0A] px-4 text-[13px] font-semibold text-white transition hover:bg-black/90";
+
+  if (!href) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              disabled
+              className={`${classes} cursor-not-allowed opacity-40`}
             >
-              {orders.length}
-            </span>
-          </div>
-          <button className="rounded-md p-1 transition-colors hover:bg-black/[0.04]">
-            <MoreVertical size={14} strokeWidth={1.8} className="text-muted-foreground" />
-          </button>
+              <ShoppingBag size={15} strokeWidth={1.5} />
+              Comprar no Fornecedor
+            </button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="border-black/10 bg-[#0A0A0A] text-xs text-white">
+          Fornecedor não vinculado
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className={classes}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <ShoppingBag size={15} strokeWidth={1.5} />
+      Comprar no Fornecedor
+      <ExternalLink size={14} strokeWidth={1.5} />
+    </a>
+  );
+};
+
+const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void }) => {
+  const image = getOrderImage(order);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      className="group grid cursor-pointer grid-cols-1 gap-3 border-b border-black/[0.06] bg-white px-4 py-4 outline-none transition hover:bg-[#FAFAFA] focus-visible:ring-2 focus-visible:ring-black/20 md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#F5F5F5]">
+          {image ? (
+            <img src={image} alt={getProductName(order)} className="h-full w-full object-cover" />
+          ) : (
+            <Package size={20} strokeWidth={1.5} className="text-[#A3A3A3]" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="line-clamp-1 text-[14px] font-semibold text-[#0A0A0A]">{getProductName(order)}</p>
+          <p className="mt-1 text-[12px] text-[#737373]">Qtd. {clean(order.quantity)} · ML {getOrderCode(order)}</p>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
-        {orders.map((order) => (
-          <OrderCard key={order.id} order={order} />
-        ))}
-        <button className="flex h-10 items-center justify-center rounded-xl border-2 border-dashed border-black/[0.08] bg-white transition-colors hover:border-black/[0.15] hover:bg-gray-50">
-          <Plus size={16} strokeWidth={1.8} className="text-muted-foreground" />
-        </button>
+      <div className="min-w-0">
+        <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Comprador</p>
+        <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{clean(order.buyer_name)}</p>
       </div>
+
+      <div>
+        <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Status</p>
+        <span className="inline-flex h-7 items-center rounded-full border border-black/[0.08] bg-[#F5F5F5] px-2.5 text-[12px] font-semibold text-[#404040]">
+          {getStatusLabel(order.status)}
+        </span>
+      </div>
+
+      <div>
+        <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Valor</p>
+        <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total_amount ?? order.sale_price)}</p>
+      </div>
+
+      <div>
+        <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Data</p>
+        <p className="text-[13px] font-medium text-[#525252]">{formatDate(order.ordered_at ?? order.created_at)}</p>
+      </div>
+
+      <div className="flex items-center gap-2 md:justify-end">
+        <SupplierButton url={order.supplier_url} compact />
+      </div>
+
+      <ChevronRight size={18} strokeWidth={1.5} className="hidden text-[#A3A3A3] transition group-hover:translate-x-0.5 group-hover:text-[#0A0A0A] md:block" />
     </div>
   );
 };
 
-// ─── Skeleton Column ──────────────────────────────────────────────────────────
-const SkeletonColumn = ({ color }: { color: string }) => (
-  <div className="flex min-w-[280px] flex-col gap-3">
-    <div className="h-1 w-full rounded-full" style={{ backgroundColor: color }} />
-    <Skeleton className="h-5 w-32" />
-    {[1, 2].map((i) => (
-      <Skeleton key={i} className="h-[140px] w-full rounded-xl" />
+const OrderSkeleton = () => (
+  <div className="rounded-xl border border-black/[0.08] bg-white">
+    {[1, 2, 3, 4].map((item) => (
+      <div key={item} className="grid gap-3 border-b border-black/[0.06] px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-12 w-12 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-3 w-1/3" />
+          </div>
+        </div>
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-7 w-24 rounded-full" />
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-9 w-40 rounded-lg" />
+      </div>
     ))}
   </div>
 );
 
-// ─── Empty Column ─────────────────────────────────────────────────────────────
-const EmptyColumn = ({ column }: { column: typeof columns[0] }) => {
-  const Icon = column.icon;
-  return (
-    <div className="flex min-w-[280px] flex-col">
-      <div className="mb-4 flex flex-col gap-3">
-        <div className="h-1 w-full rounded-full" style={{ backgroundColor: column.color }} />
-        <div className="flex items-center gap-2">
-          <Icon size={16} strokeWidth={1.8} style={{ color: column.color }} />
-          <h3 className="text-[14px] font-semibold text-foreground" style={{ letterSpacing: "-0.01em" }}>
-            {column.title}
-          </h3>
-          <span
-            className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold"
-            style={{ backgroundColor: column.bgColor, color: column.color }}
-          >
-            0
-          </span>
-        </div>
-      </div>
-      <button className="flex h-10 items-center justify-center rounded-xl border-2 border-dashed border-black/[0.08] bg-white transition-colors hover:border-black/[0.15] hover:bg-gray-50">
-        <Plus size={16} strokeWidth={1.8} className="text-muted-foreground" />
-      </button>
-    </div>
-  );
-};
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
 const OrdersPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const { data: rawOrders, isLoading } = useQuery({
-    queryKey: ["orders-kanban", user?.id],
+  const {
+    data: rawOrders,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["ml-orders-view", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("id, external_order_id, product_title, product_image, quantity, sale_price, ordered_at, created_at, status")
-        .eq("user_id", user!.id)
-        .order("ordered_at", { ascending: false })
-        .limit(100);
-      if (error) throw error;
+      const { data, error: queryError } = await supabase.from("ml_orders_view").select("*");
+      if (queryError) throw queryError;
       return data ?? [];
     },
   });
 
-  // Map DB rows → Order type
-  const orders: Order[] = (rawOrders ?? []).map((row, idx) => ({
-    id: row.id,
-    code: row.external_order_id ?? `VL-${String(idx + 1).padStart(5, "0")}`,
-    productName: row.product_title ?? "Produto sem nome",
-    productImage: row.product_image ?? null,
-    quantity: row.quantity ?? 1,
-    price: Number(row.sale_price ?? 0),
-    date: formatDate(row.ordered_at ?? row.created_at),
-    status: mapStatus(row.status ?? "pending"),
-  }));
+  useEffect(() => {
+    if (error) {
+      veloToast.error("Não foi possível carregar seus pedidos.");
+    }
+  }, [error]);
 
-  const ordersByStatus = columns.reduce((acc, column) => {
-    acc[column.id] = orders.filter((o) => o.status === column.id);
-    return acc;
-  }, {} as Record<OrderStatus, Order[]>);
+  const orders = useMemo(
+    () =>
+      [...(rawOrders ?? [])].sort((a, b) => {
+        const left = new Date(a.ordered_at ?? a.created_at ?? 0).getTime();
+        const right = new Date(b.ordered_at ?? b.created_at ?? 0).getTime();
+        return right - left;
+      }),
+    [rawOrders],
+  );
 
   const isEmpty = !isLoading && orders.length === 0;
 
   return (
-    <div
-      className="flex min-h-0 flex-1 flex-col"
-      style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-    >
-      {/* Header */}
-      <div className="flex flex-col gap-4 pb-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-[24px] font-semibold text-foreground" style={{ letterSpacing: "-0.03em" }}>
-              Pedidos
-            </h1>
-            <div className="flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-1.5">
-              <LayoutGrid size={14} strokeWidth={1.8} className="text-foreground" />
-              <span className="text-[13px] font-medium text-foreground" style={{ letterSpacing: "-0.01em" }}>
-                Visão em quadro
-              </span>
-              <ChevronDown size={14} strokeWidth={1.8} className="text-muted-foreground" />
+    <TooltipProvider delayDuration={120}>
+      <div className="flex min-h-0 flex-1 flex-col" style={pageFont}>
+        <div className="flex flex-col gap-4 pb-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h1 className="text-[24px] font-semibold tracking-normal text-[#0A0A0A]">Pedidos</h1>
+              <p className="mt-1 text-[13px] text-[#737373]">
+                Vendas do Mercado Livre com comprador, entrega e fornecedor vinculados.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] font-semibold text-[#404040]">
+              <Calendar size={15} strokeWidth={1.5} />
+              {orders.length} {orders.length === 1 ? "pedido" : "pedidos"}
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <button className="flex h-9 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em" }}>
-              <Filter size={14} strokeWidth={1.8} />
-              <span>Filtrar</span>
-            </button>
-            <button className="flex h-9 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em" }}>
-              <Download size={14} strokeWidth={1.8} />
-              <span>Exportar</span>
-            </button>
-            <button className="flex h-9 items-center gap-1.5 rounded-lg bg-[#111111] px-3 text-[13px] font-medium text-white transition-colors hover:bg-black/90" style={{ letterSpacing: "-0.01em" }}>
-              <Plus size={14} strokeWidth={1.8} />
-              <span>Adicionar pedido</span>
-            </button>
+        {isLoading ? (
+          <OrderSkeleton />
+        ) : isEmpty ? (
+          <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-black/[0.12] bg-white py-20 text-center">
+            <ShoppingBag size={48} strokeWidth={1.5} className="mb-4 text-[#D4D4D4]" />
+            <p className="text-[15px] font-semibold text-[#0A0A0A]">Nenhum pedido encontrado</p>
+            <p className="mt-1 max-w-md text-[13px] text-[#737373]">
+              Seus pedidos do Mercado Livre aparecerão aqui quando a sincronização registrar vendas na view.
+            </p>
           </div>
-        </div>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-black/[0.08] bg-white">
+            <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] border-b border-black/[0.08] bg-[#FAFAFA] px-4 py-3 text-[11px] font-semibold uppercase text-[#737373] md:grid">
+              <span>Produto</span>
+              <span>Comprador</span>
+              <span>Status</span>
+              <span>Valor</span>
+              <span>Data</span>
+              <span className="text-right">Fornecedor</span>
+              <span />
+            </div>
+            {orders.map((order) => (
+              <OrderRow
+                key={order.id ?? `${order.ml_order_id}-${order.created_at}`}
+                order={order}
+                onSelect={() => {
+                  const routeId = order.ml_order_id ?? order.id ?? order.external_order_id;
+                  if (routeId) navigate(`/dashboard/orders/${encodeURIComponent(routeId)}`);
+                  else veloToast.error("Este pedido não possui um identificador válido.");
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Board */}
-      {isLoading ? (
-        <div className="flex flex-1 gap-4 overflow-x-auto pb-4">
-          {columns.map((col) => (
-            <SkeletonColumn key={col.id} color={col.color} />
-          ))}
-        </div>
-      ) : isEmpty ? (
-        <div className="flex flex-1 flex-col items-center justify-center py-20 text-center">
-          <ShoppingBag size={48} strokeWidth={1.5} className="text-muted-foreground/30 mb-4" />
-          <p className="text-[15px] font-medium text-foreground">Nenhum pedido encontrado</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Seus pedidos do Mercado Livre aparecerão aqui após a sincronização.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-1 gap-4 overflow-x-auto pb-4">
-          {columns.map((column) => {
-            const colOrders = ordersByStatus[column.id];
-            return colOrders.length === 0 ? (
-              <EmptyColumn key={column.id} column={column} />
-            ) : (
-              <OrderColumn key={column.id} column={column} orders={colOrders} />
-            );
-          })}
-        </div>
-      )}
-    </div>
+    </TooltipProvider>
   );
 };
 

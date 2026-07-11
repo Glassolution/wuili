@@ -35,7 +35,72 @@ type WCProduct = {
     taxonomy?: string;
     terms?: Array<{ name?: string; slug?: string }>;
   }>;
+  description?: string;
+  short_description?: string;
 };
+
+function parseWeightString(weightStr: string): number | null {
+  const clean = weightStr.trim().toLowerCase();
+  
+  // Extrai o número e a unidade (g ou kg)
+  const numMatch = clean.match(/([\d.,]+)\s*(g|kg)/);
+  if (!numMatch) {
+    const fallbackNum = parseFloat(clean.replace(',', '.'));
+    return isNaN(fallbackNum) ? null : fallbackNum;
+  }
+
+  const numVal = parseFloat(numMatch[1].replace(',', '.'));
+  if (isNaN(numVal)) return null;
+
+  const unit = numMatch[2];
+  if (unit === 'g') {
+    return numVal / 1000; // Converte para kg
+  } else if (unit === 'kg') {
+    return numVal;
+  }
+
+  return null;
+}
+
+function extractWeightFromDescription(html: string | null | undefined): number | null {
+  if (!html) return null;
+
+  // 1. Procura na tabela andes-table de especificações (Peso)
+  // Ex: <div class="andes-table__header__container">Peso</div> ... <span ...>450 g</span>
+  const pesoTableRegex = /Peso<\/div>\s*<\/th>\s*<td[^>]*>\s*<span[^>]*class="[^"]*value[^"]*"[^>]*>([^<]+)<\/span>/i;
+  let match = html.match(pesoTableRegex);
+  if (match) {
+    const val = parseWeightString(match[1]);
+    if (val !== null && val > 0) return val;
+  }
+
+  // Se não bater com o primeiro, tenta sem a classe "value"
+  const pesoTableRegexSimple = /Peso<\/div>\s*<\/th>\s*<td[^>]*>\s*<span[^>]*>([^<]+)<\/span>/i;
+  match = html.match(pesoTableRegexSimple);
+  if (match) {
+    const val = parseWeightString(match[1]);
+    if (val !== null && val > 0) return val;
+  }
+
+  // 2. Procura por "Peso aproximado: XXX" ou "Peso: XXX" no texto do HTML
+  const cleanText = html.replace(/<[^>]*>/g, ' ');
+  const pesoTextRegex = /Peso\s*(?:aproximado)?\s*:\s*([\d.,\s]+(?:g|kg|kg\.?|g\.?))\b/i;
+  match = cleanText.match(pesoTextRegex);
+  if (match) {
+    const val = parseWeightString(match[1]);
+    if (val !== null && val > 0) return val;
+  }
+
+  const pesoTextRegex2 = /Peso\s*(?:do produto)?\s*de\s*([\d.,\s]+(?:g|kg|kg\.?|g\.?))\b/i;
+  match = cleanText.match(pesoTextRegex2);
+  if (match) {
+    const val = parseWeightString(match[1]);
+    if (val !== null && val > 0) return val;
+  }
+
+  return null;
+}
+
 
 function parsePriceMinor(p: WCProduct): number {
   // C7Drop usa produto variável com duas opções de compra: "Atacado" (preço menor)
@@ -134,6 +199,7 @@ Deno.serve(async (req) => {
         // categorias do ML rejeitam texto livre inventado — deixamos o usuário
         // preencher no modal de revisão quando ausente.
         const model = extractAttribute(p.attributes, ["modelo", "model", "pa_modelo"]);
+        const weight = extractWeightFromDescription(p.description || p.short_description);
         return {
           source: SOURCE,
           external_id: p.slug,
@@ -151,6 +217,7 @@ Deno.serve(async (req) => {
           is_blocked: blockedFlag,
           brand,
           model,
+          weight,
           scraped_at: now,
           updated_at: now,
         };

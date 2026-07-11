@@ -31,6 +31,8 @@ export type CatalogProduct = {
   brand?: string | null;
   model?: string | null;
   supplier_name?: string | null;
+  weight?: number | null;
+  product_url?: string | null;
 };
 
 type Props = {
@@ -556,6 +558,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
             brand: brand.trim() || null,
             model: model.trim() || null,
             ml_attributes: mlAttributes,
+            weight: typeof product?.weight === "number" ? product.weight : null,
+            product_url: product?.product_url ?? null,
           },
         },
       });

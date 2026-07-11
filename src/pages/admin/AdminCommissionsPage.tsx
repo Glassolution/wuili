@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Loader2 } from "lucide-react";
@@ -83,7 +83,6 @@ const AdminCommissionsPage = () => {
     queryKey: ["admin-affiliate-commissions"],
     enabled: !!user?.id,
     queryFn: async () => {
-      // Prefer RPC (mais seguro/performático); se não existir ainda no projeto, faz fallback.
       try {
         const { data, error } = await (supabase as any).rpc("rpc_admin_affiliates_summary");
         if (error) throw error;
@@ -91,11 +90,9 @@ const AdminCommissionsPage = () => {
       } catch (e) {
         if (!isMissingRpcError(e)) throw e;
 
-        // Fallback: mesma abordagem usada no painel admin para rastrear afiliados.
         const [affRes, clicksRes, convRes, profRes] = await Promise.all([
           (supabase as any).from("affiliates").select("code, user_id, link, created_at").order("created_at", { ascending: false }),
           (supabase as any).from("affiliate_clicks").select("affiliate_code"),
-          // select(*) para não quebrar se colunas opcionais (ex: payout_status) não existirem ainda
           (supabase as any).from("affiliate_conversions").select("*"),
           (supabase as any).from("profiles").select("id,user_id,display_name,created_at"),
         ]);
@@ -194,7 +191,6 @@ const AdminCommissionsPage = () => {
           (supabase as any).from("affiliate_clicks").select("created_at, referrer, user_agent").eq("affiliate_code", code).order("created_at", { ascending: false }).limit(200),
           (supabase as any)
             .from("affiliate_conversions")
-            // select(*) para compatibilidade (colunas podem variar por ambiente)
             .select("*")
             .eq("affiliate_code", code)
             .order("created_at", { ascending: false })
@@ -270,195 +266,197 @@ const AdminCommissionsPage = () => {
 
   return (
     <AdminShell active="commissions" userId={user.id}>
-      <header className="flex flex-col gap-3">
-        <h1 className="font-sans text-[40px] font-bold tracking-normal text-black md:text-[48px]">Comissões</h1>
-        <p className="text-[15px] text-black/52">Rastreie o funil completo por afiliado (visitas, cadastros e pagamentos).</p>
-      </header>
+      <div className="min-h-full bg-transparent text-white">
+        <header className="flex flex-col gap-3 border-b border-white/[0.08] pb-6">
+          <h1 className="font-sans text-[24px] font-semibold tracking-tight text-white">Comissões</h1>
+          <p className="text-[13px] text-[#8A8A8E]">Rastreie o funil completo por afiliado (visitas, cadastros e pagamentos).</p>
+        </header>
 
-      <section className="mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <MetricCard label="Total de afiliados" value={String(totals.totalAffiliates)} />
-        <MetricCard label="Cliques" value={String(totals.clicks)} />
-        <MetricCard label="Cadastros" value={String(totals.signups)} />
-        <MetricCard label="Chegaram no pagamento" value={String(totals.reachedPayment)} />
-        <MetricCard label="Pagamentos" value={String(totals.payers)} />
-        <MetricCard label="Comissão pendente" value={money(totals.commissionPending)} highlight="amber" />
-        <MetricCard label="Comissão paga" value={money(totals.commissionPaid)} highlight="emerald" />
-      </section>
+        <section className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 border-b border-white/[0.08]">
+          <MetricCard label="Total de afiliados" value={String(totals.totalAffiliates)} className="py-6 pr-4 pl-0" />
+          <MetricCard label="Cliques" value={String(totals.clicks)} className="py-6 px-4 border-l border-white/[0.08]" />
+          <MetricCard label="Cadastros" value={String(totals.signups)} className="py-6 px-4 border-l border-white/[0.08]" />
+          <MetricCard label="No pagamento" value={String(totals.reachedPayment)} className="py-6 px-4 border-l border-white/[0.08]" />
+          <MetricCard label="Pagantes" value={String(totals.payers)} className="py-6 px-4 border-l border-white/[0.08]" />
+          <MetricCard label="Comissão pendente" value={money(totals.commissionPending)} highlight="amber" className="py-6 px-4 border-l border-white/[0.08]" />
+          <MetricCard label="Comissão paga" value={money(totals.commissionPaid)} highlight="emerald" className="py-6 pl-4 pr-0 border-l border-white/[0.08]" />
+        </section>
 
-      <section className="mt-8 overflow-hidden rounded-[20px] border border-black/[0.08] bg-white">
-        <div className="border-b border-black/[0.08] px-5 py-4">
-          <h2 className="text-[16px] font-semibold text-black">Afiliados</h2>
-          {error && <p className="mt-1 text-[13px] text-red-300">Erro ao carregar: {String((error as any)?.message ?? error)}</p>}
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-7 w-7 animate-spin text-white" />
+        <section className="mt-8">
+          <div className="flex items-center justify-between pb-4">
+            <h2 className="text-[14px] text-[#8A8A8E] font-normal uppercase tracking-[0.10em]">Afiliados</h2>
+            {error && <p className="text-[13px] text-red-400">Erro ao carregar: {String((error as any)?.message ?? error)}</p>}
           </div>
-        ) : affiliates.length === 0 ? (
-          <div className="px-5 py-10 text-[14px] text-black/50">Nenhum afiliado encontrado.</div>
-        ) : (
-          <div className="overflow-auto">
-            <table className="w-full min-w-[1220px] text-left text-[13px]">
-              <thead className="bg-white/[0.035] text-black/45">
-                <tr>
-                  <Th>Afiliado</Th>
-                  <Th>Email</Th>
-                  <Th>Código</Th>
-                  <Th>Link</Th>
-                  <Th className="text-right">Cliques</Th>
-                  <Th className="text-right">Cadastros</Th>
-                  <Th className="text-right">Chegaram no pagamento</Th>
-                  <Th className="text-right">Pagantes</Th>
-                  <Th className="text-right">Comissão pendente</Th>
-                  <Th className="text-right">Comissão paga</Th>
-                  <Th>Criado em</Th>
-                  <Th>Ações</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {affiliates.map((row) => (
-                  <tr key={row.code} className="border-b border-white/[0.055] text-black/62 last:border-0">
-                    <Td className="font-medium text-black">{row.affiliate_name ?? row.affiliate_user_id}</Td>
-                    <Td className="text-black/50">{row.affiliate_email ?? "-"}</Td>
-                    <Td className="font-mono text-[12px] font-semibold text-black">{row.code}</Td>
-                    <Td>
-                      <a
-                        href={row.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-black/62 hover:text-white"
-                      >
-                        <span className="max-w-[260px] truncate">{row.link}</span>
-                        <ExternalLink size={14} />
-                      </a>
-                    </Td>
-                    <Td className="text-right">{row.clicks ?? 0}</Td>
-                    <Td className="text-right">{row.signups ?? 0}</Td>
-                    <Td className="text-right">{row.reached_payment ?? 0}</Td>
-                    <Td className="text-right">{row.payers ?? 0}</Td>
-                    <Td className="text-right font-semibold text-amber-200">{money(Number(row.commission_pending ?? 0))}</Td>
-                    <Td className="text-right font-semibold text-emerald-200">{money(Number(row.commission_paid ?? 0))}</Td>
-                    <Td className="text-black/50">{date(row.created_at)}</Td>
-                    <Td>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCode(row.code)}
-                        className="rounded-[10px] border border-white/10 bg-white/[0.04] px-3 py-2 text-[12px] font-semibold text-black/75 transition hover:bg-white/[0.07]"
-                      >
-                        Ver detalhes
-                      </button>
-                    </Td>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-7 w-7 animate-spin text-white/60" />
+            </div>
+          ) : affiliates.length === 0 ? (
+            <div className="py-10 text-[14px] text-[#8A8A8E]">Nenhum afiliado encontrado.</div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="w-full min-w-[1220px] text-left text-[13px]">
+                <thead className="border-b border-white/[0.08] text-[11px] font-medium uppercase tracking-[0.12em] text-[#8A8A8E]">
+                  <tr>
+                    <Th>Afiliado</Th>
+                    <Th>Email</Th>
+                    <Th>Código</Th>
+                    <Th>Link</Th>
+                    <Th className="text-right">Cliques</Th>
+                    <Th className="text-right">Cadastros</Th>
+                    <Th className="text-right">No pagamento</Th>
+                    <Th className="text-right">Pagantes</Th>
+                    <Th className="text-right">Comissão pendente</Th>
+                    <Th className="text-right">Comissão paga</Th>
+                    <Th>Criado em</Th>
+                    <Th>Ações</Th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                </thead>
+                <tbody className="divide-y divide-white/[0.08]">
+                  {affiliates.map((row) => (
+                    <tr key={row.code} className="hover:bg-white/[0.01]">
+                      <Td className="font-medium text-white">{row.affiliate_name ?? row.affiliate_user_id}</Td>
+                      <Td className="text-[#8A8A8E]">{row.affiliate_email ?? "-"}</Td>
+                      <Td className="font-mono text-[12px] font-semibold text-white">{row.code}</Td>
+                      <Td>
+                        <a
+                          href={row.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-white/70 hover:text-white"
+                        >
+                          <span className="max-w-[260px] truncate">{row.link}</span>
+                          <ExternalLink size={14} strokeWidth={1.5} />
+                        </a>
+                      </Td>
+                      <Td className="text-right text-white">{row.clicks ?? 0}</Td>
+                      <Td className="text-right text-white">{row.signups ?? 0}</Td>
+                      <Td className="text-right text-white">{row.reached_payment ?? 0}</Td>
+                      <Td className="text-right text-white">{row.payers ?? 0}</Td>
+                      <Td className="text-right font-semibold text-amber-300">{money(Number(row.commission_pending ?? 0))}</Td>
+                      <Td className="text-right font-semibold text-emerald-300">{money(Number(row.commission_paid ?? 0))}</Td>
+                      <Td className="text-[#8A8A8E]">{date(row.created_at)}</Td>
+                      <Td>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCode(row.code)}
+                          className="rounded-lg border border-white/[0.08] bg-[#0F0F0F] px-3 py-2 text-[12px] font-semibold text-[#8A8A8E] hover:text-white transition"
+                        >
+                          Ver detalhes
+                        </button>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
-      <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
-        <SheetContent side="right" className="w-[min(540px,90vw)] border-[#222] bg-[#0b0b0b] text-white">
-          <SheetHeader>
-            <SheetTitle className="text-white">Detalhes do afiliado</SheetTitle>
-          </SheetHeader>
+        <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
+          <SheetContent side="right" className="w-[min(540px,90vw)] border-white/[0.08] bg-[#0F0F0F] text-white">
+            <SheetHeader>
+              <SheetTitle className="text-white text-[16px] font-semibold">Detalhes do afiliado</SheetTitle>
+            </SheetHeader>
 
-          <div className="mt-5">
-            {loadingDetails ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-white" />
-              </div>
-            ) : !details?.affiliate ? (
-              <p className="text-[14px] text-black/45">Não foi possível carregar os detalhes.</p>
-            ) : (
-              <div className="space-y-6">
-                <div className="rounded-[16px] border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-[12px] text-white/45">Código</p>
-                  <p className="mt-1 font-mono text-[16px] font-semibold">{details.affiliate.code}</p>
-                  <p className="mt-3 text-[12px] text-white/45">Link</p>
-                  <a
-                    href={details.affiliate.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 inline-flex items-center gap-2 text-[13px] text-white/80 hover:text-white"
-                  >
-                    <span className="truncate">{details.affiliate.link}</span>
-                    <ExternalLink size={14} />
-                  </a>
-                  <p className="mt-3 text-[12px] text-white/45">Criado em</p>
-                  <p className="mt-1 text-[13px] text-black/62">{date(details.affiliate.created_at)}</p>
+            <div className="mt-5">
+              {loadingDetails ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-white/60" />
                 </div>
+              ) : !details?.affiliate ? (
+                <p className="text-[14px] text-[#8A8A8E]">Não foi possível carregar os detalhes.</p>
+              ) : (
+                <div className="space-y-6">
+                  <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-4">
+                    <p className="text-[12px] text-[#8A8A8E]">Código</p>
+                    <p className="mt-1 font-mono text-[16px] font-semibold text-white">{details.affiliate.code}</p>
+                    <p className="mt-3 text-[12px] text-[#8A8A8E]">Link</p>
+                    <a
+                      href={details.affiliate.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-2 text-[13px] text-white/80 hover:text-white"
+                    >
+                      <span className="truncate">{details.affiliate.link}</span>
+                      <ExternalLink size={14} strokeWidth={1.5} />
+                    </a>
+                    <p className="mt-3 text-[12px] text-[#8A8A8E]">Criado em</p>
+                    <p className="mt-1 text-[13px] text-[#8A8A8E]">{date(details.affiliate.created_at)}</p>
+                  </div>
 
-                <div className="rounded-[16px] border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-[14px] font-semibold text-black">Indicados</p>
-                  <p className="mt-1 text-[12px] text-white/45">
-                    {details.conversions.length} registro(s) — status do funil e comissão gerada.
-                  </p>
+                  <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-4">
+                    <p className="text-[14px] font-semibold text-white">Indicados</p>
+                    <p className="mt-1 text-[12px] text-[#8A8A8E]">
+                      {details.conversions.length} registro(s) — status do funil e comissão gerada.
+                    </p>
 
-                  <div className="mt-4 overflow-auto">
-                    <table className="w-full min-w-[460px] text-left text-[12px]">
-                      <thead className="text-black/50">
-                        <tr>
-                          <Th>Indicado</Th>
-                          <Th>Status</Th>
-                          <Th className="text-right">Valor pago</Th>
-                          <Th className="text-right">Comissão</Th>
-                          <Th>Payout</Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {details.conversions.map((c) => (
-                          <tr key={c.id} className="border-t border-white/10 text-black/62">
-                            <Td className="py-3">
-                              <div className="min-w-0">
-                                <p className="truncate font-medium text-black">{c.subscriber_name ?? c.subscriber_email ?? c.subscriber_user_id}</p>
-                                <p className="truncate text-[11px] text-white/45">{c.subscriber_email ?? "-"}</p>
-                              </div>
-                            </Td>
-                            <Td className="py-3">
-                              <span
-                                className={cn(
-                                  "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-                                  c.status === "paid"
-                                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                                    : c.status === "reached_payment"
-                                      ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                                      : "border-white/15 bg-white/[0.03] text-black/62",
-                                )}
-                              >
-                                {c.status}
-                              </span>
-                            </Td>
-                            <Td className="py-3 text-right">{money(Number(c.plan_value ?? 0))}</Td>
-                            <Td className="py-3 text-right font-semibold">{money(Number(c.commission_value ?? 0))}</Td>
-                            <Td className="py-3">
-                              <span
-                                className={cn(
-                                  "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-                                  String(c.payout_status) === "paid"
-                                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                                    : "border-amber-500/30 bg-amber-500/10 text-amber-200",
-                                )}
-                              >
-                                {c.payout_status}
-                              </span>
-                            </Td>
+                    <div className="mt-4 overflow-auto">
+                      <table className="w-full min-w-[460px] text-left text-[12px]">
+                        <thead>
+                          <tr className="text-[#8A8A8E] border-b border-white/[0.08]">
+                            <Th className="py-2 pl-0">Indicado</Th>
+                            <Th className="py-2">Status</Th>
+                            <Th className="py-2 text-right">Valor pago</Th>
+                            <Th className="py-2 text-right">Comissão</Th>
+                            <Th className="py-2 pr-0">Payout</Th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-white/[0.08]">
+                          {details.conversions.map((c) => (
+                            <tr key={c.id} className="text-white hover:bg-white/[0.01]">
+                              <Td className="py-3 pl-0">
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium text-white">{c.subscriber_name ?? c.subscriber_email ?? c.subscriber_user_id}</p>
+                                  <p className="truncate text-[11px] text-[#8A8A8E]">{c.subscriber_email ?? "-"}</p>
+                                </div>
+                              </Td>
+                              <Td className="py-3">
+                                <span
+                                  className={cn(
+                                    "inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-semibold",
+                                    c.status === "paid"
+                                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                      : c.status === "reached_payment"
+                                        ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                                        : "border-white/10 bg-white/[0.03] text-white/70",
+                                  )}
+                                >
+                                  {c.status}
+                                </span>
+                              </Td>
+                              <Td className="py-3 text-right">{money(Number(c.plan_value ?? 0))}</Td>
+                              <Td className="py-3 text-right font-semibold">{money(Number(c.commission_value ?? 0))}</Td>
+                              <Td className="py-3 pr-0">
+                                <span
+                                  className={cn(
+                                    "inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-semibold",
+                                    String(c.payout_status) === "paid"
+                                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                      : "border-amber-500/30 bg-amber-500/10 text-amber-300",
+                                  )}
+                                >
+                                  {c.payout_status}
+                                </span>
+                              </Td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-4">
+                    <p className="text-[14px] font-semibold text-white">Visitas</p>
+                    <p className="mt-1 text-[12px] text-[#8A8A8E]">{details.clicks.length} registro(s) (últimos 200).</p>
                   </div>
                 </div>
-
-                <div className="rounded-[16px] border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-[14px] font-semibold text-black">Visitas</p>
-                  <p className="mt-1 text-[12px] text-white/45">{details.clicks.length} registro(s) (últimos 200).</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
     </AdminShell>
   );
 };
@@ -467,18 +465,20 @@ const MetricCard = ({
   label,
   value,
   highlight,
+  className,
 }: {
   label: string;
   value: string;
   highlight?: "amber" | "emerald";
+  className?: string;
 }) => (
-  <div className="rounded-[20px] border border-black/[0.08] bg-white p-5">
-    <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-white/38">{label}</p>
+  <div className={cn("flex flex-col justify-between", className)}>
+    <p className="text-[12px] font-normal uppercase tracking-[0.10em] text-[#8A8A8E]">{label}</p>
     <p
       className={cn(
-        "mt-3 text-[22px] font-bold tracking-[-0.02em] text-white",
-        highlight === "amber" && "text-amber-200",
-        highlight === "emerald" && "text-emerald-200",
+        "mt-3 text-[26px] font-semibold tracking-[-0.02em] text-white leading-none",
+        highlight === "amber" && "text-amber-300",
+        highlight === "emerald" && "text-emerald-300",
       )}
     >
       {value}
@@ -495,4 +495,3 @@ const Td = ({ children, className }: { children: React.ReactNode; className?: st
 );
 
 export default AdminCommissionsPage;
-

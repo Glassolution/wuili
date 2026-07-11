@@ -276,7 +276,7 @@ const AdminUsersPage = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0A] text-white">
+      <div className="flex min-h-screen items-center justify-center bg-[#121214] text-white">
         <Loader2 className="h-7 w-7 animate-spin" />
       </div>
     );
@@ -287,8 +287,8 @@ const AdminUsersPage = () => {
   return (
     <AdminShell active="users" userId={user.id}>
       <div
-        className="min-h-full bg-[#0A0A0A] text-white"
-        style={{ fontFamily: '"Inter", ui-sans-serif, system-ui' }}
+        className="min-h-full bg-transparent text-white"
+        style={{ fontFamily: "'Geist', 'Inter Tight', -apple-system, sans-serif" }}
       >
         {/* Top bar */}
         <header className="flex flex-col gap-4 border-b border-white/[0.06] px-6 py-5 md:flex-row md:items-center md:justify-between">
@@ -314,27 +314,27 @@ const AdminUsersPage = () => {
         </header>
 
         <div className="p-6">
-          <section className="rounded-2xl border border-white/[0.06] bg-[#0B0B0B] p-5">
+          <section className="border-0 bg-transparent">
             {/* Toolbar */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex rounded-full border border-white/10 bg-[#0F0F0F] p-0.5 text-[12px]">
+              <div className="flex rounded-lg border border-white/[0.08] bg-[#0F0F0F] p-0.5 text-[12px]">
                 {(["list", "grid"] as const).map((v) => (
                   <button
                     key={v}
                     onClick={() => setView(v)}
                     className={cn(
-                      "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 transition",
-                      view === v ? "bg-white text-black" : "text-white/60 hover:text-white"
+                      "flex items-center gap-1.5 rounded-md px-3.5 py-1.5 transition",
+                      view === v ? "bg-white/[0.06] text-white" : "text-[#8A8A8E] hover:text-white"
                     )}
                   >
-                    {v === "list" ? <List size={13} /> : <Grid3x3 size={13} />}
+                    {v === "list" ? <List size={13} strokeWidth={1.5} /> : <Grid3x3 size={13} strokeWidth={1.5} />}
                     {v === "list" ? "Lista" : "Grade"}
                   </button>
                 ))}
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex rounded-full border border-white/10 bg-[#0F0F0F] p-0.5 text-[11px]">
+                <div className="flex rounded-lg border border-white/[0.08] bg-[#0F0F0F] p-0.5 text-[11px]">
                   {statusFilters.map((s) => (
                     <button
                       key={s.key}
@@ -343,24 +343,24 @@ const AdminUsersPage = () => {
                         setPage(1);
                       }}
                       className={cn(
-                        "rounded-full px-3 py-1.5 transition",
-                        filter === s.key ? "bg-white text-black" : "text-white/60 hover:text-white"
+                        "rounded-md px-3 py-1.5 transition",
+                        filter === s.key ? "bg-white/[0.06] text-white" : "text-[#8A8A8E] hover:text-white"
                       )}
                     >
                       {s.label}
                     </button>
                   ))}
                 </div>
-                <button className="flex items-center gap-2 rounded-full border border-white/10 bg-[#0F0F0F] px-4 py-2 text-[12px] text-white/80 hover:bg-white/[0.06]">
-                  <Filter size={13} />
+                <button className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#0F0F0F] px-4 py-2 text-[12px] text-[#8A8A8E] hover:text-white transition">
+                  <Filter size={13} strokeWidth={1.5} />
                   Filtrar
                 </button>
-                <button className="flex items-center gap-2 rounded-full border border-white/10 bg-[#0F0F0F] px-4 py-2 text-[12px] text-white/80 hover:bg-white/[0.06]">
-                  <Download size={13} />
+                <button className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#0F0F0F] px-4 py-2 text-[12px] text-[#8A8A8E] hover:text-white transition">
+                  <Download size={13} strokeWidth={1.5} />
                   Exportar
                 </button>
-                <button className="flex items-center gap-2 rounded-full bg-[#22C55E] px-4 py-2 text-[12px] font-medium text-black hover:bg-[#16A34A]">
-                  <Plus size={13} />
+                <button className="flex items-center gap-2 rounded-lg bg-[#22C55E] px-4 py-2 text-[12px] font-medium text-black hover:bg-[#16A34A] transition">
+                  <Plus size={13} strokeWidth={2.5} />
                   Novo usuário
                 </button>
               </div>
@@ -510,7 +510,7 @@ const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void 
   const temp = leadTemperature(user);
   const online = isOnline(user.last_seen_at);
   return (
-    <div onClick={onClick} className="cursor-pointer rounded-2xl border border-white/[0.06] bg-[#0F0F0F] p-4 transition hover:border-white/15">
+    <div onClick={onClick} className="cursor-pointer border border-white/[0.08] bg-transparent p-4 transition hover:bg-white/[0.02] rounded-lg">
       <div className="flex items-center gap-3">
         <Avatar user={user} online={online} />
         <div className="min-w-0 flex-1">

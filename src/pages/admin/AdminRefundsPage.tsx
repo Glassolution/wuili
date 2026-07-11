@@ -175,8 +175,8 @@ const AdminRefundsPage = () => {
   if (!isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
-        <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0a0a0a] p-8 text-center">
-          <Lock size={24} className="mx-auto" />
+        <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#0A0A0A] p-8 text-center">
+          <Lock size={24} className="mx-auto" strokeWidth={1.5} />
           <h1 className="mt-4 text-[20px] font-bold">Acesso restrito</h1>
         </div>
       </div>
@@ -184,26 +184,26 @@ const AdminRefundsPage = () => {
   }
 
   const tabs: { key: TabKey; label: string; count: number; icon: typeof Clock; accent: string }[] = [
-    { key: "pending", label: "Pedidos recentes", count: pending.length, icon: Clock, accent: "text-amber-600 bg-amber-50" },
-    { key: "eligible", label: "Ativos elegíveis", count: eligible.length, icon: ShieldCheck, accent: "text-blue-600 bg-blue-50" },
-    { key: "approved", label: "Reembolsados", count: approved.length, icon: CheckCircle2, accent: "text-emerald-600 bg-emerald-50" },
-    { key: "rejected", label: "Recusados", count: rejected.length, icon: XCircle, accent: "text-red-600 bg-red-50" },
+    { key: "pending", label: "Pedidos recentes", count: pending.length, icon: Clock, accent: "text-amber-500 bg-amber-500/10" },
+    { key: "eligible", label: "Ativos elegíveis", count: eligible.length, icon: ShieldCheck, accent: "text-blue-500 bg-blue-500/10" },
+    { key: "approved", label: "Reembolsados", count: approved.length, icon: CheckCircle2, accent: "text-emerald-500 bg-emerald-500/10" },
+    { key: "rejected", label: "Recusados", count: rejected.length, icon: XCircle, accent: "text-red-500 bg-red-500/10" },
   ];
 
   return (
     <AdminShell active="refunds" userId={user.id}>
-      <div className="min-h-full bg-[#f5f5f4] p-5 text-[#0A0A0A] md:p-8">
+      <div className="min-h-full bg-transparent text-white">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
-          <header className="flex flex-col gap-4 rounded-3xl border border-[#E5E5E5] bg-white px-6 py-5 shadow-sm md:flex-row md:items-center md:justify-between">
+          <header className="flex flex-col gap-4 border-b border-white/[0.08] pb-6 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#A3A3A3]">Admin</p>
-              <h1 className="text-[24px] font-black tracking-tight">Reembolsos</h1>
-              <p className="mt-1 text-[13px] text-[#737373]">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8A8A8E]">Admin</p>
+              <h1 className="text-[24px] font-semibold tracking-tight text-white mt-1">Reembolsos</h1>
+              <p className="mt-1 text-[13px] text-[#8A8A8E]">
                 Contas ativas, pedidos recentes e histórico de reembolsos efetuados.
               </p>
             </div>
-            <div className="flex items-center gap-2 text-[12px] text-[#737373]">
-              <RotateCcw size={14} />
+            <div className="flex items-center gap-2 text-[12px] text-[#8A8A8E]">
+              <RotateCcw size={14} strokeWidth={1.5} />
               Janela de elegibilidade: {REFUND_WINDOW_DAYS} dias
             </div>
           </header>
@@ -216,19 +216,19 @@ const AdminRefundsPage = () => {
                 <button
                   key={t.key}
                   onClick={() => setTab(t.key)}
-                  className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
+                  className={`flex items-center justify-between rounded-lg border px-4 py-3 text-left transition ${
                     active
-                      ? "border-[#0A0A0A] bg-[#0A0A0A] text-white shadow-sm"
-                      : "border-[#E5E5E5] bg-white text-[#0A0A0A] hover:border-[#0A0A0A]"
+                      ? "border-white/[0.08] bg-white/[0.06] text-white shadow-sm"
+                      : "border-white/[0.08] bg-[#0F0F0F] text-[#8A8A8E] hover:border-white/20 hover:text-white"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${active ? "bg-white/10 text-white" : t.accent}`}>
-                      <Icon size={16} />
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${active ? "bg-white/10 text-white" : t.accent}`}>
+                      <Icon size={16} strokeWidth={1.5} />
                     </div>
                     <div>
                       <p className="text-[13px] font-semibold">{t.label}</p>
-                      <p className={`text-[11px] ${active ? "text-white/60" : "text-[#A3A3A3]"}`}>
+                      <p className={`text-[11px] ${active ? "text-white/60" : "text-[#8A8A8E]"}`}>
                         {t.count} {t.count === 1 ? "conta" : "contas"}
                       </p>
                     </div>
@@ -238,10 +238,10 @@ const AdminRefundsPage = () => {
             })}
           </div>
 
-          <div className="rounded-3xl border border-[#E5E5E5] bg-white shadow-sm">
+          <div className="border-t border-white/[0.08] pt-4">
             {loadingRefunds || loadingSubs ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2 className="h-6 w-6 animate-spin text-white/60" />
               </div>
             ) : tab === "eligible" ? (
               <EligibleTable rows={eligible} profiles={profiles} />
@@ -276,21 +276,21 @@ const UserCell = ({
 }) => (
   <div className="flex items-center gap-3">
     {p?.avatar_url ? (
-      <img src={p.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+      <img src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
     ) : (
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0A0A0A] text-white">
-        <UserRound size={16} />
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white">
+        <UserRound size={14} strokeWidth={1.5} />
       </div>
     )}
     <div className="min-w-0">
-      <p className="truncate font-semibold">{p?.display_name || "Usuário"}</p>
-      <p className="truncate text-[11px] text-[#A3A3A3]">{p?.email || fallback}</p>
+      <p className="truncate font-medium text-white">{p?.display_name || "Usuário"}</p>
+      <p className="truncate text-[11px] text-[#8A8A8E]">{p?.email || fallback}</p>
     </div>
   </div>
 );
 
 const EmptyRow = ({ text }: { text: string }) => (
-  <div className="px-6 py-16 text-center text-[13px] text-[#737373]">{text}</div>
+  <div className="px-6 py-16 text-center text-[13px] text-[#8A8A8E]">{text}</div>
 );
 
 const EligibleTable = ({
@@ -302,30 +302,30 @@ const EligibleTable = ({
 }) => {
   if (rows.length === 0) return <EmptyRow text="Nenhuma conta ativa dentro da janela de reembolso." />;
   return (
-    <div className="overflow-hidden rounded-3xl">
-      <table className="w-full text-[13px]">
-        <thead className="bg-[#FAFAFA] text-left text-[11px] uppercase tracking-wider text-[#737373]">
+    <div className="overflow-hidden">
+      <table className="w-full text-[13px] text-left">
+        <thead className="border-b border-white/[0.08] text-[11px] uppercase tracking-wider text-[#8A8A8E]">
           <tr>
-            <th className="px-4 py-3">Usuário</th>
-            <th className="px-4 py-3">Plano</th>
-            <th className="px-4 py-3">Valor pago</th>
-            <th className="px-4 py-3">Comprou em</th>
-            <th className="px-4 py-3">Dias restantes</th>
+            <th className="px-4 py-3 font-medium">Usuário</th>
+            <th className="px-4 py-3 font-medium">Plano</th>
+            <th className="px-4 py-3 font-medium">Valor pago</th>
+            <th className="px-4 py-3 font-medium">Comprou em</th>
+            <th className="px-4 py-3 font-medium">Dias restantes</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-white/[0.08]">
           {rows.map((s) => {
             const daysLeft = Math.max(0, REFUND_WINDOW_DAYS - daysSince(s.created_at));
             return (
-              <tr key={s.id} className="border-t border-[#F0F0F0]">
+              <tr key={s.id} className="hover:bg-white/[0.01]">
                 <td className="px-4 py-3">
                   <UserCell p={profiles[s.user_id]} fallback={s.user_id.slice(0, 8)} />
                 </td>
-                <td className="px-4 py-3 font-medium">{s.plan || "—"}</td>
-                <td className="px-4 py-3">{fmtMoney(s.amount)}</td>
-                <td className="px-4 py-3 text-[#525252]">{fmtDate(s.created_at)}</td>
+                <td className="px-4 py-3 font-medium text-white">{s.plan || "—"}</td>
+                <td className="px-4 py-3 text-white">{fmtMoney(s.amount)}</td>
+                <td className="px-4 py-3 text-[#8A8A8E]">{fmtDate(s.created_at)}</td>
                 <td className="px-4 py-3">
-                  <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                  <span className="inline-flex items-center rounded-lg bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 text-[11px] font-semibold text-blue-300">
                     {daysLeft} {daysLeft === 1 ? "dia" : "dias"}
                   </span>
                 </td>
@@ -365,23 +365,23 @@ const RefundsTable = ({
     return <EmptyRow text={t} />;
   }
   return (
-    <div className="overflow-x-auto rounded-3xl">
-      <table className="w-full min-w-[900px] text-[13px]">
-        <thead className="bg-[#FAFAFA] text-left text-[11px] uppercase tracking-wider text-[#737373]">
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[900px] text-[13px] text-left">
+        <thead className="border-b border-white/[0.08] text-[11px] uppercase tracking-wider text-[#8A8A8E]">
           <tr>
-            <th className="px-4 py-3">Usuário</th>
-            <th className="px-4 py-3">Plano</th>
-            <th className="px-4 py-3">Pedido em</th>
-            {variant === "pending" && <th className="px-4 py-3">Aguardando</th>}
-            {variant === "pending" && <th className="px-4 py-3">Conta há</th>}
-            {variant !== "pending" && <th className="px-4 py-3">Processado em</th>}
-            <th className="px-4 py-3">Motivo</th>
-            <th className="px-4 py-3">Valor</th>
-            {variant === "pending" && <th className="px-4 py-3 text-right">Ações</th>}
-            {variant !== "pending" && <th className="px-4 py-3">Status</th>}
+            <th className="px-4 py-3 font-medium">Usuário</th>
+            <th className="px-4 py-3 font-medium">Plano</th>
+            <th className="px-4 py-3 font-medium">Pedido em</th>
+            {variant === "pending" && <th className="px-4 py-3 font-medium">Aguardando</th>}
+            {variant === "pending" && <th className="px-4 py-3 font-medium">Conta há</th>}
+            {variant !== "pending" && <th className="px-4 py-3 font-medium">Processado em</th>}
+            <th className="px-4 py-3 font-medium">Motivo</th>
+            <th className="px-4 py-3 font-medium">Valor</th>
+            {variant === "pending" && <th className="px-4 py-3 font-medium text-right">Ações</th>}
+            {variant !== "pending" && <th className="px-4 py-3 font-medium">Status</th>}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-white/[0.08]">
           {rows.map((r) => {
             const p = profiles[r.user_id];
             const s = r.subscription_id ? subs[r.subscription_id] : null;
@@ -392,20 +392,20 @@ const RefundsTable = ({
             return (
               <tr
                 key={r.id}
-                className={`border-t border-[#F0F0F0] align-top ${
-                  overdue ? "bg-red-50/60" : ""
+                className={`align-top transition hover:bg-white/[0.01] ${
+                  overdue ? "bg-red-500/[0.06]" : ""
                 }`}
               >
                 <td className={`px-4 py-4 ${overdue ? "border-l-4 border-l-red-500" : ""}`}>
                   <UserCell p={p} fallback={r.user_id.slice(0, 8)} />
                 </td>
-                <td className="px-4 py-4 font-medium">{s?.plan || "—"}</td>
-                <td className="px-4 py-4 text-[#525252]">{fmtDate(r.requested_at)}</td>
+                <td className="px-4 py-4 font-medium text-white">{s?.plan || "—"}</td>
+                <td className="px-4 py-4 text-[#8A8A8E]">{fmtDate(r.requested_at)}</td>
                 {variant === "pending" && (
                   <td className="px-4 py-4">
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                        overdue ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-700"
+                        overdue ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
                       }`}
                     >
                       {waitingDays === 0
@@ -415,41 +415,41 @@ const RefundsTable = ({
                   </td>
                 )}
                 {variant === "pending" && (
-                  <td className="px-4 py-4 text-[#525252]">
+                  <td className="px-4 py-4 text-[#8A8A8E]">
                     {accountDays == null
                       ? "—"
                       : `${accountDays} ${accountDays === 1 ? "dia" : "dias"}`}
                   </td>
                 )}
                 {variant !== "pending" && (
-                  <td className="px-4 py-4 text-[#525252]">{fmtDate(r.processed_at)}</td>
+                  <td className="px-4 py-4 text-[#8A8A8E]">{fmtDate(r.processed_at)}</td>
                 )}
                 <td className="max-w-[280px] px-4 py-4">
-                  <p className="font-semibold">{r.reason}</p>
+                  <p className="font-semibold text-white">{r.reason}</p>
                   {r.reason_details && (
-                    <p className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-[#525252]">
+                    <p className="mt-1 whitespace-pre-wrap text-[12px] leading-5 text-[#8A8A8E]">
                       {r.reason_details}
                     </p>
                   )}
                 </td>
-                <td className="px-4 py-4 font-semibold">{fmtMoney(Number(r.refund_amount))}</td>
+                <td className="px-4 py-4 font-semibold text-white">{fmtMoney(Number(r.refund_amount))}</td>
                 {variant === "pending" ? (
                   <td className="px-4 py-4">
                     <div className="flex justify-end gap-2">
                       <button
                         disabled={busy}
                         onClick={() => onApprove?.(r.id)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition"
                       >
-                        {busy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                        {busy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} strokeWidth={1.5} />}
                         Aprovar
                       </button>
                       <button
                         disabled={busy}
                         onClick={() => onReject?.(r.id)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-[#0F0F0F] text-[#8A8A8E] px-3 py-1.5 text-[12px] font-semibold hover:text-white disabled:opacity-50 transition"
                       >
-                        {busy ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
+                        {busy ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} strokeWidth={1.5} />}
                         Recusar
                       </button>
                     </div>
@@ -457,10 +457,10 @@ const RefundsTable = ({
                 ) : (
                   <td className="px-4 py-4">
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
                         variant === "approved"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-red-50 text-red-700"
+                          ? "bg-emerald-500/10 border border-[#22C55E]/20 text-[#4ADE80]"
+                          : "bg-red-500/10 border border-red-500/20 text-red-300"
                       }`}
                     >
                       {r.status}

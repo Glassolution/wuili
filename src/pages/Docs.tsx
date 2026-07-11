@@ -1,585 +1,227 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
 import {
-  Search, Rocket, Lightbulb, Flame, Sparkles,
-  Wrench, Megaphone, Bug, ArrowRight, Users,
-  BookOpen, Zap, Code2, Package, ChevronRight,
+  Activity,
+  ChevronDown,
+  GalleryHorizontalEnd,
+  Heart,
+  Image,
+  BookOpen,
+  MessageCircle,
+  Search,
+  Send,
+  UserRound,
+  Users,
+  Zap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { VeloLogo } from "@/components/VeloLogo";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type DocGroup = {
-  title: string;
-  items: Array<{ id: string; title: string; content: string }>;
-};
-
-type ChangelogItem = {
-  title: string;
-  date: string;
-  description: string;
-  tag: "Novo" | "Melhorado" | "Correção";
-};
-
-type CommunityPost = {
-  title: string;
-  content: string;
-  date: string;
+type FeedPost = {
+  id: string;
   author: string;
+  time: string;
+  avatar: string;
+  badge?: string;
+  body: string;
+  image?: string;
+  likes: number;
+  comments: number;
 };
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+const posts: FeedPost[] = [
+  {
+    id: "shopkit",
+    author: "Tanishq Gautam",
+    time: "Now",
+    avatar: "https://i.pravatar.cc/96?img=12",
+    badge: "Pro Expert",
+    body: "Hey everyone! 👋\n\nI’ve built ShopKit, a Framer × Shopify plugin, and I’m currently looking for someone interested in acquiring it.\n\nI’d love to continue building and growing it, but due to time constraints, I’m not able to give it the attention it deserves right now. Rather than letting the project sit idle, I’d prefer",
+    likes: 0,
+    comments: 0,
+  },
+  {
+    id: "elara",
+    author: "Divine Samuel",
+    time: "8m",
+    avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=Divine&backgroundColor=c0a96b",
+    body: "Building Lightfall A photography portfolio template Rich imagery, Thoughtful typography.\nStill refining the details, but it's coming together nicely.",
+    image: "/community-elara-voss.png",
+    likes: 0,
+    comments: 0,
+  },
+];
 
-const docGroups: DocGroup[] = [
+const suggestions = [
+  { name: "N!nh™ Studio", handle: "@ninhstudio", avatar: "n2" },
+  { name: "Muhammed Farouk", handle: "@muhammed-farouk", avatar: "https://i.pravatar.cc/80?img=11" },
+  { name: "Andreu", handle: "@andreu", avatar: "https://i.pravatar.cc/80?img=68" },
+  { name: "Mara Furqaan", handle: "@factortheme", avatar: "https://i.pravatar.cc/80?img=53" },
+  { name: "Michael Andreuzza", handle: "@michael-andreuzza", avatar: "https://i.pravatar.cc/80?img=5" },
+];
+
+const navGroups = [
   {
-    title: "Começar",
+    title: "Explore",
     items: [
-      {
-        id: "intro",
-        title: "Introdução à plataforma",
-        content:
-          "A Velo foi criada para acelerar a operação de quem vende online. Em poucos cliques você escolhe produtos, gera criativos com IA e transforma ideias em campanhas.",
-      },
-      {
-        id: "como-funciona",
-        title: "Como funciona",
-        content:
-          "O fluxo é simples: selecione um produto, gere o prompt, refine a mensagem e publique criativos com foco em conversão. Você concentra descoberta, execução e aprendizado em um só lugar.",
-      },
-      {
-        id: "primeiro-video",
-        title: "Primeiro vídeo gerado",
-        content:
-          "Escolha um produto do catálogo, clique em Criar vídeo, gere o prompt e use no RunwayML. Em menos de 5 minutos você sai com um vídeo vertical pronto para testes.",
-      },
+      { label: "Feed", icon: Zap, active: true },
+      { label: "Tutorial", icon: BookOpen },
+      { label: "Activity", icon: Activity },
     ],
   },
   {
-    title: "Guias",
+    title: "Community",
     items: [
-      {
-        id: "videos-ia",
-        title: "Como gerar vídeos com IA",
-        content:
-          "Comece com um gancho forte em até 3 segundos, destaque dor/benefício e finalize com CTA direto. Priorize cenas curtas e texto legível para retenção no feed.",
-      },
-      {
-        id: "produtos-vencedores",
-        title: "Como escolher produtos vencedores",
-        content:
-          "Busque produtos com apelo visual forte, ticket acessível e percepção clara de valor. Itens que mostram transformação tendem a performar melhor em vídeo curto.",
-      },
-      {
-        id: "anuncios-convertem",
-        title: "Como criar anúncios que convertem",
-        content:
-          "Use estrutura: dor → solução → prova → oferta → urgência. Evite texto genérico e use linguagem objetiva com benefício explícito já no início do criativo.",
-      },
-      {
-        id: "tiktok-ads",
-        title: "Estratégias para TikTok Ads",
-        content:
-          "Teste 3 a 5 variações por criativo, com ganchos diferentes e mesma oferta. Escale anúncios com CTR alto e retenção forte nos primeiros segundos.",
-      },
-    ],
-  },
-  {
-    title: "Features",
-    items: [
-      {
-        id: "feature-criar-video",
-        title: "Criar vídeo com IA",
-        content:
-          "A feature de Criar vídeo gera um prompt pronto para execução em ferramentas externas. O objetivo é reduzir tempo de produção e manter consistência de mensagem.",
-      },
-      {
-        id: "feature-gerar-prompt",
-        title: "Gerar prompt",
-        content:
-          "O prompt é contextualizado com título, descrição e preço do produto para gerar um roteiro mais assertivo. Você pode copiar com um clique e reaproveitar em fluxo rápido.",
-      },
-      {
-        id: "feature-integracoes",
-        title: "Integrações (futuro)",
-        content:
-          "Em breve, integrações nativas com TikTok, Shopify e outros canais para publicar criativos e acompanhar performance sem trocar de plataforma.",
-      },
-    ],
-  },
-  {
-    title: "API (futuro)",
-    items: [
-      {
-        id: "api-intro",
-        title: "Introdução à API",
-        content:
-          "A API vai permitir automações de geração, publicação e coleta de dados de performance para operações que precisam de escala programática.",
-      },
-      {
-        id: "api-auth",
-        title: "Autenticação",
-        content:
-          "A autenticação seguirá padrão por token para manter segurança e controle por workspace. A documentação trará exemplos prontos para integração rápida.",
-      },
-      {
-        id: "api-endpoints",
-        title: "Endpoints",
-        content:
-          "Os endpoints incluirão recursos para produtos, prompts, criativos e status de processamento, com convenções simples de paginação e filtros.",
-      },
-      {
-        id: "api-exemplos",
-        title: "Exemplos",
-        content:
-          "Você terá snippets para os fluxos mais usados, com exemplos de request/response para acelerar implementação em backoffice ou app próprio.",
-      },
+      { label: "Marketplace", icon: GalleryHorizontalEnd },
+      { label: "Gallery", icon: Image },
+      { label: "Members", icon: Users },
     ],
   },
 ];
 
-const changelog: ChangelogItem[] = [
-  {
-    title: "Nova geração de vídeos mais rápida",
-    date: "20 abr 2026",
-    description:
-      "Melhoramos o tempo de resposta da geração de prompts para acelerar o workflow criativo.",
-    tag: "Melhorado",
-  },
-  {
-    title: "Hub de Documentação + Comunidade",
-    date: "20 abr 2026",
-    description:
-      "Nova área central com guias, atualizações do produto e feed de conteúdo da comunidade.",
-    tag: "Novo",
-  },
-  {
-    title: "Correção no fluxo de copiar prompt",
-    date: "19 abr 2026",
-    description:
-      "Ajustamos o comportamento do botão Copiar para aparecer apenas após gerar o prompt.",
-    tag: "Correção",
-  },
-];
-
-const communityPosts: CommunityPost[] = [
-  {
-    title: "3 hooks que aumentaram nosso CTR",
-    content:
-      "Testamos criativos com abertura forte em até 2 segundos e tivemos aumento de cliques em campanhas frias. O melhor formato foi dor + resultado rápido.",
-    date: "20 abr 2026",
-    author: "Equipe Velo",
-  },
-  {
-    title: "Checklist para criativos de alta conversão",
-    content:
-      "Antes de subir: gancho claro, benefício visível, prova social e CTA objetivo. Pequenos ajustes no texto em cena mudaram muito o desempenho.",
-    date: "18 abr 2026",
-    author: "Camila, Growth",
-  },
-  {
-    title: "Caso real: de 0 a 27 vendas no teste inicial",
-    content:
-      "Uma loja de nicho fitness usou 5 variações de vídeo com o mesmo produto e encontrou um criativo vencedor em 48h, mantendo CPA saudável.",
-    date: "16 abr 2026",
-    author: "Rafael, Comunidade",
-  },
-];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const tagStyle: Record<ChangelogItem["tag"], string> = {
-  Novo: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  Melhorado: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  Correção: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-};
-
-const groupIcon: Record<string, React.ReactNode> = {
-  "Começar": <Flame size={18} className="text-orange-400" />,
-  "Guias":   <Lightbulb size={18} className="text-yellow-400" />,
-  "Features": <Zap size={18} className="text-violet-400" />,
-  "API (futuro)": <Code2 size={18} className="text-sky-400" />,
-};
-
-type Tab = "docs" | "guias" | "updates" | "community";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "docs",      label: "Documentação" },
-  { id: "guias",     label: "Guias" },
-  { id: "updates",   label: "Atualizações" },
-  { id: "community", label: "Comunidade" },
-];
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export default function Docs() {
-  const [activeTab, setActiveTab] = useState<Tab>("docs");
-  const [search, setSearch] = useState("");
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-
-  // For docs tab: filter all items across groups
-  const allDocItems = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return docGroups;
-    return docGroups
-      .map((g) => ({
-        ...g,
-        items: g.items.filter((i) => i.title.toLowerCase().includes(term) || i.content.toLowerCase().includes(term)),
-      }))
-      .filter((g) => g.items.length > 0);
-  }, [search]);
-
-  const selectedDoc = useMemo(() => {
-    if (!selectedDocId) return null;
-    for (const g of docGroups) {
-      const found = g.items.find((i) => i.id === selectedDocId);
-      if (found) return found;
-    }
-    return null;
-  }, [selectedDocId]);
-
-  // Guide items (merged)
-  const guideGroup = docGroups.find((g) => g.title === "Guias");
-
+function Sidebar() {
   return (
-    <div className="min-h-screen bg-[#F7F7F7] font-['Inter',system-ui,sans-serif] text-[#0A0A0A]">
+    <aside className="sticky top-0 hidden h-screen w-[368px] shrink-0 border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:block">
+      <button className="flex h-[54px] w-full items-center gap-3 text-left">
+        <span className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]">
+          <UserRound className="h-[19px] w-[19px]" strokeWidth={1.6} />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[17px] font-semibold text-[#f2f2f3]">Felipe Xavier</span>
+        <ChevronDown className="h-4 w-4 text-[#8b8b90]" />
+      </button>
 
-      {/* ── Navbar ──────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0A0A0A]">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-4 md:px-8">
-          <Link to="/" className="flex items-center">
-            <VeloLogo size="md" variant="light" />
-          </Link>
+      <div className="mt-1 border-t border-white/[0.08] pt-[14px]">
+        <label className="relative block">
+          <Search className="absolute left-[15px] top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#aaaab0]" />
+          <input disabled placeholder="Search..." className="h-[43px] w-full rounded-[9px] border-0 bg-[#242425] pl-[46px] pr-3 text-[16px] text-white outline-none placeholder:text-[#8d8d92]" />
+        </label>
+      </div>
 
-          {/* Horizontal section tabs */}
-          <nav className="hidden items-center gap-1 md:flex">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setSelectedDocId(null); }}
-                className={cn(
-                  "rounded-lg px-4 py-2 text-[13px] font-medium transition-all",
-                  activeTab === tab.id
-                    ? "bg-white/10 text-white"
-                    : "text-white/50 hover:bg-white/5 hover:text-white/80"
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+      <nav className="mt-[14px] border-t border-white/[0.08] pt-[20px]">
+        {navGroups.map((group, groupIndex) => (
+          <section key={group.title} className={groupIndex ? "mt-[29px] border-t border-white/[0.08] pt-[22px]" : ""}>
+            <h2 className="mb-[12px] px-[7px] text-[16px] font-semibold text-white">{group.title}</h2>
+            <div className="space-y-[4px]">
+              {group.items.map(({ label, icon: Icon, active }) => (
+                <button key={label} className={`flex h-[43px] w-full items-center gap-[14px] rounded-[9px] px-[13px] text-[16px] font-medium transition ${active ? "bg-[#272728] text-white" : "text-[#89898f] hover:bg-white/[0.04] hover:text-white"}`}>
+                  <Icon className="h-[18px] w-[18px]" strokeWidth={1.7} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+      </nav>
+    </aside>
+  );
+}
 
-          <div className="flex items-center gap-3">
-            <Link
-              to="/login"
-              className="hidden text-[13px] font-medium text-white/50 transition hover:text-white md:inline-flex"
-            >
-              Entrar
-            </Link>
-            <Link
-              to="/auth"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-[#0A0A0A] transition hover:bg-white/90"
-            >
-              Criar conta
-            </Link>
-          </div>
-        </div>
+function Post({ post }: { post: FeedPost }) {
+  const [liked, setLiked] = useState(false);
+  return (
+    <article className="border-b border-white/[0.08] py-[24px]">
+      <div className="flex gap-[18px]">
+        <img src={post.avatar} alt="" className="h-[42px] w-[42px] shrink-0 rounded-[10px] border border-white/10 bg-[#29292b] object-cover" />
+        <div className="min-w-0 flex-1">
+          <header className="flex flex-wrap items-center gap-[8px]">
+            <strong className="text-[17px] font-semibold leading-none text-white">{post.author}</strong>
+            {post.badge && <span className="rounded-[6px] border border-white/10 bg-[#202021] px-[8px] py-[3px] text-[13px] font-medium text-[#929298]">{post.badge}</span>}
+            <span className="text-[16px] font-medium text-[#67676c]">{post.time}</span>
+          </header>
+          <p className="mt-[12px] whitespace-pre-line text-[17px] font-medium leading-[1.58] text-[#c8c8cb]">{post.body}</p>
+          {post.id === "shopkit" && <button className="mt-[2px] text-[17px] font-medium text-[#626267]">Read more</button>}
 
-        {/* Mobile tabs */}
-        <div className="flex gap-1 overflow-x-auto px-4 pb-3 md:hidden">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setSelectedDocId(null); }}
-              className={cn(
-                "shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-                activeTab === tab.id
-                  ? "bg-white/15 text-white"
-                  : "text-white/40 hover:text-white/70"
-              )}
-            >
-              {tab.label}
+          {post.image && (
+            <div className="relative mt-[20px] aspect-[1.57/1] overflow-hidden rounded-[15px] border border-white/10">
+              <img src={post.image} alt="Elara Voss wedding portfolio" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10" />
+              <div className="absolute left-[24px] right-[24px] top-[18px] flex items-center justify-between text-[11px] font-semibold text-white">
+                <span>ELARA VOSS</span>
+                <span className="flex gap-4 text-[9px] font-medium"><span>Portfolio</span><span>About</span><span>Services</span><span>Gallery</span><span>Contact</span></span>
+              </div>
+              <p className="absolute bottom-[37%] left-[35px] max-w-[340px] text-[9px] leading-[1.35] text-white">Elara Voss is a New York-based photographer/videographer composing cinematic imagery for weddings, fashion houses, and the world’s most considered hotels.</p>
+              <div className="absolute bottom-[35px] left-[28px] right-[28px] flex items-end justify-between">
+                <span className="text-[76px] font-semibold leading-[0.82] tracking-[-0.07em] text-white">ELARA VOSS</span>
+              </div>
+              <div className="absolute bottom-[13px] left-[34px] right-[34px] flex justify-between text-[8px] font-medium text-white"><span>Photography</span><span>Videography</span><span>10+ Years</span><span>New York&nbsp;&nbsp;17:09:04</span></div>
+            </div>
+          )}
+
+          <div className="mt-[19px] flex items-center gap-[25px]">
+            <button onClick={() => setLiked((value) => !value)} aria-label="Curtir" className="text-[#85858a] transition hover:text-white">
+              <Heart className={`h-[21px] w-[21px] ${liked ? "fill-white text-white" : ""}`} strokeWidth={1.7} />
             </button>
-          ))}
+            <button aria-label="Comentar" className="text-[#85858a] transition hover:text-white"><MessageCircle className="h-[21px] w-[21px]" strokeWidth={1.7} /></button>
+          </div>
         </div>
-      </header>
+      </div>
+    </article>
+  );
+}
 
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <section className="bg-[#0A0A0A] px-6 pb-16 pt-14 text-center md:px-8 md:pb-20 md:pt-20">
-        <div className="mx-auto max-w-[720px]">
-          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/40">
-            <BookOpen size={10} />
-            Central de ajuda
-          </span>
-          <h1 className="mt-3 text-4xl font-black leading-tight tracking-tight text-white md:text-5xl">
-            Como podemos<br />te ajudar?
-          </h1>
-          <p className="mx-auto mt-4 max-w-md text-[15px] leading-7 text-white/50">
-            Encontre guias, tutoriais e tudo que você precisa para usar a Velo com confiança.
-          </p>
-
-          {/* Search */}
-          <div className="relative mx-auto mt-8 max-w-md">
-            <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
-            <input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setSelectedDocId(null); if (e.target.value) setActiveTab("docs"); }}
-              placeholder="Buscar na documentação..."
-              className="w-full rounded-2xl border border-white/10 bg-white/5 py-3.5 pl-11 pr-4 text-[14px] text-white placeholder:text-white/30 outline-none transition focus:border-white/20 focus:bg-white/8"
-            />
-          </div>
-
-          {/* Quick links */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-            {["Primeiro vídeo", "Criar anúncio", "Integrações", "TikTok Ads"].map((label) => (
-              <button
-                key={label}
-                onClick={() => { setSearch(label); setActiveTab("docs"); setSelectedDocId(null); }}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] text-white/50 transition hover:border-white/20 hover:text-white/80"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+function RightRail() {
+  return (
+    <aside className="sticky top-0 hidden h-screen w-[428px] shrink-0 overflow-y-auto bg-[#0d0d0e] pb-10 pt-[87px] xl:block">
+      <section className="rounded-[27px] border border-white/[0.08] bg-[#19191a] p-[21px]">
+        <h2 className="text-[17px] font-semibold text-white">Welcome back</h2>
+        <p className="mt-[12px] text-[16px] font-medium leading-[1.5] text-[#9b9ba1]">Know someone who’d love this community?<br />Share your invite link and get them in.</p>
+        <div className="mt-[20px] grid grid-cols-2 gap-[12px]">
+          <button className="h-[43px] rounded-[10px] bg-[#159ff2] text-[16px] font-semibold text-white">Copy Invite</button>
+          <button className="h-[43px] rounded-[10px] bg-[#272728] text-[16px] font-semibold text-white">Open Framer</button>
         </div>
       </section>
 
-      {/* ── Content ─────────────────────────────────────────────────────────── */}
-      <main className="mx-auto max-w-[1200px] px-6 py-12 md:px-8">
-
-        {/* ── DOCS tab ──────────────────────────────────────────────────────── */}
-        {activeTab === "docs" && !selectedDocId && (
-          <div>
-            {(search.trim() ? allDocItems : docGroups).map((group) => (
-              <section key={group.title} className="mb-12">
-                <div className="mb-5 flex items-center gap-2">
-                  {groupIcon[group.title] ?? <Package size={18} className="text-[#A3A3A3]" />}
-                  <h2 className="text-[17px] font-bold text-[#0A0A0A]">{group.title}</h2>
-                  <span className="ml-1 rounded-full bg-[#E5E5E5] px-2 py-0.5 text-[11px] font-semibold text-[#737373]">
-                    {group.items.length}
-                  </span>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {group.items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => setSelectedDocId(item.id)}
-                      className="group rounded-2xl border border-[#E5E5E5] bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-[#D4D4D4] hover:shadow-md"
-                    >
-                      <p className="font-semibold text-[#0A0A0A] text-[14px] leading-snug">{item.title}</p>
-                      <p className="mt-2 line-clamp-2 text-[13px] leading-5 text-[#737373]">{item.content}</p>
-                      <span className="mt-4 flex items-center gap-1 text-[12px] font-semibold text-[#0A0A0A] opacity-0 transition-all group-hover:opacity-100">
-                        Ler mais <ArrowRight size={11} />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
-
-            {allDocItems.length === 0 && (
-              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#E5E5E5] bg-white py-16 text-center">
-                <Search size={22} className="text-[#A3A3A3]" />
-                <p className="text-[15px] font-semibold text-[#0A0A0A]">Nenhum resultado encontrado</p>
-                <p className="text-[13px] text-[#737373]">Tente outros termos de busca.</p>
+      <section className="mt-[21px] rounded-[27px] border border-white/[0.08] bg-[#19191a] p-[21px]">
+        <h2 className="text-[17px] font-semibold text-white">Suggested for you</h2>
+        <div className="mt-[20px] space-y-[13px]">
+          {suggestions.map((person) => (
+            <div key={person.handle} className="flex items-center gap-[13px]">
+              {person.avatar.startsWith("http") ? <img src={person.avatar} alt="" className="h-[42px] w-[42px] shrink-0 rounded-[10px] object-cover" /> : <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px] bg-[#29292b] text-[12px] font-bold text-white">{person.avatar}</span>}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[16px] font-semibold leading-none text-white">{person.name}</p>
+                <p className="mt-[5px] truncate text-[15px] font-medium text-[#9a9aa0]">{person.handle}</p>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* ── DOCS: article detail ──────────────────────────────────────────── */}
-        {activeTab === "docs" && selectedDocId && selectedDoc && (
-          <div className="mx-auto max-w-2xl">
-            <button
-              onClick={() => setSelectedDocId(null)}
-              className="mb-6 flex items-center gap-1.5 text-[13px] text-[#737373] transition hover:text-[#0A0A0A]"
-            >
-              ← Voltar
-            </button>
-            <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8">
-              <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-[#A3A3A3]">
-                <Sparkles size={11} />
-                Documentação
-              </div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-[#0A0A0A]">{selectedDoc.title}</h2>
-              <p className="mt-4 text-[15px] leading-7 text-[#525252]">{selectedDoc.content}</p>
-              <div className="mt-6 rounded-xl border border-[#E5E5E5] bg-[#F7F7F7] p-4 font-mono text-[12px] text-[#737373]">
-                💡 Dica rápida: combine 3 variações de gancho + 1 CTA claro para encontrar o criativo vencedor mais cedo.
-              </div>
+              <button className="h-[42px] rounded-[10px] bg-[#272728] px-[16px] text-[15px] font-semibold text-white">Follow</button>
             </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5">
-                <p className="text-[14px] font-semibold text-[#0A0A0A]">Próximo passo</p>
-                <p className="mt-1.5 text-[13px] text-[#737373]">Aplique este conteúdo e teste pelo menos 3 variações no seu fluxo.</p>
-                <Link to="/auth" className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0A0A0A] hover:opacity-70 transition">
-                  Criar minha loja <ArrowRight size={12} />
-                </Link>
-              </div>
-              <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5">
-                <p className="text-[14px] font-semibold text-[#0A0A0A]">Boas práticas</p>
-                <p className="mt-1.5 text-[13px] text-[#737373]">Use linguagem direta, benefício concreto e prova visual nos primeiros segundos.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── GUIAS tab ─────────────────────────────────────────────────────── */}
-        {activeTab === "guias" && (
-          <div>
-            <div className="mb-8">
-              <h2 className="text-2xl font-extrabold text-[#0A0A0A]">Guias práticos</h2>
-              <p className="mt-2 text-[14px] text-[#737373]">Passo a passo para dominar cada etapa da sua operação.</p>
-            </div>
-
-            {/* Featured card */}
-            <div className="mb-6 rounded-2xl border border-[#E5E5E5] bg-[#0A0A0A] p-6 text-white sm:p-8">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/60">
-                <Flame size={10} /> Em destaque
-              </span>
-              <h3 className="mt-3 text-xl font-extrabold">Como gerar vídeos que vendem</h3>
-              <p className="mt-2 max-w-lg text-[14px] leading-6 text-white/60">
-                Do gancho aos primeiros segundos: aprenda a estrutura completa de um criativo de alta conversão para TikTok e Instagram Reels.
-              </p>
-              <button
-                onClick={() => { setSelectedDocId("videos-ia"); setActiveTab("docs"); }}
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[13px] font-semibold text-[#0A0A0A] transition hover:bg-white/90"
-              >
-                Ler guia <ArrowRight size={13} />
-              </button>
-            </div>
-
-            {/* Guide grid */}
-            {guideGroup && (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {guideGroup.items.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => { setSelectedDocId(item.id); setActiveTab("docs"); }}
-                    className="group flex items-start gap-4 rounded-2xl border border-[#E5E5E5] bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-[#D4D4D4] hover:shadow-md"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F0F0F0]">
-                      <Lightbulb size={16} className="text-[#525252]" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-[14px] text-[#0A0A0A]">{item.title}</p>
-                      <p className="mt-1 line-clamp-2 text-[13px] text-[#737373]">{item.content}</p>
-                    </div>
-                    <ChevronRight size={15} className="mt-0.5 shrink-0 text-[#C0C0C0] transition group-hover:text-[#0A0A0A]" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── UPDATES tab ───────────────────────────────────────────────────── */}
-        {activeTab === "updates" && (
-          <div>
-            <div className="mb-8">
-              <h2 className="text-2xl font-extrabold text-[#0A0A0A]">Atualizações</h2>
-              <p className="mt-2 text-[14px] text-[#737373]">Novidades, melhorias e correções da plataforma.</p>
-            </div>
-
-            <div className="space-y-4">
-              {changelog.map((item, i) => (
-                <div
-                  key={`${item.title}-${i}`}
-                  className="flex gap-5 rounded-2xl border border-[#E5E5E5] bg-white p-6"
-                >
-                  {/* Icon */}
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#E5E5E5] bg-[#F7F7F7]">
-                    {item.tag === "Novo"
-                      ? <Sparkles size={16} className="text-emerald-500" />
-                      : item.tag === "Melhorado"
-                      ? <Wrench size={16} className="text-blue-500" />
-                      : <Bug size={16} className="text-amber-500" />}
-                  </span>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-[15px] font-bold text-[#0A0A0A]">{item.title}</h3>
-                      <span className={cn(
-                        "rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                        tagStyle[item.tag]
-                      )}>
-                        {item.tag}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[13px] text-[#A3A3A3]">{item.date}</p>
-                    <p className="mt-2 text-[14px] leading-6 text-[#525252]">{item.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── COMMUNITY tab ─────────────────────────────────────────────────── */}
-        {activeTab === "community" && (
-          <div>
-            <div className="mb-8 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-extrabold text-[#0A0A0A]">Comunidade</h2>
-                <p className="mt-2 text-[14px] text-[#737373]">Dicas, estratégias e casos reais de quem usa a Velo.</p>
-              </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#E5E5E5] bg-white px-3 py-1.5 text-[12px] font-medium text-[#525252]">
-                <Users size={13} />
-                Feed da comunidade
-              </span>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {communityPosts.map((post, i) => (
-                <article
-                  key={`${post.title}-${i}`}
-                  className="flex flex-col rounded-2xl border border-[#E5E5E5] bg-white p-6 transition hover:-translate-y-0.5 hover:border-[#D4D4D4] hover:shadow-md"
-                >
-                  <div className="flex items-center gap-2 text-[12px] text-[#A3A3A3]">
-                    <span className="flex items-center gap-1">
-                      <Megaphone size={11} /> {post.author}
-                    </span>
-                    <span>·</span>
-                    <span>{post.date}</span>
-                  </div>
-                  <h3 className="mt-3 text-[15px] font-bold text-[#0A0A0A] leading-snug">{post.title}</h3>
-                  <p className="mt-2 flex-1 text-[13px] leading-5 text-[#525252]">{post.content}</p>
-                </article>
-              ))}
-            </div>
-
-            {/* CTA */}
-            <div className="mt-8 rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F0F0F0]">
-                <Rocket size={20} className="text-[#525252]" />
-              </div>
-              <h3 className="mt-4 text-[17px] font-extrabold text-[#0A0A0A]">Faça parte da comunidade</h3>
-              <p className="mt-2 text-[14px] text-[#737373]">Compartilhe resultados, aprenda com outros vendedores e cresça junto.</p>
-              <Link
-                to="/auth"
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#0A0A0A] px-6 py-3 text-[13px] font-semibold text-white transition hover:bg-[#1a1a1a]"
-              >
-                Criar workspace gratuito <ArrowRight size={13} />
-              </Link>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* ── Footer ──────────────────────────────────────────────────────────── */}
-      <footer className="border-t border-[#E5E5E5] bg-white py-8">
-        <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-4 px-6 text-[13px] text-[#A3A3A3] sm:flex-row md:px-8">
-          <Link to="/" className="flex items-center">
-            <VeloLogo size="sm" variant="dark" />
-          </Link>
-          <p>© 2026 Velo. Todos os direitos reservados.</p>
-          <div className="flex gap-5">
-            <Link to="/" className="transition hover:text-[#0A0A0A]">Produto</Link>
-            <Link to="/login" className="transition hover:text-[#0A0A0A]">Login</Link>
-            <Link to="/auth" className="transition hover:text-[#0A0A0A]">Cadastro</Link>
-          </div>
+          ))}
         </div>
-      </footer>
+      </section>
+    </aside>
+  );
+}
+
+export default function Docs() {
+  return (
+    <div
+      className="min-h-screen overflow-x-hidden bg-[#0d0d0e] font-['Inter_Variable','Inter',ui-sans-serif,system-ui,sans-serif] text-white"
+      style={{
+        zoom: 0.71,
+      }}
+    >
+      <div className="mx-auto flex min-h-screen max-w-[2048px]">
+        <Sidebar />
+        <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e] xl:w-[1040px] xl:flex-none">
+          <header className="sticky top-0 z-30 flex h-[66px] w-[calc(140.845071vw-368px)] items-center justify-between border-b border-white/[0.08] bg-[#0d0d0e]/95 px-[14px] backdrop-blur">
+            <div className="flex items-center gap-[18px]">
+              <button className="rounded-[9px] bg-[#28282a] px-[16px] py-[11px] text-[16px] font-semibold">For You</button>
+              <button className="py-[11px] text-[16px] font-medium text-[#737378]">Following</button>
+            </div>
+            <button className="rounded-[10px] bg-[#159ff2] px-[19px] py-[11px] text-[16px] font-semibold">Post</button>
+          </header>
+
+          <div className="pb-[20px] pl-[158px] pr-[28px] pt-[20px]">
+            <div className="flex items-center gap-[20px]">
+              <span className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] border border-white/10 bg-[#29292b] text-[#9b9ba0]"><UserRound className="h-[20px] w-[20px]" /></span>
+              <div className="h-[42px] flex-1 border-b border-white/[0.08] text-[16px] font-medium leading-[42px] text-[#626267]">Share something...</div>
+            </div>
+          </div>
+
+          <div className="relative ml-[158px] mr-[28px]">
+            <button className="absolute left-1/2 top-[23px] z-20 flex -translate-x-1/2 items-center gap-2 rounded-[11px] border border-white/20 bg-[#252526] px-[15px] py-[10px] text-[15px] font-semibold shadow-xl"><Send className="h-4 w-4 -rotate-45" /> 4 new posts</button>
+            {posts.map((post) => <Post key={post.id} post={post} />)}
+          </div>
+        </main>
+        <div className="hidden w-[56px] shrink-0 xl:block" />
+        <RightRail />
+        <div className="hidden w-[20px] shrink-0 xl:block" />
+      </div>
     </div>
   );
 }

@@ -7,22 +7,32 @@ type AdminShellProps = {
   active: AdminSection;
   userId: string;
   children: ReactNode;
+  fullBleed?: boolean;
 };
 
 const toActiveSub = (active: AdminSection): AdminSubKey | undefined =>
-  active === "dashboard" ? "overview" : undefined;
+  active === "dashboard" ? "reports" : undefined;
 
-export const AdminShell = ({ active, children }: AdminShellProps) => (
+export const AdminShell = ({ active, children, fullBleed = false }: AdminShellProps) => (
   <div
-    className="h-screen overflow-hidden bg-[#0F0F0F] text-white"
+    className="h-screen overflow-hidden bg-[#121214] text-[#F4F4F5]"
     style={{
-      fontFamily:
-        '"Hanken Grotesk", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      fontFamily: '"Geist Sans", "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif',
     }}
   >
     <div className="flex h-full overflow-hidden">
       <AdminNewSidebar activeSub={toActiveSub(active)} />
-      <main className="h-full min-w-0 flex-1 overflow-y-auto bg-[#f5f5f4] text-[#111111]">{children}</main>
+      <main className="h-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#121214]">
+        {fullBleed ? (
+          children
+        ) : (
+          <div className="min-h-full p-4 sm:p-5">
+            <div className="min-h-[calc(100vh-40px)] rounded-2xl border border-white/[0.08] bg-[#0E0E10] p-5 sm:p-6">
+              {children}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   </div>
 );

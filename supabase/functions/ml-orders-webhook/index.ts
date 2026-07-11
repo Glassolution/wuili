@@ -324,7 +324,19 @@ Deno.serve(async (req) => {
       supplierUrl = legacyProductUrl;
     }
 
-    const salePrice = Number(mlOrder.total_amount ?? item?.unit_price ?? 0);
+    const parsedQuantity = Number(item?.quantity ?? 1);
+    const quantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
+    const itemUnitPrice = Number(item?.unit_price ?? 0);
+    const mlTotalAmount = Number(mlOrder.total_amount ?? 0);
+    const fallbackTotalAmount = Number.isFinite(itemUnitPrice) && itemUnitPrice > 0
+      ? itemUnitPrice * quantity
+      : 0;
+    const totalAmount = Number.isFinite(mlTotalAmount) && mlTotalAmount > 0
+      ? mlTotalAmount
+      : fallbackTotalAmount;
+    const salePrice = Number.isFinite(itemUnitPrice) && itemUnitPrice > 0
+      ? itemUnitPrice
+      : totalAmount / quantity;
     const profit    = costPrice !== null ? salePrice - costPrice : null;
     let orderStatus = "paid";
     let fulfillmentStatus = legacyVariantId ? "manual_review" : "no_supplier_metadata";
@@ -353,10 +365,10 @@ Deno.serve(async (req) => {
         buyer_zip:           buyerZip        || null,
         buyer_phone:         buyerPhone      || null,
         sale_price:          salePrice,
-        total_amount:        Number(mlOrder.total_amount ?? salePrice),
+        total_amount:        totalAmount,
         cost_price:          costPrice,
         profit,
-        quantity:            item?.quantity ?? 1,
+        quantity,
         catalog_product_id:  catalogProductId,
         supplier_url:        supplierUrl,
         cj_product_id:       legacyProductId,
