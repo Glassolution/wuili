@@ -169,6 +169,52 @@ Deno.serve(async (req) => {
 
     const subStatus = mpData.status === "approved" ? (isTrial ? "trialing" : "active") : "pending";
 
+    // Se foi trial pago com cartão aprovado, salvar cliente + cartão no Mercado Pago
+    // para permitir a cobrança automática do plano Pro no dia 5 (via mp-charge-trial).
+    let savedCustomerId: string | null = null;
+    let savedCardId: string | null = null;
+    if (isTrial && payment_method === "credit_card" && mpData.status === "approved") {
+      try {
+        const searchResp = await fetch(
+          `https://api.mercadopago.com/v1/customers/search?email=${encodeURIComponent(userEmail)}`,
+          { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } },
+        );
+        const searchData = await searchResp.json();
+        savedCustomerId = searchData?.results?.[0]?.id ?? null;
+        if (!savedCustomerId) {
+          const createResp = await fetch("https://api.mercadopago.com/v1/customers", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email: userEmail }),
+          });
+          const createData = await createResp.json();
+          savedCustomerId = createData?.id ?? null;
+        }
+        if (savedCustomerId && mpData.card?.id) {
+          savedCardId = String(mpData.card.id);
+        } else if (savedCustomerId && body?.card_token) {
+          const cardResp = await fetch(
+            `https://api.mercadopago.com/v1/customers/${savedCustomerId}/cards`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ token: body.card_token }),
+            },
+          );
+          const cardData = await cardResp.json();
+          savedCardId = cardData?.id ? String(cardData.id) : null;
+        }
+      } catch (e) {
+        console.error("Falha ao salvar cartão MP para trial:", e);
+      }
+    }
+
     await adminClient.from("subscriptions").upsert({
       user_id: userId,
       plan: plan,
@@ -180,12 +226,14 @@ Deno.serve(async (req) => {
       current_period_end: periodEnd.toISOString(),
       is_trial: isTrial,
       trial_ends_at: isTrial ? periodEnd.toISOString() : null,
-      // No dia 5, um job/cron deve iniciar a cobrança recorrente de basePlan.amount
-      // ancorado em next_charge_at. MP preapproval nativo não permite trial pago
-      // com valor diferente do recorrente, por isso agendamos aqui.
       next_charge_amount: isTrial ? basePlan.amount : null,
       next_charge_at: isTrial ? periodEnd.toISOString() : null,
       post_trial_plan: isTrial ? plan : null,
+      mp_customer_id: savedCustomerId,
+      mp_card_id: savedCardId,
+      charge_attempts: 0,
+      last_charge_attempt_at: null,
+      last_dunning_email_at: null,
       updated_at: now.toISOString(),
     }, { onConflict: "user_id" });
 
