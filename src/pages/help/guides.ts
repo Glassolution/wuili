@@ -30,9 +30,12 @@ export type GuideItem = {
 export type GuideSection = {
   key: "anuncios" | "publicacao" | "pagamentos" | "conta";
   label: string;
+  headline?: string;
   intro: string;
+  quickTopics?: string[];
   items: GuideItem[];
 };
+
 
 export const guideSections: GuideSection[] = [
   {
