@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
+  BadgeCheck,
   BookOpen,
   ChevronDown,
   GalleryHorizontalEnd,
   Heart,
   Image as ImageIcon,
   MessageCircle,
+  MoreHorizontal,
+  Pencil,
   Search,
   Send,
+  Trash2,
   UserRound,
   Users,
   X,
@@ -137,6 +141,8 @@ function CommentsSection({
   canPost,
   loadComments,
   addComment,
+  updatePost,
+  deletePost,
 }: {
   post: HelpFeedPost;
   canPost: boolean;
@@ -238,6 +244,8 @@ function Post({
   onLike,
   loadComments,
   addComment,
+  updatePost,
+  deletePost,
 }: {
   post: HelpFeedPost;
   canInteract: boolean;
@@ -245,8 +253,41 @@ function Post({
   onLike: (id: string) => void;
   loadComments: (postId: string) => Promise<HelpFeedComment[]>;
   addComment: (postId: string, content: string) => Promise<void>;
+  updatePost: (postId: string, content: string) => Promise<void>;
+  deletePost: (postId: string) => Promise<void>;
 }) {
   const [showComments, setShowComments] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState(post.content);
+  const [saving, setSaving] = useState(false);
+
+  const saveEdit = async () => {
+    if (!editDraft.trim() || saving) return;
+    setSaving(true);
+    try {
+      await updatePost(post.id, editDraft);
+      setEditing(false);
+      setShowAdminMenu(false);
+      toast.success("Publicação atualizada.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao editar publicação");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removePost = async () => {
+    setSaving(true);
+    try {
+      await deletePost(post.id);
+      toast.success("Publicação excluída.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir publicação");
+      setSaving(false);
+    }
+  };
 
   return (
     <article className="border-b border-white/[0.08] py-[24px]">
@@ -261,16 +302,78 @@ function Post({
           )}
         </span>
         <div className="min-w-0 flex-1">
-          <header className="flex flex-wrap items-center gap-[8px]">
+          <header className="relative flex flex-wrap items-center gap-[8px]">
             <strong className="text-[17px] font-semibold leading-none text-white">{post.author_name}</strong>
-            {isAdmin && post.author_id === post.author_id && (
-              <span className="rounded-[6px] border border-white/10 bg-[#202021] px-[8px] py-[3px] text-[13px] font-medium text-[#929298]">
-                Velo
-              </span>
-            )}
+            <BadgeCheck className="h-[19px] w-[19px] fill-white text-[#0d0d0e]" strokeWidth={2.2} aria-label="Conta verificada" />
             <span className="text-[16px] font-medium text-[#67676c]">{timeAgo(post.created_at)}</span>
+            {isAdmin && (
+              <div className="relative ml-auto">
+                <button
+                  onClick={() => setShowAdminMenu((value) => !value)}
+                  aria-label="Opções da publicação"
+                  className="flex h-[30px] w-[30px] items-center justify-center rounded-full text-[#85858a] transition hover:bg-white/[0.06] hover:text-white"
+                >
+                  <MoreHorizontal className="h-[19px] w-[19px]" />
+                </button>
+                {showAdminMenu && (
+                  <div className="absolute right-0 top-[34px] z-30 w-[150px] overflow-hidden rounded-[10px] border border-white/10 bg-[#202021] p-[5px] shadow-2xl">
+                    {confirmingDelete ? (
+                      <div className="p-[7px]">
+                        <p className="text-[12px] font-medium leading-[1.35] text-white">Excluir esta publicação?</p>
+                        <p className="mt-[3px] text-[11px] leading-[1.35] text-[#929298]">Esta ação não pode ser desfeita.</p>
+                        <div className="mt-[9px] flex gap-[6px]">
+                          <button
+                            onClick={() => setConfirmingDelete(false)}
+                            disabled={saving}
+                            className="flex-1 rounded-[6px] bg-white/[0.06] px-[7px] py-[6px] text-[11px] font-semibold text-white disabled:opacity-50"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={removePost}
+                            disabled={saving}
+                            className="flex-1 rounded-[6px] bg-red-500 px-[7px] py-[6px] text-[11px] font-semibold text-white disabled:opacity-50"
+                          >
+                            {saving ? "Excluindo…" : "Excluir"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => { setEditing(true); setShowAdminMenu(false); }}
+                          className="flex w-full items-center gap-[9px] rounded-[7px] px-[10px] py-[8px] text-left text-[14px] font-medium text-white hover:bg-white/[0.06]"
+                        >
+                          <Pencil className="h-[15px] w-[15px]" /> Editar
+                        </button>
+                        <button
+                          onClick={() => setConfirmingDelete(true)}
+                          disabled={saving}
+                          className="flex w-full items-center gap-[9px] rounded-[7px] px-[10px] py-[8px] text-left text-[14px] font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-[15px] w-[15px]" /> Excluir
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </header>
-          {post.content && (
+          {editing ? (
+            <div className="mt-[12px]">
+              <textarea
+                value={editDraft}
+                maxLength={2000}
+                onChange={(event) => setEditDraft(event.target.value)}
+                className="min-h-[96px] w-full resize-y rounded-[10px] border border-white/10 bg-[#1b1b1d] px-[13px] py-[11px] text-[16px] leading-[1.5] text-white outline-none focus:border-white/20"
+              />
+              <div className="mt-[9px] flex justify-end gap-[8px]">
+                <button onClick={() => { setEditing(false); setEditDraft(post.content); }} className="rounded-[8px] bg-[#272728] px-[13px] py-[8px] text-[14px] font-semibold text-white">Cancelar</button>
+                <button onClick={saveEdit} disabled={saving || !editDraft.trim()} className="rounded-[8px] bg-[#159ff2] px-[13px] py-[8px] text-[14px] font-semibold text-white disabled:opacity-50">{saving ? "Salvando…" : "Salvar"}</button>
+              </div>
+            </div>
+          ) : post.content && (
             <p className="mt-[12px] whitespace-pre-line text-[17px] font-medium leading-[1.58] text-[#c8c8cb]">
               {post.content}
             </p>
@@ -559,19 +662,28 @@ export default function Docs() {
     loadComments,
     addComment,
     createPost,
+    updatePost,
+    deletePost,
     createTutorial,
   } = useHelpFeed();
   const [tab, setTab] = useState<TabKey>("feed");
 
   const canInteract = useMemo(() => Boolean(user), [user]);
+  const accountName = useMemo(() => {
+    if (nome && nome !== "Usuario") return nome;
+    const metadataName = user?.user_metadata?.full_name || user?.user_metadata?.name;
+    if (typeof metadataName === "string" && metadataName.trim()) return metadataName.trim();
+    return user?.email?.split("@")[0] || "Usuario";
+  }, [nome, user]);
+  const accountAvatar = foto || (typeof user?.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null);
 
   return (
     <div
       className="min-h-screen overflow-x-hidden bg-[#0d0d0e] font-['Inter_Variable','Inter',ui-sans-serif,system-ui,sans-serif] text-white"
-      style={{ zoom: 0.71 }}
+      style={{ zoom: 0.71, minHeight: "140.845071vh" }}
     >
       <div className="mx-auto flex min-h-screen max-w-[2048px]">
-        <Sidebar tab={tab} onTab={setTab} displayName={nome} avatar={foto} />
+        <Sidebar tab={tab} onTab={setTab} displayName={accountName} avatar={accountAvatar} />
         <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e] xl:w-[1040px] xl:flex-none">
           <header className="sticky top-0 z-30 flex h-[66px] w-[calc(140.845071vw-368px)] items-center justify-between border-b border-white/[0.08] bg-[#0d0d0e]/95 px-[14px] backdrop-blur">
             <div className="flex items-center gap-[18px]">
@@ -622,6 +734,8 @@ export default function Docs() {
                       onLike={toggleLike}
                       loadComments={loadComments}
                       addComment={addComment}
+                      updatePost={updatePost}
+                      deletePost={deletePost}
                     />
                   ))
                 )}

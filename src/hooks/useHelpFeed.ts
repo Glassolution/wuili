@@ -298,6 +298,39 @@ export function useHelpFeed() {
     [isAdmin, loadFeed, user]
   );
 
+  const updatePost = useCallback(
+    async (postId: string, content: string) => {
+      if (!isAdmin) throw new Error("Apenas administradores podem editar publicações.");
+      const cleanContent = content.trim().slice(0, 2000);
+      if (!cleanContent) throw new Error("A publicação não pode ficar em branco.");
+      const { error: updateErr } = await sb
+        .from("help_feed_posts")
+        .update({ content: cleanContent })
+        .eq("id", postId);
+      if (updateErr) throw new Error(`Falha ao editar: ${updateErr.message}`);
+      await loadFeed();
+    },
+    [isAdmin, loadFeed]
+  );
+
+  const deletePost = useCallback(
+    async (postId: string) => {
+      if (!isAdmin) throw new Error("Apenas administradores podem excluir publicações.");
+      const post = posts.find((row) => row.id === postId);
+      if (!post) throw new Error("Publicação não encontrada.");
+      const { error: deleteErr } = await sb.from("help_feed_posts").delete().eq("id", postId);
+      if (deleteErr) throw new Error(`Falha ao excluir: ${deleteErr.message}`);
+      if (post.image_url && !/^https?:\/\//.test(post.image_url)) {
+        const { error: storageErr } = await sb.storage.from(MEDIA_BUCKET).remove([post.image_url]);
+        if (storageErr) {
+          console.warn("Não foi possível remover a imagem da publicação excluída:", storageErr.message);
+        }
+      }
+      await loadFeed();
+    },
+    [isAdmin, loadFeed, posts]
+  );
+
   const createTutorial = useCallback(
     async (title: string, body: string) => {
       if (!isAdmin) throw new Error("Apenas administradores podem criar tutoriais.");
@@ -322,10 +355,12 @@ export function useHelpFeed() {
       loadComments,
       addComment,
       createPost,
+      updatePost,
+      deletePost,
       createTutorial,
       refresh: loadFeed,
     }),
-    [isAdmin, posts, tutorials, loading, error, toggleLike, loadComments, addComment, createPost, createTutorial, loadFeed]
+    [isAdmin, posts, tutorials, loading, error, toggleLike, loadComments, addComment, createPost, updatePost, deletePost, createTutorial, loadFeed]
   );
 
   return value;
