@@ -655,19 +655,75 @@ serve(async (req) => {
       }
     }
 
-    const intent = forceMode === "search"
+    const intent: "search" | "chat" | "general" = forceMode === "search"
       ? "search"
       : forceMode === "chat" && currentProductId
       ? "chat"
       : apiKey
       ? await classifyIntent(apiKey, userText, history, Boolean(currentProductId))
-      : "search";
+      : (currentProductId ? "chat" : "general");
+
+    // ================= MODO GENERAL (IA generalista sobre a Velo) =================
+    if (intent === "general" && apiKey) {
+      const [mlStatus, publications] = await Promise.all([
+        getUserMlStatus(supabase, userContext.id),
+        getUserPublishedProducts(supabase, userContext.id),
+      ]);
+
+      const mlLine = mlStatus.connected
+        ? `Mercado Livre: conectado${mlStatus.token_valid ? " (token válido)" : " (token expirado, precisa reconectar)"}.`
+        : "Mercado Livre: não conectado.";
+      const pubLine = `Publicações recentes na conta: ${publications.length}.`;
+
+      const sys = `Você é o Atlas, a IA oficial da Velo — plataforma brasileira de dropshipping com IA. Responda SEMPRE em português brasileiro, tom direto, humano e útil, sem enrolação. Use parágrafos curtos e listas quando ajudar. Nunca invente funcionalidades, preços, prazos ou integrações — se não souber, oriente o usuário a abrir um chamado em contato@velo.com.br ou na aba Suporte.${userContextLine(userContext)}
+
+CONHECIMENTO DA VELO:
+- Missão: ajudar iniciantes brasileiros a vender por dropshipping usando o catálogo Velo (produtos curados via scraping C7Drop de fornecedores nacionais) e publicando no Mercado Livre.
+- Slogan: "Apenas venda."
+- Catálogo (/dashboard/catalogo): busca por categoria/palavra-chave, filtros de margem, estoque e preço. Só mostra produtos com estoque > 0.
+- Importar/Publicar: abrir o produto no catálogo → clicar em "Importar" → a IA gera título e descrição otimizados → revisa → publica no Mercado Livre via OAuth.
+- Conectar Mercado Livre: /dashboard/configuracoes → aba Integrações → "Conectar Mercado Livre". Sem isso, não é possível publicar.
+- Publicações (/dashboard/publicacoes): lista todos os anúncios com status sincronizado com o ML.
+- Pedidos (/dashboard/pedidos): mostra vendas reais recebidas do ML com nome, endereço, telefone do comprador e link do fornecedor.
+- Saldos/Transações (/dashboard/saldos, /dashboard/transacoes): faturamento real baseado nos pedidos.
+- Suporte: /dashboard/configuracoes → aba Suporte, ou email contato@velo.com.br.
+- Planos: Grátis (modo teste, sem publicar), Pro R$99,90/mês (30 produtos, 2 marketplaces, 3 agentes IA), Business R$149,90/mês (ilimitado). Assinatura em /checkout.
+- Reembolso: janela de 7 dias, solicitação via Suporte; admins gerenciam em /admin/reembolsos.
+- Fluxo recomendado para iniciante: 1) conectar Mercado Livre, 2) escolher produto no catálogo, 3) importar/publicar, 4) acompanhar pedidos em /dashboard/pedidos.
+
+CAPACIDADES SUAS (Atlas):
+- Você também pode buscar produtos: se o usuário pedir explicitamente "encontre/mostre/quero um produto de X", oriente que basta pedir direto e o próprio Atlas trará opções do catálogo.
+- Você pode explicar telas, navegação, planos, integração ML, publicação, pedidos, reembolso, cobrança.
+
+CONTEXTO ATUAL DO USUÁRIO:
+- ${mlLine}
+- ${pubLine}
+
+Se a pergunta for ambígua, pergunte de volta com uma opção clara. Nunca peça senhas ou tokens. Nunca cite CJ Dropshipping — foi descontinuada.`;
+
+      const messages = [
+        { role: "system", content: sys },
+        ...history.slice(-10).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
+        { role: "user", content: userText },
+      ];
+      const raw = await callAI(apiKey, messages);
+      const mensagem = (raw ?? "").trim() || "Não consegui processar agora, pode reformular a pergunta?";
+
+      return new Response(JSON.stringify({
+        mode: "chat",
+        mensagem,
+        resposta_chat: mensagem,
+        ids: [],
+        count: 0,
+        used_fallback: false,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // ================= MODO CHAT (discussão sobre produto atual) =================
     if (intent === "chat" && currentProductId && apiKey) {
       const prod = await loadProductFull(supabase, currentProductId);
       if (prod) {
-        const sys = `Você é o Aquas, assistente pessoal de dropshipping BR da Velo. Responda em PT-BR, tom direto, útil, sem enrolação (3-6 frases).${userContextLine(userContext)}
+        const sys = `Você é o Atlas, assistente pessoal de dropshipping BR da Velo. Responda em PT-BR, tom direto, útil, sem enrolação (3-6 frases).${userContextLine(userContext)}
 Responsabilidades: orientar navegação no dashboard, diagnosticar problemas, ajudar no fluxo de publicação e descobrir produtos vendáveis.
 Fonte de produtos: somente catálogo Velo via C7Drop. Nunca invente fornecedores, secrets, credenciais ou dados não disponíveis.
 Você está analisando este produto para o usuário:
@@ -704,6 +760,7 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
+
 
     // ================= MODO SEARCH (busca produto novo) =================
     let filters: AtlasFilters | null = null;
