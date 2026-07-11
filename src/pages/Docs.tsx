@@ -809,25 +809,22 @@ function RightRail() {
       </section>
 
       <section className="mt-[21px] rounded-[27px] border border-white/[0.08] bg-[#19191a] p-[21px]">
-        <h2 className="text-[17px] font-semibold text-white">Sugestões</h2>
-        <div className="mt-[20px] space-y-[13px]">
-          {suggestions.map((person) => (
-            <div key={person.handle} className="flex items-center gap-[13px]">
-              {person.avatar.startsWith("http") ? (
-                <img src={person.avatar} alt="" className="h-[42px] w-[42px] shrink-0 rounded-[10px] object-cover" />
-              ) : (
-                <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px] bg-[#29292b] text-[12px] font-bold text-white">
-                  {person.avatar}
-                </span>
-              )}
+        <h2 className="text-[17px] font-semibold text-white">Atalhos Velo</h2>
+        <div className="mt-[20px] space-y-[10px]">
+          {shortcuts.map((item) => (
+            <a
+              key={item.to}
+              href={item.to}
+              className="flex items-center gap-[13px] rounded-[14px] px-[8px] py-[8px] transition hover:bg-white/[0.04]"
+            >
+              <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[12px] bg-[#29292b] text-[20px]">
+                {item.icon}
+              </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[16px] font-semibold leading-none text-white">{person.name}</p>
-                <p className="mt-[5px] truncate text-[15px] font-medium text-[#9a9aa0]">{person.handle}</p>
+                <p className="truncate text-[16px] font-semibold leading-none text-white">{item.name}</p>
+                <p className="mt-[5px] truncate text-[14px] font-medium text-[#9a9aa0]">{item.description}</p>
               </div>
-              <button className="h-[42px] rounded-[10px] bg-[#272728] px-[16px] text-[15px] font-semibold text-white">
-                Seguir
-              </button>
-            </div>
+            </a>
           ))}
         </div>
       </section>
