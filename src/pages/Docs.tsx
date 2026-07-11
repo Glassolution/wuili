@@ -1,22 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
   BadgeCheck,
   BookOpen,
   ChevronDown,
-  GalleryHorizontalEnd,
   Heart,
   Image as ImageIcon,
+  LifeBuoy,
   MessageCircle,
   MoreHorizontal,
   Pencil,
   Search,
   Send,
+  ShoppingBag,
   Trash2,
   UserRound,
-  Users,
+  Wallet,
   X,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,8 +28,10 @@ import {
   type HelpFeedPost,
   type HelpFeedTutorial,
 } from "@/hooks/useHelpFeed";
+import { guideSections, type GuideSection } from "@/pages/help/guides";
 
-type TabKey = "feed" | "tutorial";
+type TabKey = "feed" | "tutorial" | GuideSection["key"];
+
 
 const suggestions = [
   { name: "N!nh™ Studio", handle: "@ninhstudio", avatar: "n2" },
