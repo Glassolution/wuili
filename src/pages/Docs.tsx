@@ -1123,10 +1123,10 @@ export default function Docs() {
 
           <div className="flex flex-1 min-h-0 w-full">
             <div className="hidden flex-1 shrink xl:block" />
-            <main className="min-h-screen w-full min-w-0 max-w-[680px] shrink-0 bg-[#0d0d0e]">
+            <main className="min-h-screen w-full min-w-0 max-w-[780px] shrink-0 bg-[#0d0d0e]">
               {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
 
-              <div className="relative mx-auto max-w-[620px] px-[24px]">
+              <div className="relative mx-auto max-w-[720px] px-[24px]">
                 {tab === "feed" && (
                   <>
                     {loading ? (
