@@ -850,18 +850,54 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
     if (error || !data || data.length === 0) {
       if (error) console.error("Primary query failed", error);
       const safe = userText.replace(/[%,]/g, " ").trim();
-      const fb = await supabase
+      let fbQ = supabase
         .from("catalog_products")
         .select("id, title, description, category, orders_count, margin_percent")
         .in("source", ALLOWED_SOURCES)
         .eq("is_blocked", false)
         .gt("stock_quantity", 0)
-        .not("id", "in", `(${excludeIds.join(",") || "00000000-0000-0000-0000-000000000000"})`)
-        .or(`title.ilike.%${safe}%,description.ilike.%${safe}%,category.ilike.%${safe}%`)
-        .order("orders_count", { ascending: false, nullsFirst: false })
-        .limit(RESULT_LIMIT);
+        .not("id", "in", `(${excludeIds.join(",") || "00000000-0000-0000-0000-000000000000"})`);
+
+      // Se o pedido era só-ordenação, ignorar filtro textual e ordenar direto.
+      if (sortOnly === "preco_asc") {
+        fbQ = fbQ.gt("cost_price", 0).order("cost_price", { ascending: true, nullsFirst: false });
+      } else if (sortOnly === "preco_desc") {
+        fbQ = fbQ.order("cost_price", { ascending: false, nullsFirst: false });
+      } else if (sortOnly === "margem") {
+        fbQ = fbQ.order("margin_percent", { ascending: false, nullsFirst: false });
+      } else if (sortOnly === "vendas") {
+        fbQ = fbQ.order("orders_count", { ascending: false, nullsFirst: false });
+      } else {
+        fbQ = fbQ
+          .or(`title.ilike.%${safe}%,description.ilike.%${safe}%,category.ilike.%${safe}%`)
+          .order("orders_count", { ascending: false, nullsFirst: false });
+      }
+
+      const fb = await fbQ.limit(RESULT_LIMIT);
       data = fb.data ?? [];
       usedFallback = true;
+
+      // Fallback final: nenhum filtro textual — devolve top produtos por ordenação pedida.
+      if (!data || data.length === 0) {
+        let lastQ = supabase
+          .from("catalog_products")
+          .select("id, title, description, category, orders_count, margin_percent")
+          .in("source", ALLOWED_SOURCES)
+          .eq("is_blocked", false)
+          .gt("stock_quantity", 0);
+        switch (filters.ordenar_por) {
+          case "preco_asc":
+            lastQ = lastQ.gt("cost_price", 0).order("cost_price", { ascending: true, nullsFirst: false }); break;
+          case "preco_desc":
+            lastQ = lastQ.order("cost_price", { ascending: false, nullsFirst: false }); break;
+          case "margem":
+            lastQ = lastQ.order("margin_percent", { ascending: false, nullsFirst: false }); break;
+          default:
+            lastQ = lastQ.order("orders_count", { ascending: false, nullsFirst: false });
+        }
+        const last = await lastQ.limit(RESULT_LIMIT);
+        data = last.data ?? [];
+      }
     }
 
     const rankedRows = orderResultsByRelevance((data ?? []) as SearchProductRow[], filters.palavras_chave);
