@@ -258,14 +258,7 @@ function Sidebar({
 
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[368px] shrink-0 border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:block">
-      <Link
-        to="/dashboard"
-        className="mb-3 flex h-[38px] w-full items-center gap-2 rounded-[9px] px-[10px] text-[14px] font-medium text-[#a5a5a9] transition hover:bg-white/[0.05] hover:text-white"
-      >
-        <ArrowLeft className="h-[16px] w-[16px]" strokeWidth={1.8} />
-        Voltar para o dashboard
-      </Link>
+    <aside className="sticky top-0 hidden h-screen w-[368px] shrink-0 flex-col border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:flex">
       <button className="flex h-[54px] w-full items-center gap-3 text-left">
         <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]">
           {avatar ? (
@@ -314,9 +307,20 @@ function Sidebar({
           </section>
         ))}
       </nav>
+
+      <div className="mt-auto border-t border-white/[0.08] pt-[14px]">
+        <Link
+          to="/dashboard"
+          className="flex h-[43px] w-full items-center gap-[14px] rounded-[9px] px-[13px] text-[15px] font-medium text-[#89898f] transition hover:bg-white/[0.04] hover:text-white"
+        >
+          <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.7} />
+          Voltar para o dashboard
+        </Link>
+      </div>
     </aside>
   );
 }
+
 
 function CommentsSection({
   post,
