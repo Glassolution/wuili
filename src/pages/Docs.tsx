@@ -1091,7 +1091,7 @@ export default function Docs() {
       <div className="flex min-h-screen w-full">
         <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} />
         <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e]">
-          <header className="sticky top-0 z-30 flex h-[66px] items-center justify-between border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[24px] backdrop-blur">
+          <header className="sticky top-0 z-30 flex h-[66px] items-center border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[24px] backdrop-blur">
             <div className="flex items-center gap-[18px]">
               <button
                 onClick={() => setTab("feed")}
@@ -1110,15 +1110,15 @@ export default function Docs() {
                 Tutorial
               </button>
             </div>
-            {isAdmin && tab === "feed" && (
-              <button
-                onClick={() => setShowComposer((v) => !v)}
-                className="rounded-[10px] bg-[#159ff2] px-[20px] py-[9px] text-[15px] font-semibold text-white transition hover:opacity-90"
-              >
-                {showComposer ? "Fechar" : "Post"}
-              </button>
-            )}
           </header>
+          {isAdmin && tab === "feed" && (
+            <button
+              onClick={() => setShowComposer((v) => !v)}
+              className="fixed right-[24px] top-[14px] z-40 rounded-[10px] bg-[#159ff2] px-[20px] py-[9px] text-[15px] font-semibold text-white transition hover:opacity-90"
+            >
+              {showComposer ? "Fechar" : "Post"}
+            </button>
+          )}
 
 
           {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
