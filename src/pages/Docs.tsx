@@ -488,9 +488,9 @@ function Post({
         </span>
         <div className="min-w-0 flex-1">
           <header className="relative flex flex-wrap items-center gap-[8px]">
-            <strong className="text-[17px] font-semibold leading-none text-white">{post.author_name}</strong>
-            <BadgeCheck className="h-[19px] w-[19px] fill-white text-[#0d0d0e]" strokeWidth={2.2} aria-label="Conta verificada" />
-            <span className="text-[16px] font-medium text-[#67676c]">{timeAgo(post.created_at)}</span>
+            <strong className="text-[18px] font-semibold leading-none text-white">{post.author_name}</strong>
+            <BadgeCheck className="h-[20px] w-[20px] fill-white text-[#0d0d0e]" strokeWidth={2.2} aria-label="Conta verificada" />
+            <span className="text-[16.5px] font-medium text-[#67676c]">{timeAgo(post.created_at)}</span>
             {isAdmin && (
               <div className="relative ml-auto">
                 <button
