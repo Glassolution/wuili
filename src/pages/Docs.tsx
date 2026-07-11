@@ -199,12 +199,12 @@ function SearchPalette({
 }
 
 
-const suggestions = [
-  { name: "N!nh™ Studio", handle: "@ninhstudio", avatar: "n2" },
-  { name: "Muhammed Farouk", handle: "@muhammed-farouk", avatar: "https://i.pravatar.cc/80?img=11" },
-  { name: "Andreu", handle: "@andreu", avatar: "https://i.pravatar.cc/80?img=68" },
-  { name: "Mara Furqaan", handle: "@factortheme", avatar: "https://i.pravatar.cc/80?img=53" },
-  { name: "Michael Andreuzza", handle: "@michael-andreuzza", avatar: "https://i.pravatar.cc/80?img=5" },
+const shortcuts: { name: string; description: string; icon: string; to: string }[] = [
+  { name: "Catálogo Velo", description: "Produtos prontos para vender", icon: "🛍️", to: "/dashboard/catalogo" },
+  { name: "Minhas publicações", description: "Anúncios no Mercado Livre", icon: "📦", to: "/dashboard/publicacoes" },
+  { name: "Tutoriais", description: "Aprenda a vender com a Velo", icon: "🎓", to: "/docs" },
+  { name: "Central de ajuda", description: "Dúvidas e suporte", icon: "💬", to: "/dashboard/suporte" },
+  { name: "Meu plano", description: "Gerencie sua assinatura", icon: "⚡", to: "/dashboard/planos" },
 ];
 
 function timeAgo(iso: string): string {
