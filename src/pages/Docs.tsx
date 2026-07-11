@@ -30,7 +30,171 @@ import {
 import { guideSections, type GuideSection } from "@/pages/help/guides";
 
 type TabKey = "feed" | "tutorial" | GuideSection["key"];
+type PaletteResult = {
+  sectionKey: GuideSection["key"];
+  sectionLabel: string;
+  item: GuideSection["items"][number];
+};
 
+function highlight(text: string, query: string) {
+  if (!query.trim()) return text;
+  const q = query.trim();
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span className="text-white font-semibold">{text.slice(idx, idx + q.length)}</span>
+      {text.slice(idx + q.length)}
+    </>
+  );
+}
+
+function SearchPalette({
+  open,
+  onClose,
+  onSelect,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (sectionKey: GuideSection["key"], itemId: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [cursor, setCursor] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const results = useMemo<PaletteResult[]>(() => {
+    const all: PaletteResult[] = [];
+    for (const s of guideSections) {
+      for (const item of s.items) {
+        all.push({ sectionKey: s.key, sectionLabel: s.label, item });
+      }
+    }
+    const q = query.trim().toLowerCase();
+    if (!q) return all.slice(0, 8);
+    return all
+      .filter(
+        (r) =>
+          r.item.title.toLowerCase().includes(q) ||
+          r.item.summary.toLowerCase().includes(q) ||
+          r.sectionLabel.toLowerCase().includes(q) ||
+          r.item.steps.some((step) => step.toLowerCase().includes(q)),
+      )
+      .slice(0, 10);
+  }, [query]);
+
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setCursor(0);
+      setTimeout(() => inputRef.current?.focus(), 20);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    setCursor(0);
+  }, [query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setCursor((c) => Math.min(c + 1, results.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setCursor((c) => Math.max(c - 1, 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const r = results[cursor];
+        if (r) onSelect(r.sectionKey, r.item.id);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, results, cursor, onClose, onSelect]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 px-4 pt-[10vh] backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[720px] overflow-hidden rounded-[16px] bg-[#141416] shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+      >
+        <div className="flex items-center gap-[14px] border-b border-white/[0.06] px-[22px]">
+          <Search className="h-[20px] w-[20px] text-[#8b8b90]" strokeWidth={1.7} />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar em toda a Central de ajuda..."
+            className="h-[64px] flex-1 bg-transparent text-[18px] text-white outline-none placeholder:text-[#67676c]"
+          />
+        </div>
+
+        <div className="max-h-[480px] overflow-y-auto py-[10px]">
+          {results.length === 0 ? (
+            <p className="px-[22px] py-[28px] text-center text-[15px] text-[#67676c]">
+              Nada encontrado para "{query}".
+            </p>
+          ) : (
+            <ul>
+              {results.map((r, i) => {
+                const Icon = r.item.icon;
+                const active = i === cursor;
+                return (
+                  <li key={`${r.sectionKey}-${r.item.id}`}>
+                    <button
+                      onMouseEnter={() => setCursor(i)}
+                      onClick={() => onSelect(r.sectionKey, r.item.id)}
+                      className={`flex w-full items-center gap-[16px] px-[22px] py-[12px] text-left transition ${
+                        active ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"
+                      }`}
+                    >
+                      <span className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] bg-white/[0.05] text-white">
+                        <Icon className="h-[18px] w-[18px]" strokeWidth={1.7} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[16px] font-medium text-[#d5d5d8]">
+                          {highlight(r.item.title, query)}
+                        </p>
+                        <p className="mt-[3px] truncate text-[13px] text-[#67676c]">
+                          {r.sectionLabel} <span className="mx-[6px]">›</span> {r.item.title}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-white/[0.06] px-[22px] py-[10px] text-[12px] text-[#67676c]">
+          <div className="flex items-center gap-[16px]">
+            <span className="flex items-center gap-[6px]">
+              <kbd className="rounded-[5px] bg-white/[0.06] px-[6px] py-[2px] font-medium text-[#a5a5aa]">↑↓</kbd>
+              Select
+            </span>
+            <span className="flex items-center gap-[6px]">
+              <kbd className="rounded-[5px] bg-white/[0.06] px-[6px] py-[2px] font-medium text-[#a5a5aa]">↵</kbd>
+              Open
+            </span>
+          </div>
+          <span className="flex items-center gap-[6px]">
+            <kbd className="rounded-[5px] bg-white/[0.06] px-[6px] py-[2px] font-medium text-[#a5a5aa]">esc</kbd>
+            Close
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 const suggestions = [
