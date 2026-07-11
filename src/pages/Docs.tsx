@@ -69,22 +69,23 @@ function Sidebar({
     items: Array<{ label: string; icon: LucideIcon; active?: boolean; onClick?: () => void }>;
   }> = [
     {
-      title: "Comunidade",
+      title: "Explore",
       items: [
         { label: "Feed", icon: Zap, active: tab === "feed", onClick: () => onTab("feed") },
-        { label: "Tutoriais", icon: BookOpen, active: tab === "tutorial", onClick: () => onTab("tutorial") },
+        { label: "Tutorial", icon: BookOpen, active: tab === "tutorial", onClick: () => onTab("tutorial") },
+        { label: "Activity", icon: Activity, active: tab === "anuncios", onClick: () => onTab("anuncios") },
       ],
     },
     {
-      title: "Central de ajuda",
+      title: "Community",
       items: [
-        { label: "Meus anúncios", icon: ShoppingBag, active: tab === "anuncios", onClick: () => onTab("anuncios") },
-        { label: "Publicação", icon: Zap, active: tab === "publicacao", onClick: () => onTab("publicacao") },
-        { label: "Pagamentos", icon: Wallet, active: tab === "pagamentos", onClick: () => onTab("pagamentos") },
-        { label: "Conta & suporte", icon: LifeBuoy, active: tab === "conta", onClick: () => onTab("conta") },
+        { label: "Marketplace", icon: GalleryHorizontalEnd, active: tab === "publicacao", onClick: () => onTab("publicacao") },
+        { label: "Gallery", icon: ImageIcon, active: tab === "pagamentos", onClick: () => onTab("pagamentos") },
+        { label: "Members", icon: Users, active: tab === "conta", onClick: () => onTab("conta") },
       ],
     },
   ];
+
 
 
   return (
