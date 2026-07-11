@@ -413,7 +413,11 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
             </button>
           </header>
 
-          <div className="px-6 pb-6">
+          <div className="px-6 pb-5">
+            <p className="mb-4 text-[13px] leading-[1.5] text-[#3A3A3A]">
+              Agora temos uma comunidade dentro da própria Velo. Já deu uma olhada nas novidades?
+            </p>
+
             <div className="rounded-[12px] border border-[#1f1f22] bg-[#0d0d0e] p-4">
               <div className="flex items-center gap-2.5">
                 <div className="grid h-8 w-8 place-items-center overflow-hidden rounded-[8px] bg-[#29292b] text-[11px] font-semibold text-white">
@@ -432,26 +436,16 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
                 {preview}
               </p>
             </div>
+          </div>
 
-            <p className="mt-5 text-[13.5px] leading-[1.5] text-[#3A3A3A]">
-              Agora temos uma comunidade dentro da própria Velo. Já deu uma olhada nas novidades?
-            </p>
-
-            <ul className="mt-3 space-y-2 text-[13px] leading-[1.5] text-[#3A3A3A]">
-              <li className="flex gap-2"><span className="mt-[7px] h-[3px] w-[3px] shrink-0 rounded-full bg-[#3A3A3A]" />Publicações da equipe Velo direto no seu painel.</li>
-              <li className="flex gap-2"><span className="mt-[7px] h-[3px] w-[3px] shrink-0 rounded-full bg-[#3A3A3A]" />Curta, comente e converse com outros vendedores.</li>
-              <li className="flex gap-2"><span className="mt-[7px] h-[3px] w-[3px] shrink-0 rounded-full bg-[#3A3A3A]" />Acompanhe tutoriais e atualizações em um só lugar.</li>
-            </ul>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={closeModal}
-                className="rounded-[10px] bg-[#111] px-5 py-2.5 text-[13.5px] font-semibold text-white transition-colors hover:bg-black"
-              >
-                Entendi
-              </button>
-            </div>
+          <div className="flex justify-end border-t border-[#EFEFEE] px-6 py-4">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="rounded-[10px] bg-[#111] px-5 py-2.5 text-[13.5px] font-semibold text-white transition-colors hover:bg-black"
+            >
+              Entendi
+            </button>
           </div>
         </article>
       </motion.section>
