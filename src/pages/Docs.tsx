@@ -893,7 +893,7 @@ export default function Docs() {
       style={{ zoom: 0.71, minHeight: "140.845071vh" }}
     >
       <div className="flex min-h-screen w-full">
-        <Sidebar tab={tab} onTab={setTab} displayName={accountName} avatar={accountAvatar} />
+        <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} />
         <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e]">
           <header className="sticky top-0 z-30 flex h-[66px] items-center justify-between border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[24px] backdrop-blur">
             <div className="flex items-center gap-[18px]">
