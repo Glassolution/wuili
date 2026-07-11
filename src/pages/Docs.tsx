@@ -881,15 +881,17 @@ export default function Docs() {
   }, [nome, user]);
   const accountAvatar = foto || (typeof user?.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null);
 
+  const [showComposer, setShowComposer] = useState(false);
+
   return (
     <div
       className="min-h-screen overflow-x-hidden bg-[#0d0d0e] font-['Inter_Variable','Inter',ui-sans-serif,system-ui,sans-serif] text-white"
       style={{ zoom: 0.71, minHeight: "140.845071vh" }}
     >
-      <div className="mx-auto flex min-h-screen max-w-[2048px]">
+      <div className="flex min-h-screen w-full">
         <Sidebar tab={tab} onTab={setTab} displayName={accountName} avatar={accountAvatar} />
-        <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e] xl:w-[1040px] xl:flex-none">
-          <header className="sticky top-0 z-30 flex h-[66px] w-[calc(140.845071vw-368px)] items-center justify-between border-b border-white/[0.08] bg-[#0d0d0e]/95 px-[14px] backdrop-blur">
+        <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e]">
+          <header className="sticky top-0 z-30 flex h-[66px] items-center justify-between border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[24px] backdrop-blur">
             <div className="flex items-center gap-[18px]">
               <button
                 onClick={() => setTab("feed")}
@@ -909,9 +911,12 @@ export default function Docs() {
               </button>
             </div>
             {isAdmin && tab === "feed" && (
-              <span className="rounded-[10px] bg-[#159ff2]/10 px-[14px] py-[8px] text-[14px] font-semibold text-[#5fbff5]">
-                Modo administrador
-              </span>
+              <button
+                onClick={() => setShowComposer((v) => !v)}
+                className="rounded-[10px] bg-[#159ff2] px-[20px] py-[9px] text-[15px] font-semibold text-white transition hover:opacity-90"
+              >
+                {showComposer ? "Fechar" : "Post"}
+              </button>
             )}
           </header>
 
