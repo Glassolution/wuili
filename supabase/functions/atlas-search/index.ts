@@ -138,7 +138,20 @@ const STOPWORDS = new Set([
   "produto", "produtos", "item", "itens", "opcao", "opcoes", "para", "sobre", "com", "uma",
   "uns", "umas", "meu", "minha", "esse", "essa", "isso", "aquele", "aquela", "novo", "nova",
   "mais", "bom", "boa", "bons", "boas", "catalogo", "vender", "venda",
+  "barato", "baratos", "barata", "baratas", "caro", "caros", "cara", "caras",
+  "melhor", "melhores", "pior", "piores", "top", "vendido", "vendidos", "vendida",
+  "vendidas", "popular", "populares", "viral", "virais", "margem", "lucro",
 ]);
+
+// Detecta pedidos "só-ordenação" (sem palavra-chave específica de produto)
+function detectSortOnlyOrder(text: string): AtlasFilters["ordenar_por"] | null {
+  const n = normalizeText(text);
+  if (/\b(mais barato|menor preco|preco baixo|barato|baratos)\b/.test(n)) return "preco_asc";
+  if (/\b(mais caro|maior preco|preco alto|caro|caros|premium)\b/.test(n)) return "preco_desc";
+  if (/\b(maior margem|melhor margem|mais lucro|maior lucro)\b/.test(n)) return "margem";
+  if (/\b(mais vendido|mais vendidos|mais popular|top vendas|bestseller|campeao de vendas)\b/.test(n)) return "vendas";
+  return null;
+}
 
 function readUserContext(value: unknown): UserContext {
   if (!value || typeof value !== "object") return {};
