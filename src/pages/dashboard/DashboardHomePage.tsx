@@ -2229,7 +2229,7 @@ const DashboardHomePage = () => {
 	      className="relative -m-5 min-h-screen overflow-visible bg-white pb-24 text-[#111111] sm:-m-6 lg:-m-7"
 	      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" }}
 	    >
-	      <DailyProductSpotlightModal userId={user?.id} />
+	      <AnnouncementModal userId={user?.id} />
 	      {collections.length > 0 ? (
 	        <section className="min-h-screen bg-[#F2F2F1] px-3 py-3 sm:px-5">
 	          <div className="mx-auto w-full max-w-[1180px]">
