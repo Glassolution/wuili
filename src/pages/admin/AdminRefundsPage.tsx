@@ -370,9 +370,6 @@ const RefundsTable = ({
         <thead className="bg-[#FAFAFA] text-left text-[11px] uppercase tracking-wider text-[#737373]">
           <tr>
             <th className="px-4 py-3">Usuário</th>
-        <thead className="bg-[#FAFAFA] text-left text-[11px] uppercase tracking-wider text-[#737373]">
-          <tr>
-            <th className="px-4 py-3">Usuário</th>
             <th className="px-4 py-3">Plano</th>
             <th className="px-4 py-3">Pedido em</th>
             {variant === "pending" && <th className="px-4 py-3">Aguardando</th>}
