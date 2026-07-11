@@ -739,18 +739,28 @@ Deno.serve(async (req) => {
         continue
       }
       if (OPEN_IDENTIFYING_ATTRS.has(id)) {
-        // Não chutar. Deixa o ML devolver o erro real.
+        // Não chutar valor específico. Manda "N/D" para satisfazer a
+        // obrigatoriedade sem inventar dado errado.
+        mergeAttribute(allAttrs, { id, value_name: 'N/D' })
         continue
       }
-      const firstValue = (attrDef.values as Record<string, unknown>[] | undefined)?.[0]
-      const valueId = cleanText(firstValue?.id)
-      const valueName = cleanText(firstValue?.name)
-      if (valueId || valueName) {
-        mergeAttribute(allAttrs, {
-          id,
-          ...(valueId ? { value_id: valueId } : {}),
-          ...(valueName ? { value_name: valueName } : {}),
-        })
+      const values = (attrDef.values as Record<string, unknown>[] | undefined) ?? []
+      if (values.length > 0) {
+        const firstValue = values[0]
+        const valueId = cleanText(firstValue?.id)
+        const valueName = cleanText(firstValue?.name)
+        if (valueId || valueName) {
+          mergeAttribute(allAttrs, {
+            id,
+            ...(valueId ? { value_id: valueId } : {}),
+            ...(valueName ? { value_name: valueName } : {}),
+          })
+        }
+      } else {
+        // Atributo obrigatório de texto livre (ex.: VOLUME_CAPACITY,
+        // CAPACIDADE em L/ml, medidas). Sem valor confiável do catálogo →
+        // preenche "N/D" para o ML não travar o anúncio.
+        mergeAttribute(allAttrs, { id, value_name: 'N/D' })
       }
     }
 
