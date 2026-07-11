@@ -239,17 +239,11 @@ const PublicationsPage = () => {
                     SKU {pub.ml_item_id?.slice(0, 8) || "N/A"}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                      status === "active"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : status === "pending"
-                        ? "bg-gray-100 text-gray-600"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${preset.wrap}`}
                     style={{ letterSpacing: "-0.01em" }}
                   >
-                    <span className={`h-1.5 w-1.5 rounded-full ${status === "active" ? "bg-emerald-500" : "bg-gray-400"}`} />
-                    {status === "active" ? "Ativo" : status === "pending" ? "Rascunho" : "Arquivado"}
+                    <span className={`h-1.5 w-1.5 rounded-full ${preset.dot}`} />
+                    {preset.label}
                   </span>
                 </div>
 
