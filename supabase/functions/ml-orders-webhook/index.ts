@@ -50,10 +50,107 @@ Deno.serve(async (req) => {
 
     console.log("[ml-orders-webhook] received:", JSON.stringify(body).substring(0, 400));
 
-    // ML sends topic as "orders_v2" or "orders"; ignore everything else
+    // ML sends topic as "orders_v2"/"orders" or "items"
     const topic: string = body.topic ?? body.type ?? "";
+
+    // ── Roteamento: mudança de status de item ───────────────────────────────
+    if (topic.includes("item")) {
+      try {
+        const resource: string = body.resource ?? "";
+        // resource formato: "/items/MLBxxxx"
+        const mlItemId =
+          resource.replace(/^\/items\//, "").trim() ||
+          String(body.data?.id ?? body.id ?? "");
+        const mlUserId = String(body.user_id ?? "");
+
+        if (!mlItemId) {
+          console.warn("[ml-orders-webhook][items] sem ml_item_id, ignorando");
+          return ok();
+        }
+
+        // Descobrir dono do item via user_publications
+        const { data: pubRow } = await adminClient
+          .from("user_publications")
+          .select("id, user_id, status")
+          .eq("ml_item_id", mlItemId)
+          .maybeSingle();
+
+        if (!pubRow) {
+          console.warn("[ml-orders-webhook][items] publicação não encontrada:", mlItemId);
+          return ok();
+        }
+
+        // Pegar token válido do usuário
+        const { data: integ } = await adminClient
+          .from("user_integrations")
+          .select("access_token, refresh_token, expires_at")
+          .eq("user_id", pubRow.user_id)
+          .eq("platform", "mercadolivre")
+          .maybeSingle();
+
+        if (!integ?.access_token) {
+          console.warn("[ml-orders-webhook][items] sem token para user:", pubRow.user_id);
+          return ok();
+        }
+
+        let token = integ.access_token as string;
+        const expiresAt = integ.expires_at ? new Date(integ.expires_at as string) : new Date(0);
+        if (expiresAt <= new Date(Date.now() + 60_000)) {
+          const rr = await fetch("https://api.mercadolibre.com/oauth/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "refresh_token",
+              client_id: Deno.env.get("ML_CLIENT_ID")!,
+              client_secret: Deno.env.get("ML_CLIENT_SECRET")!,
+              refresh_token: (integ.refresh_token as string) ?? "",
+            }),
+          });
+          const rd = await rr.json().catch(() => ({}));
+          if (rd.access_token) {
+            token = rd.access_token;
+            await adminClient
+              .from("user_integrations")
+              .update({
+                access_token: rd.access_token,
+                refresh_token: rd.refresh_token ?? integ.refresh_token,
+                expires_at: new Date(Date.now() + (rd.expires_in ?? 21600) * 1000).toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("user_id", pubRow.user_id)
+              .eq("platform", "mercadolivre");
+          }
+        }
+
+        const itemRes = await fetch(
+          `https://api.mercadolibre.com/items/${mlItemId}?attributes=id,status`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!itemRes.ok) {
+          console.warn("[ml-orders-webhook][items] GET item falhou:", itemRes.status);
+          return ok();
+        }
+        const cur = await itemRes.json();
+        const newStatus = String(cur?.status ?? "").trim();
+
+        if (newStatus && newStatus !== pubRow.status && pubRow.status !== "archived_duplicate") {
+          await adminClient
+            .from("user_publications")
+            .update({ status: newStatus, updated_at: new Date().toISOString() })
+            .eq("id", pubRow.id);
+          console.log(
+            `[ml-orders-webhook][items] ${mlItemId}: ${pubRow.status} -> ${newStatus}`,
+          );
+        }
+        return ok({ topic: "items", ml_item_id: mlItemId, new_status: newStatus });
+      } catch (e) {
+        console.error("[ml-orders-webhook][items] erro:", (e as Error).message);
+        return ok(); // sempre 200 pro ML não retentar infinitamente
+      }
+    }
+
     if (!topic.includes("order")) {
-      return ok(); // silently acknowledge non-order topics
+      return ok(); // silently acknowledge other topics
     }
 
     // resource is "/orders/123456789"
