@@ -106,14 +106,14 @@ function Sidebar({
       </button>
 
       <div className="mt-1 border-t border-white/[0.08] pt-[14px]">
-        <label className="relative block">
+        <button
+          onClick={onOpenPalette}
+          className="relative flex h-[43px] w-full items-center rounded-[9px] bg-[#242425] pl-[46px] pr-[10px] text-left text-[16px] text-[#8d8d92] transition hover:bg-[#2a2a2c]"
+        >
           <Search className="absolute left-[15px] top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#aaaab0]" />
-          <input
-            disabled
-            placeholder="Search..."
-            className="h-[43px] w-full rounded-[9px] border-0 bg-[#242425] pl-[46px] pr-3 text-[16px] text-white outline-none placeholder:text-[#8d8d92]"
-          />
-        </label>
+          <span className="flex-1">Search...</span>
+          <kbd className="rounded-[6px] bg-white/[0.06] px-[8px] py-[3px] text-[12px] font-medium text-[#aaaab0]">Ctrl K</kbd>
+        </button>
       </div>
 
       <nav className="mt-[14px] border-t border-white/[0.08] pt-[20px]">
