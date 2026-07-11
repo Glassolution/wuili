@@ -1,22 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
   BadgeCheck,
   BookOpen,
   ChevronDown,
-  GalleryHorizontalEnd,
   Heart,
   Image as ImageIcon,
+  LifeBuoy,
   MessageCircle,
   MoreHorizontal,
   Pencil,
   Search,
-  Send,
+
+  ShoppingBag,
   Trash2,
   UserRound,
-  Users,
+  Wallet,
   X,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,8 +28,10 @@ import {
   type HelpFeedPost,
   type HelpFeedTutorial,
 } from "@/hooks/useHelpFeed";
+import { guideSections, type GuideSection } from "@/pages/help/guides";
 
-type TabKey = "feed" | "tutorial";
+type TabKey = "feed" | "tutorial" | GuideSection["key"];
+
 
 const suggestions = [
   { name: "N!nh™ Studio", handle: "@ninhstudio", avatar: "n2" },
@@ -63,25 +66,26 @@ function Sidebar({
 }) {
   const navGroups: Array<{
     title: string;
-    items: Array<{ label: string; icon: typeof Zap; active?: boolean; onClick?: () => void }>;
+    items: Array<{ label: string; icon: LucideIcon; active?: boolean; onClick?: () => void }>;
   }> = [
     {
-      title: "Explore",
+      title: "Comunidade",
       items: [
         { label: "Feed", icon: Zap, active: tab === "feed", onClick: () => onTab("feed") },
-        { label: "Tutorial", icon: BookOpen, active: tab === "tutorial", onClick: () => onTab("tutorial") },
-        { label: "Activity", icon: Activity },
+        { label: "Tutoriais", icon: BookOpen, active: tab === "tutorial", onClick: () => onTab("tutorial") },
       ],
     },
     {
-      title: "Community",
+      title: "Central de ajuda",
       items: [
-        { label: "Marketplace", icon: GalleryHorizontalEnd },
-        { label: "Gallery", icon: ImageIcon },
-        { label: "Members", icon: Users },
+        { label: "Meus anúncios", icon: ShoppingBag, active: tab === "anuncios", onClick: () => onTab("anuncios") },
+        { label: "Publicação", icon: Zap, active: tab === "publicacao", onClick: () => onTab("publicacao") },
+        { label: "Pagamentos", icon: Wallet, active: tab === "pagamentos", onClick: () => onTab("pagamentos") },
+        { label: "Conta & suporte", icon: LifeBuoy, active: tab === "conta", onClick: () => onTab("conta") },
       ],
     },
   ];
+
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[368px] shrink-0 border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:block">
@@ -141,14 +145,13 @@ function CommentsSection({
   canPost,
   loadComments,
   addComment,
-  updatePost,
-  deletePost,
 }: {
   post: HelpFeedPost;
   canPost: boolean;
   loadComments: (postId: string) => Promise<HelpFeedComment[]>;
   addComment: (postId: string, content: string) => Promise<void>;
 }) {
+
   const [comments, setComments] = useState<HelpFeedComment[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -649,7 +652,92 @@ function RightRail() {
   );
 }
 
+function GuidesView({ sectionKey }: { sectionKey: TabKey }) {
+  const section = guideSections.find((s) => s.key === sectionKey);
+  const [query, setQuery] = useState("");
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    if (!section) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return section.items;
+    return section.items.filter(
+      (item) =>
+        item.title.toLowerCase().includes(q) ||
+        item.summary.toLowerCase().includes(q) ||
+        item.steps.some((s) => s.toLowerCase().includes(q)),
+    );
+  }, [section, query]);
+
+  if (!section) return null;
+
+  return (
+    <div className="py-[28px]">
+      <header className="mb-[22px]">
+        <h1 className="text-[26px] font-semibold text-white">{section.label}</h1>
+        <p className="mt-[8px] max-w-[720px] text-[16px] leading-[1.55] text-[#9b9ba1]">{section.intro}</p>
+        <label className="relative mt-[18px] block max-w-[520px]">
+          <Search className="absolute left-[15px] top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#aaaab0]" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Descreva seu problema…"
+            className="h-[46px] w-full rounded-[10px] border-0 bg-[#19191a] pl-[46px] pr-3 text-[16px] text-white outline-none placeholder:text-[#67676c]"
+          />
+        </label>
+      </header>
+
+      {filtered.length === 0 ? (
+        <p className="rounded-[14px] border border-white/[0.08] bg-[#19191a] p-[24px] text-center text-[15px] text-[#9b9ba1]">
+          Nada encontrado para "{query}". Tente outra palavra ou abra um chamado no Suporte.
+        </p>
+      ) : (
+        <ul className="space-y-[12px]">
+          {filtered.map((item) => {
+            const Icon = item.icon;
+            const open = openId === item.id;
+            return (
+              <li key={item.id} className="overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#19191a]">
+                <button
+                  onClick={() => setOpenId(open ? null : item.id)}
+                  className="flex w-full items-start gap-[16px] px-[20px] py-[18px] text-left transition hover:bg-white/[0.02]"
+                >
+                  <span className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[10px] bg-[#242425] text-[#5fbff5]">
+                    <Icon className="h-[19px] w-[19px]" strokeWidth={1.8} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[17px] font-semibold text-white">{item.title}</h3>
+                    <p className="mt-[6px] text-[15px] leading-[1.5] text-[#9b9ba1]">{item.summary}</p>
+                  </div>
+                  <ChevronDown
+                    className={`mt-[10px] h-[18px] w-[18px] shrink-0 text-[#8b8b90] transition ${open ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {open && (
+                  <div className="border-t border-white/[0.06] bg-[#141416] px-[20px] py-[18px] pl-[76px]">
+                    <ol className="list-decimal space-y-[10px] pl-[20px] text-[15px] leading-[1.6] text-[#c8c8cb] marker:text-[#67676c]">
+                      {item.steps.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ol>
+                    {item.tip && (
+                      <p className="mt-[14px] rounded-[10px] border border-[#159ff2]/25 bg-[#159ff2]/10 px-[14px] py-[10px] text-[14px] leading-[1.5] text-[#a9d8f5]">
+                        💡 {item.tip}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function Docs() {
+
   const { user } = useAuth();
   const { nome, foto } = useProfile();
   const {
@@ -686,23 +774,22 @@ export default function Docs() {
         <Sidebar tab={tab} onTab={setTab} displayName={accountName} avatar={accountAvatar} />
         <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e] xl:w-[1040px] xl:flex-none">
           <header className="sticky top-0 z-30 flex h-[66px] w-[calc(140.845071vw-368px)] items-center justify-between border-b border-white/[0.08] bg-[#0d0d0e]/95 px-[14px] backdrop-blur">
-            <div className="flex items-center gap-[18px]">
-              <button
-                onClick={() => setTab("feed")}
-                className={`rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
-                  tab === "feed" ? "bg-[#28282a] text-white" : "text-[#737378]"
-                }`}
-              >
-                Feed
-              </button>
-              <button
-                onClick={() => setTab("tutorial")}
-                className={`rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
-                  tab === "tutorial" ? "bg-[#28282a] text-white" : "text-[#737378]"
-                }`}
-              >
-                Tutorial
-              </button>
+            <div className="flex items-center gap-[18px] overflow-x-auto">
+              {([
+                { key: "feed" as TabKey, label: "Feed" },
+                { key: "tutorial" as TabKey, label: "Tutoriais" },
+                ...guideSections.map((s) => ({ key: s.key as TabKey, label: s.label })),
+              ]).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  className={`shrink-0 rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
+                    tab === key ? "bg-[#28282a] text-white" : "text-[#737378]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
             {isAdmin && tab === "feed" && (
               <span className="rounded-[10px] bg-[#159ff2]/10 px-[14px] py-[8px] text-[14px] font-semibold text-[#5fbff5]">
@@ -748,7 +835,12 @@ export default function Docs() {
                 <TutorialList tutorials={tutorials} />
               </div>
             )}
+
+            {tab !== "feed" && tab !== "tutorial" && (
+              <GuidesView sectionKey={tab} />
+            )}
           </div>
+
         </main>
         <div className="hidden w-[56px] shrink-0 xl:block" />
         <RightRail />
