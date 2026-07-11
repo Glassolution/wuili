@@ -174,9 +174,12 @@ export const guideSections: GuideSection[] = [
   {
     key: "pagamentos",
     label: "Pagamentos",
+    headline: "Cobranças, tarifas e reembolsos.",
     intro:
-      "Cobrança da assinatura, reembolsos, tarifas do Mercado Livre e saldo do Mercado Pago.",
+      "Entenda a cobrança da assinatura, as tarifas do Mercado Livre e por onde cai o dinheiro das vendas.",
+    quickTopics: ["cobrança", "reembolso", "tarifa ML", "onde vejo o dinheiro"],
     items: [
+
       {
         id: "cobranca-nao-reconhecida",
         icon: Receipt,
