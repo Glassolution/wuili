@@ -488,9 +488,9 @@ function Post({
         </span>
         <div className="min-w-0 flex-1">
           <header className="relative flex flex-wrap items-center gap-[8px]">
-            <strong className="text-[17px] font-semibold leading-none text-white">{post.author_name}</strong>
-            <BadgeCheck className="h-[19px] w-[19px] fill-white text-[#0d0d0e]" strokeWidth={2.2} aria-label="Conta verificada" />
-            <span className="text-[16px] font-medium text-[#67676c]">{timeAgo(post.created_at)}</span>
+            <strong className="text-[18px] font-semibold leading-none text-white">{post.author_name}</strong>
+            <BadgeCheck className="h-[20px] w-[20px] fill-white text-[#0d0d0e]" strokeWidth={2.2} aria-label="Conta verificada" />
+            <span className="text-[16.5px] font-medium text-[#67676c]">{timeAgo(post.created_at)}</span>
             {isAdmin && (
               <div className="relative ml-auto">
                 <button
@@ -559,14 +559,14 @@ function Post({
               </div>
             </div>
           ) : post.content && (
-            <p className="mt-[12px] whitespace-pre-line text-[17px] font-medium leading-[1.58] text-[#c8c8cb]">
+            <p className="mt-[12px] whitespace-pre-line text-[18px] font-medium leading-[1.6] text-[#c8c8cb]">
               {post.content}
             </p>
           )}
 
           {post.image_signed_url && (
-            <div className="relative mt-[16px] overflow-hidden rounded-[14px] border border-white/10 bg-black">
-              <img src={post.image_signed_url} alt="" className="mx-auto block max-h-[420px] w-auto max-w-full object-contain" />
+            <div className="relative mt-[16px] overflow-hidden rounded-[14px] border border-white/10">
+              <img src={post.image_signed_url} alt="" className="block w-full max-h-[560px] object-cover" />
             </div>
           )}
 
@@ -1123,10 +1123,10 @@ export default function Docs() {
 
           <div className="flex flex-1 min-h-0 w-full">
             <div className="hidden flex-1 shrink xl:block" />
-            <main className="min-h-screen w-full min-w-0 max-w-[680px] shrink-0 bg-[#0d0d0e]">
+            <main className="min-h-screen w-full min-w-0 max-w-[780px] shrink-0 bg-[#0d0d0e]">
               {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
 
-              <div className="relative mx-auto max-w-[620px] px-[24px]">
+              <div className="relative mx-auto max-w-[720px] px-[24px]">
                 {tab === "feed" && (
                   <>
                     {loading ? (
