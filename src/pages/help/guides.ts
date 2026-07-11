@@ -235,9 +235,12 @@ export const guideSections: GuideSection[] = [
   {
     key: "conta",
     label: "Conta & suporte",
+    headline: "A gente resolve por você.",
     intro:
-      "Login, senha, dados da conta e como falar com a gente quando nada resolve.",
+      "Login, senha, dados da conta e como falar com a equipe humana quando nada mais resolve.",
+    quickTopics: ["esqueci senha", "trocar email", "cancelar", "falar com suporte"],
     items: [
+
       {
         id: "recuperar-senha",
         icon: KeyRound,
