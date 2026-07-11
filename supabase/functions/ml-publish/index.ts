@@ -825,6 +825,9 @@ Deno.serve(async (req) => {
         tags: ['self_service_in'],
       },
     }
+
+    console.log('Payload:', JSON.stringify(mlPayload))
+    const itemResponse = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
