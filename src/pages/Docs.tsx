@@ -141,14 +141,13 @@ function CommentsSection({
   canPost,
   loadComments,
   addComment,
-  updatePost,
-  deletePost,
 }: {
   post: HelpFeedPost;
   canPost: boolean;
   loadComments: (postId: string) => Promise<HelpFeedComment[]>;
   addComment: (postId: string, content: string) => Promise<void>;
 }) {
+
   const [comments, setComments] = useState<HelpFeedComment[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
