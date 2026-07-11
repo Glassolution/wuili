@@ -386,54 +386,54 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/25 px-4 py-8 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/30 px-4 py-8 backdrop-blur-sm">
       <motion.section
-        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 18, scale: 0.98 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-[520px]"
+        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+        className="relative w-full max-w-[420px]"
         aria-modal="true"
         role="dialog"
       >
-        <button
-          type="button"
-          onClick={closeModal}
-          aria-label="Fechar novidade"
-          className="absolute -right-3 -top-3 z-50 grid h-11 w-11 place-items-center rounded-full bg-white text-[#777] shadow-[0_14px_30px_rgba(0,0,0,0.12)] transition-colors hover:text-black"
-        >
-          <X className="h-5 w-5" strokeWidth={1.8} />
-        </button>
-
-        <article className="overflow-hidden rounded-[30px] bg-white p-6 shadow-[0_34px_90px_rgba(17,17,17,0.18)]">
-          <header>
-            <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#9A9A9A]">Novidade</p>
-            <h2 className="mt-1 text-[27px] font-semibold leading-none tracking-[-0.055em] text-black">
-              Central de ajuda
+        <article className="overflow-hidden rounded-[18px] bg-white shadow-[0_28px_70px_rgba(17,17,17,0.22)]">
+          <header className="flex items-start justify-between gap-3 px-6 pt-5 pb-4">
+            <h2 className="text-[17px] font-semibold leading-tight tracking-[-0.01em] text-[#111]">
+              Novidades no painel
             </h2>
+            <button
+              type="button"
+              onClick={closeModal}
+              aria-label="Fechar novidade"
+              className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8A8A8A] transition-colors hover:bg-[#F2F2F1] hover:text-black"
+            >
+              <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
+            </button>
           </header>
 
-          {signedImage ? (
-            <div className="mt-5 overflow-hidden rounded-[20px] bg-[#F5F5F4]">
-              <img src={signedImage} alt="" className="h-auto max-h-[280px] w-full object-cover" />
-            </div>
-          ) : null}
+          <div className="px-6 pb-6">
+            {signedImage ? (
+              <div className="overflow-hidden rounded-[12px] border border-[#EDEDEC] bg-[#F5F5F4]">
+                <img src={signedImage} alt="" className="block h-auto max-h-[220px] w-full object-cover" />
+              </div>
+            ) : null}
 
-          <p className="mt-5 whitespace-pre-wrap text-[15px] leading-[1.55] tracking-[-0.01em] text-[#222]">
-            {post.content}
-          </p>
+            <p className="mt-4 whitespace-pre-wrap text-[13.5px] leading-[1.55] text-[#3A3A3A]">
+              {post.content}
+            </p>
 
-          <div className="mt-6 flex items-center gap-3 border-t border-[#EFEFEE] pt-4">
-            <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-[#F2F2F1] text-[13px] font-semibold text-[#333]">
-              {post.author_avatar ? (
-                <img src={post.author_avatar} alt="" className="h-full w-full object-cover" />
-              ) : (
-                post.author_name.slice(0, 1).toUpperCase()
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[14px] font-semibold text-[#111]">{post.author_name}</p>
-              <p className="truncate text-[12px] text-[#8A8A8A]">{formatAnnouncementDate(post.created_at)}</p>
+            <div className="mt-5 flex items-center gap-2.5 border-t border-[#EFEFEE] pt-3">
+              <div className="grid h-8 w-8 place-items-center overflow-hidden rounded-full bg-[#F2F2F1] text-[12px] font-semibold text-[#333]">
+                {post.author_avatar ? (
+                  <img src={post.author_avatar} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  post.author_name.slice(0, 1).toUpperCase()
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12.5px] font-semibold text-[#111]">{post.author_name}</p>
+                <p className="truncate text-[11.5px] text-[#8A8A8A]">{formatAnnouncementDate(post.created_at)}</p>
+              </div>
             </div>
           </div>
         </article>
