@@ -966,8 +966,31 @@ export default function Docs() {
           </div>
 
           {tab !== "feed" && tab !== "tutorial" && (
-            <GuidesView sectionKey={tab} />
+            <GuidesView sectionKey={tab} activeId={activeGuideId} setActiveId={setActiveGuideId} />
           )}
+
+        </main>
+        {(tab === "feed" || tab === "tutorial") && (
+          <>
+            <div className="hidden w-[56px] shrink-0 xl:block" />
+            <RightRail />
+            <div className="hidden w-[20px] shrink-0 xl:block" />
+          </>
+        )}
+      </div>
+
+      <SearchPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onSelect={(sectionKey, itemId) => {
+          setTab(sectionKey);
+          setActiveGuideId(itemId);
+          setPaletteOpen(false);
+        }}
+      />
+    </div>
+  );
+}
 
         </main>
         {(tab === "feed" || tab === "tutorial") && (
