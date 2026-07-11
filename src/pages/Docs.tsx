@@ -258,7 +258,7 @@ function Sidebar({
 
 
   return (
-    <aside className="sticky top-0 hidden h-screen max-h-screen w-[368px] shrink-0 flex-col self-start overflow-y-auto border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:flex">
+    <aside className="sticky top-0 hidden h-[140.845071vh] w-[368px] shrink-0 flex-col self-start overflow-y-auto border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:flex">
       <button className="flex h-[54px] w-full items-center gap-3 text-left">
         <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]">
           {avatar ? (
