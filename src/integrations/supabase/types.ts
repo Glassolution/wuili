@@ -788,11 +788,16 @@ export type Database = {
       subscriptions: {
         Row: {
           amount: number
+          charge_attempts: number
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
           id: string
           is_trial: boolean
+          last_charge_attempt_at: string | null
+          last_dunning_email_at: string | null
+          mp_card_id: string | null
+          mp_customer_id: string | null
           mp_payment_id: string | null
           mp_subscription_id: string | null
           next_charge_amount: number | null
@@ -807,11 +812,16 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          charge_attempts?: number
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
           is_trial?: boolean
+          last_charge_attempt_at?: string | null
+          last_dunning_email_at?: string | null
+          mp_card_id?: string | null
+          mp_customer_id?: string | null
           mp_payment_id?: string | null
           mp_subscription_id?: string | null
           next_charge_amount?: number | null
@@ -826,11 +836,16 @@ export type Database = {
         }
         Update: {
           amount?: number
+          charge_attempts?: number
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
           is_trial?: boolean
+          last_charge_attempt_at?: string | null
+          last_dunning_email_at?: string | null
+          mp_card_id?: string | null
+          mp_customer_id?: string | null
           mp_payment_id?: string | null
           mp_subscription_id?: string | null
           next_charge_amount?: number | null
