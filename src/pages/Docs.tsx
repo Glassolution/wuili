@@ -775,22 +775,23 @@ export default function Docs() {
         <Sidebar tab={tab} onTab={setTab} displayName={accountName} avatar={accountAvatar} />
         <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e] xl:w-[1040px] xl:flex-none">
           <header className="sticky top-0 z-30 flex h-[66px] w-[calc(140.845071vw-368px)] items-center justify-between border-b border-white/[0.08] bg-[#0d0d0e]/95 px-[14px] backdrop-blur">
-            <div className="flex items-center gap-[18px] overflow-x-auto">
-              {([
-                { key: "feed" as TabKey, label: "Feed" },
-                { key: "tutorial" as TabKey, label: "Tutoriais" },
-                ...guideSections.map((s) => ({ key: s.key as TabKey, label: s.label })),
-              ]).map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setTab(key)}
-                  className={`shrink-0 rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
-                    tab === key ? "bg-[#28282a] text-white" : "text-[#737378]"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="flex items-center gap-[18px]">
+              <button
+                onClick={() => setTab("feed")}
+                className={`rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
+                  tab === "feed" ? "bg-[#28282a] text-white" : "text-[#737378]"
+                }`}
+              >
+                Feed
+              </button>
+              <button
+                onClick={() => setTab("tutorial")}
+                className={`rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
+                  tab === "tutorial" ? "bg-[#28282a] text-white" : "text-[#737378]"
+                }`}
+              >
+                Tutorial
+              </button>
             </div>
             {isAdmin && tab === "feed" && (
               <span className="rounded-[10px] bg-[#159ff2]/10 px-[14px] py-[8px] text-[14px] font-semibold text-[#5fbff5]">
@@ -798,6 +799,7 @@ export default function Docs() {
               </span>
             )}
           </header>
+
 
           {tab === "feed" && isAdmin && <Composer onSubmit={createPost} />}
 
