@@ -1119,59 +1119,57 @@ export default function Docs() {
           )}
 
           <div className="flex flex-1 min-h-0 w-full">
-            <div className="hidden flex-1 shrink xl:block" />
-            <main className="min-h-screen w-full min-w-0 max-w-[780px] shrink-0 bg-[#0d0d0e]">
-              {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
-
-              <div className="relative mx-auto max-w-[720px] px-[24px]">
-                {tab === "feed" && (
-                  <>
-                    {loading ? (
-                      <p className="py-[40px] text-center text-[15px] text-[#67676c]">Carregando feed…</p>
-                    ) : error ? (
-                      <p className="py-[40px] text-center text-[15px] text-red-400">{error}</p>
-                    ) : posts.length === 0 ? (
-                      <p className="py-[40px] text-center text-[15px] text-[#67676c]">
-                        Ainda não há publicações. {isAdmin ? "Seja o primeiro a publicar!" : "Volte em breve."}
-                      </p>
-                    ) : (
-                      posts.map((p) => (
-                        <Post
-                          key={p.id}
-                          post={p}
-                          canInteract={canInteract}
-                          isAdmin={isAdmin}
-                          onLike={toggleLike}
-                          loadComments={loadComments}
-                          addComment={addComment}
-                          updatePost={updatePost}
-                          deletePost={deletePost}
-                        />
-                      ))
-                    )}
-                  </>
-                )}
-
-                {tab === "tutorial" && (
-                  <div className="py-[24px]">
-                    {isAdmin && <TutorialAdminForm onSubmit={createTutorial} />}
-                    <TutorialList tutorials={tutorials} />
-                  </div>
-                )}
-
-              </div>
-
-              {tab !== "feed" && tab !== "tutorial" && (
-                <GuidesView sectionKey={tab} activeId={activeGuideId} setActiveId={setActiveGuideId} />
-              )}
-
-            </main>
-            {(tab === "feed" || tab === "tutorial") && (
+            {(tab === "feed" || tab === "tutorial") ? (
               <>
+                <div className="hidden flex-1 shrink xl:block" />
+                <main className="min-h-screen w-full min-w-0 max-w-[780px] shrink-0 bg-[#0d0d0e]">
+                  {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
+
+                  <div className="relative mx-auto max-w-[720px] px-[24px]">
+                    {tab === "feed" && (
+                      <>
+                        {loading ? (
+                          <p className="py-[40px] text-center text-[15px] text-[#67676c]">Carregando feed…</p>
+                        ) : error ? (
+                          <p className="py-[40px] text-center text-[15px] text-red-400">{error}</p>
+                        ) : posts.length === 0 ? (
+                          <p className="py-[40px] text-center text-[15px] text-[#67676c]">
+                            Ainda não há publicações. {isAdmin ? "Seja o primeiro a publicar!" : "Volte em breve."}
+                          </p>
+                        ) : (
+                          posts.map((p) => (
+                            <Post
+                              key={p.id}
+                              post={p}
+                              canInteract={canInteract}
+                              isAdmin={isAdmin}
+                              onLike={toggleLike}
+                              loadComments={loadComments}
+                              addComment={addComment}
+                              updatePost={updatePost}
+                              deletePost={deletePost}
+                            />
+                          ))
+                        )}
+                      </>
+                    )}
+
+                    {tab === "tutorial" && (
+                      <div className="py-[24px]">
+                        {isAdmin && <TutorialAdminForm onSubmit={createTutorial} />}
+                        <TutorialList tutorials={tutorials} />
+                      </div>
+                    )}
+                  </div>
+                </main>
                 <div className="hidden w-[8px] shrink-0 xl:block" />
                 <RightRail />
                 <div className="hidden flex-1 shrink xl:block" />
               </>
+            ) : (
+              <main className="min-h-screen w-full min-w-0 flex-1 bg-[#0d0d0e] px-[24px]">
+                <GuidesView sectionKey={tab} activeId={activeGuideId} setActiveId={setActiveGuideId} />
+              </main>
             )}
           </div>
         </div>
