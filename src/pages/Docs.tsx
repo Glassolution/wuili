@@ -1124,7 +1124,7 @@ export default function Docs() {
 
           {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
 
-          <div className="relative ml-auto mr-[24px] max-w-[620px] px-[24px]">
+          <div className="relative mx-auto max-w-[620px] px-[24px]">
             {tab === "feed" && (
               <>
                 {loading ? (
