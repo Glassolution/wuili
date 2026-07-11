@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Activity,
+  ArrowLeft,
   BadgeCheck,
   BookOpen,
   ChevronDown,
@@ -257,6 +259,13 @@ function Sidebar({
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[368px] shrink-0 border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:block">
+      <Link
+        to="/dashboard"
+        className="mb-3 flex h-[38px] w-full items-center gap-2 rounded-[9px] px-[10px] text-[14px] font-medium text-[#a5a5a9] transition hover:bg-white/[0.05] hover:text-white"
+      >
+        <ArrowLeft className="h-[16px] w-[16px]" strokeWidth={1.8} />
+        Voltar para o dashboard
+      </Link>
       <button className="flex h-[54px] w-full items-center gap-3 text-left">
         <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]">
           {avatar ? (
@@ -268,6 +277,7 @@ function Sidebar({
         <span className="min-w-0 flex-1 truncate text-[17px] font-semibold text-[#f2f2f3]">{displayName}</span>
         <ChevronDown className="h-4 w-4 text-[#8b8b90]" />
       </button>
+
 
       <div className="mt-1 border-t border-white/[0.08] pt-[14px]">
         <button
@@ -1047,7 +1057,25 @@ export default function Docs() {
     if (typeof metadataName === "string" && metadataName.trim()) return metadataName.trim();
     return user?.email?.split("@")[0] || "Usuario";
   }, [nome, user]);
-  const accountAvatar = foto || (typeof user?.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null);
+  const [emailHash, setEmailHash] = useState<string | null>(null);
+  useEffect(() => {
+    const email = user?.email?.trim().toLowerCase();
+    if (!email || !globalThis.crypto?.subtle) { setEmailHash(null); return; }
+    let cancelled = false;
+    globalThis.crypto.subtle
+      .digest("SHA-256", new TextEncoder().encode(email))
+      .then((buf) => {
+        if (cancelled) return;
+        const hex = Array.from(new Uint8Array(buf))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        setEmailHash(hex);
+      })
+      .catch(() => setEmailHash(null));
+    return () => { cancelled = true; };
+  }, [user?.email]);
+  const gravatarUrl = emailHash ? `https://www.gravatar.com/avatar/${emailHash}?d=identicon&s=120` : null;
+  const accountAvatar = foto || (typeof user?.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null) || gravatarUrl;
 
   const [showComposer, setShowComposer] = useState(false);
 
