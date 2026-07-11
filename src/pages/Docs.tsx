@@ -1169,9 +1169,9 @@ export default function Docs() {
         </main>
         {(tab === "feed" || tab === "tutorial") && (
           <>
-            <div className="hidden w-[16px] shrink-0 xl:block" />
+            <div className="hidden w-[8px] shrink-0 xl:block" />
             <RightRail />
-            <div className="hidden w-[120px] shrink-0 xl:block" />
+            <div className="hidden flex-1 shrink xl:block" />
           </>
         )}
       </div>
