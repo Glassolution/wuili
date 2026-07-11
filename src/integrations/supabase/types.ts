@@ -1099,6 +1099,7 @@ export type Database = {
           cost_price: number | null
           created_at: string | null
           id: string
+          ml_closed_at: string | null
           ml_item_id: string
           permalink: string | null
           price: number | null
@@ -1117,6 +1118,7 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           id?: string
+          ml_closed_at?: string | null
           ml_item_id: string
           permalink?: string | null
           price?: number | null
@@ -1135,6 +1137,7 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           id?: string
+          ml_closed_at?: string | null
           ml_item_id?: string
           permalink?: string | null
           price?: number | null
