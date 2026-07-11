@@ -27,6 +27,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     let mounted = true;
+    let initialSessionValidated = false;
 
     if (!isSupabaseEnabled) {
       setUser(
@@ -46,28 +47,61 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       };
     }
 
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (!mounted) return;
-        setSession(session ?? null);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setSession(null);
-        setUser(null);
-        setLoading(false);
-      });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         if (!mounted) return;
+
+        // getSession may contain an expired token. Do not expose that stale user
+        // while the initial server-side validation below is still running.
+        if (!initialSessionValidated && event === "INITIAL_SESSION") return;
+
         setSession(session ?? null);
         setUser(session?.user ?? null);
         setLoading(false);
       }
     );
+
+    const validateInitialSession = async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentSession = sessionData.session;
+
+        if (!currentSession) {
+          if (!mounted) return;
+          initialSessionValidated = true;
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData.user) {
+          await supabase.auth.signOut({ scope: "local" });
+          if (!mounted) return;
+          initialSessionValidated = true;
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        const { data: refreshedSessionData } = await supabase.auth.getSession();
+        if (!mounted) return;
+        initialSessionValidated = true;
+        setSession(refreshedSessionData.session ?? null);
+        setUser(userData.user);
+        setLoading(false);
+      } catch {
+        if (!mounted) return;
+        initialSessionValidated = true;
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+      }
+    };
+
+    void validateInitialSession();
 
     return () => {
       mounted = false;
