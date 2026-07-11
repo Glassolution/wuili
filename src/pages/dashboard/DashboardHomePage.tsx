@@ -414,9 +414,10 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
           </header>
 
           <div className="px-6 pb-5">
-            <p className="mb-4 text-[13px] leading-[1.5] text-[#3A3A3A]">
+            <p className="mb-4 text-[13.5px] leading-[1.55] text-[#111] font-medium">
               Agora temos uma comunidade dentro da própria Velo. Já deu uma olhada nas novidades?
             </p>
+
 
             <div className="rounded-[12px] border border-[#1f1f22] bg-[#0d0d0e] p-4">
               <div className="flex items-center gap-2.5">
@@ -437,9 +438,10 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
               </p>
             </div>
 
-            <p className="mt-4 text-[13px] leading-[1.55] text-[#3A3A3A]">
+            <p className="mt-4 text-[13.5px] leading-[1.6] text-[#111] font-medium">
               Estamos publicando novidades, tutoriais e conversando direto com você aqui pelo painel. Abra o feed da comunidade para ver o post completo, curtir e deixar seu comentário — é assim que a gente decide o que construir a seguir.
             </p>
+
           </div>
 
           <div className="flex justify-end border-t border-[#EFEFEE] px-6 py-4">
