@@ -73,18 +73,19 @@ function Sidebar({
       items: [
         { label: "Feed", icon: Zap, active: tab === "feed", onClick: () => onTab("feed") },
         { label: "Tutorial", icon: BookOpen, active: tab === "tutorial", onClick: () => onTab("tutorial") },
-        { label: "Activity", icon: Activity, active: tab === "anuncios", onClick: () => onTab("anuncios") },
+        { label: "Anúncios", icon: Activity, active: tab === "anuncios", onClick: () => onTab("anuncios") },
       ],
     },
     {
-      title: "Community",
+      title: "Ajuda",
       items: [
-        { label: "Marketplace", icon: GalleryHorizontalEnd, active: tab === "publicacao", onClick: () => onTab("publicacao") },
-        { label: "Gallery", icon: ImageIcon, active: tab === "pagamentos", onClick: () => onTab("pagamentos") },
-        { label: "Members", icon: Users, active: tab === "conta", onClick: () => onTab("conta") },
+        { label: "Publicação", icon: GalleryHorizontalEnd, active: tab === "publicacao", onClick: () => onTab("publicacao") },
+        { label: "Pagamentos", icon: ImageIcon, active: tab === "pagamentos", onClick: () => onTab("pagamentos") },
+        { label: "Conta & suporte", icon: Users, active: tab === "conta", onClick: () => onTab("conta") },
       ],
     },
   ];
+
 
 
 
