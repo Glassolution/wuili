@@ -10,7 +10,7 @@ import {
   MoreHorizontal,
   Pencil,
   Search,
-  Send,
+
   ShoppingBag,
   Trash2,
   UserRound,
