@@ -921,7 +921,7 @@ export default function Docs() {
           </header>
 
 
-          {tab === "feed" && isAdmin && <Composer onSubmit={createPost} />}
+          {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
 
           <div className="relative ml-[158px] mr-[28px]">
             {tab === "feed" && (
