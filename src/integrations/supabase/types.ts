@@ -406,6 +406,118 @@ export type Database = {
         }
         Relationships: []
       }
+      help_feed_comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_feed_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "help_feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_feed_likes: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_feed_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "help_feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_feed_posts: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          image_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      help_feed_tutorials: {
+        Row: {
+          body_md: string
+          created_at: string
+          id: string
+          order_index: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body_md: string
+          created_at?: string
+          id?: string
+          order_index?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body_md?: string
+          created_at?: string
+          id?: string
+          order_index?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -650,6 +762,7 @@ export type Database = {
           disponibilidade_semanal: string | null
           experiencia: string | null
           id: string
+          is_admin: boolean
           loja_nome: string | null
           nicho: string | null
           objetivo: string | null
@@ -669,6 +782,7 @@ export type Database = {
           disponibilidade_semanal?: string | null
           experiencia?: string | null
           id?: string
+          is_admin?: boolean
           loja_nome?: string | null
           nicho?: string | null
           objetivo?: string | null
@@ -688,6 +802,7 @@ export type Database = {
           disponibilidade_semanal?: string | null
           experiencia?: string | null
           id?: string
+          is_admin?: boolean
           loja_nome?: string | null
           nicho?: string | null
           objetivo?: string | null
@@ -1255,6 +1370,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: { _uid: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "influencer"
