@@ -684,58 +684,58 @@ function GuidesView({ sectionKey }: { sectionKey: TabKey }) {
       <div className="pb-[80px] pt-[36px]">
         <button
           onClick={() => setActiveId(null)}
-          className="mb-[28px] flex items-center gap-[8px] text-[14px] font-medium text-[#8b8b90] transition hover:text-white"
+          className="mb-[28px] flex items-center gap-[8px] text-[18px] font-medium text-[#8b8b90] transition hover:text-white"
         >
-          <ChevronDown className="h-[15px] w-[15px] rotate-90" />
+          <ChevronDown className="h-[18px] w-[18px] rotate-90" />
           Voltar para {section.label}
         </button>
 
-        <div className="mx-auto max-w-[720px]">
+        <div className="mx-auto max-w-[900px]">
           <div className="flex items-center gap-[14px]">
-            <span className="flex h-[52px] w-[52px] items-center justify-center rounded-[14px] border border-emerald-400/25 bg-gradient-to-br from-emerald-500/15 to-emerald-500/[0.02] text-emerald-300">
-              <Icon className="h-[24px] w-[24px]" strokeWidth={1.7} />
+            <span className="flex h-[64px] w-[64px] items-center justify-center rounded-[16px] bg-white/[0.04] text-white">
+              <Icon className="h-[30px] w-[30px]" strokeWidth={1.7} />
             </span>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-[12px] py-[5px] text-[11px] font-semibold uppercase tracking-[0.14em] text-[#9b9ba1]">
+            <span className="text-[14px] font-semibold uppercase tracking-[0.16em] text-[#9b9ba1]">
               {section.label}
             </span>
           </div>
 
-          <h1 className="mt-[22px] text-[38px] font-semibold leading-[1.1] tracking-[-0.02em] text-white">
+          <h1 className="mt-[26px] text-[52px] font-semibold leading-[1.05] tracking-[-0.02em] text-white">
             {active.title}
           </h1>
-          <p className="mt-[14px] text-[17px] leading-[1.6] text-[#a5a5aa]">{active.summary}</p>
+          <p className="mt-[18px] text-[22px] leading-[1.55] text-[#a5a5aa]">{active.summary}</p>
 
-          <div className="mt-[36px]">
-            <h2 className="text-[13px] font-semibold uppercase tracking-[0.16em] text-[#67676c]">
+          <div className="mt-[44px]">
+            <h2 className="text-[16px] font-semibold uppercase tracking-[0.16em] text-[#67676c]">
               Passo a passo
             </h2>
-            <ol className="mt-[16px] space-y-[14px]">
+            <ol className="mt-[20px] space-y-[16px]">
               {active.steps.map((step, i) => (
-                <li key={i} className="flex gap-[16px] rounded-[14px] border border-white/[0.06] bg-[#141416] px-[18px] py-[15px]">
-                  <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-white text-[13px] font-bold text-black">
+                <li key={i} className="flex gap-[20px] rounded-[16px] bg-[#141416] px-[22px] py-[20px]">
+                  <span className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-white text-[16px] font-bold text-black">
                     {i + 1}
                   </span>
-                  <p className="text-[15.5px] leading-[1.6] text-[#d5d5d8]">{step}</p>
+                  <p className="text-[19px] leading-[1.6] text-[#d5d5d8]">{step}</p>
                 </li>
               ))}
             </ol>
           </div>
 
           {active.tip && (
-            <div className="mt-[28px] rounded-[14px] border border-emerald-400/25 bg-gradient-to-br from-emerald-500/[0.08] to-transparent p-[18px]">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-emerald-300">Dica</p>
-              <p className="mt-[8px] text-[15px] leading-[1.6] text-[#d5d5d8]">{active.tip}</p>
+            <div className="mt-[32px] rounded-[16px] bg-[#141416] p-[22px]">
+              <p className="text-[14px] font-semibold uppercase tracking-[0.14em] text-white/70">Dica</p>
+              <p className="mt-[10px] text-[19px] leading-[1.6] text-[#d5d5d8]">{active.tip}</p>
             </div>
           )}
 
-          <div className="mt-[40px] flex flex-col gap-[14px] rounded-[16px] border border-white/[0.08] bg-[#131315] p-[22px] sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-[44px] flex flex-col gap-[14px] rounded-[18px] bg-[#141416] p-[26px] sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[16px] font-semibold text-white">Ainda com dúvida?</p>
-              <p className="mt-[4px] text-[14px] text-[#8b8b90]">Fale com o suporte humano em Suporte → Novo chamado.</p>
+              <p className="text-[20px] font-semibold text-white">Ainda com dúvida?</p>
+              <p className="mt-[6px] text-[17px] text-[#8b8b90]">Fale com o suporte humano em Suporte → Novo chamado.</p>
             </div>
             <button
               onClick={() => setActiveId(null)}
-              className="rounded-[10px] bg-white px-[18px] py-[10px] text-[14px] font-semibold text-black transition hover:opacity-90"
+              className="rounded-[10px] bg-white px-[22px] py-[12px] text-[17px] font-semibold text-black transition hover:opacity-90"
             >
               Ver outros guias
             </button>
