@@ -202,6 +202,7 @@ const PublicationsPage = () => {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((pub) => {
             const status = pub.status || "pending";
+            const preset = statusPresets[status] ?? statusPresets.pending;
             const retailPrice = pub.price ?? 0;
             const wholesalePrice = pub.cost_price ?? 0;
 
