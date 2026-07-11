@@ -66,25 +66,26 @@ function Sidebar({
 }) {
   const navGroups: Array<{
     title: string;
-    items: Array<{ label: string; icon: typeof Zap; active?: boolean; onClick?: () => void }>;
+    items: Array<{ label: string; icon: LucideIcon; active?: boolean; onClick?: () => void }>;
   }> = [
     {
-      title: "Explore",
+      title: "Comunidade",
       items: [
         { label: "Feed", icon: Zap, active: tab === "feed", onClick: () => onTab("feed") },
-        { label: "Tutorial", icon: BookOpen, active: tab === "tutorial", onClick: () => onTab("tutorial") },
-        { label: "Activity", icon: Activity },
+        { label: "Tutoriais", icon: BookOpen, active: tab === "tutorial", onClick: () => onTab("tutorial") },
       ],
     },
     {
-      title: "Community",
+      title: "Central de ajuda",
       items: [
-        { label: "Marketplace", icon: GalleryHorizontalEnd },
-        { label: "Gallery", icon: ImageIcon },
-        { label: "Members", icon: Users },
+        { label: "Meus anúncios", icon: ShoppingBag, active: tab === "anuncios", onClick: () => onTab("anuncios") },
+        { label: "Publicação", icon: Zap, active: tab === "publicacao", onClick: () => onTab("publicacao") },
+        { label: "Pagamentos", icon: Wallet, active: tab === "pagamentos", onClick: () => onTab("pagamentos") },
+        { label: "Conta & suporte", icon: LifeBuoy, active: tab === "conta", onClick: () => onTab("conta") },
       ],
     },
   ];
+
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[368px] shrink-0 border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:block">
