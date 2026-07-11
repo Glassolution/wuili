@@ -30,17 +30,23 @@ export type GuideItem = {
 export type GuideSection = {
   key: "anuncios" | "publicacao" | "pagamentos" | "conta";
   label: string;
+  headline?: string;
   intro: string;
+  quickTopics?: string[];
   items: GuideItem[];
 };
+
 
 export const guideSections: GuideSection[] = [
   {
     key: "anuncios",
     label: "Meus anúncios",
+    headline: "Seu anúncio, sob controle.",
     intro:
-      "Problemas com anúncios já publicados no Mercado Livre — pausas, reprovações, falta de estoque e reativação.",
+      "Pausas, reprovações, falta de estoque, reativação. Resolva sem sair daqui.",
+    quickTopics: ["pausado", "reprovado", "sem venda", "reativar"],
     items: [
+
       {
         id: "anuncio-pausado",
         icon: AlertTriangle,
@@ -100,9 +106,12 @@ export const guideSections: GuideSection[] = [
   {
     key: "publicacao",
     label: "Publicação",
+    headline: "Publique sem travas.",
     intro:
-      "Como publicar seu primeiro produto, requisitos da conta e por que algumas publicações falham.",
+      "Requisitos da conta, conexão com Mercado Livre e o que fazer quando a publicação falha.",
+    quickTopics: ["não consigo publicar", "precisa pagar", "erro", "conectar ML"],
     items: [
+
       {
         id: "nao-consigo-publicar",
         icon: Ban,
@@ -165,9 +174,12 @@ export const guideSections: GuideSection[] = [
   {
     key: "pagamentos",
     label: "Pagamentos",
+    headline: "Cobranças, tarifas e reembolsos.",
     intro:
-      "Cobrança da assinatura, reembolsos, tarifas do Mercado Livre e saldo do Mercado Pago.",
+      "Entenda a cobrança da assinatura, as tarifas do Mercado Livre e por onde cai o dinheiro das vendas.",
+    quickTopics: ["cobrança", "reembolso", "tarifa ML", "onde vejo o dinheiro"],
     items: [
+
       {
         id: "cobranca-nao-reconhecida",
         icon: Receipt,
@@ -223,9 +235,12 @@ export const guideSections: GuideSection[] = [
   {
     key: "conta",
     label: "Conta & suporte",
+    headline: "A gente resolve por você.",
     intro:
-      "Login, senha, dados da conta e como falar com a gente quando nada resolve.",
+      "Login, senha, dados da conta e como falar com a equipe humana quando nada mais resolve.",
+    quickTopics: ["esqueci senha", "trocar email", "cancelar", "falar com suporte"],
     items: [
+
       {
         id: "recuperar-senha",
         icon: KeyRound,
