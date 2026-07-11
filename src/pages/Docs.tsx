@@ -941,15 +941,20 @@ export default function Docs() {
               </div>
             )}
 
-            {tab !== "feed" && tab !== "tutorial" && (
-              <GuidesView sectionKey={tab} />
-            )}
           </div>
 
+          {tab !== "feed" && tab !== "tutorial" && (
+            <GuidesView sectionKey={tab} />
+          )}
+
         </main>
-        <div className="hidden w-[56px] shrink-0 xl:block" />
-        <RightRail />
-        <div className="hidden w-[20px] shrink-0 xl:block" />
+        {(tab === "feed" || tab === "tutorial") && (
+          <>
+            <div className="hidden w-[56px] shrink-0 xl:block" />
+            <RightRail />
+            <div className="hidden w-[20px] shrink-0 xl:block" />
+          </>
+        )}
       </div>
     </div>
   );
