@@ -135,15 +135,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const expected = Deno.env.get("INTERNAL_SECRET");
-    const provided = req.headers.get("x-internal-secret");
-    if (!expected || provided !== expected) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -178,6 +169,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    const { data: rows, error: fetchErr } = await supabase
+      .from("user_publications")
+      .select("id, user_id, ml_item_id, status")
+      .eq("status", "archived_duplicate")
+      .not("ml_item_id", "is", null)
+      .is("ml_closed_at", null);
+
+    if (fetchErr) {
+      return new Response(JSON.stringify({ error: fetchErr.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const targets = (rows ?? []) as Row[];
     const report: ReportEntry[] = [];
