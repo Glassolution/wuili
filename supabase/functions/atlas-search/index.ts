@@ -284,31 +284,36 @@ async function callAI(apiKey: string, messages: Array<{ role: string; content: s
   }
 }
 
-// Classifica turno: nova busca vs continuar conversa sobre produto atual.
+// Classifica turno: nova busca de produto, chat sobre produto atual, ou dúvida geral sobre a Velo.
 async function classifyIntent(
   apiKey: string,
   userText: string,
   history: ChatHistoryItem[],
   hasCurrentProduct: boolean,
-): Promise<"search" | "chat"> {
-  if (!hasCurrentProduct) return "search";
+): Promise<"search" | "chat" | "general"> {
   if (isExplicitSearchRequest(userText)) return "search";
-  if (isCasualOrFollowUpChat(userText) && !isExplicitSearchRequest(userText)) return "chat";
 
-  const sys = `Você classifica intenção do usuário no assistente Aquas (dropshipping BR).
-Responda APENAS JSON: {"intencao":"search"|"chat"}.
-- "search": usuário quer NOVOS produtos (ex: "me mostre fones", "encontre algo mais barato", "outros produtos", "algo de cozinha", "trocar produto").
-- "chat": usuário quer discutir/analisar o produto atualmente mostrado ou conversar com o Aquas sem pedir nova busca (ex: "tudo bem?", "esse é bom pro meu nicho?", "é fácil de vender?", "e a concorrência?", "explica melhor", "vale a pena?", "como divulgar?").`;
+  const sys = `Você classifica a intenção da mensagem do usuário no assistente Atlas da Velo (dropshipping BR).
+Responda APENAS JSON: {"intencao":"search"|"chat"|"general"}.
+- "search": usuário quer encontrar/listar/trocar PRODUTOS no catálogo (ex: "me mostre fones", "encontre algo mais barato", "produto pra cozinha", "trocar produto", "outra opção").
+- "chat": usuário quer discutir/analisar o PRODUTO atualmente aberto (ex: "esse é bom pro meu nicho?", "vale a pena?", "como divulgar esse?"). Só use se houver produto no contexto.
+- "general": qualquer outra dúvida, conversa ou pedido de ajuda sobre a plataforma Velo, planos, assinatura, integração com Mercado Livre, publicação, pagamentos, saldos, comissões, cadastro, senha, funcionamento do dashboard, dúvidas conceituais, saudações, small talk. Use este quando NÃO for busca de produto nem análise do produto atual.
+Contexto: hasCurrentProduct=${hasCurrentProduct}.`;
   const messages = [
     { role: "system", content: sys },
     ...history.slice(-6).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content })),
     { role: "user", content: userText },
   ];
   const raw = await callAI(apiKey, messages);
-  if (!raw) return "search";
+  if (!raw) return hasCurrentProduct ? "chat" : "general";
   const parsed = extractJsonObject(raw);
-  return parsed?.intencao === "chat" ? "chat" : "search";
+  const intent = parsed?.intencao;
+  if (intent === "search") return "search";
+  if (intent === "chat" && hasCurrentProduct) return "chat";
+  if (intent === "general") return "general";
+  return hasCurrentProduct ? "chat" : "general";
 }
+
 
 async function inferFilters(
   apiKey: string,
