@@ -106,9 +106,12 @@ export const guideSections: GuideSection[] = [
   {
     key: "publicacao",
     label: "Publicação",
+    headline: "Publique sem travas.",
     intro:
-      "Como publicar seu primeiro produto, requisitos da conta e por que algumas publicações falham.",
+      "Requisitos da conta, conexão com Mercado Livre e o que fazer quando a publicação falha.",
+    quickTopics: ["não consigo publicar", "precisa pagar", "erro", "conectar ML"],
     items: [
+
       {
         id: "nao-consigo-publicar",
         icon: Ban,
