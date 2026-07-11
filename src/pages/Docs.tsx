@@ -1,53 +1,30 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
+  BookOpen,
   ChevronDown,
   GalleryHorizontalEnd,
   Heart,
-  Image,
-  BookOpen,
+  Image as ImageIcon,
   MessageCircle,
   Search,
   Send,
   UserRound,
   Users,
+  X,
   Zap,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/lib/profileContext";
+import {
+  useHelpFeed,
+  type HelpFeedComment,
+  type HelpFeedPost,
+  type HelpFeedTutorial,
+} from "@/hooks/useHelpFeed";
 
-type FeedPost = {
-  id: string;
-  author: string;
-  time: string;
-  avatar: string;
-  badge?: string;
-  body: string;
-  image?: string;
-  likes: number;
-  comments: number;
-};
-
-const posts: FeedPost[] = [
-  {
-    id: "shopkit",
-    author: "Tanishq Gautam",
-    time: "Now",
-    avatar: "https://i.pravatar.cc/96?img=12",
-    badge: "Pro Expert",
-    body: "Hey everyone! 👋\n\nI’ve built ShopKit, a Framer × Shopify plugin, and I’m currently looking for someone interested in acquiring it.\n\nI’d love to continue building and growing it, but due to time constraints, I’m not able to give it the attention it deserves right now. Rather than letting the project sit idle, I’d prefer",
-    likes: 0,
-    comments: 0,
-  },
-  {
-    id: "elara",
-    author: "Divine Samuel",
-    time: "8m",
-    avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=Divine&backgroundColor=c0a96b",
-    body: "Building Lightfall A photography portfolio template Rich imagery, Thoughtful typography.\nStill refining the details, but it's coming together nicely.",
-    image: "/community-elara-voss.png",
-    likes: 0,
-    comments: 0,
-  },
-];
+type TabKey = "feed" | "tutorial";
 
 const suggestions = [
   { name: "N!nh™ Studio", handle: "@ninhstudio", avatar: "n2" },
@@ -57,50 +34,92 @@ const suggestions = [
   { name: "Michael Andreuzza", handle: "@michael-andreuzza", avatar: "https://i.pravatar.cc/80?img=5" },
 ];
 
-const navGroups = [
-  {
-    title: "Explore",
-    items: [
-      { label: "Feed", icon: Zap, active: true },
-      { label: "Tutorial", icon: BookOpen },
-      { label: "Activity", icon: Activity },
-    ],
-  },
-  {
-    title: "Community",
-    items: [
-      { label: "Marketplace", icon: GalleryHorizontalEnd },
-      { label: "Gallery", icon: Image },
-      { label: "Members", icon: Users },
-    ],
-  },
-];
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.max(1, Math.round(diff / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.round(h / 24);
+  return `${d}d`;
+}
 
-function Sidebar() {
+function Sidebar({
+  tab,
+  onTab,
+  displayName,
+  avatar,
+}: {
+  tab: TabKey;
+  onTab: (t: TabKey) => void;
+  displayName: string;
+  avatar: string | null;
+}) {
+  const navGroups: Array<{
+    title: string;
+    items: Array<{ label: string; icon: typeof Zap; active?: boolean; onClick?: () => void }>;
+  }> = [
+    {
+      title: "Explore",
+      items: [
+        { label: "Feed", icon: Zap, active: tab === "feed", onClick: () => onTab("feed") },
+        { label: "Tutorial", icon: BookOpen, active: tab === "tutorial", onClick: () => onTab("tutorial") },
+        { label: "Activity", icon: Activity },
+      ],
+    },
+    {
+      title: "Community",
+      items: [
+        { label: "Marketplace", icon: GalleryHorizontalEnd },
+        { label: "Gallery", icon: ImageIcon },
+        { label: "Members", icon: Users },
+      ],
+    },
+  ];
+
   return (
     <aside className="sticky top-0 hidden h-screen w-[368px] shrink-0 border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:block">
       <button className="flex h-[54px] w-full items-center gap-3 text-left">
-        <span className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]">
-          <UserRound className="h-[19px] w-[19px]" strokeWidth={1.6} />
+        <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]">
+          {avatar ? (
+            <img src={avatar} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <UserRound className="h-[19px] w-[19px]" strokeWidth={1.6} />
+          )}
         </span>
-        <span className="min-w-0 flex-1 truncate text-[17px] font-semibold text-[#f2f2f3]">Felipe Xavier</span>
+        <span className="min-w-0 flex-1 truncate text-[17px] font-semibold text-[#f2f2f3]">{displayName}</span>
         <ChevronDown className="h-4 w-4 text-[#8b8b90]" />
       </button>
 
       <div className="mt-1 border-t border-white/[0.08] pt-[14px]">
         <label className="relative block">
           <Search className="absolute left-[15px] top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#aaaab0]" />
-          <input disabled placeholder="Search..." className="h-[43px] w-full rounded-[9px] border-0 bg-[#242425] pl-[46px] pr-3 text-[16px] text-white outline-none placeholder:text-[#8d8d92]" />
+          <input
+            disabled
+            placeholder="Search..."
+            className="h-[43px] w-full rounded-[9px] border-0 bg-[#242425] pl-[46px] pr-3 text-[16px] text-white outline-none placeholder:text-[#8d8d92]"
+          />
         </label>
       </div>
 
       <nav className="mt-[14px] border-t border-white/[0.08] pt-[20px]">
         {navGroups.map((group, groupIndex) => (
-          <section key={group.title} className={groupIndex ? "mt-[29px] border-t border-white/[0.08] pt-[22px]" : ""}>
+          <section
+            key={group.title}
+            className={groupIndex ? "mt-[29px] border-t border-white/[0.08] pt-[22px]" : ""}
+          >
             <h2 className="mb-[12px] px-[7px] text-[16px] font-semibold text-white">{group.title}</h2>
             <div className="space-y-[4px]">
-              {group.items.map(({ label, icon: Icon, active }) => (
-                <button key={label} className={`flex h-[43px] w-full items-center gap-[14px] rounded-[9px] px-[13px] text-[16px] font-medium transition ${active ? "bg-[#272728] text-white" : "text-[#89898f] hover:bg-white/[0.04] hover:text-white"}`}>
+              {group.items.map(({ label, icon: Icon, active, onClick }) => (
+                <button
+                  key={label}
+                  onClick={onClick}
+                  className={`flex h-[43px] w-full items-center gap-[14px] rounded-[9px] px-[13px] text-[16px] font-medium transition ${
+                    active ? "bg-[#272728] text-white" : "text-[#89898f] hover:bg-white/[0.04] hover:text-white"
+                  }`}
+                >
                   <Icon className="h-[18px] w-[18px]" strokeWidth={1.7} />
                   {label}
                 </button>
@@ -113,46 +132,370 @@ function Sidebar() {
   );
 }
 
-function Post({ post }: { post: FeedPost }) {
-  const [liked, setLiked] = useState(false);
+function CommentsSection({
+  post,
+  canPost,
+  loadComments,
+  addComment,
+}: {
+  post: HelpFeedPost;
+  canPost: boolean;
+  loadComments: (postId: string) => Promise<HelpFeedComment[]>;
+  addComment: (postId: string, content: string) => Promise<void>;
+}) {
+  const [comments, setComments] = useState<HelpFeedComment[]>([]);
+  const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    loadComments(post.id)
+      .then((rows) => {
+        if (!cancelled) setComments(rows);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [post.id, loadComments, post.comments_count]);
+
+  const submit = async () => {
+    if (!draft.trim() || sending) return;
+    setSending(true);
+    try {
+      await addComment(post.id, draft);
+      setDraft("");
+      const rows = await loadComments(post.id);
+      setComments(rows);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao comentar");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="mt-[16px] rounded-[14px] border border-white/[0.06] bg-[#141416] p-[16px]">
+      {loading ? (
+        <p className="text-[15px] text-[#67676c]">Carregando comentários…</p>
+      ) : comments.length === 0 ? (
+        <p className="text-[15px] text-[#67676c]">Seja o primeiro a comentar.</p>
+      ) : (
+        <ul className="space-y-[14px]">
+          {comments.map((c) => (
+            <li key={c.id} className="flex gap-[12px]">
+              <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-[9px] border border-white/10 bg-[#29292b] text-[#a5a5a9]">
+                {c.author_avatar ? (
+                  <img src={c.author_avatar} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <UserRound className="h-4 w-4" />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-[8px]">
+                  <strong className="text-[15px] font-semibold text-white">{c.author_name}</strong>
+                  <span className="text-[14px] text-[#67676c]">{timeAgo(c.created_at)}</span>
+                </div>
+                <p className="mt-[4px] whitespace-pre-line text-[15px] leading-[1.5] text-[#c8c8cb]">{c.content}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {canPost && (
+        <div className="mt-[14px] flex items-start gap-[10px]">
+          <textarea
+            value={draft}
+            maxLength={500}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Escreva um comentário…"
+            className="min-h-[42px] flex-1 resize-none rounded-[9px] border-0 bg-[#242425] px-[14px] py-[10px] text-[15px] text-white outline-none placeholder:text-[#8d8d92]"
+            rows={1}
+          />
+          <button
+            onClick={submit}
+            disabled={sending || !draft.trim()}
+            className="h-[42px] rounded-[10px] bg-[#159ff2] px-[16px] text-[15px] font-semibold text-white disabled:opacity-50"
+          >
+            {sending ? "Enviando…" : "Enviar"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Post({
+  post,
+  canInteract,
+  isAdmin,
+  onLike,
+  loadComments,
+  addComment,
+}: {
+  post: HelpFeedPost;
+  canInteract: boolean;
+  isAdmin: boolean;
+  onLike: (id: string) => void;
+  loadComments: (postId: string) => Promise<HelpFeedComment[]>;
+  addComment: (postId: string, content: string) => Promise<void>;
+}) {
+  const [showComments, setShowComments] = useState(false);
+
   return (
     <article className="border-b border-white/[0.08] py-[24px]">
       <div className="flex gap-[18px]">
-        <img src={post.avatar} alt="" className="h-[42px] w-[42px] shrink-0 rounded-[10px] border border-white/10 bg-[#29292b] object-cover" />
+        <span className="h-[42px] w-[42px] shrink-0 overflow-hidden rounded-[10px] border border-white/10 bg-[#29292b]">
+          {post.author_avatar ? (
+            <img src={post.author_avatar} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-[#a5a5a9]">
+              <UserRound className="h-5 w-5" />
+            </span>
+          )}
+        </span>
         <div className="min-w-0 flex-1">
           <header className="flex flex-wrap items-center gap-[8px]">
-            <strong className="text-[17px] font-semibold leading-none text-white">{post.author}</strong>
-            {post.badge && <span className="rounded-[6px] border border-white/10 bg-[#202021] px-[8px] py-[3px] text-[13px] font-medium text-[#929298]">{post.badge}</span>}
-            <span className="text-[16px] font-medium text-[#67676c]">{post.time}</span>
+            <strong className="text-[17px] font-semibold leading-none text-white">{post.author_name}</strong>
+            {isAdmin && post.author_id === post.author_id && (
+              <span className="rounded-[6px] border border-white/10 bg-[#202021] px-[8px] py-[3px] text-[13px] font-medium text-[#929298]">
+                Velo
+              </span>
+            )}
+            <span className="text-[16px] font-medium text-[#67676c]">{timeAgo(post.created_at)}</span>
           </header>
-          <p className="mt-[12px] whitespace-pre-line text-[17px] font-medium leading-[1.58] text-[#c8c8cb]">{post.body}</p>
-          {post.id === "shopkit" && <button className="mt-[2px] text-[17px] font-medium text-[#626267]">Read more</button>}
+          {post.content && (
+            <p className="mt-[12px] whitespace-pre-line text-[17px] font-medium leading-[1.58] text-[#c8c8cb]">
+              {post.content}
+            </p>
+          )}
 
-          {post.image && (
-            <div className="relative mt-[20px] aspect-[1.57/1] overflow-hidden rounded-[15px] border border-white/10">
-              <img src={post.image} alt="Elara Voss wedding portfolio" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10" />
-              <div className="absolute left-[24px] right-[24px] top-[18px] flex items-center justify-between text-[11px] font-semibold text-white">
-                <span>ELARA VOSS</span>
-                <span className="flex gap-4 text-[9px] font-medium"><span>Portfolio</span><span>About</span><span>Services</span><span>Gallery</span><span>Contact</span></span>
-              </div>
-              <p className="absolute bottom-[37%] left-[35px] max-w-[340px] text-[9px] leading-[1.35] text-white">Elara Voss is a New York-based photographer/videographer composing cinematic imagery for weddings, fashion houses, and the world’s most considered hotels.</p>
-              <div className="absolute bottom-[35px] left-[28px] right-[28px] flex items-end justify-between">
-                <span className="text-[76px] font-semibold leading-[0.82] tracking-[-0.07em] text-white">ELARA VOSS</span>
-              </div>
-              <div className="absolute bottom-[13px] left-[34px] right-[34px] flex justify-between text-[8px] font-medium text-white"><span>Photography</span><span>Videography</span><span>10+ Years</span><span>New York&nbsp;&nbsp;17:09:04</span></div>
+          {post.image_signed_url && (
+            <div className="relative mt-[20px] overflow-hidden rounded-[15px] border border-white/10">
+              <img src={post.image_signed_url} alt="" className="h-auto w-full object-cover" />
             </div>
           )}
 
           <div className="mt-[19px] flex items-center gap-[25px]">
-            <button onClick={() => setLiked((value) => !value)} aria-label="Curtir" className="text-[#85858a] transition hover:text-white">
-              <Heart className={`h-[21px] w-[21px] ${liked ? "fill-white text-white" : ""}`} strokeWidth={1.7} />
+            <button
+              onClick={() => canInteract && onLike(post.id)}
+              disabled={!canInteract}
+              aria-label="Curtir"
+              className="flex items-center gap-[8px] text-[#85858a] transition hover:text-white disabled:opacity-60"
+            >
+              <Heart
+                className={`h-[21px] w-[21px] ${post.liked_by_me ? "fill-white text-white" : ""}`}
+                strokeWidth={1.7}
+              />
+              <span className="text-[15px] font-medium">{post.likes_count}</span>
             </button>
-            <button aria-label="Comentar" className="text-[#85858a] transition hover:text-white"><MessageCircle className="h-[21px] w-[21px]" strokeWidth={1.7} /></button>
+            <button
+              onClick={() => setShowComments((v) => !v)}
+              aria-label="Comentar"
+              className="flex items-center gap-[8px] text-[#85858a] transition hover:text-white"
+            >
+              <MessageCircle className="h-[21px] w-[21px]" strokeWidth={1.7} />
+              <span className="text-[15px] font-medium">{post.comments_count}</span>
+            </button>
           </div>
+
+          {showComments && (
+            <CommentsSection
+              post={post}
+              canPost={canInteract}
+              loadComments={loadComments}
+              addComment={addComment}
+            />
+          )}
         </div>
       </div>
     </article>
+  );
+}
+
+function Composer({
+  onSubmit,
+}: {
+  onSubmit: (opts: { content: string; file?: File | null }) => Promise<void>;
+}) {
+  const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const pick = (f: File | null) => {
+    if (!f) {
+      setFile(null);
+      setPreview(null);
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) {
+      toast.error("Formato inválido. Use JPEG, PNG ou WebP.");
+      return;
+    }
+    if (f.size > 8 * 1024 * 1024) {
+      toast.error("Imagem acima de 8 MB.");
+      return;
+    }
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+  };
+
+  const submit = async () => {
+    if (busy) return;
+    if (!text.trim() && !file) {
+      toast.error("Escreva algo ou anexe uma imagem.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSubmit({ content: text, file });
+      setText("");
+      setFile(null);
+      if (preview) URL.revokeObjectURL(preview);
+      setPreview(null);
+      toast.success("Publicado!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao publicar");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="pb-[20px] pl-[158px] pr-[28px] pt-[20px]">
+      <div className="flex items-start gap-[20px]">
+        <span className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] border border-white/10 bg-[#29292b] text-[#9b9ba0]">
+          <UserRound className="h-[20px] w-[20px]" />
+        </span>
+        <div className="flex-1">
+          <textarea
+            value={text}
+            maxLength={2000}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Compartilhe algo com a comunidade..."
+            className="w-full resize-none border-b border-white/[0.08] bg-transparent pb-[10px] text-[16px] font-medium leading-[1.55] text-white outline-none placeholder:text-[#626267]"
+            rows={2}
+          />
+          {preview && (
+            <div className="mt-[14px] relative inline-block">
+              <img
+                src={preview}
+                alt=""
+                className="max-h-[240px] rounded-[12px] border border-white/[0.08] object-cover"
+              />
+              <button
+                onClick={() => pick(null)}
+                className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#252526] text-white shadow"
+                aria-label="Remover imagem"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          <div className="mt-[14px] flex items-center gap-[12px]">
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => pick(e.target.files?.[0] ?? null)}
+            />
+            <button
+              onClick={() => inputRef.current?.click()}
+              className="flex items-center gap-[8px] rounded-[9px] bg-[#242425] px-[14px] py-[9px] text-[15px] font-medium text-[#c8c8cb]"
+            >
+              <ImageIcon className="h-4 w-4" /> {file ? "Trocar imagem" : "Adicionar imagem"}
+            </button>
+            <div className="ml-auto flex items-center gap-[10px]">
+              <span className="text-[13px] text-[#67676c]">{text.length}/2000</span>
+              <button
+                onClick={submit}
+                disabled={busy || (!text.trim() && !file)}
+                className="rounded-[10px] bg-[#159ff2] px-[19px] py-[10px] text-[15px] font-semibold text-white disabled:opacity-50"
+              >
+                {busy ? "Publicando…" : "Publicar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TutorialAdminForm({
+  onSubmit,
+}: {
+  onSubmit: (title: string, body: string) => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="mb-[24px] rounded-[16px] border border-white/[0.08] bg-[#19191a] p-[18px]">
+      <h3 className="text-[16px] font-semibold text-white">Novo tutorial</h3>
+      <input
+        value={title}
+        maxLength={160}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Título"
+        className="mt-[12px] h-[42px] w-full rounded-[9px] border-0 bg-[#242425] px-[14px] text-[15px] text-white outline-none placeholder:text-[#8d8d92]"
+      />
+      <textarea
+        value={body}
+        maxLength={8000}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Conteúdo (Markdown suportado)"
+        className="mt-[10px] min-h-[120px] w-full resize-none rounded-[9px] border-0 bg-[#242425] px-[14px] py-[10px] text-[15px] text-white outline-none placeholder:text-[#8d8d92]"
+      />
+      <div className="mt-[12px] flex justify-end">
+        <button
+          onClick={async () => {
+            if (busy) return;
+            setBusy(true);
+            try {
+              await onSubmit(title, body);
+              setTitle("");
+              setBody("");
+              toast.success("Tutorial publicado!");
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Erro ao publicar");
+            } finally {
+              setBusy(false);
+            }
+          }}
+          disabled={busy || !title.trim() || !body.trim()}
+          className="rounded-[10px] bg-[#159ff2] px-[19px] py-[10px] text-[15px] font-semibold text-white disabled:opacity-50"
+        >
+          {busy ? "Publicando…" : "Publicar tutorial"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TutorialList({ tutorials }: { tutorials: HelpFeedTutorial[] }) {
+  if (tutorials.length === 0) {
+    return <p className="py-[40px] text-center text-[15px] text-[#67676c]">Nenhum tutorial publicado ainda.</p>;
+  }
+  return (
+    <ul className="space-y-[16px]">
+      {tutorials.map((t) => (
+        <li key={t.id} className="rounded-[16px] border border-white/[0.08] bg-[#19191a] p-[20px]">
+          <h3 className="text-[18px] font-semibold text-white">{t.title}</h3>
+          <p className="mt-[10px] whitespace-pre-line text-[15px] leading-[1.6] text-[#c8c8cb]">{t.body_md}</p>
+          <p className="mt-[10px] text-[13px] text-[#67676c]">{timeAgo(t.created_at)} atrás</p>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -160,25 +503,41 @@ function RightRail() {
   return (
     <aside className="sticky top-0 hidden h-screen w-[428px] shrink-0 overflow-y-auto bg-[#0d0d0e] pb-10 pt-[87px] xl:block">
       <section className="rounded-[27px] border border-white/[0.08] bg-[#19191a] p-[21px]">
-        <h2 className="text-[17px] font-semibold text-white">Welcome back</h2>
-        <p className="mt-[12px] text-[16px] font-medium leading-[1.5] text-[#9b9ba1]">Know someone who’d love this community?<br />Share your invite link and get them in.</p>
+        <h2 className="text-[17px] font-semibold text-white">Bem-vindo(a)</h2>
+        <p className="mt-[12px] text-[16px] font-medium leading-[1.5] text-[#9b9ba1]">
+          Conhece alguém que curtiria a comunidade?
+          <br />
+          Compartilhe seu link de convite.
+        </p>
         <div className="mt-[20px] grid grid-cols-2 gap-[12px]">
-          <button className="h-[43px] rounded-[10px] bg-[#159ff2] text-[16px] font-semibold text-white">Copy Invite</button>
-          <button className="h-[43px] rounded-[10px] bg-[#272728] text-[16px] font-semibold text-white">Open Framer</button>
+          <button className="h-[43px] rounded-[10px] bg-[#159ff2] text-[16px] font-semibold text-white">
+            Copiar convite
+          </button>
+          <button className="h-[43px] rounded-[10px] bg-[#272728] text-[16px] font-semibold text-white">
+            Abrir Velo
+          </button>
         </div>
       </section>
 
       <section className="mt-[21px] rounded-[27px] border border-white/[0.08] bg-[#19191a] p-[21px]">
-        <h2 className="text-[17px] font-semibold text-white">Suggested for you</h2>
+        <h2 className="text-[17px] font-semibold text-white">Sugestões</h2>
         <div className="mt-[20px] space-y-[13px]">
           {suggestions.map((person) => (
             <div key={person.handle} className="flex items-center gap-[13px]">
-              {person.avatar.startsWith("http") ? <img src={person.avatar} alt="" className="h-[42px] w-[42px] shrink-0 rounded-[10px] object-cover" /> : <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px] bg-[#29292b] text-[12px] font-bold text-white">{person.avatar}</span>}
+              {person.avatar.startsWith("http") ? (
+                <img src={person.avatar} alt="" className="h-[42px] w-[42px] shrink-0 rounded-[10px] object-cover" />
+              ) : (
+                <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10px] bg-[#29292b] text-[12px] font-bold text-white">
+                  {person.avatar}
+                </span>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[16px] font-semibold leading-none text-white">{person.name}</p>
                 <p className="mt-[5px] truncate text-[15px] font-medium text-[#9a9aa0]">{person.handle}</p>
               </div>
-              <button className="h-[42px] rounded-[10px] bg-[#272728] px-[16px] text-[15px] font-semibold text-white">Follow</button>
+              <button className="h-[42px] rounded-[10px] bg-[#272728] px-[16px] text-[15px] font-semibold text-white">
+                Seguir
+              </button>
             </div>
           ))}
         </div>
@@ -188,34 +547,93 @@ function RightRail() {
 }
 
 export default function Docs() {
+  const { user } = useAuth();
+  const { nome, foto } = useProfile();
+  const {
+    isAdmin,
+    posts,
+    tutorials,
+    loading,
+    error,
+    toggleLike,
+    loadComments,
+    addComment,
+    createPost,
+    createTutorial,
+  } = useHelpFeed();
+  const [tab, setTab] = useState<TabKey>("feed");
+
+  const canInteract = useMemo(() => Boolean(user), [user]);
+
   return (
     <div
       className="min-h-screen overflow-x-hidden bg-[#0d0d0e] font-['Inter_Variable','Inter',ui-sans-serif,system-ui,sans-serif] text-white"
-      style={{
-        zoom: 0.71,
-      }}
+      style={{ zoom: 0.71 }}
     >
       <div className="mx-auto flex min-h-screen max-w-[2048px]">
-        <Sidebar />
+        <Sidebar tab={tab} onTab={setTab} displayName={nome} avatar={foto} />
         <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e] xl:w-[1040px] xl:flex-none">
           <header className="sticky top-0 z-30 flex h-[66px] w-[calc(140.845071vw-368px)] items-center justify-between border-b border-white/[0.08] bg-[#0d0d0e]/95 px-[14px] backdrop-blur">
             <div className="flex items-center gap-[18px]">
-              <button className="rounded-[9px] bg-[#28282a] px-[16px] py-[11px] text-[16px] font-semibold">For You</button>
-              <button className="py-[11px] text-[16px] font-medium text-[#737378]">Following</button>
+              <button
+                onClick={() => setTab("feed")}
+                className={`rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
+                  tab === "feed" ? "bg-[#28282a] text-white" : "text-[#737378]"
+                }`}
+              >
+                Feed
+              </button>
+              <button
+                onClick={() => setTab("tutorial")}
+                className={`rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
+                  tab === "tutorial" ? "bg-[#28282a] text-white" : "text-[#737378]"
+                }`}
+              >
+                Tutorial
+              </button>
             </div>
-            <button className="rounded-[10px] bg-[#159ff2] px-[19px] py-[11px] text-[16px] font-semibold">Post</button>
+            {isAdmin && tab === "feed" && (
+              <span className="rounded-[10px] bg-[#159ff2]/10 px-[14px] py-[8px] text-[14px] font-semibold text-[#5fbff5]">
+                Modo administrador
+              </span>
+            )}
           </header>
 
-          <div className="pb-[20px] pl-[158px] pr-[28px] pt-[20px]">
-            <div className="flex items-center gap-[20px]">
-              <span className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] border border-white/10 bg-[#29292b] text-[#9b9ba0]"><UserRound className="h-[20px] w-[20px]" /></span>
-              <div className="h-[42px] flex-1 border-b border-white/[0.08] text-[16px] font-medium leading-[42px] text-[#626267]">Share something...</div>
-            </div>
-          </div>
+          {tab === "feed" && isAdmin && <Composer onSubmit={createPost} />}
 
           <div className="relative ml-[158px] mr-[28px]">
-            <button className="absolute left-1/2 top-[23px] z-20 flex -translate-x-1/2 items-center gap-2 rounded-[11px] border border-white/20 bg-[#252526] px-[15px] py-[10px] text-[15px] font-semibold shadow-xl"><Send className="h-4 w-4 -rotate-45" /> 4 new posts</button>
-            {posts.map((post) => <Post key={post.id} post={post} />)}
+            {tab === "feed" && (
+              <>
+                {loading ? (
+                  <p className="py-[40px] text-center text-[15px] text-[#67676c]">Carregando feed…</p>
+                ) : error ? (
+                  <p className="py-[40px] text-center text-[15px] text-red-400">{error}</p>
+                ) : posts.length === 0 ? (
+                  <p className="py-[40px] text-center text-[15px] text-[#67676c]">
+                    Ainda não há publicações. {isAdmin ? "Seja o primeiro a publicar!" : "Volte em breve."}
+                  </p>
+                ) : (
+                  posts.map((p) => (
+                    <Post
+                      key={p.id}
+                      post={p}
+                      canInteract={canInteract}
+                      isAdmin={isAdmin}
+                      onLike={toggleLike}
+                      loadComments={loadComments}
+                      addComment={addComment}
+                    />
+                  ))
+                )}
+              </>
+            )}
+
+            {tab === "tutorial" && (
+              <div className="py-[24px]">
+                {isAdmin && <TutorialAdminForm onSubmit={createTutorial} />}
+                <TutorialList tutorials={tutorials} />
+              </div>
+            )}
           </div>
         </main>
         <div className="hidden w-[56px] shrink-0 xl:block" />
