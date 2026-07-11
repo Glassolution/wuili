@@ -89,7 +89,14 @@ const AdminRefundsPage = () => {
     refetchInterval: 30000,
   });
 
-  const pending = useMemo(() => allRefunds.filter((r) => r.status === "pending"), [allRefunds]);
+  const pending = useMemo(
+    () =>
+      allRefunds
+        .filter((r) => r.status === "pending")
+        .slice()
+        .sort((a, b) => new Date(a.requested_at).getTime() - new Date(b.requested_at).getTime()),
+    [allRefunds],
+  );
   const approved = useMemo(
     () => allRefunds.filter((r) => ["approved", "refunded", "completed"].includes(r.status)),
     [allRefunds],
@@ -365,6 +372,8 @@ const RefundsTable = ({
             <th className="px-4 py-3">Usuário</th>
             <th className="px-4 py-3">Plano</th>
             <th className="px-4 py-3">Pedido em</th>
+            {variant === "pending" && <th className="px-4 py-3">Aguardando</th>}
+            {variant === "pending" && <th className="px-4 py-3">Conta há</th>}
             {variant !== "pending" && <th className="px-4 py-3">Processado em</th>}
             <th className="px-4 py-3">Motivo</th>
             <th className="px-4 py-3">Valor</th>
@@ -377,13 +386,41 @@ const RefundsTable = ({
             const p = profiles[r.user_id];
             const s = r.subscription_id ? subs[r.subscription_id] : null;
             const busy = busyId === r.id;
+            const waitingDays = daysSince(r.requested_at);
+            const accountDays = s?.created_at ? daysSince(s.created_at) : null;
+            const overdue = variant === "pending" && waitingDays >= 2;
             return (
-              <tr key={r.id} className="border-t border-[#F0F0F0] align-top">
-                <td className="px-4 py-4">
+              <tr
+                key={r.id}
+                className={`border-t border-[#F0F0F0] align-top ${
+                  overdue ? "bg-red-50/60" : ""
+                }`}
+              >
+                <td className={`px-4 py-4 ${overdue ? "border-l-4 border-l-red-500" : ""}`}>
                   <UserCell p={p} fallback={r.user_id.slice(0, 8)} />
                 </td>
                 <td className="px-4 py-4 font-medium">{s?.plan || "—"}</td>
                 <td className="px-4 py-4 text-[#525252]">{fmtDate(r.requested_at)}</td>
+                {variant === "pending" && (
+                  <td className="px-4 py-4">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        overdue ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {waitingDays === 0
+                        ? "hoje"
+                        : `há ${waitingDays} ${waitingDays === 1 ? "dia" : "dias"}`}
+                    </span>
+                  </td>
+                )}
+                {variant === "pending" && (
+                  <td className="px-4 py-4 text-[#525252]">
+                    {accountDays == null
+                      ? "—"
+                      : `${accountDays} ${accountDays === 1 ? "dia" : "dias"}`}
+                  </td>
+                )}
                 {variant !== "pending" && (
                   <td className="px-4 py-4 text-[#525252]">{fmtDate(r.processed_at)}</td>
                 )}
