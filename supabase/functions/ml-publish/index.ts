@@ -725,7 +725,17 @@ Deno.serve(async (req) => {
         continue
       }
       if (id === 'MODEL') {
-        mergeAttribute(allAttrs, { id, value_name: title.substring(0, 60).trim() })
+        // Categorias com lista fechada de MODEL (celulares, alguns tênis) NÃO
+        // aceitam texto livre. Não chutar — deixar o ML devolver erro claro
+        // e o usuário escolher no modal. Para categorias de texto livre,
+        // "Não especificado" é aceito universalmente e não gera pausa.
+        const def = attrDef as Record<string, unknown>
+        const values = (def?.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+        if (values.length > 0) {
+          // Lista fechada: não chutar.
+          continue
+        }
+        mergeAttribute(allAttrs, { id, value_name: 'Não especificado' })
         continue
       }
       if (OPEN_IDENTIFYING_ATTRS.has(id)) {
