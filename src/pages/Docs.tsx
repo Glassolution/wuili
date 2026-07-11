@@ -1057,7 +1057,25 @@ export default function Docs() {
     if (typeof metadataName === "string" && metadataName.trim()) return metadataName.trim();
     return user?.email?.split("@")[0] || "Usuario";
   }, [nome, user]);
-  const accountAvatar = foto || (typeof user?.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null);
+  const [emailHash, setEmailHash] = useState<string | null>(null);
+  useEffect(() => {
+    const email = user?.email?.trim().toLowerCase();
+    if (!email || !globalThis.crypto?.subtle) { setEmailHash(null); return; }
+    let cancelled = false;
+    globalThis.crypto.subtle
+      .digest("SHA-256", new TextEncoder().encode(email))
+      .then((buf) => {
+        if (cancelled) return;
+        const hex = Array.from(new Uint8Array(buf))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        setEmailHash(hex);
+      })
+      .catch(() => setEmailHash(null));
+    return () => { cancelled = true; };
+  }, [user?.email]);
+  const gravatarUrl = emailHash ? `https://www.gravatar.com/avatar/${emailHash}?d=identicon&s=120` : null;
+  const accountAvatar = foto || (typeof user?.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null) || gravatarUrl;
 
   const [showComposer, setShowComposer] = useState(false);
 
