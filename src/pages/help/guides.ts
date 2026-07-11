@@ -41,9 +41,12 @@ export const guideSections: GuideSection[] = [
   {
     key: "anuncios",
     label: "Meus anúncios",
+    headline: "Seu anúncio, sob controle.",
     intro:
-      "Problemas com anúncios já publicados no Mercado Livre — pausas, reprovações, falta de estoque e reativação.",
+      "Pausas, reprovações, falta de estoque, reativação. Resolva sem sair daqui.",
+    quickTopics: ["pausado", "reprovado", "sem venda", "reativar"],
     items: [
+
       {
         id: "anuncio-pausado",
         icon: AlertTriangle,
