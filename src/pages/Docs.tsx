@@ -654,10 +654,17 @@ function RightRail() {
   );
 }
 
-function GuidesView({ sectionKey }: { sectionKey: TabKey }) {
+function GuidesView({
+  sectionKey,
+  activeId,
+  setActiveId,
+}: {
+  sectionKey: TabKey;
+  activeId: string | null;
+  setActiveId: (id: string | null) => void;
+}) {
   const section = guideSections.find((s) => s.key === sectionKey);
   const [query, setQuery] = useState("");
-  const [activeId, setActiveId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (!section) return [];
