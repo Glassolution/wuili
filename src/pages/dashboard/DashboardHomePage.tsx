@@ -2093,7 +2093,8 @@ const DashboardHomePage = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    loadCollectionData(user.id).catch(() => {
+    loadCollectionData(user.id).catch((err) => {
+      console.error("[collections] load error:", err);
       veloToast.error("Não foi possível carregar suas coleções.");
     });
   }, [user?.id]);
