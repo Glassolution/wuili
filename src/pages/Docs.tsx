@@ -1091,13 +1091,12 @@ export default function Docs() {
     >
       <div className="flex min-h-screen w-full">
         <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} />
-        <div className="hidden flex-1 shrink xl:block" />
-        <main className="min-h-screen w-full min-w-0 max-w-[680px] shrink-0 bg-[#0d0d0e]">
-          <header className="sticky top-0 z-30 flex h-[66px] items-center border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[24px] backdrop-blur">
-            <div className="flex items-center gap-[18px]">
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-30 flex h-[72px] items-center border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[28px] backdrop-blur">
+            <div className="flex items-center gap-[20px]">
               <button
                 onClick={() => setTab("feed")}
-                className={`rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
+                className={`rounded-[10px] px-[18px] py-[12px] text-[17px] font-semibold ${
                   tab === "feed" ? "bg-[#28282a] text-white" : "text-[#737378]"
                 }`}
               >
@@ -1105,7 +1104,7 @@ export default function Docs() {
               </button>
               <button
                 onClick={() => setTab("tutorial")}
-                className={`rounded-[9px] px-[16px] py-[11px] text-[16px] font-semibold ${
+                className={`rounded-[10px] px-[18px] py-[12px] text-[17px] font-semibold ${
                   tab === "tutorial" ? "bg-[#28282a] text-white" : "text-[#737378]"
                 }`}
               >
@@ -1122,59 +1121,63 @@ export default function Docs() {
             </button>
           )}
 
+          <div className="flex flex-1 min-h-0 w-full">
+            <div className="hidden flex-1 shrink xl:block" />
+            <main className="min-h-screen w-full min-w-0 max-w-[680px] shrink-0 bg-[#0d0d0e]">
+              {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
 
-          {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
-
-          <div className="relative mx-auto max-w-[620px] px-[24px]">
-            {tab === "feed" && (
-              <>
-                {loading ? (
-                  <p className="py-[40px] text-center text-[15px] text-[#67676c]">Carregando feed…</p>
-                ) : error ? (
-                  <p className="py-[40px] text-center text-[15px] text-red-400">{error}</p>
-                ) : posts.length === 0 ? (
-                  <p className="py-[40px] text-center text-[15px] text-[#67676c]">
-                    Ainda não há publicações. {isAdmin ? "Seja o primeiro a publicar!" : "Volte em breve."}
-                  </p>
-                ) : (
-                  posts.map((p) => (
-                    <Post
-                      key={p.id}
-                      post={p}
-                      canInteract={canInteract}
-                      isAdmin={isAdmin}
-                      onLike={toggleLike}
-                      loadComments={loadComments}
-                      addComment={addComment}
-                      updatePost={updatePost}
-                      deletePost={deletePost}
-                    />
-                  ))
+              <div className="relative mx-auto max-w-[620px] px-[24px]">
+                {tab === "feed" && (
+                  <>
+                    {loading ? (
+                      <p className="py-[40px] text-center text-[15px] text-[#67676c]">Carregando feed…</p>
+                    ) : error ? (
+                      <p className="py-[40px] text-center text-[15px] text-red-400">{error}</p>
+                    ) : posts.length === 0 ? (
+                      <p className="py-[40px] text-center text-[15px] text-[#67676c]">
+                        Ainda não há publicações. {isAdmin ? "Seja o primeiro a publicar!" : "Volte em breve."}
+                      </p>
+                    ) : (
+                      posts.map((p) => (
+                        <Post
+                          key={p.id}
+                          post={p}
+                          canInteract={canInteract}
+                          isAdmin={isAdmin}
+                          onLike={toggleLike}
+                          loadComments={loadComments}
+                          addComment={addComment}
+                          updatePost={updatePost}
+                          deletePost={deletePost}
+                        />
+                      ))
+                    )}
+                  </>
                 )}
+
+                {tab === "tutorial" && (
+                  <div className="py-[24px]">
+                    {isAdmin && <TutorialAdminForm onSubmit={createTutorial} />}
+                    <TutorialList tutorials={tutorials} />
+                  </div>
+                )}
+
+              </div>
+
+              {tab !== "feed" && tab !== "tutorial" && (
+                <GuidesView sectionKey={tab} activeId={activeGuideId} setActiveId={setActiveGuideId} />
+              )}
+
+            </main>
+            {(tab === "feed" || tab === "tutorial") && (
+              <>
+                <div className="hidden w-[8px] shrink-0 xl:block" />
+                <RightRail />
+                <div className="hidden flex-1 shrink xl:block" />
               </>
             )}
-
-            {tab === "tutorial" && (
-              <div className="py-[24px]">
-                {isAdmin && <TutorialAdminForm onSubmit={createTutorial} />}
-                <TutorialList tutorials={tutorials} />
-              </div>
-            )}
-
           </div>
-
-          {tab !== "feed" && tab !== "tutorial" && (
-            <GuidesView sectionKey={tab} activeId={activeGuideId} setActiveId={setActiveGuideId} />
-          )}
-
-        </main>
-        {(tab === "feed" || tab === "tutorial") && (
-          <>
-            <div className="hidden w-[8px] shrink-0 xl:block" />
-            <RightRail />
-            <div className="hidden flex-1 shrink xl:block" />
-          </>
-        )}
+        </div>
       </div>
 
       <SearchPalette
