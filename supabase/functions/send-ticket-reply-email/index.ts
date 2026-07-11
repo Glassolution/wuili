@@ -166,12 +166,16 @@ Deno.serve(async (req) => {
     if (!emailResponse.ok) {
       const detail = await emailResponse.text();
       console.error("Resend ticket reply email failed:", emailResponse.status, detail);
-      return json({ error: "Não foi possível enviar o email" }, 502);
+      let parsed: unknown = detail;
+      try { parsed = JSON.parse(detail); } catch { /* keep text */ }
+      return json({ sent: false, error: "resend_send_failed", status: emailResponse.status, details: parsed }, 502);
     }
 
-    return json({ sent: true });
+    const result = await emailResponse.json().catch(() => ({}));
+    return json({ sent: true, id: (result as { id?: string }).id });
   } catch (error) {
     console.error("send-ticket-reply-email error:", error);
-    return json({ error: "Erro interno" }, 500);
+    const message = error instanceof Error ? error.message : String(error);
+    return json({ sent: false, error: "internal_error", message }, 500);
   }
 });
