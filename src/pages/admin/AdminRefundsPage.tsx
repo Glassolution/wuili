@@ -89,7 +89,14 @@ const AdminRefundsPage = () => {
     refetchInterval: 30000,
   });
 
-  const pending = useMemo(() => allRefunds.filter((r) => r.status === "pending"), [allRefunds]);
+  const pending = useMemo(
+    () =>
+      allRefunds
+        .filter((r) => r.status === "pending")
+        .slice()
+        .sort((a, b) => new Date(a.requested_at).getTime() - new Date(b.requested_at).getTime()),
+    [allRefunds],
+  );
   const approved = useMemo(
     () => allRefunds.filter((r) => ["approved", "refunded", "completed"].includes(r.status)),
     [allRefunds],
