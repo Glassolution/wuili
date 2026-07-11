@@ -58,11 +58,13 @@ function Sidebar({
   onTab,
   displayName,
   avatar,
+  onOpenPalette,
 }: {
   tab: TabKey;
   onTab: (t: TabKey) => void;
   displayName: string;
   avatar: string | null;
+  onOpenPalette: () => void;
 }) {
   const navGroups: Array<{
     title: string;
