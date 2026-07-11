@@ -565,8 +565,8 @@ function Post({
           )}
 
           {post.image_signed_url && (
-            <div className="relative mt-[16px] overflow-hidden rounded-[14px] border border-white/10 bg-black">
-              <img src={post.image_signed_url} alt="" className="mx-auto block max-h-[420px] w-auto max-w-full object-contain" />
+            <div className="relative mt-[16px] overflow-hidden rounded-[14px] border border-white/10">
+              <img src={post.image_signed_url} alt="" className="block w-full max-h-[560px] object-cover" />
             </div>
           )}
 
