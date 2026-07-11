@@ -219,8 +219,9 @@ const AdminSupportPage = () => {
       qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
       
       // Trigger background email notification via helper
-      if (openTicket && openTicket.user_email) {
-        notifyTicketReplyEmail(openTicket.user_email, openTicket.user_name || "Usuário", sentText).catch((err) => {
+      void sentText;
+      if (openTicket) {
+        notifyTicketReplyEmail(openTicket.id, "").catch((err) => {
           console.error("Failed to send email notify", err);
         });
       }
