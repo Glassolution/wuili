@@ -747,45 +747,43 @@ function GuidesView({ sectionKey }: { sectionKey: TabKey }) {
 
   return (
     <div className="pb-[80px]">
-      <section className="relative overflow-hidden border-b border-white/[0.06]">
+      <section className="relative overflow-hidden">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-[380px] opacity-70"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[420px] opacity-60"
           style={{
             background:
-              "radial-gradient(ellipse 60% 80% at 50% 0%, rgba(52,211,153,0.18), rgba(52,211,153,0) 60%), radial-gradient(ellipse 50% 60% at 50% 100%, rgba(21,159,242,0.12), transparent 70%)",
+              "radial-gradient(ellipse 60% 80% at 50% 0%, rgba(255,255,255,0.08), rgba(255,255,255,0) 60%)",
           }}
         />
-        <div className="relative mx-auto max-w-[820px] px-[24px] pb-[56px] pt-[64px] text-center">
-          <span className="inline-flex items-center gap-[8px] rounded-full border border-white/10 bg-white/[0.04] px-[14px] py-[6px] text-[12px] font-semibold uppercase tracking-[0.16em] text-[#a5a5aa]">
+        <div className="relative mx-auto max-w-[960px] px-[24px] pb-[64px] pt-[72px] text-center">
+          <span className="inline-flex items-center gap-[8px] text-[14px] font-semibold uppercase tracking-[0.18em] text-[#8b8b90]">
             Central de ajuda · {section.label}
           </span>
-          <h1 className="mt-[22px] text-[44px] font-semibold leading-[1.05] tracking-[-0.02em] text-white sm:text-[54px]">
-            <span className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
-              {section.headline ?? "Como podemos te ajudar?"}
-            </span>
+          <h1 className="mt-[24px] text-[62px] font-semibold leading-[1.02] tracking-[-0.025em] text-white sm:text-[72px]">
+            {section.headline ?? "Como podemos te ajudar?"}
           </h1>
-          <p className="mx-auto mt-[18px] max-w-[560px] text-[16.5px] leading-[1.6] text-[#9b9ba1]">
+          <p className="mx-auto mt-[22px] max-w-[640px] text-[21px] leading-[1.55] text-[#9b9ba1]">
             {section.intro}
           </p>
 
-          <label className="relative mx-auto mt-[30px] block max-w-[560px]">
-            <Search className="absolute left-[18px] top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#7a7a80]" />
+          <label className="relative mx-auto mt-[36px] block max-w-[640px]">
+            <Search className="absolute left-[22px] top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-[#7a7a80]" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Descreva o problema..."
-              className="h-[54px] w-full rounded-[14px] border border-white/[0.08] bg-[#131315] pl-[50px] pr-[16px] text-[15.5px] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] outline-none transition placeholder:text-[#67676c] focus:border-emerald-400/40"
+              className="h-[64px] w-full rounded-[16px] bg-[#141416] pl-[58px] pr-[18px] text-[19px] text-white outline-none transition placeholder:text-[#67676c] focus:bg-[#18181a]"
             />
           </label>
 
           {section.quickTopics && section.quickTopics.length > 0 && (
-            <div className="mt-[18px] flex flex-wrap justify-center gap-[8px]">
+            <div className="mt-[22px] flex flex-wrap justify-center gap-[10px]">
               {section.quickTopics.map((t) => (
                 <button
                   key={t}
                   onClick={() => setQuery(t)}
-                  className="rounded-full border border-white/[0.08] bg-white/[0.02] px-[14px] py-[7px] text-[13px] font-medium text-[#a5a5aa] transition hover:border-white/20 hover:text-white"
+                  className="rounded-full bg-white/[0.04] px-[18px] py-[9px] text-[15px] font-medium text-[#a5a5aa] transition hover:bg-white/[0.08] hover:text-white"
                 >
                   {t}
                 </button>
@@ -795,52 +793,36 @@ function GuidesView({ sectionKey }: { sectionKey: TabKey }) {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[960px] px-[24px] pt-[44px]">
-        <div className="mb-[20px] flex items-baseline justify-between">
-          <h2 className="text-[15px] font-semibold uppercase tracking-[0.16em] text-[#67676c]">
+      <section className="mx-auto max-w-[1080px] px-[24px] pt-[24px]">
+        <div className="mb-[24px] flex items-baseline justify-between">
+          <h2 className="text-[17px] font-semibold uppercase tracking-[0.16em] text-[#67676c]">
             {query.trim() ? "Resultados" : "Guias populares"}
           </h2>
-          <span className="text-[13px] text-[#67676c]">{filtered.length} guias</span>
+          <span className="text-[15px] text-[#67676c]">{filtered.length} guias</span>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="rounded-[18px] border border-white/[0.08] bg-[#131315] p-[36px] text-center">
-            <p className="text-[16px] font-semibold text-white">Nada encontrado para "{query}"</p>
-            <p className="mt-[8px] text-[14px] text-[#8b8b90]">
+          <div className="rounded-[18px] bg-[#141416] p-[40px] text-center">
+            <p className="text-[19px] font-semibold text-white">Nada encontrado para "{query}"</p>
+            <p className="mt-[10px] text-[16px] text-[#8b8b90]">
               Tente outra palavra ou abra um chamado no Suporte — respondemos em algumas horas.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-2">
-            {filtered.map((item, idx) => {
+          <div className="grid grid-cols-1 gap-[16px] sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((item) => {
               const Icon = item.icon;
-              const featured = idx === 0 && !query.trim();
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveId(item.id)}
-                  className={`group relative overflow-hidden rounded-[18px] border border-white/[0.08] bg-gradient-to-br from-[#141416] to-[#0f0f11] p-[22px] text-left transition hover:border-white/20 hover:from-[#181819] ${
-                    featured ? "sm:col-span-2" : ""
-                  }`}
+                  className="group relative overflow-hidden rounded-[18px] bg-[#141416] p-[26px] text-left transition hover:bg-[#18181a]"
                 >
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute -right-16 -top-16 h-[180px] w-[180px] rounded-full opacity-0 blur-3xl transition group-hover:opacity-100"
-                    style={{ background: "radial-gradient(circle, rgba(52,211,153,0.25), transparent 70%)" }}
-                  />
-                  <div className="relative flex items-start gap-[14px]">
-                    <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[12px] border border-emerald-400/20 bg-gradient-to-br from-emerald-500/15 to-emerald-500/[0.02] text-emerald-300">
-                      <Icon className="h-[19px] w-[19px]" strokeWidth={1.8} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-[17px] font-semibold leading-[1.3] text-white">{item.title}</h3>
-                      <p className="mt-[8px] text-[14.5px] leading-[1.55] text-[#8b8b90]">{item.summary}</p>
-                      <div className="mt-[16px] flex items-center gap-[6px] text-[13px] font-semibold text-emerald-300 opacity-0 transition group-hover:opacity-100">
-                        Ver guia
-                        <ChevronDown className="h-[14px] w-[14px] -rotate-90" />
-                      </div>
-                    </div>
-                  </div>
+                  <span className="mb-[18px] flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-white/[0.05] text-white">
+                    <Icon className="h-[22px] w-[22px]" strokeWidth={1.7} />
+                  </span>
+                  <h3 className="text-[20px] font-semibold leading-[1.3] text-white">{item.title}</h3>
+                  <p className="mt-[10px] text-[16px] leading-[1.55] text-[#8b8b90]">{item.summary}</p>
                 </button>
               );
             })}
