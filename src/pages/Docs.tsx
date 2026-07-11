@@ -862,6 +862,19 @@ export default function Docs() {
     createTutorial,
   } = useHelpFeed();
   const [tab, setTab] = useState<TabKey>("feed");
+  const [activeGuideId, setActiveGuideId] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const canInteract = useMemo(() => Boolean(user), [user]);
   const accountName = useMemo(() => {
