@@ -282,176 +282,111 @@ const mapProductPreview = (product: CatalogProductRow): ProductPreview | null =>
   };
 };
 
-const DAILY_PRODUCT_SPOTLIGHT_KEY_PREFIX = "velo:daily-product-spotlight";
+const ANNOUNCEMENT_SEEN_KEY_PREFIX = "velo:announcement-seen";
 
-const getLocalDateKey = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+type AnnouncementPost = {
+  id: string;
+  content: string;
+  image_url: string | null;
+  created_at: string;
+  author_name: string;
+  author_avatar: string | null;
 };
 
-const getNextMidnight = (date = new Date()) => {
-  const next = new Date(date);
-  next.setHours(24, 0, 0, 0);
-  return next;
+const getAnnouncementSeenKey = (userId: string | undefined, postId: string) =>
+  `${ANNOUNCEMENT_SEEN_KEY_PREFIX}:${userId ?? "visitante"}:${postId}`;
+
+const formatAnnouncementDate = (iso: string) => {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  } catch {
+    return "";
+  }
 };
 
-const formatCountdownToMidnight = (date = new Date()) => {
-  const diff = Math.max(getNextMidnight(date).getTime() - date.getTime(), 0);
-  const totalSeconds = Math.floor(diff / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
-};
-
-const getDailyProductHash = (value: string) =>
-  value.split("").reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 1000003, 17);
-
-const getDailyProductSeenKey = (userId: string | undefined, dateKey: string) =>
-  `${DAILY_PRODUCT_SPOTLIGHT_KEY_PREFIX}:${userId ?? "visitante"}:${dateKey}`;
-
-const mapDailySpotlightItem = (product: CatalogProductRow): DailyProductSpotlightItem | null => {
-  const [image] = getProductImages(product.images);
-  if (!image) return null;
-
-  return {
-    id: product.id,
-    title: product.title,
-    category: product.category || "Produto",
-    image,
-    price: Number(product.suggested_price || product.cost_price || 0),
-    stockQuantity: product.stock_quantity,
-    ordersCount: Number(product.orders_count || 0),
-    rating: product.rating,
-  };
-};
-
-const DailyProductSpotlightModal = ({ userId }: { userId?: string }) => {
-  const navigate = useNavigate();
-  const [allProducts, setAllProducts] = useState<DailyProductSpotlightItem[]>([]);
+const AnnouncementModal = ({ userId }: { userId?: string }) => {
+  const [post, setPost] = useState<AnnouncementPost | null>(null);
+  const [signedImage, setSignedImage] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [now, setNow] = useState(() => new Date());
-  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
-
-  const dateKey = getLocalDateKey(now);
-  const seenKey = getDailyProductSeenKey(userId, dateKey);
-  const countdown = formatCountdownToMidnight(now);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchDailyProducts = async () => {
-      const { data, error } = await supabase
-        .from("catalog_products")
-        .select("id,title,category,images,is_active,is_blocked,stock_quantity,orders_count,rating,suggested_price,cost_price")
-        .eq("source", "c7drop")
-        .eq("is_active", true)
-        .eq("is_blocked", false)
-        .gt("stock_quantity", 0)
-        .order("orders_count", { ascending: false, nullsFirst: false })
-        .limit(48);
+    const fetchLatest = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- types.ts may lag help_feed_posts
+      const sb = supabase as any;
+      const { data, error } = await sb
+        .from("help_feed_posts")
+        .select("id, author_id, content, image_url, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (error || !isMounted) return;
+      if (error || !data || !isMounted) return;
 
-      const products = ((data ?? []) as CatalogProductRow[])
-        .map(mapDailySpotlightItem)
-        .filter((product): product is DailyProductSpotlightItem => Boolean(product));
+      let authorName = "Equipe Velo";
+      let authorAvatar: string | null = null;
+      if (data.author_id) {
+        const { data: prof } = await sb
+          .from("profiles")
+          .select("display_name, avatar_url")
+          .eq("user_id", data.author_id)
+          .maybeSingle();
+        if (prof) {
+          authorName = prof.display_name || authorName;
+          authorAvatar = prof.avatar_url || null;
+        }
+      }
 
-      if (isMounted) setAllProducts(products);
+      const seenKey = getAnnouncementSeenKey(userId, data.id);
+      try {
+        if (window.localStorage.getItem(seenKey)) return;
+      } catch {
+        return;
+      }
+
+      if (data.image_url && !/^https?:\/\//.test(data.image_url)) {
+        const { data: signed } = await sb.storage
+          .from("help-feed-media")
+          .createSignedUrl(data.image_url, 3600);
+        if (isMounted && signed?.signedUrl) setSignedImage(signed.signedUrl);
+      } else if (data.image_url) {
+        setSignedImage(data.image_url);
+      }
+
+      if (!isMounted) return;
+      setPost({
+        id: data.id,
+        content: data.content,
+        image_url: data.image_url,
+        created_at: data.created_at,
+        author_name: authorName,
+        author_avatar: authorAvatar,
+      });
+      setOpen(true);
     };
 
-    fetchDailyProducts();
+    fetchLatest();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [userId]);
 
-  const dailyProducts = useMemo(() => {
-    if (allProducts.length === 0) return [];
-
-    return [...allProducts]
-      .sort((a, b) => {
-        const aScore = getDailyProductHash(`${dateKey}:${a.id}`) - a.ordersCount * 3 - (a.rating ?? 0) * 20;
-        const bScore = getDailyProductHash(`${dateKey}:${b.id}`) - b.ordersCount * 3 - (b.rating ?? 0) * 20;
-        return aScore - bScore;
-      })
-      .slice(0, 4);
-  }, [allProducts, dateKey]);
-
-  const selectedProduct = dailyProducts.find((product) => product.id === selectedProductId) ?? dailyProducts[0];
-
-  useEffect(() => {
-    if (!selectedProduct && selectedProductId) {
-      setSelectedProductId(null);
-    }
-  }, [selectedProduct, selectedProductId]);
-
-  useEffect(() => {
-    if (dailyProducts.length === 0) {
-      setOpen(false);
-      return;
-    }
-
-    if (dismissedKey === seenKey) return;
-
-    try {
-      if (window.localStorage.getItem(seenKey)) return;
-    } catch {
-      return;
-    }
-
-    setOpen(true);
-  }, [dailyProducts.length, dismissedKey, seenKey]);
-
-  const markSeen = () => {
-    try {
-      window.localStorage.setItem(seenKey, new Date().toISOString());
-    } catch {
-      // localStorage pode estar indisponível em navegação privada; o modal continua funcional.
-    }
-
-    setDismissedKey(seenKey);
-  };
+  if (!open || !post) return null;
 
   const closeModal = () => {
-    markSeen();
+    try {
+      window.localStorage.setItem(getAnnouncementSeenKey(userId, post.id), new Date().toISOString());
+    } catch {
+      // localStorage indisponível — modal continua funcional apenas na sessão
+    }
     setOpen(false);
   };
-
-  const openProduct = () => {
-    if (!selectedProduct) return;
-    markSeen();
-    setOpen(false);
-    navigate(`/dashboard/catalogo/${selectedProduct.id}`);
-  };
-
-  if (!open || !selectedProduct) return null;
-
-  const stackedProducts = [
-    selectedProduct,
-    ...dailyProducts.filter((product) => product.id !== selectedProduct.id),
-  ].slice(0, 4);
-
-  const stackPositions = [
-    { zIndex: 40, opacity: 1, transform: "translateX(-50%) translateY(0) rotate(0deg)" },
-    { zIndex: 30, opacity: 0.95, transform: "translateX(calc(-50% - 92px)) translateY(20px) rotate(-8deg)" },
-    { zIndex: 20, opacity: 0.95, transform: "translateX(calc(-50% + 92px)) translateY(20px) rotate(8deg)" },
-    { zIndex: 10, opacity: 0.8, transform: "translateX(-50%) translateY(-16px) rotate(2deg)" },
-  ];
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/20 px-4 py-8 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/25 px-4 py-8 backdrop-blur-sm">
       <motion.section
         initial={{ opacity: 0, y: 18, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -464,77 +399,43 @@ const DailyProductSpotlightModal = ({ userId }: { userId?: string }) => {
         <button
           type="button"
           onClick={closeModal}
-          aria-label="Fechar produtos do dia"
+          aria-label="Fechar novidade"
           className="absolute -right-3 -top-3 z-50 grid h-11 w-11 place-items-center rounded-full bg-white text-[#777] shadow-[0_14px_30px_rgba(0,0,0,0.12)] transition-colors hover:text-black"
         >
           <X className="h-5 w-5" strokeWidth={1.8} />
         </button>
 
         <article className="overflow-hidden rounded-[30px] bg-white p-6 shadow-[0_34px_90px_rgba(17,17,17,0.18)]">
-          <header className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#9A9A9A]">Achados 24h</p>
-              <h2 className="mt-1 text-[27px] font-semibold leading-none tracking-[-0.055em] text-black">
-                Produtos do dia
-              </h2>
-            </div>
-            <div className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#F2F2F1] px-3 py-2 text-[13px] font-semibold tabular-nums text-[#222]">
-              <Clock3 className="h-4 w-4" strokeWidth={1.7} />
-              {countdown}
-            </div>
+          <header>
+            <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#9A9A9A]">Novidade</p>
+            <h2 className="mt-1 text-[27px] font-semibold leading-none tracking-[-0.055em] text-black">
+              Central de ajuda
+            </h2>
           </header>
 
-          <div className="relative mx-auto mt-5 h-[250px] w-full overflow-visible">
-            {stackedProducts.map((product, index) => (
-              <button
-                type="button"
-                key={`${product.id}-${index}`}
-                onClick={() => setSelectedProductId(product.id)}
-                style={stackPositions[index]}
-                className="absolute left-1/2 top-2 h-[220px] w-[174px] overflow-hidden rounded-[24px] bg-[#F5F5F4] shadow-[0_22px_44px_rgba(17,17,17,0.16)] transition-all duration-300 hover:scale-[1.02]"
-                aria-label={`Selecionar ${product.title}`}
-              >
-                <img src={product.image} alt="" className="h-full w-full object-cover object-center" />
-                {index === 0 ? (
-                  <>
-                    <span className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full border-2 border-white bg-black text-white shadow-[0_10px_22px_rgba(0,0,0,0.22)]">
-                      <Flame className="h-5 w-5" strokeWidth={1.7} />
-                    </span>
-                    <span className="absolute bottom-3 left-3 rounded-full bg-white/92 px-3 py-1.5 text-[12px] font-semibold text-black shadow-[0_8px_18px_rgba(0,0,0,0.12)]">
-                      {formatCurrency(product.price)}
-                    </span>
-                  </>
-                ) : null}
-              </button>
-            ))}
-          </div>
+          {signedImage ? (
+            <div className="mt-5 overflow-hidden rounded-[20px] bg-[#F5F5F4]">
+              <img src={signedImage} alt="" className="h-auto max-h-[280px] w-full object-cover" />
+            </div>
+          ) : null}
 
-          <div className="mt-1 text-center">
-            <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#8A8A8A]">
-              {selectedProduct.category}
-            </p>
-            <h3 className="mx-auto mt-2 line-clamp-2 max-w-[410px] text-[22px] font-semibold leading-[1.12] tracking-[-0.045em] text-[#111]">
-              {selectedProduct.title}
-            </h3>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <span className="rounded-full bg-[#F3F3F2] px-3 py-1.5 text-[13px] font-semibold text-[#222]">
-                {selectedProduct.ordersCount || "Novo"} pedidos
-              </span>
-              <span className="rounded-full bg-[#F3F3F2] px-3 py-1.5 text-[13px] font-semibold text-[#222]">
-                {selectedProduct.stockQuantity ?? "Estoque"} em estoque
-              </span>
+          <p className="mt-5 whitespace-pre-wrap text-[15px] leading-[1.55] tracking-[-0.01em] text-[#222]">
+            {post.content}
+          </p>
+
+          <div className="mt-6 flex items-center gap-3 border-t border-[#EFEFEE] pt-4">
+            <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-[#F2F2F1] text-[13px] font-semibold text-[#333]">
+              {post.author_avatar ? (
+                <img src={post.author_avatar} alt="" className="h-full w-full object-cover" />
+              ) : (
+                post.author_name.slice(0, 1).toUpperCase()
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-semibold text-[#111]">{post.author_name}</p>
+              <p className="truncate text-[12px] text-[#8A8A8A]">{formatAnnouncementDate(post.created_at)}</p>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={openProduct}
-            className="mt-6 inline-flex h-[52px] w-full items-center justify-center gap-3 rounded-[18px] bg-black px-6 text-[16px] font-semibold tracking-[-0.03em] text-white shadow-[0_18px_34px_rgba(0,0,0,0.16)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
-          >
-            <Eye className="h-5 w-5" strokeWidth={1.8} />
-            Ver no catálogo
-            <ArrowUpRight className="h-5 w-5" strokeWidth={1.8} />
-          </button>
         </article>
       </motion.section>
     </div>
@@ -2328,7 +2229,7 @@ const DashboardHomePage = () => {
 	      className="relative -m-5 min-h-screen overflow-visible bg-white pb-24 text-[#111111] sm:-m-6 lg:-m-7"
 	      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" }}
 	    >
-	      <DailyProductSpotlightModal userId={user?.id} />
+	      <AnnouncementModal userId={user?.id} />
 	      {collections.length > 0 ? (
 	        <section className="min-h-screen bg-[#F2F2F1] px-3 py-3 sm:px-5">
 	          <div className="mx-auto w-full max-w-[1180px]">
