@@ -793,7 +793,14 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
       .filter((word) => word.length > 2 && !STOPWORDS.has(word))
       .slice(0, 8);
 
-    if (filters.palavras_chave.length === 0) {
+    // Se o usuário pediu "mais barato / mais vendido / maior margem" sem citar produto,
+    // trata como ordenação pura em vez de filtro por palavra.
+    const sortOnly = detectSortOnlyOrder(userText);
+    if (sortOnly && filters.palavras_chave.length === 0) {
+      filters.ordenar_por = sortOnly;
+    }
+
+    if (filters.palavras_chave.length === 0 && !sortOnly) {
       filters.palavras_chave = extractFallbackKeywords(userText);
     }
 
