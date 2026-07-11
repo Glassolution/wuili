@@ -699,6 +699,23 @@ Deno.serve(async (req) => {
       value_name: weightValName,
     })
 
+    // 3.6) SELLER_PACKAGE_DIMENSIONS — CRÍTICO para o cálculo do frete.
+    // Sem dimensões, o Mercado Livre aplica uma tabela padrão de "pacote
+    // grande" que resulta em fretes absurdos (R$170+) independente do peso
+    // ou preço real. Estimamos dimensões proporcionais ao peso.
+    let dimsCm: [number, number, number]
+    if (rawWeight <= 0.3) dimsCm = [20, 15, 5]
+    else if (rawWeight <= 1) dimsCm = [25, 20, 10]
+    else if (rawWeight <= 3) dimsCm = [35, 25, 15]
+    else if (rawWeight <= 6) dimsCm = [40, 30, 20]
+    else dimsCm = [50, 40, 30]
+    const dimsValName = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]} cm`
+    mergeAttribute(allAttrs, {
+      id: 'SELLER_PACKAGE_DIMENSIONS',
+      value_name: dimsValName,
+    })
+    console.log(`[ml-publish] Dimensões da embalagem: ${dimsValName} (peso ${rawWeight}kg)`)
+
     // 4) Atributos obrigatórios que o usuário NÃO enviou:
     //    - BRAND: fallback seguro "Genérica"
     //    - MODEL: fallback seguro (título curto)
