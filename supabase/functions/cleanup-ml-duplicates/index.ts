@@ -150,19 +150,34 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const { data: rows, error: fetchErr } = await supabase
-      .from("user_publications")
-      .select("id, user_id, ml_item_id, status")
-      .eq("status", "archived_duplicate")
-      .not("ml_item_id", "is", null)
-      .is("ml_closed_at", null);
-
-    if (fetchErr) {
-      return new Response(JSON.stringify({ error: fetchErr.message }), {
-        status: 500,
+    // Auth: exige usuário admin autenticado (via Authorization: Bearer <jwt>)
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+    if (!jwt) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const { data: userRes } = await supabase.auth.getUser(jwt);
+    const caller = userRes?.user;
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: isAdmin } = await supabase.rpc("has_role", {
+      _user_id: caller.id,
+      _role: "admin",
+    });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     const targets = (rows ?? []) as Row[];
     const report: ReportEntry[] = [];
