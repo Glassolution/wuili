@@ -59,7 +59,10 @@ const PublicationsPage = () => {
     // Tab filter
     if (tab === "active" && p.status !== "active") return false;
     if (tab === "draft" && p.status !== "pending") return false;
-    if (tab === "archived" && p.status !== "paused") return false;
+    if (tab === "archived" &&
+      !["paused", "closed", "inactive", "under_review", "archived_duplicate"].includes(p.status)) {
+      return false;
+    }
     
     // Search filter
     if (searchQuery && !p.title.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -68,6 +71,17 @@ const PublicationsPage = () => {
     
     return true;
   });
+
+  // ── Badge presets por status real do ML ────────────────────────────────────
+  const statusPresets: Record<string, { label: string; wrap: string; dot: string }> = {
+    active:             { label: "Ativo",           wrap: "bg-emerald-50 text-emerald-700",   dot: "bg-emerald-500" },
+    pending:            { label: "Rascunho",        wrap: "bg-gray-100 text-gray-600",        dot: "bg-gray-400" },
+    paused:             { label: "Pausado",         wrap: "bg-amber-50 text-amber-700",       dot: "bg-amber-500" },
+    under_review:       { label: "Em revisão",      wrap: "bg-blue-50 text-blue-700",         dot: "bg-blue-500" },
+    inactive:           { label: "Inativo",         wrap: "bg-gray-100 text-gray-500",        dot: "bg-gray-400" },
+    closed:             { label: "Encerrado",       wrap: "bg-rose-50 text-rose-700",         dot: "bg-rose-500" },
+    archived_duplicate: { label: "Duplicado",       wrap: "bg-gray-100 text-gray-500",        dot: "bg-gray-400" },
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
