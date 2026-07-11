@@ -1091,7 +1091,8 @@ export default function Docs() {
     >
       <div className="flex min-h-screen w-full">
         <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} />
-        <main className="min-h-screen min-w-0 flex-1 bg-[#0d0d0e]">
+        <div className="hidden flex-1 shrink xl:block" />
+        <main className="min-h-screen w-full min-w-0 max-w-[680px] shrink-0 bg-[#0d0d0e]">
           <header className="sticky top-0 z-30 flex h-[66px] items-center border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[24px] backdrop-blur">
             <div className="flex items-center gap-[18px]">
               <button
