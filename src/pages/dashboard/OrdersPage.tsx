@@ -214,9 +214,15 @@ const OrdersPage = () => {
     error,
   } = useQuery({
     queryKey: ["ml-orders-view", user?.id],
-    enabled: !!user,
+    enabled: !!user?.id,
     queryFn: async () => {
-      const { data, error: queryError } = await supabase.from("ml_orders_view").select("*");
+      if (!user?.id) return [];
+      const { data, error: queryError } = await supabase
+        .from("ml_orders_view")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("ordered_at", { ascending: false, nullsFirst: false })
+        .limit(2000);
       if (queryError) throw queryError;
       return data ?? [];
     },
