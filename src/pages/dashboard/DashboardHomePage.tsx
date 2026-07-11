@@ -436,6 +436,10 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
                 {preview}
               </p>
             </div>
+
+            <p className="mt-4 text-[13px] leading-[1.55] text-[#3A3A3A]">
+              Estamos publicando novidades, tutoriais e conversando direto com você aqui pelo painel. Abra o feed da comunidade para ver o post completo, curtir e deixar seu comentário — é assim que a gente decide o que construir a seguir.
+            </p>
           </div>
 
           <div className="flex justify-end border-t border-[#EFEFEE] px-6 py-4">
