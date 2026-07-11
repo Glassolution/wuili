@@ -739,18 +739,28 @@ Deno.serve(async (req) => {
         continue
       }
       if (OPEN_IDENTIFYING_ATTRS.has(id)) {
-        // Não chutar. Deixa o ML devolver o erro real.
+        // Não chutar valor específico. Manda "N/D" para satisfazer a
+        // obrigatoriedade sem inventar dado errado.
+        mergeAttribute(allAttrs, { id, value_name: 'N/D' })
         continue
       }
-      const firstValue = (attrDef.values as Record<string, unknown>[] | undefined)?.[0]
-      const valueId = cleanText(firstValue?.id)
-      const valueName = cleanText(firstValue?.name)
-      if (valueId || valueName) {
-        mergeAttribute(allAttrs, {
-          id,
-          ...(valueId ? { value_id: valueId } : {}),
-          ...(valueName ? { value_name: valueName } : {}),
-        })
+      const values = (attrDef.values as Record<string, unknown>[] | undefined) ?? []
+      if (values.length > 0) {
+        const firstValue = values[0]
+        const valueId = cleanText(firstValue?.id)
+        const valueName = cleanText(firstValue?.name)
+        if (valueId || valueName) {
+          mergeAttribute(allAttrs, {
+            id,
+            ...(valueId ? { value_id: valueId } : {}),
+            ...(valueName ? { value_name: valueName } : {}),
+          })
+        }
+      } else {
+        // Atributo obrigatório de texto livre (ex.: VOLUME_CAPACITY,
+        // CAPACIDADE em L/ml, medidas). Sem valor confiável do catálogo →
+        // preenche "N/D" para o ML não travar o anúncio.
+        mergeAttribute(allAttrs, { id, value_name: 'N/D' })
       }
     }
 
@@ -787,14 +797,17 @@ Deno.serve(async (req) => {
       listing_type_id: 'gold_special',
       pictures,
       attributes: allAttrs,
+      // Frete: Mercado Envios 2 (padrão para dropshipping), com frete grátis
+      // — muitas categorias já exigem `mandatory_free_shipping`, e `me1`
+      // requer contrato próprio do vendedor (causa `lost_me1_by_user`).
+      shipping: {
+        mode: 'me2',
+        local_pick_up: false,
+        free_shipping: true,
+        free_methods: [],
+        tags: ['self_service_in'],
+      },
     }
-
-    console.log('Payload:', JSON.stringify(mlPayload).substring(0, 800))
-
-    // === PUBLISH ===
-    // Official Mercado Livre item creation docs do not document an idempotency
-    // header for POST /items. Keep idempotency on our side before this request.
-    const itemResponse = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
