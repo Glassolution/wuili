@@ -797,14 +797,17 @@ Deno.serve(async (req) => {
       listing_type_id: 'gold_special',
       pictures,
       attributes: allAttrs,
+      // Frete: Mercado Envios 2 (padrão para dropshipping), com frete grátis
+      // — muitas categorias já exigem `mandatory_free_shipping`, e `me1`
+      // requer contrato próprio do vendedor (causa `lost_me1_by_user`).
+      shipping: {
+        mode: 'me2',
+        local_pick_up: false,
+        free_shipping: true,
+        free_methods: [],
+        tags: ['self_service_in'],
+      },
     }
-
-    console.log('Payload:', JSON.stringify(mlPayload).substring(0, 800))
-
-    // === PUBLISH ===
-    // Official Mercado Livre item creation docs do not document an idempotency
-    // header for POST /items. Keep idempotency on our side before this request.
-    const itemResponse = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
