@@ -559,7 +559,7 @@ function Post({
               </div>
             </div>
           ) : post.content && (
-            <p className="mt-[12px] whitespace-pre-line text-[17px] font-medium leading-[1.58] text-[#c8c8cb]">
+            <p className="mt-[12px] whitespace-pre-line text-[18px] font-medium leading-[1.6] text-[#c8c8cb]">
               {post.content}
             </p>
           )}
