@@ -565,10 +565,11 @@ function Post({
           )}
 
           {post.image_signed_url && (
-            <div className="relative mt-[20px] overflow-hidden rounded-[15px] border border-white/10">
-              <img src={post.image_signed_url} alt="" className="h-auto w-full object-cover" />
+            <div className="relative mt-[16px] overflow-hidden rounded-[14px] border border-white/10 bg-black">
+              <img src={post.image_signed_url} alt="" className="mx-auto block max-h-[420px] w-auto max-w-full object-contain" />
             </div>
           )}
+
 
           <div className="mt-[19px] flex items-center gap-[25px]">
             <button
@@ -1123,7 +1124,7 @@ export default function Docs() {
 
           {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
 
-          <div className="relative ml-[158px] mr-[28px]">
+          <div className="relative ml-auto mr-[24px] max-w-[620px] px-[24px]">
             {tab === "feed" && (
               <>
                 {loading ? (
@@ -1168,9 +1169,9 @@ export default function Docs() {
         </main>
         {(tab === "feed" || tab === "tutorial") && (
           <>
-            <div className="hidden w-[16px] shrink-0 xl:block" />
+            <div className="hidden w-[8px] shrink-0 xl:block" />
             <RightRail />
-            <div className="hidden w-[120px] shrink-0 xl:block" />
+            <div className="hidden flex-1 shrink xl:block" />
           </>
         )}
       </div>
