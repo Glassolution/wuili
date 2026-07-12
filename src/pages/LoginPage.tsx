@@ -97,7 +97,7 @@ const LoginPage = () => {
       const [result] = await Promise.all([
         supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: `${window.location.origin}/dashboard`, skipBrowserRedirect: true },
+          options: { redirectTo: `${window.location.origin}/comecar`, skipBrowserRedirect: true },
         }),
         veloToast.waitForMinimum(toastId),
       ]);
@@ -125,7 +125,7 @@ const LoginPage = () => {
       ]);
       veloToast.dismiss(toastId);
       if (error) { veloToast.error(error.message === "Invalid login credentials" ? "Email ou senha incorretos." : error.message); return; }
-      if (data.session || data.user) { navigate("/dashboard", { replace: true }); return; }
+      if (data.session || data.user) { navigate("/comecar", { replace: true }); return; }
       veloToast.error("Não foi possível concluir o login.");
     } catch (error) {
       await veloToast.waitForMinimum(toastId);
@@ -158,7 +158,7 @@ const LoginPage = () => {
     if (data.user) {
       await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
       veloToast.success("Conta criada com sucesso.");
-      navigate("/dashboard", { replace: true });
+      navigate("/comecar", { replace: true });
     }
   };
 
@@ -189,7 +189,7 @@ const LoginPage = () => {
   useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 350); }, [step]);
   useEffect(() => { if (step === "signup") setTimeout(() => nomeRef.current?.focus(), 350);     }, [step]);
 
-  if (!authLoading && user && !loading && !googleLoading) return <Navigate to="/dashboard" replace />;
+  if (!authLoading && user && !loading && !googleLoading) return <Navigate to="/comecar" replace />;
 
   const copy = getPanelCopy(step, resetMode);
   const inputCls =

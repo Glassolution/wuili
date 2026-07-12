@@ -11,6 +11,16 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const StartChoicePage = lazy(() => import("./pages/StartChoicePage"));
+const CreateStoreStubPage = lazy(() => import("./pages/CreateStoreStubPage"));
+const ProductPreparationPage = lazy(() => import("./pages/ProductPreparationPage"));
+const ExampleProductSelectionPage = lazy(() => import("./pages/ExampleProductSelectionPage"));
+const StoreLanguagePage = lazy(() => import("./pages/StoreLanguagePage"));
+const CustomerPersonaPage = lazy(() => import("./pages/CustomerPersonaPage"));
+const SalesAnglePage = lazy(() => import("./pages/SalesAnglePage"));
+const StoreImagesGenerationPage = lazy(() => import("./pages/StoreImagesGenerationPage"));
+const StoreBuildProgressPage = lazy(() => import("./pages/StoreBuildProgressPage"));
+const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditorPage"));
 // AuthEntryPage removed — all auth flows consolidated in LoginPage
 // CadastroPage removed — progressive login flow handles both signup and login
 const SetupPage = lazy(() => import("./pages/SetupPage"));
@@ -107,6 +117,16 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/comecar" element={<ProtectedRoute><StartChoicePage /></ProtectedRoute>} />
+              <Route path="/onboarding/criar-loja" element={<ProtectedRoute><CreateStoreStubPage /></ProtectedRoute>} />
+              <Route path="/onboarding/preparando-produto" element={<ProtectedRoute><ProductPreparationPage /></ProtectedRoute>} />
+              <Route path="/onboarding/escolher-produto" element={<ProtectedRoute><ExampleProductSelectionPage /></ProtectedRoute>} />
+              <Route path="/onboarding/idioma" element={<ProtectedRoute><StoreLanguagePage /></ProtectedRoute>} />
+              <Route path="/onboarding/persona" element={<ProtectedRoute><CustomerPersonaPage /></ProtectedRoute>} />
+              <Route path="/onboarding/angulo-vendas" element={<ProtectedRoute><SalesAnglePage /></ProtectedRoute>} />
+              <Route path="/onboarding/gerando-imagens" element={<ProtectedRoute><StoreImagesGenerationPage /></ProtectedRoute>} />
+              <Route path="/onboarding/preparando-loja" element={<ProtectedRoute><StoreBuildProgressPage /></ProtectedRoute>} />
+              <Route path="/minha-loja/editor" element={<ProtectedRoute><GeneratedStoreEditorPage /></ProtectedRoute>} />
               <Route path="/cadastro" element={<Navigate to="/login" replace />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/setup" element={<SetupPage />} />
