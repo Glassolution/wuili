@@ -36,6 +36,33 @@ const GeneratedStoreEditorPage = () => {
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [generatingBanner, setGeneratingBanner] = useState(false);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+
+  const generateBanner = async () => {
+    if (generatingBanner) return;
+    setGeneratingBanner(true);
+    setBannerError(null);
+    try {
+      const first = displayedProducts[0];
+      const { data, error } = await supabase.functions.invoke("generate-store-banner", {
+        body: {
+          brandName,
+          persona: flow?.persona,
+          salesAngle: flow?.salesAngle,
+          category: first?.category,
+          productTitle: first?.title,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.imageUrl) setHeroImage(data.imageUrl);
+    } catch (err) {
+      setBannerError((err as Error).message || "Falha ao gerar banner");
+    } finally {
+      setGeneratingBanner(false);
+    }
+  };
 
   const getElementPath = (element: HTMLElement, root: HTMLElement): string => {
     const parts: string[] = [];
@@ -248,6 +275,13 @@ const GeneratedStoreEditorPage = () => {
                 </div>
                 <div className="relative min-h-[440px]">
                   <img src={heroImage} alt={brandName} className="absolute inset-0 h-full w-full object-cover"/>
+                  <div data-editor-ignore className="absolute right-4 top-4 z-20 flex flex-col items-end gap-2">
+                    <button type="button" onClick={generateBanner} disabled={generatingBanner} className="group flex items-center gap-2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:bg-black disabled:opacity-70">
+                      <Sparkles size={13} className={generatingBanner?"animate-spin":""}/>
+                      {generatingBanner ? "Gerando..." : "Gerar banner com IA"}
+                    </button>
+                    {bannerError ? <span className="max-w-[220px] rounded-md bg-red-500/90 px-2 py-1 text-[10px] text-white">{bannerError}</span> : <span className="rounded-md bg-white/85 px-2 py-1 text-[9.5px] font-medium text-black/60">Visível só para o dono da loja</span>}
+                  </div>
                   <div className="absolute left-1/2 top-1/2 flex h-[110px] w-[130px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 bg-[#f5f2ec] shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
                     <span className="font-serif text-[36px] italic leading-none">{brandInitial}</span>
                     <span className="font-serif text-[10px] tracking-[0.14em]">{brandName}</span>
