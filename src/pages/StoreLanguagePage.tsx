@@ -43,7 +43,7 @@ const StoreLanguagePage = () => {
       return null;
     }
   }, [location.state]);
-  const [selectedLanguage, setSelectedLanguage] = useState("Português");
+  const [selectedLanguage, setSelectedLanguage] = useState("Português (Brasil)");
   const [showOtherLanguages, setShowOtherLanguages] = useState(false);
   const [search, setSearch] = useState("");
 
