@@ -6,7 +6,8 @@ import type { ExampleProduct } from "@/pages/StartChoicePage";
 type LanguageOption = { name: string; flag: string };
 
 const featuredLanguages: LanguageOption[] = [
-  { name: "Português", flag: "🇵🇹" },
+  { name: "Português (Brasil)", flag: "🇧🇷" },
+  { name: "Português (Portugal)", flag: "🇵🇹" },
   { name: "Inglês", flag: "🇺🇸" },
   { name: "Espanhol", flag: "🇪🇸" },
   { name: "Francês", flag: "🇫🇷" },
