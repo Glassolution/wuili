@@ -6,6 +6,7 @@ import { ArrowUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import { VeloLogo } from "@/components/VeloLogo";
 import { playSendSound, playSoftTypeSound } from "@/lib/uiFeedback";
+import StorePreview from "@/components/signup/StorePreview";
 
 type Step = "nome" | "email" | "senha" | "whatsapp" | "nicho" | "criando";
 const STEPS: Step[] = ["nome", "email", "senha", "whatsapp", "nicho", "criando"];
