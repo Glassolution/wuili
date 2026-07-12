@@ -66,13 +66,78 @@ const GeneratedStoreEditorPage = () => {
       <div className="flex min-h-0 flex-1">
         <input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={(event)=>{const file=event.target.files?.[0];if(file)setHeroImage(URL.createObjectURL(file));}}/>
         {panel==="template" ? (
-          <aside className="w-[280px] shrink-0 overflow-y-auto border-r border-white/[0.05] bg-[#0c0c0c] p-5">
-            <div className="flex items-center justify-between"><strong className="text-[13px]">Personalizar template</strong><button onClick={()=>setPanel(null)} className="text-white/35 hover:text-white"><X size={16}/></button></div>
-            <div className="mt-7 space-y-7">
-              <label className="block"><span className="text-[11px] text-white/45">Cor de destaque</span><input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="mt-3 h-10 w-full rounded bg-transparent"/></label>
-              <label className="block"><span className="text-[11px] text-white/45">Tipografia</span><select value={font} onChange={(e)=>setFont(e.target.value)} className="mt-3 h-10 w-full rounded bg-white/[0.07] px-3 text-white"><option>Helvetica Neue</option><option>Georgia</option><option>Trebuchet MS</option></select></label>
-              <div><span className="text-[11px] text-white/45">Colunas da grade</span><div className="mt-3 grid grid-cols-3 gap-2">{[2,3,4].map(value=><button key={value} onClick={()=>setColumns(value)} className={`rounded bg-white/[0.07] p-3 text-[12px] ${columns===value?"ring-1 ring-white/60":""}`}>{value} col.</button>)}</div></div>
-              <div><span className="text-[11px] text-white/45">Imagem principal</span><button onClick={()=>imageInput.current?.click()} className="mt-3 flex h-10 w-full items-center justify-center rounded bg-white/[0.07] text-[12px] hover:bg-white/[0.12]">Adicionar imagem</button></div>
+          <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-r border-white/[0.06] bg-[#0b0b0b]">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4">
+              <div><strong className="block text-[14px]">Personalizar template</strong><span className="text-[10.5px] text-white/40">Ajuste a cara da sua loja</span></div>
+              <button onClick={()=>setPanel(null)} className="text-white/40 hover:text-white"><X size={16}/></button>
+            </div>
+
+            <div className="space-y-3 px-5 pb-6">
+              {/* Ações principais */}
+              <button type="button" onClick={()=>setShowTemplates(true)} className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] shadow-[0_6px_16px_rgba(37,99,235,0.35)]"><LayoutTemplate size={20}/></span>
+                <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Trocar template</span><span className="block text-[11px] text-white/45">Atual: {currentTemplate}</span></span>
+                <ChevronLeft size={14} className="rotate-180 text-white/35" />
+              </button>
+
+              <button type="button" onClick={()=>navigate("/catalogo")} className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#f97316] to-[#c2410c] shadow-[0_6px_16px_rgba(249,115,22,0.35)]"><Package size={20}/></span>
+                <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Adicionar produtos</span><span className="block text-[11px] text-white/45">Escolha do catálogo Velo</span></span>
+                <Plus size={14} className="text-white/35" />
+              </button>
+
+              <button type="button" onClick={()=>imageInput.current?.click()} className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#a855f7] to-[#6d28d9] shadow-[0_6px_16px_rgba(168,85,247,0.35)]"><Sparkles size={20}/></span>
+                <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Imagem principal</span><span className="block text-[11px] text-white/45">Envie a foto do banner</span></span>
+                <Plus size={14} className="text-white/35" />
+              </button>
+            </div>
+
+            <div className="mx-5 border-t border-white/[0.06]" />
+
+            <div className="space-y-6 px-5 py-6">
+              {/* Cor de destaque */}
+              <div>
+                <div className="flex items-center gap-2"><Palette size={13} className="text-white/55"/><strong className="text-[12px]">Cor de destaque</strong></div>
+                <p className="mt-1 text-[10.5px] text-white/40">Usada em botões, preços e tags.</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {["#111111","#2563eb","#dc2626","#16a34a","#f59e0b","#ec4899","#7c3aed"].map((color)=>(
+                    <button key={color} type="button" onClick={()=>setAccent(color)} aria-label={color} className={`relative h-8 w-8 rounded-full transition ${accent===color?"ring-2 ring-white ring-offset-2 ring-offset-[#0b0b0b]":"ring-1 ring-white/10"}`} style={{backgroundColor:color}}>{accent===color?<Check size={13} className="absolute inset-0 m-auto text-white drop-shadow"/>:null}</button>
+                  ))}
+                  <label className="relative h-8 w-8 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/15" title="Cor personalizada">
+                    <span className="absolute inset-0 bg-[conic-gradient(from_0deg,#ff0080,#ff8c00,#ffee00,#00ff85,#00b8ff,#8a2be2,#ff0080)]" />
+                    <input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"/>
+                  </label>
+                </div>
+              </div>
+
+              {/* Tipografia */}
+              <div>
+                <div className="flex items-center gap-2"><Type size={13} className="text-white/55"/><strong className="text-[12px]">Tipografia</strong></div>
+                <p className="mt-1 text-[10.5px] text-white/40">Fonte dos títulos e textos da loja.</p>
+                <div className="mt-3 grid grid-cols-1 gap-2">
+                  {[{name:"Helvetica Neue",stack:'"Helvetica Neue", Helvetica, sans-serif',mood:"Moderna e limpa"},{name:"Georgia",stack:'Georgia, serif',mood:"Clássica e elegante"},{name:"Trebuchet MS",stack:'"Trebuchet MS", sans-serif',mood:"Amigável e leve"}].map((option)=>(
+                    <button key={option.name} type="button" onClick={()=>setFont(option.name)} className={`flex items-center justify-between rounded-[11px] border p-3 text-left transition ${font===option.name?"border-white/70 bg-white/[0.08]":"border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
+                      <span><span className="block text-[15px]" style={{fontFamily:option.stack}}>{option.name}</span><span className="block text-[10.5px] text-white/40">{option.mood}</span></span>
+                      {font===option.name?<Check size={14} className="text-white"/>:null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Colunas */}
+              <div>
+                <div className="flex items-center gap-2"><LayoutGrid size={13} className="text-white/55"/><strong className="text-[12px]">Colunas da grade</strong></div>
+                <p className="mt-1 text-[10.5px] text-white/40">Quantos produtos por linha no desktop.</p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {[2,3,4].map((value)=>(
+                    <button key={value} type="button" onClick={()=>setColumns(value)} className={`flex flex-col items-center gap-2 rounded-[11px] border p-3 transition ${columns===value?"border-white/70 bg-white/[0.08]":"border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
+                      <span className={`grid w-full gap-1`} style={{gridTemplateColumns:`repeat(${value}, minmax(0,1fr))`}}>{Array.from({length:value}).map((_,index)=><span key={index} className="h-6 rounded-[3px] bg-white/25"/>)}</span>
+                      <span className="text-[10.5px] text-white/55">{value} colunas</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </aside>
         ) : null}
