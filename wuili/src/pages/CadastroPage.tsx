@@ -6,6 +6,7 @@ import { ArrowUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import { VeloLogo } from "@/components/VeloLogo";
 import { playSendSound, playSoftTypeSound } from "@/lib/uiFeedback";
+import StorePreview from "@/components/signup/StorePreview";
 
 type Step = "nome" | "email" | "senha" | "whatsapp" | "nicho" | "criando";
 const STEPS: Step[] = ["nome", "email", "senha", "whatsapp", "nicho", "criando"];
@@ -87,6 +88,7 @@ const CadastroPage = () => {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [nichoState, setNichoState] = useState("");
   const revealFromInk = Boolean((location.state as { fromLandingInk?: boolean } | null)?.fromLandingInk);
 
   const stepIndex = STEPS.indexOf(step);
@@ -205,6 +207,7 @@ const CadastroPage = () => {
       const lower = val.toLowerCase();
       const matched = NICHOS.find(n => lower.includes(n));
       const nicho = matched || val;
+      setNichoState(nicho);
 
       setConfirmText(val);
       setAnimating(true);
@@ -271,9 +274,10 @@ const CadastroPage = () => {
         />
       </div>
 
-      {/* ── Chat area ── */}
-      <main className={`flex flex-1 flex-col items-center px-5 pb-48 pt-16 sm:pt-24 ${revealFromInk ? "signup-ink-main" : ""}`}>
-        <div className="flex w-full max-w-[680px] flex-col gap-6">
+      {/* ── Chat area + Live preview ── */}
+      <main className={`flex flex-1 flex-col items-center px-5 pb-48 pt-16 sm:pt-24 lg:flex-row lg:items-start lg:justify-center lg:gap-16 lg:px-10 lg:pt-16 ${revealFromInk ? "signup-ink-main" : ""}`}>
+        <div className="flex w-full max-w-[680px] flex-col gap-6 lg:max-w-[560px]">
+
 
           {/* Assistant bubble: question */}
           <div key={`q-${step}`} className={`flex animate-fade-in items-start gap-3 ${revealFromInk ? "signup-ink-card" : ""}`}>
@@ -337,7 +341,20 @@ const CadastroPage = () => {
             </div>
           )}
         </div>
+
+        {/* Live storefront preview — desktop only */}
+        <aside className="hidden lg:sticky lg:top-16 lg:flex lg:shrink-0 lg:pt-2">
+          <StorePreview
+            step={step}
+            nome={nome}
+            email={email}
+            whatsapp={whatsapp}
+            nicho={nichoState}
+            currentInput={input}
+          />
+        </aside>
       </main>
+
 
       {/* ── Composer (sticky bottom, ChatGPT style) ── */}
       {step !== "criando" && (
