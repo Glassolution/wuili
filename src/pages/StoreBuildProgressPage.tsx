@@ -46,6 +46,11 @@ const StoreBuildProgressPage = () => {
   if (!flow) return <Navigate to="/comecar" replace />;
 
   const ready = progress >= 95;
+
+  useEffect(() => {
+    if (ready && flow && user?.id) markStoreFlowCompleted(user.id, flow);
+  }, [ready, flow, user?.id]);
+
   const completedCount = ready ? 5 : Math.min(4, Math.floor(progress / 20));
   const activeIndex = Math.min(4, completedCount);
   const circumference = 2 * Math.PI * 78;
