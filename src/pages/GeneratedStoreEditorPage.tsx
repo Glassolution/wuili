@@ -23,6 +23,7 @@ type Comment = { id: string; x: number; y: number; text: string; open: boolean }
 const GeneratedStoreEditorPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const imageInput = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const [mobilePreview, setMobilePreview] = useState(false);
