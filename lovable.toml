@@ -1,0 +1,4 @@
+[run]
+"build:dev" = "cd wuili && npm run build:dev"
+"build" = "cd wuili && npm run build"
+"dev" = "cd wuili && npm run dev -- --host --port 8080"
