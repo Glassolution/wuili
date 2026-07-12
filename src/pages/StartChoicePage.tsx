@@ -22,6 +22,10 @@ const VeloWordmark = () => (
 );
 
 const StartChoicePage = () => {
+  const { user } = useAuth();
+  if (user?.id && hasCompletedStoreFlow(user.id)) {
+    return <Navigate to="/minha-loja/editor" replace />;
+  }
   return (
   <main
     className="min-h-screen bg-black text-white"
