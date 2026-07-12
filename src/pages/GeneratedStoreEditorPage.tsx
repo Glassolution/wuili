@@ -6,7 +6,7 @@ import type { ExampleProduct } from "@/pages/StartChoicePage";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; brand: string };
-type EditorPanel = "design" | "layout" | "image" | null;
+type EditorPanel = "template" | null;
 
 const getFirstImage = (images: unknown) => {
   if (Array.isArray(images)) return images.find((image): image is string => typeof image === "string" && image.trim().length > 0) || "";
