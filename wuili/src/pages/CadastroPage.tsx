@@ -88,6 +88,7 @@ const CadastroPage = () => {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [nichoState, setNichoState] = useState("");
   const revealFromInk = Boolean((location.state as { fromLandingInk?: boolean } | null)?.fromLandingInk);
 
   const stepIndex = STEPS.indexOf(step);
