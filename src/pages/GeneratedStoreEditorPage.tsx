@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Check, ChevronLeft, Gift, Heart, History, LayoutGrid, LayoutTemplate, Menu, MessageSquare, Monitor, MoreHorizontal, MousePointer2, Package, Palette, Pencil, Play, Plus, Search, Settings, ShoppingBag, Smartphone, Sparkles, Type, UserRound, X } from "lucide-react";
+import { Baby, BookOpen, Boxes, Car, Check, ChevronLeft, Dumbbell, Gamepad2, Gem, Gift, GitCompareArrows, Headphones, Heart, HeartPulse, History, Home, Laptop, LayoutGrid, LayoutTemplate, Menu, MessageSquare, Monitor, MoreHorizontal, MousePointer2, Package, Palette, PawPrint, Pencil, Play, Plus, Search, Settings, Shirt, ShoppingBag, Smartphone, Sparkles, Type, X } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
-type CatalogItem = ExampleProduct & { category: string; brand: string };
+type CatalogItem = ExampleProduct & { category: string };
 type EditorPanel = "template" | null;
 
 const getFirstImage = (images: unknown) => {
@@ -16,6 +16,35 @@ const getFirstImage = (images: unknown) => {
   return "";
 };
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const defaultMenuCategories = [
+  "Moda feminina",
+  "Moda masculina",
+  "Beleza e cuidados",
+  "Eletrônicos",
+  "Casa e decoração",
+  "Esportes e ar livre",
+  "Brinquedos e jogos",
+  "Automotivo",
+  "Livros e papelaria",
+  "Pet shop",
+];
+
+const getCategoryIcon = (category: string) => {
+  const normalized = category.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/moda|fashion|roupa|feminin|masculin/.test(normalized)) return Shirt;
+  if (/casa|decoracao/.test(normalized)) return Home;
+  if (/eletron/.test(normalized)) return Laptop;
+  if (/bijuter/.test(normalized)) return Gem;
+  if (/bebe|infantil/.test(normalized)) return Baby;
+  if (/pet/.test(normalized)) return PawPrint;
+  if (/saude|beleza/.test(normalized)) return HeartPulse;
+  if (/esporte|fitness/.test(normalized)) return Dumbbell;
+  if (/brinquedo|jogo|game/.test(normalized)) return Gamepad2;
+  if (/auto|carro|moto/.test(normalized)) return Car;
+  if (/livro|papelaria/.test(normalized)) return BookOpen;
+  return Boxes;
+};
 
 type EditMode = "select" | "text" | "edit" | "comment" | null;
 type Comment = { id: string; x: number; y: number; text: string; open: boolean };
@@ -29,10 +58,11 @@ const GeneratedStoreEditorPage = () => {
   const [mobilePreview, setMobilePreview] = useState(false);
   const [panel, setPanel] = useState<EditorPanel>(null);
   const [accent, setAccent] = useState("#111111");
-  const [font, setFont] = useState("Helvetica Neue");
+  const [font, setFont] = useState("Inter");
   const [columns, setColumns] = useState(3);
   const [heroImage, setHeroImage] = useState("");
   const [products, setProducts] = useState<CatalogItem[]>([]);
+  const [storeName, setStoreName] = useState("Velo");
   const [showPlans, setShowPlans] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState("Velo Modern");
@@ -136,61 +166,84 @@ const GeneratedStoreEditorPage = () => {
 
   useEffect(() => {
     if (!flow) return;
-    setHeroImage("/velo-fashion-banner-v1.png");
+    setHeroImage("/template-01-marketplace-hero.png");
     let mounted = true;
-    supabase.from("catalog_products").select("id,title,cost_price,images,category,brand").eq("source", "c7drop").eq("is_blocked", false).gt("stock_quantity", 0).limit(12).then(({ data }) => {
-      if (!mounted || !data) return;
-      setProducts(data.map((item) => ({ id: item.id, title: item.title, price: Number(item.cost_price) || 0, imageUrl: getFirstImage(item.images), category: item.category || "Moda", brand: item.brand || "Velo" })).filter((item) => item.imageUrl));
-    });
+    const loadStore = async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id;
+      if (!userId) return;
+
+      const [{ data: profile }, { data: collectionProducts }] = await Promise.all([
+        supabase.from("profiles").select("store_name,loja_nome").eq("user_id", userId).maybeSingle(),
+        supabase
+          .from("collection_products")
+          .select("added_at,collections!inner(user_id),catalog_products!inner(id,title,cost_price,images,category,is_active,is_blocked,stock_quantity)")
+          .eq("collections.user_id", userId)
+          .eq("catalog_products.is_active", true)
+          .eq("catalog_products.is_blocked", false)
+          .gt("catalog_products.stock_quantity", 0)
+          .order("added_at", { ascending: false })
+          .limit(12),
+      ]);
+
+      if (!mounted) return;
+      const savedName = profile?.store_name || profile?.loja_nome || sessionStorage.getItem("velo-store-name");
+      if (savedName?.trim()) setStoreName(savedName.trim());
+
+      const seen = new Set<string>();
+      const mapped = (collectionProducts ?? []).flatMap((row) => {
+        const joined = row.catalog_products;
+        const item = Array.isArray(joined) ? joined[0] : joined;
+        if (!item || seen.has(item.id)) return [];
+        seen.add(item.id);
+        return [{
+          id: item.id,
+          title: item.title,
+          price: Number(item.cost_price) || 0,
+          imageUrl: getFirstImage(item.images),
+          category: item.category?.trim() || "Outros",
+        }];
+      }).filter((item) => item.imageUrl);
+      setProducts(mapped);
+    };
+    void loadStore();
     return () => { mounted = false; };
   }, [flow]);
 
   if (!flow) return <Navigate to="/comecar" replace />;
-  const displayedProducts = products.length ? products : [{ ...flow.product, category: "Moda", brand: "Velo" }];
-  const categories = Array.from(new Set(displayedProducts.map((product) => product.category))).slice(0, 7);
-  const brandName = ((displayedProducts[0] as CatalogItem).brand || "Velo").toUpperCase();
+  const displayedProducts = products.length ? products : [{ ...flow.product, category: "Outros" }];
+  const categories = Array.from(new Set(displayedProducts.map((product) => product.category).filter(Boolean))).slice(0, 8);
+  const menuCategories = Array.from(new Set([...categories, ...defaultMenuCategories])).slice(0, 10);
+  const categoryHighlights = Array.from({ length: 4 }, (_, index) => {
+    const category = categories[index % categories.length] || displayedProducts[index % displayedProducts.length]?.category || "Outros";
+    return {
+      category,
+      imageUrl: displayedProducts.find((product) => product.category === category)?.imageUrl || heroImage,
+      key: `${category}-${index}`,
+    };
+  });
+  const brandName = storeName.toUpperCase();
   const brandInitial = brandName.charAt(0);
-  const salesAngleText = flow.salesAngle || "";
-  const personaText = flow.persona || "";
-  const isLuxury = /premium|luxo|sofistic|elegan/i.test(salesAngleText + personaText);
-  const isYouth = /jovem|urban|street|casual/i.test(salesAngleText + personaText);
-  const copyPool = isLuxury
-    ? [
-        { p: "VISTA SUA", s: "ELEGÂNCIA", sub: "Alfaiataria contemporânea para quem faz da presença um statement.", cta1: "COMPRAR AGORA", cta2: "EXPLORAR COLEÇÕES" },
-        { p: "REDEFINA", s: "SEU LEGADO", sub: "Peças atemporais construídas com materiais nobres e cortes precisos.", cta1: "DESCOBRIR", cta2: "VER LOOKBOOK" },
-        { p: "MENOS", s: "MAIS SEMPRE", sub: "Curadoria minimalista para o guarda-roupa que não sai de moda.", cta1: "COMPRAR SELEÇÃO", cta2: "SOBRE A MARCA" },
-      ]
-    : isYouth
-    ? [
-        { p: "SEU ESTILO", s: "SEM LIMITES", sub: "Streetwear autoral para quem escreve as próprias regras.", cta1: "SHOP DROP", cta2: "VER NOVIDADES" },
-        { p: "ROMPA", s: "O PADRÃO", sub: "Peças ousadas, cores vivas e atitude em cada detalhe.", cta1: "COMPRAR AGORA", cta2: "EXPLORAR COLEÇÃO" },
-        { p: "MOVIMENTO", s: "URBANO", sub: "Roupas feitas pra rua, pra pista e pra tudo que vier depois.", cta1: "ENTRAR NO DROP", cta2: "VER CATÁLOGO" },
-      ]
-    : [
-        { p: "VISTA SUA", s: "CONFIANÇA", sub: "Peças versáteis pra você se sentir bem em qualquer lugar.", cta1: "COMPRAR AGORA", cta2: "EXPLORAR COLEÇÕES" },
-        { p: "O SEU JEITO", s: "DE VESTIR", sub: "Encontre o look certo pra cada momento do seu dia.", cta1: "VER NOVIDADES", cta2: "MONTAR LOOK" },
-        { p: "MODA QUE", s: "TE ENTENDE", sub: "Conforto, atitude e caimento perfeito em cada peça.", cta1: "COMPRAR AGORA", cta2: "VER COLEÇÕES" },
-      ];
+  const copyPool = [
+    { p: "ESCOLHAS QUE", s: "FACILITAM SEU DIA", sub: "Tecnologia, casa, bem-estar e muito mais em uma seleção feita para você.", cta1: "COMPRAR AGORA", cta2: "VER CATEGORIAS" },
+    { p: "TUDO O QUE", s: "VOCÊ PROCURA", sub: "Descubra novidades úteis, ofertas especiais e produtos para todos os momentos.", cta1: "VER NOVIDADES", cta2: "EXPLORAR LOJA" },
+    { p: "NOVAS IDEIAS", s: "PARA SUA ROTINA", sub: "Uma curadoria diversa de produtos que combinam praticidade, qualidade e bom preço.", cta1: "DESCOBRIR PRODUTOS", cta2: "VER OFERTAS" },
+  ];
   const copy = copyPool[copyVariant % copyPool.length];
   const headlinePrimary = copy.p;
   const headlineSecondary = copy.s;
-  const heroSubtitle = salesAngleText ? salesAngleText.slice(0, 120) : copy.sub;
+  const heroSubtitle = flow.salesAngle ? flow.salesAngle.slice(0, 120) : copy.sub;
   const ctaPrimary = copy.cta1;
   const ctaSecondary = copy.cta2;
-  const taglinePool = isLuxury
-    ? ["MAKE YOUR STATEMENT", "TIMELESS BY DESIGN", "CRAFTED TO LAST", "ESSENCE OF STYLE"]
-    : isYouth
-    ? ["OWN THE STREET", "NEW WAVE ENERGY", "BREAK THE RULES", "UNAPOLOGETIC"]
-    : ["WEAR YOUR STORY", "STYLE MADE SIMPLE", "EVERYDAY ESSENTIALS", "DRESSED TO FEEL GOOD"];
+  const taglinePool = ["ESCOLHAS PARA VOCÊ", "QUALIDADE TODO DIA", "DESCUBRA O NOVO", "TUDO EM UM SÓ LUGAR"];
   const brandTagline = taglinePool[taglineVariant % taglinePool.length];
-  const collectionLabels = ["O Essencial", "Fim de Semana", "Noite", "Poder Feminino"];
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#050505] text-white" style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
       <style>{`.editor-mode-active *:hover{outline:1.5px dashed #2563eb;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}`}</style>
       <header className="flex h-[72px] shrink-0 items-center justify-between px-5">
 
-        <div className="flex items-center gap-4"><button type="button" onClick={() => history.back()} className="text-white/55 hover:text-white"><ChevronLeft /></button><button type="button" onClick={()=>setPanel(panel==="template"?null:"template")} className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition ${panel==="template"?"bg-white/15 text-white":"bg-white/[0.07] text-white/60 hover:text-white"}`} aria-label="Editar template"><MoreHorizontal size={18}/></button><div><strong className="block text-[14px]">Loja de Moda</strong><span className="text-[10px] text-white/30">Template 01 · {currentTemplate}</span></div></div>
+        <div className="flex items-center gap-4"><button type="button" onClick={() => history.back()} className="text-white/55 hover:text-white"><ChevronLeft /></button><button type="button" onClick={()=>setPanel(panel==="template"?null:"template")} className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition ${panel==="template"?"bg-white/15 text-white":"bg-white/[0.07] text-white/60 hover:text-white"}`} aria-label="Editar template"><MoreHorizontal size={18}/></button><div><strong className="block text-[14px]">{storeName}</strong><span className="text-[10px] text-white/30">Template 01 · {currentTemplate}</span></div></div>
         <div className="flex items-center gap-2"><div className="flex rounded-[9px] bg-white/[0.06] p-1"><button onClick={()=>setMobilePreview(false)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${!mobilePreview?"bg-white/15":"text-white/35"}`}><Monitor size={17}/></button><button onClick={()=>setMobilePreview(true)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${mobilePreview?"bg-white/15":"text-white/35"}`}><Smartphone size={17}/></button></div><button className="p-3 text-white/45"><Settings size={18}/></button><button className="p-3 text-white/45"><Play size={18}/></button><button className="p-3 text-white/45"><History size={18}/></button><div className="relative ml-1 pb-2"><button onClick={()=>setShowPlans(true)} className="relative min-w-[112px] overflow-hidden rounded-[9px] bg-gradient-to-r from-[#3b82f6] via-[#2563eb] to-[#1d4ed8] px-5 pb-3 pt-2 text-[13px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_rgba(37,99,235,0.28)] transition hover:-translate-y-0.5 hover:brightness-110"><span className="relative z-10">Publicar</span><span className="absolute inset-x-0 top-0 h-px bg-white/45" /></button><span className="absolute -bottom-0.5 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-b from-[#fde047] to-[#facc15] px-3 py-1 text-[8px] font-extrabold tracking-[0.02em] text-[#5b4300] shadow-[0_2px_7px_rgba(0,0,0,0.38)]">🎁 DOMÍNIO GRÁTIS</span></div></div>
       </header>
 
@@ -247,7 +300,7 @@ const GeneratedStoreEditorPage = () => {
                 <div className="flex items-center gap-2"><Type size={13} className="text-white/55"/><strong className="text-[12px]">Tipografia</strong></div>
                 <p className="mt-1 text-[10.5px] text-white/40">Fonte dos títulos e textos da loja.</p>
                 <div className="mt-3 grid grid-cols-1 gap-2">
-                  {[{name:"Helvetica Neue",stack:'"Helvetica Neue", Helvetica, sans-serif',mood:"Moderna e limpa"},{name:"Georgia",stack:'Georgia, serif',mood:"Clássica e elegante"},{name:"Trebuchet MS",stack:'"Trebuchet MS", sans-serif',mood:"Amigável e leve"}].map((option)=>(
+                  {[{name:"Inter",stack:'Inter, ui-sans-serif, system-ui, sans-serif',mood:"Marketplace limpo"},{name:"Helvetica Neue",stack:'"Helvetica Neue", Helvetica, sans-serif',mood:"Moderna e limpa"},{name:"Georgia",stack:'Georgia, serif',mood:"Clássica e elegante"}].map((option)=>(
                     <button key={option.name} type="button" onClick={()=>setFont(option.name)} className={`flex items-center justify-between rounded-[11px] border p-3 text-left transition ${font===option.name?"border-white/70 bg-white/[0.08]":"border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
                       <span><span className="block text-[15px]" style={{fontFamily:option.stack}}>{option.name}</span><span className="block text-[10.5px] text-white/40">{option.mood}</span></span>
                       {font===option.name?<Check size={14} className="text-white"/>:null}
@@ -274,64 +327,117 @@ const GeneratedStoreEditorPage = () => {
         ) : null}
 
         <div className="relative min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
-          <div ref={previewRef} onClick={handlePreviewClick} className={`relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1450px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: font, cursor: editMode==="comment"?"crosshair":editMode?"pointer":"default" }}>
+          <div ref={previewRef} onClick={handlePreviewClick} className={`relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1180px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: font, cursor: editMode==="comment"?"crosshair":editMode?"pointer":"default" }}>
             {/* === TEMPLATE 01 — C-STYLE INSPIRED === */}
-            {/* Announcement bar */}
-            <div className="grid grid-cols-3 items-center bg-black px-6 py-1.5 text-[10px] text-white">
-              <span />
-              <span className="text-center tracking-[0.02em]">FRETE GRÁTIS ACIMA DE R$ 299&nbsp;&nbsp;|&nbsp;&nbsp;TROCAS FÁCEIS</span>
-              <span className="flex items-center justify-end gap-2 text-white/85"><span>Encontre uma loja</span><span>·</span><span>Ajuda</span><UserRound size={11} strokeWidth={1.5}/><Search size={11} strokeWidth={1.5}/></span>
-            </div>
-
-            {/* Main nav */}
-            <nav className="flex items-center gap-8 bg-white px-8 py-4">
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-black"><span className="font-serif text-[16px] italic leading-none">{brandInitial}</span></span>
-                <strong className="font-serif text-[19px] tracking-[0.02em]">{brandName}</strong>
+            {/* Main header */}
+            <nav className="flex flex-wrap items-center gap-4 border-b border-black/10 bg-white px-5 py-3">
+              <div className="flex min-w-[170px] items-center gap-2">
+                <span className="relative flex h-9 w-8 items-center justify-center">
+                  <ShoppingBag size={29} strokeWidth={1.55} className="text-[#071f35]"/>
+                  <span className="absolute top-[9px] text-[10px] font-bold leading-none text-[#071f35]">{brandInitial}</span>
+                </span>
+                <span className="leading-none">
+                  <strong className="block text-[18px] font-black tracking-normal text-[#071f35]">{brandName}</strong>
+                  <span className="block text-[7px] font-semibold tracking-normal text-black/45">Escolhas para você.</span>
+                </span>
               </div>
-              <ul className="flex flex-1 items-center justify-center gap-8 text-[11px] font-medium tracking-[0.14em]">
-                {["NOVIDADES","FEMININO","MASCULINO","CALÇADOS","ACESSÓRIOS","OFERTAS"].map((item)=><li key={item}>{item}</li>)}
-              </ul>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 rounded-full bg-[#f5f4f2] px-4 py-2 text-[11px] text-black/50"><Search size={12} strokeWidth={1.6}/><input placeholder="Buscar peças, marcas..." className="w-[150px] bg-transparent outline-none placeholder:text-black/40"/></label>
-                <UserRound size={16} strokeWidth={1.4}/>
-                <Heart size={16} strokeWidth={1.4}/>
-                <span className="relative"><ShoppingBag size={16} strokeWidth={1.4}/><span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#1e40af] px-1 text-[9px] font-bold text-white">0</span></span>
+              <div className="order-3 flex h-9 w-full flex-1 items-center overflow-hidden border border-black/10 bg-[#f7f7f7] text-[10px] text-black/50 md:order-none md:min-w-[300px]">
+                <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
+                  <Search size={13} strokeWidth={1.6} className="shrink-0 text-black/45"/>
+                  <input placeholder="Buscar produtos, marcas e mais..." className="w-full bg-transparent outline-none placeholder:text-black/40"/>
+                </label>
+                <button type="button" aria-label="Buscar" className="flex h-full w-12 shrink-0 items-center justify-center bg-[#082f4b] text-white transition hover:bg-[#061f33]">
+                  <Search size={17} strokeWidth={1.8}/>
+                </button>
+              </div>
+              <div className="ml-auto flex items-center gap-5 text-[#071f35]">
+                {[
+                  { icon: Heart, label: "Favoritos" },
+                  { icon: GitCompareArrows, label: "Comparar" },
+                ].map(({ icon: Icon, label })=>(
+                  <button key={label} type="button" className="hidden flex-col items-center gap-0.5 text-[8px] font-medium text-black/75 sm:flex">
+                    <Icon size={15} strokeWidth={1.55}/>
+                    <span>{label}</span>
+                  </button>
+                ))}
+                <button type="button" className="relative flex flex-col items-center gap-0.5 text-[8px] font-medium text-black/75">
+                  <ShoppingBag size={16} strokeWidth={1.55}/>
+                  <span>Carrinho</span>
+                  <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#082f4b] px-1 text-[8px] font-bold text-white">0</span>
+                </button>
               </div>
             </nav>
 
-            {/* HERO — banner cobre toda a seção */}
-            <section className="relative mx-4 min-h-[440px] overflow-hidden rounded-[6px] bg-[#eeece7]">
-              {heroImage ? <img src={heroImage} alt={brandName} className="absolute inset-0 h-full w-full object-cover"/> : null}
-              {/* Overlay suave — mantém a imagem visível como no exemplo */}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#eeece7]/85 via-[#eeece7]/25 to-transparent"/>
-              {/* Botão de geração — só dono da loja */}
-              <div data-editor-ignore className="absolute right-4 top-4 z-30 flex flex-col items-end gap-2">
-                <button type="button" onClick={generateBanner} disabled={generatingBanner} className="flex items-center gap-2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur-md transition hover:bg-black disabled:opacity-70">
-                  <Sparkles size={13} className={generatingBanner?"animate-spin":""}/>
-                  {generatingBanner ? "Gerando banner..." : "Gerar banner com IA"}
-                </button>
-                {bannerError ? <span className="max-w-[240px] rounded-md bg-red-500/90 px-2 py-1 text-[10px] text-white">{bannerError}</span> : <span className="rounded-md bg-white/85 px-2 py-1 text-[9.5px] font-medium text-black/60">Visível só para o dono da loja</span>}
-              </div>
-              {/* Conteúdo hero */}
-              <div className="relative z-10 flex min-h-[440px] max-w-[55%] flex-col justify-center px-10 py-14">
-                <h1 className="font-serif text-[64px] font-normal leading-[0.92] tracking-[-0.01em] md:text-[80px]">{headlinePrimary}<br/>{headlineSecondary}</h1>
-                <p className="mt-6 max-w-[320px] text-[12.5px] leading-[1.6] text-black/75">{heroSubtitle}</p>
-                <div className="mt-8 flex items-center gap-3">
-                  <button className="flex items-center gap-2 rounded-full bg-black px-6 py-3 text-[11px] font-medium tracking-[0.15em] text-white" style={{backgroundColor:accent}}>{ctaPrimary} <span className="ml-1">→</span></button>
-                  <button className="rounded-full border border-black bg-white/60 px-6 py-3 text-[11px] font-medium tracking-[0.15em] backdrop-blur-sm">{ctaSecondary}</button>
+            {/* HERO — categorias fixas + painel promocional */}
+            <section className="relative mx-4 min-h-[330px] overflow-visible rounded-[3px] bg-[#062f4e] shadow-[0_14px_34px_rgba(6,42,67,0.2)]" style={{fontFamily:"Inter, ui-sans-serif, system-ui, sans-serif"}}>
+              <aside className="absolute bottom-[-34px] left-9 top-5 z-30 hidden w-[232px] md:block">
+                <div className="flex h-full flex-col overflow-hidden rounded-[4px] bg-white shadow-[0_12px_30px_rgba(0,0,0,0.22)] ring-1 ring-black/5">
+                  <div className="flex h-[38px] shrink-0 items-center gap-3 rounded-[4px] bg-[#062f4e] px-4 text-[9px] font-bold text-white">
+                    <Menu size={13}/>
+                    <span>Categorias</span>
+                  </div>
+                  <div className="min-h-0 flex-1 px-4 pb-1.5 pt-1.5">
+                    {menuCategories.map((category)=>{
+                      const CategoryIcon = getCategoryIcon(category);
+                      return <button key={category} type="button" className="group flex h-[22px] w-full items-center gap-2.5 rounded-[2px] px-1 text-left text-[7.8px] font-medium text-[#25313b] transition hover:bg-[#f2f5f7]">
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center"><CategoryIcon size={9.5} strokeWidth={1.65}/></span>
+                        <span className="min-w-0 flex-1 truncate">{category}</span>
+                        <ChevronLeft size={8} className="rotate-180 text-black/45 transition group-hover:translate-x-0.5 group-hover:text-black/70"/>
+                      </button>;
+                    })}
+                  </div>
+                  <div className="mx-4 shrink-0 border-t border-black/10 py-1.5">
+                    {["Ofertas especiais","Cartões presente"].map((item)=><button key={item} type="button" className="flex h-[22px] w-full items-center gap-2.5 rounded-[2px] px-1 text-left text-[7.8px] font-medium text-[#25313b] transition hover:bg-[#f2f5f7]"><Gift size={9.5} strokeWidth={1.65}/><span className="flex-1 truncate">{item}</span></button>)}
+                  </div>
                 </div>
-              </div>
-              {/* Cartão da marca sobre a imagem */}
-              <div className="absolute right-[8%] top-1/2 z-10 flex h-[110px] w-[130px] -translate-y-1/2 flex-col items-center justify-center gap-1 bg-[#f5f2ec] shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
-                <span className="font-serif text-[36px] italic leading-none">{brandInitial}</span>
-                <span className="font-serif text-[10px] tracking-[0.14em]">{brandName}</span>
-                <span className="text-[6px] tracking-[0.3em] text-black/50">{brandTagline}</span>
+              </aside>
+
+              <div className="relative min-h-[330px] overflow-hidden bg-[#062f4e] text-white">
+                <div className="relative z-20 hidden h-10 items-center justify-between bg-[#05263f] pl-[292px] pr-6 text-[8px] font-semibold text-white md:flex">
+                  <div className="flex items-center gap-7">
+                    {["Loja","Ofertas","Novidades","Marcas","Inspiração"].map((item)=><button key={item} type="button" className="transition hover:text-white/70">{item}</button>)}
+                  </div>
+                  <span className="flex items-center gap-1.5"><Headphones size={10} strokeWidth={1.6}/> Suporte: (123) 456-7890</span>
+                </div>
+                {heroImage ? (
+                  <>
+                    <img src={heroImage} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover object-[62%_42%] opacity-80 brightness-[0.9] contrast-[1.08] saturate-[1.16] md:top-10 md:h-[calc(100%-2.5rem)]"/>
+                    <div className="absolute bottom-0 right-0 top-0 w-[58%] overflow-hidden md:top-10">
+                      <img src={heroImage} alt="Coleção em destaque" className="absolute bottom-0 right-[10%] h-[111%] w-auto max-w-none object-contain object-bottom brightness-[1.05] contrast-[1.05] saturate-[1.12]"/>
+                    </div>
+                  </>
+                ) : null}
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_64%_42%,rgba(34,99,146,0.2),rgba(5,38,63,0.24)_42%,rgba(4,30,50,0.58)_78%)] md:top-10"/>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 top-0 bg-gradient-to-r from-[#07395d]/78 via-[#07395d]/18 to-transparent md:top-10"/>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#031b2d]/55 to-transparent"/>
+
+                <div data-editor-ignore className="absolute right-4 top-14 z-30 flex flex-col items-end gap-2">
+                  <button type="button" onClick={generateBanner} disabled={generatingBanner} className="flex items-center gap-2 rounded-full bg-black/88 px-3.5 py-1.5 text-[9px] font-semibold tracking-[0.08em] text-white shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur-md transition hover:bg-black disabled:opacity-70">
+                    <Sparkles size={11} className={generatingBanner?"animate-spin":""}/>
+                    {generatingBanner ? "Gerando banner..." : "Gerar banner com IA"}
+                  </button>
+                  {bannerError ? <span className="max-w-[240px] rounded-md bg-red-500/90 px-2 py-1 text-[10px] text-white">{bannerError}</span> : <span className="rounded-md bg-white/90 px-2 py-1 text-[8.5px] font-medium text-black/60">Visível só para o dono da loja</span>}
+                </div>
+
+                <div className="relative z-10 flex min-h-[290px] items-center px-8 py-7 md:pl-[318px] md:pr-10">
+                  <div className="relative z-10 max-w-[295px]">
+                    <span className="text-[7.5px] font-bold uppercase tracking-[0.08em] text-[#e8c878]">NOVA COLEÇÃO</span>
+                    <h1 className="mt-2.5 text-[25px] font-extrabold leading-[1.06] tracking-normal text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)] md:text-[28px]">{headlinePrimary}<br/>{headlineSecondary}</h1>
+                    <p className="mt-3 max-w-[230px] text-[9px] leading-[1.45] text-white/90">{heroSubtitle}</p>
+                    <button className="mt-5 flex items-center gap-3 rounded-[4px] bg-[#f6ead2] px-4 py-2 text-[8.5px] font-semibold text-[#102434] shadow-[0_7px_18px_rgba(0,0,0,0.15)]">Comprar agora <span>→</span></button>
+                    <div className="absolute -bottom-[46px] left-20 hidden items-center gap-2.5 md:flex">
+                      <span className="h-1.5 w-6 rounded-full bg-white"/>
+                      <span className="h-1.5 w-1.5 rounded-full border border-white/80"/>
+                      <span className="h-1.5 w-1.5 rounded-full border border-white/80"/>
+                      <span className="h-1.5 w-1.5 rounded-full bg-white/80"/>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 
             {/* Info strip */}
-            <div className="mx-4 mt-3 grid grid-cols-2 items-center gap-0 rounded-[6px] border border-black/10 bg-white px-2 md:grid-cols-4">
+            <div className="mx-4 mt-10 grid grid-cols-2 items-center gap-0 rounded-[6px] border border-black/10 bg-white px-2 md:grid-cols-4">
               {[
                 {icon:<Package size={22} strokeWidth={1.2}/>,title:"FRETE GRÁTIS",desc:"Compras acima de R$ 299"},
                 {icon:<History size={22} strokeWidth={1.2}/>,title:"TROCAS FÁCEIS",desc:"Política de 30 dias"},
@@ -345,126 +451,102 @@ const GeneratedStoreEditorPage = () => {
               ))}
             </div>
 
-            {/* SHOP BY CATEGORY */}
-            <section className="px-8 pb-8 pt-14">
-              <div className="mb-8 flex items-center justify-between">
-                <h2 className="text-[15px] font-semibold tracking-[0.18em]">COMPRE POR CATEGORIA</h2>
-                <span className="flex items-center gap-2 text-[11px]">Ver todas <span className="flex h-6 w-6 items-center justify-center rounded-full border border-black/20">→</span></span>
+            {/* BROWSE BY CATEGORY */}
+            <section className="px-6 pb-5 pt-4">
+              <div className="mb-4 text-center">
+                <h2 className="text-[15px] font-bold leading-none tracking-normal">Navegue por categorias</h2>
+                <p className="mt-1 text-[9px] leading-none text-black/50">Explore coleções selecionadas para cada parte da sua rotina.</p>
               </div>
-              <div className="grid grid-cols-4 gap-6 md:grid-cols-7">
-                {[...categories, "Acessórios","Masculino","Ofertas"].slice(0,7).map((category,index)=>{
-                  const isSale = index === 6;
+              <div className="relative flex items-start justify-center gap-6">
+                {categories.slice(0,7).map((category,index)=>{
+                  const categoryProduct = displayedProducts.find((product)=>product.category===category) || displayedProducts[index%displayedProducts.length];
                   return (
-                    <div key={index} className="flex flex-col items-center gap-3">
-                      <div className={`aspect-square w-full overflow-hidden rounded-full ${isSale?"bg-black":"bg-[#eeece7]"}`}>
-                        {isSale ? (
-                          <div className="flex h-full w-full items-center justify-center font-serif text-[24px] italic text-white">SALE</div>
-                        ) : (
-                          <img src={displayedProducts[index%displayedProducts.length]?.imageUrl||heroImage} alt={category} className="h-full w-full object-cover"/>
-                        )}
+                    <div key={category} className="flex w-[82px] shrink-0 cursor-pointer flex-col items-center gap-2">
+                      <div className="h-[78px] w-[78px] overflow-hidden rounded-full bg-[#eeece7] ring-1 ring-black/5 transition duration-300 hover:-translate-y-1 hover:shadow-lg">
+                        <img src={categoryProduct?.imageUrl||heroImage} alt={category} className="h-full w-full object-cover"/>
                       </div>
-                      <span className="text-[11.5px]">{isSale ? "Ofertas" : category}</span>
+                      <span className="text-center text-[9px] font-bold leading-tight text-black/80">{category}</span>
                     </div>
                   );
                 })}
+                <button type="button" aria-label="Ver mais categorias" className="absolute right-0 top-[29px] hidden h-7 w-7 items-center justify-center rounded-full border border-black/15 bg-white text-[13px] shadow-sm md:flex">→</button>
               </div>
             </section>
 
-            {/* NEW ARRIVALS */}
-            <section className="px-8 pb-12 pt-6">
-              <div className="mb-8 flex items-end justify-between">
+            {/* TRENDING PRODUCTS */}
+            <section className="px-6 pb-8 pt-1">
+              <div className="mb-4 flex items-end justify-between">
                 <div>
-                  <h2 className="text-[15px] font-semibold tracking-[0.18em]">NOVIDADES</h2>
-                  <p className="mt-1 text-[11px] text-black/50">Novos looks. Direto do estúdio.</p>
+                  <h2 className="text-[16px] font-bold leading-none tracking-normal">Produtos em alta <span className="text-[#f5b800]">⚡</span></h2>
+                  <p className="mt-1 text-[10px] text-black/50">Os produtos mais recentes da sua loja.</p>
                 </div>
-                <span className="flex items-center gap-2 text-[11px]">Ver todos <span className="flex h-6 w-6 items-center justify-center rounded-full border border-black/20">←</span><span className="flex h-6 w-6 items-center justify-center rounded-full border border-black/20">→</span></span>
+                <span className="flex items-center gap-2 text-[10px]">Ver todos <span>→</span></span>
               </div>
               <div className={`grid gap-4 ${mobilePreview?"grid-cols-2":columns===2?"grid-cols-2":columns===4?"grid-cols-2 md:grid-cols-4":"grid-cols-2 md:grid-cols-6"}`}>
                 {displayedProducts.slice(0,6).map((product,index)=>(
                   <article key={product.id+"-"+index} className="group">
-                    <div className="relative aspect-[0.82] overflow-hidden rounded-[4px] bg-[#f2f0eb]">
+                    <div className="relative aspect-square overflow-hidden rounded-[6px] bg-[#f2f0eb]">
                       <img src={product.imageUrl||heroImage} alt={product.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
                       <button className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-white/95"><Heart size={12} strokeWidth={1.5}/></button>
+                      <button type="button" aria-label={`Adicionar ${product.title} ao carrinho`} className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full text-white opacity-0 shadow-lg transition group-hover:opacity-100" style={{backgroundColor:accent}}><ShoppingBag size={13} strokeWidth={1.7}/></button>
                     </div>
                     <h3 className="mt-3 line-clamp-1 text-[12px]">{product.title}</h3>
                     <strong className="text-[12px] font-semibold" style={{color:accent}}>{formatBRL(Math.max(product.price*2.1,product.price+20))}</strong>
-                    <div className="mt-2 flex items-center gap-1.5">{["#c9c1b3","#8a7a63","#e8dccc","#3b3b3b"].map((color)=><span key={color} className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:color}}/>)}</div>
+                    <span className="mt-1 block text-[9.5px] text-black/40">{product.category}</span>
                   </article>
                 ))}
               </div>
             </section>
 
             {/* PROMO BANDS */}
-            <section className="grid grid-cols-1 gap-3 px-8 pb-12 md:grid-cols-3">
-              <div className="relative flex overflow-hidden rounded-[6px] bg-black text-white">
-                <div className="flex flex-1 flex-col justify-between p-5">
+            <section className="grid grid-cols-1 gap-4 px-8 py-10 md:grid-cols-2">
+              <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-black text-white">
+                <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
                   <div>
-                    <strong className="text-[10px] font-semibold tracking-[0.18em] text-white/70">ESTUDANTES GANHAM</strong>
-                    <h3 className="mt-1 font-serif text-[30px] leading-none">10% OFF</h3>
-                    <p className="mt-2 max-w-[150px] text-[10px] text-white/55">Comprove seu status e ganhe desconto exclusivo.</p>
+                    <strong className="text-[10px] font-semibold tracking-[0.18em] text-white/70">OFERTA ESPECIAL</strong>
+                    <h3 className="mt-1 font-serif text-[30px] leading-none">PREÇOS QUE SURPREENDEM</h3>
+                    <p className="mt-2 max-w-[180px] text-[10px] text-white/55">Encontre produtos selecionados com condições especiais por tempo limitado.</p>
                   </div>
-                  <button className="mt-4 w-fit rounded-full bg-white px-4 py-1.5 text-[9.5px] font-semibold tracking-[0.14em] text-black">GANHAR DESCONTO</button>
+                  <button className="mt-4 w-fit rounded-full bg-white px-4 py-1.5 text-[9.5px] font-semibold tracking-[0.14em] text-black">VER OFERTAS</button>
                 </div>
-                <div className="w-[45%] overflow-hidden"><img src={displayedProducts[1%displayedProducts.length]?.imageUrl||heroImage} alt="" className="h-full w-full object-cover"/></div>
+                <div className="relative w-[44%] shrink-0 overflow-hidden"><img src={displayedProducts[1%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
               </div>
-              <div className="relative flex overflow-hidden rounded-[6px] bg-[#eeece7]">
-                <div className="flex flex-1 flex-col justify-between p-5">
+              <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-[#eeece7]">
+                <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
                   <div>
-                    <strong className="text-[10px] font-semibold tracking-[0.18em] text-black/50">NOVA ESTAÇÃO</strong>
-                    <h3 className="mt-1 font-serif text-[30px] leading-none">NEW LOOK</h3>
-                    <p className="mt-2 max-w-[160px] text-[10px] text-black/55">Descubra as últimas tendências curadas para você.</p>
+                    <strong className="text-[10px] font-semibold tracking-[0.18em] text-black/50">ACABOU DE CHEGAR</strong>
+                    <h3 className="mt-1 font-serif text-[30px] leading-none">NOVIDADES PARA VOCÊ</h3>
+                    <p className="mt-2 max-w-[180px] text-[10px] text-black/55">Explore os lançamentos mais recentes de todas as categorias da loja.</p>
                   </div>
-                  <button className="mt-4 w-fit rounded-full bg-black px-4 py-1.5 text-[9.5px] font-semibold tracking-[0.14em] text-white">COMPRAR AGORA</button>
+                  <button className="mt-4 w-fit rounded-full bg-black px-4 py-1.5 text-[9.5px] font-semibold tracking-[0.14em] text-white">CONHECER NOVIDADES</button>
                 </div>
-                <div className="w-[45%] overflow-hidden"><img src={displayedProducts[2%displayedProducts.length]?.imageUrl||heroImage} alt="" className="h-full w-full object-cover"/></div>
-              </div>
-              <div className="relative overflow-hidden rounded-[6px]">
-                <img src={displayedProducts[3%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover"/>
-                <div className="relative flex h-full min-h-[170px] flex-col justify-between bg-gradient-to-r from-white/85 via-white/50 to-transparent p-5">
-                  <div>
-                    <strong className="text-[10px] font-semibold tracking-[0.18em]">VISITE-NOS</strong>
-                    <h3 className="mt-1 font-serif text-[20px] leading-tight">Encontre a loja {brandName} <br/>mais próxima</h3>
-                  </div>
-                  <button className="mt-4 w-fit rounded-full bg-white px-4 py-1.5 text-[9.5px] font-semibold tracking-[0.14em]">ENCONTRAR LOJA</button>
-                </div>
+                <div className="relative w-[44%] shrink-0 overflow-hidden"><img src={displayedProducts[2%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
               </div>
             </section>
 
-            {/* EXPLORE COLLECTIONS */}
-            <section className="px-8 pb-14">
-              <div className="mb-8 flex items-end justify-between">
+            {/* FEATURED COLLECTIONS */}
+            <section className="px-8 py-10">
+              <div className="mb-6 flex items-end justify-between">
                 <div>
-                  <h2 className="text-[15px] font-semibold tracking-[0.18em]">EXPLORE AS COLEÇÕES</h2>
-                  <p className="mt-1 text-[11px] text-black/50">Looks selecionados para cada momento.</p>
+                  <h2 className="text-[15px] font-semibold tracking-[0.18em]">COLEÇÕES EM DESTAQUE</h2>
+                  <p className="mt-1 text-[11px] text-black/50">Explore a loja pela categoria que combina com você.</p>
                 </div>
                 <span className="flex items-center gap-2 text-[11px]">Ver todas <span className="flex h-6 w-6 items-center justify-center rounded-full border border-black/20">←</span><span className="flex h-6 w-6 items-center justify-center rounded-full border border-black/20">→</span></span>
               </div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                {collectionLabels.map((label,index)=>(
-                  <div key={label} className="relative aspect-[0.68] overflow-hidden rounded-[6px]">
-                    <img src={displayedProducts[(index+1)%displayedProducts.length]?.imageUrl||heroImage} alt={label} className="h-full w-full object-cover"/>
+                {categoryHighlights.map(({category,imageUrl,key})=>(
+                  <div key={key} className="group relative aspect-square cursor-pointer overflow-hidden rounded-[8px] bg-[#eeece7]">
+                    <img src={imageUrl} alt={category} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent p-4 text-white">
-                      <strong className="block font-serif text-[19px] leading-tight">{label}</strong>
-                      <span className="mt-1 block text-[9.5px] tracking-[0.14em] text-white/80">COMPRE AGORA</span>
+                      <strong className="block font-serif text-[19px] leading-tight">{category}</strong>
+                      <span className="mt-1 block text-[9.5px] tracking-[0.14em] text-white/80">EXPLORAR CATEGORIA</span>
                     </div>
                   </div>
                 ))}
               </div>
             </section>
 
-            {/* Bottom values bar */}
-            <footer className="grid grid-cols-1 gap-4 border-t border-white/10 bg-black px-8 py-5 text-white md:grid-cols-3">
-              {[
-                {title:"MATERIAIS SUSTENTÁVEIS",desc:"Melhor para você. Melhor para o planeta."},
-                {title:"PRODUÇÃO ÉTICA",desc:"Feito com cuidado e respeito."},
-                {title:"FOCO NA COMUNIDADE",desc:"Moda que devolve."},
-              ].map((item)=>(
-                <div key={item.title} className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/30"><Heart size={13} strokeWidth={1.4}/></span>
-                  <div><strong className="block text-[10.5px] font-semibold tracking-[0.14em]">{item.title}</strong><span className="text-[10.5px] text-white/55">{item.desc}</span></div>
-                </div>
-              ))}
-            </footer>
+            <footer className="border-t border-black/10 bg-[#f5f4f2] px-8 py-7 text-center text-[10px] tracking-[0.12em] text-black/45">© {new Date().getFullYear()} {brandName} · TODOS OS DIREITOS RESERVADOS</footer>
 
 
 
