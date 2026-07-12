@@ -49,14 +49,28 @@ Deno.serve(async (req) => {
     if (!sub) return json({ error: "Assinatura não encontrada" }, 404);
     if (sub.status !== "active") return json({ error: "Apenas assinaturas ativas podem ser reembolsadas" }, 400);
 
-    // Bloqueia múltiplos pedidos pendentes para a mesma assinatura
-    const { data: existing } = await admin
+    // Bloqueia se o usuário já solicitou reembolso alguma vez (qualquer status)
+    const { data: anyPrev } = await admin
       .from("refund_requests")
       .select("id, status")
-      .eq("subscription_id", sub.id)
-      .in("status", ["pending", "reembolso_solicitado"])
+      .eq("user_id", userId)
+      .limit(1)
       .maybeSingle();
-    if (existing) return json({ error: "Já existe um pedido de reembolso em análise para esta assinatura." }, 409);
+    if (anyPrev) {
+      return json(
+        { error: "Você já solicitou um reembolso anteriormente. Não é possível solicitar novamente." },
+        409,
+      );
+    }
+
+    // Bloqueia solicitação após a janela de 7 dias
+    const daysSinceCreated = (Date.now() - new Date(sub.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceCreated > 7) {
+      return json(
+        { error: "O prazo de 7 dias para solicitar reembolso já expirou." },
+        400,
+      );
+    }
 
     const { data: refund, error: insErr } = await admin.from("refund_requests").insert({
       user_id: userId,
