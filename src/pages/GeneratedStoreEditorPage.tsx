@@ -293,8 +293,8 @@ const GeneratedStoreEditorPage = () => {
             {/* HERO — banner cobre toda a seção */}
             <section className="relative mx-4 min-h-[440px] overflow-hidden rounded-[6px] bg-[#eeece7]">
               {heroImage ? <img src={heroImage} alt={brandName} className="absolute inset-0 h-full w-full object-cover"/> : null}
-              {/* Overlay de leitura à esquerda */}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#eeece7] via-[#eeece7]/85 to-transparent md:via-[#eeece7]/70"/>
+              {/* Overlay suave — mantém a imagem visível como no exemplo */}
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#eeece7]/85 via-[#eeece7]/25 to-transparent"/>
               {/* Botão de geração — só dono da loja */}
               <div data-editor-ignore className="absolute right-4 top-4 z-30 flex flex-col items-end gap-2">
                 <button type="button" onClick={generateBanner} disabled={generatingBanner} className="flex items-center gap-2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur-md transition hover:bg-black disabled:opacity-70">
@@ -308,15 +308,15 @@ const GeneratedStoreEditorPage = () => {
                 <h1 className="font-serif text-[64px] font-normal leading-[0.92] tracking-[-0.01em] md:text-[80px]">{headlinePrimary}<br/>{headlineSecondary}</h1>
                 <p className="mt-6 max-w-[320px] text-[12.5px] leading-[1.6] text-black/75">{heroSubtitle}</p>
                 <div className="mt-8 flex items-center gap-3">
-                  <button className="flex items-center gap-2 rounded-full bg-black px-6 py-3 text-[11px] font-medium tracking-[0.15em] text-white" style={{backgroundColor:accent}}>COMPRAR AGORA <span className="ml-1">→</span></button>
-                  <button className="rounded-full border border-black bg-white/60 px-6 py-3 text-[11px] font-medium tracking-[0.15em] backdrop-blur-sm">EXPLORAR COLEÇÕES</button>
+                  <button className="flex items-center gap-2 rounded-full bg-black px-6 py-3 text-[11px] font-medium tracking-[0.15em] text-white" style={{backgroundColor:accent}}>{ctaPrimary} <span className="ml-1">→</span></button>
+                  <button className="rounded-full border border-black bg-white/60 px-6 py-3 text-[11px] font-medium tracking-[0.15em] backdrop-blur-sm">{ctaSecondary}</button>
                 </div>
               </div>
               {/* Cartão da marca sobre a imagem */}
               <div className="absolute right-[8%] top-1/2 z-10 flex h-[110px] w-[130px] -translate-y-1/2 flex-col items-center justify-center gap-1 bg-[#f5f2ec] shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
                 <span className="font-serif text-[36px] italic leading-none">{brandInitial}</span>
                 <span className="font-serif text-[10px] tracking-[0.14em]">{brandName}</span>
-                <span className="text-[6px] tracking-[0.3em] text-black/50">MAKE YOUR STATEMENT</span>
+                <span className="text-[6px] tracking-[0.3em] text-black/50">{brandTagline}</span>
               </div>
             </section>
 
