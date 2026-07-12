@@ -373,7 +373,7 @@ const RefundsTable = ({
             <th className="px-4 py-3 font-medium">Plano</th>
             <th className="px-4 py-3 font-medium">Pedido em</th>
             {variant === "pending" && <th className="px-4 py-3 font-medium">Aguardando</th>}
-            {variant === "pending" && <th className="px-4 py-3 font-medium">Conta há</th>}
+            <th className="px-4 py-3 font-medium">Assinatura ativa há</th>
             {variant !== "pending" && <th className="px-4 py-3 font-medium">Processado em</th>}
             <th className="px-4 py-3 font-medium">Motivo</th>
             <th className="px-4 py-3 font-medium">Valor</th>
@@ -389,6 +389,7 @@ const RefundsTable = ({
             const waitingDays = daysSince(r.requested_at);
             const accountDays = s?.created_at ? daysSince(s.created_at) : null;
             const overdue = variant === "pending" && waitingDays >= 2;
+            const pastRefundWindow = accountDays != null && accountDays > 7;
             return (
               <tr
                 key={r.id}
@@ -414,13 +415,23 @@ const RefundsTable = ({
                     </span>
                   </td>
                 )}
-                {variant === "pending" && (
-                  <td className="px-4 py-4 text-[#8A8A8E]">
-                    {accountDays == null
-                      ? "—"
-                      : `${accountDays} ${accountDays === 1 ? "dia" : "dias"}`}
-                  </td>
-                )}
+                <td className="px-4 py-4">
+                  {accountDays == null ? (
+                    <span className="text-[#8A8A8E]">—</span>
+                  ) : (
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        pastRefundWindow
+                          ? "bg-red-500/10 text-red-400"
+                          : "bg-emerald-500/10 text-emerald-400"
+                      }`}
+                      title={pastRefundWindow ? "Fora da janela de 7 dias — reembolso não obrigatório" : "Dentro da janela de 7 dias"}
+                    >
+                      {accountDays} {accountDays === 1 ? "dia" : "dias"}
+                      {pastRefundWindow ? " • fora do prazo" : ""}
+                    </span>
+                  )}
+                </td>
                 {variant !== "pending" && (
                   <td className="px-4 py-4 text-[#8A8A8E]">{fmtDate(r.processed_at)}</td>
                 )}
@@ -432,6 +443,7 @@ const RefundsTable = ({
                     </p>
                   )}
                 </td>
+
                 <td className="px-4 py-4 font-semibold text-white">{fmtMoney(Number(r.refund_amount))}</td>
                 {variant === "pending" ? (
                   <td className="px-4 py-4">
