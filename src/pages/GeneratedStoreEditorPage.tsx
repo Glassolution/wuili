@@ -3,6 +3,8 @@ import { Bell, Check, ChevronLeft, Gift, Heart, History, LayoutGrid, LayoutTempl
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import { useAuth } from "@/contexts/AuthContext";
+import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; brand: string };
