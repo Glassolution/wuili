@@ -202,6 +202,37 @@ const GeneratedStoreEditorPage = () => {
           </section>
         </div>
       ) : null}
+
+      {showTemplates ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onMouseDown={(event)=>{if(event.target===event.currentTarget)setShowTemplates(false)}}>
+          <section role="dialog" aria-modal="true" aria-labelledby="templates-title" className="relative w-full max-w-[880px] overflow-hidden rounded-[24px] bg-[#111] p-6 text-white shadow-[0_30px_120px_rgba(0,0,0,0.8)] sm:p-8">
+            <button type="button" onClick={()=>setShowTemplates(false)} className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.07] text-white/55 transition hover:bg-white/10 hover:text-white"><X size={16}/></button>
+            <h2 id="templates-title" className="text-[24px] font-semibold tracking-[-0.03em]">Escolha um template</h2>
+            <p className="mt-1 text-[12px] text-white/45">Troque o visual base da sua loja. Todo o conteúdo é mantido.</p>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                {name:"Velo Modern",desc:"Clean e minimalista",gradient:"from-neutral-100 to-neutral-300"},
+                {name:"Velo Bold",desc:"Alto contraste e sério",gradient:"from-zinc-800 to-black"},
+                {name:"Velo Warm",desc:"Aconchegante e artesanal",gradient:"from-amber-100 to-orange-300"},
+                {name:"Velo Neo",desc:"Vibrante e jovem",gradient:"from-fuchsia-400 to-indigo-500"},
+                {name:"Velo Studio",desc:"Editorial e fotográfico",gradient:"from-stone-200 to-stone-400"},
+                {name:"Velo Fresh",desc:"Natural e leve",gradient:"from-emerald-200 to-teal-400"},
+              ].map((template)=>(
+                <button key={template.name} type="button" onClick={()=>{setCurrentTemplate(template.name);setShowTemplates(false);}} className={`group overflow-hidden rounded-[16px] border text-left transition ${currentTemplate===template.name?"border-white/70 bg-white/[0.08]":"border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
+                  <div className={`relative aspect-[4/3] w-full bg-gradient-to-br ${template.gradient}`}>
+                    <div className="absolute inset-3 flex flex-col justify-between">
+                      <div className="flex items-center justify-between text-[8px] font-semibold text-black/50"><span>VELO</span><span>▤ ▤ ▤</span></div>
+                      <div className="grid grid-cols-3 gap-1">{[0,1,2].map((index)=><span key={index} className="aspect-square rounded-[3px] bg-white/70"/>)}</div>
+                    </div>
+                    {currentTemplate===template.name?<span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-black"><Check size={13}/></span>:null}
+                  </div>
+                  <div className="p-3"><strong className="block text-[13px]">{template.name}</strong><span className="block text-[11px] text-white/45">{template.desc}</span></div>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 };
