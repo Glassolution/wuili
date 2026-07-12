@@ -38,11 +38,16 @@ const GeneratedStoreEditorPage = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [generatingBanner, setGeneratingBanner] = useState(false);
   const [bannerError, setBannerError] = useState<string | null>(null);
+  const [copyVariant, setCopyVariant] = useState(0);
+  const [taglineVariant, setTaglineVariant] = useState(0);
 
   const generateBanner = async () => {
     if (generatingBanner) return;
     setGeneratingBanner(true);
     setBannerError(null);
+    // Rotaciona também os textos, CTAs e tagline da logo para combinar com o novo banner
+    setCopyVariant((v) => v + 1 + Math.floor(Math.random() * 2));
+    setTaglineVariant((v) => v + 1 + Math.floor(Math.random() * 2));
     try {
       const { data, error } = await supabase.functions.invoke("generate-store-banner", {
         body: {
@@ -139,9 +144,35 @@ const GeneratedStoreEditorPage = () => {
   const personaText = flow.persona || "";
   const isLuxury = /premium|luxo|sofistic|elegan/i.test(salesAngleText + personaText);
   const isYouth = /jovem|urban|street|casual/i.test(salesAngleText + personaText);
-  const headlinePrimary = isLuxury ? "VISTA SUA" : isYouth ? "SEU ESTILO" : "VISTA SUA";
-  const headlineSecondary = isLuxury ? "ELEGÂNCIA" : isYouth ? "SEM LIMITES" : "CONFIANÇA";
-  const heroSubtitle = salesAngleText ? salesAngleText.slice(0, 120) : `Peças atemporais. ${brandName} tem tudo o que você precisa para se sentir bem.`;
+  const copyPool = isLuxury
+    ? [
+        { p: "VISTA SUA", s: "ELEGÂNCIA", sub: "Alfaiataria contemporânea para quem faz da presença um statement.", cta1: "COMPRAR AGORA", cta2: "EXPLORAR COLEÇÕES" },
+        { p: "REDEFINA", s: "SEU LEGADO", sub: "Peças atemporais construídas com materiais nobres e cortes precisos.", cta1: "DESCOBRIR", cta2: "VER LOOKBOOK" },
+        { p: "MENOS", s: "MAIS SEMPRE", sub: "Curadoria minimalista para o guarda-roupa que não sai de moda.", cta1: "COMPRAR SELEÇÃO", cta2: "SOBRE A MARCA" },
+      ]
+    : isYouth
+    ? [
+        { p: "SEU ESTILO", s: "SEM LIMITES", sub: "Streetwear autoral para quem escreve as próprias regras.", cta1: "SHOP DROP", cta2: "VER NOVIDADES" },
+        { p: "ROMPA", s: "O PADRÃO", sub: "Peças ousadas, cores vivas e atitude em cada detalhe.", cta1: "COMPRAR AGORA", cta2: "EXPLORAR COLEÇÃO" },
+        { p: "MOVIMENTO", s: "URBANO", sub: "Roupas feitas pra rua, pra pista e pra tudo que vier depois.", cta1: "ENTRAR NO DROP", cta2: "VER CATÁLOGO" },
+      ]
+    : [
+        { p: "VISTA SUA", s: "CONFIANÇA", sub: "Peças versáteis pra você se sentir bem em qualquer lugar.", cta1: "COMPRAR AGORA", cta2: "EXPLORAR COLEÇÕES" },
+        { p: "O SEU JEITO", s: "DE VESTIR", sub: "Encontre o look certo pra cada momento do seu dia.", cta1: "VER NOVIDADES", cta2: "MONTAR LOOK" },
+        { p: "MODA QUE", s: "TE ENTENDE", sub: "Conforto, atitude e caimento perfeito em cada peça.", cta1: "COMPRAR AGORA", cta2: "VER COLEÇÕES" },
+      ];
+  const copy = copyPool[copyVariant % copyPool.length];
+  const headlinePrimary = copy.p;
+  const headlineSecondary = copy.s;
+  const heroSubtitle = salesAngleText ? salesAngleText.slice(0, 120) : copy.sub;
+  const ctaPrimary = copy.cta1;
+  const ctaSecondary = copy.cta2;
+  const taglinePool = isLuxury
+    ? ["MAKE YOUR STATEMENT", "TIMELESS BY DESIGN", "CRAFTED TO LAST", "ESSENCE OF STYLE"]
+    : isYouth
+    ? ["OWN THE STREET", "NEW WAVE ENERGY", "BREAK THE RULES", "UNAPOLOGETIC"]
+    : ["WEAR YOUR STORY", "STYLE MADE SIMPLE", "EVERYDAY ESSENTIALS", "DRESSED TO FEEL GOOD"];
+  const brandTagline = taglinePool[taglineVariant % taglinePool.length];
   const collectionLabels = ["O Essencial", "Fim de Semana", "Noite", "Poder Feminino"];
 
   return (
@@ -262,8 +293,8 @@ const GeneratedStoreEditorPage = () => {
             {/* HERO — banner cobre toda a seção */}
             <section className="relative mx-4 min-h-[440px] overflow-hidden rounded-[6px] bg-[#eeece7]">
               {heroImage ? <img src={heroImage} alt={brandName} className="absolute inset-0 h-full w-full object-cover"/> : null}
-              {/* Overlay de leitura à esquerda */}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#eeece7] via-[#eeece7]/85 to-transparent md:via-[#eeece7]/70"/>
+              {/* Overlay suave — mantém a imagem visível como no exemplo */}
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#eeece7]/85 via-[#eeece7]/25 to-transparent"/>
               {/* Botão de geração — só dono da loja */}
               <div data-editor-ignore className="absolute right-4 top-4 z-30 flex flex-col items-end gap-2">
                 <button type="button" onClick={generateBanner} disabled={generatingBanner} className="flex items-center gap-2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur-md transition hover:bg-black disabled:opacity-70">
@@ -277,15 +308,15 @@ const GeneratedStoreEditorPage = () => {
                 <h1 className="font-serif text-[64px] font-normal leading-[0.92] tracking-[-0.01em] md:text-[80px]">{headlinePrimary}<br/>{headlineSecondary}</h1>
                 <p className="mt-6 max-w-[320px] text-[12.5px] leading-[1.6] text-black/75">{heroSubtitle}</p>
                 <div className="mt-8 flex items-center gap-3">
-                  <button className="flex items-center gap-2 rounded-full bg-black px-6 py-3 text-[11px] font-medium tracking-[0.15em] text-white" style={{backgroundColor:accent}}>COMPRAR AGORA <span className="ml-1">→</span></button>
-                  <button className="rounded-full border border-black bg-white/60 px-6 py-3 text-[11px] font-medium tracking-[0.15em] backdrop-blur-sm">EXPLORAR COLEÇÕES</button>
+                  <button className="flex items-center gap-2 rounded-full bg-black px-6 py-3 text-[11px] font-medium tracking-[0.15em] text-white" style={{backgroundColor:accent}}>{ctaPrimary} <span className="ml-1">→</span></button>
+                  <button className="rounded-full border border-black bg-white/60 px-6 py-3 text-[11px] font-medium tracking-[0.15em] backdrop-blur-sm">{ctaSecondary}</button>
                 </div>
               </div>
               {/* Cartão da marca sobre a imagem */}
               <div className="absolute right-[8%] top-1/2 z-10 flex h-[110px] w-[130px] -translate-y-1/2 flex-col items-center justify-center gap-1 bg-[#f5f2ec] shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
                 <span className="font-serif text-[36px] italic leading-none">{brandInitial}</span>
                 <span className="font-serif text-[10px] tracking-[0.14em]">{brandName}</span>
-                <span className="text-[6px] tracking-[0.3em] text-black/50">MAKE YOUR STATEMENT</span>
+                <span className="text-[6px] tracking-[0.3em] text-black/50">{brandTagline}</span>
               </div>
             </section>
 
