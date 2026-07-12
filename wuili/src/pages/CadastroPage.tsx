@@ -339,7 +339,20 @@ const CadastroPage = () => {
             </div>
           )}
         </div>
+
+        {/* Live storefront preview — desktop only */}
+        <aside className="hidden lg:sticky lg:top-16 lg:flex lg:shrink-0 lg:pt-2">
+          <StorePreview
+            step={step}
+            nome={nome}
+            email={email}
+            whatsapp={whatsapp}
+            nicho=""
+            currentInput={input}
+          />
+        </aside>
       </main>
+
 
       {/* ── Composer (sticky bottom, ChatGPT style) ── */}
       {step !== "criando" && (
