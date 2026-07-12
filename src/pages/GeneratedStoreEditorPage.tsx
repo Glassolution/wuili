@@ -15,10 +15,14 @@ const getFirstImage = (images: unknown) => {
 };
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+type EditMode = "select" | "text" | "edit" | "comment" | null;
+type Comment = { id: string; x: number; y: number; text: string; open: boolean };
+
 const GeneratedStoreEditorPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const imageInput = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [mobilePreview, setMobilePreview] = useState(false);
   const [panel, setPanel] = useState<EditorPanel>(null);
   const [accent, setAccent] = useState("#111111");
@@ -29,6 +33,56 @@ const GeneratedStoreEditorPage = () => {
   const [showPlans, setShowPlans] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState("Velo Modern");
+  const [editMode, setEditMode] = useState<EditMode>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+
+  const getElementPath = (element: HTMLElement, root: HTMLElement): string => {
+    const parts: string[] = [];
+    let current: HTMLElement | null = element;
+    while (current && current !== root) {
+      const parent = current.parentElement;
+      if (!parent) break;
+      const index = Array.from(parent.children).indexOf(current);
+      parts.unshift(`${current.tagName.toLowerCase()}:${index}`);
+      current = parent;
+    }
+    return parts.join(">");
+  };
+
+  const handlePreviewClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!editMode || !previewRef.current) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-editor-ignore]")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = previewRef.current.getBoundingClientRect();
+
+    if (editMode === "comment") {
+      const x = ((event.clientX - rect.left) / rect.width) * 100;
+      const y = ((event.clientY - rect.top) / rect.height) * 100;
+      setComments((prev) => [...prev, { id: crypto.randomUUID(), x, y, text: "", open: true }]);
+      return;
+    }
+    if (editMode === "select") {
+      setSelectedPath(getElementPath(target, previewRef.current));
+      return;
+    }
+    if ((editMode === "text" || editMode === "edit") && target.textContent?.trim()) {
+      target.setAttribute("contenteditable", "true");
+      target.style.outline = "2px solid #2563eb";
+      target.style.outlineOffset = "2px";
+      target.focus();
+      const cleanup = () => {
+        target.removeAttribute("contenteditable");
+        target.style.outline = "";
+        target.style.outlineOffset = "";
+        target.removeEventListener("blur", cleanup);
+      };
+      target.addEventListener("blur", cleanup);
+    }
+  };
+
   const flow = useMemo<FlowState | null>(() => {
     const state = location.state as Partial<FlowState> | null;
     let product = state?.product; let language = state?.language; let persona = state?.persona; let salesAngle = state?.salesAngle;
