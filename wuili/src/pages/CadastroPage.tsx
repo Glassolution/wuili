@@ -272,9 +272,10 @@ const CadastroPage = () => {
         />
       </div>
 
-      {/* ── Chat area ── */}
-      <main className={`flex flex-1 flex-col items-center px-5 pb-48 pt-16 sm:pt-24 ${revealFromInk ? "signup-ink-main" : ""}`}>
-        <div className="flex w-full max-w-[680px] flex-col gap-6">
+      {/* ── Chat area + Live preview ── */}
+      <main className={`flex flex-1 flex-col items-center px-5 pb-48 pt-16 sm:pt-24 lg:flex-row lg:items-start lg:justify-center lg:gap-16 lg:px-10 lg:pt-16 ${revealFromInk ? "signup-ink-main" : ""}`}>
+        <div className="flex w-full max-w-[680px] flex-col gap-6 lg:max-w-[560px]">
+
 
           {/* Assistant bubble: question */}
           <div key={`q-${step}`} className={`flex animate-fade-in items-start gap-3 ${revealFromInk ? "signup-ink-card" : ""}`}>
