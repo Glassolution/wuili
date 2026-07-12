@@ -197,7 +197,7 @@ const GeneratedStoreEditorPage = () => {
         ) : null}
 
         <div className="relative min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
-          <div className={`mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1450px]"}`} style={{ fontFamily: font }}>
+          <div ref={previewRef} onClick={handlePreviewClick} className={`relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1450px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: font, cursor: editMode==="comment"?"crosshair":editMode?"pointer":"default" }}>
             <nav className="flex h-[82px] items-center justify-between px-7"><Menu size={21}/><strong className="text-[28px] tracking-[-0.07em]">VELO/W</strong><div className="flex items-center gap-4"><span className="hidden text-[11px] sm:inline">Blog</span><span className="hidden text-[11px] sm:inline">FAQ</span><Bell size={17}/><ShoppingBag size={17}/><UserRound size={17}/></div></nav>
             <div className="flex flex-wrap items-center gap-2 px-7 pb-6"><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Roupas⌄</button><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Novidades</button><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Promoções</button><label className="flex min-w-[180px] flex-1 items-center rounded-full bg-[#f5f5f5] px-4"><input placeholder="Buscar..." className="h-9 min-w-0 flex-1 bg-transparent text-[11px] outline-none"/><Search size={15}/></label>{["Masculino","Feminino","Infantil"].map(item=><button key={item} className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">{item}</button>)}</div>
             <section className="relative mx-7 min-h-[285px] overflow-hidden rounded-[18px] bg-[#ebe9e5]">
@@ -212,19 +212,36 @@ const GeneratedStoreEditorPage = () => {
             <div className={`grid gap-7 px-7 py-9 ${mobilePreview?"grid-cols-1":"md:grid-cols-[180px_1fr]"}`}>
               {!mobilePreview?<aside><p className="text-[11px] text-black/40">Início · Coleção</p><h2 className="mt-3 text-[18px] font-semibold">Coleção Velo</h2><div className="mt-8"><strong className="text-[12px]">Categorias</strong><div className="mt-3 space-y-3">{categories.map((category,index)=><label key={category} className="flex items-center gap-2 text-[11px]"><input type="checkbox" defaultChecked={index<2} style={{accentColor:accent}}/>{category}</label>)}</div></div><button className="mt-6 w-full rounded-full py-2 text-[11px] text-white" style={{backgroundColor:accent}}>Mostrar mais</button><div className="mt-8"><strong className="text-[12px]">Preço</strong><input type="range" className="mt-4 w-full" style={{accentColor:accent}}/></div></aside>:null}
               <section className={`grid gap-4 ${mobilePreview?"grid-cols-1":columns===2?"grid-cols-2":columns===4?"grid-cols-2 xl:grid-cols-4":"grid-cols-2 xl:grid-cols-3"}`}>
-                {displayedProducts.map((product,index)=><article key={product.id} className="group rounded-[16px] bg-white p-2 shadow-[0_0_0_1px_rgba(0,0,0,0.06)]"><div className="relative aspect-[0.84] overflow-hidden rounded-[13px] bg-[#ececea]"><img src={index===0?heroImage:product.imageUrl} alt={product.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]"/><button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90"><Heart size={15}/></button></div><div className="p-3"><h3 className="line-clamp-1 text-[16px] font-semibold tracking-[-0.03em]">{product.title}</h3><p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-black/42">{product.category} · seleção especial da Velo.</p><div className="mt-4 flex items-center justify-between"><strong className="rounded-[7px] px-3 py-2 text-[12px] text-white" style={{backgroundColor:accent}}>{formatBRL(Math.max(product.price*2.1,product.price+20))}</strong><button className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10"><ShoppingBag size={15}/></button></div></div></article>)}
+                {displayedProducts.map((product,index)=><article key={product.id} className="group rounded-[16px] bg-white p-2 shadow-[0_0_0_1px_rgba(0,0,0,0.06)]"><div className="relative aspect-[0.84] overflow-hidden rounded-[13px] bg-[#ececea]"><img src={index===0?heroImage:product.imageUrl} alt={product.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]"/><button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90"><Heart size={15}/></button></div><div className="p-3"><h3 className="line-clamp-1 text-[16px] font-semibold tracking-[-0.03em]">{product.title}</h3><p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-black/42">{product.category} · seleção especial da Velo.</p><div className="mt-4 flex items-center justify-between"><strong className="rounded-[7px] px-3 py-2 text-[12px] text-white" style={{backgroundColor:accent}}>{formatBRL(Math.max(product.price*2.1,product.price+20))}</strong><button className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10"><ShoppingBag size={15}/></button></div></article>)}
               </section>
+            </div>
+
+            {/* Comment pins */}
+            {comments.map((comment)=>(
+              <div key={comment.id} data-editor-ignore className="absolute z-40" style={{ left: `${comment.x}%`, top: `${comment.y}%`, transform: "translate(-50%, -100%)" }} onClick={(e)=>e.stopPropagation()}>
+                <div className="flex flex-col items-start gap-1">
+                  <button type="button" onClick={()=>setComments((prev)=>prev.map((item)=>item.id===comment.id?{...item,open:!item.open}:item))} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#facc15] text-black shadow-[0_4px_12px_rgba(0,0,0,0.3)]" aria-label="Comentário"><MessageSquare size={14}/></button>
+                  {comment.open ? (
+                    <div className="min-w-[220px] rounded-[12px] border border-black/10 bg-white p-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+                      <textarea autoFocus value={comment.text} onChange={(e)=>{const value=e.target.value;setComments((prev)=>prev.map((item)=>item.id===comment.id?{...item,text:value}:item));}} placeholder="Escreva um comentário..." className="h-20 w-full resize-none rounded-[8px] border border-black/10 bg-white p-2 text-[12px] text-black outline-none focus:border-[#2563eb]"/>
+                      <div className="mt-2 flex items-center justify-between"><button type="button" onClick={()=>setComments((prev)=>prev.filter((item)=>item.id!==comment.id))} className="text-[11px] text-black/45 hover:text-black">Remover</button><button type="button" onClick={()=>setComments((prev)=>prev.map((item)=>item.id===comment.id?{...item,open:false}:item))} className="rounded-full bg-black px-3 py-1 text-[11px] text-white">Salvar</button></div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pointer-events-none sticky bottom-4 z-30 mt-4 flex flex-col items-center gap-2">
+            {editMode ? <span className="pointer-events-auto rounded-full bg-black/80 px-3 py-1 text-[10.5px] font-medium text-white shadow-lg backdrop-blur">{editMode==="select"?"Clique em qualquer elemento para selecionar":editMode==="text"?"Clique em um texto para editar":editMode==="edit"?"Clique para editar conteúdo":"Clique onde deseja adicionar um comentário"} · <button onClick={()=>setEditMode(null)} className="underline">sair</button></span> : null}
+            <div data-editor-ignore className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/40 bg-white/25 px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-2xl backdrop-saturate-150">
+              <button type="button" onClick={()=>setEditMode(editMode==="select"?null:"select")} aria-label="Selecionar" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="select"?"bg-[#111] text-white":"text-[#111] hover:bg-white/40"}`}><MousePointer2 size={15}/></button>
+              <button type="button" onClick={()=>setEditMode(editMode==="text"?null:"text")} aria-label="Texto" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="text"?"bg-[#111] text-white":"text-[#111] hover:bg-white/40"}`}><Type size={15}/></button>
+              <button type="button" onClick={()=>setEditMode(editMode==="edit"?null:"edit")} aria-label="Editar" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="edit"?"bg-[#111] text-white":"text-[#111] hover:bg-white/40"}`}><Pencil size={14}/></button>
+              <button type="button" onClick={()=>setEditMode(editMode==="comment"?null:"comment")} aria-label="Comentar" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="comment"?"bg-[#facc15] text-black":"text-[#111] hover:bg-white/40"}`}><MessageSquare size={14}/></button>
             </div>
           </div>
 
-          <div className="pointer-events-none sticky bottom-4 z-30 mt-4 flex justify-center">
-            <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/40 bg-white/25 px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-2xl backdrop-saturate-150">
-              <button type="button" aria-label="Selecionar" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><MousePointer2 size={15}/></button>
-              <button type="button" aria-label="Texto" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><Type size={15}/></button>
-              <button type="button" aria-label="Editar" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><Pencil size={14}/></button>
-              <button type="button" aria-label="Comentar" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><MessageSquare size={14}/></button>
-            </div>
-          </div>
 
         </div>
       </div>
