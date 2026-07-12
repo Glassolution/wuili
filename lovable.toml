@@ -1,4 +1,4 @@
 [run]
-dev = "cd wuili && npm run dev -- --host --port 8080"
-build = "cd wuili && npm run build"
-"build:dev" = "cd wuili && npm run build:dev"
+dev = "sh -c 'cd wuili && npm run dev -- --host --port 8080'"
+build = "sh -c 'cd wuili && npm run build'"
+"build:dev" = "sh -c 'cd wuili && npm run build:dev'"
