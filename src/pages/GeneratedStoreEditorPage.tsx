@@ -36,6 +36,33 @@ const GeneratedStoreEditorPage = () => {
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [generatingBanner, setGeneratingBanner] = useState(false);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+
+  const generateBanner = async () => {
+    if (generatingBanner) return;
+    setGeneratingBanner(true);
+    setBannerError(null);
+    try {
+      const first = displayedProducts[0];
+      const { data, error } = await supabase.functions.invoke("generate-store-banner", {
+        body: {
+          brandName,
+          persona: flow?.persona,
+          salesAngle: flow?.salesAngle,
+          category: first?.category,
+          productTitle: first?.title,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.imageUrl) setHeroImage(data.imageUrl);
+    } catch (err) {
+      setBannerError((err as Error).message || "Falha ao gerar banner");
+    } finally {
+      setGeneratingBanner(false);
+    }
+  };
 
   const getElementPath = (element: HTMLElement, root: HTMLElement): string => {
     const parts: string[] = [];
