@@ -38,11 +38,16 @@ const GeneratedStoreEditorPage = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [generatingBanner, setGeneratingBanner] = useState(false);
   const [bannerError, setBannerError] = useState<string | null>(null);
+  const [copyVariant, setCopyVariant] = useState(0);
+  const [taglineVariant, setTaglineVariant] = useState(0);
 
   const generateBanner = async () => {
     if (generatingBanner) return;
     setGeneratingBanner(true);
     setBannerError(null);
+    // Rotaciona também os textos, CTAs e tagline da logo para combinar com o novo banner
+    setCopyVariant((v) => v + 1 + Math.floor(Math.random() * 2));
+    setTaglineVariant((v) => v + 1 + Math.floor(Math.random() * 2));
     try {
       const { data, error } = await supabase.functions.invoke("generate-store-banner", {
         body: {
