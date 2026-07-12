@@ -1,6 +1,8 @@
 import { ArrowUpRight, FlaskConical, PackageOpen, Store } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasCompletedStoreFlow } from "@/lib/storeFlowCompletion";
 
 export type ExampleProduct = {
   id: string;
@@ -20,6 +22,10 @@ const VeloWordmark = () => (
 );
 
 const StartChoicePage = () => {
+  const { user } = useAuth();
+  if (user?.id && hasCompletedStoreFlow(user.id)) {
+    return <Navigate to="/minha-loja/editor" replace />;
+  }
   return (
   <main
     className="min-h-screen bg-black text-white"

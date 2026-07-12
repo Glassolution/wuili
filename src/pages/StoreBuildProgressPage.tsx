@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import { useAuth } from "@/contexts/AuthContext";
+import { markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 
@@ -16,6 +18,7 @@ const steps = [
 const StoreBuildProgressPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const flow = useMemo<FlowState | null>(() => {
     const state = location.state as Partial<FlowState> | null;
     let product = state?.product; let language = state?.language; let persona = state?.persona; let salesAngle = state?.salesAngle;
@@ -43,6 +46,11 @@ const StoreBuildProgressPage = () => {
   if (!flow) return <Navigate to="/comecar" replace />;
 
   const ready = progress >= 95;
+
+  useEffect(() => {
+    if (ready && flow && user?.id) markStoreFlowCompleted(user.id, flow);
+  }, [ready, flow, user?.id]);
+
   const completedCount = ready ? 5 : Math.min(4, Math.floor(progress / 20));
   const activeIndex = Math.min(4, completedCount);
   const circumference = 2 * Math.PI * 78;
