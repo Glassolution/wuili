@@ -349,7 +349,7 @@ const CadastroPage = () => {
             nome={nome}
             email={email}
             whatsapp={whatsapp}
-            nicho=""
+            nicho={nichoState}
             currentInput={input}
           />
         </aside>
