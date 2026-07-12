@@ -849,11 +849,11 @@ const FilterDropdown = ({
   options: string[];
   onSelect: (value: string) => void;
 }) => (
-  <div className="relative min-w-[180px]">
+  <div className="relative min-w-[148px] md:min-w-[180px]">
     <button
       type="button"
       onClick={onToggle}
-      className="inline-flex h-11 w-full items-center justify-between gap-3 rounded-2xl border border-[#D1D5DB] bg-white px-4 text-[14px] font-semibold text-[#111111] shadow-sm transition-all duration-200 hover:border-[#9CA3AF] hover:bg-[#FAFAFA]"
+      className="inline-flex h-9 w-full items-center justify-between gap-2 rounded-full border border-[#D1D5DB] bg-white px-3 text-[11px] font-semibold text-[#111111] shadow-sm transition-all duration-200 hover:border-[#9CA3AF] hover:bg-[#FAFAFA] md:h-11 md:rounded-2xl md:px-4 md:text-[14px]"
     >
       <span className="truncate">{label}: {value}</span>
       <ChevronDown size={16} strokeWidth={1.8} className={`shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -1167,9 +1167,9 @@ const CatalogoPage = () => {
         <>
             <div
               ref={filterBarRef}
-              className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center"
+              className="mobile-hide-scrollbar mb-3 flex gap-2 overflow-x-auto md:mb-5 md:flex-col md:gap-3 md:overflow-visible xl:flex-row xl:items-center"
             >
-              <div className="relative min-w-0 xl:w-[260px] xl:flex-shrink-0">
+              <div className="relative min-w-[220px] flex-1 md:min-w-0 xl:w-[260px] xl:flex-shrink-0">
                 <Search
                   size={16}
                   strokeWidth={1.8}
@@ -1183,7 +1183,7 @@ const CatalogoPage = () => {
                     setCurrentPage(1);
                   }}
                   placeholder="Buscar produto"
-                  className="h-11 w-full rounded-2xl border border-[#D1D5DB] bg-white pl-11 pr-4 text-[14px] font-medium text-[#111111] shadow-sm outline-none transition-all duration-200 placeholder:text-[#9CA3AF] hover:border-[#9CA3AF]"
+                  className="h-9 w-full rounded-full border border-[#D1D5DB] bg-white pl-10 pr-3 text-[12px] font-medium text-[#111111] shadow-sm outline-none transition-all duration-200 placeholder:text-[#9CA3AF] hover:border-[#9CA3AF] md:h-11 md:rounded-2xl md:pl-11 md:pr-4 md:text-[14px]"
                 />
               </div>
 
@@ -1225,7 +1225,7 @@ const CatalogoPage = () => {
 
               <div className="hidden xl:block xl:flex-1" />
 
-              <div className="xl:ml-auto">
+              <div className="shrink-0 xl:ml-auto">
                 <ProductScoutAI onResults={(results) => setAtlasResults(results)} />
               </div>
             </div>
@@ -1258,7 +1258,7 @@ const CatalogoPage = () => {
             )}
 
             {isLoading ? (
-              <div className="grid h-auto grid-cols-1 gap-3 overflow-visible md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid h-auto grid-cols-2 gap-2 overflow-visible md:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: ITEMS_PER_PAGE }).map((_, idx) => (
                   <ProductCardSkeleton key={idx} />
                 ))}
@@ -1278,7 +1278,7 @@ const CatalogoPage = () => {
                 <p className="font-medium">Nenhum produto encontrado nesta categoria.</p>
               </div>
             ) : (
-              <div className="grid h-auto grid-cols-1 gap-3 overflow-visible md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid h-auto grid-cols-2 gap-2 overflow-visible md:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -1286,6 +1286,7 @@ const CatalogoPage = () => {
                     categoryLabel={product.categoria}
                     isFavorited={favoritedIds.includes(product.id)}
                     onToggleFavorite={() => toggleFavorite(product.id)}
+                    denseMobile
                     collectionSelection={
                       isCollectionSelectionMode
                         ? {

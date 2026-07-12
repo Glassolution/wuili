@@ -36,6 +36,7 @@ const PublicationsPage = lazy(() => import("./pages/dashboard/PublicationsPage")
 const ProductDetailPage = lazy(() => import("./pages/dashboard/ProductDetailPage"));
 const ProdutosMLPage = lazy(() => import("./pages/dashboard/ProdutosMLPage"));
 const ReportsPage = lazy(() => import("./pages/dashboard/ReportsPage"));
+const ResultsPage = lazy(() => import("./pages/dashboard/ResultsPage"));
 const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage"));
 const DashboardInfoPage = lazy(() => import("./pages/dashboard/DashboardInfoPage"));
 const SaldosPage = lazy(() => import("./pages/dashboard/SaldosPage"));
@@ -163,6 +164,7 @@ const App = () => (
                 <Route path="publicacoes" element={<PublicationsPage />} />
                 <Route path="publicacoes/:id" element={<ProductDetailPage />} />
                 <Route path="relatorios" element={<ReportsPage />} />
+                <Route path="resultados" element={<ResultsPage />} />
                 <Route path="mais" element={<MorePage />} />
                 <Route path="integracoes" element={<IntegracoesPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />

@@ -671,7 +671,7 @@ function AdminSupportPanel() {
       void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
       notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
         console.error(error);
-        toast.error("Resposta enviada, mas nÃ£o foi possÃ­vel notificar por email.");
+        toast.error(error instanceof Error ? error.message : "Resposta enviada, mas não foi possível notificar por email.");
       });
     },
     onError: (error) => {

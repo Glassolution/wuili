@@ -55,12 +55,12 @@ const CATEGORY_META: Record<
   TicketCategory,
   { label: string; icon: LucideIcon; accent: string }
 > = {
-  financeiro: { label: "Financeiro", icon: CreditCard, accent: "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" },
-  bug: { label: "Bug / Erro", icon: Bug, accent: "bg-red-500/10 text-red-300 border border-red-500/20" },
-  integracao: { label: "Integrações", icon: Plug, accent: "bg-blue-500/10 text-blue-300 border border-blue-500/20" },
-  conta: { label: "Conta", icon: UserCircle2, accent: "bg-purple-500/10 text-purple-300 border border-purple-500/20" },
-  reembolso: { label: "Reembolso", icon: RefreshCcw, accent: "bg-amber-500/10 text-amber-300 border border-amber-500/20" },
-  outros: { label: "Outros", icon: AlertTriangle, accent: "bg-white/5 text-white/70 border border-white/10" },
+  financeiro: { label: "Financeiro", icon: CreditCard, accent: "bg-emerald-100 text-emerald-700" },
+  bug: { label: "Bug / Erro", icon: Bug, accent: "bg-red-100 text-red-700" },
+  integracao: { label: "Integrações", icon: Plug, accent: "bg-blue-100 text-blue-700" },
+  conta: { label: "Conta", icon: UserCircle2, accent: "bg-purple-100 text-purple-700" },
+  reembolso: { label: "Reembolso", icon: RefreshCcw, accent: "bg-amber-100 text-amber-700" },
+  outros: { label: "Outros", icon: AlertTriangle, accent: "bg-neutral-200 text-neutral-700" },
 };
 
 const CATEGORY_ORDER: TicketCategory[] = ["financeiro", "bug", "integracao", "conta", "reembolso", "outros"];
@@ -180,113 +180,149 @@ const AdminSupportPage = () => {
         } as AdminTicket;
       });
     },
-    refetchInterval: 10000,
+    retry: false,
   });
 
-  const openTicket = useMemo(() => tickets.find((t) => t.id === openTicketId), [tickets, openTicketId]);
+  const openTicket = useMemo(
+    () => tickets.find((t) => t.id === openTicketId) ?? null,
+    [openTicketId, tickets],
+  );
 
   const { data: messages = [], isLoading: loadingMessages } = useQuery({
-    queryKey: ["admin-support-messages", openTicketId],
-    enabled: !!openTicketId && isAdmin,
+    queryKey: ["admin-support-messages", openTicket?.id],
+    enabled: !!openTicket?.id && isAdmin,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("support_messages")
-        .select("id,ticket_id,user_id,message,sender,created_at")
-        .eq("ticket_id", openTicketId!)
+        .select("*")
+        .eq("ticket_id", openTicket!.id)
         .order("created_at", { ascending: true });
-
       if (error) throw error;
       return (data ?? []) as SupportMessage[];
     },
-    refetchInterval: openTicketId ? 5000 : false,
   });
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const channel = supabase
+      .channel("admin-support-crm")
+      .on("postgres_changes", { event: "*", schema: "public", table: "support_tickets" }, () => {
+        void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages" }, (payload) => {
+        const m = payload.new as SupportMessage;
+        void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+        qc.setQueryData<SupportMessage[]>(
+          ["admin-support-messages", m.ticket_id],
+          (prev = []) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]),
+        );
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [isAdmin, qc]);
 
   const sendReply = useMutation({
     mutationFn: async () => {
-      if (!openTicket || !reply.trim()) return;
-      const { error } = await supabase.from("support_messages").insert({
-        ticket_id: openTicket.id,
-        user_id: user!.id,
-        message: reply.trim(),
-        sender: "admin",
-      });
+      const trimmed = reply.trim();
+      if (!trimmed || !openTicket?.id || !user?.id) return null;
+      const { data, error } = await (supabase as any)
+        .from("support_messages")
+        .insert({ ticket_id: openTicket.id, user_id: user.id, message: trimmed, sender: "admin" })
+        .select("*")
+        .single();
       if (error) throw error;
+      return data as SupportMessage;
     },
-    onSuccess: () => {
-      const sentText = reply.trim();
+    onSuccess: (m) => {
+      if (!m) return;
       setReply("");
-      qc.invalidateQueries({ queryKey: ["admin-support-messages", openTicketId] });
-      qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
-      
-      // Trigger background email notification via helper
-      void sentText;
-      if (openTicket) {
-        notifyTicketReplyEmail(openTicket.id, "").catch((err) => {
-          console.error("Failed to send email notify", err);
-        });
-      }
+      qc.setQueryData<SupportMessage[]>(
+        ["admin-support-messages", m.ticket_id],
+        (prev = []) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]),
+      );
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      notifyTicketReplyEmail(m.ticket_id, m.id).catch((error) => {
+        console.error(error);
+        toast.error(error instanceof Error ? error.message : "Resposta enviada, mas não foi possível notificar por email.");
+      });
     },
-    onError: (e: any) => toast.error(`Erro ao responder: ${e.message}`),
+    onError: (e) => {
+      console.error(e);
+      toast.error("Não foi possível enviar a resposta.");
+    },
   });
 
   const closeTicket = useMutation({
     mutationFn: async () => {
-      if (!openTicketId) return;
-      const { error } = await supabase
+      if (!openTicket?.id) return;
+      const { error } = await (supabase as any)
         .from("support_tickets")
         .update({ status: "closed" })
-        .eq("id", openTicketId);
+        .eq("id", openTicket.id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Ticket marcado como resolvido.");
       setOpenTicketId(null);
-      qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
     },
-    onError: (e: any) => toast.error(`Erro ao encerrar: ${e.message}`),
+    onError: () => toast.error("Não foi possível resolver o ticket."),
   });
 
-  if (loading || loadingProfile) {
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <Loader2 className="h-7 w-7 animate-spin text-white" />
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f4]">
+        <Loader2 className="h-7 w-7 animate-spin text-[#0A0A0A]" />
       </div>
     );
   }
-
   if (!user) return <Navigate to="/login" replace />;
-
+  if (loadingProfile) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f4]">
+        <Loader2 className="h-7 w-7 animate-spin text-[#0A0A0A]" />
+      </div>
+    );
+  }
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
-        <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#0A0A0A] p-8 text-center">
-          <Lock size={24} className="mx-auto" strokeWidth={1.5} />
-          <h1 className="mt-4 text-[20px] font-bold">Acesso restrito</h1>
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f4] p-6">
+        <div className="w-full max-w-md rounded-3xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F5F5F5]">
+            <Lock size={21} />
+          </div>
+          <h1 className="mt-5 text-[20px] font-bold text-[#0A0A0A]">Acesso restrito</h1>
+          <p className="mt-2 text-[14px] leading-6 text-[#737373]">
+            Esta página é exclusiva para administradores.
+          </p>
         </div>
       </div>
     );
   }
 
+
   return (
     <AdminShell active="support" userId={user.id}>
-      <div className="min-h-full bg-transparent text-white">
+      <div className="min-h-full bg-[#f5f5f4] p-5 text-[#0A0A0A] md:p-8">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
-          <header className="flex flex-col gap-4 border-b border-white/[0.08] pb-6 md:flex-row md:items-center md:justify-between">
+          <header className="flex flex-col gap-4 rounded-3xl border border-[#E5E5E5] bg-white px-6 py-5 shadow-sm md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8A8A8E]">Admin · CRM</p>
-              <h1 className="text-[24px] font-semibold tracking-tight text-white mt-1">Suporte por setor</h1>
-              <p className="mt-1 text-[13px] text-[#8A8A8E]">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#A3A3A3]">Admin · CRM</p>
+              <h1 className="text-[24px] font-black tracking-tight">Suporte por setor</h1>
+              <p className="mt-1 text-[13px] text-[#737373]">
                 Tickets abertos organizados por categoria. Clique em um card para responder o usuário.
               </p>
             </div>
-            <div className="rounded-lg bg-white/[0.06] border border-white/10 px-4 py-2 text-[13px] font-semibold text-white">
+            <div className="rounded-full bg-[#0A0A0A] px-4 py-2 text-[13px] font-semibold text-white">
               {tickets.length} abertos
             </div>
           </header>
 
           {loadingTickets ? (
-            <div className="flex items-center justify-center py-24">
-              <Loader2 className="h-6 w-6 animate-spin text-white/60" />
+            <div className="flex items-center justify-center rounded-3xl border border-[#E5E5E5] bg-white py-24">
+              <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : tickets.length === 0 ? (
             <EmptyState />
@@ -324,12 +360,12 @@ const AdminSupportPage = () => {
 };
 
 const COLUMN_ACCENTS: Record<TicketCategory, { dot: string; badge: string; statusBadge: string }> = {
-  financeiro: { dot: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20", statusBadge: "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" },
-  bug: { dot: "bg-red-500", badge: "bg-red-500/10 text-red-300 border border-red-500/20", statusBadge: "bg-red-500/10 text-red-300 border border-red-500/20" },
-  integracao: { dot: "bg-blue-500", badge: "bg-blue-500/10 text-blue-300 border border-blue-500/20", statusBadge: "bg-blue-500/10 text-blue-300 border border-blue-500/20" },
-  conta: { dot: "bg-purple-500", badge: "bg-purple-500/10 text-purple-300 border border-purple-500/20", statusBadge: "bg-purple-500/10 text-purple-300 border border-purple-500/20" },
-  reembolso: { dot: "bg-amber-500", badge: "bg-amber-500/10 text-amber-300 border border-amber-500/20", statusBadge: "bg-amber-500/10 text-amber-300 border border-amber-500/20" },
-  outros: { dot: "bg-neutral-400", badge: "bg-white/5 text-white/70 border border-white/10", statusBadge: "bg-white/5 text-white/70 border border-white/10" },
+  financeiro: { dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-700", statusBadge: "bg-emerald-50 text-emerald-700" },
+  bug: { dot: "bg-red-500", badge: "bg-red-50 text-red-700", statusBadge: "bg-red-50 text-red-700" },
+  integracao: { dot: "bg-blue-500", badge: "bg-blue-50 text-blue-700", statusBadge: "bg-blue-50 text-blue-700" },
+  conta: { dot: "bg-purple-500", badge: "bg-purple-50 text-purple-700", statusBadge: "bg-purple-50 text-purple-700" },
+  reembolso: { dot: "bg-amber-500", badge: "bg-amber-50 text-amber-700", statusBadge: "bg-amber-50 text-amber-700" },
+  outros: { dot: "bg-neutral-400", badge: "bg-neutral-100 text-neutral-700", statusBadge: "bg-neutral-100 text-neutral-700" },
 };
 
 const CategoryColumn = ({
@@ -345,19 +381,19 @@ const CategoryColumn = ({
   const accent = COLUMN_ACCENTS[category];
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-[#0F0F0F] px-4 py-3">
+      <div className="flex items-center justify-between rounded-2xl border border-[#E5E5E5] bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 rounded-full ${accent.dot}`} />
-          <p className="text-[13px] font-semibold text-white">{meta.label}</p>
+          <p className="text-[13px] font-semibold text-[#0A0A0A]">{meta.label}</p>
         </div>
-        <span className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ${accent.badge}`}>
-          {tickets.length}
+        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${accent.badge}`}>
+          {tickets.length} {tickets.length === 1 ? "Ticket" : "Tickets"}
         </span>
       </div>
 
       <div className="flex flex-col gap-3">
         {tickets.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-white/[0.08] bg-transparent px-4 py-6 text-center text-[11px] text-[#8A8A8E]">
+          <div className="rounded-2xl border border-dashed border-[#E5E5E5] bg-white/50 px-4 py-6 text-center text-[11px] text-[#A3A3A3]">
             Nenhum ticket
           </div>
         ) : (
@@ -365,40 +401,40 @@ const CategoryColumn = ({
             <button
               key={t.id}
               onClick={() => onOpen(t.id)}
-              className="group flex w-full flex-col gap-3 rounded-lg border border-white/[0.08] bg-transparent p-4 text-left transition hover:bg-white/[0.02]"
+              className="group flex w-full flex-col gap-3 rounded-2xl border border-[#E5E5E5] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-white">
-                    <UserRound size={14} strokeWidth={1.5} />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white">
+                    <UserRound size={15} />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-[13px] font-semibold text-white">
+                    <p className="truncate text-[13px] font-bold text-[#0A0A0A]">
                       {t.user_name || "Usuário"}
                     </p>
-                    <p className="text-[11px] text-[#8A8A8E]">{formatDateTime(t.created_at)}</p>
+                    <p className="text-[11px] text-[#A3A3A3]">{formatDateTime(t.created_at)}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 text-[12px] text-[#8A8A8E]">
-                <Mail size={12} className="shrink-0 text-[#8A8A8E]/60" strokeWidth={1.5} />
+              <div className="flex items-center gap-1.5 text-[12px] text-[#525252]">
+                <Mail size={12} className="shrink-0 text-[#A3A3A3]" />
                 <span className="truncate">{t.user_email || "email indisponível"}</span>
               </div>
 
               {(t.last_message || t.subject) && (
-                <div className="rounded-lg bg-white/[0.04] px-2.5 py-2 w-full">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8A8A8E]/60">
+                <div className="rounded-lg bg-[#F5F5F4] px-2.5 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#A3A3A3]">
                     Última mensagem
                   </p>
-                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-white">
+                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-[#0A0A0A]">
                     {t.last_message || t.subject}
                   </p>
                 </div>
               )}
 
               <span
-                className={`inline-flex w-fit items-center rounded-lg px-2 py-0.5 text-[10px] font-semibold ${accent.statusBadge}`}
+                className={`inline-flex w-fit items-center rounded-md px-2 py-0.5 text-[10px] font-semibold ${accent.statusBadge}`}
               >
                 {meta.label}
               </span>
@@ -411,10 +447,10 @@ const CategoryColumn = ({
 };
 
 const EmptyState = () => (
-  <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-white/[0.08] bg-transparent py-16 text-center">
-    <MessageCircle className="h-8 w-8 text-[#8A8A8E]/40" strokeWidth={1.5} />
+  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#E5E5E5] bg-white py-16 text-center">
+    <MessageCircle className="h-8 w-8 text-[#D4D4D4]" />
     <p className="mt-3 text-[14px] font-semibold">Nenhum ticket aberto</p>
-    <p className="mt-1 text-[12px] text-[#8A8A8E]">Novas solicitações aparecerão aqui automaticamente.</p>
+    <p className="mt-1 text-[12px] text-[#737373]">Novas solicitações aparecerão aqui automaticamente.</p>
   </div>
 );
 
@@ -443,20 +479,20 @@ const ChatDrawer = ({
 }) => {
   const meta = CATEGORY_META[ticket.category];
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/50" onClick={onClose}>
       <div
-        className="flex h-full w-full max-w-[560px] flex-col bg-[#0F0F0F] border-l border-white/[0.08] shadow-2xl"
+        className="flex h-full w-full max-w-[560px] flex-col bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between border-b border-white/[0.08] px-6 py-4">
+        <div className="flex items-start justify-between border-b border-[#F0F0F0] px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.08] text-white">
-              <UserRound size={18} strokeWidth={1.5} />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0A0A0A] text-white">
+              <UserRound size={18} />
             </div>
             <div>
-              <p className="text-[15px] font-semibold text-white">{ticket.user_name || "Usuário"}</p>
-              <p className="text-[12px] text-[#8A8A8E]">{ticket.user_email || "Email indisponível"}</p>
-              <span className={`mt-1.5 inline-block rounded-lg px-2 py-0.5 text-[10px] font-semibold ${meta.accent}`}>
+              <p className="text-[15px] font-bold">{ticket.user_name || "Usuário"}</p>
+              <p className="text-[12px] text-[#737373]">{ticket.user_email || "Email indisponível"}</p>
+              <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${meta.accent}`}>
                 {meta.label}
               </span>
             </div>
@@ -464,26 +500,26 @@ const ChatDrawer = ({
           <button
             onClick={onClose}
             aria-label="Fechar"
-            className="rounded-lg p-1.5 text-[#8A8A8E] hover:bg-white/5 hover:text-white transition"
+            className="rounded-full p-1 text-[#737373] hover:bg-[#F5F5F5]"
           >
-            <X size={18} strokeWidth={1.5} />
+            <X size={18} />
           </button>
         </div>
 
         {ticket.subject && (
-          <div className="border-b border-white/[0.08] bg-[#0A0A0A] px-6 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8A8A8E]/60">Motivo</p>
-            <p className="mt-1 text-[13px] leading-5 text-white">{ticket.subject}</p>
+          <div className="border-b border-[#F0F0F0] bg-[#FAFAFA] px-6 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#A3A3A3]">Motivo</p>
+            <p className="mt-1 text-[13px] leading-5 text-[#0A0A0A]">{ticket.subject}</p>
           </div>
         )}
 
-        <div className="flex-1 space-y-3 overflow-y-auto bg-[#0A0A0A] p-5">
+        <div className="flex-1 space-y-3 overflow-y-auto bg-[#FAFAFA] p-5">
           {loadingMessages ? (
             <div className="flex h-full items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-white/60" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-center text-[13px] text-[#8A8A8E]">
+            <div className="flex h-full items-center justify-center text-center text-[13px] text-[#737373]">
               O usuário ainda não enviou mensagens.
             </div>
           ) : (
@@ -491,15 +527,15 @@ const ChatDrawer = ({
               <div key={m.id} className={`flex ${m.sender === "admin" ? "justify-end" : "justify-start"}`}>
                 <div
                   className={[
-                    "max-w-[80%] rounded-lg px-4 py-2.5 text-[14px] leading-6",
+                    "max-w-[80%] rounded-2xl px-4 py-2.5 text-[14px] leading-6 shadow-sm",
                     m.sender === "admin"
-                      ? "rounded-br-none bg-white/[0.06] text-white"
-                      : "rounded-bl-none bg-white/[0.03] border border-white/[0.08] text-white",
+                      ? "rounded-br-md bg-[#0A0A0A] text-white"
+                      : "rounded-bl-md bg-white text-[#0A0A0A]",
                   ].join(" ")}
                 >
                   <p className="whitespace-pre-wrap">{m.message}</p>
                   <p
-                    className={`mt-1.5 text-[10px] ${m.sender === "admin" ? "text-white/40" : "text-[#8A8A8E]/60"}`}
+                    className={`mt-1 text-[10px] ${m.sender === "admin" ? "text-white/60" : "text-[#A3A3A3]"}`}
                   >
                     {formatDateTime(m.created_at)}
                   </p>
@@ -509,14 +545,14 @@ const ChatDrawer = ({
           )}
         </div>
 
-        <div className="border-t border-white/[0.08] bg-[#0F0F0F] p-4">
+        <div className="border-t border-[#F0F0F0] bg-white p-4">
           <div className="mb-3 flex justify-end">
             <button
               onClick={onResolve}
               disabled={resolving}
-              className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#0A0A0A] px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-white/[0.04] disabled:opacity-50 transition"
+              className="inline-flex items-center gap-2 rounded-full border border-[#0A0A0A] px-3.5 py-1.5 text-[12px] font-semibold text-[#0A0A0A] transition hover:bg-[#0A0A0A] hover:text-white disabled:opacity-50"
             >
-              {resolving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} strokeWidth={1.5} />}
+              {resolving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
               Marcar como resolvido
             </button>
           </div>
@@ -531,12 +567,12 @@ const ChatDrawer = ({
                 }
               }}
               placeholder="Digite a resposta para o usuário..."
-              className="min-h-[48px] flex-1 resize-none rounded-lg border border-white/[0.08] bg-[#0A0A0A] px-4 py-3 text-[14px] leading-5 text-white outline-none focus:border-white/20 transition placeholder:text-[#8A8A8E]/60"
+              className="min-h-[48px] flex-1 resize-none rounded-2xl border border-[#E5E5E5] bg-white px-4 py-3 text-[14px] leading-5 outline-none transition focus:border-[#0A0A0A]"
             />
             <button
               onClick={onSend}
               disabled={sending || !reply.trim()}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#22C55E] text-black transition hover:bg-[#16A34A] disabled:cursor-not-allowed disabled:bg-white/[0.04] disabled:text-white/30"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Enviar"
             >
               {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}

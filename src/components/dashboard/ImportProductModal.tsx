@@ -668,14 +668,14 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       {/* Drawer */}
       <div
-        className={`relative flex w-full max-w-[1040px] h-full overflow-hidden bg-white shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.2)] transition-transform duration-150 ease-out ${
+        className={`relative flex h-full w-full max-w-[1040px] overflow-hidden bg-white shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.2)] transition-transform duration-150 ease-out ${
           visible ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* ============== LEFT — MAIN ============== */}
         <div className="flex flex-1 flex-col min-w-0">
           {/* Header */}
-          <div className="flex items-start justify-between px-8 pt-7 pb-5">
+          <div className="flex items-start justify-between px-4 pb-4 pt-4 sm:px-6 md:px-8 md:pb-5 md:pt-7">
             <div className="flex items-start gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-50">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -698,16 +698,16 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           </div>
 
           {/* Stepper */}
-          <div className="px-8 pb-6">
-            <div className="flex items-center">
+          <div className="mobile-hide-scrollbar overflow-x-auto px-4 pb-4 sm:px-6 md:overflow-visible md:px-8 md:pb-6">
+            <div className="flex min-w-max items-center md:min-w-0">
               {STEPS.map((s, i) => {
                 const active = step === s.num;
                 const done = step > s.num;
                 return (
-                  <div key={s.num} className="flex items-center flex-1 last:flex-initial">
+                  <div key={s.num} className="flex items-center md:flex-1 md:last:flex-initial">
                     <button
                       onClick={() => { if (done) setStep(s.num); }}
-                      className="flex items-center gap-2.5 group"
+                      className="group flex items-center gap-2"
                       disabled={!done && !active}
                     >
                       <span
@@ -731,7 +731,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                       </span>
                     </button>
                     {i < STEPS.length - 1 && (
-                      <div className="flex-1 mx-3 h-px bg-gray-200 relative overflow-hidden">
+                      <div className="relative mx-2 h-px w-8 overflow-hidden bg-gray-200 md:mx-3 md:w-auto md:flex-1">
                         <div
                           className="absolute inset-y-0 left-0 bg-[#0A0A0A] transition-all duration-500 ease-out"
                           style={{ width: step > s.num ? "100%" : "0%" }}
@@ -745,7 +745,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           </div>
 
           {/* Content — animated per step */}
-          <div className="flex-1 overflow-y-auto px-8" style={{ scrollbarWidth: "thin", minHeight: 320 }}>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 sm:px-6 md:px-8" style={{ scrollbarWidth: "thin", minHeight: 0 }}>
             {/* STEP 1 — Detalhes */}
             {step === 1 && (
               <div key="s2" className="step-fade space-y-6 pb-6">
@@ -1135,11 +1135,11 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between border-t border-gray-100 px-8 py-4 bg-white">
-            <p className="text-[11.5px] text-gray-400">
+          <div className="flex shrink-0 items-center justify-end border-t border-gray-100 bg-white px-4 py-3 sm:px-6 md:justify-between md:px-8 md:py-4">
+            <p className="hidden text-[11.5px] text-gray-400 md:block">
               Saiba mais sobre <span className="text-[#0A0A0A] underline cursor-pointer">Importar Produto</span>
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full items-center justify-end gap-2 md:w-auto">
               {step < 4 && (
                 <button
                   onClick={handleClose}
@@ -1188,7 +1188,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         </div>
 
         {/* ============== RIGHT — PRODUCT DETAIL ============== */}
-        <div className="w-[300px] shrink-0 border-l border-gray-100 bg-gray-50/40 flex flex-col">
+        <div className="hidden w-[300px] shrink-0 flex-col border-l border-gray-100 bg-gray-50/40 md:flex">
           <div className="flex items-center justify-between px-6 pt-7 pb-4">
             <h3 className="text-[13px] font-semibold text-[#0A0A0A]">Detalhes do produto</h3>
           </div>

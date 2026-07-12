@@ -6,6 +6,7 @@ import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import RefundSection from "@/components/dashboard/RefundSection";
+import { notifyNewSupportTicketEmail } from "@/lib/supportEmail";
 
 const TRIAL_REASON_MESSAGES: Record<string, string> = {
   bug: "Olá! Estou no período de trial e encontrei um bug na plataforma. Poderiam me ajudar?",
@@ -257,6 +258,7 @@ const SupportTab = () => {
     if (!trimmed || loading || ticketLoading || !user?.id) return;
 
     let activeTicket = ticket;
+    const hadActiveTicket = activeTicket?.status === "open";
     if (!activeTicket || activeTicket.status !== "open") {
       activeTicket = await startHumanSupport();
     }
@@ -283,6 +285,12 @@ const SupportTab = () => {
       setSupportMessages((prev) =>
         prev.some((item) => item.id === data.id) ? prev : [...prev, data as SupportMessage]
       );
+      if (!hadActiveTicket) {
+        notifyNewSupportTicketEmail(activeTicket.id, data.id).catch((error) => {
+          console.error(error);
+          toast.error(error instanceof Error ? error.message : "Ticket aberto, mas não foi possível avisar os admins por email.");
+        });
+      }
     } catch (error) {
       console.error(error);
       toast.error("Não foi possível enviar sua mensagem ao suporte.");
@@ -373,11 +381,20 @@ const SupportTab = () => {
             try {
               const created = await startHumanSupport({ category: modalCategory, subject: subj });
               if (created) {
-                await (supabase as any).from("support_messages").insert({
-                  ticket_id: created.id,
-                  user_id: user!.id,
-                  message: subj,
-                  sender: "user",
+                const { data: message, error: messageError } = await (supabase as any)
+                  .from("support_messages")
+                  .insert({
+                    ticket_id: created.id,
+                    user_id: user!.id,
+                    message: subj,
+                    sender: "user",
+                  })
+                  .select("*")
+                  .single();
+                if (messageError) throw messageError;
+                notifyNewSupportTicketEmail(created.id, message.id).catch((error) => {
+                  console.error(error);
+                  toast.error(error instanceof Error ? error.message : "Ticket aberto, mas não foi possível avisar os admins por email.");
                 });
                 setOpenModal(false);
                 setModalSubject("");

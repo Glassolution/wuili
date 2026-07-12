@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   CalendarDays,
   Check,
+  ChevronDown,
   CircleHelp,
   Clock3,
   Eye,
@@ -12,15 +13,15 @@ import {
   Folder,
   Globe2,
   Grid2X2,
+  Heart,
   Pencil,
   Plus,
   Search,
   Settings,
-  SlidersHorizontal,
   Trash2,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +46,9 @@ type ProductPreview = {
   title: string;
   category: string;
   image: string;
+  price: number;
+  ordersCount: number;
+  rating: number | null;
 };
 
 type DailyProductSpotlightItem = {
@@ -166,6 +170,13 @@ const formatCollectionDate = (value: string | null) => {
 
 const formatInteger = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
+const toCatalogMetricNumber = (value: unknown) => {
+  const numberValue =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value.replace(",", ".")) : Number.NaN;
+
+  return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : null;
+};
+
 const MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 const formatChartMonth = (date: Date) => `${MONTHS_SHORT[date.getMonth()]}. ${date.getFullYear()}`;
@@ -202,10 +213,10 @@ const overviewPeriods: Array<{
   points: number;
   compare: string;
 }> = [
-  { value: "30d", label: "Ultimos 30 dias", points: 2, compare: "periodo anterior" },
-  { value: "90d", label: "Ultimos 90 dias", points: 3, compare: "90 dias anteriores" },
-  { value: "180d", label: "Ultimos 180 dias", points: 4, compare: "180 dias anteriores" },
-  { value: "365d", label: "Ultimos 365 dias", points: 6, compare: "ano anterior" },
+  { value: "30d", label: "Últimos 30 dias", points: 2, compare: "periodo anterior" },
+  { value: "90d", label: "Últimos 90 dias", points: 3, compare: "90 dias anteriores" },
+  { value: "180d", label: "Últimos 180 dias", points: 4, compare: "180 dias anteriores" },
+  { value: "365d", label: "Últimos 365 dias", points: 6, compare: "ano anterior" },
 ];
 
 const latestValue = (values: number[]) => values[values.length - 1] ?? 0;
@@ -279,6 +290,9 @@ const mapProductPreview = (product: CatalogProductRow): ProductPreview | null =>
     title: product.title,
     category: product.category || "Produto",
     image,
+    price: Number(product.cost_price || 0),
+    ordersCount: Number(product.orders_count || 0),
+    rating: toCatalogMetricNumber(product.rating),
   };
 };
 
@@ -750,7 +764,25 @@ const OverviewMetricCard = ({ label, value, delta, values }: { label: string; va
   </article>
 );
 
-const SalesOverTimeChart = ({ revenue, values, labels, currentRange, previousRange }: { revenue: string; values: number[]; labels: string[]; currentRange: string; previousRange: string }) => {
+const SalesOverTimeChart = ({
+  revenue,
+  values,
+  labels,
+  currentRange,
+  previousRange,
+  period,
+  onPeriodChange,
+}: {
+  revenue: string;
+  values: number[];
+  labels: string[];
+  currentRange: string;
+  previousRange: string;
+  period: OverviewPeriod;
+  onPeriodChange: (period: OverviewPeriod) => void;
+}) => {
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
+  const selectedPeriod = overviewPeriods.find((item) => item.value === period) ?? overviewPeriods[3];
   const chartValues = normalizeSeries(values, 0);
   const hasData = chartValues.some((value) => value > 0);
   const chartMax = Math.max(...chartValues, 1);
@@ -777,14 +809,49 @@ const SalesOverTimeChart = ({ revenue, values, labels, currentRange, previousRan
 
   return (
   <article className="rounded-[10px] border border-black/[0.045] bg-white p-3.5 shadow-[0_8px_18px_rgba(17,17,17,0.03)]">
-    <p className="text-[10px] font-bold text-[#5F5F5F]">
-      Vendas totais ao longo do tempo
-    </p>
-    <div className="mt-1 flex items-baseline gap-1.5">
-      <p className="text-[17px] font-bold text-[#171717]">
-        {revenue}
-      </p>
-      <span className="text-[9px] font-semibold text-[#8C8C8C]">{trend}</span>
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-[10px] font-bold text-[#5F5F5F]">
+          Vendas totais ao longo do tempo
+        </p>
+        <div className="mt-1 flex items-baseline gap-1.5">
+          <p className="text-[17px] font-bold text-[#171717]">
+            {revenue}
+          </p>
+          <span className="text-[9px] font-semibold text-[#8C8C8C]">{trend}</span>
+        </div>
+      </div>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setPeriodMenuOpen((open) => !open)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#E4E4E4] bg-white px-3 text-[11px] font-semibold text-[#171717] shadow-[0_8px_18px_rgba(17,17,17,0.05)] transition hover:bg-[#F7F7F6]"
+        >
+          <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} />
+          {selectedPeriod.label}
+          <ChevronDown className={`h-3.5 w-3.5 transition ${periodMenuOpen ? "rotate-180" : ""}`} strokeWidth={1.8} />
+        </button>
+        {periodMenuOpen && (
+          <div className="absolute right-0 top-9 z-20 w-44 overflow-hidden rounded-[12px] border border-[#E7E7E7] bg-white p-1 shadow-[0_18px_45px_rgba(0,0,0,0.12)]">
+            {overviewPeriods.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => {
+                  onPeriodChange(item.value);
+                  setPeriodMenuOpen(false);
+                }}
+                className={`flex h-8 w-full items-center gap-2 rounded-[9px] px-2.5 text-left text-[11px] font-semibold transition ${
+                  period === item.value ? "bg-[#111111] text-white" : "text-[#4A4A4A] hover:bg-[#F4F4F4]"
+                }`}
+              >
+                <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} />
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
     <div className="mt-2 h-[174px] overflow-hidden">
       <svg viewBox="0 0 720 210" preserveAspectRatio="none" aria-hidden="true" className="h-full w-full">
@@ -943,37 +1010,8 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
           }
         `}
       </style>
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <h1 className="text-[16px] font-bold text-[#171717]">Visão geral</h1>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <div className="inline-flex flex-wrap items-center gap-1 rounded-[8px] bg-white p-1 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-            {overviewPeriods.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setPeriod(item.value)}
-                className={`inline-flex h-6 items-center gap-1.5 rounded-[6px] px-2 text-[10px] font-semibold transition ${
-                  period === item.value
-                    ? "bg-[#171717] text-white"
-                    : "text-[#5F5F5F] hover:bg-[#F2F2F1] hover:text-[#171717]"
-                }`}
-              >
-                <CalendarDays className="h-3 w-3" strokeWidth={1.8} />
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <span className="inline-flex h-6 items-center rounded-[6px] bg-white px-2.5 text-[10px] font-semibold text-[#5F5F5F] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-            Comparar com: {selectedPeriod.compare}
-          </span>
-        </div>
-      </div>
-      <div className="hidden">
-        <button type="button" aria-label="Configurar visão" className="grid h-6 w-6 place-items-center rounded-[6px] bg-white text-[#171717] shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-          <SlidersHorizontal className="h-3 w-3" strokeWidth={1.8} />
-        </button>
-      </div>
+    <div>
+      <h1 className="text-[16px] font-bold text-[#171717]">Visão geral</h1>
     </div>
 
     <div className="mt-3 grid grid-cols-2 gap-2 min-[700px]:grid-cols-4">
@@ -984,7 +1022,7 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
     </div>
 
     <div className="mt-2 grid grid-cols-1 gap-2 min-[700px]:grid-cols-[2fr_1fr]">
-      <SalesOverTimeChart revenue={kpis.revenue} values={salesSeries} labels={labels} currentRange={currentRange} previousRange={previousRange} />
+      <SalesOverTimeChart revenue={kpis.revenue} values={salesSeries} labels={labels} currentRange={currentRange} previousRange={previousRange} period={period} onPeriodChange={setPeriod} />
       <SalesBreakdown rows={kpis.salesBreakdown} />
     </div>
 
@@ -1002,6 +1040,77 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
       />
     </div>
   </section>
+  );
+};
+
+export const MobileResultsOverview = () => {
+  const { user } = useAuth();
+  const [kpis, setKpis] = useState<CollectionKpis>(emptyKpis);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let isMounted = true;
+    void loadCollectionKpis(user.id).then((nextKpis) => {
+      if (isMounted) setKpis(nextKpis);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  const chartValues = kpis.monthlySales.some((value) => value > 0) ? kpis.monthlySales : kpis.monthlyOrders;
+  const metrics = [
+    ["Vendas", kpis.revenue],
+    ["Pedidos", kpis.orders],
+    ["Entregues", kpis.fulfilledOrders],
+    ["Ticket médio", kpis.averageOrderValue],
+  ];
+
+  return (
+    <section className="space-y-4 bg-[#F4F4F2] p-1 pb-5">
+      <div>
+        <h1 className="text-[24px] font-black tracking-[-0.05em] text-[#111111]">Seus resultados</h1>
+        <p className="mt-1 text-[13px] font-medium text-black/50">Visão simples do desempenho da sua loja.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        {metrics.map(([label, value]) => (
+          <article key={label} className="min-h-[104px] rounded-[16px] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.05)]">
+            <p className="text-[12px] font-semibold text-black/48">{label}</p>
+            <p className="mt-3 text-[21px] font-black tracking-[-0.04em] text-[#111111]">{value}</p>
+          </article>
+        ))}
+      </div>
+
+      <article className="rounded-[18px] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.05)]">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[12px] font-semibold text-black/48">Evolução das vendas</p>
+            <p className="mt-1 text-[22px] font-black tracking-[-0.04em] text-[#111111]">{kpis.revenue}</p>
+          </div>
+          <span className="rounded-full bg-[#F1F1F1] px-3 py-1.5 text-[11px] font-bold text-black/60">6 meses</span>
+        </div>
+        <Sparkline values={chartValues} className="mt-5 h-[108px] w-full" />
+      </article>
+
+      <article className="rounded-[18px] bg-[#111111] p-4 text-white">
+        <p className="text-[12px] font-semibold text-white/55">Resumo da operação</p>
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          {[
+            ["Catálogo", kpis.catalogProducts],
+            ["Publicados", kpis.activePublications],
+            ["Recorrência", kpis.returningCustomerRate],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <p className="text-[18px] font-black">{value}</p>
+              <p className="mt-1 text-[10px] font-semibold text-white/50">{label}</p>
+            </div>
+          ))}
+        </div>
+      </article>
+    </section>
   );
 };
 
@@ -1939,6 +2048,339 @@ const CollectionProductsPanel = ({
   );
 };
 
+const mobileTabs = ["Início", "Tendências", "Do Brasil", "Eletrônicos"];
+
+const mobileShortcutItems = [
+  { label: "Grupo", kind: "group", to: "/dashboard/catalogo" },
+  { label: "Rankings", kind: "trophy", to: "/dashboard/catalogo?sort=hot" },
+  { label: "Moedas", kind: "coins", to: "/dashboard/catalogo" },
+  { label: "Marcas+", kind: "box", to: "/dashboard/catalogo" },
+  { label: "Cashback", kind: "cashback", to: "/dashboard/catalogo" },
+] as const;
+
+const MobileShortcutIcon = ({ kind }: { kind: (typeof mobileShortcutItems)[number]["kind"] }) => {
+  if (kind === "group") {
+    return (
+      <span className="relative block h-14 w-16">
+        <span className="absolute bottom-1 left-1 h-6 w-6 rounded-t-full bg-[#7A230F]" />
+        <span className="absolute bottom-0 left-0 h-5 w-8 rounded-t-[18px] bg-[#8A2C15]" />
+        <span className="absolute bottom-1 right-2 h-8 w-8 rounded-full bg-[#FF4663]" />
+        <span className="absolute bottom-0 right-0 h-7 w-10 rounded-t-[20px] bg-[#F43F5E]" />
+        <span className="absolute right-4 top-0 text-[13px] text-[#FFD21E]">★</span>
+        <span className="absolute right-1 top-5 text-[18px] font-black text-white">%</span>
+      </span>
+    );
+  }
+
+  if (kind === "trophy") {
+    return (
+      <span className="relative block h-14 w-16">
+        <span className="absolute left-1/2 top-2 h-8 w-9 -translate-x-1/2 rounded-b-[18px] rounded-t-[6px] bg-[#F59E0B]" />
+        <span className="absolute left-3 top-3 h-5 w-3 rounded-l-full border-[5px] border-r-0 border-[#D97706]" />
+        <span className="absolute right-3 top-3 h-5 w-3 rounded-r-full border-[5px] border-l-0 border-[#D97706]" />
+        <span className="absolute left-1/2 top-4 -translate-x-1/2 text-[16px] text-white">★</span>
+        <span className="absolute bottom-1 left-1/2 h-2 w-8 -translate-x-1/2 rounded-full bg-[#92400E]" />
+        <span className="absolute bottom-3 left-1/2 h-4 w-3 -translate-x-1/2 bg-[#B45309]" />
+      </span>
+    );
+  }
+
+  if (kind === "coins") {
+    return (
+      <span className="relative block h-14 w-16">
+        <span className="absolute left-2 top-1 h-11 w-11 rounded-full bg-[#FDBA24]" />
+        <span className="absolute left-5 top-2 text-[20px] text-white">⚡</span>
+        <span className="absolute bottom-2 left-1 rounded-[6px] bg-[#F43F5E] px-1.5 py-0.5 text-[12px] font-black leading-none text-white">-70%</span>
+        <span className="absolute right-0 top-0 rounded-full bg-[#F30436] px-1.5 py-0.5 text-[13px] font-black leading-none text-white">+20</span>
+      </span>
+    );
+  }
+
+  if (kind === "box") {
+    return (
+      <span className="relative block h-14 w-16">
+        <span className="absolute left-2 top-2 h-10 w-12 rounded-[6px] bg-[#38BDF8]" />
+        <span className="absolute left-2 top-2 h-4 w-12 rounded-t-[6px] bg-[#0EA5E9]" />
+        <span className="absolute left-7 top-2 h-10 w-3 bg-[#1D4ED8]" />
+        <span className="absolute right-3 bottom-2 h-5 w-4 rounded-[3px] bg-white/90" />
+      </span>
+    );
+  }
+
+  return (
+    <span className="relative block h-14 w-16">
+      <span className="absolute inset-x-1 top-2 h-11 rounded-full border-[5px] border-[#F97316]" />
+      <span className="absolute left-2 top-3 rounded-full bg-[#F97316] px-2 py-1 text-[18px] font-black leading-none text-white">R$</span>
+      <span className="absolute right-0 top-1 h-4 w-4 rounded-full bg-[#FED7AA]" />
+    </span>
+  );
+};
+
+const MobileAliVeloHome = ({
+  products,
+  collections,
+  kpis,
+  onCreateCollection,
+}: {
+  products: ProductPreview[];
+  collections: CollectionSummary[];
+  kpis: CollectionKpis;
+  onCreateCollection: () => void;
+}) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const featuredProducts = products;
+  const firstProduct = featuredProducts[0];
+  const secondProduct = featuredProducts[1] ?? firstProduct;
+
+  if (location.pathname === "/colecoes") {
+    return (
+      <section className="min-h-screen bg-[#F4F4F2] px-4 pb-24 pt-5 md:hidden">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[12px] font-bold uppercase text-black/40">Organização</p>
+            <h1 className="mt-1 text-[30px] font-black tracking-[-0.06em] text-[#111111]">Coleções</h1>
+            <p className="mt-1 text-[13px] font-medium text-black/50">
+              {collections.length} coleção{collections.length === 1 ? "" : "ões"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCreateCollection}
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-[#111111] px-4 text-[12px] font-bold text-white"
+          >
+            <Plus className="h-4 w-4" />
+            Nova
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-3">
+          {collections.length > 0 ? (
+            collections.map((collection) => (
+              <button
+                key={collection.id}
+                type="button"
+                onClick={() => navigate(`/dashboard/catalogo?collectionId=${encodeURIComponent(collection.id)}&collectionName=${encodeURIComponent(collection.name)}`)}
+                className="flex min-h-[112px] items-center gap-4 rounded-[18px] bg-white p-4 text-left shadow-[0_1px_0_rgba(0,0,0,0.06)]"
+              >
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#F1F1F1] text-[#111111]">
+                  <Folder className="h-6 w-6" strokeWidth={1.8} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[17px] font-black tracking-[-0.04em] text-[#111111]">{collection.name}</span>
+                  <span className="mt-1 block text-[12px] font-semibold text-black/45">{collection.productCount} produtos</span>
+                </span>
+                <span className="text-[22px] text-black/35">›</span>
+              </button>
+            ))
+          ) : (
+            <button
+              type="button"
+              onClick={onCreateCollection}
+              className="rounded-[18px] border-2 border-dashed border-black/10 bg-white px-6 py-12 text-center"
+            >
+              <Folder className="mx-auto h-8 w-8 text-black/30" />
+              <span className="mt-3 block text-[15px] font-bold text-[#111111]">Crie sua primeira coleção</span>
+              <span className="mt-1 block text-[12px] text-black/45">Organize produtos para importar depois.</span>
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="md:hidden">
+      <div className="min-h-screen w-full overflow-x-hidden bg-white pb-6 text-[#111111]">
+        <div className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard")}
+              className="text-[30px] font-black leading-none tracking-[-0.08em] text-[#111111]"
+              aria-label="Velo"
+            >
+              Velo
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/configuracoes?tab=Suporte")}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-[#111111]"
+              aria-label="Notificações"
+            >
+              <CircleHelp className="h-5 w-5" strokeWidth={2.1} />
+              <span className="absolute -right-0.5 -top-0.5 rounded-full bg-[#F30436] px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
+                3
+              </span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/catalogo")}
+            className="mt-4 flex h-[54px] w-full items-center gap-3 rounded-[18px] border-2 border-[#111111] bg-white p-1.5 text-left shadow-[0_4px_0_rgba(37,99,235,0.08)]"
+          >
+            <span className="flex h-10 w-11 shrink-0 items-center justify-center rounded-[13px] bg-[#EEF4FF] text-[#2563EB]">
+              <Search className="h-5 w-5" strokeWidth={2.4} />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[17px] font-black tracking-[-0.04em] text-[#222222]">
+              buscar produtos para vender
+            </span>
+            <span className="flex h-10 w-14 shrink-0 items-center justify-center rounded-[15px] bg-[#111111] text-white">
+              <Search className="h-5 w-5" strokeWidth={2.6} />
+            </span>
+          </button>
+
+          <nav className="mt-4 flex gap-6 overflow-x-auto text-[18px] font-black tracking-[-0.04em] [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {mobileTabs.map((tab, index) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => (index === 0 ? navigate("/dashboard") : navigate("/dashboard/catalogo"))}
+                className={`shrink-0 ${index === 0 ? "text-[#111111]" : index === 1 ? "text-[#2563EB]" : index === 2 ? "text-[#10B981]" : "text-[#5F5F5F]"}`}
+              >
+                {tab}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <section className="mx-4 mt-3 overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#EEF4FF_0%,#FFFFFF_42%,#DDEAFF_100%)] px-4 pb-5 pt-4 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.12)]">
+          <p className="text-[13px] font-black tracking-[-0.02em] text-[#1E3A8A]">
+            Catálogo Velo · produtos brasileiros
+          </p>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[36px] font-black italic leading-[0.9] tracking-[-0.08em] text-[#111111]">
+                VENDA
+              </p>
+              <p className="text-[34px] font-black leading-none tracking-[-0.08em] text-[#2563EB]">
+                MAIS
+              </p>
+            </div>
+            <div className="relative h-24 w-36 shrink-0">
+              {firstProduct && (
+                <img
+                  src={firstProduct.image}
+                  alt=""
+                  className="absolute right-0 top-0 h-24 w-24 rotate-6 rounded-[18px] border-2 border-white object-cover shadow-[0_12px_30px_rgba(30,58,138,0.18)]"
+                />
+              )}
+              {secondProduct && (
+                <img
+                  src={secondProduct.image}
+                  alt=""
+                  className="absolute bottom-0 left-0 h-16 w-20 -rotate-6 rounded-[14px] border-2 border-white object-cover shadow-[0_10px_24px_rgba(30,58,138,0.14)]"
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {[
+              { value: kpis.catalogProducts, label: "produtos" },
+              { value: kpis.activePublications, label: "publicados" },
+              { value: kpis.orders, label: "pedidos" },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => navigate("/dashboard/catalogo")}
+                className="rounded-[14px] bg-white px-2 py-3 text-center shadow-[0_8px_18px_rgba(37,99,235,0.10)]"
+              >
+                <p className="text-[18px] font-black leading-none tracking-[-0.04em] text-[#2563EB]">{item.value}</p>
+                <p className="mt-1 text-[11px] font-bold text-[#6B7280]">{item.label}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="overflow-hidden bg-white py-4">
+          <div className="flex gap-6 overflow-x-auto px-4 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {mobileShortcutItems.map((item) => {
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => navigate(item.to)}
+                  className="flex w-[78px] shrink-0 flex-col items-center gap-2 text-center"
+                >
+                  <MobileShortcutIcon kind={item.kind} />
+                  <span className="text-[13px] font-bold leading-tight text-[#5B5B5B]">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {featuredProducts.length > 0 && (
+          <section className="bg-white px-4 pt-5">
+            <div className="mb-3">
+              <h2 className="text-[22px] font-black tracking-[-0.05em] text-[#111111]">Produtos para vender</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pb-2">
+              {featuredProducts.map((product) => {
+                const hasRating = product.rating !== null;
+
+                return (
+                <button
+                  key={`home-feature-${product.id}`}
+                  type="button"
+                  onClick={() => navigate(`/dashboard/catalogo/${product.id}`)}
+                  className="min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                >
+                  <div className="relative aspect-square overflow-hidden bg-[#F3F3F3]">
+                    <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
+                    <span
+                      aria-hidden="true"
+                      className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#111111] shadow-[0_6px_18px_rgba(0,0,0,0.12)]"
+                    >
+                      <Heart className="h-4 w-4" strokeWidth={2.1} />
+                    </span>
+                  </div>
+                  <div className="p-2.5">
+                    <div className="mb-1.5 flex flex-wrap gap-1">
+                      <span className="max-w-full truncate rounded-[4px] bg-[#F1F1F1] px-1.5 py-0.5 text-[9px] font-bold text-black/55">{product.category}</span>
+                    </div>
+                    <p className="line-clamp-2 min-h-[36px] text-[12px] font-bold leading-[1.45] text-[#222222]">{product.title}</p>
+                    <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-black/45">
+                      <span>{formatInteger(product.ordersCount)} vendidos</span>
+                      {hasRating && (
+                        <>
+                          <span>·</span>
+                          <span>★ {product.rating.toFixed(1)}</span>
+                        </>
+                      )}
+                    </div>
+                    {product.ordersCount > 0 && (
+                      <p className="mt-1.5 text-[10px] font-bold text-[#A76A16]">Top vendas na Velo</p>
+                    )}
+                    <p className="mt-2 text-[16px] font-semibold tracking-[-0.04em] text-[#111111]">{formatCurrency(product.price)}</p>
+                  </div>
+                </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        <div className="mx-4 rounded-[16px] bg-[linear-gradient(90deg,#F1FBF1,#F9FFF8)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.10)]">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#8CDD82] text-white">
+              <Check className="h-5 w-5" strokeWidth={2.4} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[17px] font-black tracking-[-0.05em] text-[#6F806F]">Fornecedores brasileiros</p>
+              <p className="text-[13px] font-semibold text-[#9CA89C]">Produtos com estoque e curadoria Velo</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  );
+};
+
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -1970,9 +2412,9 @@ const DashboardHomePage = () => {
     let isMounted = true;
 
     const fetchProducts = async () => {
-      const { data, error } = await supabase
+      const primaryResult = await supabase
         .from("catalog_products")
-        .select("id,title,category,images,is_active,is_blocked,stock_quantity,orders_count")
+        .select("id,title,category,images,cost_price,rating,is_active,is_blocked,stock_quantity,orders_count")
         .eq("source", "c7drop")
         .eq("is_active", true)
         .eq("is_blocked", false)
@@ -1980,9 +2422,24 @@ const DashboardHomePage = () => {
         .order("orders_count", { ascending: false, nullsFirst: false })
         .limit(12);
 
-      if (error || !isMounted) return;
+      if (!isMounted) return;
 
-      const previews = ((data ?? []) as CatalogProductRow[])
+      let rows = primaryResult.data;
+      if (primaryResult.error || !rows?.length) {
+        const fallbackResult = await supabase
+          .from("catalog_products")
+          .select("id,title,category,images,cost_price,rating,is_active,is_blocked,stock_quantity,orders_count")
+          .eq("is_active", true)
+          .eq("is_blocked", false)
+          .gt("stock_quantity", 0)
+          .order("orders_count", { ascending: false, nullsFirst: false })
+          .limit(12);
+
+        if (!isMounted || fallbackResult.error) return;
+        rows = fallbackResult.data;
+      }
+
+      const previews = ((rows ?? []) as CatalogProductRow[])
         .map(mapProductPreview)
         .filter((product): product is ProductPreview => Boolean(product));
 
@@ -2243,10 +2700,18 @@ const DashboardHomePage = () => {
 
 	  return (
 	    <main
-	      className="relative -m-5 min-h-screen overflow-visible bg-white pb-24 text-[#111111] sm:-m-6 lg:-m-7"
+	      className="relative min-h-screen overflow-visible bg-white pb-24 text-[#111111] md:-m-6 lg:-m-7"
 	      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" }}
 	    >
 	      <AnnouncementModal userId={user?.id} />
+	      <DailyProductSpotlightModal userId={user?.id} />
+	      <MobileAliVeloHome
+	        products={products}
+	        collections={collections}
+	        kpis={collectionKpis}
+	        onCreateCollection={() => setCreateModalOpen(true)}
+	      />
+	      <div className="hidden md:block">
 	      {collections.length > 0 ? (
 	        <section className="min-h-screen bg-[#F2F2F1] px-3 py-3 sm:px-5">
 	          <div className="mx-auto w-full max-w-[1180px]">
@@ -2414,6 +2879,7 @@ const DashboardHomePage = () => {
           </section>
         </>
       )}
+      </div>
 
       <CreateCollectionModal
         open={createModalOpen}

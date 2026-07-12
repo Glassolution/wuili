@@ -90,9 +90,9 @@ const PublicationsPage = () => {
       <div className="flex flex-col gap-3 pb-4">
         
         {/* Top Row: Tabs + View Settings */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 overflow-hidden">
           {/* Tabs */}
-          <div className="flex items-center gap-1">
+          <div className="mobile-hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             {[
               { key: "all" as TabFilter, label: "Todos", icon: Grid3x3 },
               { key: "active" as TabFilter, label: "Ativos" },
@@ -114,23 +114,23 @@ const PublicationsPage = () => {
               </button>
             ))}
             
-            <button className="ml-2 flex items-center gap-1 px-2 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em", borderRadius: "6px" }}>
+            <button className="ml-2 hidden items-center gap-1 px-2 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02] sm:flex" style={{ letterSpacing: "-0.01em", borderRadius: "6px" }}>
               <span>+</span>
               <span>Visualização</span>
             </button>
           </div>
 
           {/* View Settings */}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em", borderRadius: "6px" }}>
+          <button className="hidden items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02] md:flex" style={{ letterSpacing: "-0.01em", borderRadius: "6px" }}>
             <Settings size={14} strokeWidth={1.8} />
             <span>Configurações de visualização</span>
           </button>
         </div>
 
         {/* Second Row: Search + Filters + View Icons */}
-        <div className="flex items-center gap-2">
+        <div className="mobile-hide-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
           {/* Search */}
-          <div className="relative flex-1 max-w-[240px]">
+          <div className="relative min-w-[190px] flex-1 sm:max-w-[240px]">
             <Search size={14} strokeWidth={1.8} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
@@ -143,28 +143,28 @@ const PublicationsPage = () => {
           </div>
 
           {/* Category Dropdown */}
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em" }}>
+          <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em" }}>
             <span>Categoria</span>
             <ChevronDown size={14} strokeWidth={1.8} />
           </button>
 
           {/* Dropshipping Dropdown */}
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-black px-3 text-[13px] font-medium text-white transition-colors hover:bg-black/90" style={{ letterSpacing: "-0.01em" }}>
+          <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-black px-3 text-[13px] font-medium text-white transition-colors hover:bg-black/90" style={{ letterSpacing: "-0.01em" }}>
             <span>Dropshipping</span>
             <ChevronDown size={14} strokeWidth={1.8} />
           </button>
 
           {/* Advance Filter */}
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em" }}>
+          <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em" }}>
             <span>Filtro avançado</span>
             <ChevronDown size={14} strokeWidth={1.8} />
           </button>
 
           {/* Spacer */}
-          <div className="flex-1" />
+          <div className="hidden flex-1 md:block" />
 
           {/* View Mode Icons */}
-          <div className="flex items-center gap-1">
+          <div className="hidden items-center gap-1 sm:flex">
             <button
               onClick={() => setViewMode("grid")}
               className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${

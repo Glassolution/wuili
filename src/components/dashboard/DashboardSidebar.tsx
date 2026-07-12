@@ -35,9 +35,13 @@ type SidebarSubscription = {
   status: string | null;
   is_trial: boolean | null;
   trial_ends_at: string | null;
+  current_period_end?: string | null;
+  next_charge_at?: string | null;
+  created_at?: string | null;
 };
 
-const activeSubscriptionStatuses = new Set(["active", "paid", "approved"]);
+const activeSubscriptionStatuses = new Set(["active", "paid", "approved", "trialing"]);
+const TRIAL_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
 
 const formatTrialTimeLeft = (endsAt: string | null, now: Date) => {
   if (!endsAt) return null;
@@ -51,6 +55,22 @@ const formatTrialTimeLeft = (endsAt: string | null, now: Date) => {
   if (days <= 0) return `${hours}h`;
   if (hours <= 0) return `${days}d`;
   return `${days}d ${hours}h`;
+};
+
+const getTrialEndsAt = (subscription: SidebarSubscription | null) => {
+  if (!subscription) return null;
+  const status = String(subscription.status ?? "").toLowerCase();
+  const isTrial = subscription.is_trial === true || status === "trialing";
+  if (!isTrial) return null;
+
+  if (subscription.trial_ends_at) return subscription.trial_ends_at;
+  if (subscription.next_charge_at) return subscription.next_charge_at;
+  if (subscription.current_period_end) return subscription.current_period_end;
+  if (subscription.created_at && subscription.plan === "pro") {
+    return new Date(new Date(subscription.created_at).getTime() + TRIAL_DURATION_MS).toISOString();
+  }
+
+  return null;
 };
 
 const getInitials = (name: string, email?: string | null) => {
@@ -512,8 +532,9 @@ const DashboardSidebar = () => {
       supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("subscriptions")
-        .select("plan,status,is_trial,trial_ends_at")
+        .select("plan,status,is_trial,trial_ends_at,current_period_end,next_charge_at,updated_at,created_at")
         .eq("user_id", user.id)
+        .order("updated_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -537,10 +558,11 @@ const DashboardSidebar = () => {
   }, [user]);
 
   useEffect(() => {
-    if (!subscription?.is_trial || !subscription.trial_ends_at) return;
+    const trialEndsAt = getTrialEndsAt(subscription);
+    if (!trialEndsAt) return;
     const interval = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(interval);
-  }, [subscription?.is_trial, subscription?.trial_ends_at]);
+  }, [subscription]);
 
   useEffect(() => {
     if (!user) {
@@ -613,7 +635,7 @@ const DashboardSidebar = () => {
 
   const planLabel = plan === "business" ? "BUSINESS" : plan === "pro" ? "PRO" : plan === "go" ? "GO" : "GRATIS";
   const normalizedPlan = plan === "plus" ? "pro" : plan;
-  const trialTimeLeft = subscription?.is_trial ? formatTrialTimeLeft(subscription.trial_ends_at, now) : null;
+  const trialTimeLeft = formatTrialTimeLeft(getTrialEndsAt(subscription), now);
   const showUpgradeCard = Boolean(trialTimeLeft) || !["pro", "business"].includes(normalizedPlan);
 
   const handlePanelNavigate = (to: string) => {

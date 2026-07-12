@@ -20,6 +20,18 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+const getResendErrorDetail = async (response: Response) => {
+  const text = await response.text();
+  if (!text) return `Resend respondeu com status ${response.status}`;
+
+  try {
+    const body = JSON.parse(text);
+    return body?.message || body?.error || text;
+  } catch {
+    return text;
+  }
+};
+
 function renderTicketReplyEmail({
   ticketUrl,
   supportUrl,
@@ -91,7 +103,12 @@ Deno.serve(async (req) => {
     const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? "https://www.velods.com.br";
 
     if (!supabaseUrl || !anonKey || !serviceRoleKey) return json({ error: "Supabase não configurado" }, 500);
-    if (!resendApiKey) return json({ error: "RESEND_API_KEY não configurada" }, 500);
+    if (!resendApiKey) {
+      return json({
+        error: "RESEND_API_KEY não configurada",
+        detail: "Configure RESEND_API_KEY nas secrets da Edge Function no Supabase.",
+      }, 500);
+    }
 
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.startsWith("Bearer ")) return json({ error: "Não autenticado" }, 401);
@@ -164,18 +181,19 @@ Deno.serve(async (req) => {
     });
 
     if (!emailResponse.ok) {
-      const detail = await emailResponse.text();
+      const detail = await getResendErrorDetail(emailResponse);
       console.error("Resend ticket reply email failed:", emailResponse.status, detail);
-      let parsed: unknown = detail;
-      try { parsed = JSON.parse(detail); } catch { /* keep text */ }
-      return json({ sent: false, error: "resend_send_failed", status: emailResponse.status, details: parsed }, 502);
+      return json({
+        error: "Não foi possível enviar o email",
+        provider: "resend",
+        status: emailResponse.status,
+        detail,
+      }, 502);
     }
 
-    const result = await emailResponse.json().catch(() => ({}));
-    return json({ sent: true, id: (result as { id?: string }).id });
+    return json({ sent: true });
   } catch (error) {
     console.error("send-ticket-reply-email error:", error);
-    const message = error instanceof Error ? error.message : String(error);
-    return json({ sent: false, error: "internal_error", message }, 500);
+    return json({ error: "Erro interno" }, 500);
   }
 });
