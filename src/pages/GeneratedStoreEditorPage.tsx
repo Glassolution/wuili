@@ -108,7 +108,17 @@ const GeneratedStoreEditorPage = () => {
 
   if (!flow) return <Navigate to="/comecar" replace />;
   const displayedProducts = products.length ? products : [{ ...flow.product, category: "Moda", brand: "Velo" }];
-  const categories = Array.from(new Set(displayedProducts.map((product) => product.category))).slice(0, 5);
+  const categories = Array.from(new Set(displayedProducts.map((product) => product.category))).slice(0, 7);
+  const brandName = (flow.product.brand || "Velo").toUpperCase();
+  const brandInitial = brandName.charAt(0);
+  const salesAngleText = flow.salesAngle || "";
+  const personaText = flow.persona || "";
+  const isLuxury = /premium|luxo|sofistic|elegan/i.test(salesAngleText + personaText);
+  const isYouth = /jovem|urban|street|casual/i.test(salesAngleText + personaText);
+  const headlinePrimary = isLuxury ? "VISTA SUA" : isYouth ? "SEU ESTILO" : "VISTA SUA";
+  const headlineSecondary = isLuxury ? "ELEGÂNCIA" : isYouth ? "SEM LIMITES" : "CONFIANÇA";
+  const heroSubtitle = salesAngleText ? salesAngleText.slice(0, 120) : `Peças atemporais. ${brandName} tem tudo o que você precisa para se sentir bem.`;
+  const collectionLabels = ["O Essencial", "Fim de Semana", "Noite", "Poder Feminino"];
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#050505] text-white" style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
