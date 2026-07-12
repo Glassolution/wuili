@@ -6,6 +6,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
+import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
 import {
@@ -39,6 +40,13 @@ type Props = {
   open: boolean;
   onClose: () => void;
   product: CatalogProduct | null;
+  /**
+   * Se true, ao clicar em "Publicar produto" na etapa Revisão exibimos o
+   * tutorial de verificação da conta do Mercado Livre em vez de publicar.
+   * Deixe indefinido/false enquanto não houver um sinal real do backend
+   * indicando conta não verificada / fora do modo vendedor.
+   */
+  mlAccountNeedsVerification?: boolean;
 };
 
 const MAX_TITLE_LENGTH = 60;
@@ -227,7 +235,7 @@ const inferStickerAlbumName = (product: CatalogProduct | null, title: string) =>
   return "Álbum colecionável";
 };
 
-const ImportProductModal = ({ open, onClose, product }: Props) => {
+const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification }: Props) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
@@ -241,6 +249,7 @@ const ImportProductModal = ({ open, onClose, product }: Props) => {
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [mlVerifyModalOpen, setMlVerifyModalOpen] = useState(false);
 
   // Pricing engine
   const [multiplier, setMultiplier] = useState(2.5);
@@ -605,6 +614,13 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
     if (!brand.trim()) {
       veloToast.error("Informe a marca do produto (use 'Genérica' se não houver).");
+      return;
+    }
+
+    // Se o backend sinalizar que a conta ML precisa ser verificada / posta em
+    // modo vendedor, abrimos o tutorial em vez de tentar publicar.
+    if (mlAccountNeedsVerification) {
+      setMlVerifyModalOpen(true);
       return;
     }
 
@@ -1239,6 +1255,12 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         cta={publishUpgradeCta}
         targetPlan={publishUpgradeTargetPlan}
         benefits={publishUpgradeBenefits}
+      />
+
+      <MLAccountVerificationModal
+        open={mlVerifyModalOpen}
+        onClose={() => setMlVerifyModalOpen(false)}
+        onFinish={() => setMlVerifyModalOpen(false)}
       />
 
       {/* Animations */}
