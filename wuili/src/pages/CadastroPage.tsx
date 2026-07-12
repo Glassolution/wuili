@@ -207,6 +207,7 @@ const CadastroPage = () => {
       const lower = val.toLowerCase();
       const matched = NICHOS.find(n => lower.includes(n));
       const nicho = matched || val;
+      setNichoState(nicho);
 
       setConfirmText(val);
       setAnimating(true);
