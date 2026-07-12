@@ -124,8 +124,7 @@ const StartChoicePage = () => {
     </div>
   </main>
   );
+};
 
 export default StartChoicePage;
 
-
-export default StartChoicePage;
