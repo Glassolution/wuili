@@ -13,9 +13,24 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const { brandName, persona, salesAngle, category, productTitle } = await req.json();
+    const { brandName, persona, salesAngle } = await req.json();
 
-    const prompt = `Editorial fashion e-commerce hero banner, wide horizontal composition, professional studio photography, soft natural light, minimal neutral background (light beige/cream #eeece7). Feature: ${category || "fashion apparel"}. Brand: ${brandName || "Velo"}. Style vibe: ${salesAngle || "modern timeless elegance"}. Target audience: ${persona || "young adults who value quality"}. Product context: ${productTitle || "premium clothing collection"}. Show clothing on hangers, models, or product close-ups — clean, aspirational, magazine editorial quality. No text, no logos, no watermarks. Ultra sharp, high-end fashion photography.`;
+    const prompt = `Wide cinematic e-commerce hero banner, horizontal 16:9 composition, high-end editorial fashion/lifestyle photography.
+
+STYLE & MOOD (most important — drive the entire aesthetic from this):
+- Brand vibe: ${salesAngle || "modern, timeless, aspirational"}
+- Target audience feel: ${persona || "confident young adults with refined taste"}
+
+Composition rules:
+- Left third of the image MUST be visually calm and uncluttered (soft neutral background, empty space or minimal props) so overlaid text remains legible.
+- Right two thirds contain the main visual subject that expresses the style/mood above (models, styled scene, atmospheric setting).
+- Warm neutral palette: creams, beiges (#eeece7), soft whites, muted earthy tones. No saturated colors unless the vibe strictly demands it.
+- Natural soft daylight, shallow depth of field, magazine-quality retouching.
+
+Strict constraints:
+- NO text, NO typography, NO logos, NO watermarks, NO UI elements anywhere in the image.
+- NO product-focused catalog shots. This is a mood/style banner, not a product photo.
+- Ultra sharp, cohesive, aspirational — feels like a luxury brand campaign for ${brandName || "the brand"}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
