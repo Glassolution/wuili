@@ -40,6 +40,12 @@ const sidebarItems: SidebarItem[] = [
 
 export function Sidebar() {
   const location = useLocation();
+  const { user, role } = useAuth();
+  const metadataRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined) ??
+    null;
+  const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
   const [expandedItems, setExpandedItems] = useState<string[]>(["store", "finance"]);
 
   const toggleExpand = (id: string) => {
