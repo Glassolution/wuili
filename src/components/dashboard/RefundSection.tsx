@@ -38,6 +38,7 @@ const RefundSection = () => {
   const navigate = useNavigate();
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [hasAnyRefund, setHasAnyRefund] = useState(false);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Subscription | null>(null);
   const [step, setStep] = useState<Step>("reason");
@@ -55,16 +56,18 @@ const RefundSection = () => {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     setSubs(data || []);
-    const { data: pend } = await supabase
+    const { data: allRefunds } = await supabase
       .from("refund_requests")
-      .select("subscription_id")
-      .eq("user_id", user.id)
-      .eq("status", "pending");
-    setPendingIds(new Set((pend || []).map((r: any) => r.subscription_id)));
+      .select("subscription_id, status")
+      .eq("user_id", user.id);
+    const list = allRefunds || [];
+    setHasAnyRefund(list.length > 0);
+    setPendingIds(new Set(list.filter((r: any) => r.status === "pending").map((r: any) => r.subscription_id)));
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [user]);
+
 
   const closeModal = () => {
     setActive(null); setStep("reason"); setReason(""); setDetails("");
