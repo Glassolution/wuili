@@ -109,7 +109,7 @@ const GeneratedStoreEditorPage = () => {
   if (!flow) return <Navigate to="/comecar" replace />;
   const displayedProducts = products.length ? products : [{ ...flow.product, category: "Moda", brand: "Velo" }];
   const categories = Array.from(new Set(displayedProducts.map((product) => product.category))).slice(0, 7);
-  const brandName = (flow.product.brand || "Velo").toUpperCase();
+  const brandName = ((displayedProducts[0] as CatalogItem).brand || "Velo").toUpperCase();
   const brandInitial = brandName.charAt(0);
   const salesAngleText = flow.salesAngle || "";
   const personaText = flow.persona || "";
