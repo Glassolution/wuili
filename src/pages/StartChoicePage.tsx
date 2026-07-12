@@ -124,10 +124,8 @@ const StartChoicePage = () => {
     </div>
   </main>
   );
-};
-    </div>
-  </main>
-  );
-};
+
+export default StartChoicePage;
+
 
 export default StartChoicePage;
