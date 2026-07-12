@@ -44,14 +44,11 @@ const GeneratedStoreEditorPage = () => {
     setGeneratingBanner(true);
     setBannerError(null);
     try {
-      const first = displayedProducts[0];
       const { data, error } = await supabase.functions.invoke("generate-store-banner", {
         body: {
           brandName,
           persona: flow?.persona,
           salesAngle: flow?.salesAngle,
-          category: first?.category,
-          productTitle: first?.title,
         },
       });
       if (error) throw error;
@@ -262,32 +259,33 @@ const GeneratedStoreEditorPage = () => {
               </div>
             </nav>
 
-            {/* HERO */}
-            <section className="relative mx-4 overflow-hidden rounded-[6px] bg-[#eeece7]">
-              <div className="grid min-h-[440px] grid-cols-1 md:grid-cols-2">
-                <div className="relative z-10 flex flex-col justify-center px-10 py-14">
-                  <h1 className="font-serif text-[64px] font-normal leading-[0.92] tracking-[-0.01em] md:text-[80px]">{headlinePrimary}<br/>{headlineSecondary}</h1>
-                  <p className="mt-6 max-w-[300px] text-[12.5px] leading-[1.6] text-black/70">{heroSubtitle}</p>
-                  <div className="mt-8 flex items-center gap-3">
-                    <button className="flex items-center gap-2 rounded-full bg-black px-6 py-3 text-[11px] font-medium tracking-[0.15em] text-white" style={{backgroundColor:accent}}>COMPRAR AGORA <span className="ml-1">→</span></button>
-                    <button className="rounded-full border border-black px-6 py-3 text-[11px] font-medium tracking-[0.15em]">EXPLORAR COLEÇÕES</button>
-                  </div>
+            {/* HERO — banner cobre toda a seção */}
+            <section className="relative mx-4 min-h-[440px] overflow-hidden rounded-[6px] bg-[#eeece7]">
+              {heroImage ? <img src={heroImage} alt={brandName} className="absolute inset-0 h-full w-full object-cover"/> : null}
+              {/* Overlay de leitura à esquerda */}
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#eeece7] via-[#eeece7]/85 to-transparent md:via-[#eeece7]/70"/>
+              {/* Botão de geração — só dono da loja */}
+              <div data-editor-ignore className="absolute right-4 top-4 z-30 flex flex-col items-end gap-2">
+                <button type="button" onClick={generateBanner} disabled={generatingBanner} className="flex items-center gap-2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_10px_30px_rgba(0,0,0,0.3)] backdrop-blur-md transition hover:bg-black disabled:opacity-70">
+                  <Sparkles size={13} className={generatingBanner?"animate-spin":""}/>
+                  {generatingBanner ? "Gerando banner..." : "Gerar banner com IA"}
+                </button>
+                {bannerError ? <span className="max-w-[240px] rounded-md bg-red-500/90 px-2 py-1 text-[10px] text-white">{bannerError}</span> : <span className="rounded-md bg-white/85 px-2 py-1 text-[9.5px] font-medium text-black/60">Visível só para o dono da loja</span>}
+              </div>
+              {/* Conteúdo hero */}
+              <div className="relative z-10 flex min-h-[440px] max-w-[55%] flex-col justify-center px-10 py-14">
+                <h1 className="font-serif text-[64px] font-normal leading-[0.92] tracking-[-0.01em] md:text-[80px]">{headlinePrimary}<br/>{headlineSecondary}</h1>
+                <p className="mt-6 max-w-[320px] text-[12.5px] leading-[1.6] text-black/75">{heroSubtitle}</p>
+                <div className="mt-8 flex items-center gap-3">
+                  <button className="flex items-center gap-2 rounded-full bg-black px-6 py-3 text-[11px] font-medium tracking-[0.15em] text-white" style={{backgroundColor:accent}}>COMPRAR AGORA <span className="ml-1">→</span></button>
+                  <button className="rounded-full border border-black bg-white/60 px-6 py-3 text-[11px] font-medium tracking-[0.15em] backdrop-blur-sm">EXPLORAR COLEÇÕES</button>
                 </div>
-                <div className="relative min-h-[440px]">
-                  <img src={heroImage} alt={brandName} className="absolute inset-0 h-full w-full object-cover"/>
-                  <div data-editor-ignore className="absolute right-4 top-4 z-20 flex flex-col items-end gap-2">
-                    <button type="button" onClick={generateBanner} disabled={generatingBanner} className="group flex items-center gap-2 rounded-full bg-black/85 px-4 py-2 text-[11px] font-semibold tracking-[0.08em] text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:bg-black disabled:opacity-70">
-                      <Sparkles size={13} className={generatingBanner?"animate-spin":""}/>
-                      {generatingBanner ? "Gerando..." : "Gerar banner com IA"}
-                    </button>
-                    {bannerError ? <span className="max-w-[220px] rounded-md bg-red-500/90 px-2 py-1 text-[10px] text-white">{bannerError}</span> : <span className="rounded-md bg-white/85 px-2 py-1 text-[9.5px] font-medium text-black/60">Visível só para o dono da loja</span>}
-                  </div>
-                  <div className="absolute left-1/2 top-1/2 flex h-[110px] w-[130px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 bg-[#f5f2ec] shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-                    <span className="font-serif text-[36px] italic leading-none">{brandInitial}</span>
-                    <span className="font-serif text-[10px] tracking-[0.14em]">{brandName}</span>
-                    <span className="text-[6px] tracking-[0.3em] text-black/50">MAKE YOUR STATEMENT</span>
-                  </div>
-                </div>
+              </div>
+              {/* Cartão da marca sobre a imagem */}
+              <div className="absolute right-[8%] top-1/2 z-10 flex h-[110px] w-[130px] -translate-y-1/2 flex-col items-center justify-center gap-1 bg-[#f5f2ec] shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
+                <span className="font-serif text-[36px] italic leading-none">{brandInitial}</span>
+                <span className="font-serif text-[10px] tracking-[0.14em]">{brandName}</span>
+                <span className="text-[6px] tracking-[0.3em] text-black/50">MAKE YOUR STATEMENT</span>
               </div>
             </section>
 
