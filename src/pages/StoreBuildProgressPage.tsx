@@ -18,6 +18,7 @@ const steps = [
 const StoreBuildProgressPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const flow = useMemo<FlowState | null>(() => {
     const state = location.state as Partial<FlowState> | null;
     let product = state?.product; let language = state?.language; let persona = state?.persona; let salesAngle = state?.salesAngle;
