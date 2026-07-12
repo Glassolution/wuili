@@ -475,6 +475,7 @@ const DashboardSidebar = () => {
     const items = [...baseNavItems];
     if (isAdmin) {
       items.splice(4, 0, affiliatesNavItem);
+      items.push(editStoreBetaNavItem);
     }
     return items;
   }, [isAdmin]);
