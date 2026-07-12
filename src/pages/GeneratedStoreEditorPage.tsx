@@ -210,23 +210,129 @@ const GeneratedStoreEditorPage = () => {
 
         <div className="relative min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
           <div ref={previewRef} onClick={handlePreviewClick} className={`relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1450px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: font, cursor: editMode==="comment"?"crosshair":editMode?"pointer":"default" }}>
-            <nav className="flex h-[82px] items-center justify-between px-7"><Menu size={21}/><strong className="text-[28px] tracking-[-0.07em]">VELO/W</strong><div className="flex items-center gap-4"><span className="hidden text-[11px] sm:inline">Blog</span><span className="hidden text-[11px] sm:inline">FAQ</span><Bell size={17}/><ShoppingBag size={17}/><UserRound size={17}/></div></nav>
-            <div className="flex flex-wrap items-center gap-2 px-7 pb-6"><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Roupas⌄</button><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Novidades</button><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Promoções</button><label className="flex min-w-[180px] flex-1 items-center rounded-full bg-[#f5f5f5] px-4"><input placeholder="Buscar..." className="h-9 min-w-0 flex-1 bg-transparent text-[11px] outline-none"/><Search size={15}/></label>{["Masculino","Feminino","Infantil"].map(item=><button key={item} className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">{item}</button>)}</div>
-            <section className="relative mx-7 min-h-[285px] overflow-hidden rounded-[18px] bg-[#ebe9e5]">
-              <img src={heroImage} alt="Coleção Velo" className="absolute inset-0 h-full w-full object-cover object-center" />
-              <div className={`relative z-10 ml-auto flex min-h-[285px] flex-col justify-center p-8 ${mobilePreview?"w-full bg-gradient-to-r from-transparent via-[#ebe9e5]/80 to-[#ebe9e5] pl-[34%]":"w-[38%]"}`}>
-                <span className="text-[11px]">— Coleções</span>
-                <h1 className="mt-4 text-[27px] font-medium leading-[1.08] tracking-[-0.035em]">Explore a nova coleção Velo</h1>
-                <p className="mt-4 text-[12px] leading-relaxed text-black/55">Peças escolhidas para um estilo moderno, leve e autêntico.</p>
+            {/* Top announcement bar */}
+            <div className="flex items-center justify-between bg-black px-6 py-2 text-[10px] font-medium tracking-[0.08em] text-white">
+              <span className="flex-1" />
+              <span className="text-center">FRETE GRÁTIS ACIMA DE R$ 299 &nbsp;|&nbsp; TROCAS FÁCEIS</span>
+              <span className="flex flex-1 items-center justify-end gap-4 text-white/70"><span>Encontre uma loja</span><span>·</span><span>Ajuda</span></span>
+            </div>
+            {/* Nav */}
+            <nav className="flex items-center justify-between border-b border-black/5 bg-white px-8 py-5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-black text-[17px] font-serif italic">{brandInitial}</span>
+                <strong className="text-[19px] font-semibold tracking-[0.14em]">{brandName}</strong>
+              </div>
+              <ul className="hidden items-center gap-8 text-[11.5px] font-semibold tracking-[0.14em] md:flex">
+                {["NOVIDADES","FEMININO","MASCULINO","CALÇADOS","ACESSÓRIOS","OFERTAS"].map((item)=><li key={item}>{item}</li>)}
+              </ul>
+              <div className="flex items-center gap-3">
+                <label className="hidden items-center gap-2 rounded-full border border-black/10 px-3 py-1.5 lg:flex"><Search size={13}/><input placeholder="Buscar peças, marcas..." className="w-[180px] bg-transparent text-[11px] outline-none"/></label>
+                <UserRound size={17} strokeWidth={1.4}/><Heart size={17} strokeWidth={1.4}/>
+                <span className="relative"><ShoppingBag size={17} strokeWidth={1.4}/><span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-black text-[9px] font-bold text-white">0</span></span>
+              </div>
+            </nav>
+            {/* Hero */}
+            <section className="relative grid grid-cols-1 md:grid-cols-2">
+              <div className="relative z-10 flex flex-col justify-center px-8 py-14 md:px-14 md:py-20">
+                <h1 className="font-serif text-[54px] leading-[0.95] tracking-[-0.02em] md:text-[76px]">{headlinePrimary}<br/><span className="italic">{headlineSecondary}</span></h1>
+                <p className="mt-6 max-w-[380px] text-[13px] leading-relaxed text-black/60">{heroSubtitle}</p>
+                <div className="mt-8 flex flex-wrap items-center gap-3">
+                  <button className="rounded-full bg-black px-7 py-3 text-[11px] font-semibold tracking-[0.18em] text-white" style={{backgroundColor:accent}}>COMPRAR AGORA</button>
+                  <button className="rounded-full border border-black px-7 py-3 text-[11px] font-semibold tracking-[0.18em]">EXPLORAR COLEÇÕES</button>
+                </div>
+              </div>
+              <div className="relative min-h-[380px] overflow-hidden bg-[#efece7] md:min-h-[520px]">
+                <img src={heroImage} alt={brandName} className="absolute inset-0 h-full w-full object-cover object-center"/>
+                <div className="absolute bottom-8 left-8 flex h-24 w-24 flex-col items-center justify-center rounded-[8px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
+                  <span className="text-[24px] font-serif italic">{brandInitial}</span>
+                  <span className="text-[8px] font-semibold tracking-[0.2em]">{brandName}</span>
+                </div>
               </div>
             </section>
-
-            <div className={`grid gap-7 px-7 py-9 ${mobilePreview?"grid-cols-1":"md:grid-cols-[180px_1fr]"}`}>
-              {!mobilePreview?<aside><p className="text-[11px] text-black/40">Início · Coleção</p><h2 className="mt-3 text-[18px] font-semibold">Coleção Velo</h2><div className="mt-8"><strong className="text-[12px]">Categorias</strong><div className="mt-3 space-y-3">{categories.map((category,index)=><label key={category} className="flex items-center gap-2 text-[11px]"><input type="checkbox" defaultChecked={index<2} style={{accentColor:accent}}/>{category}</label>)}</div></div><button className="mt-6 w-full rounded-full py-2 text-[11px] text-white" style={{backgroundColor:accent}}>Mostrar mais</button><div className="mt-8"><strong className="text-[12px]">Preço</strong><input type="range" className="mt-4 w-full" style={{accentColor:accent}}/></div></aside>:null}
-              <section className={`grid gap-4 ${mobilePreview?"grid-cols-1":columns===2?"grid-cols-2":columns===4?"grid-cols-2 xl:grid-cols-4":"grid-cols-2 xl:grid-cols-3"}`}>
-                {displayedProducts.map((product,index)=><article key={product.id} className="group rounded-[16px] bg-white p-2 shadow-[0_0_0_1px_rgba(0,0,0,0.06)]"><div className="relative aspect-[0.84] overflow-hidden rounded-[13px] bg-[#ececea]"><img src={index===0?heroImage:product.imageUrl} alt={product.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]"/><button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90"><Heart size={15}/></button></div><div className="p-3"><h3 className="line-clamp-1 text-[16px] font-semibold tracking-[-0.03em]">{product.title}</h3><p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-black/42">{product.category} · seleção especial da Velo.</p><div className="mt-4 flex items-center justify-between"><strong className="rounded-[7px] px-3 py-2 text-[12px] text-white" style={{backgroundColor:accent}}>{formatBRL(Math.max(product.price*2.1,product.price+20))}</strong><button className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10"><ShoppingBag size={15}/></button></div></div></article>)}
-              </section>
+            {/* Info bar */}
+            <div className="mx-8 -mt-6 grid grid-cols-2 gap-0 rounded-[10px] border border-black/8 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] md:grid-cols-4">
+              {[
+                {icon:<Package size={19} strokeWidth={1.4}/>,title:"FRETE GRÁTIS",desc:"Compras acima de R$ 299"},
+                {icon:<History size={19} strokeWidth={1.4}/>,title:"TROCAS FÁCEIS",desc:"30 dias para trocar"},
+                {icon:<ShoppingBag size={19} strokeWidth={1.4}/>,title:"PAGAMENTO SEGURO",desc:"Checkout 100% protegido"},
+                {icon:<Search size={19} strokeWidth={1.4}/>,title:"LOJAS PERTO DE VOCÊ",desc:`Encontre uma ${brandName}`},
+              ].map((item)=>(
+                <div key={item.title} className="flex items-center gap-3 border-b border-r border-black/6 p-4 last:border-r-0 md:border-b-0">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.04]">{item.icon}</span>
+                  <div><strong className="block text-[10.5px] font-semibold tracking-[0.12em]">{item.title}</strong><span className="text-[10.5px] text-black/50">{item.desc}</span></div>
+                </div>
+              ))}
             </div>
+            {/* Shop by category */}
+            <section className="px-8 py-14">
+              <div className="mb-8 flex items-end justify-between"><h2 className="text-[22px] font-semibold tracking-[0.14em]">COMPRE POR CATEGORIA</h2><span className="text-[11px] underline underline-offset-4">Ver todas</span></div>
+              <div className="grid grid-cols-3 gap-6 sm:grid-cols-4 md:grid-cols-7">
+                {categories.concat(Array(7).fill("Categoria")).slice(0,7).map((category,index)=>(
+                  <div key={index} className="flex flex-col items-center gap-3">
+                    <div className={`aspect-square w-full overflow-hidden rounded-full ${index===6?"bg-black":"bg-[#efece7]"}`}>{index===6?<div className="flex h-full w-full items-center justify-center font-serif text-[18px] italic text-white">OFERTAS</div>:<img src={displayedProducts[index%displayedProducts.length]?.imageUrl||heroImage} alt={category} className="h-full w-full object-cover"/>}</div>
+                    <span className="text-[11.5px] font-medium">{index===6?"Ofertas":category}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+            {/* New arrivals */}
+            <section className="px-8 pb-14">
+              <div className="mb-2 flex items-end justify-between"><div><h2 className="text-[22px] font-semibold tracking-[0.14em]">NOVIDADES</h2><p className="mt-1 text-[11px] text-black/50">Novos looks. Direto do estúdio.</p></div><span className="text-[11px] underline underline-offset-4">Ver todos</span></div>
+              <div className={`mt-8 grid gap-5 ${mobilePreview?"grid-cols-2":columns===2?"grid-cols-2":columns===4?"grid-cols-2 md:grid-cols-4":"grid-cols-2 md:grid-cols-3"}`}>
+                {displayedProducts.slice(0,columns===4?8:6).map((product,index)=>(
+                  <article key={product.id+"-"+index} className="group">
+                    <div className="relative aspect-[0.82] overflow-hidden bg-[#f2f0eb]">
+                      <img src={product.imageUrl||heroImage} alt={product.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
+                      <button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95"><Heart size={13} strokeWidth={1.5}/></button>
+                    </div>
+                    <h3 className="mt-3 line-clamp-1 text-[13px]">{product.title}</h3>
+                    <strong className="text-[13px] font-semibold">{formatBRL(Math.max(product.price*2.1,product.price+20))}</strong>
+                    <div className="mt-2 flex items-center gap-1.5">{["#111","#c9b99a","#e8c5d0","#94a3b8"].map((color)=><span key={color} className="h-3 w-3 rounded-full border border-black/10" style={{backgroundColor:color}}/>)}</div>
+                  </article>
+                ))}
+              </div>
+            </section>
+            {/* Promo bands */}
+            <section className="grid grid-cols-1 gap-4 px-8 pb-14 md:grid-cols-3">
+              <div className="relative overflow-hidden rounded-[10px] bg-black p-7 text-white">
+                <strong className="text-[11px] font-semibold tracking-[0.18em] text-white/70">ESTUDANTES GANHAM</strong>
+                <h3 className="mt-2 font-serif text-[38px] leading-none">10% OFF</h3>
+                <p className="mt-3 max-w-[180px] text-[11px] text-white/60">Comprove seu status e ganhe desconto exclusivo.</p>
+                <button className="mt-5 rounded-full bg-white px-5 py-2 text-[10.5px] font-semibold tracking-[0.12em] text-black">GANHAR DESCONTO</button>
+              </div>
+              <div className="relative overflow-hidden rounded-[10px] bg-[#efece7] p-7">
+                <strong className="text-[11px] font-semibold tracking-[0.18em] text-black/50">NOVA ESTAÇÃO</strong>
+                <h3 className="mt-2 font-serif text-[38px] leading-none">NEW LOOK</h3>
+                <p className="mt-3 max-w-[180px] text-[11px] text-black/60">Descubra tendências pensadas para você.</p>
+                <button className="mt-5 rounded-full bg-black px-5 py-2 text-[10.5px] font-semibold tracking-[0.12em] text-white">COMPRAR AGORA</button>
+              </div>
+              <div className="relative overflow-hidden rounded-[10px] bg-[#d9d4cc] p-7">
+                <strong className="text-[11px] font-semibold tracking-[0.18em] text-black/50">VISITE-NOS</strong>
+                <h3 className="mt-2 font-serif text-[26px] leading-tight">Encontre a loja {brandName} mais próxima</h3>
+                <button className="mt-5 rounded-full bg-white px-5 py-2 text-[10.5px] font-semibold tracking-[0.12em]">ENCONTRAR LOJA</button>
+              </div>
+            </section>
+            {/* Explore collections */}
+            <section className="px-8 pb-16">
+              <div className="mb-8 flex items-end justify-between"><div><h2 className="text-[22px] font-semibold tracking-[0.14em]">EXPLORE AS COLEÇÕES</h2><p className="mt-1 text-[11px] text-black/50">Looks curados para cada momento.</p></div><span className="text-[11px] underline underline-offset-4">Ver todas</span></div>
+              <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
+                {collectionLabels.map((label,index)=>(
+                  <div key={label} className="relative aspect-[0.72] overflow-hidden rounded-[10px] bg-black">
+                    <img src={displayedProducts[(index+1)%displayedProducts.length]?.imageUrl||heroImage} alt={label} className="h-full w-full object-cover opacity-85"/>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-5 text-white"><strong className="block font-serif text-[20px]">{label}</strong><span className="text-[10.5px] tracking-[0.12em] text-white/70">COMPRAR AGORA</span></div>
+                  </div>
+                ))}
+              </div>
+            </section>
+            {/* Footer */}
+            <footer className="bg-black px-8 py-8 text-white">
+              <div className="grid grid-cols-1 gap-6 text-[10.5px] tracking-[0.14em] md:grid-cols-3">
+                <div><strong className="text-[11px]">MATERIAIS SUSTENTÁVEIS</strong><p className="mt-1 font-normal tracking-normal text-white/50">Melhor para você. Melhor para o planeta.</p></div>
+                <div><strong className="text-[11px]">PRODUÇÃO ÉTICA</strong><p className="mt-1 font-normal tracking-normal text-white/50">Feito com cuidado e respeito.</p></div>
+                <div><strong className="text-[11px]">FOCO NA COMUNIDADE</strong><p className="mt-1 font-normal tracking-normal text-white/50">Moda que devolve.</p></div>
+              </div>
+            </footer>
+
 
             {/* Comment pins */}
             {comments.map((comment)=>(
