@@ -44,14 +44,11 @@ const GeneratedStoreEditorPage = () => {
     setGeneratingBanner(true);
     setBannerError(null);
     try {
-      const first = displayedProducts[0];
       const { data, error } = await supabase.functions.invoke("generate-store-banner", {
         body: {
           brandName,
           persona: flow?.persona,
           salesAngle: flow?.salesAngle,
-          category: first?.category,
-          productTitle: first?.title,
         },
       });
       if (error) throw error;
