@@ -39,6 +39,13 @@ type Props = {
   open: boolean;
   onClose: () => void;
   product: CatalogProduct | null;
+  /**
+   * Se true, ao clicar em "Publicar produto" na etapa Revisão exibimos o
+   * tutorial de verificação da conta do Mercado Livre em vez de publicar.
+   * Deixe indefinido/false enquanto não houver um sinal real do backend
+   * indicando conta não verificada / fora do modo vendedor.
+   */
+  mlAccountNeedsVerification?: boolean;
 };
 
 const MAX_TITLE_LENGTH = 60;
