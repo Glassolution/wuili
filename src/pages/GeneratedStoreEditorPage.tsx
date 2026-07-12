@@ -123,9 +123,16 @@ const GeneratedStoreEditorPage = () => {
       language ||= sessionStorage.getItem("velo-store-language") || undefined;
       persona ||= sessionStorage.getItem("velo-customer-persona") || undefined;
       salesAngle ||= sessionStorage.getItem("velo-sales-angle") || undefined;
-    } catch { return null; }
-    return product && language && persona && salesAngle ? { product, language, persona, salesAngle } : null;
-  }, [location.state]);
+    } catch { /* fallback below */ }
+    if (product && language && persona && salesAngle) return { product, language, persona, salesAngle };
+    // Fallback: fluxo já concluído anteriormente por este usuário
+    const saved = getSavedStoreFlow<FlowState>(user?.id);
+    return saved && saved.product && saved.language && saved.persona && saved.salesAngle ? saved : null;
+  }, [location.state, user?.id]);
+
+  useEffect(() => {
+    if (flow && user?.id) markStoreFlowCompleted(user.id, flow);
+  }, [flow, user?.id]);
 
   useEffect(() => {
     if (!flow) return;
