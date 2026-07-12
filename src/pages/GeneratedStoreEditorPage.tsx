@@ -97,11 +97,11 @@ const GeneratedStoreEditorPage = () => {
           </div>
 
           <div className="pointer-events-none sticky bottom-4 z-30 mt-4 flex justify-center">
-            <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-white/40 bg-white/25 px-1.5 py-1 shadow-[0_8px_24px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-2xl backdrop-saturate-150">
-              <button type="button" aria-label="Selecionar" className="flex h-7 w-7 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><MousePointer2 size={13}/></button>
-              <button type="button" aria-label="Texto" className="flex h-7 w-7 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><Type size={13}/></button>
-              <button type="button" aria-label="Editar" className="flex h-7 w-7 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><Pencil size={12}/></button>
-              <button type="button" aria-label="Comentar" className="flex h-7 w-7 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><MessageSquare size={12}/></button>
+            <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/40 bg-white/25 px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-2xl backdrop-saturate-150">
+              <button type="button" aria-label="Selecionar" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><MousePointer2 size={15}/></button>
+              <button type="button" aria-label="Texto" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><Type size={15}/></button>
+              <button type="button" aria-label="Editar" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><Pencil size={14}/></button>
+              <button type="button" aria-label="Comentar" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><MessageSquare size={14}/></button>
             </div>
           </div>
 
