@@ -27,6 +27,8 @@ const GeneratedStoreEditorPage = () => {
   const [heroImage, setHeroImage] = useState("");
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [showPlans, setShowPlans] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState("Velo Modern");
   const flow = useMemo<FlowState | null>(() => {
     const state = location.state as Partial<FlowState> | null;
     let product = state?.product; let language = state?.language; let persona = state?.persona; let salesAngle = state?.salesAngle;
