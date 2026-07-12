@@ -57,16 +57,25 @@ const GeneratedStoreEditorPage = () => {
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#050505] text-white" style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
       <header className="flex h-[72px] shrink-0 items-center justify-between px-5">
-        <div className="flex items-center gap-5"><button type="button" onClick={() => history.back()} className="text-white/55 hover:text-white"><ChevronLeft /></button><div><strong className="block text-[14px]">Loja de Moda</strong><span className="text-[10px] text-white/30">Template 01 · Velo Modern</span></div></div>
+        <div className="flex items-center gap-4"><button type="button" onClick={() => history.back()} className="text-white/55 hover:text-white"><ChevronLeft /></button><button type="button" onClick={()=>setPanel(panel==="template"?null:"template")} className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition ${panel==="template"?"bg-white/15 text-white":"bg-white/[0.07] text-white/60 hover:text-white"}`} aria-label="Editar template"><MoreHorizontal size={18}/></button><div><strong className="block text-[14px]">Loja de Moda</strong><span className="text-[10px] text-white/30">Template 01 · Velo Modern</span></div></div>
         <div className="flex items-center gap-2"><div className="flex rounded-[9px] bg-white/[0.06] p-1"><button onClick={()=>setMobilePreview(false)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${!mobilePreview?"bg-white/15":"text-white/35"}`}><Monitor size={17}/></button><button onClick={()=>setMobilePreview(true)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${mobilePreview?"bg-white/15":"text-white/35"}`}><Smartphone size={17}/></button></div><button className="p-3 text-white/45"><Settings size={18}/></button><button className="p-3 text-white/45"><Play size={18}/></button><button className="p-3 text-white/45"><History size={18}/></button><div className="relative ml-1 pb-2"><button onClick={()=>setShowPlans(true)} className="relative min-w-[112px] overflow-hidden rounded-[9px] bg-gradient-to-r from-[#3b82f6] via-[#2563eb] to-[#1d4ed8] px-5 pb-3 pt-2 text-[13px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_rgba(37,99,235,0.28)] transition hover:-translate-y-0.5 hover:brightness-110"><span className="relative z-10">Publicar</span><span className="absolute inset-x-0 top-0 h-px bg-white/45" /></button><span className="absolute -bottom-0.5 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-b from-[#fde047] to-[#facc15] px-3 py-1 text-[8px] font-extrabold tracking-[0.02em] text-[#5b4300] shadow-[0_2px_7px_rgba(0,0,0,0.38)]">🎁 DOMÍNIO GRÁTIS</span></div></div>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-[76px] shrink-0 flex-col items-center gap-3 py-5"><button onClick={()=>setPanel(panel==="layout"?null:"layout")} className={`flex h-12 w-12 items-center justify-center rounded-[12px] ${panel==="layout"?"bg-[#2563eb]":"bg-white/[0.07] text-white/45"}`}><LayoutGrid size={20}/></button><button onClick={()=>setPanel(panel==="design"?null:"design")} className={`flex h-12 w-12 items-center justify-center rounded-[12px] ${panel==="design"?"bg-[#2563eb]":"bg-white/[0.07] text-white/45"}`}><Palette size={20}/></button><button onClick={()=>imageInput.current?.click()} className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-white/[0.07] text-white/45"><Sparkles size={20}/></button><input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={(event)=>{const file=event.target.files?.[0];if(file)setHeroImage(URL.createObjectURL(file));}}/><div className="mt-auto text-[9px] text-white/25">VELO</div></aside>
+        <input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={(event)=>{const file=event.target.files?.[0];if(file)setHeroImage(URL.createObjectURL(file));}}/>
+        {panel==="template" ? (
+          <aside className="w-[280px] shrink-0 overflow-y-auto border-r border-white/[0.05] bg-[#0c0c0c] p-5">
+            <div className="flex items-center justify-between"><strong className="text-[13px]">Personalizar template</strong><button onClick={()=>setPanel(null)} className="text-white/35 hover:text-white"><X size={16}/></button></div>
+            <div className="mt-7 space-y-7">
+              <label className="block"><span className="text-[11px] text-white/45">Cor de destaque</span><input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="mt-3 h-10 w-full rounded bg-transparent"/></label>
+              <label className="block"><span className="text-[11px] text-white/45">Tipografia</span><select value={font} onChange={(e)=>setFont(e.target.value)} className="mt-3 h-10 w-full rounded bg-white/[0.07] px-3 text-white"><option>Helvetica Neue</option><option>Georgia</option><option>Trebuchet MS</option></select></label>
+              <div><span className="text-[11px] text-white/45">Colunas da grade</span><div className="mt-3 grid grid-cols-3 gap-2">{[2,3,4].map(value=><button key={value} onClick={()=>setColumns(value)} className={`rounded bg-white/[0.07] p-3 text-[12px] ${columns===value?"ring-1 ring-white/60":""}`}>{value} col.</button>)}</div></div>
+              <div><span className="text-[11px] text-white/45">Imagem principal</span><button onClick={()=>imageInput.current?.click()} className="mt-3 flex h-10 w-full items-center justify-center rounded bg-white/[0.07] text-[12px] hover:bg-white/[0.12]">Adicionar imagem</button></div>
+            </div>
+          </aside>
+        ) : null}
 
-        {panel ? <aside className="w-[250px] shrink-0 border-l border-white/[0.05] bg-[#0c0c0c] p-5"><div className="flex items-center justify-between"><strong className="text-[13px]">{panel==="design"?"Design da loja":"Layout da grade"}</strong><button onClick={()=>setPanel(null)} className="text-white/35">×</button></div>{panel==="design"?<div className="mt-7 space-y-6"><label className="block text-[11px] text-white/45">Cor de destaque<input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="mt-3 h-10 w-full rounded bg-transparent"/></label><label className="block text-[11px] text-white/45">Tipografia<select value={font} onChange={(e)=>setFont(e.target.value)} className="mt-3 h-10 w-full rounded bg-white/[0.07] px-3 text-white"><option>Helvetica Neue</option><option>Georgia</option><option>Trebuchet MS</option></select></label></div>:<div className="mt-7 grid grid-cols-2 gap-2">{[2,3,4].map(value=><button key={value} onClick={()=>setColumns(value)} className={`rounded bg-white/[0.07] p-3 text-[12px] ${columns===value?"ring-1 ring-white/60":""}`}>{value} col.</button>)}</div>}</aside>:null}
-
-        <div className="min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
+        <div className="relative min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
           <div className={`mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1450px]"}`} style={{ fontFamily: font }}>
             <nav className="flex h-[82px] items-center justify-between px-7"><Menu size={21}/><strong className="text-[28px] tracking-[-0.07em]">VELO/W</strong><div className="flex items-center gap-4"><span className="hidden text-[11px] sm:inline">Blog</span><span className="hidden text-[11px] sm:inline">FAQ</span><Bell size={17}/><ShoppingBag size={17}/><UserRound size={17}/></div></nav>
             <div className="flex flex-wrap items-center gap-2 px-7 pb-6"><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Roupas⌄</button><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Novidades</button><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Promoções</button><label className="flex min-w-[180px] flex-1 items-center rounded-full bg-[#f5f5f5] px-4"><input placeholder="Buscar..." className="h-9 min-w-0 flex-1 bg-transparent text-[11px] outline-none"/><Search size={15}/></label>{["Masculino","Feminino","Infantil"].map(item=><button key={item} className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">{item}</button>)}</div>
@@ -86,8 +95,18 @@ const GeneratedStoreEditorPage = () => {
               </section>
             </div>
           </div>
+
+          <div className="pointer-events-none sticky bottom-6 z-30 mt-6 flex justify-center">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-black/5 bg-white/95 px-3 py-2 shadow-[0_10px_40px_rgba(0,0,0,0.25)] backdrop-blur">
+              <button type="button" aria-label="Selecionar" className="flex h-9 w-9 items-center justify-center rounded-full text-[#111] hover:bg-black/5"><MousePointer2 size={17}/></button>
+              <button type="button" aria-label="Texto" className="flex h-9 w-9 items-center justify-center rounded-full text-[#111] hover:bg-black/5"><Type size={17}/></button>
+              <button type="button" aria-label="Editar" className="flex h-9 w-9 items-center justify-center rounded-full text-[#111] hover:bg-black/5"><Pencil size={16}/></button>
+              <button type="button" aria-label="Comentar" className="flex h-9 w-9 items-center justify-center rounded-full text-[#111] hover:bg-black/5"><MessageSquare size={16}/></button>
+            </div>
+          </div>
         </div>
       </div>
+
 
       {showPlans ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onMouseDown={(event)=>{if(event.target===event.currentTarget)setShowPlans(false)}}>
