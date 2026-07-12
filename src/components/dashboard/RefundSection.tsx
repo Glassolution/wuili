@@ -144,9 +144,15 @@ const RefundSection = () => {
         </div>
       ) : (
         <div className="space-y-2.5">
+          {hasAnyRefund && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              Você já solicitou um reembolso anteriormente. Cada conta tem direito a apenas uma solicitação.
+            </div>
+          )}
           {subs.map((s) => {
-            const eligible = isEligible(s);
+            const eligible = isEligible(s) && !hasAnyRefund;
             const pending = pendingIds.has(s.id);
+            const daysActive = Math.max(0, Math.floor((Date.now() - new Date(s.created_at).getTime()) / (1000 * 60 * 60 * 24)));
             const statusLabel = s.status === "active" ? "Ativo" : s.status === "pending" ? "Pendente" : s.status === "cancelled" ? "Cancelado" : s.status;
             const statusCls =
               s.status === "active" ? "bg-black text-white dark:bg-white dark:text-black"
@@ -158,6 +164,11 @@ const RefundSection = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white">Plano {PLAN_LABEL[s.plan] || s.plan}</span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusCls}`}>{statusLabel}</span>
+                    {s.status === "active" && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[#F0F0F0] text-[#525252] dark:bg-zinc-800 dark:text-zinc-300">
+                        {daysActive} {daysActive === 1 ? "dia ativo" : "dias ativo"}
+                      </span>
+                    )}
                   </div>
                   <p className="text-[12px] text-[#737373] dark:text-zinc-400 mt-0.5">{fmtDate(s.created_at)} • {fmtMoney(s.amount)}</p>
                 </div>
@@ -165,6 +176,8 @@ const RefundSection = () => {
                   <span className="text-[11px] inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
                     <Clock size={12} /> Em análise
                   </span>
+                ) : hasAnyRefund ? (
+                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500">Reembolso já solicitado</span>
                 ) : eligible ? (
                   <button
                     onClick={() => setActive(s)}
@@ -181,6 +194,7 @@ const RefundSection = () => {
             );
           })}
         </div>
+
       )}
 
       {/* Modal */}
