@@ -234,7 +234,7 @@ const inferStickerAlbumName = (product: CatalogProduct | null, title: string) =>
   return "Álbum colecionável";
 };
 
-const ImportProductModal = ({ open, onClose, product }: Props) => {
+const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification }: Props) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
