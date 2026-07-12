@@ -1003,6 +1003,8 @@ const CatalogoPage = () => {
       image_url: imgUrls[0],
       images: imgUrls,
       product_url: p.product_url,
+      rating: p.rating,
+      ordersCount: p.orders_count,
     };
   };
 

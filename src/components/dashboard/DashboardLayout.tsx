@@ -29,10 +29,12 @@ import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
 import {
   ArrowLeft,
   ArrowLeftRight,
+  Archive,
   BadgeDollarSign,
+  ClipboardList,
   Code2,
+  Copy,
   CreditCard,
-  FileText,
   Heart,
   Headphones,
   HelpCircle,
@@ -42,7 +44,6 @@ import {
   Settings,
   ShieldCheck,
   ShoppingCart,
-  Store,
   TrendingUp,
   UserRound,
   Video,
@@ -210,7 +211,11 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const emailRole = user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()) ? "admin" : null;
   const emailAffiliateRole = user?.email && AFFILIATE_EMAILS.has(user.email.toLowerCase()) ? "affiliate" : null;
   const [resolvedRole, setResolvedRole] = useState<string | null>(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
-  const routeMeta = mobileRoutes.find((r) => r.test(location.pathname)) ?? mobileRoutes[0];
+  const mobileTab = new URLSearchParams(location.search).get("tab");
+  const routeMeta =
+    location.pathname.startsWith("/dashboard/configuracoes") && mobileTab === "Suporte"
+      ? { title: "Suporte" }
+      : mobileRoutes.find((r) => r.test(location.pathname)) ?? mobileRoutes[0];
   const isRootDashboard = location.pathname === "/dashboard";
   const displayName = user?.user_metadata?.full_name ?? user?.email ?? "Velo";
   const initials = displayName
@@ -356,9 +361,9 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
 
             <div className="px-5 pb-6">
               <div>
-                <MobileDrawerLink to="/dashboard/publicacoes" label="Publicações" icon={FileText} onClick={closeMenu} />
-                <MobileDrawerLink to="/colecoes" label="Coleções" icon={Store} onClick={closeMenu} />
-                <MobileDrawerLink to="/dashboard/relatorios" label="Relatórios" icon={TrendingUp} onClick={closeMenu} />
+                <MobileDrawerLink to="/dashboard/publicacoes" label="Publicações" icon={Archive} onClick={closeMenu} />
+                <MobileDrawerLink to="/colecoes" label="Coleções" icon={Copy} onClick={closeMenu} />
+                <MobileDrawerLink to="/dashboard/relatorios" label="Relatórios" icon={ClipboardList} onClick={closeMenu} />
                 <MobileDrawerLink to="/docs" label="Ajuda & Central" icon={HelpCircle} onClick={closeMenu} />
                 {isAdmin && (
                   <MobileDrawerLink to="/admin/painel" label="Painel Admin" icon={ShieldCheck} onClick={closeMenu} badge="Admin" />

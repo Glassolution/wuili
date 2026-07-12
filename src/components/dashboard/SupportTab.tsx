@@ -339,11 +339,11 @@ const SupportTab = () => {
   const supportReady = ticketLoading || (!!ticket && !supportClosed);
 
   return (
-    <div>
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex min-h-[calc(100svh-176px)] flex-col md:min-h-0">
+      <div className="mb-4 flex flex-col gap-3 md:mb-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white">Suporte Velo</h2>
-          <p className="mt-0.5 text-[13px] text-[#737373] dark:text-zinc-400">
+          <h2 className="text-[24px] font-black tracking-[-0.04em] text-[#0A0A0A] dark:text-white md:text-[20px] md:font-semibold md:tracking-normal">Suporte Velo</h2>
+          <p className="mt-1 max-w-[320px] text-[13px] font-medium leading-5 text-[#737373] dark:text-zinc-400 md:max-w-none md:font-normal">
             Fale com nosso suporte para tirar dúvidas sobre sua conta, plano, integrações e operação na plataforma.
           </p>
         </div>
@@ -354,7 +354,7 @@ const SupportTab = () => {
               type="button"
               onClick={() => setOpenModal(true)}
               disabled={ticketLoading}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-black px-5 text-[13px] font-semibold leading-none text-white shadow-sm transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-black px-5 text-[13px] font-semibold leading-none text-white shadow-sm transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black sm:w-auto"
             >
               {ticketLoading ? <Loader2 size={14} className="animate-spin" /> : <Headphones size={14} />}
               Abrir novo ticket
@@ -407,10 +407,10 @@ const SupportTab = () => {
         />
       )}
 
-      <div className="flex flex-col overflow-hidden rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] dark:border-white/10 dark:bg-[#0f0f0f]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-[#E5E5E5] bg-[#FAFAFA] dark:border-white/10 dark:bg-[#0f0f0f] md:flex-none md:rounded-xl">
         <div
           ref={scrollRef}
-          className="h-[480px] space-y-3 overflow-y-auto p-4 scroll-smooth"
+          className="h-[calc(100svh-382px)] min-h-[300px] space-y-3 overflow-y-auto p-4 scroll-smooth md:h-[480px]"
         >
           <>
             <div className="rounded-2xl border border-[#E5E5E5] bg-white p-4 text-[13px] leading-6 text-[#525252] dark:border-white/10 dark:bg-[#151515] dark:text-zinc-300">
@@ -445,7 +445,7 @@ const SupportTab = () => {
           <div ref={endRef} />
         </div>
 
-        <div className="flex items-center gap-2 border-t border-[#E5E5E5] bg-white px-4 py-3 dark:border-white/10 dark:bg-[#121212]">
+        <div className="flex items-center gap-2 border-t border-[#E5E5E5] bg-white px-3 py-3 dark:border-white/10 dark:bg-[#121212] md:px-4">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -470,7 +470,9 @@ const SupportTab = () => {
         </div>
       </div>
 
-      <RefundSection />
+      <div className="mt-4 md:mt-6">
+        <RefundSection />
+      </div>
     </div>
   );
 };
@@ -555,9 +557,9 @@ const NewTicketModal = ({
   onClose: () => void;
   onSubmit: () => void;
 }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+  <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 md:items-center md:p-4" onClick={onClose}>
     <div
-      className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#141414]"
+      className="max-h-[calc(100svh-24px)] w-full max-w-lg overflow-y-auto rounded-[24px] bg-white p-4 shadow-2xl dark:bg-[#141414] md:p-6"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="mb-4 flex items-start justify-between">
@@ -579,7 +581,7 @@ const NewTicketModal = ({
       <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#737373] dark:text-zinc-400">
         Setor
       </label>
-      <div className="mb-4 grid grid-cols-2 gap-2">
+      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {SUPPORT_CATEGORIES.map((cat) => {
           const active = cat.key === category;
           return (
@@ -612,17 +614,17 @@ const NewTicketModal = ({
         className="w-full resize-none rounded-xl border border-[#E5E5E5] bg-white p-3 text-[14px] text-[#0A0A0A] outline-none placeholder:text-[#A3A3A3] focus:border-black dark:border-white/10 dark:bg-[#0f0f0f] dark:text-white"
       />
 
-      <div className="mt-5 flex justify-end gap-2">
+      <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button
           onClick={onClose}
-          className="rounded-full border border-[#E5E5E5] px-5 py-2 text-[13px] font-semibold text-[#0A0A0A] hover:bg-[#F5F5F5] dark:border-white/10 dark:text-white dark:hover:bg-white/5"
+          className="min-h-11 rounded-full border border-[#E5E5E5] px-5 py-2 text-[13px] font-semibold text-[#0A0A0A] hover:bg-[#F5F5F5] dark:border-white/10 dark:text-white dark:hover:bg-white/5"
         >
           Cancelar
         </button>
         <button
           onClick={onSubmit}
           disabled={submitting || !subject.trim()}
-          className="inline-flex items-center gap-2 rounded-full bg-black px-5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-black px-5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
         >
           {submitting && <Loader2 size={14} className="animate-spin" />}
           Abrir ticket

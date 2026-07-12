@@ -37,6 +37,8 @@ type WCProduct = {
   }>;
   description?: string;
   short_description?: string;
+  average_rating?: string | number;
+  total_sales?: string | number;
 };
 
 function parseWeightString(weightStr: string): number | null {
@@ -113,6 +115,18 @@ function parsePriceMinor(p: WCProduct): number {
   const n = parseInt(raw, 10);
   if (isNaN(n)) return 0;
   return n / Math.pow(10, unit);
+}
+
+function parsePositiveMetric(value: unknown): number | null {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value.replace(",", ".")) : Number.NaN;
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parsePositiveIntegerMetric(value: unknown): number | null {
+  const parsed = parsePositiveMetric(value);
+  return parsed === null ? null : Math.round(parsed);
 }
 
 async function fetchPage(page: number): Promise<WCProduct[]> {
@@ -200,6 +214,8 @@ Deno.serve(async (req) => {
         // preencher no modal de revisão quando ausente.
         const model = extractAttribute(p.attributes, ["modelo", "model", "pa_modelo"]);
         const weight = extractWeightFromDescription(p.description || p.short_description);
+        const rating = parsePositiveMetric(p.average_rating);
+        const ordersCount = parsePositiveIntegerMetric(p.total_sales);
         return {
           source: SOURCE,
           external_id: p.slug,
@@ -218,6 +234,8 @@ Deno.serve(async (req) => {
           brand,
           model,
           weight,
+          ...(rating !== null ? { rating } : {}),
+          ...(ordersCount !== null ? { orders_count: ordersCount } : {}),
           scraped_at: now,
           updated_at: now,
         };

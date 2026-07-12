@@ -10,6 +10,8 @@ export interface Product {
   image_url: string;
   images: string[];
   product_url?: string | null;
+  rating?: number | null;
+  ordersCount?: number | null;
 }
 
 export const formatPrice = (price: number) =>
@@ -18,23 +20,51 @@ export const formatPrice = (price: number) =>
     currency: "BRL",
   });
 
-// MOCK: avaliação simulada até termos dados reais de review
-export function getMockRating(productId: string) {
-  let hash = 0;
-  for (let i = 0; i < productId.length; i++) {
-    hash = (hash * 31 + productId.charCodeAt(i)) % 10000;
-  }
-  const rating = (4.0 + (hash % 100) / 100).toFixed(1); // entre 4.0 e 5.0
-  const reviewCount = 50 + (hash % 1950); // entre 50 e 2000
-  return { rating, reviewCount };
-}
-
 export const formatReviewCount = (count: number) => {
   if (count >= 1000) {
     return `${(count / 1000).toFixed(1)}k`;
   }
   return String(count);
 };
+
+export const getProductCatalogMetrics = (product: Pick<Product, "rating" | "ordersCount">) => {
+  const rating = typeof product.rating === "number" && product.rating >= 0 ? product.rating : null;
+  const ordersCount = typeof product.ordersCount === "number" && product.ordersCount >= 0 ? product.ordersCount : null;
+
+  return {
+    rating,
+    ordersCount,
+    hasMetrics: rating !== null || ordersCount !== null,
+  };
+};
+
+export const ProductFavoriteButton = ({
+  isFavorited,
+  onToggleFavorite,
+  className = "",
+}: {
+  isFavorited: boolean;
+  onToggleFavorite: () => void;
+  className?: string;
+}) => (
+  <button
+    type="button"
+    aria-label={isFavorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+    aria-pressed={isFavorited}
+    onClick={(event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onToggleFavorite();
+    }}
+    className={`absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white/95 text-[#111111] shadow-[0_4px_12px_rgba(17,24,39,0.12)] backdrop-blur-sm transition-transform active:scale-90 ${className}`}
+  >
+    <Heart
+      size={15}
+      strokeWidth={2}
+      className={isFavorited ? "fill-red-500 text-red-500" : ""}
+    />
+  </button>
+);
 
 export const ProductCardSkeleton = () => (
   <div className="overflow-hidden rounded-[22px] border border-[#ECECEF] bg-white p-4 shadow-[0_10px_30px_rgba(17,24,39,0.05)] animate-pulse">
@@ -67,7 +97,7 @@ export const ProductCard = ({
     onToggle: () => void;
   };
 }) => {
-  const { rating, reviewCount } = getMockRating(product.id);
+  const { rating, ordersCount, hasMetrics } = getProductCatalogMetrics(product);
 
   return (
     <article
@@ -112,22 +142,11 @@ export const ProductCard = ({
         )}
 
         {denseMobile && !collectionSelection && (
-          <button
-            type="button"
-            aria-label={isFavorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onToggleFavorite();
-            }}
-            className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white/95 text-[#111111] shadow-[0_4px_12px_rgba(17,24,39,0.12)] backdrop-blur-sm transition-transform active:scale-90 md:hidden"
-          >
-            <Heart
-              size={15}
-              strokeWidth={2}
-              className={isFavorited ? "fill-red-500 text-red-500" : ""}
-            />
-          </button>
+          <ProductFavoriteButton
+            isFavorited={isFavorited}
+            onToggleFavorite={onToggleFavorite}
+            className="md:hidden"
+          />
         )}
 
         {collectionSelection && (
@@ -175,11 +194,18 @@ export const ProductCard = ({
           </Link>
         </h2>
 
-        <div className={`flex items-center text-[#6B7280] ${denseMobile ? "mt-1 gap-1 text-[10px] md:mt-2 md:gap-1.5 md:text-[12px]" : "mt-2 gap-1.5 text-[12px]"}`}>
-          <Star size={13} strokeWidth={1.8} className="fill-[#111111] text-[#111111]" />
-          <span className="font-medium text-[#111111]">{rating}</span>
-          <span>({formatReviewCount(reviewCount)})</span>
-        </div>
+        {hasMetrics && (
+          <div className={`flex items-center text-[#6B7280] ${denseMobile ? "mt-1 gap-1 text-[10px] md:mt-2 md:gap-1.5 md:text-[12px]" : "mt-2 gap-1.5 text-[12px]"}`}>
+            {rating !== null && (
+              <>
+                <Star size={13} strokeWidth={1.8} className="fill-[#111111] text-[#111111]" />
+                <span className="font-medium text-[#111111]">{rating.toFixed(1)}</span>
+              </>
+            )}
+            {rating !== null && ordersCount !== null && <span>·</span>}
+            {ordersCount !== null && <span>{formatReviewCount(ordersCount)} vendidos</span>}
+          </div>
+        )}
 
         <div className={`font-semibold tracking-[-0.04em] text-[#111111] ${denseMobile ? "mt-1.5 text-[16px] md:mt-3 md:text-[22px]" : compact ? "mt-2.5 text-[21px]" : "mt-3 text-[22px]"}`}>
           {formatPrice(product.preco)}

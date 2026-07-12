@@ -13,11 +13,11 @@ import {
   Folder,
   Globe2,
   Grid2X2,
-  Heart,
   Pencil,
   Plus,
   Search,
   Settings,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -38,6 +38,11 @@ import {
   type CollectionSummary,
 } from "@/lib/collectionsApi";
 import { veloToast } from "@/components/ui/velo-toast";
+import {
+  ProductFavoriteButton,
+  formatReviewCount,
+  getProductCatalogMetrics,
+} from "@/components/dashboard/ProductCard";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
@@ -170,11 +175,49 @@ const formatCollectionDate = (value: string | null) => {
 
 const formatInteger = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
+const HOME_PRODUCTS_LIMIT = 1000;
+const HOME_FAVORITES_STORAGE_PREFIX = "velo:home-favorite-products";
+const MOBILE_HOME_CATEGORY_OPTIONS = [
+  "Todos os produtos",
+  "Casa",
+  "Eletrônicos",
+  "Moda",
+  "Bijuterias",
+  "Decoração",
+  "Bebê e Infantil",
+  "Pet",
+  "Beleza",
+  "Saúde e Bem-estar",
+  "Esporte e Fitness",
+  "Outros",
+];
+const MOBILE_HOME_PRICE_OPTIONS = ["Todos os preços", "Até R$ 50", "R$ 50-150", "Acima de R$ 150"];
+const MOBILE_HOME_RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
+
 const toCatalogMetricNumber = (value: unknown) => {
   const numberValue =
     typeof value === "number" ? value : typeof value === "string" ? Number(value.replace(",", ".")) : Number.NaN;
 
   return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : null;
+};
+
+const normalizeSearchText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const matchesMobileHomePriceFilter = (price: number, filter: string) => {
+  if (filter === "Até R$ 50") return price <= 50;
+  if (filter === "R$ 50-150") return price > 50 && price <= 150;
+  if (filter === "Acima de R$ 150") return price > 150;
+  return true;
+};
+
+const matchesMobileHomeRatingFilter = (rating: number | null, filter: string) => {
+  if (filter === "4+ estrelas") return rating !== null && rating >= 4;
+  if (filter === "4.5+ estrelas") return rating !== null && rating >= 4.5;
+  return true;
 };
 
 const MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -2116,22 +2159,107 @@ const MobileShortcutIcon = ({ kind }: { kind: (typeof mobileShortcutItems)[numbe
   );
 };
 
+const MobileHomeFilterDropdown = ({
+  label,
+  value,
+  isOpen,
+  options,
+  onToggle,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  isOpen: boolean;
+  options: string[];
+  onToggle: () => void;
+  onSelect: (value: string) => void;
+}) => (
+  <div className="relative min-w-[148px]">
+    <button
+      type="button"
+      onClick={onToggle}
+      className="inline-flex h-9 w-full items-center justify-between gap-2 rounded-full border border-[#D1D5DB] bg-white px-3 text-[11px] font-semibold text-[#111111] shadow-sm transition-colors hover:border-[#9CA3AF]"
+    >
+      <span className="truncate">{label}: {value}</span>
+      <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} strokeWidth={1.8} />
+    </button>
+
+    {isOpen && (
+      <div className="absolute left-0 top-[calc(100%+8px)] z-40 min-w-full overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-[0_16px_32px_rgba(17,24,39,0.10)]">
+        {options.map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => onSelect(option)}
+            className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors ${
+              value === option ? "bg-[#F3F4F6] font-semibold text-[#111111]" : "text-[#4B5563] hover:bg-[#F9FAFB]"
+            }`}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
 const MobileAliVeloHome = ({
   products,
   collections,
   kpis,
+  favoriteProductIds,
+  onToggleFavoriteProduct,
   onCreateCollection,
 }: {
   products: ProductPreview[];
   collections: CollectionSummary[];
   kpis: CollectionKpis;
+  favoriteProductIds: string[];
+  onToggleFavoriteProduct: (productId: string) => void;
   onCreateCollection: () => void;
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const featuredProducts = products;
+  const [mobileSearchQuery, setMobileSearchQuery] = useState("");
+  const [mobileCategoryFilter, setMobileCategoryFilter] = useState(MOBILE_HOME_CATEGORY_OPTIONS[0]);
+  const [mobilePriceFilter, setMobilePriceFilter] = useState(MOBILE_HOME_PRICE_OPTIONS[0]);
+  const [mobileRatingFilter, setMobileRatingFilter] = useState(MOBILE_HOME_RATING_OPTIONS[0]);
+  const [openMobileFilter, setOpenMobileFilter] = useState<"category" | "price" | "rating" | null>(null);
+  const mobileFilterBarRef = useRef<HTMLDivElement | null>(null);
+  const featuredProducts = useMemo(() => {
+    const query = normalizeSearchText(mobileSearchQuery.trim());
+
+    return products.filter((product) => {
+      const matchesSearch =
+        !query ||
+        normalizeSearchText(product.title).includes(query) ||
+        normalizeSearchText(product.category).includes(query);
+      const matchesCategory =
+        mobileCategoryFilter === MOBILE_HOME_CATEGORY_OPTIONS[0] || product.category === mobileCategoryFilter;
+
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesMobileHomePriceFilter(product.price, mobilePriceFilter) &&
+        matchesMobileHomeRatingFilter(product.rating, mobileRatingFilter)
+      );
+    });
+  }, [mobileCategoryFilter, mobilePriceFilter, mobileRatingFilter, mobileSearchQuery, products]);
   const firstProduct = featuredProducts[0];
   const secondProduct = featuredProducts[1] ?? firstProduct;
+
+  useEffect(() => {
+    if (!openMobileFilter) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!mobileFilterBarRef.current?.contains(event.target as Node)) {
+        setOpenMobileFilter(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [openMobileFilter]);
 
   if (location.pathname === "/colecoes") {
     return (
@@ -2313,58 +2441,7 @@ const MobileAliVeloHome = ({
           </div>
         </section>
 
-        {featuredProducts.length > 0 && (
-          <section className="bg-white px-4 pt-5">
-            <div className="mb-3">
-              <h2 className="text-[22px] font-black tracking-[-0.05em] text-[#111111]">Produtos para vender</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3 pb-2">
-              {featuredProducts.map((product) => {
-                const hasRating = product.rating !== null;
-
-                return (
-                <button
-                  key={`home-feature-${product.id}`}
-                  type="button"
-                  onClick={() => navigate(`/dashboard/catalogo/${product.id}`)}
-                  className="min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                >
-                  <div className="relative aspect-square overflow-hidden bg-[#F3F3F3]">
-                    <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
-                    <span
-                      aria-hidden="true"
-                      className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#111111] shadow-[0_6px_18px_rgba(0,0,0,0.12)]"
-                    >
-                      <Heart className="h-4 w-4" strokeWidth={2.1} />
-                    </span>
-                  </div>
-                  <div className="p-2.5">
-                    <div className="mb-1.5 flex flex-wrap gap-1">
-                      <span className="max-w-full truncate rounded-[4px] bg-[#F1F1F1] px-1.5 py-0.5 text-[9px] font-bold text-black/55">{product.category}</span>
-                    </div>
-                    <p className="line-clamp-2 min-h-[36px] text-[12px] font-bold leading-[1.45] text-[#222222]">{product.title}</p>
-                    <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-black/45">
-                      <span>{formatInteger(product.ordersCount)} vendidos</span>
-                      {hasRating && (
-                        <>
-                          <span>·</span>
-                          <span>★ {product.rating.toFixed(1)}</span>
-                        </>
-                      )}
-                    </div>
-                    {product.ordersCount > 0 && (
-                      <p className="mt-1.5 text-[10px] font-bold text-[#A76A16]">Top vendas na Velo</p>
-                    )}
-                    <p className="mt-2 text-[16px] font-semibold tracking-[-0.04em] text-[#111111]">{formatCurrency(product.price)}</p>
-                  </div>
-                </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        <div className="mx-4 rounded-[16px] bg-[linear-gradient(90deg,#F1FBF1,#F9FFF8)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.10)]">
+        <div className="mx-4 mt-4 rounded-[16px] bg-[linear-gradient(90deg,#F1FBF1,#F9FFF8)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.10)]">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#8CDD82] text-white">
               <Check className="h-5 w-5" strokeWidth={2.4} />
@@ -2375,6 +2452,130 @@ const MobileAliVeloHome = ({
             </div>
           </div>
         </div>
+
+        {products.length > 0 && (
+          <section className="bg-white px-4 pt-5">
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <h2 className="text-[22px] font-black tracking-[-0.05em] text-[#111111]">Produtos para vender</h2>
+              <span className="shrink-0 text-[11px] font-bold text-black/40">
+                {formatInteger(featuredProducts.length)} itens
+              </span>
+            </div>
+
+            <div
+              ref={mobileFilterBarRef}
+              className="mb-3 flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              <div className="relative min-w-[220px] flex-1">
+                <Search
+                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]"
+                  strokeWidth={1.8}
+                />
+                <input
+                  type="text"
+                  value={mobileSearchQuery}
+                  onChange={(event) => setMobileSearchQuery(event.target.value)}
+                  placeholder="Buscar produto"
+                  className="h-9 w-full rounded-full border border-[#D1D5DB] bg-white pl-10 pr-3 text-[12px] font-medium text-[#111111] shadow-sm outline-none transition-colors placeholder:text-[#9CA3AF] hover:border-[#9CA3AF]"
+                />
+              </div>
+
+              <MobileHomeFilterDropdown
+                label="Categoria"
+                value={mobileCategoryFilter}
+                isOpen={openMobileFilter === "category"}
+                onToggle={() => setOpenMobileFilter((current) => (current === "category" ? null : "category"))}
+                options={MOBILE_HOME_CATEGORY_OPTIONS}
+                onSelect={(value) => {
+                  setMobileCategoryFilter(value);
+                  setOpenMobileFilter(null);
+                }}
+              />
+
+              <MobileHomeFilterDropdown
+                label="Faixa de preço"
+                value={mobilePriceFilter}
+                isOpen={openMobileFilter === "price"}
+                onToggle={() => setOpenMobileFilter((current) => (current === "price" ? null : "price"))}
+                options={MOBILE_HOME_PRICE_OPTIONS}
+                onSelect={(value) => {
+                  setMobilePriceFilter(value);
+                  setOpenMobileFilter(null);
+                }}
+              />
+
+              <MobileHomeFilterDropdown
+                label="Avaliação"
+                value={mobileRatingFilter}
+                isOpen={openMobileFilter === "rating"}
+                onToggle={() => setOpenMobileFilter((current) => (current === "rating" ? null : "rating"))}
+                options={MOBILE_HOME_RATING_OPTIONS}
+                onSelect={(value) => {
+                  setMobileRatingFilter(value);
+                  setOpenMobileFilter(null);
+                }}
+              />
+            </div>
+
+            {featuredProducts.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 pb-2">
+                {featuredProducts.map((product) => {
+                const { rating, ordersCount, hasMetrics } = getProductCatalogMetrics(product);
+                const isFavorite = favoriteProductIds.includes(product.id);
+
+                return (
+                <article
+                  key={`home-feature-${product.id}`}
+                  className="relative min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                >
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/catalogo/${product.id}`)}
+                    className="block w-full text-left"
+                  >
+                    <div className="aspect-square overflow-hidden bg-[#F3F3F3]">
+                      <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
+                    </div>
+                    <div className="p-2.5">
+                      <div className="mb-1.5 flex flex-wrap gap-1">
+                        <span className="max-w-full truncate rounded-[4px] bg-[#F1F1F1] px-1.5 py-0.5 text-[9px] font-bold text-black/55">{product.category}</span>
+                      </div>
+                      <p className="line-clamp-2 min-h-[36px] text-[12px] font-bold leading-[1.45] text-[#222222]">{product.title}</p>
+                      {hasMetrics && (
+                        <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-black/45">
+                          {rating !== null && (
+                            <>
+                              <Star className="h-3 w-3 fill-[#111111] text-[#111111]" strokeWidth={1.8} />
+                              <span className="text-[#111111]">{rating.toFixed(1)}</span>
+                            </>
+                          )}
+                          {rating !== null && ordersCount !== null && <span>·</span>}
+                          {ordersCount !== null && <span>{formatReviewCount(ordersCount)} vendidos</span>}
+                        </div>
+                      )}
+                      {ordersCount !== null && (
+                        <p className="mt-1.5 text-[10px] font-bold text-[#A76A16]">Top vendas na Velo</p>
+                      )}
+                      <p className="mt-2 text-[16px] font-semibold tracking-[-0.04em] text-[#111111]">{formatCurrency(product.price)}</p>
+                    </div>
+                  </button>
+                  <ProductFavoriteButton
+                    isFavorited={isFavorite}
+                    onToggleFavorite={() => onToggleFavoriteProduct(product.id)}
+                    className="z-10"
+                  />
+                </article>
+                );
+              })}
+              </div>
+            ) : (
+              <div className="rounded-[16px] border border-black/[0.08] bg-[#F7F7F8] px-4 py-8 text-center">
+                <p className="text-[14px] font-black tracking-[-0.03em] text-[#111111]">Nenhum produto encontrado</p>
+                <p className="mt-1 text-[12px] font-semibold text-black/45">Tente mudar a busca ou os filtros.</p>
+              </div>
+            )}
+          </section>
+        )}
 
       </div>
     </section>
@@ -2399,6 +2600,11 @@ const DashboardHomePage = () => {
   const [collectionProducts, setCollectionProducts] = useState<CollectionProductItem[]>([]);
   const [loadingCollectionProducts, setLoadingCollectionProducts] = useState(false);
   const [removingCollectionProductId, setRemovingCollectionProductId] = useState<string | null>(null);
+  const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>([]);
+  const favoriteStorageKey = useMemo(
+    () => `${HOME_FAVORITES_STORAGE_PREFIX}:${user?.id ?? "visitante"}`,
+    [user?.id],
+  );
   const carouselRef = useRef<HTMLDivElement>(null);
   const collectionPanelRef = useRef<HTMLDivElement>(null);
   const carouselDragRef = useRef({
@@ -2407,6 +2613,40 @@ const DashboardHomePage = () => {
     scrollLeft: 0,
     dragged: false,
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const stored = window.localStorage.getItem(favoriteStorageKey);
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      setFavoriteProductIds(
+        Array.isArray(parsed)
+          ? parsed.filter((item): item is string => typeof item === "string")
+          : [],
+      );
+    } catch {
+      setFavoriteProductIds([]);
+    }
+  }, [favoriteStorageKey]);
+
+  const handleToggleFavoriteProduct = (productId: string) => {
+    setFavoriteProductIds((current) => {
+      const isFavorite = current.includes(productId);
+      const next = isFavorite ? current.filter((id) => id !== productId) : [...current, productId];
+
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(favoriteStorageKey, JSON.stringify(next));
+        } catch {
+          // Mantem a interação funcionando mesmo se o navegador bloquear armazenamento local.
+        }
+      }
+
+      veloToast.success(isFavorite ? "Produto removido dos favoritos." : "Produto salvo nos favoritos.");
+      return next;
+    });
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -2420,7 +2660,7 @@ const DashboardHomePage = () => {
         .eq("is_blocked", false)
         .gt("stock_quantity", 0)
         .order("orders_count", { ascending: false, nullsFirst: false })
-        .limit(12);
+        .range(0, HOME_PRODUCTS_LIMIT - 1);
 
       if (!isMounted) return;
 
@@ -2433,7 +2673,7 @@ const DashboardHomePage = () => {
           .eq("is_blocked", false)
           .gt("stock_quantity", 0)
           .order("orders_count", { ascending: false, nullsFirst: false })
-          .limit(12);
+          .range(0, HOME_PRODUCTS_LIMIT - 1);
 
         if (!isMounted || fallbackResult.error) return;
         rows = fallbackResult.data;
@@ -2704,13 +2944,14 @@ const DashboardHomePage = () => {
 	      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif" }}
 	    >
 	      <AnnouncementModal userId={user?.id} />
-	      <DailyProductSpotlightModal userId={user?.id} />
 	      <MobileAliVeloHome
-	        products={products}
-	        collections={collections}
-	        kpis={collectionKpis}
-	        onCreateCollection={() => setCreateModalOpen(true)}
-	      />
+        products={products}
+        collections={collections}
+        kpis={collectionKpis}
+        favoriteProductIds={favoriteProductIds}
+        onToggleFavoriteProduct={handleToggleFavoriteProduct}
+        onCreateCollection={() => setCreateModalOpen(true)}
+      />
 	      <div className="hidden md:block">
 	      {collections.length > 0 ? (
 	        <section className="min-h-screen bg-[#F2F2F1] px-3 py-3 sm:px-5">

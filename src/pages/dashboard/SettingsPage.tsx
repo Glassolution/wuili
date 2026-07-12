@@ -35,6 +35,7 @@ const SettingsPage = () => {
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabId) || "Perfil";
   const [tab, setTab] = useState<TabId>(initialTab);
+  const isSupportTab = tab === "Suporte";
   useEffect(() => {
     const t = searchParams.get("tab") as TabId | null;
     if (t && t !== tab) setTab(t);
@@ -96,8 +97,8 @@ const SettingsPage = () => {
       </aside>
 
       {/* Main */}
-      <div className="min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:px-0 md:py-6">
-        <div className="mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className={isSupportTab ? "min-w-0 flex-1 overflow-x-hidden px-0 py-0 md:px-0 md:py-6" : "min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:px-0 md:py-6"}>
+        <div className={`mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 ${isSupportTab ? "hidden md:block" : ""}`}>
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-base font-semibold text-white dark:bg-white dark:text-black">
               {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : iniciais}
@@ -110,7 +111,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Mobile tab pills */}
-        <div className="-mx-3 mb-4 overflow-x-auto px-3 pb-1 md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+        <div className={`-mx-3 mb-4 overflow-x-auto px-3 pb-1 md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden ${isSupportTab ? "hidden md:block" : ""}`} style={{ scrollbarWidth: "none" }}>
           <div className="inline-flex min-w-full gap-1 rounded-2xl border border-[#E5E5E5] bg-white p-1 shadow-sm">
             {NAV.map((item) => {
               const active = tab === item.id;
@@ -132,7 +133,7 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        <div className="mx-auto w-full max-w-[760px] rounded-2xl border border-[#EFEFEF] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900 sm:p-5 md:p-6">
+        <div className={isSupportTab ? "mx-auto w-full max-w-[760px] bg-white dark:bg-zinc-900 md:rounded-2xl md:border md:border-[#EFEFEF] md:p-6 md:shadow-[0_1px_3px_rgba(0,0,0,0.08)] md:dark:border-zinc-800" : "mx-auto w-full max-w-[760px] rounded-2xl border border-[#EFEFEF] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900 sm:p-5 md:p-6"}>
           {tab === "Perfil"        && <ProfileTab />}
           {tab === "Minhas Lojas"  && <StoresTab />}
           {tab === "Integrações"   && <IntegrationsTab />}
