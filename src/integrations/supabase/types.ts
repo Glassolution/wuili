@@ -760,6 +760,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           disponibilidade_semanal: string | null
+          email: string | null
           experiencia: string | null
           id: string
           is_admin: boolean
@@ -780,6 +781,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           disponibilidade_semanal?: string | null
+          email?: string | null
           experiencia?: string | null
           id?: string
           is_admin?: boolean
@@ -800,6 +802,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           disponibilidade_semanal?: string | null
+          email?: string | null
           experiencia?: string | null
           id?: string
           is_admin?: boolean
