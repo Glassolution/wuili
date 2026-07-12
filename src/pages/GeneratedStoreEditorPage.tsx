@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Check, ChevronLeft, Gift, Heart, History, Menu, MessageSquare, Monitor, MoreHorizontal, MousePointer2, Pencil, Play, Search, Settings, ShoppingBag, Smartphone, Type, UserRound, X } from "lucide-react";
+import { Bell, Check, ChevronLeft, Gift, Heart, History, LayoutGrid, LayoutTemplate, Menu, MessageSquare, Monitor, MoreHorizontal, MousePointer2, Package, Palette, Pencil, Play, Plus, Search, Settings, ShoppingBag, Smartphone, Type, UserRound, X } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
