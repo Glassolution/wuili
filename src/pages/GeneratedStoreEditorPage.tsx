@@ -15,10 +15,14 @@ const getFirstImage = (images: unknown) => {
 };
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+type EditMode = "select" | "text" | "edit" | "comment" | null;
+type Comment = { id: string; x: number; y: number; text: string; open: boolean };
+
 const GeneratedStoreEditorPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const imageInput = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [mobilePreview, setMobilePreview] = useState(false);
   const [panel, setPanel] = useState<EditorPanel>(null);
   const [accent, setAccent] = useState("#111111");
@@ -29,6 +33,56 @@ const GeneratedStoreEditorPage = () => {
   const [showPlans, setShowPlans] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState("Velo Modern");
+  const [editMode, setEditMode] = useState<EditMode>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+
+  const getElementPath = (element: HTMLElement, root: HTMLElement): string => {
+    const parts: string[] = [];
+    let current: HTMLElement | null = element;
+    while (current && current !== root) {
+      const parent = current.parentElement;
+      if (!parent) break;
+      const index = Array.from(parent.children).indexOf(current);
+      parts.unshift(`${current.tagName.toLowerCase()}:${index}`);
+      current = parent;
+    }
+    return parts.join(">");
+  };
+
+  const handlePreviewClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!editMode || !previewRef.current) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-editor-ignore]")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = previewRef.current.getBoundingClientRect();
+
+    if (editMode === "comment") {
+      const x = ((event.clientX - rect.left) / rect.width) * 100;
+      const y = ((event.clientY - rect.top) / rect.height) * 100;
+      setComments((prev) => [...prev, { id: crypto.randomUUID(), x, y, text: "", open: true }]);
+      return;
+    }
+    if (editMode === "select") {
+      setSelectedPath(getElementPath(target, previewRef.current));
+      return;
+    }
+    if ((editMode === "text" || editMode === "edit") && target.textContent?.trim()) {
+      target.setAttribute("contenteditable", "true");
+      target.style.outline = "2px solid #2563eb";
+      target.style.outlineOffset = "2px";
+      target.focus();
+      const cleanup = () => {
+        target.removeAttribute("contenteditable");
+        target.style.outline = "";
+        target.style.outlineOffset = "";
+        target.removeEventListener("blur", cleanup);
+      };
+      target.addEventListener("blur", cleanup);
+    }
+  };
+
   const flow = useMemo<FlowState | null>(() => {
     const state = location.state as Partial<FlowState> | null;
     let product = state?.product; let language = state?.language; let persona = state?.persona; let salesAngle = state?.salesAngle;
@@ -58,7 +112,9 @@ const GeneratedStoreEditorPage = () => {
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#050505] text-white" style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
+      <style>{`.editor-mode-active *:hover{outline:1.5px dashed #2563eb;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}`}</style>
       <header className="flex h-[72px] shrink-0 items-center justify-between px-5">
+
         <div className="flex items-center gap-4"><button type="button" onClick={() => history.back()} className="text-white/55 hover:text-white"><ChevronLeft /></button><button type="button" onClick={()=>setPanel(panel==="template"?null:"template")} className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition ${panel==="template"?"bg-white/15 text-white":"bg-white/[0.07] text-white/60 hover:text-white"}`} aria-label="Editar template"><MoreHorizontal size={18}/></button><div><strong className="block text-[14px]">Loja de Moda</strong><span className="text-[10px] text-white/30">Template 01 · {currentTemplate}</span></div></div>
         <div className="flex items-center gap-2"><div className="flex rounded-[9px] bg-white/[0.06] p-1"><button onClick={()=>setMobilePreview(false)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${!mobilePreview?"bg-white/15":"text-white/35"}`}><Monitor size={17}/></button><button onClick={()=>setMobilePreview(true)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${mobilePreview?"bg-white/15":"text-white/35"}`}><Smartphone size={17}/></button></div><button className="p-3 text-white/45"><Settings size={18}/></button><button className="p-3 text-white/45"><Play size={18}/></button><button className="p-3 text-white/45"><History size={18}/></button><div className="relative ml-1 pb-2"><button onClick={()=>setShowPlans(true)} className="relative min-w-[112px] overflow-hidden rounded-[9px] bg-gradient-to-r from-[#3b82f6] via-[#2563eb] to-[#1d4ed8] px-5 pb-3 pt-2 text-[13px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_rgba(37,99,235,0.28)] transition hover:-translate-y-0.5 hover:brightness-110"><span className="relative z-10">Publicar</span><span className="absolute inset-x-0 top-0 h-px bg-white/45" /></button><span className="absolute -bottom-0.5 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-b from-[#fde047] to-[#facc15] px-3 py-1 text-[8px] font-extrabold tracking-[0.02em] text-[#5b4300] shadow-[0_2px_7px_rgba(0,0,0,0.38)]">🎁 DOMÍNIO GRÁTIS</span></div></div>
       </header>
@@ -143,7 +199,7 @@ const GeneratedStoreEditorPage = () => {
         ) : null}
 
         <div className="relative min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
-          <div className={`mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1450px]"}`} style={{ fontFamily: font }}>
+          <div ref={previewRef} onClick={handlePreviewClick} className={`relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1450px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: font, cursor: editMode==="comment"?"crosshair":editMode?"pointer":"default" }}>
             <nav className="flex h-[82px] items-center justify-between px-7"><Menu size={21}/><strong className="text-[28px] tracking-[-0.07em]">VELO/W</strong><div className="flex items-center gap-4"><span className="hidden text-[11px] sm:inline">Blog</span><span className="hidden text-[11px] sm:inline">FAQ</span><Bell size={17}/><ShoppingBag size={17}/><UserRound size={17}/></div></nav>
             <div className="flex flex-wrap items-center gap-2 px-7 pb-6"><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Roupas⌄</button><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Novidades</button><button className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">Promoções</button><label className="flex min-w-[180px] flex-1 items-center rounded-full bg-[#f5f5f5] px-4"><input placeholder="Buscar..." className="h-9 min-w-0 flex-1 bg-transparent text-[11px] outline-none"/><Search size={15}/></label>{["Masculino","Feminino","Infantil"].map(item=><button key={item} className="rounded-full bg-[#f5f5f5] px-4 py-2 text-[11px]">{item}</button>)}</div>
             <section className="relative mx-7 min-h-[285px] overflow-hidden rounded-[18px] bg-[#ebe9e5]">
@@ -161,16 +217,33 @@ const GeneratedStoreEditorPage = () => {
                 {displayedProducts.map((product,index)=><article key={product.id} className="group rounded-[16px] bg-white p-2 shadow-[0_0_0_1px_rgba(0,0,0,0.06)]"><div className="relative aspect-[0.84] overflow-hidden rounded-[13px] bg-[#ececea]"><img src={index===0?heroImage:product.imageUrl} alt={product.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]"/><button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90"><Heart size={15}/></button></div><div className="p-3"><h3 className="line-clamp-1 text-[16px] font-semibold tracking-[-0.03em]">{product.title}</h3><p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-black/42">{product.category} · seleção especial da Velo.</p><div className="mt-4 flex items-center justify-between"><strong className="rounded-[7px] px-3 py-2 text-[12px] text-white" style={{backgroundColor:accent}}>{formatBRL(Math.max(product.price*2.1,product.price+20))}</strong><button className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10"><ShoppingBag size={15}/></button></div></div></article>)}
               </section>
             </div>
+
+            {/* Comment pins */}
+            {comments.map((comment)=>(
+              <div key={comment.id} data-editor-ignore className="absolute z-40" style={{ left: `${comment.x}%`, top: `${comment.y}%`, transform: "translate(-50%, -100%)" }} onClick={(e)=>e.stopPropagation()}>
+                <div className="flex flex-col items-start gap-1">
+                  <button type="button" onClick={()=>setComments((prev)=>prev.map((item)=>item.id===comment.id?{...item,open:!item.open}:item))} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#facc15] text-black shadow-[0_4px_12px_rgba(0,0,0,0.3)]" aria-label="Comentário"><MessageSquare size={14}/></button>
+                  {comment.open ? (
+                    <div className="min-w-[220px] rounded-[12px] border border-black/10 bg-white p-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+                      <textarea autoFocus value={comment.text} onChange={(e)=>{const value=e.target.value;setComments((prev)=>prev.map((item)=>item.id===comment.id?{...item,text:value}:item));}} placeholder="Escreva um comentário..." className="h-20 w-full resize-none rounded-[8px] border border-black/10 bg-white p-2 text-[12px] text-black outline-none focus:border-[#2563eb]"/>
+                      <div className="mt-2 flex items-center justify-between"><button type="button" onClick={()=>setComments((prev)=>prev.filter((item)=>item.id!==comment.id))} className="text-[11px] text-black/45 hover:text-black">Remover</button><button type="button" onClick={()=>setComments((prev)=>prev.map((item)=>item.id===comment.id?{...item,open:false}:item))} className="rounded-full bg-black px-3 py-1 text-[11px] text-white">Salvar</button></div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div className="pointer-events-none sticky bottom-4 z-30 mt-4 flex justify-center">
-            <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/40 bg-white/25 px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-2xl backdrop-saturate-150">
-              <button type="button" aria-label="Selecionar" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><MousePointer2 size={15}/></button>
-              <button type="button" aria-label="Texto" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><Type size={15}/></button>
-              <button type="button" aria-label="Editar" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><Pencil size={14}/></button>
-              <button type="button" aria-label="Comentar" className="flex h-8 w-8 items-center justify-center rounded-full text-[#111] hover:bg-white/40"><MessageSquare size={14}/></button>
+          <div className="pointer-events-none sticky bottom-4 z-30 mt-4 flex flex-col items-center gap-2">
+            {editMode ? <span className="pointer-events-auto rounded-full bg-black/80 px-3 py-1 text-[10.5px] font-medium text-white shadow-lg backdrop-blur">{editMode==="select"?"Clique em qualquer elemento para selecionar":editMode==="text"?"Clique em um texto para editar":editMode==="edit"?"Clique para editar conteúdo":"Clique onde deseja adicionar um comentário"} · <button onClick={()=>setEditMode(null)} className="underline">sair</button></span> : null}
+            <div data-editor-ignore className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/40 bg-white/25 px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-2xl backdrop-saturate-150">
+              <button type="button" onClick={()=>setEditMode(editMode==="select"?null:"select")} aria-label="Selecionar" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="select"?"bg-[#111] text-white":"text-[#111] hover:bg-white/40"}`}><MousePointer2 size={15}/></button>
+              <button type="button" onClick={()=>setEditMode(editMode==="text"?null:"text")} aria-label="Texto" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="text"?"bg-[#111] text-white":"text-[#111] hover:bg-white/40"}`}><Type size={15}/></button>
+              <button type="button" onClick={()=>setEditMode(editMode==="edit"?null:"edit")} aria-label="Editar" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="edit"?"bg-[#111] text-white":"text-[#111] hover:bg-white/40"}`}><Pencil size={14}/></button>
+              <button type="button" onClick={()=>setEditMode(editMode==="comment"?null:"comment")} aria-label="Comentar" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="comment"?"bg-[#facc15] text-black":"text-[#111] hover:bg-white/40"}`}><MessageSquare size={14}/></button>
             </div>
           </div>
+
 
         </div>
       </div>
