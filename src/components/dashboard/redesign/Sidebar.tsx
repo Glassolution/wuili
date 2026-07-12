@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, LayoutDashboard, Package, ShoppingBag, ShoppingCart, Video, MessageSquare, DollarSign, CreditCard, HelpCircle } from "lucide-react";
+import { ChevronDown, LayoutDashboard, Package, ShoppingBag, ShoppingCart, Video, MessageSquare, DollarSign, CreditCard, HelpCircle, Sparkles } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { VeloLogo } from "@/components/VeloLogo";
+import { useAuth } from "@/contexts/AuthContext";
+import { isAdminEmail } from "@/lib/adminAccess";
 
 interface SidebarItem {
   id: string;
