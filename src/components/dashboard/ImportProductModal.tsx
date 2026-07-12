@@ -248,6 +248,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [mlVerifyModalOpen, setMlVerifyModalOpen] = useState(false);
 
   // Pricing engine
   const [multiplier, setMultiplier] = useState(2.5);
