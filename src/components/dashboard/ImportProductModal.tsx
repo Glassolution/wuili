@@ -1257,6 +1257,12 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         benefits={publishUpgradeBenefits}
       />
 
+      <MLAccountVerificationModal
+        open={mlVerifyModalOpen}
+        onClose={() => setMlVerifyModalOpen(false)}
+        onFinish={() => setMlVerifyModalOpen(false)}
+      />
+
       {/* Animations */}
       <style>{`
         .step-fade {
