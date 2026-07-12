@@ -1,5 +1,6 @@
 import { ArrowUpRight, FlaskConical, PackageOpen, Store } from "lucide-react";
 import { Link } from "react-router-dom";
+import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
 
 export type ExampleProduct = {
   id: string;
