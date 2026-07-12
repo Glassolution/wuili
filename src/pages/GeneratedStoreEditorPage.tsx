@@ -144,9 +144,35 @@ const GeneratedStoreEditorPage = () => {
   const personaText = flow.persona || "";
   const isLuxury = /premium|luxo|sofistic|elegan/i.test(salesAngleText + personaText);
   const isYouth = /jovem|urban|street|casual/i.test(salesAngleText + personaText);
-  const headlinePrimary = isLuxury ? "VISTA SUA" : isYouth ? "SEU ESTILO" : "VISTA SUA";
-  const headlineSecondary = isLuxury ? "ELEGÂNCIA" : isYouth ? "SEM LIMITES" : "CONFIANÇA";
-  const heroSubtitle = salesAngleText ? salesAngleText.slice(0, 120) : `Peças atemporais. ${brandName} tem tudo o que você precisa para se sentir bem.`;
+  const copyPool = isLuxury
+    ? [
+        { p: "VISTA SUA", s: "ELEGÂNCIA", sub: "Alfaiataria contemporânea para quem faz da presença um statement.", cta1: "COMPRAR AGORA", cta2: "EXPLORAR COLEÇÕES" },
+        { p: "REDEFINA", s: "SEU LEGADO", sub: "Peças atemporais construídas com materiais nobres e cortes precisos.", cta1: "DESCOBRIR", cta2: "VER LOOKBOOK" },
+        { p: "MENOS", s: "MAIS SEMPRE", sub: "Curadoria minimalista para o guarda-roupa que não sai de moda.", cta1: "COMPRAR SELEÇÃO", cta2: "SOBRE A MARCA" },
+      ]
+    : isYouth
+    ? [
+        { p: "SEU ESTILO", s: "SEM LIMITES", sub: "Streetwear autoral para quem escreve as próprias regras.", cta1: "SHOP DROP", cta2: "VER NOVIDADES" },
+        { p: "ROMPA", s: "O PADRÃO", sub: "Peças ousadas, cores vivas e atitude em cada detalhe.", cta1: "COMPRAR AGORA", cta2: "EXPLORAR COLEÇÃO" },
+        { p: "MOVIMENTO", s: "URBANO", sub: "Roupas feitas pra rua, pra pista e pra tudo que vier depois.", cta1: "ENTRAR NO DROP", cta2: "VER CATÁLOGO" },
+      ]
+    : [
+        { p: "VISTA SUA", s: "CONFIANÇA", sub: "Peças versáteis pra você se sentir bem em qualquer lugar.", cta1: "COMPRAR AGORA", cta2: "EXPLORAR COLEÇÕES" },
+        { p: "O SEU JEITO", s: "DE VESTIR", sub: "Encontre o look certo pra cada momento do seu dia.", cta1: "VER NOVIDADES", cta2: "MONTAR LOOK" },
+        { p: "MODA QUE", s: "TE ENTENDE", sub: "Conforto, atitude e caimento perfeito em cada peça.", cta1: "COMPRAR AGORA", cta2: "VER COLEÇÕES" },
+      ];
+  const copy = copyPool[copyVariant % copyPool.length];
+  const headlinePrimary = copy.p;
+  const headlineSecondary = copy.s;
+  const heroSubtitle = salesAngleText ? salesAngleText.slice(0, 120) : copy.sub;
+  const ctaPrimary = copy.cta1;
+  const ctaSecondary = copy.cta2;
+  const taglinePool = isLuxury
+    ? ["MAKE YOUR STATEMENT", "TIMELESS BY DESIGN", "CRAFTED TO LAST", "ESSENCE OF STYLE"]
+    : isYouth
+    ? ["OWN THE STREET", "NEW WAVE ENERGY", "BREAK THE RULES", "UNAPOLOGETIC"]
+    : ["WEAR YOUR STORY", "STYLE MADE SIMPLE", "EVERYDAY ESSENTIALS", "DRESSED TO FEEL GOOD"];
+  const brandTagline = taglinePool[taglineVariant % taglinePool.length];
   const collectionLabels = ["O Essencial", "Fim de Semana", "Noite", "Poder Feminino"];
 
   return (
