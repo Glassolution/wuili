@@ -116,11 +116,15 @@ const StartChoicePage = () => {
         </div>
       </section>
 
-      <aside aria-hidden="true" className="relative hidden min-h-screen overflow-hidden bg-[#010101] lg:block">
+      <aside className="relative hidden min-h-screen items-center justify-center overflow-hidden bg-[#010101] lg:flex">
         <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(255,255,255,0.16)_1px,transparent_1.2px)] [background-position:2px_2px] [background-size:32px_32px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,transparent_0%,rgba(0,0,0,0.08)_48%,rgba(0,0,0,0.38)_100%)]" />
-        <div className="absolute inset-x-[16%] bottom-[12%] top-[12%] rounded-[8px] bg-[#111111]/75 shadow-[0_24px_80px_rgba(0,0,0,0.55)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,transparent_0%,rgba(0,0,0,0.08)_48%,rgba(0,0,0,0.55)_100%)]" />
+        <StoreMockupPreview className="relative z-10" />
       </aside>
+    </div>
+  </main>
+  );
+};
     </div>
   </main>
   );
