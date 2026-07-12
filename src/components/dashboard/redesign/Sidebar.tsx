@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, LayoutDashboard, Package, ShoppingBag, ShoppingCart, Video, MessageSquare, DollarSign, CreditCard, HelpCircle } from "lucide-react";
+import { ChevronDown, LayoutDashboard, Package, ShoppingBag, ShoppingCart, Video, MessageSquare, DollarSign, CreditCard, HelpCircle, Sparkles } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { VeloLogo } from "@/components/VeloLogo";
+import { useAuth } from "@/contexts/AuthContext";
+import { isAdminEmail } from "@/lib/adminAccess";
 
 interface SidebarItem {
   id: string;
@@ -38,6 +40,12 @@ const sidebarItems: SidebarItem[] = [
 
 export function Sidebar() {
   const location = useLocation();
+  const { user, role } = useAuth();
+  const metadataRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined) ??
+    null;
+  const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
   const [expandedItems, setExpandedItems] = useState<string[]>(["store", "finance"]);
 
   const toggleExpand = (id: string) => {
@@ -137,6 +145,16 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="space-y-3 border-t border-slate-200 p-5">
+        {isAdmin && (
+          <Link
+            to="/comecar"
+            className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-amber-400 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100"
+            title="Acesso temporário — visível apenas para admins"
+          >
+            <Sparkles size={18} />
+            <span>Editar minha loja (beta)</span>
+          </Link>
+        )}
         <button className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100">
           <span>Start Mode</span>
           <div className="h-5 w-10 rounded-full bg-slate-300"></div>
