@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import { useAuth } from "@/contexts/AuthContext";
+import { markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 
