@@ -6,7 +6,8 @@ import type { ExampleProduct } from "@/pages/StartChoicePage";
 type LanguageOption = { name: string; flag: string };
 
 const featuredLanguages: LanguageOption[] = [
-  { name: "Português", flag: "🇵🇹" },
+  { name: "Português (Brasil)", flag: "🇧🇷" },
+  { name: "Português (Portugal)", flag: "🇵🇹" },
   { name: "Inglês", flag: "🇺🇸" },
   { name: "Espanhol", flag: "🇪🇸" },
   { name: "Francês", flag: "🇫🇷" },
@@ -42,7 +43,7 @@ const StoreLanguagePage = () => {
       return null;
     }
   }, [location.state]);
-  const [selectedLanguage, setSelectedLanguage] = useState("Português");
+  const [selectedLanguage, setSelectedLanguage] = useState("Português (Brasil)");
   const [showOtherLanguages, setShowOtherLanguages] = useState(false);
   const [search, setSearch] = useState("");
 
