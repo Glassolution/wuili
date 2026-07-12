@@ -616,6 +616,13 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       return;
     }
 
+    // Se o backend sinalizar que a conta ML precisa ser verificada / posta em
+    // modo vendedor, abrimos o tutorial em vez de tentar publicar.
+    if (mlAccountNeedsVerification) {
+      setMlVerifyModalOpen(true);
+      return;
+    }
+
     if (planLimits.canPublishProducts) {
       void handlePublish();
       return;
