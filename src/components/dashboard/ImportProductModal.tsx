@@ -6,6 +6,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
+import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
 import {
