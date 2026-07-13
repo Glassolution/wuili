@@ -304,7 +304,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   // se a conta já está apta. Só abrimos o tutorial quando a conta NÃO está.
   // Quando o usuário volta para a Velo após configurar, a nova checagem
   // retorna canList=true e o modal não abre mais.
-  const checkSellerStatus = React.useCallback(async () => {
+  const checkSellerStatus = useCallback(async () => {
     if (!user) return;
     try {
       const { data } = await supabase.functions.invoke("ml-seller-status");
