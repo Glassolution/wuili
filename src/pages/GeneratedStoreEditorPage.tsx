@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Baby, BookOpen, Boxes, Car, Check, ChevronLeft, Dumbbell, Gamepad2, Gem, Gift, Headphones, Heart, HeartPulse, History, Home, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, MessageSquare, Monitor, MoreHorizontal, MousePointer2, Package, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Settings, Shirt, ShoppingCart, Smartphone, Sparkles, Star, Truck, Type, X } from "lucide-react";
+import { Baby, BookOpen, Boxes, Car, Check, ChevronLeft, Dumbbell, Eraser, Gamepad2, Gem, Gift, Headphones, Heart, HeartPulse, History, Home, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, Monitor, MoreHorizontal, MousePointer2, Package, PaintBucket, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Settings, Shirt, ShoppingCart, Smartphone, Sparkles, Star, Truck, Type, X } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
@@ -89,8 +89,9 @@ const getCategoryIcon = (category: string) => {
   return Boxes;
 };
 
-type EditMode = "select" | "text" | "edit" | "comment" | null;
-type Comment = { id: string; x: number; y: number; text: string; open: boolean };
+type EditMode = "select" | "edit" | "fill" | "eraser" | null;
+type ToolbarTool = Exclude<EditMode, null>;
+type ElementOverride = { backgroundColor?: string };
 
 const GeneratedStoreEditorPage = () => {
   const location = useLocation();
@@ -98,6 +99,7 @@ const GeneratedStoreEditorPage = () => {
   const { user } = useAuth();
   const imageInput = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const selectedElementRef = useRef<HTMLElement | null>(null);
   const [mobilePreview, setMobilePreview] = useState(false);
   const [panel, setPanel] = useState<EditorPanel>(null);
   const [accent, setAccent] = useState("#111111");
@@ -112,7 +114,9 @@ const GeneratedStoreEditorPage = () => {
   const [currentTemplate, setCurrentTemplate] = useState("Velo Modern");
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [elementOverrides, setElementOverrides] = useState<Record<string, ElementOverride>>({});
+  const [fillColor, setFillColor] = useState("#111111");
+  const [fillPickerOpen, setFillPickerOpen] = useState(false);
   const [generatingBanner, setGeneratingBanner] = useState(false);
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [copyVariant, setCopyVariant] = useState(0);
@@ -156,39 +160,123 @@ const GeneratedStoreEditorPage = () => {
     return parts.join(">");
   };
 
+  const getElementByPath = (path: string): HTMLElement | null => {
+    const root = previewRef.current;
+    if (!root || !path) return null;
+    let current: Element = root;
+    for (const part of path.split(">")) {
+      const [, indexValue] = part.split(":");
+      const index = Number(indexValue);
+      if (!Number.isInteger(index)) return null;
+      const child = current.children.item(index);
+      if (!(child instanceof HTMLElement)) return null;
+      current = child;
+    }
+    return current instanceof HTMLElement && current !== root ? current : null;
+  };
+
+  const applyOverrideToElement = (element: HTMLElement, override: ElementOverride) => {
+    if (element.dataset.editorOriginalBackgroundColor === undefined) {
+      element.dataset.editorOriginalBackgroundColor = element.style.backgroundColor;
+    }
+    if (override.backgroundColor) {
+      element.style.backgroundColor = override.backgroundColor;
+      element.dataset.editorFillOverride = "true";
+    }
+  };
+
+  const resetElementOverride = (element: HTMLElement) => {
+    const originalBackground = element.dataset.editorOriginalBackgroundColor;
+    if (originalBackground) element.style.backgroundColor = originalBackground;
+    else element.style.removeProperty("background-color");
+    delete element.dataset.editorOriginalBackgroundColor;
+    delete element.dataset.editorFillOverride;
+  };
+
+  const applyFillToPath = (path: string, color: string) => {
+    setElementOverrides((prev) => ({ ...prev, [path]: { backgroundColor: color } }));
+    const element = getElementByPath(path);
+    if (element) applyOverrideToElement(element, { backgroundColor: color });
+  };
+
+  const resetPathOverride = (path: string) => {
+    setElementOverrides((prev) => {
+      const next = { ...prev };
+      delete next[path];
+      return next;
+    });
+    const element = getElementByPath(path);
+    if (element) resetElementOverride(element);
+  };
+
+  const startInlineEditing = (target: HTMLElement) => {
+    if (!target.textContent?.trim()) return;
+    target.setAttribute("contenteditable", "true");
+    target.style.outline = "2px solid #2563eb";
+    target.style.outlineOffset = "2px";
+    target.focus();
+    const cleanup = () => {
+      target.removeAttribute("contenteditable");
+      target.style.outline = "";
+      target.style.outlineOffset = "";
+      target.removeEventListener("blur", cleanup);
+    };
+    target.addEventListener("blur", cleanup);
+  };
+
+  const handleFillColorChange = (color: string) => {
+    setFillColor(color);
+    setAccent(color);
+    if (selectedPath) applyFillToPath(selectedPath, color);
+  };
+
+  const handleToolbarToolClick = (tool: ToolbarTool) => {
+    setEditMode((current) => (current === tool && tool === "select" ? null : tool));
+    if (tool !== "fill") setFillPickerOpen(false);
+
+    if (tool === "edit" && selectedPath) {
+      const element = getElementByPath(selectedPath);
+      if (element) startInlineEditing(element);
+    }
+    if (tool === "fill") setFillPickerOpen(Boolean(selectedPath));
+    if (tool === "eraser" && selectedPath) resetPathOverride(selectedPath);
+  };
+
+  useEffect(() => {
+    selectedElementRef.current?.removeAttribute("data-editor-selected");
+    const element = selectedPath ? getElementByPath(selectedPath) : null;
+    if (element) element.setAttribute("data-editor-selected", "true");
+    selectedElementRef.current = element;
+  }, [selectedPath]);
+
+  useEffect(() => {
+    Object.entries(elementOverrides).forEach(([path, override]) => {
+      const element = getElementByPath(path);
+      if (element) applyOverrideToElement(element, override);
+    });
+  }, [elementOverrides]);
+
   const handlePreviewClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!editMode || !previewRef.current) return;
     const target = event.target as HTMLElement;
     if (target.closest("[data-editor-ignore]")) return;
     event.preventDefault();
     event.stopPropagation();
-    const rect = previewRef.current.getBoundingClientRect();
+    const path = getElementPath(target, previewRef.current);
+    setSelectedPath(path);
 
-    if (editMode === "comment") {
-      const x = ((event.clientX - rect.left) / rect.width) * 100;
-      const y = ((event.clientY - rect.top) / rect.height) * 100;
-      setComments((prev) => [...prev, { id: crypto.randomUUID(), x, y, text: "", open: true }]);
+    if (editMode === "edit") {
+      startInlineEditing(target);
       return;
     }
-    if (editMode === "select") {
-      setSelectedPath(getElementPath(target, previewRef.current));
+    if (editMode === "fill") {
+      setFillPickerOpen(true);
       return;
     }
-    if ((editMode === "text" || editMode === "edit") && target.textContent?.trim()) {
-      target.setAttribute("contenteditable", "true");
-      target.style.outline = "2px solid #2563eb";
-      target.style.outlineOffset = "2px";
-      target.focus();
-      const cleanup = () => {
-        target.removeAttribute("contenteditable");
-        target.style.outline = "";
-        target.style.outlineOffset = "";
-        target.removeEventListener("blur", cleanup);
-      };
-      target.addEventListener("blur", cleanup);
+    if (editMode === "eraser") {
+      resetPathOverride(path);
     }
   };
-
   const flow = useMemo<FlowState | null>(() => {
     const state = location.state as Partial<FlowState> | null;
     let product = state?.product; let language = state?.language; let persona = state?.persona; let salesAngle = state?.salesAngle;
@@ -266,11 +354,11 @@ const GeneratedStoreEditorPage = () => {
   const sidebarIconCategories = catalogTaxonomy.slice(0, 10);
   const sidebarExtraCategories = catalogTaxonomy.slice(10);
   const heroNavLinks = [
-    { label: "Loja", href: "#", left: "27.85%", width: "4.25%" },
-    { label: "Ofertas", href: "#ofertas", left: "35.82%", width: "4.4%" },
-    { label: "Novidades", href: "#novidades", left: "44.18%", width: "4.75%" },
-    { label: "Marcas", href: "#marcas", left: "52.58%", width: "4.25%" },
-    { label: "Inspira\u00e7\u00e3o", href: "#inspiracao", left: "60.6%", width: "5.8%" },
+    { label: "Loja", href: "#", left: "27.85%", width: "4.9%" },
+    { label: "Ofertas", href: "#ofertas", left: "35.82%", width: "5.4%" },
+    { label: "Novidades", href: "#novidades", left: "44.18%", width: "6.8%" },
+    { label: "Marcas", href: "#marcas", left: "52.58%", width: "5.4%" },
+    { label: "Inspira\u00e7\u00e3o", href: "#inspiracao", left: "60.6%", width: "7.4%" },
   ];
   const categoryHighlights = Array.from({ length: 4 }, (_, index) => {
     const category = categories[index % categories.length] || displayedProducts[index % displayedProducts.length]?.category || "Outros";
@@ -324,10 +412,19 @@ const GeneratedStoreEditorPage = () => {
     { name: "Georgia", stack: 'Georgia, serif', mood: "Cl\u00e1ssica e elegante" },
   ];
   const selectedFontStack = fontOptions.find((option) => option.name === font)?.stack || fontOptions[0].stack;
+  const toolbarOrientation = mobilePreview ? "vertical" : "horizontal";
+  const toolbarTools = [
+    { id: "select" as const, label: "Select", icon: MousePointer2 },
+    { id: "edit" as const, label: "Pencil", icon: Pencil },
+    { id: "fill" as const, label: "Fill", icon: PaintBucket },
+    { id: "eraser" as const, label: "Eraser", icon: Eraser },
+  ];
+  const activeToolbarTool = toolbarTools.find((tool) => tool.id === editMode);
+  const fillSwatches = ["#111111", "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed"];
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#050505] text-white" style={{ fontFamily: selectedFontStack }}>
-      <style>{`.editor-mode-active *:hover{outline:1.5px dashed #2563eb;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}`}</style>
+      <style>{`.store-editor-preview [data-editor-selected="true"]{outline:2px solid #111827;outline-offset:3px}.editor-mode-active *:hover{outline:1.5px dashed #2563eb;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}`}</style>
       <header className="flex h-[72px] shrink-0 items-center justify-between px-5">
 
         <div className="flex items-center gap-4"><button type="button" onClick={() => history.back()} className="text-white/55 hover:text-white"><ChevronLeft /></button><button type="button" onClick={()=>setPanel(panel==="template"?null:"template")} className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition ${panel==="template"?"bg-white/15 text-white":"bg-white/[0.07] text-white/60 hover:text-white"}`} aria-label="Editar template"><MoreHorizontal size={18}/></button><div><strong className="block text-[14px]">{storeName}</strong><span className="text-[10px] text-white/30">Template 01 {"\u00b7"} {currentTemplate}</span></div></div>
@@ -418,7 +515,7 @@ const GeneratedStoreEditorPage = () => {
         ) : null}
 
         <div className="relative min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
-          <div ref={previewRef} onClick={handlePreviewClick} className={`relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1180px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: editMode==="comment"?"crosshair":editMode?"pointer":"default" }}>
+          <div ref={previewRef} onClick={handlePreviewClick} className={`store-editor-preview relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1180px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: editMode==="fill"?"copy":editMode==="eraser"?"not-allowed":editMode?"pointer":"default" }}>
             {/* === TEMPLATE 01 - C-STYLE INSPIRED === */}
             {/* Main header */}
             <StorefrontNavbar storeName={brandName} activePage="store" className="relative z-30" />
@@ -429,38 +526,38 @@ const GeneratedStoreEditorPage = () => {
 
               <div className="absolute inset-0" aria-label={"Conte\u00fado do banner principal"}>
                 <div className="absolute z-20 overflow-hidden bg-white text-[#1f2933]" style={{ left: "3.12%", top: "0%", width: "19.45%", height: "100%" }}>
-                  <div className="flex h-[7.3%] w-full items-center border-b border-black/5 bg-white px-[5%]" style={{ fontSize: "clamp(5px,0.66vw,11px)" }}>
+                  <div className="flex h-[7.9%] w-full items-center border-b border-black/5 bg-white px-[5%]" style={{ fontSize: "clamp(7.5px,0.82vw,13px)" }}>
                     <div className="flex h-[68%] w-full items-center gap-[7%] rounded-[3px] bg-[#082f4b] px-[6%] text-white">
-                      <Menu size={13} strokeWidth={2} className="h-[1.05em] w-[1.05em] shrink-0"/>
+                      <Menu size={15} strokeWidth={2} className="h-[1.18em] w-[1.18em] shrink-0"/>
                       <span className="font-medium leading-none">Categorias</span>
                     </div>
                   </div>
-                  <div className="h-[92.7%] overflow-y-auto px-[7%] py-[4.2%] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="h-[92.1%] overflow-y-auto px-[7%] py-[4.2%] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {sidebarIconCategories.map((category)=>{
                       const CategoryIcon = getCategoryIcon(category);
-                      return <a key={category} href="#categorias" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="group flex h-[8.7%] min-h-[24px] w-full items-center gap-[8%] rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(5px,0.54vw,8px)" }}>
-                        <CategoryIcon size={12} strokeWidth={1.65} className="h-[1.35em] w-[1.35em] shrink-0"/>
+                      return <a key={category} href="#categorias" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="group flex h-[9.2%] min-h-[30px] w-full items-center gap-[8%] rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(7px,0.72vw,10.5px)" }}>
+                        <CategoryIcon size={15} strokeWidth={1.65} className="h-[1.55em] w-[1.55em] shrink-0"/>
                         <span className="min-w-0 flex-1 truncate">{category}</span>
-                        <ChevronLeft size={10} className="h-[1.15em] w-[1.15em] shrink-0 rotate-180 text-current opacity-70"/>
+                        <ChevronLeft size={12} className="h-[1.28em] w-[1.28em] shrink-0 rotate-180 text-current opacity-70"/>
                       </a>;
                     })}
                     {sidebarExtraCategories.map((category)=>{
-                      return <a key={category} href="#categorias" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="flex min-h-[20px] w-full items-center rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(5px,0.5vw,7.5px)" }}>{category}</a>;
+                      return <a key={category} href="#categorias" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="flex min-h-[24px] w-full items-center rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(6.5px,0.66vw,9.5px)" }}>{category}</a>;
                     })}
                     <div className="my-[4%] border-t border-black/10" />
                     {["Ofertas especiais","Cart\u00f5es presente"].map((item)=>(
-                      <a key={item} href="#ofertas" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="flex min-h-[22px] w-full items-center gap-[8%] rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(5px,0.54vw,8px)" }}>
-                        <Gift size={12} strokeWidth={1.65} className="h-[1.35em] w-[1.35em] shrink-0"/>
+                      <a key={item} href="#ofertas" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="flex min-h-[28px] w-full items-center gap-[8%] rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(7px,0.72vw,10.5px)" }}>
+                        <Gift size={15} strokeWidth={1.65} className="h-[1.55em] w-[1.55em] shrink-0"/>
                         <span className="min-w-0 flex-1 truncate">{item}</span>
                       </a>
                     ))}
                   </div>
                 </div>                <span aria-hidden="true" className="absolute z-10 bg-[#00213c]" style={{ left: "27.1%", top: "3.55%", width: "39.2%", height: "3.8%" }} />
-                <span aria-hidden="true" className="absolute z-10 bg-[#042f4f]" style={{ left: "81.25%", top: "3.55%", width: "11.9%", height: "3.8%" }} />
+                <span aria-hidden="true" className="absolute z-10 bg-[#042f4f]" style={{ left: "80.6%", top: "3.55%", width: "14.2%", height: "3.8%" }} />
                 {heroNavLinks.map((item)=>(
-                  <a key={item.label} href={item.href} className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: item.left, top: "4.05%", width: item.width, height: "2.8%", fontSize: "clamp(7px,0.68vw,11px)" }}>{item.label}</a>
+                  <a key={item.label} href={item.href} className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: item.left, top: "3.92%", width: item.width, height: "3.05%", fontSize: "clamp(9.5px,0.86vw,14px)" }}>{item.label}</a>
                 ))}
-                <a href="tel:+551234567890" className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: "81.85%", top: "4.05%", width: "11.05%", height: "2.8%", fontSize: "clamp(7px,0.68vw,11px)" }}>Suporte: (123) 456-7890</a>
+                <a href="tel:+551234567890" className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: "81.1%", top: "3.92%", width: "13.45%", height: "3.05%", fontSize: "clamp(9.5px,0.86vw,14px)" }}>Suporte: (123) 456-7890</a>
 
                 <div className="absolute text-white" style={{ left: "27.35%", top: "50%", width: "28.4%", transform: "translateY(-50%)" }}>
                   <span className="block font-semibold uppercase tracking-[0.08em] text-[#e8c878]" style={{ fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{categories[0] || "Novidades"}</span>
@@ -599,29 +696,41 @@ const GeneratedStoreEditorPage = () => {
 
 
 
-            {/* Comment pins */}
-            {comments.map((comment)=>(
-              <div key={comment.id} data-editor-ignore className="absolute z-40" style={{ left: `${comment.x}%`, top: `${comment.y}%`, transform: "translate(-50%, -100%)" }} onClick={(e)=>e.stopPropagation()}>
-                <div className="flex flex-col items-start gap-1">
-                  <button type="button" onClick={()=>setComments((prev)=>prev.map((item)=>item.id===comment.id?{...item,open:!item.open}:item))} className="flex h-8 w-8 items-center justify-center rounded-full bg-[#facc15] text-black shadow-[0_4px_12px_rgba(0,0,0,0.3)]" aria-label={"Coment\u00e1rio"}><MessageSquare size={14}/></button>
-                  {comment.open ? (
-                    <div className="min-w-[220px] rounded-[12px] border border-black/10 bg-white p-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-                      <textarea autoFocus value={comment.text} onChange={(e)=>{const value=e.target.value;setComments((prev)=>prev.map((item)=>item.id===comment.id?{...item,text:value}:item));}} placeholder={"Escreva um coment\u00e1rio..."} className="h-20 w-full resize-none rounded-[8px] border border-black/10 bg-white p-2 text-[12px] text-black outline-none focus:border-[#2563eb]"/>
-                      <div className="mt-2 flex items-center justify-between"><button type="button" onClick={()=>setComments((prev)=>prev.filter((item)=>item.id!==comment.id))} className="text-[11px] text-black/45 hover:text-black">Remover</button><button type="button" onClick={()=>setComments((prev)=>prev.map((item)=>item.id===comment.id?{...item,open:false}:item))} className="rounded-full bg-black px-3 py-1 text-[11px] text-white">Salvar</button></div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ))}
           </div>
 
-          <div className="pointer-events-none sticky bottom-4 z-30 mt-4 flex flex-col items-center gap-2">
-            {editMode ? <span className="pointer-events-auto rounded-full bg-black/80 px-3 py-1 text-[10.5px] font-medium text-white shadow-lg backdrop-blur">{editMode==="select"?"Clique em qualquer elemento para selecionar":editMode==="text"?"Clique em um texto para editar":editMode==="edit"?"Clique para editar conte\u00fado":"Clique onde deseja adicionar um coment\u00e1rio"} {"\u00b7"} <button onClick={()=>setEditMode(null)} className="underline">sair</button></span> : null}
-            <div data-editor-ignore className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/40 bg-white/25 px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-2xl backdrop-saturate-150">
-              <button type="button" onClick={()=>setEditMode(editMode==="select"?null:"select")} aria-label="Selecionar" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="select"?"bg-[#111] text-white":"text-[#111] hover:bg-white/40"}`}><MousePointer2 size={15}/></button>
-              <button type="button" onClick={()=>setEditMode(editMode==="text"?null:"text")} aria-label="Texto" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="text"?"bg-[#111] text-white":"text-[#111] hover:bg-white/40"}`}><Type size={15}/></button>
-              <button type="button" onClick={()=>setEditMode(editMode==="edit"?null:"edit")} aria-label="Editar" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="edit"?"bg-[#111] text-white":"text-[#111] hover:bg-white/40"}`}><Pencil size={14}/></button>
-              <button type="button" onClick={()=>setEditMode(editMode==="comment"?null:"comment")} aria-label="Comentar" className={`flex h-8 w-8 items-center justify-center rounded-full transition ${editMode==="comment"?"bg-[#facc15] text-black":"text-[#111] hover:bg-white/40"}`}><MessageSquare size={14}/></button>
+          <div data-editor-ignore className={`pointer-events-none sticky z-30 mt-4 flex w-full gap-3 ${toolbarOrientation === "vertical" ? "bottom-6 justify-end pr-4" : "bottom-4 flex-col items-center"}`}>
+            {editMode === "fill" && selectedPath && fillPickerOpen ? (
+              <div className={`pointer-events-auto rounded-[18px] bg-[#101010] p-3 text-white shadow-[0_16px_42px_rgba(0,0,0,0.28)] ${toolbarOrientation === "vertical" ? "mr-2 self-center" : "mb-1"}`}>
+                <div className="mb-2 flex items-center justify-between gap-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
+                  <span>Cor de destaque</span>
+                  <span className="h-4 w-4 rounded-full ring-1 ring-white/30" style={{ backgroundColor: fillColor }} />
+                </div>
+                <div className="flex items-center gap-2">
+                  {fillSwatches.map((color)=>(
+                    <button key={color} type="button" onClick={()=>handleFillColorChange(color)} aria-label={`Aplicar ${color}`} className={`h-7 w-7 rounded-full transition ${fillColor===color?"ring-2 ring-white ring-offset-2 ring-offset-[#101010]":"ring-1 ring-white/20 hover:scale-105"}`} style={{ backgroundColor: color }} />
+                  ))}
+                  <label className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/25" title="Cor personalizada">
+                    <span className="absolute inset-0 bg-[conic-gradient(from_0deg,#ff0080,#ff8c00,#ffee00,#00ff85,#00b8ff,#8a2be2,#ff0080)]" />
+                    <input type="color" value={fillColor} onChange={(event)=>handleFillColorChange(event.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+                  </label>
+                </div>
+              </div>
+            ) : null}
+            <div className={`pointer-events-auto flex items-center gap-1 rounded-full bg-[#101010] p-1.5 text-white shadow-[0_18px_44px_rgba(0,0,0,0.26)] ring-1 ring-white/10 ${toolbarOrientation === "vertical" ? "flex-col" : "flex-row"}`}>
+              {toolbarTools.map((tool)=>{
+                const Icon = tool.icon;
+                const isActive = editMode === tool.id;
+                return (
+                  <button key={tool.id} type="button" onClick={()=>handleToolbarToolClick(tool.id)} aria-label={tool.label} className={`relative flex h-10 w-10 items-center justify-center rounded-full transition ${isActive?"bg-white text-black shadow-[0_5px_16px_rgba(255,255,255,0.22)]":"text-white hover:bg-white/10"}`}>
+                    <Icon size={21} strokeWidth={2.2} />
+                    {isActive ? (
+                      <span className={`pointer-events-none absolute rounded-full bg-[#101010] px-3 py-1 text-[11px] font-semibold leading-none text-white shadow-[0_8px_22px_rgba(0,0,0,0.22)] ${toolbarOrientation === "vertical" ? "right-[calc(100%+10px)] top-1/2 -translate-y-1/2" : "left-1/2 top-[calc(100%+9px)] -translate-x-1/2"}`}>
+                        {activeToolbarTool?.label}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
