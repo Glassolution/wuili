@@ -1089,7 +1089,14 @@ export default function Docs() {
       <div className="flex min-h-screen w-full">
         <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-[72px] items-center border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[28px] backdrop-blur">
+          <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[18px] backdrop-blur sm:px-[28px]">
+            <Link
+              to="/dashboard"
+              aria-label="Voltar para o início"
+              className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[10px] text-[#d8d8dc] transition hover:bg-white/[0.06] hover:text-white"
+            >
+              <ArrowLeft className="h-[21px] w-[21px]" strokeWidth={1.8} />
+            </Link>
             <div className="flex items-center gap-[20px]">
               <button
                 onClick={() => setTab("feed")}

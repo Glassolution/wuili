@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  sendSubscriptionConfirmationEmailOnce,
+  type SubscriptionEmailInput,
+} from "../_shared/transactional-email-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +38,8 @@ Deno.serve(async (req) => {
     // Hybrid deployment: DB may live on a different project than the functions
     const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
     const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
     const adminClient = createClient(dbUrl, dbKey);
 
     // Pega assinatura mais recente do usuário
@@ -53,6 +59,15 @@ Deno.serve(async (req) => {
 
     // Já ativa? Retorna direto
     if (sub.status === "active") {
+      const emailResult = await sendSubscriptionConfirmationEmailOnce({
+        adminClient,
+        subscription: sub as SubscriptionEmailInput,
+        resendApiKey,
+        siteUrl,
+      });
+      if (!emailResult.sent && !("skipped" in emailResult && emailResult.skipped)) {
+        console.error("Subscription confirmation email failed:", JSON.stringify(emailResult));
+      }
       return new Response(JSON.stringify({ status: "active", plan: sub.plan }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -79,10 +94,21 @@ Deno.serve(async (req) => {
     }
 
     if (payment.status === "approved") {
-      await adminClient.from("subscriptions")
+      const { data: updatedSubscription } = await adminClient.from("subscriptions")
         .update({ status: "active", updated_at: new Date().toISOString() })
-        .eq("id", sub.id);
+        .eq("id", sub.id)
+        .select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
+        .maybeSingle();
       await adminClient.from("profiles").update({ plano: sub.plan }).eq("user_id", userId);
+      const emailResult = await sendSubscriptionConfirmationEmailOnce({
+        adminClient,
+        subscription: (updatedSubscription ?? sub) as SubscriptionEmailInput,
+        resendApiKey,
+        siteUrl,
+      });
+      if (!emailResult.sent && !("skipped" in emailResult && emailResult.skipped)) {
+        console.error("Subscription confirmation email failed:", JSON.stringify(emailResult));
+      }
       return new Response(JSON.stringify({ status: "active", plan: sub.plan }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

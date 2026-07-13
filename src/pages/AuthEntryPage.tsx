@@ -115,6 +115,14 @@ const AuthEntryPage = () => {
       });
 
       if (signInError) {
+        const { error: verificationEmailError } = await supabase.functions.invoke("send-verification-email", {
+          body: {
+            email: cleanEmail,
+            userName: form.name.trim(),
+            redirectTo: `${window.location.origin}/setup`,
+          },
+        });
+        if (verificationEmailError) console.error("send verification email failed", verificationEmailError);
         setEmailLoading(false);
         toast.info("Conta criada. Verifique seu e-mail para concluir o acesso.", { id: toastId });
         return;

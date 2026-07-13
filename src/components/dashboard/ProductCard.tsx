@@ -27,14 +27,28 @@ export const formatReviewCount = (count: number) => {
   return String(count);
 };
 
-export const getProductCatalogMetrics = (product: Pick<Product, "rating" | "ordersCount">) => {
-  const rating = typeof product.rating === "number" && product.rating >= 0 ? product.rating : null;
-  const ordersCount = typeof product.ordersCount === "number" && product.ordersCount >= 0 ? product.ordersCount : null;
+const getMockCatalogMetrics = (productId: string) => {
+  let hash = 0;
+
+  for (let index = 0; index < productId.length; index += 1) {
+    hash = (hash * 31 + productId.charCodeAt(index)) % 10000;
+  }
+
+  return {
+    rating: Number((4 + (hash % 100) / 100).toFixed(1)),
+    ordersCount: 50 + (hash % 1950),
+  };
+};
+
+export const getProductCatalogMetrics = (product: Pick<Product, "id" | "rating" | "ordersCount">) => {
+  const mockMetrics = getMockCatalogMetrics(product.id);
+  const rating = mockMetrics.rating;
+  const ordersCount = mockMetrics.ordersCount;
 
   return {
     rating,
     ordersCount,
-    hasMetrics: rating !== null || ordersCount !== null,
+    hasMetrics: true,
   };
 };
 

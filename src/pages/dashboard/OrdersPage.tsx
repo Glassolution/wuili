@@ -57,6 +57,44 @@ const getStatusLabel = (status: string | null | undefined) => {
   return statusLabels[key] ?? clean(status);
 };
 
+const mockOrderEmail = "lucassrby@gmail.com";
+
+const getMockLucasOrder = (userId: string): MlOrderRow => ({
+  id: "mock-lucassrby-order-001",
+  user_id: userId,
+  ml_order_id: "ML-MOCK-20260712-001",
+  ml_user_id: "lucas-demo-ml",
+  external_order_id: "VELO-MOCK-001",
+  shipment_id: "SHIP-MOCK-001",
+  status: "paid",
+  fulfillment_status: "pending",
+  sale_price: 189.9,
+  total_amount: 189.9,
+  cost_price: 82.4,
+  profit: 107.5,
+  quantity: 1,
+  ordered_at: "2026-07-12T14:20:00.000Z",
+  created_at: "2026-07-12T14:20:00.000Z",
+  product_title: "Fone de ouvido Bluetooth TWS E10 Pro",
+  product_image: "/placeholder.svg",
+  buyer_name: "Cliente Mercado Livre",
+  buyer_email: "cliente.demo@mercadolivre.com",
+  buyer_phone: "(11) 99999-0000",
+  buyer_address: "Rua das Palmeiras",
+  buyer_number: "120",
+  buyer_complement: "Apto 42",
+  buyer_neighborhood: "Centro",
+  buyer_city: "Sao Paulo",
+  buyer_state: "SP",
+  buyer_zip: "01000-000",
+  tracking_code: "BR123456789MOCK",
+  catalog_product_id: null,
+  supplier_url: null,
+  supplier_name: "Fornecedor Velo",
+  catalog_title: null,
+  catalog_images: null,
+});
+
 const getOrderCode = (order: MlOrderRow) => clean(order.ml_order_id ?? order.external_order_id ?? order.id);
 
 const getProductName = (order: MlOrderRow) =>
@@ -235,13 +273,23 @@ const OrdersPage = () => {
   }, [error]);
 
   const orders = useMemo(
-    () =>
-      [...(rawOrders ?? [])].sort((a, b) => {
+    () => {
+      const email = user?.email?.trim().toLowerCase();
+      const baseOrders =
+        email === mockOrderEmail && user?.id
+          ? [
+              getMockLucasOrder(user.id),
+              ...(rawOrders ?? []).filter((order) => order.id !== "mock-lucassrby-order-001"),
+            ]
+          : [...(rawOrders ?? [])];
+
+      return baseOrders.sort((a, b) => {
         const left = new Date(a.ordered_at ?? a.created_at ?? 0).getTime();
         const right = new Date(b.ordered_at ?? b.created_at ?? 0).getTime();
         return right - left;
-      }),
-    [rawOrders],
+      });
+    },
+    [rawOrders, user?.email, user?.id],
   );
 
   const isEmpty = !isLoading && orders.length === 0;

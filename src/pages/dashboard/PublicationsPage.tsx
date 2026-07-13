@@ -128,9 +128,9 @@ const PublicationsPage = () => {
         </div>
 
         {/* Second Row: Search + Filters + View Icons */}
-        <div className="mobile-hide-scrollbar flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="mobile-hide-scrollbar grid grid-cols-2 gap-2 pb-1 sm:flex sm:items-center sm:gap-2 sm:overflow-x-auto">
           {/* Search */}
-          <div className="relative min-w-[190px] flex-1 sm:max-w-[240px]">
+          <div className="relative col-span-2 min-w-0 sm:min-w-[190px] sm:flex-1 sm:max-w-[240px]">
             <Search size={14} strokeWidth={1.8} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
@@ -143,20 +143,20 @@ const PublicationsPage = () => {
           </div>
 
           {/* Category Dropdown */}
-          <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em" }}>
-            <span>Categoria</span>
+          <button className="flex h-9 min-w-0 shrink-0 items-center justify-between gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02] sm:justify-start" style={{ letterSpacing: "-0.01em" }}>
+            <span className="truncate">Categoria</span>
             <ChevronDown size={14} strokeWidth={1.8} />
           </button>
 
           {/* Dropshipping Dropdown */}
-          <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-black px-3 text-[13px] font-medium text-white transition-colors hover:bg-black/90" style={{ letterSpacing: "-0.01em" }}>
-            <span>Dropshipping</span>
+          <button className="flex h-9 min-w-0 shrink-0 items-center justify-between gap-1.5 rounded-lg border border-black/[0.08] bg-black px-3 text-[13px] font-medium text-white transition-colors hover:bg-black/90 sm:justify-start" style={{ letterSpacing: "-0.01em" }}>
+            <span className="truncate">Dropshipping</span>
             <ChevronDown size={14} strokeWidth={1.8} />
           </button>
 
           {/* Advance Filter */}
-          <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02]" style={{ letterSpacing: "-0.01em" }}>
-            <span>Filtro avançado</span>
+          <button className="col-span-2 flex h-9 min-w-0 shrink-0 items-center justify-between gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02] sm:col-span-1 sm:justify-start" style={{ letterSpacing: "-0.01em" }}>
+            <span className="truncate">Filtro avançado</span>
             <ChevronDown size={14} strokeWidth={1.8} />
           </button>
 

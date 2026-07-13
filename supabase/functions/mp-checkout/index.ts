@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  sendSubscriptionConfirmationEmailOnce,
+  type SubscriptionEmailInput,
+} from "../_shared/transactional-email-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -157,6 +161,8 @@ Deno.serve(async (req) => {
     // Hybrid deployment: DB may live on a different project than the functions
     const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
     const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
     const adminClient = createClient(dbUrl, dbKey);
 
     const now = new Date();
@@ -215,7 +221,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    await adminClient.from("subscriptions").upsert({
+    const { data: subscriptionRow } = await adminClient.from("subscriptions").upsert({
       user_id: userId,
       plan: plan,
       status: subStatus,
@@ -234,12 +240,26 @@ Deno.serve(async (req) => {
       charge_attempts: 0,
       last_charge_attempt_at: null,
       last_dunning_email_at: null,
+      confirmation_email_sent_at: null,
       updated_at: now.toISOString(),
-    }, { onConflict: "user_id" });
+    }, { onConflict: "user_id" })
+      .select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
+      .maybeSingle();
 
     // Update profile plan if approved
     if (mpData.status === "approved") {
       await adminClient.from("profiles").update({ plano: plan }).eq("user_id", userId);
+      if (!isTrial && subscriptionRow) {
+        const emailResult = await sendSubscriptionConfirmationEmailOnce({
+          adminClient,
+          subscription: subscriptionRow as SubscriptionEmailInput,
+          resendApiKey,
+          siteUrl,
+        });
+        if (!emailResult.sent && !("skipped" in emailResult && emailResult.skipped)) {
+          console.error("Subscription confirmation email failed:", JSON.stringify(emailResult));
+        }
+      }
     }
 
     // Build response

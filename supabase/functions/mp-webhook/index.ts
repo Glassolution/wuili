@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  sendSubscriptionConfirmationEmailOnce,
+  type SubscriptionEmailInput,
+} from "../_shared/transactional-email-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,6 +60,8 @@ Deno.serve(async (req) => {
     // Hybrid deployment: DB may live on a different project than the functions
     const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
     const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
     const adminClient = createClient(dbUrl, dbKey);
 
     // ── Affiliate sales tracking (influencer commissions) ───────────────────
@@ -145,21 +151,26 @@ Deno.serve(async (req) => {
     // Update subscription
     const { data: existing } = await adminClient
       .from("subscriptions")
-      .select("id")
+      .select("id,status,confirmation_email_sent_at")
       .eq("mp_payment_id", String(paymentId))
       .maybeSingle();
 
+    let subscriptionForEmail: SubscriptionEmailInput | null = null;
+
     if (existing) {
-      await adminClient
+      const { data: updatedSubscription } = await adminClient
         .from("subscriptions")
         .update({ status: subStatus, updated_at: new Date().toISOString() })
-        .eq("id", existing.id);
+        .eq("id", existing.id)
+        .select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
+        .maybeSingle();
+      subscriptionForEmail = (updatedSubscription ?? null) as SubscriptionEmailInput | null;
     } else {
       const now = new Date();
       const periodEnd = new Date(now);
       periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-      await adminClient.from("subscriptions").insert({
+      const { data: insertedSubscription } = await adminClient.from("subscriptions").insert({
         user_id: userId,
         plan: plan || "plus",
         status: subStatus,
@@ -168,12 +179,25 @@ Deno.serve(async (req) => {
         amount: payment.transaction_amount || 0,
         current_period_start: now.toISOString(),
         current_period_end: periodEnd.toISOString(),
-      });
+      }).select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
+        .maybeSingle();
+      subscriptionForEmail = (insertedSubscription ?? null) as SubscriptionEmailInput | null;
     }
 
     // Update profile plan
     if (subStatus === "active") {
       await adminClient.from("profiles").update({ plano: plan || "plus" }).eq("user_id", userId);
+      if (subscriptionForEmail) {
+        const emailResult = await sendSubscriptionConfirmationEmailOnce({
+          adminClient,
+          subscription: subscriptionForEmail,
+          resendApiKey,
+          siteUrl,
+        });
+        if (!emailResult.sent && !("skipped" in emailResult && emailResult.skipped)) {
+          console.error("Subscription confirmation email failed:", JSON.stringify(emailResult));
+        }
+      }
     } else if (subStatus === "cancelled") {
       await adminClient.from("profiles").update({ plano: "gratis" }).eq("user_id", userId);
     }

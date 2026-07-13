@@ -7,3 +7,5 @@ supabase/.temp/
 dist/
 dist-ssr/
 *.local
+email-previews/
+public/email-previews/

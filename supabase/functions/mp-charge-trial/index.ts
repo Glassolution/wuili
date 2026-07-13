@@ -7,6 +7,10 @@
 // Idempotência: last_charge_attempt_at impede duas tentativas no mesmo dia.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  sendSubscriptionConfirmationEmailOnce,
+  type SubscriptionEmailInput,
+} from "../_shared/transactional-email-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -115,6 +119,7 @@ Deno.serve(async (req) => {
     const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const appUrl = Deno.env.get("APP_URL") ?? "https://wuili.lovable.app";
 
     if (!MP_ACCESS_TOKEN || !supabaseUrl || !serviceKey) {
@@ -227,7 +232,7 @@ Deno.serve(async (req) => {
           const end = new Date(start);
           end.setMonth(end.getMonth() + 1);
 
-          await admin
+          const { data: updatedSubscription } = await admin
             .from("subscriptions")
             .update({
               plan: targetPlan,
@@ -239,17 +244,40 @@ Deno.serve(async (req) => {
               post_trial_plan: null,
               amount,
               mp_payment_id: String(charge.data.id ?? ""),
+              payment_method: "credit_card",
               current_period_start: start.toISOString(),
               current_period_end: end.toISOString(),
               charge_attempts: 0,
               updated_at: new Date().toISOString(),
             })
-            .eq("id", rowId);
+            .eq("id", rowId)
+            .select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
+            .maybeSingle();
 
           await admin
             .from("profiles")
             .update({ plano: targetPlan })
             .eq("user_id", sub.user_id as string);
+
+          const emailResult = await sendSubscriptionConfirmationEmailOnce({
+            adminClient: admin,
+            subscription: (updatedSubscription ?? {
+              id: rowId,
+              user_id: sub.user_id,
+              plan: targetPlan,
+              amount,
+              payment_method: "credit_card",
+              current_period_start: start.toISOString(),
+              current_period_end: end.toISOString(),
+              next_charge_at: end.toISOString(),
+              confirmation_email_sent_at: sub.confirmation_email_sent_at,
+            }) as SubscriptionEmailInput,
+            resendApiKey,
+            siteUrl: appUrl,
+          });
+          if (!emailResult.sent && !("skipped" in emailResult && emailResult.skipped)) {
+            console.error("Subscription confirmation email failed:", JSON.stringify(emailResult));
+          }
 
           await admin.from("notifications").insert({
             user_id: sub.user_id,

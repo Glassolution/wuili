@@ -487,31 +487,31 @@ const IntegrationsTab = () => {
           <div
             key={i.platform}
             title={i.comingSoon ? "Disponível em breve" : undefined}
-            className={`flex items-center justify-between p-4 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950 ${
+            className={`flex flex-col gap-3 rounded-xl border border-[#E5E5E5] p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:flex-row sm:items-center sm:justify-between ${
               i.comingSoon ? "bg-[#F7F7F7] dark:bg-zinc-900" : ""
             }`}
           >
-            <div className="flex items-center gap-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E5E5E5] bg-white p-1 dark:border-white/10 dark:bg-white">
                 <PlatformLogo platform={i.label} size={38} />
               </span>
-              <span className="text-[14px] font-normal text-[#0A0A0A] dark:text-white">{i.label}</span>
+              <span className="min-w-0 truncate text-[14px] font-normal text-[#0A0A0A] dark:text-white">{i.label}</span>
             </div>
             {i.loading ? (
               <Loader2 size={16} className="animate-spin text-[#A3A3A3] dark:text-zinc-400" />
             ) : i.comingSoon ? (
-              <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-[#E5E5E5] text-[#737373] dark:bg-zinc-800 dark:text-zinc-400 font-normal">
+              <span className="flex w-fit items-center gap-1.5 rounded-full bg-[#E5E5E5] px-2.5 py-1 text-[11px] font-normal text-[#737373] dark:bg-zinc-800 dark:text-zinc-400">
                 Em breve
               </span>
             ) : i.connected ? (
-              <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black font-semibold">
+              <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+                <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-black px-2.5 py-1 text-[11px] font-semibold text-white dark:bg-white dark:text-black">
                   <CheckCircle2 size={12} /> Conectado
                 </span>
                 <button
                   type="button"
                   onClick={() => handleDisconnect(i.platform)}
-                  className="rounded-full border border-[#E5E5E5] bg-white px-3 py-1 text-[11px] font-semibold text-[#0A0A0A] transition hover:border-[#0A0A0A] dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:hover:border-white"
+                  className="shrink-0 rounded-full border border-[#E5E5E5] bg-white px-3 py-1 text-[11px] font-semibold text-[#0A0A0A] transition hover:border-[#0A0A0A] dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:hover:border-white"
                 >
                   Desconectar
                 </button>
@@ -519,7 +519,7 @@ const IntegrationsTab = () => {
             ) : (
               <button
                 onClick={() => handleConnect(i.platform)}
-                className="text-[12px] px-3.5 py-1.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-medium hover:opacity-85 transition-opacity"
+                className="w-full rounded-full bg-black px-3.5 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-85 dark:bg-white dark:text-black sm:w-auto"
               >
                 Conectar +
               </button>

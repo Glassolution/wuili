@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowUpRight,
   CalendarDays,
+  Camera,
   Check,
   ChevronDown,
   CircleHelp,
@@ -18,6 +19,7 @@ import {
   Search,
   Settings,
   Star,
+  Truck,
   Trash2,
   X,
 } from "lucide-react";
@@ -2091,7 +2093,16 @@ const CollectionProductsPanel = ({
   );
 };
 
-const mobileTabs = ["Início", "Tendências", "Do Brasil", "Eletrônicos"];
+const mobileTabs = [
+  { label: "Tudo", value: "Todos os produtos" },
+  { label: "Casa", value: "Casa" },
+  { label: "Eletrônicos", value: "Eletrônicos" },
+  { label: "Moda", value: "Moda" },
+  { label: "Beleza", value: "Beleza" },
+  { label: "Decoração", value: "Decoração" },
+  { label: "Pet", value: "Pet" },
+  { label: "Outros", value: "Outros" },
+];
 
 const mobileShortcutItems = [
   { label: "Grupo", kind: "group", to: "/dashboard/catalogo" },
@@ -2226,10 +2237,12 @@ const MobileAliVeloHome = ({
   const [mobileRatingFilter, setMobileRatingFilter] = useState(MOBILE_HOME_RATING_OPTIONS[0]);
   const [openMobileFilter, setOpenMobileFilter] = useState<"category" | "price" | "rating" | null>(null);
   const mobileFilterBarRef = useRef<HTMLDivElement | null>(null);
+  const mobileCategoryTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const featuredProducts = useMemo(() => {
     const query = normalizeSearchText(mobileSearchQuery.trim());
 
     return products.filter((product) => {
+      const { rating } = getProductCatalogMetrics(product);
       const matchesSearch =
         !query ||
         normalizeSearchText(product.title).includes(query) ||
@@ -2241,7 +2254,7 @@ const MobileAliVeloHome = ({
         matchesSearch &&
         matchesCategory &&
         matchesMobileHomePriceFilter(product.price, mobilePriceFilter) &&
-        matchesMobileHomeRatingFilter(product.rating, mobileRatingFilter)
+        matchesMobileHomeRatingFilter(rating, mobileRatingFilter)
       );
     });
   }, [mobileCategoryFilter, mobilePriceFilter, mobileRatingFilter, mobileSearchQuery, products]);
@@ -2260,6 +2273,14 @@ const MobileAliVeloHome = ({
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [openMobileFilter]);
+
+  useEffect(() => {
+    mobileCategoryTabRefs.current[mobileCategoryFilter]?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [mobileCategoryFilter]);
 
   if (location.pathname === "/colecoes") {
     return (
@@ -2320,111 +2341,167 @@ const MobileAliVeloHome = ({
   return (
     <section className="md:hidden">
       <div className="min-h-screen w-full overflow-x-hidden bg-white pb-6 text-[#111111]">
-        <div className="sticky top-0 z-30 border-b border-black/[0.06] bg-white/95 px-4 pb-3 pt-3 backdrop-blur-xl">
-          <div className="flex items-center justify-between">
+        <div className="bg-[#050505] px-4 pt-4 text-white">
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate("/dashboard")}
-              className="text-[30px] font-black leading-none tracking-[-0.08em] text-[#111111]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#101010] text-white"
               aria-label="Velo"
             >
-              Velo
+              <svg aria-hidden="true" viewBox="0 0 72 72" className="h-7 w-7" fill="none">
+                <path d="M49.5 24 A18 18 0 1 0 49.5 48" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                <path d="M46 42 L52 48 L58 42" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard/configuracoes?tab=Suporte")}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-[#111111]"
-              aria-label="Notificações"
-            >
-              <CircleHelp className="h-5 w-5" strokeWidth={2.1} />
-              <span className="absolute -right-0.5 -top-0.5 rounded-full bg-[#F30436] px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
-                3
-              </span>
-            </button>
+            <div className="flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-white px-3.5 text-left text-[#1F2933] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.75),0_8px_18px_rgba(0,0,0,0.2)]">
+              <Search className="h-[18px] w-[18px] shrink-0 text-[#3E454D]" strokeWidth={2.2} />
+              <input
+                type="search"
+                value={mobileSearchQuery}
+                onChange={(event) => setMobileSearchQuery(event.target.value)}
+                placeholder="Buscar na Velo"
+                className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-semibold tracking-[-0.02em] text-[#1F2933] outline-none placeholder:text-[#6B7280]"
+              />
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/catalogo")}
+                className="shrink-0 text-[#111111]"
+                aria-label="Buscar por imagem"
+              >
+                <Camera className="h-[19px] w-[19px]" strokeWidth={2.25} />
+              </button>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/catalogo")}
-            className="mt-4 flex h-[54px] w-full items-center gap-3 rounded-[18px] border-2 border-[#111111] bg-white p-1.5 text-left shadow-[0_4px_0_rgba(37,99,235,0.08)]"
-          >
-            <span className="flex h-10 w-11 shrink-0 items-center justify-center rounded-[13px] bg-[#EEF4FF] text-[#2563EB]">
-              <Search className="h-5 w-5" strokeWidth={2.4} />
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[17px] font-black tracking-[-0.04em] text-[#222222]">
-              buscar produtos para vender
-            </span>
-            <span className="flex h-10 w-14 shrink-0 items-center justify-center rounded-[15px] bg-[#111111] text-white">
-              <Search className="h-5 w-5" strokeWidth={2.6} />
-            </span>
-          </button>
+          <nav className="mt-3 flex gap-7 overflow-x-auto text-[16px] font-semibold tracking-[-0.03em] text-white/65 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {mobileTabs.map((tab) => {
+              const isActive = mobileCategoryFilter === tab.value;
 
-          <nav className="mt-4 flex gap-6 overflow-x-auto text-[18px] font-black tracking-[-0.04em] [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {mobileTabs.map((tab, index) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => (index === 0 ? navigate("/dashboard") : navigate("/dashboard/catalogo"))}
-                className={`shrink-0 ${index === 0 ? "text-[#111111]" : index === 1 ? "text-[#2563EB]" : index === 2 ? "text-[#10B981]" : "text-[#5F5F5F]"}`}
-              >
-                {tab}
-              </button>
-            ))}
+              return (
+                <button
+                  key={tab.value}
+                  ref={(node) => {
+                    mobileCategoryTabRefs.current[tab.value] = node;
+                  }}
+                  type="button"
+                  onClick={() => {
+                    setMobileCategoryFilter(tab.value);
+                    setOpenMobileFilter(null);
+                  }}
+                  className={`relative shrink-0 pb-2 transition-colors ${isActive ? "text-white" : "text-white/62"}`}
+                >
+                  {tab.label}
+                  {isActive && <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-white" />}
+                </button>
+              );
+            })}
           </nav>
         </div>
 
-        <section className="mx-4 mt-3 overflow-hidden rounded-[22px] bg-[linear-gradient(135deg,#EEF4FF_0%,#FFFFFF_42%,#DDEAFF_100%)] px-4 pb-5 pt-4 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.12)]">
-          <p className="text-[13px] font-black tracking-[-0.02em] text-[#1E3A8A]">
-            Catálogo Velo · produtos brasileiros
-          </p>
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[36px] font-black italic leading-[0.9] tracking-[-0.08em] text-[#111111]">
-                VENDA
-              </p>
-              <p className="text-[34px] font-black leading-none tracking-[-0.08em] text-[#2563EB]">
-                MAIS
+        <section className="bg-[#050505] px-4 pb-3 pt-2">
+          <button type="button" onClick={() => navigate("/dashboard/catalogo")} className="block w-full">
+            <img
+              src="/assets/velo_banner_sem_botao.png"
+              alt="Velo - Produtos para revender"
+              className="block aspect-[2.55/1] w-full rounded-[10px] object-cover"
+            />
+          </button>
+        </section>
+
+        <section className="hidden">
+          <div className="relative min-h-[112px] overflow-hidden">
+            <div className="relative z-10 max-w-[228px]">
+              <div className="flex items-center gap-3">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 72 72"
+                  className="h-[72px] w-[72px] shrink-0 text-white drop-shadow-[0_0_16px_rgba(255,255,255,0.28)]"
+                  fill="none"
+                >
+                  <path
+                    d="M49.5 24 A18 18 0 1 0 49.5 48"
+                    stroke="currentColor"
+                    strokeWidth="10"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M46 42 L52 48 L58 42"
+                    stroke="currentColor"
+                    strokeWidth="7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span className="h-14 w-px bg-white/25" />
+                <span className="text-[18px] font-semibold uppercase tracking-[0.45em] text-white/85">Velo</span>
+              </div>
+              <p className="-mt-1 max-w-[220px] text-[31px] font-black uppercase leading-[0.92] tracking-[-0.06em] text-white">
+                Dê um upgrade
               </p>
             </div>
-            <div className="relative h-24 w-36 shrink-0">
+
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/catalogo")}
+              className="absolute left-[168px] top-[58px] z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#050505] shadow-[0_10px_30px_rgba(255,255,255,0.18)]"
+              aria-label="Ver promoções"
+            >
+              <ArrowUpRight className="h-5 w-5" strokeWidth={2.6} />
+            </button>
+
+            <div className="absolute -right-6 top-0 h-full w-[178px]">
+              <div className="absolute inset-y-0 right-4 w-px bg-white/25" />
               {firstProduct && (
                 <img
                   src={firstProduct.image}
                   alt=""
-                  className="absolute right-0 top-0 h-24 w-24 rotate-6 rounded-[18px] border-2 border-white object-cover shadow-[0_12px_30px_rgba(30,58,138,0.18)]"
+                  className="absolute right-8 top-1 h-[82px] w-[82px] rotate-6 rounded-[18px] object-cover shadow-[0_18px_42px_rgba(0,0,0,0.6)]"
                 />
               )}
               {secondProduct && (
                 <img
                   src={secondProduct.image}
                   alt=""
-                  className="absolute bottom-0 left-0 h-16 w-20 -rotate-6 rounded-[14px] border-2 border-white object-cover shadow-[0_10px_24px_rgba(30,58,138,0.14)]"
+                  className="absolute bottom-1 left-5 h-[58px] w-[86px] -rotate-6 rounded-[15px] object-cover shadow-[0_16px_34px_rgba(0,0,0,0.55)]"
                 />
               )}
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="hidden">
             {[
-              { value: kpis.catalogProducts, label: "produtos" },
-              { value: kpis.activePublications, label: "publicados" },
-              { value: kpis.orders, label: "pedidos" },
+              { value: "Produtos BR", label: "estoque nacional" },
+              { value: "Margem alta", label: "curadoria Velo" },
+              { value: "Publicar fácil", label: "ML e Shopee" },
             ].map((item) => (
               <button
-                key={item.label}
+                key={item.value}
                 type="button"
                 onClick={() => navigate("/dashboard/catalogo")}
-                className="rounded-[14px] bg-white px-2 py-3 text-center shadow-[0_8px_18px_rgba(37,99,235,0.10)]"
+                className="min-h-[62px] rounded-[14px] bg-white/10 px-2 py-2 text-center"
               >
-                <p className="text-[18px] font-black leading-none tracking-[-0.04em] text-[#2563EB]">{item.value}</p>
-                <p className="mt-1 text-[11px] font-bold text-[#6B7280]">{item.label}</p>
+                <p className="text-[13px] font-black leading-tight tracking-[-0.04em] text-white">{item.value}</p>
+                <p className="mt-0.5 text-[9px] font-bold text-white/55">{item.label}</p>
+                <span className="mt-1.5 inline-flex h-6 w-full items-center justify-center rounded-full bg-white text-[9px] font-black text-[#050505]">
+                  Importar
+                </span>
               </button>
             ))}
           </div>
         </section>
 
-        <section className="overflow-hidden bg-white py-4">
-          <div className="flex gap-6 overflow-x-auto px-4 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <section className="hidden">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/catalogo")}
+            className="mb-4 flex h-9 w-full items-center justify-center gap-2 rounded-[8px] border border-black/12 bg-white text-[14px] font-semibold tracking-[-0.02em] text-[#333333] shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
+          >
+            <Truck className="h-5 w-5" strokeWidth={2.1} />
+            <span className="font-black">Frete grátis e rápido</span>
+            <span className="font-medium">na primeira importação</span>
+          </button>
+          <div className="flex gap-6 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mobileShortcutItems.map((item) => {
               return (
                 <button
@@ -2441,7 +2518,7 @@ const MobileAliVeloHome = ({
           </div>
         </section>
 
-        <div className="mx-4 mt-4 rounded-[16px] bg-[linear-gradient(90deg,#F1FBF1,#F9FFF8)] px-4 py-3 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.10)]">
+        <div className="hidden">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#8CDD82] text-white">
               <Check className="h-5 w-5" strokeWidth={2.4} />
@@ -2464,7 +2541,7 @@ const MobileAliVeloHome = ({
 
             <div
               ref={mobileFilterBarRef}
-              className="mb-3 flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="hidden"
             >
               <div className="relative min-w-[220px] flex-1">
                 <Search
@@ -2552,9 +2629,6 @@ const MobileAliVeloHome = ({
                           {rating !== null && ordersCount !== null && <span>·</span>}
                           {ordersCount !== null && <span>{formatReviewCount(ordersCount)} vendidos</span>}
                         </div>
-                      )}
-                      {ordersCount !== null && (
-                        <p className="mt-1.5 text-[10px] font-bold text-[#A76A16]">Top vendas na Velo</p>
                       )}
                       <p className="mt-2 text-[16px] font-semibold tracking-[-0.04em] text-[#111111]">{formatCurrency(product.price)}</p>
                     </div>
