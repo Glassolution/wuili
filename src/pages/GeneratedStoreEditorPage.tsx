@@ -5,7 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
-import { formatReviewCount, getMockRating } from "@/components/dashboard/ProductCard";
+import { formatReviewCount } from "@/components/dashboard/ProductCard";
+
+const getMockRating = (id: string) => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  const rating = (4 + (Math.abs(hash) % 10) / 10).toFixed(1);
+  const reviewCount = 50 + (Math.abs(hash) % 950);
+  return { rating, reviewCount };
+};
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
