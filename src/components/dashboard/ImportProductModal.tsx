@@ -1297,16 +1297,14 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       <MLAccountVerificationModal
         open={mlVerifyModalOpen}
         onClose={() => {
-          if (user && typeof window !== "undefined") {
-            window.localStorage.setItem(`velo:ml_seller_tutorial_seen:${user.id}`, "1");
-          }
           setMlVerifyModalOpen(false);
+          // Ao fechar (usuário pode ter concluído o cadastro no ML), revalidamos
+          // via /users/me. Se a conta já estiver apta, o modal não abre de novo.
+          void checkSellerStatus();
         }}
         onFinish={() => {
-          if (user && typeof window !== "undefined") {
-            window.localStorage.setItem(`velo:ml_seller_tutorial_seen:${user.id}`, "1");
-          }
           setMlVerifyModalOpen(false);
+          void checkSellerStatus();
         }}
       />
 
