@@ -12,7 +12,7 @@ type Props = {
   onFinish?: () => void;
 };
 
-const ML_PROFILE_URL = "https://myaccount.mercadolivre.com.br/profile";
+const ML_PROFILE_URL = "https://www.mercadolivre.com.br/vender";
 
 const StepDots = ({ step }: { step: 1 | 2 | 3 }) => (
   <div className="flex items-center gap-1.5">
