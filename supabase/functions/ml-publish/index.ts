@@ -807,6 +807,9 @@ Deno.serve(async (req) => {
     // === BUILD PAYLOAD ===
     const mlPayload = {
       title,
+      // O novo modelo User Products do Mercado Livre exige family_name.
+      // Mantemos title para contas/categorias ainda no modelo clássico.
+      family_name: title,
       category_id: categoryId,
       price: product.price,
       currency_id: 'BRL',
