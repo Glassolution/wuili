@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Baby, BookOpen, Boxes, Car, Check, ChevronLeft, Dumbbell, Gamepad2, Gem, Gift, GitCompareArrows, Headphones, Heart, HeartPulse, History, Home, Laptop, LayoutGrid, LayoutTemplate, Menu, MessageSquare, Monitor, MoreHorizontal, MousePointer2, Package, Palette, PawPrint, Pencil, Play, Plus, Search, Settings, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Star, Type, X } from "lucide-react";
+import { Baby, BookOpen, Boxes, Car, Check, ChevronLeft, Dumbbell, Gamepad2, Gem, Gift, GitCompareArrows, Headphones, Heart, HeartPulse, History, Home, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, MessageSquare, Monitor, MoreHorizontal, MousePointer2, Package, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Search, Settings, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Star, Truck, Type, X } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
-import { formatReviewCount, getMockRating } from "@/components/dashboard/ProductCard";
+import { formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
@@ -279,6 +279,27 @@ const GeneratedStoreEditorPage = () => {
       key: `${category}-${index}`,
     };
   });
+  const collectionStyles = [
+    "bg-[#f4ded6]",
+    "bg-[#eee8dc]",
+    "bg-[#a8c9df]",
+    "bg-[#f1eee5]",
+  ];
+  const collectionDescriptions: Record<string, string> = {
+    Casa: "Peças para deixar seu espaço mais bonito.",
+    "Eletr\u00f4nicos": "Acessórios úteis para simplificar sua rotina.",
+    Moda: "Achados versáteis para usar todos os dias.",
+    Bijuterias: "Detalhes delicados para completar o look.",
+    Beleza: "Essenciais para cuidar de você.",
+    "Esporte e Fitness": "Itens práticos para movimento e energia.",
+    Outros: "Produtos selecionados para explorar agora.",
+  };
+  const trustBadges = [
+    { title: "Frete Grátis", description: "Em pedidos acima de R$ 199", icon: Truck },
+    { title: "Troca Fácil", description: "Em até 30 dias", icon: RefreshCcw },
+    { title: "Pagamento Seguro", description: "100% protegido", icon: LockKeyhole },
+    { title: "Suporte 24/7", description: "Estamos aqui pra ajudar", icon: Headphones },
+  ];
   const brandName = storeName;
   const brandInitial = brandName.charAt(0);
   const copyPool = [
@@ -525,8 +546,8 @@ const GeneratedStoreEditorPage = () => {
                 {displayedProducts.slice(0,6).map((product)=>{
                   const explicitRating = product.rating ?? product.averageRating;
                   const explicitCount = product.ratingCount ?? product.reviewCount ?? product.reviewsCount;
-                  const mockRating = getMockRating(product.id);
-                  const ratingLabel = typeof explicitRating === "number" ? `${explicitRating.toFixed(1)}${explicitCount ? ` (${explicitCount})` : ""}` : `${mockRating.rating} (${formatReviewCount(mockRating.reviewCount)})`;
+                  const mockMetrics = getProductCatalogMetrics({ id: product.id, rating: explicitRating ?? null, ordersCount: null });
+                  const ratingLabel = typeof explicitRating === "number" ? `${explicitRating.toFixed(1)}${explicitCount ? ` (${explicitCount})` : ""}` : `${mockMetrics.rating.toFixed(1)} (${formatReviewCount(mockMetrics.ordersCount)})`;
                   return (
                     <article key={product.id} className="group min-w-0">
                       <div className="relative aspect-[1/1.04] overflow-hidden rounded-[16px] bg-white">
@@ -571,21 +592,39 @@ const GeneratedStoreEditorPage = () => {
             </section>
 
             {/* FEATURED COLLECTIONS */}
-            <section className="px-8 py-10">
-              <div className="mb-6 flex items-end justify-between">
+            <section className="px-8 pb-6 pt-10">
+              <div className="mb-5 flex items-end justify-between gap-4">
                 <div>
-                  <h2 className="text-[15px] font-semibold tracking-normal">{"Cole\u00e7\u00f5es em destaque"}</h2>
-                  <p className="mt-1 text-[11px] text-black/50">{"Explore a loja pela categoria que combina com voc\u00ea."}</p>
+                  <h2 className="text-[15px] font-semibold leading-none tracking-normal text-black">{"Cole\u00e7\u00f5es em destaque"}</h2>
+                  <p className="mt-2 text-[10.5px] leading-none text-black/50">{"Explore a loja pela categoria que combina com voc\u00ea."}</p>
                 </div>
-                <span className="flex items-center gap-2 text-[11px]">Ver todas <span className="flex h-6 w-6 items-center justify-center rounded-full border border-black/20">{"\u2039"}</span><span className="flex h-6 w-6 items-center justify-center rounded-full border border-black/20">{"\u203a"}</span></span>
+                <a href="#categorias" className="inline-flex shrink-0 items-center gap-1.5 text-[10.5px] font-medium text-black transition hover:translate-x-0.5 hover:text-black/65">
+                  Ver todas <span aria-hidden="true">{"\u2192"}</span>
+                </a>
               </div>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                {categoryHighlights.map(({category,imageUrl,key})=>(
-                  <div key={key} className="group relative aspect-square cursor-pointer overflow-hidden rounded-[8px] bg-[#eeece7]">
-                    <img src={imageUrl} alt={category} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent p-4 text-white">
-                      <strong className="block text-[19px] font-semibold leading-tight">{category}</strong>
-                      <span className="mt-1 block text-[9.5px] font-normal text-white/80">Explorar categoria</span>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                {categoryHighlights.map(({category,imageUrl,key},index)=>(
+                  <a key={key} href={`/catalogo?categoria=${encodeURIComponent(category)}`} className={`group relative aspect-[1.55/1] overflow-hidden rounded-[14px] ${collectionStyles[index % collectionStyles.length]} text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.035)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_35px_rgba(16,24,40,0.12)]`}>
+                    <img src={imageUrl} alt={category} className="absolute bottom-0 right-0 h-[96%] w-[68%] object-contain object-right-bottom p-2 transition duration-500 group-hover:scale-105"/>
+                    <div className="absolute inset-x-0 bottom-0 z-10 p-4">
+                      <strong className="block max-w-[56%] text-[13px] font-semibold leading-[1.08] text-black">{category}</strong>
+                      <span className="mt-1 block max-w-[58%] text-[8.5px] font-normal leading-snug text-black/58">
+                        {collectionDescriptions[category] || "Explore produtos escolhidos para voc\u00ea."}
+                      </span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+
+            <section aria-label="Benef\u00edcios da loja" className="mx-8 mb-8 overflow-hidden rounded-[10px] bg-[#06263b] text-white shadow-[0_14px_30px_rgba(2,20,32,0.14)]">
+              <div className={`grid ${mobilePreview ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"}`}>
+                {trustBadges.map(({title,description,icon: Icon},index)=>(
+                  <div key={title} className={`flex min-h-[64px] items-center gap-3 px-5 py-4 ${index > 0 ? "md:border-l md:border-white/10" : ""} ${index > 1 ? "border-t border-white/10 md:border-t-0" : ""}`}>
+                    <Icon size={18} strokeWidth={1.75} className="shrink-0 text-white/90"/>
+                    <div className="min-w-0">
+                      <strong className="block text-[10px] font-semibold leading-tight text-white">{title}</strong>
+                      <span className="mt-0.5 block text-[8px] leading-tight text-white/70">{description}</span>
                     </div>
                   </div>
                 ))}
