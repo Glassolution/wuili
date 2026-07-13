@@ -486,14 +486,16 @@ Deno.serve(async (req) => {
       }).eq('user_id', user_id).eq('platform', 'mercadolivre')
     }
 
+    // Antes bloqueávamos aqui com base em /users/me `list.allow=false`, mas o ML
+    // marca essa flag mesmo para contas que conseguem publicar via API
+    // (address_pending / simple_registration são frequentemente soft-blocks
+    // relacionados ao formulário web, não à API). Deixamos o POST /items
+    // decidir — se ML rejeitar de verdade, mapMLError devolve o mesmo
+    // buildSellerBlockedMessage + code=ML_SELLER_CANNOT_LIST e a UI abre o
+    // tutorial. Mantemos apenas um log de aviso para observabilidade.
     const sellerBlock = await validateSellerCanList(accessToken)
     if (sellerBlock) {
-      console.warn('[ml-publish] Conta ML bloqueada para publicar:', JSON.stringify(sellerBlock.details).substring(0, 800))
-      return json({
-        error: sellerBlock.message,
-        code: 'ML_SELLER_CANNOT_LIST',
-        details: sellerBlock.details,
-      }, 409)
+      console.warn('[ml-publish] /users/me indica bloqueio soft, tentando publicar mesmo assim:', JSON.stringify(sellerBlock.details).substring(0, 500))
     }
 
     // === TITLE (max 60 chars) ===
