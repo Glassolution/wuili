@@ -843,10 +843,10 @@ Deno.serve(async (req) => {
 
     if (!itemResponse.ok || !itemData?.id) {
       console.error('Erro ao criar produto:', JSON.stringify(itemData))
-      const friendlyError = itemResponse.ok
-        ? 'Falha ao criar produto no Mercado Livre.'
+      const mapped = itemResponse.ok
+        ? { message: 'Falha ao criar produto no Mercado Livre.' as string, code: undefined as string | undefined }
         : mapMLError(itemData)
-      return json({ error: friendlyError, details: itemData }, 400)
+      return json({ error: mapped.message, code: mapped.code, details: itemData }, 400)
     }
 
     const itemId = itemData.id as string
