@@ -60,21 +60,21 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
   return (
     <aside
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-white/[0.08] bg-[#111112] transition-[width] duration-200",
+        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-white/[0.075] bg-[#0F0F10] transition-[width] duration-200",
         isCollapsed ? "w-[76px]" : "w-[260px]",
       )}
       style={{ fontFamily: '"Geist Sans", "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif' }}
     >
-      <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/[0.08] px-4">
+      <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/[0.075] px-4">
         <Link to="/admin/painel" className="flex min-w-0 items-center gap-2.5 text-white no-underline">
           <VeloMark />
-          {!isCollapsed && <span className="truncate text-[16px] font-semibold text-white">Vela</span>}
+          {!isCollapsed && <span className="truncate text-[16px] font-semibold text-white">Velo</span>}
         </Link>
         <button
           type="button"
           onClick={() => setCollapsed((value) => !value)}
           title={isCollapsed ? "Expandir menu" : "Recolher menu"}
-          className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-[#1B1B1B] text-[#77777E] transition hover:border-white/[0.14] hover:text-white md:flex"
+          className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.18] bg-transparent text-[#B7B7BD] transition hover:border-white/[0.28] hover:text-white md:flex"
         >
           {isCollapsed ? <ChevronRight className="h-4 w-4" strokeWidth={1.5} /> : <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />}
         </button>
@@ -86,7 +86,7 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
           onClick={() => navigate("/dashboard/atlas")}
           title="Sugestões da Aquas"
           className={cn(
-            "flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/[0.09] bg-gradient-to-b from-white/[0.08] to-white/[0.025] text-[13px] font-medium text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-white/[0.15] hover:bg-white/[0.08]",
+            "flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/[0.17] bg-[#121214] text-[13px] font-medium text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition hover:border-white/[0.25] hover:bg-[#18181A]",
             isCollapsed && "px-0",
           )}
         >
@@ -119,7 +119,7 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
                 <div
                   className={cn(
                     "rounded-lg px-3 py-2 text-[12.5px] transition",
-                    isActive ? "bg-white/[0.09] font-medium text-white" : "text-[#77777E] hover:bg-white/[0.04] hover:text-white",
+                    isActive ? "bg-[#ECECEF] font-medium text-[#111113]" : "text-[#77777E] hover:bg-white/[0.04] hover:text-white",
                   )}
                 >
                   {s.label}
@@ -138,7 +138,7 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
           </div>
         )}
 
-        <SideItem icon={PackageCheck} label="Pedidos" to="/dashboard/orders" collapsed={isCollapsed} />
+        <SideItem icon={PackageCheck} label="Pedidos" to="/dashboard/pedidos" collapsed={isCollapsed} />
         <SideItem icon={FileText} label="Publicações" to="/dashboard/publicacoes" collapsed={isCollapsed} />
         <SideItem icon={Sparkles} label="Aquas" to="/dashboard/atlas" collapsed={isCollapsed} />
         <SideItem icon={LifeBuoy} label="Suporte" to="/admin/suporte" active={activeSection === "support"} collapsed={isCollapsed} />

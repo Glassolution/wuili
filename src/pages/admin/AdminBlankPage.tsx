@@ -22,6 +22,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  ReferenceArea,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -250,6 +253,25 @@ const AdminPainelPage = () => {
     () => Array.from({ length: 5 }, (_, index) => Math.round((revenueAxisMax / 4) * index)),
     [revenueAxisMax],
   );
+  const revenueHighlight = useMemo(() => {
+    const highlightedPoints = revenueDaily.filter((point) => point.currentValue !== null);
+    if (highlightedPoints.length === 0) return null;
+
+    const first = highlightedPoints[0];
+    const last = highlightedPoints[highlightedPoints.length - 1];
+    const peak = highlightedPoints.reduce((best, point) =>
+      Math.abs(point.currentValue ?? 0) > Math.abs(best.currentValue ?? 0) ? point : best,
+    );
+
+    return {
+      startIndex: first.index,
+      startValue: first.currentValue ?? 0,
+      endIndex: last.index,
+      endValue: last.currentValue ?? 0,
+      peakIndex: peak.index,
+      peakValue: peak.currentValue ?? 0,
+    };
+  }, [revenueDaily]);
 
   const newUsersSeries = useMemo(() => {
     const now = new Date();
@@ -285,40 +307,40 @@ const AdminPainelPage = () => {
       <div className="min-h-full bg-[#101011] text-[#F4F4F5]">
         <AdminTopbar period={period} onPeriodChange={setPeriod} />
 
-        <section className="relative grid overflow-hidden border-y border-black/60 bg-[#151516] shadow-[inset_0_1px_0_rgba(255,255,255,0.045),inset_0_-1px_0_rgba(255,255,255,0.018),0_-1px_0_rgba(255,255,255,0.025),0_1px_0_rgba(0,0,0,0.92)] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/[0.035] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-black/80 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCell
-            icon={ListChecks}
-            iconClass="bg-pink-500 text-white"
-            label="Publicações"
-            value={formatNumber(publicationsMetric.value)}
-            delta={publicationsMetric.delta}
-          />
-          <MetricCell
-            icon={Users}
-            iconClass="bg-violet-500 text-white"
-            label="Usuários ativos"
-            value={formatCompact(usersMetric.value)}
-            delta={usersMetric.delta}
-          />
-          <MetricCell
-            icon={Workflow}
-            iconClass="bg-blue-500 text-white"
-            label="Pedidos processados"
-            value={formatNumber(data.counts.orders)}
-            delta={ordersMetric.delta}
-          />
-          <MetricCell
-            icon={CircleDollarSign}
-            iconClass="bg-[#22C55E] text-white"
-            label="Faturamento líquido"
-            value={formatBRL(revenueMetric.value)}
-            delta={revenueMetric.delta}
-          />
-        </section>
-
         <div className="p-4 sm:p-5">
-          <section className="grid overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E0E10] xl:grid-cols-[minmax(0,2.1fr)_minmax(320px,1fr)]">
-            <div className="min-w-0 border-b border-white/[0.08] p-5 sm:p-6 xl:border-b-0 xl:border-r">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              icon={ListChecks}
+              iconClass="bg-pink-500 text-white"
+              label="Publicações"
+              value={formatNumber(publicationsMetric.value)}
+              delta={publicationsMetric.delta}
+            />
+            <MetricCard
+              icon={Users}
+              iconClass="bg-violet-500 text-white"
+              label="Usuários ativos"
+              value={formatCompact(usersMetric.value)}
+              delta={usersMetric.delta}
+            />
+            <MetricCard
+              icon={Workflow}
+              iconClass="bg-blue-500 text-white"
+              label="Pedidos processados"
+              value={formatNumber(data.counts.orders)}
+              delta={ordersMetric.delta}
+            />
+            <MetricCard
+              icon={CircleDollarSign}
+              iconClass="bg-[#22C55E] text-white"
+              label="Faturamento líquido"
+              value={formatBRL(revenueMetric.value)}
+              delta={revenueMetric.delta}
+            />
+          </section>
+
+          <section className="mt-4 grid items-stretch gap-4 xl:grid-cols-[minmax(0,2.08fr)_minmax(320px,0.92fr)]">
+            <article className="min-w-0 rounded-[18px] border border-white/[0.08] bg-[#0E0E10] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-[13px] font-medium text-[#D4D4D8]">Receita</p>
@@ -341,6 +363,28 @@ const AdminPainelPage = () => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.035)" />
+                    {revenueHighlight && (
+                      <>
+                        <ReferenceArea
+                          x1={Math.max(revenueHighlight.startIndex - 6, 0)}
+                          x2={revenueHighlight.endIndex}
+                          y1={0}
+                          y2={revenueAxisMax}
+                          fill="#22C55E"
+                          fillOpacity={0.035}
+                          strokeOpacity={0}
+                        />
+                        <ReferenceArea
+                          x1={Math.max(revenueHighlight.endIndex - 12, revenueHighlight.startIndex)}
+                          x2={revenueHighlight.endIndex}
+                          y1={0}
+                          y2={revenueAxisMax}
+                          fill="#FFFFFF"
+                          fillOpacity={0.025}
+                          strokeOpacity={0}
+                        />
+                      </>
+                    )}
                     <XAxis
                       dataKey="index"
                       type="number"
@@ -363,13 +407,20 @@ const AdminPainelPage = () => {
                     />
                     <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.10)", strokeDasharray: "3 3" }} />
                     <Area type="monotone" dataKey="value" stroke="#7D7D84" strokeWidth={1.35} fill="transparent" dot={false} activeDot={{ r: 3, fill: "#D4D4D8", stroke: "#171717", strokeWidth: 2 }} isAnimationActive={false} />
-                    <Area type="monotone" dataKey="currentValue" stroke="#22C55E" strokeWidth={1.8} fill="url(#adminRevenueFill)" dot={{ r: 2.5, fill: "#22C55E", stroke: "#0E0E10", strokeWidth: 1.5 }} connectNulls={false} activeDot={{ r: 4, fill: "#22C55E", stroke: "#171717", strokeWidth: 2 }} isAnimationActive={false} />
+                    <Area type="monotone" dataKey="currentValue" stroke="#22C55E" strokeWidth={1.9} fill="url(#adminRevenueFill)" dot={false} connectNulls={false} activeDot={{ r: 4, fill: "#22C55E", stroke: "#171717", strokeWidth: 2 }} isAnimationActive={false} />
+                    {revenueHighlight && (
+                      <>
+                        <ReferenceDot x={revenueHighlight.startIndex} y={revenueHighlight.startValue} r={3} fill="#22C55E" stroke="#0E0E10" strokeWidth={2} />
+                        <ReferenceDot x={revenueHighlight.peakIndex} y={revenueHighlight.peakValue} r={3.5} fill="#86EFAC" stroke="#0E0E10" strokeWidth={2} />
+                        <ReferenceDot x={revenueHighlight.endIndex} y={revenueHighlight.endValue} r={3} fill="#22C55E" stroke="#0E0E10" strokeWidth={2} />
+                      </>
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </div>
+            </article>
 
-            <div className="grid min-w-0 grid-rows-2 divide-y divide-white/[0.08]">
+            <div className="grid min-w-0 gap-4">
               <SideAnalytics
                 icon={BarChart3}
                 title="Novos usuários"
@@ -378,9 +429,27 @@ const AdminPainelPage = () => {
               >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={newUsersSeries} margin={{ top: 12, right: 4, left: 4, bottom: 8 }}>
+                    <defs>
+                      <pattern id="adminUserBarsHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(90)">
+                        <rect width="6" height="6" fill="rgba(34,197,94,0.18)" />
+                        <path d="M0 0H6" stroke="#86EFAC" strokeWidth="2" strokeLinecap="round" />
+                      </pattern>
+                      <pattern id="adminUserMirrorHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(90)">
+                        <rect width="6" height="6" fill="rgba(134,239,172,0.12)" />
+                        <path d="M0 0H6" stroke="#A7F3D0" strokeWidth="2" strokeLinecap="round" />
+                      </pattern>
+                    </defs>
                     <ReferenceLine y={0} stroke="rgba(255,255,255,0.16)" strokeDasharray="3 3" />
-                    <Bar dataKey="value" fill="#22C55E" stackId="users" radius={[3, 3, 0, 0]} barSize={10} />
-                    <Bar dataKey="mirror" fill="rgba(134,239,172,0.72)" stackId="users" radius={[0, 0, 3, 3]} barSize={10} />
+                    <Bar dataKey="value" stackId="users" radius={[3, 3, 0, 0]} barSize={10}>
+                      {newUsersSeries.map((item) => (
+                        <Cell key={`users-${item.index}`} fill={item.index % 2 === 0 ? "#22C55E" : "url(#adminUserBarsHatch)"} />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="mirror" stackId="users" radius={[0, 0, 3, 3]} barSize={10}>
+                      {newUsersSeries.map((item) => (
+                        <Cell key={`users-mirror-${item.index}`} fill={item.index % 2 === 0 ? "rgba(134,239,172,0.72)" : "url(#adminUserMirrorHatch)"} />
+                      ))}
+                    </Bar>
                     <XAxis dataKey="index" type="number" domain={[0, 11]} axisLine={false} tickLine={false} tickMargin={8} ticks={[1, 5, 10]} interval={0} tick={{ fill: "#6E6E76", fontSize: 10 }} tickFormatter={(value) => ({ 1: "12d", 5: "6d", 10: "hoje" })[Number(value)] ?? ""} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -418,7 +487,7 @@ const AdminPainelPage = () => {
               </div>
             </div>
 
-            <div className="grid overflow-hidden rounded-b-2xl border-x border-b border-white/[0.08] bg-[#0E0E10] lg:grid-cols-2 lg:divide-x lg:divide-white/[0.08]">
+            <div className="grid gap-4 lg:grid-cols-2">
               <ReportSummary
                 title="Faturamento real"
                 value={formatBRL(revenueTotal)}
@@ -474,7 +543,7 @@ const AdminTopbar = ({ period, onPeriodChange }: { period: Period; onPeriodChang
   </header>
 );
 
-const MetricCell = ({
+const MetricCard = ({
   icon: Icon,
   iconClass,
   label,
@@ -487,16 +556,16 @@ const MetricCell = ({
   value: string;
   delta: number;
 }) => (
-  <div className="relative min-w-0 bg-[#151516] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.028),inset_0_-1px_0_rgba(0,0,0,0.46)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(255,255,255,0.018),transparent_34%,rgba(0,0,0,0.16))] after:pointer-events-none after:absolute after:bottom-0 after:right-0 after:top-0 after:hidden after:w-[3px] after:bg-[linear-gradient(90deg,rgba(0,0,0,0.72),rgba(255,255,255,0.045),transparent)] after:shadow-[-1px_0_0_rgba(0,0,0,0.72),1px_0_0_rgba(255,255,255,0.016)] sm:[&:nth-child(odd)]:after:block xl:after:block xl:last:after:hidden">
+  <article className="relative min-w-0 overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#131314] px-5 py-5 shadow-[0_18px_45px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.035)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(255,255,255,0.022),transparent_42%,rgba(0,0,0,0.18))]">
     <div className="flex items-center gap-2.5">
-      <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-md shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]", iconClass)}>
+      <span className={cn("relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]", iconClass)}>
         <Icon className="h-3 w-3" strokeWidth={1.7} />
       </span>
       <span className="truncate text-[12px] font-medium text-[#8B8B91]">{label}</span>
     </div>
     <p className="mt-6 truncate text-[25px] font-semibold text-white">{value}</p>
     <DeltaLine delta={delta} compact />
-  </div>
+  </article>
 );
 
 const DeltaLine = ({ delta, compact = false }: { delta: number; compact?: boolean }) => (
@@ -519,11 +588,11 @@ const SideAnalytics = ({
   delta: number;
   children: React.ReactNode;
 }) => (
-  <div className="flex min-h-[300px] flex-col p-5 sm:p-6">
+  <article className="flex min-h-[300px] flex-col rounded-[18px] border border-white/[0.08] bg-[#0E0E10] p-5 shadow-[0_20px_58px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.032)] sm:p-6">
     <div className="flex items-start justify-between gap-3">
       <div>
         <p className="flex items-center gap-2 text-[12px] font-medium text-[#8B8B91]">
-          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#22C55E] text-white">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#22C55E] text-white">
             <Icon className="h-3 w-3" strokeWidth={1.6} />
           </span>
           {title}
@@ -537,7 +606,7 @@ const SideAnalytics = ({
     <Link to="/admin/painel" className="mt-3 text-[12px] font-medium text-[#22C55E] hover:text-[#4ADE80]">
       Ver relatório
     </Link>
-  </div>
+  </article>
 );
 
 const ControlButton = ({
@@ -563,7 +632,7 @@ const IconButton = ({ label, icon: Icon }: { label: string; icon: LucideIcon }) 
 );
 
 const ReportSummary = ({ title, value, delta, description }: { title: string; value: string; delta: number; description: string }) => (
-  <div className="p-5 sm:p-6">
+  <article className="rounded-[18px] border border-white/[0.08] bg-[#0E0E10] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
     <div className="flex items-start justify-between gap-4">
       <div>
         <p className="text-[12px] font-medium text-[#A1A1A7]">{title}</p>
@@ -573,7 +642,7 @@ const ReportSummary = ({ title, value, delta, description }: { title: string; va
       </div>
       <IconButton label="Mais opções" icon={MoreHorizontal} />
     </div>
-  </div>
+  </article>
 );
 
 const RevenueTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value?: number }>; label?: number }) => {
