@@ -12,7 +12,7 @@ type Props = {
   onFinish?: () => void;
 };
 
-const ML_PROFILE_URL = "https://myaccount.mercadolivre.com.br/profile";
+const ML_PROFILE_URL = "https://www.mercadolivre.com.br/vender";
 
 const StepDots = ({ step }: { step: 1 | 2 | 3 }) => (
   <div className="flex items-center gap-1.5">
@@ -114,16 +114,17 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
                 Sem isso, o anúncio pode falhar ou não aparecer para os compradores.
               </p>
               <ul className="mt-4 space-y-2.5">
-                <Bullet>Evita falhas silenciosas ao publicar produtos.</Bullet>
-                <Bullet>Garante que seus pedidos cheguem até você corretamente.</Bullet>
-                <Bullet>Libera o repasse dos pagamentos das suas vendas.</Bullet>
-                <Bullet>Deixa sua loja pronta para vender de forma profissional.</Bullet>
+                <Bullet>Ative o <strong>modo vendedor</strong> na sua conta do Mercado Livre.</Bullet>
+                <Bullet>Aceite os termos do <strong>Mercado Envios</strong> (obrigatório para publicar).</Bullet>
+                <Bullet>Cadastre um <strong>endereço de retirada</strong> (é diferente do endereço fiscal).</Bullet>
+                <Bullet>Complete o <strong>cadastro simples de vendedor</strong> se o ML pedir.</Bullet>
               </ul>
               <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-[#F5F5F5] p-3">
                 <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[#0A0A0A]" />
                 <p className="text-[12px] text-[#525252] leading-relaxed">
-                  A verificação é feita <strong>uma única vez</strong>, direto no Mercado Livre.
-                  Depois disso, você publica pela Velo normalmente.
+                  Mesmo com o perfil pessoal completo, o Mercado Livre exige um cadastro
+                  <strong> separado como vendedor</strong>. É feito <strong>uma única vez</strong> e
+                  depois você publica pela Velo normalmente.
                 </p>
               </div>
             </>
@@ -132,9 +133,9 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
           {step === 2 && (
             <>
               <p className="text-[13.5px] leading-relaxed text-[#525252]">
-                Você será direcionado à página de <strong>perfil do Mercado Livre</strong> para
-                completar sua verificação e ativar o modo vendedor. Confira abaixo onde
-                encontrar as informações a preencher:
+                Você será direcionado à <strong>área de vender do Mercado Livre</strong> para
+                ativar o modo vendedor, aceitar o Mercado Envios e cadastrar o endereço de
+                retirada. O botão "Vender" fica no topo da página:
               </p>
               <BrowserFrame>
                 <div className="flex items-center gap-3 pb-3 border-b border-[#F0F0F0]">
