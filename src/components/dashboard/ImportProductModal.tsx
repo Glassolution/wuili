@@ -575,15 +575,27 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       if (error || data?.error) {
         // supabase.functions.invoke esconde o body quando status != 2xx.
-        // Tentamos extrair a mensagem amigável do corpo real da resposta.
+        // Tentamos extrair a mensagem amigável + código do corpo real da resposta.
         let friendly = data?.error as string | undefined;
+        let code = data?.code as string | undefined;
         const ctxRes = (error as any)?.context;
-        if (!friendly && ctxRes && typeof ctxRes.json === "function") {
+        if ((!friendly || !code) && ctxRes && typeof ctxRes.json === "function") {
           try {
             const body = await ctxRes.json();
-            friendly = body?.error || body?.message;
+            friendly = friendly || body?.error || body?.message;
+            code = code || body?.code;
           } catch { /* ignore */ }
         }
+
+        // Conta do ML bloqueada para publicar (cadastro incompleto, modo vendedor
+        // não ativado, etc.) → abrimos o tutorial em 3 etapas em vez do toast.
+        if (code === "ML_SELLER_CANNOT_LIST") {
+          veloToast.dismiss(toastId);
+          setMlVerifyModalOpen(true);
+          setPublishing(false);
+          return;
+        }
+
         veloToast.error(friendly || error?.message || "Erro ao publicar", { id: toastId });
         setPublishing(false);
         return;
