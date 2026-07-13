@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Baby, BookOpen, Boxes, Car, Check, ChevronLeft, Dumbbell, Eraser, Gamepad2, Gem, Gift, Headphones, Heart, HeartPulse, History, Home, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, Monitor, MoreHorizontal, MousePointer2, Package, PaintBucket, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Settings, Shirt, ShoppingCart, Smartphone, Sparkles, Star, Truck, Type, X } from "lucide-react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { AlignCenter, AlignLeft, AlignRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, Circle, Copy, Dumbbell, Eraser, Gamepad2, Gem, Gift, Headphones, Heart, HeartPulse, History, Home, ImageIcon, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, Minus, Monitor, MoreHorizontal, MousePointer2, Package, PaintBucket, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Settings, Shirt, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Type, X, type LucideIcon } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
@@ -91,13 +92,79 @@ const getCategoryIcon = (category: string) => {
 
 type EditMode = "select" | "edit" | "fill" | "eraser" | null;
 type ToolbarTool = Exclude<EditMode, null>;
-type ElementOverride = { backgroundColor?: string };
+type EditorElementType = "image" | "icon" | "text" | "other";
+type ImageShape = "auto" | "wide" | "square" | "circle";
+type TextWeight = "400" | "500" | "600" | "700";
+type ElementOverride = {
+  backgroundColor?: string;
+  color?: string;
+  fontSize?: number;
+  fontWeight?: TextWeight;
+  textAlign?: "left" | "center" | "right";
+  imageSrc?: string;
+  imageShape?: ImageShape;
+  iconName?: string;
+  iconSize?: number;
+};
+type SelectedEditorElement = {
+  path: string;
+  type: EditorElementType;
+  rect: { top: number; left: number; width: number; height: number };
+};
+type ContextControls = {
+  color: string;
+  fontSize: number;
+  fontWeight: TextWeight;
+  textAlign: "left" | "center" | "right";
+  imageShape: ImageShape;
+  iconName: string;
+  iconSize: number;
+};
+
+const defaultContextControls: ContextControls = {
+  color: "#111111",
+  fontSize: 16,
+  fontWeight: "500",
+  textAlign: "center",
+  imageShape: "auto",
+  iconName: "Sparkles",
+  iconSize: 42,
+};
+
+const iconPickerOptions: Array<{ name: string; label: string; icon: LucideIcon }> = [
+  { name: "Sparkles", label: "Brilho", icon: Sparkles },
+  { name: "ShoppingCart", label: "Carrinho", icon: ShoppingCart },
+  { name: "Heart", label: "Favorito", icon: Heart },
+  { name: "Truck", label: "Entrega", icon: Truck },
+  { name: "Gift", label: "Presente", icon: Gift },
+  { name: "Home", label: "Casa", icon: Home },
+  { name: "Package", label: "Pacote", icon: Package },
+  { name: "Star", label: "Estrela", icon: Star },
+  { name: "Circle", label: "Círculo", icon: Circle },
+  { name: "Square", label: "Quadrado", icon: Square },
+];
+
+const getIconComponent = (name: string) =>
+  iconPickerOptions.find((option) => option.name === name)?.icon ?? Sparkles;
+
+const renderIconMarkup = (name: string, size: number, color: string) => {
+  const Icon = getIconComponent(name);
+  return renderToStaticMarkup(<Icon size={size} strokeWidth={1.85} color={color} />);
+};
+
+const textWeightOptions: Array<{ value: TextWeight; label: string }> = [
+  { value: "400", label: "Regular" },
+  { value: "500", label: "Médio" },
+  { value: "600", label: "Semibold" },
+  { value: "700", label: "Negrito" },
+];
 
 const GeneratedStoreEditorPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const imageInput = useRef<HTMLInputElement>(null);
+  const contextMediaInput = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const selectedElementRef = useRef<HTMLElement | null>(null);
   const [mobilePreview, setMobilePreview] = useState(false);
@@ -115,6 +182,12 @@ const GeneratedStoreEditorPage = () => {
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [elementOverrides, setElementOverrides] = useState<Record<string, ElementOverride>>({});
+  const [selectedElement, setSelectedElement] = useState<SelectedEditorElement | null>(null);
+  const [contextControls, setContextControls] = useState<ContextControls>(defaultContextControls);
+  const [mediaModalOpen, setMediaModalOpen] = useState(false);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [weightMenuOpen, setWeightMenuOpen] = useState(false);
+  const [contextNotice, setContextNotice] = useState<string | null>(null);
   const [fillColor, setFillColor] = useState("#111111");
   const [fillPickerOpen, setFillPickerOpen] = useState(false);
   const [generatingBanner, setGeneratingBanner] = useState(false);
@@ -175,6 +248,90 @@ const GeneratedStoreEditorPage = () => {
     return current instanceof HTMLElement && current !== root ? current : null;
   };
 
+  const getEditableTarget = (target: HTMLElement): HTMLElement | null => {
+    const explicit = target.closest("[data-editor-type]");
+    if (explicit instanceof HTMLElement) return explicit;
+    const svg = target.closest("svg");
+    if (svg instanceof HTMLElement) return svg;
+    if (target instanceof HTMLImageElement) return target;
+    const textTarget = target.closest("h1,h2,h3,p,span,strong,a,button,li");
+    if (textTarget instanceof HTMLElement) return textTarget;
+    return target === previewRef.current ? null : target;
+  };
+
+  const getEditorElementType = (element: HTMLElement): EditorElementType => {
+    const explicit = element.dataset.editorType as EditorElementType | undefined;
+    if (explicit === "image" || explicit === "icon" || explicit === "text") return explicit;
+    if (element instanceof HTMLImageElement) return "image";
+    if (element.tagName.toLowerCase() === "svg") return "icon";
+    if (element.textContent?.trim() && !element.querySelector("img,svg")) return "text";
+    return "other";
+  };
+
+  const getElementRect = (element: HTMLElement) => {
+    const rect = element.getBoundingClientRect();
+    return { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
+  };
+
+  const detectTextAlign = (value: string): "left" | "center" | "right" => {
+    if (value === "left" || value === "right" || value === "center") return value;
+    return "center";
+  };
+
+  const detectFontWeight = (value: string): TextWeight => {
+    const numeric = Number(value);
+    if (numeric >= 700) return "700";
+    if (numeric >= 600) return "600";
+    if (numeric >= 500) return "500";
+    return "400";
+  };
+
+  const readControlsFromElement = (element: HTMLElement, type: EditorElementType): ContextControls => {
+    const computed = window.getComputedStyle(element);
+    const override = selectedPath ? elementOverrides[selectedPath] : undefined;
+    const color = override?.color || computed.color || accent;
+    const fontSize = Number.parseFloat(computed.fontSize || "16") || 16;
+    const iconSize =
+      Number.parseFloat(element.getAttribute("width") || "") ||
+      Number.parseFloat(element.style.width || "") ||
+      Math.round(element.getBoundingClientRect().width) ||
+      42;
+
+    return {
+      color,
+      fontSize: Math.round(override?.fontSize ?? fontSize),
+      fontWeight: override?.fontWeight ?? detectFontWeight(computed.fontWeight),
+      textAlign: override?.textAlign ?? detectTextAlign(computed.textAlign),
+      imageShape: override?.imageShape ?? "auto",
+      iconName: override?.iconName ?? element.dataset.editorIcon ?? (type === "icon" ? "Sparkles" : "Sparkles"),
+      iconSize: Math.max(12, Math.round(override?.iconSize ?? iconSize)),
+    };
+  };
+
+  const clearSelection = () => {
+    selectedElementRef.current?.removeAttribute("data-editor-selected");
+    selectedElementRef.current = null;
+    setSelectedPath(null);
+    setSelectedElement(null);
+    setMediaModalOpen(false);
+    setIconPickerOpen(false);
+    setWeightMenuOpen(false);
+    setFillPickerOpen(false);
+  };
+
+  const selectElement = (element: HTMLElement, options?: { openMedia?: boolean }) => {
+    const root = previewRef.current;
+    if (!root) return;
+    const path = getElementPath(element, root);
+    const type = getEditorElementType(element);
+    setSelectedPath(path);
+    setSelectedElement({ path, type, rect: getElementRect(element) });
+    setContextControls(readControlsFromElement(element, type));
+    if (type !== "icon") setIconPickerOpen(false);
+    if (type !== "text") setWeightMenuOpen(false);
+    if (type === "image" && options?.openMedia) setMediaModalOpen(true);
+  };
+
   const applyOverrideToElement = (element: HTMLElement, override: ElementOverride) => {
     if (element.dataset.editorOriginalBackgroundColor === undefined) {
       element.dataset.editorOriginalBackgroundColor = element.style.backgroundColor;
@@ -182,6 +339,61 @@ const GeneratedStoreEditorPage = () => {
     if (override.backgroundColor) {
       element.style.backgroundColor = override.backgroundColor;
       element.dataset.editorFillOverride = "true";
+    }
+    if (override.color) {
+      if (element.dataset.editorOriginalColor === undefined) element.dataset.editorOriginalColor = element.style.color;
+      element.style.color = override.color;
+      if (element.tagName.toLowerCase() === "svg") {
+        element.setAttribute("color", override.color);
+        element.style.color = override.color;
+      }
+    }
+    if (override.fontSize) {
+      if (element.dataset.editorOriginalFontSize === undefined) element.dataset.editorOriginalFontSize = element.style.fontSize;
+      element.style.fontSize = `${override.fontSize}px`;
+    }
+    if (override.fontWeight) {
+      if (element.dataset.editorOriginalFontWeight === undefined) element.dataset.editorOriginalFontWeight = element.style.fontWeight;
+      element.style.fontWeight = override.fontWeight;
+    }
+    if (override.textAlign) {
+      if (element.dataset.editorOriginalTextAlign === undefined) element.dataset.editorOriginalTextAlign = element.style.textAlign;
+      element.style.textAlign = override.textAlign;
+    }
+    if (override.imageSrc && element instanceof HTMLImageElement) {
+      element.src = override.imageSrc;
+    }
+    if (override.imageShape && element instanceof HTMLImageElement) {
+      if (element.dataset.editorOriginalBorderRadius === undefined) element.dataset.editorOriginalBorderRadius = element.style.borderRadius;
+      if (element.dataset.editorOriginalAspectRatio === undefined) element.dataset.editorOriginalAspectRatio = element.style.aspectRatio;
+      if (element.dataset.editorOriginalObjectFit === undefined) element.dataset.editorOriginalObjectFit = element.style.objectFit;
+      if (override.imageShape === "auto") {
+        element.style.borderRadius = element.dataset.editorOriginalBorderRadius || "";
+        element.style.aspectRatio = element.dataset.editorOriginalAspectRatio || "";
+        element.style.objectFit = element.dataset.editorOriginalObjectFit || "";
+      } else {
+        element.style.aspectRatio = override.imageShape === "wide" ? "16 / 9" : "1 / 1";
+        element.style.objectFit = "cover";
+        element.style.borderRadius = override.imageShape === "circle" ? "9999px" : "12px";
+      }
+    }
+    if (element.tagName.toLowerCase() === "svg" && (override.iconName || override.iconSize || override.color)) {
+      const iconName = override.iconName ?? element.dataset.editorIcon ?? "Sparkles";
+      const iconSize = override.iconSize ?? (Number(element.getAttribute("width")) || 24);
+      const iconColor = override.color ?? (element.style.color || "currentColor");
+      const template = document.createElement("template");
+      template.innerHTML = renderIconMarkup(iconName, iconSize, iconColor);
+      const svg = template.content.firstElementChild;
+      if (svg instanceof SVGElement) {
+        element.innerHTML = svg.innerHTML;
+        element.setAttribute("viewBox", svg.getAttribute("viewBox") || "0 0 24 24");
+        element.setAttribute("width", String(iconSize));
+        element.setAttribute("height", String(iconSize));
+        element.style.width = `${iconSize}px`;
+        element.style.height = `${iconSize}px`;
+        element.style.color = iconColor;
+        element.dataset.editorIcon = iconName;
+      }
     }
   };
 
@@ -191,6 +403,29 @@ const GeneratedStoreEditorPage = () => {
     else element.style.removeProperty("background-color");
     delete element.dataset.editorOriginalBackgroundColor;
     delete element.dataset.editorFillOverride;
+    element.style.color = element.dataset.editorOriginalColor || "";
+    element.style.fontSize = element.dataset.editorOriginalFontSize || "";
+    element.style.fontWeight = element.dataset.editorOriginalFontWeight || "";
+    element.style.textAlign = element.dataset.editorOriginalTextAlign || "";
+    element.style.borderRadius = element.dataset.editorOriginalBorderRadius || "";
+    element.style.aspectRatio = element.dataset.editorOriginalAspectRatio || "";
+    element.style.objectFit = element.dataset.editorOriginalObjectFit || "";
+    delete element.dataset.editorOriginalColor;
+    delete element.dataset.editorOriginalFontSize;
+    delete element.dataset.editorOriginalFontWeight;
+    delete element.dataset.editorOriginalTextAlign;
+    delete element.dataset.editorOriginalBorderRadius;
+    delete element.dataset.editorOriginalAspectRatio;
+    delete element.dataset.editorOriginalObjectFit;
+  };
+
+  const updateSelectedOverride = (override: ElementOverride) => {
+    if (!selectedElement?.path) return;
+    const path = selectedElement.path;
+    const nextOverride = { ...(elementOverrides[path] ?? {}), ...override };
+    setElementOverrides((prev) => ({ ...prev, [path]: nextOverride }));
+    const element = getElementByPath(path);
+    if (element) applyOverrideToElement(element, nextOverride);
   };
 
   const applyFillToPath = (path: string, color: string) => {
@@ -211,6 +446,7 @@ const GeneratedStoreEditorPage = () => {
 
   const startInlineEditing = (target: HTMLElement) => {
     if (!target.textContent?.trim()) return;
+    target.dataset.editorType = target.dataset.editorType || "text";
     target.setAttribute("contenteditable", "true");
     target.style.outline = "2px solid #2563eb";
     target.style.outlineOffset = "2px";
@@ -250,6 +486,24 @@ const GeneratedStoreEditorPage = () => {
   }, [selectedPath]);
 
   useEffect(() => {
+    if (!selectedElement?.path) return;
+    const update = () => {
+      const element = getElementByPath(selectedElement.path);
+      if (!element) {
+        clearSelection();
+        return;
+      }
+      setSelectedElement((current) => (current ? { ...current, rect: getElementRect(element) } : current));
+    };
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [selectedElement?.path]);
+
+  useEffect(() => {
     Object.entries(elementOverrides).forEach(([path, override]) => {
       const element = getElementByPath(path);
       if (element) applyOverrideToElement(element, override);
@@ -257,25 +511,106 @@ const GeneratedStoreEditorPage = () => {
   }, [elementOverrides]);
 
   const handlePreviewClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!editMode || !previewRef.current) return;
+    if (!previewRef.current) return;
     const target = event.target as HTMLElement;
     if (target.closest("[data-editor-ignore]")) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const path = getElementPath(target, previewRef.current);
-    setSelectedPath(path);
-
-    if (editMode === "edit") {
-      startInlineEditing(target);
+    const editableTarget = getEditableTarget(target);
+    if (!editableTarget) {
+      clearSelection();
       return;
     }
+    event.preventDefault();
+    event.stopPropagation();
+    const type = getEditorElementType(editableTarget);
+    selectElement(editableTarget, { openMedia: type === "image" });
+
+    if (editMode === "edit") {
+      startInlineEditing(editableTarget);
+      return;
+    }
+    if (type === "text") startInlineEditing(editableTarget);
     if (editMode === "fill") {
       setFillPickerOpen(true);
       return;
     }
     if (editMode === "eraser") {
-      resetPathOverride(path);
+      resetPathOverride(getElementPath(editableTarget, previewRef.current));
     }
+  };
+
+  const getSelectedDomElement = () =>
+    selectedElement?.path ? getElementByPath(selectedElement.path) : null;
+
+  const handleContextImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || selectedElement?.type !== "image") return;
+    const objectUrl = URL.createObjectURL(file);
+    const element = getSelectedDomElement();
+    if (element?.dataset.editorId === "hero-image") setHeroImage(objectUrl);
+    updateSelectedOverride({ imageSrc: objectUrl });
+    setContextNotice("Imagem atualizada no preview.");
+    event.target.value = "";
+  };
+
+  const handleImageShapeChange = (shape: ImageShape) => {
+    setContextControls((current) => ({ ...current, imageShape: shape }));
+    updateSelectedOverride({ imageShape: shape });
+  };
+
+  const handleAiPlaceholder = (label: string) => {
+    setContextNotice(`${label} depende de uma Edge Function/Lovable dedicada para IA. UI pronta; integração real fica para um prompt separado.`);
+  };
+
+  const duplicateSelectedElement = () => {
+    const element = getSelectedDomElement();
+    if (!element || !previewRef.current) return;
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.removeAttribute("data-editor-selected");
+    clone.style.transform = `${clone.style.transform || ""} translate(10px, 10px)`.trim();
+    element.insertAdjacentElement("afterend", clone);
+    selectElement(clone);
+  };
+
+  const deleteSelectedElement = () => {
+    const element = getSelectedDomElement();
+    if (!element) return;
+    element.remove();
+    clearSelection();
+  };
+
+  const applyTextAlign = (textAlign: ContextControls["textAlign"]) => {
+    setContextControls((current) => ({ ...current, textAlign }));
+    updateSelectedOverride({ textAlign });
+  };
+
+  const applyTextSize = (delta: number) => {
+    const next = Math.max(8, Math.min(96, contextControls.fontSize + delta));
+    setContextControls((current) => ({ ...current, fontSize: next }));
+    updateSelectedOverride({ fontSize: next });
+  };
+
+  const applyTextWeight = (fontWeight: TextWeight) => {
+    setWeightMenuOpen(false);
+    setContextControls((current) => ({ ...current, fontWeight }));
+    updateSelectedOverride({ fontWeight });
+  };
+
+  const applyElementColor = (color: string) => {
+    setContextControls((current) => ({ ...current, color }));
+    setAccent(color);
+    updateSelectedOverride({ color });
+  };
+
+  const applyIconSize = (delta: number) => {
+    const next = Math.max(12, Math.min(96, contextControls.iconSize + delta));
+    setContextControls((current) => ({ ...current, iconSize: next }));
+    updateSelectedOverride({ iconSize: next });
+  };
+
+  const applyIconName = (iconName: string) => {
+    setIconPickerOpen(false);
+    setContextControls((current) => ({ ...current, iconName }));
+    updateSelectedOverride({ iconName });
   };
   const flow = useMemo<FlowState | null>(() => {
     const state = location.state as Partial<FlowState> | null;
@@ -421,6 +756,28 @@ const GeneratedStoreEditorPage = () => {
   ];
   const activeToolbarTool = toolbarTools.find((tool) => tool.id === editMode);
   const fillSwatches = ["#111111", "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed"];
+  const selectedDomElement = getSelectedDomElement();
+  const selectedMediaSrc =
+    selectedElement?.type === "image" && selectedDomElement instanceof HTMLImageElement
+      ? selectedDomElement.currentSrc || selectedDomElement.src
+      : "";
+  const selectedToolbarTop = selectedElement
+    ? Math.max(12, selectedElement.rect.top - (selectedElement.type === "image" ? 2 : 74))
+    : 0;
+  const selectedToolbarLeft = selectedElement
+    ? selectedElement.type === "image"
+      ? Math.min(window.innerWidth - 72, selectedElement.rect.left + selectedElement.rect.width + 12)
+      : Math.min(
+          window.innerWidth - 340,
+          Math.max(16, selectedElement.rect.left + selectedElement.rect.width / 2 - 260),
+        )
+    : 0;
+  const imageShapeOptions: Array<{ value: ImageShape; label: string; icon: LucideIcon }> = [
+    { value: "auto", label: "Automático", icon: ImageIcon },
+    { value: "wide", label: "Retangular", icon: LayoutGrid },
+    { value: "square", label: "Quadrado", icon: Square },
+    { value: "circle", label: "Circular", icon: Circle },
+  ];
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#050505] text-white" style={{ fontFamily: selectedFontStack }}>
@@ -433,6 +790,7 @@ const GeneratedStoreEditorPage = () => {
 
       <div className="flex min-h-0 flex-1">
         <input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={(event)=>{const file=event.target.files?.[0];if(file)setHeroImage(URL.createObjectURL(file));}}/>
+        <input ref={contextMediaInput} type="file" accept="image/*" className="hidden" onChange={handleContextImageUpload}/>
         {panel==="template" ? (
           <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-r border-white/[0.06] bg-[#0b0b0b]">
             <div className="flex items-center justify-between px-5 pt-5 pb-4">
@@ -522,7 +880,7 @@ const GeneratedStoreEditorPage = () => {
 
             {/* HERO - imagem literal com overlays percentuais */}
             <section className="relative overflow-hidden bg-[#062f4e] shadow-[0_14px_34px_rgba(6,42,67,0.2)]" style={{fontFamily:selectedFontStack}}>
-              <img src={heroImage} alt="" aria-hidden="true" className="block h-auto w-full"/>
+              <img data-editor-type="image" data-editor-id="hero-image" src={heroImage} alt="" aria-hidden="true" className="block h-auto w-full"/>
 
               <div className="absolute inset-0" aria-label={"Conte\u00fado do banner principal"}>
                 <div className="absolute z-20 overflow-hidden bg-white text-[#1f2933]" style={{ left: "3.12%", top: "0%", width: "19.45%", height: "100%" }}>
@@ -536,8 +894,8 @@ const GeneratedStoreEditorPage = () => {
                     {sidebarIconCategories.map((category)=>{
                       const CategoryIcon = getCategoryIcon(category);
                       return <a key={category} href="#categorias" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="group flex h-[9.2%] min-h-[30px] w-full items-center gap-[8%] rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(7px,0.72vw,10.5px)" }}>
-                        <CategoryIcon size={15} strokeWidth={1.65} className="h-[1.55em] w-[1.55em] shrink-0"/>
-                        <span className="min-w-0 flex-1 truncate">{category}</span>
+                        <CategoryIcon data-editor-type="icon" data-editor-icon="Sparkles" size={15} strokeWidth={1.65} className="h-[1.55em] w-[1.55em] shrink-0"/>
+                        <span data-editor-type="text" className="min-w-0 flex-1 truncate">{category}</span>
                         <ChevronLeft size={12} className="h-[1.28em] w-[1.28em] shrink-0 rotate-180 text-current opacity-70"/>
                       </a>;
                     })}
@@ -547,8 +905,8 @@ const GeneratedStoreEditorPage = () => {
                     <div className="my-[4%] border-t border-black/10" />
                     {["Ofertas especiais","Cart\u00f5es presente"].map((item)=>(
                       <a key={item} href="#ofertas" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="flex min-h-[28px] w-full items-center gap-[8%] rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(7px,0.72vw,10.5px)" }}>
-                        <Gift size={15} strokeWidth={1.65} className="h-[1.55em] w-[1.55em] shrink-0"/>
-                        <span className="min-w-0 flex-1 truncate">{item}</span>
+                        <Gift data-editor-type="icon" data-editor-icon="Gift" size={15} strokeWidth={1.65} className="h-[1.55em] w-[1.55em] shrink-0"/>
+                        <span data-editor-type="text" className="min-w-0 flex-1 truncate">{item}</span>
                       </a>
                     ))}
                   </div>
@@ -560,9 +918,9 @@ const GeneratedStoreEditorPage = () => {
                 <a href="tel:+551234567890" className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: "81.1%", top: "3.92%", width: "13.45%", height: "3.05%", fontSize: "clamp(9.5px,0.86vw,14px)" }}>Suporte: (123) 456-7890</a>
 
                 <div className="absolute text-white" style={{ left: "27.35%", top: "50%", width: "28.4%", transform: "translateY(-50%)" }}>
-                  <span className="block font-semibold uppercase tracking-[0.08em] text-[#e8c878]" style={{ fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{categories[0] || "Novidades"}</span>
-                  <h1 className="mt-[2.8%] font-semibold leading-[1.06] tracking-[-0.012em] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.22)]" style={{ fontSize: "clamp(22px,2.55vw,44px)" }}>{headlinePrimary}<br/>{headlineSecondary}</h1>
-                  <p className="mt-[3.4%] truncate font-normal leading-none text-white/72" style={{ fontSize: "clamp(8px,0.86vw,13.5px)" }}>{heroSubtitle}</p>
+                  <span data-editor-type="text" className="block font-semibold uppercase tracking-[0.08em] text-[#e8c878]" style={{ fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{categories[0] || "Novidades"}</span>
+                  <h1 data-editor-type="text" className="mt-[2.8%] font-semibold leading-[1.06] tracking-[-0.012em] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.22)]" style={{ fontSize: "clamp(22px,2.55vw,44px)" }}>{headlinePrimary}<br/>{headlineSecondary}</h1>
+                  <p data-editor-type="text" className="mt-[3.4%] truncate font-normal leading-none text-white/72" style={{ fontSize: "clamp(8px,0.86vw,13.5px)" }}>{heroSubtitle}</p>
                   <a href={heroCtaHref} className="mt-[5%] inline-flex items-center justify-center whitespace-nowrap rounded-[4px] bg-[#f6ead2] font-semibold text-[#102434] shadow-[0_7px_18px_rgba(0,0,0,0.15)] transition hover:-translate-y-0.5 hover:bg-white" style={{ minWidth: "36%", height: "clamp(26px,2.65vw,44px)", paddingInline: "5.5%", gap: "0.45rem", fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{ctaPrimary || "Comprar agora"}<ChevronLeft aria-hidden="true" size={10} strokeWidth={2} className="rotate-180"/></a>
                 </div>
 
@@ -584,7 +942,7 @@ const GeneratedStoreEditorPage = () => {
                   {browseCategories.map(({category,imageUrl})=>(
                     <a key={category} href="#categorias" className="group grid w-[84px] shrink-0 grid-rows-[84px_28px] justify-items-center gap-2 text-center">
                       <span className="flex h-[84px] w-[84px] items-center justify-center overflow-hidden rounded-full bg-[#f3f1ee] transition duration-300 group-hover:-translate-y-1">
-                        <img src={imageUrl} alt={category} className="h-full w-full object-contain p-2"/>
+                        <img data-editor-type="image" src={imageUrl} alt={category} className="h-full w-full object-contain p-2"/>
                       </span>
                       <span className="flex min-h-[24px] items-start justify-center text-[8.5px] font-medium leading-tight text-black/80">{category}</span>
                     </a>
@@ -612,14 +970,14 @@ const GeneratedStoreEditorPage = () => {
                   return (
                     <article key={product.id} className="group min-w-0">
                       <div className="relative aspect-[1/1.04] overflow-hidden rounded-[16px] bg-white">
-                        <img src={product.imageUrl||heroImage} alt={product.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
-                        <button type="button" aria-label={`Favoritar ${product.title}`} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-black/70 shadow-sm transition hover:text-black"><Heart size={12} strokeWidth={1.5}/></button>
+                        <img data-editor-type="image" src={product.imageUrl||heroImage} alt={product.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
+                        <button type="button" aria-label={`Favoritar ${product.title}`} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-black/70 shadow-sm transition hover:text-black"><Heart data-editor-type="icon" data-editor-icon="Heart" size={12} strokeWidth={1.5}/></button>
                       </div>
-                      {ratingLabel ? <div className="mt-2 flex items-center gap-1 text-[8.5px] font-semibold text-black/45"><Star size={10} strokeWidth={1.8} className="fill-[#f5b800] text-[#f5b800]"/><span>{ratingLabel}</span></div> : null}
-                      <h3 className="mt-1 line-clamp-2 min-h-[28px] text-[11px] font-medium leading-snug text-black/85">{product.title}</h3>
+                      {ratingLabel ? <div className="mt-2 flex items-center gap-1 text-[8.5px] font-semibold text-black/45"><Star data-editor-type="icon" data-editor-icon="Star" size={10} strokeWidth={1.8} className="fill-[#f5b800] text-[#f5b800]"/><span data-editor-type="text">{ratingLabel}</span></div> : null}
+                      <h3 data-editor-type="text" className="mt-1 line-clamp-2 min-h-[28px] text-[11px] font-medium leading-snug text-black/85">{product.title}</h3>
                       <div className="mt-1 flex items-center justify-between gap-2">
                         <strong className="text-[12px] font-semibold text-black">{formatBRL(Math.max(product.price*2.1,product.price+20))}</strong>
-                        <button type="button" aria-label={`Adicionar ${product.title} ao carrinho`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] border border-black/20 bg-white text-black shadow-sm transition hover:-translate-y-0.5 hover:text-black"><ShoppingCart size={14} strokeWidth={1.75}/></button>
+                        <button type="button" aria-label={`Adicionar ${product.title} ao carrinho`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] border border-black/20 bg-white text-black shadow-sm transition hover:-translate-y-0.5 hover:text-black"><ShoppingCart data-editor-type="icon" data-editor-icon="ShoppingCart" size={14} strokeWidth={1.75}/></button>
                       </div>
                     </article>
                   );
@@ -637,7 +995,7 @@ const GeneratedStoreEditorPage = () => {
                   </div>
                   <button className="mt-4 w-fit rounded-full bg-white px-4 py-1.5 text-[9.5px] font-medium text-black">Ver ofertas</button>
                 </div>
-                <div className="relative w-[44%] shrink-0 overflow-hidden"><img src={displayedProducts[1%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
+                <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" src={displayedProducts[1%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
               </div>
               <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-[#eeece7]">
                 <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
@@ -648,7 +1006,7 @@ const GeneratedStoreEditorPage = () => {
                   </div>
                   <button className="mt-4 w-fit rounded-full bg-black px-4 py-1.5 text-[9.5px] font-medium text-white">Conhecer novidades</button>
                 </div>
-                <div className="relative w-[44%] shrink-0 overflow-hidden"><img src={displayedProducts[2%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
+                <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" src={displayedProducts[2%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
               </div>
             </section>
 
@@ -666,7 +1024,7 @@ const GeneratedStoreEditorPage = () => {
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 {categoryHighlights.map(({category,imageUrl,key},index)=>(
                   <a key={key} href={`/catalogo?categoria=${encodeURIComponent(category)}`} className={`group relative aspect-[1.55/1] overflow-hidden rounded-[14px] ${collectionStyles[index % collectionStyles.length]} text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.035)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_35px_rgba(16,24,40,0.12)]`}>
-                    <img src={imageUrl} alt={category} className="absolute bottom-0 right-0 h-[96%] w-[68%] object-contain object-right-bottom p-2 transition duration-500 group-hover:scale-105"/>
+                    <img data-editor-type="image" src={imageUrl} alt={category} className="absolute bottom-0 right-0 h-[96%] w-[68%] object-contain object-right-bottom p-2 transition duration-500 group-hover:scale-105"/>
                     <div className="absolute inset-x-0 bottom-0 z-10 p-4">
                       <strong className="block max-w-[56%] text-[13px] font-semibold leading-[1.08] text-black">{category}</strong>
                       <span className="mt-1 block max-w-[58%] text-[8.5px] font-normal leading-snug text-black/58">
@@ -682,7 +1040,7 @@ const GeneratedStoreEditorPage = () => {
               <div className={`grid ${mobilePreview ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"}`}>
                 {trustBadges.map(({title,description,icon: Icon},index)=>(
                   <div key={title} className={`flex min-h-[64px] items-center gap-3 px-5 py-4 ${index > 0 ? "md:border-l md:border-white/10" : ""} ${index > 1 ? "border-t border-white/10 md:border-t-0" : ""}`}>
-                    <Icon size={18} strokeWidth={1.75} className="shrink-0 text-white/90"/>
+                    <Icon data-editor-type="icon" size={18} strokeWidth={1.75} className="shrink-0 text-white/90"/>
                     <div className="min-w-0">
                       <strong className="block text-[10px] font-semibold leading-tight text-white">{title}</strong>
                       <span className="mt-0.5 block text-[8px] leading-tight text-white/70">{description}</span>
@@ -697,6 +1055,121 @@ const GeneratedStoreEditorPage = () => {
 
 
           </div>
+
+          {selectedElement?.type === "image" ? (
+            <div
+              data-editor-ignore
+              className="fixed z-50 flex flex-col items-center gap-2 rounded-full bg-[#090909] p-2 text-white shadow-[0_22px_55px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
+              style={{ top: selectedToolbarTop, left: selectedToolbarLeft }}
+            >
+              <button type="button" onClick={()=>setMediaModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/12" aria-label="Editar imagem">
+                <Pencil size={22} strokeWidth={2.1} />
+              </button>
+              <button type="button" onClick={duplicateSelectedElement} className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/12" aria-label="Duplicar imagem">
+                <Copy size={22} strokeWidth={2.1} />
+              </button>
+              <button type="button" onClick={()=>handleAiPlaceholder("Editar imagem com IA")} className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/12" aria-label="Editar com IA">
+                <Sparkles size={22} strokeWidth={2.1} />
+              </button>
+            </div>
+          ) : null}
+
+          {selectedElement?.type === "icon" ? (
+            <div
+              data-editor-ignore
+              className="fixed z-50 flex min-h-[62px] items-center gap-3 rounded-[18px] bg-[#101010] px-4 py-2.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
+              style={{ top: selectedToolbarTop, left: selectedToolbarLeft }}
+            >
+              <div className="relative">
+                <button type="button" onClick={()=>setIconPickerOpen((open)=>!open)} className="inline-flex h-11 items-center gap-2 rounded-full px-2.5 text-[18px] font-semibold transition hover:bg-white/10">
+                  <Sparkles size={20} />
+                  Ícone
+                </button>
+                {iconPickerOpen ? (
+                  <div className="absolute left-0 top-[calc(100%+10px)] grid w-[250px] grid-cols-5 gap-2 rounded-[18px] bg-[#101010] p-3 shadow-[0_18px_55px_rgba(0,0,0,0.42)] ring-1 ring-white/12">
+                    {iconPickerOptions.map(({ name, label, icon: PickerIcon }) => (
+                      <button key={name} type="button" title={label} onClick={()=>applyIconName(name)} className={`flex h-10 items-center justify-center rounded-[12px] transition ${contextControls.iconName===name?"bg-white text-black":"bg-white/[0.06] text-white hover:bg-white/12"}`}>
+                        <PickerIcon size={20} strokeWidth={1.8} />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <span className="h-8 w-px bg-white/12" />
+              <div className="flex h-11 items-center gap-2 rounded-[12px] bg-white/[0.055] px-2">
+                <button type="button" onClick={()=>applyIconSize(-2)} className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white/12 transition hover:bg-white/20" aria-label="Diminuir ícone"><Minus size={18}/></button>
+                <span className="w-14 text-center text-[18px] font-semibold">{contextControls.iconSize}px</span>
+                <button type="button" onClick={()=>applyIconSize(2)} className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white/12 transition hover:bg-white/20" aria-label="Aumentar ícone"><Plus size={20}/></button>
+              </div>
+              <span className="h-8 w-px bg-white/12" />
+              <label className="relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-full px-2.5 text-[18px] font-semibold transition hover:bg-white/10">
+                <span className="h-8 w-8 rounded-full ring-1 ring-white/25" style={{ backgroundColor: contextControls.color }} />
+                Cor
+                <input type="color" value={contextControls.color.startsWith("rgb") ? fillColor : contextControls.color} onChange={(event)=>applyElementColor(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+              </label>
+              <span className="h-8 w-px bg-white/12" />
+              <button type="button" onClick={deleteSelectedElement} className="flex h-11 w-11 items-center justify-center rounded-full text-white/65 transition hover:bg-white/10 hover:text-white" aria-label="Excluir ícone"><Trash2 size={22}/></button>
+              <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/75 transition hover:bg-white/18 hover:text-white" aria-label="Fechar toolbar"><X size={23}/></button>
+            </div>
+          ) : null}
+
+          {selectedElement?.type === "text" ? (
+            <div
+              data-editor-ignore
+              className="fixed z-50 flex min-h-[62px] items-center gap-3 rounded-[18px] bg-[#101010] px-4 py-2.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
+              style={{ top: selectedToolbarTop, left: selectedToolbarLeft }}
+            >
+              <button type="button" onClick={()=>handleAiPlaceholder("Reescrever texto com IA")} className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-[18px] font-semibold transition hover:bg-white/16">
+                <Sparkles size={22} />
+                Reescrever
+              </button>
+              <span className="h-8 w-px bg-white/12" />
+              <div className="flex items-center gap-1">
+                {[
+                  { value: "left" as const, icon: AlignLeft, label: "Alinhar à esquerda" },
+                  { value: "center" as const, icon: AlignCenter, label: "Centralizar" },
+                  { value: "right" as const, icon: AlignRight, label: "Alinhar à direita" },
+                ].map(({ value, icon: AlignIcon, label }) => (
+                  <button key={value} type="button" onClick={()=>applyTextAlign(value)} aria-label={label} className={`flex h-10 w-10 items-center justify-center rounded-[10px] transition ${contextControls.textAlign===value?"bg-white/18":"hover:bg-white/10"}`}>
+                    <AlignIcon size={22} />
+                  </button>
+                ))}
+              </div>
+              <span className="h-8 w-px bg-white/12" />
+              <div className="flex h-11 items-center gap-2 rounded-[12px] bg-white/[0.055] px-2">
+                <button type="button" onClick={()=>applyTextSize(-1)} className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white/12 transition hover:bg-white/20" aria-label="Diminuir texto"><Minus size={18}/></button>
+                <span className="w-8 text-center text-[18px] font-semibold">{contextControls.fontSize}</span>
+                <button type="button" onClick={()=>applyTextSize(1)} className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white/12 transition hover:bg-white/20" aria-label="Aumentar texto"><Plus size={20}/></button>
+              </div>
+              <div className="relative">
+                <button type="button" onClick={()=>setWeightMenuOpen((open)=>!open)} className="inline-flex h-11 min-w-[112px] items-center justify-center gap-2 rounded-full px-3 text-[18px] font-semibold transition hover:bg-white/10">
+                  {textWeightOptions.find((item)=>item.value===contextControls.fontWeight)?.label ?? "Médio"}
+                  <ChevronDown size={18} />
+                </button>
+                {weightMenuOpen ? (
+                  <div className="absolute left-0 top-[calc(100%+10px)] w-[150px] overflow-hidden rounded-[14px] bg-[#101010] p-1 shadow-[0_18px_55px_rgba(0,0,0,0.42)] ring-1 ring-white/12">
+                    {textWeightOptions.map((item)=>(
+                      <button key={item.value} type="button" onClick={()=>applyTextWeight(item.value)} className={`block h-9 w-full rounded-[10px] px-3 text-left text-[13px] transition ${contextControls.fontWeight===item.value?"bg-white text-black":"text-white hover:bg-white/10"}`}>
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <label className="relative h-11 w-11 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/20">
+                <span className="absolute inset-2 rounded-full" style={{ backgroundColor: contextControls.color }} />
+                <input type="color" value={contextControls.color.startsWith("rgb") ? fillColor : contextControls.color} onChange={(event)=>applyElementColor(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+              </label>
+              <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/75 transition hover:bg-white/18 hover:text-white" aria-label="Fechar toolbar"><X size={23}/></button>
+            </div>
+          ) : null}
+
+          {contextNotice ? (
+            <div data-editor-ignore className="fixed bottom-6 left-1/2 z-[60] max-w-[440px] -translate-x-1/2 rounded-full bg-[#101010] px-5 py-3 text-center text-[12px] font-medium text-white shadow-[0_18px_60px_rgba(0,0,0,0.35)] ring-1 ring-white/10">
+              {contextNotice}
+              <button type="button" onClick={()=>setContextNotice(null)} className="ml-3 text-white/55 hover:text-white">Fechar</button>
+            </div>
+          ) : null}
 
           <div data-editor-ignore className={`pointer-events-none sticky z-30 mt-4 flex w-full gap-3 ${toolbarOrientation === "vertical" ? "bottom-6 justify-end pr-4" : "bottom-4 flex-col items-center"}`}>
             {editMode === "fill" && selectedPath && fillPickerOpen ? (
@@ -737,6 +1210,63 @@ const GeneratedStoreEditorPage = () => {
 
         </div>
       </div>
+
+      {mediaModalOpen && selectedElement?.type === "image" ? (
+        <div
+          data-editor-ignore
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+          onMouseDown={(event)=>{if(event.target===event.currentTarget)setMediaModalOpen(false)}}
+        >
+          <section className="w-full max-w-[560px] overflow-hidden rounded-[20px] border border-white/12 bg-[#101010] text-white shadow-[0_35px_120px_rgba(0,0,0,0.65)]">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+              <div>
+                <h2 className="text-[17px] font-semibold">Escolher mídia</h2>
+                <p className="mt-1 text-[11px] text-white/45">Troque a imagem e ajuste o formato direto no preview.</p>
+              </div>
+              <button type="button" onClick={()=>setMediaModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/8 text-white/70 transition hover:bg-white/14 hover:text-white" aria-label="Fechar mídia">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5">
+              <div className="relative overflow-hidden rounded-[14px] border border-white/10 bg-black">
+                {selectedMediaSrc ? (
+                  <img
+                    src={selectedMediaSrc}
+                    alt=""
+                    className="h-[260px] w-full object-cover"
+                    style={{
+                      aspectRatio: contextControls.imageShape === "wide" ? "16 / 9" : contextControls.imageShape === "auto" ? undefined : "1 / 1",
+                      borderRadius: contextControls.imageShape === "circle" ? 999 : undefined,
+                    }}
+                  />
+                ) : (
+                  <div className="grid h-[260px] place-items-center text-[13px] text-white/45">Nenhuma imagem selecionada</div>
+                )}
+                <button type="button" onClick={()=>contextMediaInput.current?.click()} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[10px] bg-black/72 px-5 py-3 text-[14px] font-semibold text-white shadow-[0_10px_30px_rgba(0,0,0,0.28)] transition hover:bg-black/86">
+                  Escolher mídia
+                </button>
+              </div>
+              <button type="button" onClick={()=>handleAiPlaceholder("Editar imagem com IA")} className="mt-4 flex h-14 w-full items-center justify-center gap-3 rounded-[12px] bg-white/[0.12] text-[18px] font-semibold transition hover:bg-white/[0.18]">
+                <Sparkles size={22} />
+                Editar com IA
+              </button>
+              <div className="mt-4 rounded-[13px] bg-white/[0.055] p-2">
+                <div className="grid grid-cols-4 gap-2">
+                  {imageShapeOptions.map(({ value, label, icon: ShapeIcon }) => (
+                    <button key={value} type="button" onClick={()=>handleImageShapeChange(value)} className={`flex h-12 items-center justify-center gap-2 rounded-[10px] text-[11px] font-semibold transition ${contextControls.imageShape===value?"bg-white text-black":"text-white/58 hover:bg-white/10 hover:text-white"}`}>
+                      <ShapeIcon size={17} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button type="button" onClick={()=>setMediaModalOpen(false)} className="mt-5 h-11 w-full rounded-[11px] bg-white text-[13px] font-semibold text-black transition hover:bg-white/90">
+                Aplicar
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
 
       {showPlans ? (
