@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Baby, BookOpen, Boxes, Car, Check, ChevronLeft, Dumbbell, Gamepad2, Gem, Gift, GitCompareArrows, Headphones, Heart, HeartPulse, History, Home, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, MessageSquare, Monitor, MoreHorizontal, MousePointer2, Package, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Search, Settings, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Star, Truck, Type, X } from "lucide-react";
+import { Baby, BookOpen, Boxes, Car, Check, ChevronLeft, Dumbbell, Gamepad2, Gem, Gift, Headphones, Heart, HeartPulse, History, Home, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, MessageSquare, Monitor, MoreHorizontal, MousePointer2, Package, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Settings, Shirt, ShoppingCart, Smartphone, Sparkles, Star, Truck, Type, X } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 import { formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
+import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
@@ -301,7 +302,6 @@ const GeneratedStoreEditorPage = () => {
     { title: "Suporte 24/7", description: "Estamos aqui pra ajudar", icon: Headphones },
   ];
   const brandName = storeName;
-  const brandInitial = brandName.charAt(0);
   const copyPool = [
     { p: "Escolhas que", s: "Facilitam seu dia", sub: "Tecnologia, casa, bem-estar e muito mais em uma sele\u00e7\u00e3o feita para voc\u00ea.", cta1: "Comprar agora", cta2: "Ver categorias" },
     { p: "Tudo o que", s: "Voc\u00ea procura", sub: "Descubra novidades \u00fateis, ofertas especiais e produtos para todos os momentos.", cta1: "Ver novidades", cta2: "Explorar loja" },
@@ -421,43 +421,7 @@ const GeneratedStoreEditorPage = () => {
           <div ref={previewRef} onClick={handlePreviewClick} className={`relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1180px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: editMode==="comment"?"crosshair":editMode?"pointer":"default" }}>
             {/* === TEMPLATE 01 - C-STYLE INSPIRED === */}
             {/* Main header */}
-            <nav className="flex flex-wrap items-center gap-4 bg-white py-3 pr-5">
-              <div className="box-border flex items-center gap-2 px-5" style={{ marginLeft: "3.12%", width: "19.45%" }}>
-                <span className="relative flex h-9 w-8 items-center justify-center">
-                  <ShoppingBag size={29} strokeWidth={1.55} className="text-[#071f35]"/>
-                  <span className="absolute top-[9px] text-[10px] font-bold leading-none text-[#071f35]">{brandInitial}</span>
-                </span>
-                <span className="leading-none">
-                  <strong className="block text-[18px] font-semibold tracking-normal text-[#071f35]">{brandName}</strong>
-                  <span className="block text-[7px] font-semibold tracking-normal text-black/45">Escolhas para voc\u00ea.</span>
-                </span>
-              </div>
-              <div className="order-3 flex h-9 w-full flex-1 items-center overflow-hidden border border-black/10 bg-[#f7f7f7] text-[10px] text-black/50 md:order-none md:min-w-[300px]">
-                <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
-                  <Search size={13} strokeWidth={1.6} className="shrink-0 text-black/45"/>
-                  <input placeholder="Buscar produtos, marcas e mais..." className="w-full bg-transparent outline-none placeholder:text-black/40"/>
-                </label>
-                <button type="button" aria-label="Buscar" className="flex h-full w-12 shrink-0 items-center justify-center bg-[#082f4b] text-white transition hover:bg-[#061f33]">
-                  <Search size={17} strokeWidth={1.8}/>
-                </button>
-              </div>
-              <div className="ml-auto flex items-center gap-5 text-[#071f35]">
-                {[
-                  { icon: Heart, label: "Favoritos" },
-                  { icon: GitCompareArrows, label: "Comparar" },
-                ].map(({ icon: Icon, label })=>(
-                  <button key={label} type="button" className="hidden flex-col items-center gap-0.5 text-[8px] font-medium text-black/75 sm:flex">
-                    <Icon size={15} strokeWidth={1.55}/>
-                    <span>{label}</span>
-                  </button>
-                ))}
-                <button type="button" className="relative flex flex-col items-center gap-0.5 text-[8px] font-medium text-black/75">
-                  <ShoppingBag size={16} strokeWidth={1.55}/>
-                  <span>Carrinho</span>
-                  <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#082f4b] px-1 text-[8px] font-bold text-white">0</span>
-                </button>
-              </div>
-            </nav>
+            <StorefrontNavbar storeName={brandName} activePage="store" className="relative z-30" />
 
             {/* HERO - imagem literal com overlays percentuais */}
             <section className="relative overflow-hidden bg-[#062f4e] shadow-[0_14px_34px_rgba(6,42,67,0.2)]" style={{fontFamily:selectedFontStack}}>

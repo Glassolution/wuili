@@ -4,12 +4,15 @@ import { ChevronLeft, ChevronRight, Filter, Heart, Search, ShoppingCart, Sliders
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
 
 type StoreProduct = {
   id: string;
   title: string;
   category: string;
   collectionName: string;
+  brand: string | null;
+  model: string | null;
   imageUrl: string;
   price: number;
   originalPrice: number | null;
@@ -37,6 +40,8 @@ type StoreCatalogRow = {
         title: string | null;
         category: string | null;
         images: Json | null;
+        brand: string | null;
+        model: string | null;
         cost_price: number | null;
         suggested_price: number | null;
         original_price: number | null;
@@ -47,6 +52,8 @@ type StoreCatalogRow = {
         title: string | null;
         category: string | null;
         images: Json | null;
+        brand: string | null;
+        model: string | null;
         cost_price: number | null;
         suggested_price: number | null;
         original_price: number | null;
@@ -170,6 +177,7 @@ const StoreCatalogPage = () => {
   const [draftMax, setDraftMax] = useState(searchParams.get("max") ?? "");
 
   const activeCategory = searchParams.get("categoria") ?? "";
+  const searchQuery = searchParams.get("busca") ?? "";
   const sort = normalizeSort(searchParams.get("ordenar"));
   const minPrice = parsePositiveNumber(searchParams.get("min"));
   const maxPrice = parsePositiveNumber(searchParams.get("max"));
@@ -201,7 +209,7 @@ const StoreCatalogPage = () => {
           .select(`
             added_at,
             collections!inner(id,name,category,user_id),
-            catalog_products!inner(id,title,category,images,cost_price,suggested_price,original_price,created_at,is_active,is_blocked,stock_quantity)
+            catalog_products!inner(id,title,category,brand,model,images,cost_price,suggested_price,original_price,created_at,is_active,is_blocked,stock_quantity)
           `)
           .eq("collections.user_id", user.id)
           .eq("catalog_products.is_active", true)
@@ -239,6 +247,8 @@ const StoreCatalogPage = () => {
             title: product.title?.trim() || "Produto sem nome",
             category,
             collectionName: collection?.name?.trim() || category,
+            brand: product.brand,
+            model: product.model,
             imageUrl: getFirstImage(product.images),
             price,
             originalPrice: product.original_price,
@@ -265,10 +275,18 @@ const StoreCatalogPage = () => {
   );
 
   const filteredProducts = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
     const filtered = products.filter((product) => {
       if (activeCategory && product.category !== activeCategory) return false;
       if (minPrice !== null && product.price < minPrice) return false;
       if (maxPrice !== null && product.price > maxPrice) return false;
+      if (normalizedSearch) {
+        const haystack = [product.title, product.category, product.collectionName, product.brand, product.model]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(normalizedSearch)) return false;
+      }
       return true;
     });
 
@@ -282,7 +300,7 @@ const StoreCatalogPage = () => {
       }
       return 0;
     });
-  }, [activeCategory, maxPrice, minPrice, products, sort]);
+  }, [activeCategory, maxPrice, minPrice, products, searchQuery, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -303,6 +321,7 @@ const StoreCatalogPage = () => {
     next.delete("categoria");
     next.delete("min");
     next.delete("max");
+    next.delete("busca");
     next.delete("pagina");
     setSearchParams(next);
     setFiltersOpen(false);
@@ -315,6 +334,7 @@ const StoreCatalogPage = () => {
 
   const activeFilters = [
     activeCategory ? { key: "categoria", label: `Categoria: ${activeCategory}` } : null,
+    searchQuery.trim() ? { key: "busca", label: `Busca: ${searchQuery.trim()}` } : null,
     minPrice !== null ? { key: "min", label: `Mín.: ${formatBRL(minPrice)}` } : null,
     maxPrice !== null ? { key: "max", label: `Máx.: ${formatBRL(maxPrice)}` } : null,
   ].filter((filter): filter is { key: string; label: string } => Boolean(filter));
@@ -405,21 +425,12 @@ const StoreCatalogPage = () => {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-[1120px] items-center justify-between gap-4 px-5">
-          <Link to="/minha-loja/editor" className="min-w-0">
-            <strong className="block truncate text-[18px] font-semibold leading-tight tracking-[-0.03em]">{storeName}</strong>
-            <span className="block text-[11px] text-muted-foreground">Escolhas para você.</span>
-          </Link>
-          <nav className="hidden items-center gap-7 text-[13px] font-medium text-muted-foreground md:flex">
-            <Link to="/minha-loja/editor" className="transition hover:text-foreground">Loja</Link>
-            <Link to="/catalogo" className="text-foreground">Catálogo</Link>
-          </nav>
-          <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-[9px] border border-border px-3 text-[12px] font-semibold text-foreground lg:hidden">
-            <SlidersHorizontal size={15} /> Filtros
-          </button>
-        </div>
-      </header>
+      <StorefrontNavbar
+        storeName={storeName}
+        activePage="catalog"
+        searchValue={searchQuery}
+        onSearchChange={(value) => updateParams({ busca: value })}
+      />
 
       <div className="mx-auto max-w-[1120px] px-5 py-7">
         <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -445,20 +456,25 @@ const StoreCatalogPage = () => {
             </p>
           </div>
 
-          <label className="flex h-10 w-full items-center gap-3 rounded-[10px] border border-border bg-card px-3 text-[12px] text-muted-foreground shadow-sm lg:w-[250px]">
-            <Filter size={15} />
-            <span className="sr-only">Ordenar produtos</span>
-            <select
-              value={sort}
-              onChange={(event) => updateParams({ ordenar: event.target.value })}
-              className="h-full flex-1 bg-transparent text-[13px] text-foreground outline-none"
-            >
-              <option value="relevance">Ordenar por relevância</option>
-              <option value="price-asc">Menor preço</option>
-              <option value="price-desc">Maior preço</option>
-              <option value="newest">Mais recentes</option>
-            </select>
-          </label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-[9px] border border-border px-3 text-[12px] font-semibold text-foreground lg:hidden">
+              <SlidersHorizontal size={15} /> Filtros
+            </button>
+            <label className="flex h-10 w-full items-center gap-3 rounded-[10px] border border-border bg-card px-3 text-[12px] text-muted-foreground shadow-sm sm:w-[250px]">
+              <Filter size={15} />
+              <span className="sr-only">Ordenar produtos</span>
+              <select
+                value={sort}
+                onChange={(event) => updateParams({ ordenar: event.target.value })}
+                className="h-full flex-1 bg-transparent text-[13px] text-foreground outline-none"
+              >
+                <option value="relevance">Ordenar por relevância</option>
+                <option value="price-asc">Menor preço</option>
+                <option value="price-desc">Maior preço</option>
+                <option value="newest">Mais recentes</option>
+              </select>
+            </label>
+          </div>
         </div>
 
         {activeFilters.length > 0 ? (
