@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   BadgeCheck,
   BookOpen,
+  Camera,
   ChevronDown,
   GalleryHorizontalEnd,
   Heart,
@@ -21,6 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import {
