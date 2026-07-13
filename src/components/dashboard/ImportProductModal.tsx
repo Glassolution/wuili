@@ -298,6 +298,17 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     else setVisible(false);
   }, [open]);
 
+  // Cadastro de vendedor no Mercado Livre (modo vendedor + Mercado Envios +
+  // endereço de retirada) é obrigatório para TODA conta antes da 1ª publicação.
+  // Abrimos o tutorial automaticamente uma vez por usuário.
+  useEffect(() => {
+    if (!open || !user) return;
+    const key = `velo:ml_seller_tutorial_seen:${user.id}`;
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem(key) === "1") return;
+    setMlVerifyModalOpen(true);
+  }, [open, user]);
+
   // Reset on product change
   const [lastProductId, setLastProductId] = useState<string | null>(null);
   if (product && product.id !== lastProductId) {
