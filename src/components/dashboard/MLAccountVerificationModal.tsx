@@ -114,16 +114,17 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
                 Sem isso, o anúncio pode falhar ou não aparecer para os compradores.
               </p>
               <ul className="mt-4 space-y-2.5">
-                <Bullet>Evita falhas silenciosas ao publicar produtos.</Bullet>
-                <Bullet>Garante que seus pedidos cheguem até você corretamente.</Bullet>
-                <Bullet>Libera o repasse dos pagamentos das suas vendas.</Bullet>
-                <Bullet>Deixa sua loja pronta para vender de forma profissional.</Bullet>
+                <Bullet>Ative o <strong>modo vendedor</strong> na sua conta do Mercado Livre.</Bullet>
+                <Bullet>Aceite os termos do <strong>Mercado Envios</strong> (obrigatório para publicar).</Bullet>
+                <Bullet>Cadastre um <strong>endereço de retirada</strong> (é diferente do endereço fiscal).</Bullet>
+                <Bullet>Complete o <strong>cadastro simples de vendedor</strong> se o ML pedir.</Bullet>
               </ul>
               <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-[#F5F5F5] p-3">
                 <ShieldCheck size={16} className="mt-0.5 shrink-0 text-[#0A0A0A]" />
                 <p className="text-[12px] text-[#525252] leading-relaxed">
-                  A verificação é feita <strong>uma única vez</strong>, direto no Mercado Livre.
-                  Depois disso, você publica pela Velo normalmente.
+                  Mesmo com o perfil pessoal completo, o Mercado Livre exige um cadastro
+                  <strong> separado como vendedor</strong>. É feito <strong>uma única vez</strong> e
+                  depois você publica pela Velo normalmente.
                 </p>
               </div>
             </>
