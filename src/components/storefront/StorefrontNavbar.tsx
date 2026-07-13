@@ -50,8 +50,8 @@ const StorefrontNavbar = ({
 
   return (
     <header className={`border-b border-border bg-card text-card-foreground ${className}`}>
-      <div className="mx-auto flex min-h-[68px] max-w-[1120px] items-center gap-4 px-5 py-3">
-        <Link to="/minha-loja/editor" className="flex min-w-[150px] items-center gap-3">
+      <div className="relative mx-auto flex min-h-[68px] max-w-[1120px] items-center gap-4 px-5 py-3">
+        <Link to="/minha-loja/editor" className="z-10 flex min-w-[150px] items-center gap-3">
           <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-[13px] font-bold text-foreground">
             <ShoppingBag size={20} strokeWidth={1.6} />
             <span className="absolute mt-1 text-[9px] leading-none">{brandInitial}</span>
@@ -64,7 +64,7 @@ const StorefrontNavbar = ({
 
         <form
           onSubmit={submitSearch}
-          className={`${mobileSearchOpen ? "absolute left-5 right-5 top-[76px] z-40 flex" : "hidden"} h-10 min-w-0 flex-1 items-center overflow-hidden rounded-[10px] border border-input bg-background shadow-sm md:relative md:left-auto md:right-auto md:top-auto md:z-auto md:flex md:max-w-[460px]`}
+          className={`${mobileSearchOpen ? "absolute left-5 right-5 top-[76px] z-40 flex" : "hidden"} h-10 min-w-0 items-center overflow-hidden rounded-[10px] border border-input bg-background shadow-sm md:absolute md:left-1/2 md:top-1/2 md:z-0 md:flex md:w-[min(44vw,460px)] md:-translate-x-1/2 md:-translate-y-1/2`}
         >
           <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
             <Search size={15} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />
@@ -84,7 +84,7 @@ const StorefrontNavbar = ({
           </button>
         </form>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="z-10 ml-auto flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setMobileSearchOpen((open) => !open)}
