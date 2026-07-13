@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   BadgeCheck,
   BookOpen,
+  Camera,
   ChevronDown,
   GalleryHorizontalEnd,
   Heart,
@@ -21,6 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import {
@@ -225,13 +227,16 @@ function Sidebar({
   displayName,
   avatar,
   onOpenPalette,
+  onChangeAvatar,
 }: {
   tab: TabKey;
   onTab: (t: TabKey) => void;
   displayName: string;
   avatar: string | null;
   onOpenPalette: () => void;
+  onChangeAvatar: (file: File) => void;
 }) {
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const navGroups: Array<{
     title: string;
     items: Array<{ label: string; icon: LucideIcon; active?: boolean; onClick?: () => void }>;
@@ -259,17 +264,39 @@ function Sidebar({
 
   return (
     <aside className="sticky top-0 hidden h-[140.845071vh] w-[368px] shrink-0 flex-col self-start overflow-y-auto border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:flex">
-      <button className="flex h-[54px] w-full items-center gap-3 text-left">
-        <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]">
-          {avatar ? (
-            <img src={avatar} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <UserRound className="h-[19px] w-[19px]" strokeWidth={1.6} />
-          )}
-        </span>
+      <div className="flex h-[54px] w-full items-center gap-3 text-left">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]"
+            aria-label="Trocar foto"
+          >
+            {avatar ? (
+              <img src={avatar} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <UserRound className="h-[19px] w-[19px]" strokeWidth={1.6} />
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition group-hover:opacity-100">
+              <Camera className="h-4 w-4 text-white" strokeWidth={1.8} />
+            </span>
+          </button>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onChangeAvatar(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
         <span className="min-w-0 flex-1 truncate text-[17px] font-semibold text-[#f2f2f3]">{displayName}</span>
         <ChevronDown className="h-4 w-4 text-[#8b8b90]" />
-      </button>
+      </div>
+
 
 
       <div className="mt-1 border-t border-white/[0.08] pt-[14px]">
@@ -1022,7 +1049,7 @@ function GuidesView({
 export default function Docs() {
 
   const { user } = useAuth();
-  const { nome, foto } = useProfile();
+  const { nome, foto, setFoto } = useProfile();
   const {
     isAdmin,
     posts,
@@ -1081,13 +1108,41 @@ export default function Docs() {
 
   const [showComposer, setShowComposer] = useState(false);
 
+  const handleChangeAvatar = async (file: File) => {
+    if (!user?.id) return;
+    if (file.size > 900_000) {
+      toast.error("Escolha uma imagem menor que 900 KB.");
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    setFoto(dataUrl);
+    const { error, count } = await supabase
+      .from("profiles")
+      .update({ avatar_url: dataUrl })
+      .eq("user_id", user.id)
+      .select("user_id", { count: "exact", head: true });
+    if (error) {
+      toast.error("Não foi possível atualizar a foto.");
+      return;
+    }
+    if (!count) {
+      await supabase.from("profiles").insert({ user_id: user.id, avatar_url: dataUrl });
+    }
+    toast.success("Foto atualizada.");
+  };
+
   return (
     <div
       className="min-h-screen overflow-x-hidden bg-[#0d0d0e] font-['Inter_Variable','Inter',ui-sans-serif,system-ui,sans-serif] text-white"
       style={{ zoom: 0.71, minHeight: "140.845071vh" }}
     >
       <div className="flex min-h-screen w-full">
-        <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} />
+        <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} onChangeAvatar={handleChangeAvatar} />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[18px] backdrop-blur sm:px-[28px]">
             <Link

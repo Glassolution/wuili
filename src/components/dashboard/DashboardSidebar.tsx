@@ -21,7 +21,7 @@ const baseNavItems: NavItem[] = [
   { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
   { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
-  { label: "Ajuda & Central", icon: Info, to: "/docs", dimmed: true },
+  { label: "Comunidade e Ajuda", icon: Info, to: "/docs", dimmed: true },
   { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes", dimmed: true },
 ];
 
