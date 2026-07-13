@@ -58,6 +58,10 @@
     --success-foreground: 0 0% 100%;
     --success-light: 142 76% 95%;
 
+    --store-accent-color: 255 86% 52%;
+    --store-accent-foreground: 0 0% 100%;
+    --store-accent-soft: 252 100% 97%;
+
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
@@ -108,6 +112,10 @@
     --success: 164 79% 58%;
     --success-foreground: 236 36% 11%;
     --success-light: 164 68% 18%;
+
+    --store-accent-color: 253 90% 72%;
+    --store-accent-foreground: 236 36% 11%;
+    --store-accent-soft: 253 36% 18%;
 
     --warning: 43 98% 64%;
     --warning-foreground: 236 36% 11%;

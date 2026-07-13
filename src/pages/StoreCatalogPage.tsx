@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Filter, Search, ShoppingCart, SlidersHorizontal, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter, Heart, Search, ShoppingCart, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -102,13 +102,20 @@ const StoreProductCard = ({ product }: { product: StoreProduct }) => {
   const showOriginalPrice = typeof product.originalPrice === "number" && product.originalPrice > product.price;
 
   return (
-    <article className="group overflow-hidden rounded-[14px] border border-border bg-card text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+    <article className="group overflow-hidden rounded-[12px] border border-border bg-card text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative aspect-[1.06/1] overflow-hidden bg-muted">
         {isRecent(product.createdAt ?? product.addedAt) ? (
-          <span className="absolute left-3 top-3 z-10 rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-secondary-foreground shadow-sm">
+          <span className="absolute left-2.5 top-2.5 z-10 rounded-[6px] bg-[hsl(var(--store-accent-soft))] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.02em] text-[hsl(var(--store-accent-color))] shadow-sm">
             Novo
           </span>
         ) : null}
+        <button
+          type="button"
+          aria-label={`Favoritar ${product.title}`}
+          className="absolute right-2.5 top-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-card/85 text-muted-foreground shadow-sm backdrop-blur transition hover:text-foreground"
+        >
+          <Heart size={14} strokeWidth={1.7} />
+        </button>
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
@@ -116,31 +123,34 @@ const StoreProductCard = ({ product }: { product: StoreProduct }) => {
             className="h-full w-full object-contain p-4 transition duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full items-center justify-center px-6 text-center text-xs text-muted-foreground">
+          <div className="flex h-full items-center justify-center px-5 text-center text-[11px] text-muted-foreground">
             Produto sem imagem
           </div>
         )}
       </div>
-      <div className="p-4">
-        <p className="text-[11px] font-medium text-muted-foreground">{product.category}</p>
-        <h3 className="mt-1 line-clamp-2 min-h-[40px] text-sm font-semibold leading-snug text-foreground">
+      <div className="border-t border-border p-3">
+        <p className="text-[10px] font-medium text-muted-foreground">{product.category}</p>
+        <h3 className="mt-1 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-snug text-foreground">
           {product.title}
         </h3>
-        <div className="mt-4 flex items-end justify-between gap-3">
+        <div className="mt-3 flex items-end justify-between gap-3">
           <div>
+            <span className="block text-[9px] text-muted-foreground">Preço:</span>
             {showOriginalPrice ? (
-              <span className="block text-[11px] text-muted-foreground line-through">
-                {formatBRL(product.originalPrice ?? 0)}
-              </span>
-            ) : null}
-            <strong className="block text-base font-semibold text-foreground">{formatBRL(product.price)}</strong>
+              <div className="flex items-baseline gap-1.5">
+                <strong className="text-[14px] font-semibold text-foreground">{formatBRL(product.price)}</strong>
+                <span className="text-[10px] text-muted-foreground line-through">{formatBRL(product.originalPrice ?? 0)}</span>
+              </div>
+            ) : (
+              <strong className="block text-[14px] font-semibold text-foreground">{formatBRL(product.price)}</strong>
+            )}
           </div>
           <button
             type="button"
             aria-label={`Comprar ${product.title}`}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-primary text-primary-foreground transition hover:opacity-85"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-[hsl(var(--store-accent-color))] text-[hsl(var(--store-accent-foreground))] transition hover:opacity-85"
           >
-            <ShoppingCart size={17} strokeWidth={1.8} />
+            <ShoppingCart size={15} strokeWidth={1.8} />
           </button>
         </div>
       </div>
@@ -304,9 +314,9 @@ const StoreCatalogPage = () => {
   };
 
   const activeFilters = [
-    activeCategory ? { key: "categoria", label: activeCategory } : null,
-    minPrice !== null ? { key: "min", label: `A partir de ${formatBRL(minPrice)}` } : null,
-    maxPrice !== null ? { key: "max", label: `Até ${formatBRL(maxPrice)}` } : null,
+    activeCategory ? { key: "categoria", label: `Categoria: ${activeCategory}` } : null,
+    minPrice !== null ? { key: "min", label: `Mín.: ${formatBRL(minPrice)}` } : null,
+    maxPrice !== null ? { key: "max", label: `Máx.: ${formatBRL(maxPrice)}` } : null,
   ].filter((filter): filter is { key: string; label: string } => Boolean(filter));
 
   const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1).filter((number) => {
@@ -315,24 +325,24 @@ const StoreCatalogPage = () => {
   });
 
   const filters = (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Categorias</h2>
+          <h2 className="text-[13px] font-semibold text-foreground">Categorias</h2>
           {activeCategory ? (
-            <button type="button" onClick={() => updateParams({ categoria: null })} className="text-xs font-medium text-muted-foreground hover:text-foreground">
+            <button type="button" onClick={() => updateParams({ categoria: null })} className="text-[11px] font-medium text-muted-foreground hover:text-foreground">
               Limpar
             </button>
           ) : null}
         </div>
-        <div className="mt-4 space-y-1">
+        <div className="mt-3 space-y-1.5">
           <button
             type="button"
             onClick={() => updateParams({ categoria: null })}
-            className={`flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left text-sm transition ${!activeCategory ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+            className={`flex w-full items-center justify-between py-1.5 text-left text-[13px] transition ${!activeCategory ? "font-bold text-[hsl(var(--store-accent-color))]" : "text-muted-foreground hover:text-foreground"}`}
           >
             Todas
-            <span className="text-xs opacity-70">{products.length}</span>
+            <span className="text-[11px] font-medium text-muted-foreground">{products.length}</span>
           </button>
           {categories.map((category) => {
             const count = products.filter((product) => product.category === category).length;
@@ -344,20 +354,20 @@ const StoreCatalogPage = () => {
                   updateParams({ categoria: category });
                   setFiltersOpen(false);
                 }}
-                className={`flex w-full items-center justify-between rounded-[10px] px-3 py-2 text-left text-sm transition ${activeCategory === category ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+                className={`flex w-full items-center justify-between gap-3 py-1.5 text-left text-[13px] transition ${activeCategory === category ? "font-bold text-[hsl(var(--store-accent-color))]" : "text-muted-foreground hover:text-foreground"}`}
               >
                 <span className="truncate">{category}</span>
-                <span className="ml-3 text-xs opacity-70">{count}</span>
+                <span className="text-[11px] font-medium text-muted-foreground">{count}</span>
               </button>
             );
           })}
         </div>
       </section>
 
-      <section className="border-t border-border pt-6">
-        <h2 className="text-sm font-semibold text-foreground">Filtrar por</h2>
+      <section className="border-t border-border pt-5">
+        <h2 className="text-[13px] font-semibold text-foreground">Filtrar por</h2>
         <div className="mt-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Preço</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <label className="block">
               <span className="sr-only">Preço mínimo</span>
@@ -366,7 +376,7 @@ const StoreCatalogPage = () => {
                 onChange={(event) => setDraftMin(event.target.value)}
                 inputMode="decimal"
                 placeholder="Mín."
-                className="h-10 w-full rounded-[10px] border border-input bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+                className="h-9 w-full rounded-[9px] border border-input bg-background px-3 text-[12px] text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-[hsl(var(--store-accent-color))]"
               />
             </label>
             <label className="block">
@@ -376,17 +386,17 @@ const StoreCatalogPage = () => {
                 onChange={(event) => setDraftMax(event.target.value)}
                 inputMode="decimal"
                 placeholder="Máx."
-                className="h-10 w-full rounded-[10px] border border-input bg-background px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+                className="h-9 w-full rounded-[9px] border border-input bg-background px-3 text-[12px] text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-[hsl(var(--store-accent-color))]"
               />
             </label>
           </div>
         </div>
-        <div className="mt-5 flex gap-2">
-          <button type="button" onClick={applyPriceFilters} className="h-10 flex-1 rounded-[10px] bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-85">
+        <div className="mt-4 flex gap-2">
+          <button type="button" onClick={applyPriceFilters} className="h-9 flex-1 rounded-[9px] bg-[hsl(var(--store-accent-color))] px-4 text-[12px] font-semibold text-[hsl(var(--store-accent-foreground))] transition hover:opacity-85">
             Aplicar
           </button>
-          <button type="button" onClick={clearFilters} className="h-10 rounded-[10px] border border-border px-4 text-sm font-semibold text-foreground transition hover:bg-secondary" aria-label="Limpar filtros">
-            <X size={16} />
+          <button type="button" onClick={clearFilters} className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-border text-muted-foreground transition hover:bg-secondary hover:text-foreground" aria-label="Limpar filtros">
+            <Trash2 size={14} />
           </button>
         </div>
       </section>
@@ -396,52 +406,52 @@ const StoreCatalogPage = () => {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-20 max-w-[1180px] items-center justify-between gap-4 px-5">
+        <div className="mx-auto flex h-16 max-w-[1120px] items-center justify-between gap-4 px-5">
           <Link to="/minha-loja/editor" className="min-w-0">
-            <strong className="block truncate text-xl font-semibold tracking-[-0.03em]">{storeName}</strong>
-            <span className="block text-xs text-muted-foreground">Escolhas para você.</span>
+            <strong className="block truncate text-[18px] font-semibold leading-tight tracking-[-0.03em]">{storeName}</strong>
+            <span className="block text-[11px] text-muted-foreground">Escolhas para você.</span>
           </Link>
-          <nav className="hidden items-center gap-7 text-sm font-medium text-muted-foreground md:flex">
+          <nav className="hidden items-center gap-7 text-[13px] font-medium text-muted-foreground md:flex">
             <Link to="/minha-loja/editor" className="transition hover:text-foreground">Loja</Link>
             <Link to="/catalogo" className="text-foreground">Catálogo</Link>
           </nav>
-          <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border px-3 text-sm font-semibold text-foreground lg:hidden">
-            <SlidersHorizontal size={16} /> Filtros
+          <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-[9px] border border-border px-3 text-[12px] font-semibold text-foreground lg:hidden">
+            <SlidersHorizontal size={15} /> Filtros
           </button>
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1180px] px-5 py-8">
-        <div className="mb-7 flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mx-auto max-w-[1120px] px-5 py-7">
+        <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <Link to="/minha-loja/editor" className="hover:text-foreground">Loja</Link>
-              <ChevronRight size={13} />
+              <ChevronRight size={12} />
               {activeCategory ? (
                 <>
                   <Link to="/catalogo" className="hover:text-foreground">Catálogo</Link>
-                  <ChevronRight size={13} />
+                  <ChevronRight size={12} />
                   <span className="text-foreground">{activeCategory}</span>
                 </>
               ) : (
                 <span className="text-foreground">Catálogo</span>
               )}
             </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-[-0.04em] md:text-4xl">
+            <h1 className="mt-4 text-[30px] font-semibold leading-none tracking-[-0.045em] md:text-[32px]">
               {activeCategory || "Catálogo completo"}
             </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-3 text-[13px] text-muted-foreground">
               {filteredProducts.length} produto{filteredProducts.length === 1 ? "" : "s"} encontrado{filteredProducts.length === 1 ? "" : "s"}.
             </p>
           </div>
 
-          <label className="flex h-11 w-full items-center gap-3 rounded-[12px] border border-border bg-card px-3 text-sm text-muted-foreground lg:w-[290px]">
-            <Filter size={16} />
+          <label className="flex h-10 w-full items-center gap-3 rounded-[10px] border border-border bg-card px-3 text-[12px] text-muted-foreground shadow-sm lg:w-[250px]">
+            <Filter size={15} />
             <span className="sr-only">Ordenar produtos</span>
             <select
               value={sort}
               onChange={(event) => updateParams({ ordenar: event.target.value })}
-              className="h-full flex-1 bg-transparent text-foreground outline-none"
+              className="h-full flex-1 bg-transparent text-[13px] text-foreground outline-none"
             >
               <option value="relevance">Ordenar por relevância</option>
               <option value="price-asc">Menor preço</option>
@@ -452,58 +462,58 @@ const StoreCatalogPage = () => {
         </div>
 
         {activeFilters.length > 0 ? (
-          <div className="mb-6 flex flex-wrap gap-2">
+          <div className="mb-5 flex flex-wrap gap-2">
             {activeFilters.map((filter) => (
               <button
                 key={filter.key}
                 type="button"
                 onClick={() => updateParams({ [filter.key]: null })}
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-secondary"
+                className="inline-flex items-center gap-1.5 rounded-[7px] bg-secondary px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:text-foreground"
               >
                 {filter.label}
-                <X size={12} />
+                <X size={11} />
               </button>
             ))}
-            <button type="button" onClick={clearFilters} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:text-foreground">
+            <button type="button" onClick={clearFilters} className="rounded-[7px] px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:text-foreground">
               Limpar tudo
             </button>
           </div>
         ) : null}
 
-        <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)]">
           <aside className="hidden lg:block">
-            <div className="sticky top-28 rounded-[16px] border border-border bg-card p-5 shadow-sm">{filters}</div>
+            <div className="sticky top-24 rounded-[14px] border border-border bg-card p-5 shadow-sm">{filters}</div>
           </aside>
 
           <section>
             {isLoading ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, index) => (
-                  <div key={index} className="h-[310px] animate-pulse rounded-[14px] bg-muted" />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 9 }).map((_, index) => (
+                  <div key={index} className="h-[286px] animate-pulse rounded-[12px] bg-muted" />
                 ))}
               </div>
             ) : error ? (
-              <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[18px] border border-border bg-card p-8 text-center">
-                <Search className="text-muted-foreground" size={32} />
-                <h2 className="mt-4 text-lg font-semibold text-foreground">Catálogo indisponível</h2>
-                <p className="mt-2 max-w-md text-sm text-muted-foreground">{error}</p>
+              <div className="flex min-h-[300px] flex-col items-center justify-center rounded-[14px] border border-border bg-card p-8 text-center">
+                <Search className="text-muted-foreground" size={28} />
+                <h2 className="mt-4 text-base font-semibold text-foreground">Catálogo indisponível</h2>
+                <p className="mt-2 max-w-md text-[13px] text-muted-foreground">{error}</p>
               </div>
             ) : paginatedProducts.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {paginatedProducts.map((product) => (
                     <StoreProductCard key={product.id} product={product} />
                   ))}
                 </div>
 
-                <div className="mt-9 flex flex-wrap items-center justify-center gap-2">
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-1.5">
                   <button
                     type="button"
                     disabled={currentPage === 1}
                     onClick={() => updateParams({ pagina: String(currentPage - 1) })}
-                    className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border px-3 text-sm font-medium text-foreground transition hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-muted-foreground transition hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
                   >
-                    <ChevronLeft size={15} /> Anterior
+                    <ChevronLeft size={13} /> Anterior
                   </button>
                   {pageNumbers.map((number, index) => {
                     const previous = pageNumbers[index - 1];
@@ -514,7 +524,7 @@ const StoreCatalogPage = () => {
                         <button
                           type="button"
                           onClick={() => updateParams({ pagina: String(number) })}
-                          className={`h-10 min-w-10 rounded-[10px] border px-3 text-sm font-semibold transition ${currentPage === number ? "border-primary bg-primary text-primary-foreground" : "border-border text-foreground hover:bg-secondary"}`}
+                          className={`h-8 min-w-8 rounded-[7px] border px-2 text-[11px] font-semibold transition ${currentPage === number ? "border-[hsl(var(--store-accent-color))] bg-[hsl(var(--store-accent-soft))] text-[hsl(var(--store-accent-color))]" : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
                         >
                           {number}
                         </button>
@@ -525,20 +535,20 @@ const StoreCatalogPage = () => {
                     type="button"
                     disabled={currentPage === pageCount}
                     onClick={() => updateParams({ pagina: String(currentPage + 1) })}
-                    className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border px-3 text-sm font-medium text-foreground transition hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-[7px] px-2.5 text-[11px] font-medium text-muted-foreground transition hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
                   >
-                    Próxima <ChevronRight size={15} />
+                    Próxima <ChevronRight size={13} />
                   </button>
                 </div>
               </>
             ) : (
-              <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[18px] border border-border bg-card p-8 text-center">
-                <Search className="text-muted-foreground" size={32} />
-                <h2 className="mt-4 text-lg font-semibold text-foreground">Nenhum produto encontrado</h2>
-                <p className="mt-2 max-w-md text-sm text-muted-foreground">
+              <div className="flex min-h-[300px] flex-col items-center justify-center rounded-[14px] border border-border bg-card p-8 text-center">
+                <Search className="text-muted-foreground" size={28} />
+                <h2 className="mt-4 text-base font-semibold text-foreground">Nenhum produto encontrado</h2>
+                <p className="mt-2 max-w-md text-[13px] text-muted-foreground">
                   Tente remover algum filtro ou explorar outra categoria da loja.
                 </p>
-                <button type="button" onClick={clearFilters} className="mt-5 rounded-[10px] bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-85">
+                <button type="button" onClick={clearFilters} className="mt-5 rounded-[9px] bg-[hsl(var(--store-accent-color))] px-4 py-2 text-[12px] font-semibold text-[hsl(var(--store-accent-foreground))] transition hover:opacity-85">
                   Limpar filtros
                 </button>
               </div>
@@ -550,10 +560,10 @@ const StoreCatalogPage = () => {
       {filtersOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button type="button" aria-label="Fechar filtros" className="absolute inset-0 bg-foreground/35" onClick={() => setFiltersOpen(false)} />
-          <aside className="absolute bottom-0 left-0 right-0 max-h-[86vh] overflow-y-auto rounded-t-[22px] border border-border bg-card p-5 shadow-xl">
+          <aside className="absolute bottom-0 left-0 right-0 max-h-[86vh] overflow-y-auto rounded-t-[18px] border border-border bg-card p-5 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <strong className="text-base font-semibold text-foreground">Filtros</strong>
-              <button type="button" onClick={() => setFiltersOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground">
+              <strong className="text-sm font-semibold text-foreground">Filtros</strong>
+              <button type="button" onClick={() => setFiltersOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-foreground">
                 <X size={16} />
               </button>
             </div>
