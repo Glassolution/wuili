@@ -275,7 +275,7 @@ async function predictCategory(title: string): Promise<string> {
 }
 
 // Map ML API errors to user-friendly messages
-function mapMLError(mlData: Record<string, unknown>): string {
+function mapMLError(mlData: Record<string, unknown>): { message: string; code?: string } {
   const msg = (mlData?.message as string) || ''
   const causeArr = arrayFromUnknown(mlData?.cause)
   const causeStr = JSON.stringify(causeArr).toLowerCase()
@@ -289,10 +289,10 @@ function mapMLError(mlData: Record<string, unknown>): string {
     causeStr.includes('restriction')
   ) {
     const codes = collectSellerStatusCodes(causeArr, mlData.error, mlData.code, mlData.message)
-    return buildSellerBlockedMessage(codes)
+    return { message: buildSellerBlockedMessage(codes), code: 'ML_SELLER_CANNOT_LIST' }
   }
 
-  if (causeStr.includes('category_id')) return 'Categoria inválida. Tente editar o título para melhor detecção automática.'
+  if (causeStr.includes('category_id')) return { message: 'Categoria inválida. Tente editar o título para melhor detecção automática.' }
   // Repassa a mensagem/atributo real da API do ML, sem mascarar como
   // "Atributos obrigatórios faltando" (isso dificultava diagnóstico).
   if (causeStr.includes('missing_required') || causeStr.includes('attributes') || causeStr.includes('value')) {
@@ -306,21 +306,21 @@ function mapMLError(mlData: Record<string, unknown>): string {
       })
       .filter(Boolean)
     const details = messages.length > 0 ? messages.join(' | ') : msg || JSON.stringify(causeArr)
-    return `Mercado Livre rejeitou atributos: ${details}`
+    return { message: `Mercado Livre rejeitou atributos: ${details}` }
   }
 
   if (msgLower.includes('title') || causeStr.includes('title.length'))
-    return 'Título muito longo. Máximo 60 caracteres.'
+    return { message: 'Título muito longo. Máximo 60 caracteres.' }
   if (msgLower.includes('picture') || causeStr.includes('download_error'))
-    return 'Erro ao processar imagens. Verifique se as imagens são válidas.'
+    return { message: 'Erro ao processar imagens. Verifique se as imagens são válidas.' }
   if (msgLower.includes('token') || msgLower.includes('unauthorized') || mlData?.status === 401)
-    return 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.'
+    return { message: 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.' }
   if (msgLower.includes('price'))
-    return 'Preço inválido. Verifique o valor de venda.'
+    return { message: 'Preço inválido. Verifique o valor de venda.' }
   if (causeStr.includes('shipping'))
-    return 'Configuração de envio necessária no Mercado Livre. Verifique suas preferências de frete na sua conta ML.'
+    return { message: 'Configuração de envio necessária no Mercado Livre. Verifique suas preferências de frete na sua conta ML.' }
 
-  return `Erro do Mercado Livre: ${msg || JSON.stringify(mlData)}`
+  return { message: `Erro do Mercado Livre: ${msg || JSON.stringify(mlData)}` }
 }
 
 // Validate that image URL is a public HTTP(S) URL
