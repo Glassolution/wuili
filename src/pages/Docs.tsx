@@ -1049,7 +1049,7 @@ function GuidesView({
 export default function Docs() {
 
   const { user } = useAuth();
-  const { nome, foto } = useProfile();
+  const { nome, foto, setFoto } = useProfile();
   const {
     isAdmin,
     posts,
