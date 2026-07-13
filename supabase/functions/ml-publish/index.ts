@@ -832,7 +832,7 @@ Deno.serve(async (req) => {
     }
 
     console.log('Payload:', JSON.stringify(mlPayload))
-    const itemResponse = await fetch('https://api.mercadolibre.com/items', {
+    let itemResponse = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -841,8 +841,28 @@ Deno.serve(async (req) => {
       body: JSON.stringify(mlPayload),
     })
 
-    const itemData = await itemResponse.json()
+    let itemData = await itemResponse.json()
     console.log('Item criado:', JSON.stringify(itemData).substring(0, 800))
+
+    // Contas migradas para User Products rejeitam `title` com
+    // body.invalid_fields → "The fields [title] are invalid". Reenviamos
+    // sem `title`, mantendo apenas `family_name`.
+    if (!itemResponse.ok &&
+        String(itemData?.message ?? '').includes('invalid_fields') &&
+        String(itemData?.error ?? '').toLowerCase().includes('[title]')) {
+      console.warn('[ml-publish] Conta no modelo User Products — reenviando sem title')
+      const { title: _omitTitle, ...payloadNoTitle } = mlPayload
+      itemResponse = await fetch('https://api.mercadolibre.com/items', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payloadNoTitle),
+      })
+      itemData = await itemResponse.json()
+      console.log('Item criado (retry sem title):', JSON.stringify(itemData).substring(0, 800))
+    }
 
     if (!itemResponse.ok || !itemData?.id) {
       console.error('Erro ao criar produto:', JSON.stringify(itemData))
