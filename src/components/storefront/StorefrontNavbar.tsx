@@ -8,6 +8,7 @@ type StorefrontNavbarProps = {
   activePage?: "store" | "catalog";
   searchValue?: string;
   onSearchChange?: (value: string) => void;
+  showNavigation?: boolean;
   className?: string;
 };
 
@@ -17,6 +18,7 @@ const StorefrontNavbar = ({
   activePage = "store",
   searchValue,
   onSearchChange,
+  showNavigation = true,
   className = "",
 }: StorefrontNavbarProps) => {
   const navigate = useNavigate();
@@ -118,10 +120,12 @@ const StorefrontNavbar = ({
         </div>
       </div>
 
-      <nav className="mx-auto flex max-w-[1120px] items-center gap-6 border-t border-border px-5 py-2 text-[12px] font-medium">
-        <Link to="/minha-loja/editor" className={navLinkClass("store")}>Loja</Link>
-        <Link to="/catalogo" className={navLinkClass("catalog")}>Catálogo</Link>
-      </nav>
+      {showNavigation ? (
+        <nav className="mx-auto flex max-w-[1120px] items-center gap-6 border-t border-border px-5 py-2 text-[12px] font-medium">
+          <Link to="/minha-loja/editor" className={navLinkClass("store")}>Loja</Link>
+          <Link to="/catalogo" className={navLinkClass("catalog")}>Catálogo</Link>
+        </nav>
+      ) : null}
     </header>
   );
 };

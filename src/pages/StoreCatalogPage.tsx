@@ -741,76 +741,77 @@ const StoreCatalogPage = () => {
         activePage="catalog"
         searchValue={searchQuery}
         onSearchChange={(value) => updateParams({ busca: value })}
+        showNavigation={false}
       />
 
-      <div className="mx-auto max-w-[1120px] px-5 py-7">
-        <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Link to="/minha-loja/editor" className="hover:text-foreground">Loja</Link>
-              <ChevronRight size={12} />
-              {activeCategory ? (
-                <>
-                  <Link to="/catalogo" className="hover:text-foreground">Catálogo</Link>
-                  <ChevronRight size={12} />
-                  <span className="text-foreground">{activeCategory}</span>
-                </>
-              ) : (
-                <span className="text-foreground">Catálogo</span>
-              )}
+      <div className="mx-auto grid max-w-[1120px] lg:grid-cols-[190px_minmax(0,1fr)]">
+        <aside className="hidden border-r border-border px-5 py-7 lg:block">
+          <div className="sticky top-4">{filters}</div>
+        </aside>
+
+        <div className="min-w-0 px-5 py-7">
+          <div className="mb-5 flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <Link to="/minha-loja/editor" className="hover:text-foreground">Loja</Link>
+                <ChevronRight size={12} />
+                {activeCategory ? (
+                  <>
+                    <Link to="/catalogo" className="hover:text-foreground">Catálogo</Link>
+                    <ChevronRight size={12} />
+                    <span className="text-foreground">{activeCategory}</span>
+                  </>
+                ) : (
+                  <span className="text-foreground">Catálogo</span>
+                )}
+              </div>
+              <h1 className="mt-4 text-[30px] font-semibold leading-none tracking-[-0.045em] md:text-[32px]">
+                {activeCategory || "Catálogo completo"}
+              </h1>
+              <p className="mt-3 text-[13px] text-muted-foreground">
+                {filteredProducts.length} produto{filteredProducts.length === 1 ? "" : "s"} encontrado{filteredProducts.length === 1 ? "" : "s"}.
+              </p>
             </div>
-            <h1 className="mt-4 text-[30px] font-semibold leading-none tracking-[-0.045em] md:text-[32px]">
-              {activeCategory || "Catálogo completo"}
-            </h1>
-            <p className="mt-3 text-[13px] text-muted-foreground">
-              {filteredProducts.length} produto{filteredProducts.length === 1 ? "" : "s"} encontrado{filteredProducts.length === 1 ? "" : "s"}.
-            </p>
-          </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-[9px] border border-border px-3 text-[12px] font-semibold text-foreground lg:hidden">
-              <SlidersHorizontal size={15} /> Filtros
-            </button>
-            <label className="flex h-10 w-full items-center gap-3 rounded-[10px] border border-border bg-card px-3 text-[12px] text-muted-foreground shadow-sm sm:w-[250px]">
-              <Filter size={15} />
-              <span className="sr-only">Ordenar produtos</span>
-              <select
-                value={sort}
-                onChange={(event) => updateParams({ ordenar: event.target.value })}
-                className="h-full flex-1 bg-transparent text-[13px] text-foreground outline-none"
-              >
-                <option value="relevance">Ordenar por relevância</option>
-                <option value="price-asc">Menor preço</option>
-                <option value="price-desc">Maior preço</option>
-                <option value="newest">Mais recentes</option>
-              </select>
-            </label>
-          </div>
-        </div>
-
-        {activeFilters.length > 0 ? (
-          <div className="mb-5 flex flex-wrap gap-2">
-            {activeFilters.map((filter) => (
-              <button
-                key={filter.key}
-                type="button"
-                onClick={() => updateParams({ [filter.key]: null })}
-                className="inline-flex items-center gap-1.5 rounded-[7px] bg-secondary px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:text-foreground"
-              >
-                {filter.label}
-                <X size={11} />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-[9px] border border-border px-3 text-[12px] font-semibold text-foreground lg:hidden">
+                <SlidersHorizontal size={15} /> Filtros
               </button>
-            ))}
-            <button type="button" onClick={clearFilters} className="rounded-[7px] px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:text-foreground">
-              Limpar tudo
-            </button>
+              <label className="flex h-10 w-full items-center gap-3 rounded-[10px] border border-border bg-card px-3 text-[12px] text-muted-foreground shadow-sm sm:w-[250px]">
+                <Filter size={15} />
+                <span className="sr-only">Ordenar produtos</span>
+                <select
+                  value={sort}
+                  onChange={(event) => updateParams({ ordenar: event.target.value })}
+                  className="h-full flex-1 bg-transparent text-[13px] text-foreground outline-none"
+                >
+                  <option value="relevance">Ordenar por relevância</option>
+                  <option value="price-asc">Menor preço</option>
+                  <option value="price-desc">Maior preço</option>
+                  <option value="newest">Mais recentes</option>
+                </select>
+              </label>
+            </div>
           </div>
-        ) : null}
 
-        <div className="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)]">
-          <aside className="hidden lg:block">
-            <div className="sticky top-24 px-1 py-1">{filters}</div>
-          </aside>
+          {activeFilters.length > 0 ? (
+            <div className="mb-5 flex flex-wrap gap-2">
+              {activeFilters.map((filter) => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={() => updateParams({ [filter.key]: null })}
+                  className="inline-flex items-center gap-1.5 rounded-[7px] bg-secondary px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:text-foreground"
+                >
+                  {filter.label}
+                  <X size={11} />
+                </button>
+              ))}
+              <button type="button" onClick={clearFilters} className="rounded-[7px] px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:text-foreground">
+                Limpar tudo
+              </button>
+            </div>
+          ) : null}
 
           <section>
             {isLoading ? (
