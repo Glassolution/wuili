@@ -1108,13 +1108,41 @@ export default function Docs() {
 
   const [showComposer, setShowComposer] = useState(false);
 
+  const handleChangeAvatar = async (file: File) => {
+    if (!user?.id) return;
+    if (file.size > 900_000) {
+      toast.error("Escolha uma imagem menor que 900 KB.");
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    setFoto(dataUrl);
+    const { error, count } = await supabase
+      .from("profiles")
+      .update({ avatar_url: dataUrl })
+      .eq("user_id", user.id)
+      .select("user_id", { count: "exact", head: true });
+    if (error) {
+      toast.error("Não foi possível atualizar a foto.");
+      return;
+    }
+    if (!count) {
+      await supabase.from("profiles").insert({ user_id: user.id, avatar_url: dataUrl });
+    }
+    toast.success("Foto atualizada.");
+  };
+
   return (
     <div
       className="min-h-screen overflow-x-hidden bg-[#0d0d0e] font-['Inter_Variable','Inter',ui-sans-serif,system-ui,sans-serif] text-white"
       style={{ zoom: 0.71, minHeight: "140.845071vh" }}
     >
       <div className="flex min-h-screen w-full">
-        <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} />
+        <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} onChangeAvatar={handleChangeAvatar} />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[18px] backdrop-blur sm:px-[28px]">
             <Link
