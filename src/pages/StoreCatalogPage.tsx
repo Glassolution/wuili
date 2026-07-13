@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Filter, Heart, Search, ShoppingCart, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Filter, Heart, Search, ShoppingCart, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -63,6 +63,7 @@ type StoreCatalogRow = {
 };
 
 type SortOption = "relevance" | "price-asc" | "price-desc" | "newest";
+type FilterGroupKey = "brand" | "model" | "price";
 
 const PAGE_SIZE = 12;
 
@@ -104,6 +105,50 @@ const normalizeSort = (value: string | null): SortOption => {
   if (value === "price-asc" || value === "price-desc" || value === "newest") return value;
   return "relevance";
 };
+
+const parseListParam = (value: string | null) =>
+  (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const formatFilterLabel = (values: string[], max = 2) => {
+  if (values.length <= max) return values.join(", ");
+  return `${values.slice(0, max).join(", ")} +${values.length - max}`;
+};
+
+const getFacetOptions = (products: StoreProduct[], key: "brand" | "model") =>
+  Array.from(
+    products.reduce((map, product) => {
+      const value = product[key]?.trim();
+      if (!value) return map;
+      map.set(value, (map.get(value) ?? 0) + 1);
+      return map;
+    }, new Map<string, number>()),
+  )
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "pt-BR"))
+    .slice(0, 8);
+
+const FilterGroup = ({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) => (
+  <section className="border-b border-border/80 pb-3 last:border-b-0">
+    <button type="button" onClick={onToggle} className="flex w-full items-center justify-between py-1 text-left text-[12px] font-semibold text-foreground">
+      {title}
+      <ChevronDown size={13} className={`text-muted-foreground transition ${open ? "rotate-180" : ""}`} />
+    </button>
+    {open ? <div className="mt-2">{children}</div> : null}
+  </section>
+);
 
 const StoreProductCard = ({ product }: { product: StoreProduct }) => {
   const showOriginalPrice = typeof product.originalPrice === "number" && product.originalPrice > product.price;
@@ -173,11 +218,18 @@ const StoreCatalogPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [openFilterGroups, setOpenFilterGroups] = useState<Record<FilterGroupKey, boolean>>({
+    brand: true,
+    model: false,
+    price: true,
+  });
   const [draftMin, setDraftMin] = useState(searchParams.get("min") ?? "");
   const [draftMax, setDraftMax] = useState(searchParams.get("max") ?? "");
 
   const activeCategory = searchParams.get("categoria") ?? "";
   const searchQuery = searchParams.get("busca") ?? "";
+  const activeBrands = parseListParam(searchParams.get("marca"));
+  const activeModels = parseListParam(searchParams.get("modelo"));
   const sort = normalizeSort(searchParams.get("ordenar"));
   const minPrice = parsePositiveNumber(searchParams.get("min"));
   const maxPrice = parsePositiveNumber(searchParams.get("max"));
@@ -273,11 +325,15 @@ const StoreCatalogPage = () => {
     () => Array.from(new Set(products.map((product) => product.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR")),
     [products],
   );
+  const brandOptions = useMemo(() => getFacetOptions(products, "brand"), [products]);
+  const modelOptions = useMemo(() => getFacetOptions(products, "model"), [products]);
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
     const filtered = products.filter((product) => {
       if (activeCategory && product.category !== activeCategory) return false;
+      if (activeBrands.length > 0 && (!product.brand || !activeBrands.includes(product.brand))) return false;
+      if (activeModels.length > 0 && (!product.model || !activeModels.includes(product.model))) return false;
       if (minPrice !== null && product.price < minPrice) return false;
       if (maxPrice !== null && product.price > maxPrice) return false;
       if (normalizedSearch) {
@@ -300,7 +356,7 @@ const StoreCatalogPage = () => {
       }
       return 0;
     });
-  }, [activeCategory, maxPrice, minPrice, products, searchQuery, sort]);
+  }, [activeBrands, activeCategory, activeModels, maxPrice, minPrice, products, searchQuery, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -316,12 +372,26 @@ const StoreCatalogPage = () => {
     setSearchParams(next);
   };
 
+  const toggleListFilter = (key: "marca" | "modelo", value: string) => {
+    const current = parseListParam(searchParams.get(key));
+    const nextValues = current.includes(value)
+      ? current.filter((item) => item !== value)
+      : [...current, value];
+    updateParams({ [key]: nextValues.length > 0 ? nextValues.join(",") : null });
+  };
+
+  const toggleFilterGroup = (key: FilterGroupKey) => {
+    setOpenFilterGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const clearFilters = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("categoria");
     next.delete("min");
     next.delete("max");
     next.delete("busca");
+    next.delete("marca");
+    next.delete("modelo");
     next.delete("pagina");
     setSearchParams(next);
     setFiltersOpen(false);
@@ -335,6 +405,8 @@ const StoreCatalogPage = () => {
   const activeFilters = [
     activeCategory ? { key: "categoria", label: `Categoria: ${activeCategory}` } : null,
     searchQuery.trim() ? { key: "busca", label: `Busca: ${searchQuery.trim()}` } : null,
+    activeBrands.length > 0 ? { key: "marca", label: `Marca: ${formatFilterLabel(activeBrands)}` } : null,
+    activeModels.length > 0 ? { key: "modelo", label: `Modelo: ${formatFilterLabel(activeModels)}` } : null,
     minPrice !== null ? { key: "min", label: `Mín.: ${formatBRL(minPrice)}` } : null,
     maxPrice !== null ? { key: "max", label: `Máx.: ${formatBRL(maxPrice)}` } : null,
   ].filter((filter): filter is { key: string; label: string } => Boolean(filter));
@@ -345,24 +417,24 @@ const StoreCatalogPage = () => {
   });
 
   const filters = (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold text-foreground">Categorias</h2>
+          <h2 className="text-[12px] font-bold text-foreground">Categorias</h2>
           {activeCategory ? (
-            <button type="button" onClick={() => updateParams({ categoria: null })} className="text-[11px] font-medium text-muted-foreground hover:text-foreground">
+            <button type="button" onClick={() => updateParams({ categoria: null })} className="text-[10px] font-medium text-muted-foreground hover:text-foreground">
               Limpar
             </button>
           ) : null}
         </div>
-        <div className="mt-3 space-y-1.5">
+        <div className="mt-3 space-y-2">
           <button
             type="button"
             onClick={() => updateParams({ categoria: null })}
-            className={`flex w-full items-center justify-between py-1.5 text-left text-[13px] transition ${!activeCategory ? "font-bold text-[hsl(var(--store-accent-color))]" : "text-muted-foreground hover:text-foreground"}`}
+            className={`flex w-full items-center justify-between text-left text-[11px] transition ${!activeCategory ? "font-bold text-[hsl(var(--store-accent-color))]" : "text-muted-foreground hover:text-foreground"}`}
           >
             Todas
-            <span className="text-[11px] font-medium text-muted-foreground">{products.length}</span>
+            <span className="text-[10px] font-medium text-muted-foreground/70">{products.length}</span>
           </button>
           {categories.map((category) => {
             const count = products.filter((product) => product.category === category).length;
@@ -374,51 +446,93 @@ const StoreCatalogPage = () => {
                   updateParams({ categoria: category });
                   setFiltersOpen(false);
                 }}
-                className={`flex w-full items-center justify-between gap-3 py-1.5 text-left text-[13px] transition ${activeCategory === category ? "font-bold text-[hsl(var(--store-accent-color))]" : "text-muted-foreground hover:text-foreground"}`}
+                className={`flex w-full items-center justify-between gap-3 text-left text-[11px] transition ${activeCategory === category ? "font-bold text-[hsl(var(--store-accent-color))]" : "text-muted-foreground hover:text-foreground"}`}
               >
                 <span className="truncate">{category}</span>
-                <span className="text-[11px] font-medium text-muted-foreground">{count}</span>
+                <span className="text-[10px] font-medium text-muted-foreground/70">{count}</span>
               </button>
             );
           })}
         </div>
       </section>
 
-      <section className="border-t border-border pt-5">
-        <h2 className="text-[13px] font-semibold text-foreground">Filtrar por</h2>
-        <div className="mt-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className="sr-only">Preço mínimo</span>
-              <input
-                value={draftMin}
-                onChange={(event) => setDraftMin(event.target.value)}
-                inputMode="decimal"
-                placeholder="Mín."
-                className="h-9 w-full rounded-[9px] border border-input bg-background px-3 text-[12px] text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-[hsl(var(--store-accent-color))]"
-              />
-            </label>
-            <label className="block">
-              <span className="sr-only">Preço máximo</span>
-              <input
-                value={draftMax}
-                onChange={(event) => setDraftMax(event.target.value)}
-                inputMode="decimal"
-                placeholder="Máx."
-                className="h-9 w-full rounded-[9px] border border-input bg-background px-3 text-[12px] text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-[hsl(var(--store-accent-color))]"
-              />
-            </label>
-          </div>
+      <div className="border-t border-border" />
+
+      <section>
+        <h2 className="text-[12px] font-bold text-foreground">Filtrar por:</h2>
+        <div className="mt-3 space-y-3">
+          {brandOptions.length > 0 ? (
+            <FilterGroup title="Marca" open={openFilterGroups.brand} onToggle={() => toggleFilterGroup("brand")}>
+              <div className="space-y-2">
+                {brandOptions.map((option) => (
+                  <label key={option.value} className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={activeBrands.includes(option.value)}
+                      onChange={() => toggleListFilter("marca", option.value)}
+                      className="h-3 w-3 rounded-[2px] border-border text-[hsl(var(--store-accent-color))] accent-[hsl(var(--store-accent-color))]"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{option.value}</span>
+                    <span className="text-[10px] text-muted-foreground/60">{option.count}</span>
+                  </label>
+                ))}
+              </div>
+            </FilterGroup>
+          ) : null}
+
+          {modelOptions.length > 0 ? (
+            <FilterGroup title="Modelo" open={openFilterGroups.model} onToggle={() => toggleFilterGroup("model")}>
+              <div className="space-y-2">
+                {modelOptions.map((option) => (
+                  <label key={option.value} className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={activeModels.includes(option.value)}
+                      onChange={() => toggleListFilter("modelo", option.value)}
+                      className="h-3 w-3 rounded-[2px] border-border text-[hsl(var(--store-accent-color))] accent-[hsl(var(--store-accent-color))]"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{option.value}</span>
+                    <span className="text-[10px] text-muted-foreground/60">{option.count}</span>
+                  </label>
+                ))}
+              </div>
+            </FilterGroup>
+          ) : null}
+
+          <FilterGroup title="Preço" open={openFilterGroups.price} onToggle={() => toggleFilterGroup("price")}>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="sr-only">Preço mínimo</span>
+                <input
+                  value={draftMin}
+                  onChange={(event) => setDraftMin(event.target.value)}
+                  inputMode="decimal"
+                  placeholder="Mín."
+                  className="h-8 w-full rounded-[8px] border border-input bg-background px-2.5 text-[11px] text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-[hsl(var(--store-accent-color))]"
+                />
+              </label>
+              <label className="block">
+                <span className="sr-only">Preço máximo</span>
+                <input
+                  value={draftMax}
+                  onChange={(event) => setDraftMax(event.target.value)}
+                  inputMode="decimal"
+                  placeholder="Máx."
+                  className="h-8 w-full rounded-[8px] border border-input bg-background px-2.5 text-[11px] text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-[hsl(var(--store-accent-color))]"
+                />
+              </label>
+            </div>
+          </FilterGroup>
         </div>
-        <div className="mt-4 flex gap-2">
-          <button type="button" onClick={applyPriceFilters} className="h-9 flex-1 rounded-[9px] bg-[hsl(var(--store-accent-color))] px-4 text-[12px] font-semibold text-[hsl(var(--store-accent-foreground))] transition hover:opacity-85">
-            Aplicar
-          </button>
-          <button type="button" onClick={clearFilters} className="flex h-9 w-9 items-center justify-center rounded-[9px] border border-border text-muted-foreground transition hover:bg-secondary hover:text-foreground" aria-label="Limpar filtros">
-            <Trash2 size={14} />
-          </button>
-        </div>
+      </section>
+
+      <section className="flex gap-2 pt-1">
+        <button type="button" onClick={applyPriceFilters} className="h-9 flex-1 rounded-[8px] bg-[hsl(var(--store-accent-color))] px-4 text-[12px] font-semibold text-[hsl(var(--store-accent-foreground))] transition hover:opacity-85">
+          Aplicar
+        </button>
+        <button type="button" onClick={clearFilters} className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-border text-muted-foreground transition hover:bg-secondary hover:text-foreground" aria-label="Limpar filtros">
+          <Trash2 size={14} />
+        </button>
       </section>
     </div>
   );
@@ -498,7 +612,7 @@ const StoreCatalogPage = () => {
 
         <div className="grid gap-6 lg:grid-cols-[210px_minmax(0,1fr)]">
           <aside className="hidden lg:block">
-            <div className="sticky top-24 rounded-[14px] border border-border bg-card p-5 shadow-sm">{filters}</div>
+            <div className="sticky top-24 px-1 py-1">{filters}</div>
           </aside>
 
           <section>
