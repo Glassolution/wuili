@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store, ShieldCheck } from "lucide-react";
@@ -299,15 +299,29 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   }, [open]);
 
   // Cadastro de vendedor no Mercado Livre (modo vendedor + Mercado Envios +
-  // endereço de retirada) é obrigatório para TODA conta antes da 1ª publicação.
-  // Abrimos o tutorial automaticamente uma vez por usuário.
+  // endereço de retirada) é obrigatório para TODA conta antes de publicar.
+  // Consultamos a fonte da verdade (ML /users/me via edge function) para saber
+  // se a conta já está apta. Só abrimos o tutorial quando a conta NÃO está.
+  // Quando o usuário volta para a Velo após configurar, a nova checagem
+  // retorna canList=true e o modal não abre mais.
+  const checkSellerStatus = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase.functions.invoke("ml-seller-status");
+      if (data?.connected && data?.canList === false) {
+        setMlVerifyModalOpen(true);
+      } else {
+        setMlVerifyModalOpen(false);
+      }
+    } catch {
+      // silencioso — não travar o fluxo se a checagem falhar
+    }
+  }, [user]);
+
   useEffect(() => {
-    if (!open || !user) return;
-    const key = `velo:ml_seller_tutorial_seen:${user.id}`;
-    if (typeof window === "undefined") return;
-    if (window.localStorage.getItem(key) === "1") return;
-    setMlVerifyModalOpen(true);
-  }, [open, user]);
+    if (!open) return;
+    void checkSellerStatus();
+  }, [open, checkSellerStatus]);
 
   // Reset on product change
   const [lastProductId, setLastProductId] = useState<string | null>(null);
@@ -1283,16 +1297,14 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       <MLAccountVerificationModal
         open={mlVerifyModalOpen}
         onClose={() => {
-          if (user && typeof window !== "undefined") {
-            window.localStorage.setItem(`velo:ml_seller_tutorial_seen:${user.id}`, "1");
-          }
           setMlVerifyModalOpen(false);
+          // Ao fechar (usuário pode ter concluído o cadastro no ML), revalidamos
+          // via /users/me. Se a conta já estiver apta, o modal não abre de novo.
+          void checkSellerStatus();
         }}
         onFinish={() => {
-          if (user && typeof window !== "undefined") {
-            window.localStorage.setItem(`velo:ml_seller_tutorial_seen:${user.id}`, "1");
-          }
           setMlVerifyModalOpen(false);
+          void checkSellerStatus();
         }}
       />
 
