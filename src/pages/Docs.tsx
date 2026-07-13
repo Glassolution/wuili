@@ -227,13 +227,16 @@ function Sidebar({
   displayName,
   avatar,
   onOpenPalette,
+  onChangeAvatar,
 }: {
   tab: TabKey;
   onTab: (t: TabKey) => void;
   displayName: string;
   avatar: string | null;
   onOpenPalette: () => void;
+  onChangeAvatar: (file: File) => void;
 }) {
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const navGroups: Array<{
     title: string;
     items: Array<{ label: string; icon: LucideIcon; active?: boolean; onClick?: () => void }>;
@@ -261,17 +264,39 @@ function Sidebar({
 
   return (
     <aside className="sticky top-0 hidden h-[140.845071vh] w-[368px] shrink-0 flex-col self-start overflow-y-auto border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:flex">
-      <button className="flex h-[54px] w-full items-center gap-3 text-left">
-        <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]">
-          {avatar ? (
-            <img src={avatar} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <UserRound className="h-[19px] w-[19px]" strokeWidth={1.6} />
-          )}
-        </span>
+      <div className="flex h-[54px] w-full items-center gap-3 text-left">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]"
+            aria-label="Trocar foto"
+          >
+            {avatar ? (
+              <img src={avatar} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <UserRound className="h-[19px] w-[19px]" strokeWidth={1.6} />
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition group-hover:opacity-100">
+              <Camera className="h-4 w-4 text-white" strokeWidth={1.8} />
+            </span>
+          </button>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onChangeAvatar(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
         <span className="min-w-0 flex-1 truncate text-[17px] font-semibold text-[#f2f2f3]">{displayName}</span>
         <ChevronDown className="h-4 w-4 text-[#8b8b90]" />
-      </button>
+      </div>
+
 
 
       <div className="mt-1 border-t border-white/[0.08] pt-[14px]">
