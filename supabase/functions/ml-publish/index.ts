@@ -844,12 +844,24 @@ Deno.serve(async (req) => {
     let itemData = await itemResponse.json()
     console.log('Item criado:', JSON.stringify(itemData).substring(0, 800))
 
+    // Detecção de causas conhecidas retornadas pelo ML.
+    const causeMessages = (data: any): string => {
+      const parts: string[] = []
+      if (Array.isArray(data?.cause)) {
+        for (const c of data.cause) {
+          if (c?.message) parts.push(String(c.message))
+          if (c?.code) parts.push(String(c.code))
+        }
+      }
+      parts.push(String(data?.message ?? ''))
+      parts.push(String(data?.error ?? ''))
+      return parts.join(' | ').toLowerCase()
+    }
+
     // Contas migradas para User Products rejeitam `title` com
     // body.invalid_fields → "The fields [title] are invalid". Reenviamos
     // sem `title`, mantendo apenas `family_name`.
-    if (!itemResponse.ok &&
-        String(itemData?.message ?? '').includes('invalid_fields') &&
-        String(itemData?.error ?? '').toLowerCase().includes('[title]')) {
+    if (!itemResponse.ok && causeMessages(itemData).includes('[title]')) {
       console.warn('[ml-publish] Conta no modelo User Products — reenviando sem title')
       const { title: _omitTitle, ...payloadNoTitle } = mlPayload
       itemResponse = await fetch('https://api.mercadolibre.com/items', {
@@ -862,6 +874,23 @@ Deno.serve(async (req) => {
       })
       itemData = await itemResponse.json()
       console.log('Item criado (retry sem title):', JSON.stringify(itemData).substring(0, 800))
+    }
+
+    // Contas no modelo clássico rejeitam `family_name` com
+    // "The field family name is invalid". Reenviamos sem family_name.
+    if (!itemResponse.ok && causeMessages(itemData).includes('family name')) {
+      console.warn('[ml-publish] Conta no modelo clássico — reenviando sem family_name')
+      const { family_name: _omitFn, ...payloadNoFn } = mlPayload as any
+      itemResponse = await fetch('https://api.mercadolibre.com/items', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payloadNoFn),
+      })
+      itemData = await itemResponse.json()
+      console.log('Item criado (retry sem family_name):', JSON.stringify(itemData).substring(0, 800))
     }
 
     if (!itemResponse.ok || !itemData?.id) {
