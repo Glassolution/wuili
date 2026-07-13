@@ -133,9 +133,9 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
           {step === 2 && (
             <>
               <p className="text-[13.5px] leading-relaxed text-[#525252]">
-                Você será direcionado à página de <strong>perfil do Mercado Livre</strong> para
-                completar sua verificação e ativar o modo vendedor. Confira abaixo onde
-                encontrar as informações a preencher:
+                Você será direcionado à <strong>área de vender do Mercado Livre</strong> para
+                ativar o modo vendedor, aceitar o Mercado Envios e cadastrar o endereço de
+                retirada. O botão "Vender" fica no topo da página:
               </p>
               <BrowserFrame>
                 <div className="flex items-center gap-3 pb-3 border-b border-[#F0F0F0]">
