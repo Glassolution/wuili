@@ -21,6 +21,7 @@ const SalesAnglePage = lazy(() => import("./pages/SalesAnglePage"));
 const StoreImagesGenerationPage = lazy(() => import("./pages/StoreImagesGenerationPage"));
 const StoreBuildProgressPage = lazy(() => import("./pages/StoreBuildProgressPage"));
 const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditorPage"));
+const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
 // AuthEntryPage removed — all auth flows consolidated in LoginPage
 // CadastroPage removed — progressive login flow handles both signup and login
 const SetupPage = lazy(() => import("./pages/SetupPage"));
@@ -128,6 +129,7 @@ const App = () => (
               <Route path="/onboarding/gerando-imagens" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard"><StoreImagesGenerationPage /></ProtectedRoute>} />
               <Route path="/onboarding/preparando-loja" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard"><StoreBuildProgressPage /></ProtectedRoute>} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard"><GeneratedStoreEditorPage /></ProtectedRoute>} />
+              <Route path="/catalogo" element={<StoreCatalogPage />} />
               <Route path="/cadastro" element={<Navigate to="/login" replace />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/setup" element={<SetupPage />} />

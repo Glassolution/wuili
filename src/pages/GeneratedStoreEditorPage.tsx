@@ -598,7 +598,7 @@ const GeneratedStoreEditorPage = () => {
                   <h2 className="text-[15px] font-semibold leading-none tracking-normal text-black">{"Cole\u00e7\u00f5es em destaque"}</h2>
                   <p className="mt-2 text-[10.5px] leading-none text-black/50">{"Explore a loja pela categoria que combina com voc\u00ea."}</p>
                 </div>
-                <a href="#categorias" className="inline-flex shrink-0 items-center gap-1.5 text-[10.5px] font-medium text-black transition hover:translate-x-0.5 hover:text-black/65">
+                <a href="/catalogo" className="inline-flex shrink-0 items-center gap-1.5 text-[10.5px] font-medium text-black transition hover:translate-x-0.5 hover:text-black/65">
                   Ver todas <span aria-hidden="true">{"\u2192"}</span>
                 </a>
               </div>
