@@ -1282,8 +1282,18 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       <MLAccountVerificationModal
         open={mlVerifyModalOpen}
-        onClose={() => setMlVerifyModalOpen(false)}
-        onFinish={() => setMlVerifyModalOpen(false)}
+        onClose={() => {
+          if (user && typeof window !== "undefined") {
+            window.localStorage.setItem(`velo:ml_seller_tutorial_seen:${user.id}`, "1");
+          }
+          setMlVerifyModalOpen(false);
+        }}
+        onFinish={() => {
+          if (user && typeof window !== "undefined") {
+            window.localStorage.setItem(`velo:ml_seller_tutorial_seen:${user.id}`, "1");
+          }
+          setMlVerifyModalOpen(false);
+        }}
       />
 
       {/* Animations */}
