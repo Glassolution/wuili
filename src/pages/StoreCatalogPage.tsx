@@ -63,13 +63,41 @@ type StoreCatalogRow = {
 };
 
 type SortOption = "relevance" | "price-asc" | "price-desc" | "newest";
-type FilterGroupKey = "brand" | "model" | "price";
+type FilterGroupKey = "brand" | "model" | "stock" | "price";
+type FilterOption = {
+  value: string;
+  count?: number;
+  indicator?: string;
+  previewChecked?: boolean;
+};
 type CatalogEditorShellProps = {
   storeName: string;
   children: ReactNode;
 };
 
 const PAGE_SIZE = 12;
+// TODO: placeholder — substituir por dados reais quando o vendedor cadastrar marca/modelo.
+const MOCK_FILTER_GROUPS = {
+  brands: [
+    { value: "Marca A" },
+    { value: "Marca B" },
+    { value: "Marca C" },
+    { value: "Marca D", previewChecked: true },
+    { value: "Marca E" },
+  ],
+  models: [
+    { value: "Clássico", indicator: "CL" },
+    { value: "Compacto", indicator: "CP" },
+    { value: "Premium", indicator: "PR" },
+    { value: "Multifunção", indicator: "MF", previewChecked: true },
+    { value: "Essencial", indicator: "ES" },
+  ],
+  stock: [
+    { value: "Disponível" },
+    { value: "Últimas unidades" },
+    { value: "Reposição rápida" },
+  ],
+} satisfies Record<string, FilterOption[]>;
 
 const getFirstImage = (images: Json | null): string => {
   if (!images) return "";
@@ -357,8 +385,9 @@ const StoreCatalogPage = () => {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [openFilterGroups, setOpenFilterGroups] = useState<Record<FilterGroupKey, boolean>>({
     brand: true,
-    model: false,
-    price: true,
+    model: true,
+    stock: false,
+    price: false,
   });
   const [draftMin, setDraftMin] = useState(searchParams.get("min") ?? "");
   const [draftMax, setDraftMax] = useState(searchParams.get("max") ?? "");
@@ -367,6 +396,7 @@ const StoreCatalogPage = () => {
   const searchQuery = searchParams.get("busca") ?? "";
   const activeBrands = parseListParam(searchParams.get("marca"));
   const activeModels = parseListParam(searchParams.get("modelo"));
+  const activeStockFilters = parseListParam(searchParams.get("estoque"));
   const sort = normalizeSort(searchParams.get("ordenar"));
   const minPrice = parsePositiveNumber(searchParams.get("min"));
   const maxPrice = parsePositiveNumber(searchParams.get("max"));
@@ -464,6 +494,10 @@ const StoreCatalogPage = () => {
   );
   const brandOptions = useMemo(() => getFacetOptions(products, "brand"), [products]);
   const modelOptions = useMemo(() => getFacetOptions(products, "model"), [products]);
+  const displayedBrandOptions = brandOptions.length > 0 ? brandOptions : MOCK_FILTER_GROUPS.brands;
+  const displayedModelOptions = modelOptions.length > 0 ? modelOptions : MOCK_FILTER_GROUPS.models;
+  const usingMockBrandOptions = brandOptions.length === 0;
+  const usingMockModelOptions = modelOptions.length === 0;
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -471,6 +505,7 @@ const StoreCatalogPage = () => {
       if (activeCategory && product.category !== activeCategory) return false;
       if (activeBrands.length > 0 && (!product.brand || !activeBrands.includes(product.brand))) return false;
       if (activeModels.length > 0 && (!product.model || !activeModels.includes(product.model))) return false;
+      if (activeStockFilters.length > 0) return false;
       if (minPrice !== null && product.price < minPrice) return false;
       if (maxPrice !== null && product.price > maxPrice) return false;
       if (normalizedSearch) {
@@ -493,7 +528,7 @@ const StoreCatalogPage = () => {
       }
       return 0;
     });
-  }, [activeBrands, activeCategory, activeModels, maxPrice, minPrice, products, searchQuery, sort]);
+  }, [activeBrands, activeCategory, activeModels, activeStockFilters, maxPrice, minPrice, products, searchQuery, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -509,7 +544,7 @@ const StoreCatalogPage = () => {
     setSearchParams(next);
   };
 
-  const toggleListFilter = (key: "marca" | "modelo", value: string) => {
+  const toggleListFilter = (key: "marca" | "modelo" | "estoque", value: string) => {
     const current = parseListParam(searchParams.get(key));
     const nextValues = current.includes(value)
       ? current.filter((item) => item !== value)
@@ -529,6 +564,7 @@ const StoreCatalogPage = () => {
     next.delete("busca");
     next.delete("marca");
     next.delete("modelo");
+    next.delete("estoque");
     next.delete("pagina");
     setSearchParams(next);
     setFiltersOpen(false);
@@ -544,6 +580,7 @@ const StoreCatalogPage = () => {
     searchQuery.trim() ? { key: "busca", label: `Busca: ${searchQuery.trim()}` } : null,
     activeBrands.length > 0 ? { key: "marca", label: `Marca: ${formatFilterLabel(activeBrands)}` } : null,
     activeModels.length > 0 ? { key: "modelo", label: `Modelo: ${formatFilterLabel(activeModels)}` } : null,
+    activeStockFilters.length > 0 ? { key: "estoque", label: `Estoque: ${formatFilterLabel(activeStockFilters)}` } : null,
     minPrice !== null ? { key: "min", label: `Mín.: ${formatBRL(minPrice)}` } : null,
     maxPrice !== null ? { key: "max", label: `Máx.: ${formatBRL(maxPrice)}` } : null,
   ].filter((filter): filter is { key: string; label: string } => Boolean(filter));
@@ -598,43 +635,66 @@ const StoreCatalogPage = () => {
       <section>
         <h2 className="text-[12px] font-bold text-foreground">Filtrar por:</h2>
         <div className="mt-3 space-y-3">
-          {brandOptions.length > 0 ? (
-            <FilterGroup title="Marca" open={openFilterGroups.brand} onToggle={() => toggleFilterGroup("brand")}>
-              <div className="space-y-2">
-                {brandOptions.map((option) => (
+          <FilterGroup title="Marca" open={openFilterGroups.brand} onToggle={() => toggleFilterGroup("brand")}>
+            <div className="space-y-2">
+              {displayedBrandOptions.map((option) => {
+                const previewChecked = usingMockBrandOptions && activeBrands.length === 0 && option.previewChecked;
+                return (
                   <label key={option.value} className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
                     <input
                       type="checkbox"
-                      checked={activeBrands.includes(option.value)}
+                      checked={activeBrands.includes(option.value) || Boolean(previewChecked)}
                       onChange={() => toggleListFilter("marca", option.value)}
                       className="h-3 w-3 rounded-[2px] border-border text-[hsl(var(--store-accent-color))] accent-[hsl(var(--store-accent-color))]"
                     />
                     <span className="min-w-0 flex-1 truncate">{option.value}</span>
-                    <span className="text-[10px] text-muted-foreground/60">{option.count}</span>
+                    {option.count ? <span className="text-[10px] text-muted-foreground/60">{option.count}</span> : null}
                   </label>
-                ))}
-              </div>
-            </FilterGroup>
-          ) : null}
+                );
+              })}
+            </div>
+          </FilterGroup>
 
-          {modelOptions.length > 0 ? (
-            <FilterGroup title="Modelo" open={openFilterGroups.model} onToggle={() => toggleFilterGroup("model")}>
-              <div className="space-y-2">
-                {modelOptions.map((option) => (
+          <FilterGroup title="Modelo" open={openFilterGroups.model} onToggle={() => toggleFilterGroup("model")}>
+            <div className="space-y-2">
+              {displayedModelOptions.map((option) => {
+                const previewChecked = usingMockModelOptions && activeModels.length === 0 && option.previewChecked;
+                return (
                   <label key={option.value} className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
                     <input
                       type="checkbox"
-                      checked={activeModels.includes(option.value)}
+                      checked={activeModels.includes(option.value) || Boolean(previewChecked)}
                       onChange={() => toggleListFilter("modelo", option.value)}
                       className="h-3 w-3 rounded-[2px] border-border text-[hsl(var(--store-accent-color))] accent-[hsl(var(--store-accent-color))]"
                     />
                     <span className="min-w-0 flex-1 truncate">{option.value}</span>
-                    <span className="text-[10px] text-muted-foreground/60">{option.count}</span>
+                    {option.indicator ? (
+                      <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[8px] font-semibold text-muted-foreground/80">
+                        {option.indicator}
+                      </span>
+                    ) : null}
+                    {option.count ? <span className="text-[10px] text-muted-foreground/60">{option.count}</span> : null}
                   </label>
-                ))}
-              </div>
-            </FilterGroup>
-          ) : null}
+                );
+              })}
+            </div>
+          </FilterGroup>
+
+          <FilterGroup title="Estoque" open={openFilterGroups.stock} onToggle={() => toggleFilterGroup("stock")}>
+            <div className="space-y-2">
+              {MOCK_FILTER_GROUPS.stock.map((option) => (
+                <label key={option.value} className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={activeStockFilters.includes(option.value)}
+                    onChange={() => toggleListFilter("estoque", option.value)}
+                    className="h-3 w-3 rounded-[2px] border-border text-[hsl(var(--store-accent-color))] accent-[hsl(var(--store-accent-color))]"
+                  />
+                  <span className="min-w-0 flex-1 truncate">{option.value}</span>
+                </label>
+              ))}
+            </div>
+          </FilterGroup>
 
           <FilterGroup title="Preço" open={openFilterGroups.price} onToggle={() => toggleFilterGroup("price")}>
             <div className="grid grid-cols-2 gap-2">
