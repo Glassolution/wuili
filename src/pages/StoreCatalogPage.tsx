@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, Filter, Heart, Search, ShoppingCart, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronDown, ChevronLeft, ChevronRight, Filter, Heart, History, LayoutTemplate, Monitor, MoreHorizontal, Package, Palette, Play, Search, Settings, ShoppingCart, SlidersHorizontal, Smartphone, Trash2, Type, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -64,6 +64,10 @@ type StoreCatalogRow = {
 
 type SortOption = "relevance" | "price-asc" | "price-desc" | "newest";
 type FilterGroupKey = "brand" | "model" | "price";
+type CatalogEditorShellProps = {
+  storeName: string;
+  children: ReactNode;
+};
 
 const PAGE_SIZE = 12;
 
@@ -149,6 +153,139 @@ const FilterGroup = ({
     {open ? <div className="mt-2">{children}</div> : null}
   </section>
 );
+
+const CatalogEditorShell = ({ storeName, children }: CatalogEditorShellProps) => {
+  const navigate = useNavigate();
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [mobilePreview, setMobilePreview] = useState(false);
+
+  return (
+    <main className="flex h-screen flex-col overflow-hidden bg-[#050505] text-white">
+      <header className="flex h-[72px] shrink-0 items-center justify-between px-5">
+        <div className="flex min-w-0 items-center gap-4">
+          <button type="button" onClick={() => navigate("/minha-loja/editor")} className="shrink-0 text-white/55 transition hover:text-white" aria-label="Voltar para a loja">
+            <ChevronLeft />
+          </button>
+          <button
+            type="button"
+            onClick={() => setPanelOpen((open) => !open)}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition ${panelOpen ? "bg-white/15 text-white" : "bg-white/[0.07] text-white/60 hover:text-white"}`}
+            aria-label="Personalizar loja"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+          <div className="min-w-0">
+            <strong className="block truncate text-[14px]">{storeName}</strong>
+            <span className="block truncate text-[10px] text-white/30">Template 01 {"\u00b7"} Velo Modern</span>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="hidden rounded-[9px] bg-white/[0.06] p-1 sm:flex">
+            <button type="button" onClick={() => setMobilePreview(false)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${!mobilePreview ? "bg-white/15" : "text-white/35"}`} aria-label="Preview desktop">
+              <Monitor size={17} />
+            </button>
+            <button type="button" onClick={() => setMobilePreview(true)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${mobilePreview ? "bg-white/15" : "text-white/35"}`} aria-label="Preview mobile">
+              <Smartphone size={17} />
+            </button>
+          </div>
+          <button type="button" onClick={() => setPanelOpen(true)} className="p-3 text-white/45 transition hover:text-white" aria-label="Configurações da loja">
+            <Settings size={18} />
+          </button>
+          <button type="button" className="hidden p-3 text-white/45 transition hover:text-white sm:block" aria-label="Visualizar loja">
+            <Play size={18} />
+          </button>
+          <button type="button" className="hidden p-3 text-white/45 transition hover:text-white sm:block" aria-label="Histórico">
+            <History size={18} />
+          </button>
+          <div className="relative ml-1 pb-2">
+            <button
+              type="button"
+              onClick={() => navigate("/checkout")}
+              className="relative min-w-[112px] overflow-hidden rounded-[9px] bg-gradient-to-r from-[#3b82f6] via-[#2563eb] to-[#1d4ed8] px-5 pb-3 pt-2 text-[13px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_rgba(37,99,235,0.28)] transition hover:-translate-y-0.5 hover:brightness-110"
+            >
+              <span className="relative z-10">Publicar</span>
+              <span className="absolute inset-x-0 top-0 h-px bg-white/45" />
+            </button>
+            <span className="absolute -bottom-0.5 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-b from-[#fde047] to-[#facc15] px-3 py-1 text-[8px] font-extrabold tracking-[0.02em] text-[#5b4300] shadow-[0_2px_7px_rgba(0,0,0,0.38)]">
+              DOMÍNIO GRÁTIS
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        {panelOpen ? (
+          <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-r border-white/[0.06] bg-[#0b0b0b]">
+            <div className="flex items-center justify-between px-5 pb-4 pt-5">
+              <div>
+                <strong className="block text-[14px]">Personalizar template</strong>
+                <span className="text-[10.5px] text-white/40">Ajuste a cara da sua loja</span>
+              </div>
+              <button type="button" onClick={() => setPanelOpen(false)} className="text-white/40 transition hover:text-white" aria-label="Fechar personalização">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3 px-5 pb-6">
+              <button type="button" className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] shadow-[0_6px_16px_rgba(37,99,235,0.35)]">
+                  <LayoutTemplate size={20} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold">Trocar template</span>
+                  <span className="block text-[11px] text-white/45">Atual: Velo Modern</span>
+                </span>
+                <ChevronLeft size={14} className="rotate-180 text-white/35" />
+              </button>
+
+              <button type="button" onClick={() => navigate("/dashboard/catalogo")} className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#f97316] to-[#c2410c] shadow-[0_6px_16px_rgba(249,115,22,0.35)]">
+                  <Package size={20} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold">Adicionar produtos</span>
+                  <span className="block text-[11px] text-white/45">Escolha do catálogo Velo</span>
+                </span>
+              </button>
+            </div>
+
+            <div className="mx-5 border-t border-white/[0.06]" />
+
+            <div className="space-y-6 px-5 py-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Palette size={13} className="text-white/55" />
+                  <strong className="text-[12px]">Cor de destaque</strong>
+                </div>
+                <p className="mt-1 text-[10.5px] text-white/40">Usada em botões, preços e tags.</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {["#111111", "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed"].map((color) => (
+                    <span key={color} className="h-8 w-8 rounded-full ring-1 ring-white/15" style={{ backgroundColor: color }} />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2">
+                  <Type size={13} className="text-white/55" />
+                  <strong className="text-[12px]">Tipografia</strong>
+                </div>
+                <p className="mt-1 text-[10.5px] text-white/40">Fonte dos títulos e textos da loja.</p>
+              </div>
+            </div>
+          </aside>
+        ) : null}
+
+        <div className="relative min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
+          <div className={`relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview ? "max-w-[390px]" : "max-w-[1180px]"}`}>
+            {children}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+};
 
 const StoreProductCard = ({ product }: { product: StoreProduct }) => {
   const showOriginalPrice = typeof product.originalPrice === "number" && product.originalPrice > product.price;
@@ -537,8 +674,8 @@ const StoreCatalogPage = () => {
     </div>
   );
 
-  return (
-    <main className="min-h-screen bg-background text-foreground">
+  const catalogContent = (
+    <>
       <StorefrontNavbar
         storeName={storeName}
         activePage="catalog"
@@ -701,8 +838,14 @@ const StoreCatalogPage = () => {
           </aside>
         </div>
       ) : null}
-    </main>
+    </>
   );
+
+  if (user) {
+    return <CatalogEditorShell storeName={storeName}>{catalogContent}</CatalogEditorShell>;
+  }
+
+  return <main className="min-h-screen bg-background text-foreground">{catalogContent}</main>;
 };
 
 export default StoreCatalogPage;
