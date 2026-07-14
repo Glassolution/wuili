@@ -418,7 +418,7 @@ Deno.serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const limit = Math.min(20, Math.max(1, parseInt(url.searchParams.get("limit") ?? "3", 10) || 3));
+    const limit = Math.min(10, Math.max(1, parseInt(url.searchParams.get("limit") ?? "3", 10) || 3));
     const dryRun = ["1", "true"].includes(url.searchParams.get("dry_run") ?? "");
     const forcedItemId = url.searchParams.get("item_id");
     const skipUsers = (url.searchParams.get("skip_users") ?? "")
