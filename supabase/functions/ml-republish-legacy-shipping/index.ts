@@ -448,7 +448,25 @@ Deno.serve(async (req) => {
     if (fetchErr) {
       return new Response(JSON.stringify({ error: fetchErr.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const candidates = (rows ?? []) as Row[];
+    let candidates = (rows ?? []) as Row[];
+
+    // Idempotência: exclui publications que já tenham log de sucesso (ou
+    // duplicata new+old_close_failed). Isso protege contra reprocessamento
+    // se um batch anterior sofreu timeout de gateway após gravar o log.
+    if (candidates.length > 0) {
+      const pubIds = candidates.map((r) => r.id);
+      const { data: alreadyDone } = await supabase
+        .from("ml_republication_log")
+        .select("publication_id")
+        .in("publication_id", pubIds)
+        .in("status", ["success", "success_no_description", "new_created_old_close_failed"]);
+      const doneSet = new Set(
+        (alreadyDone ?? []).map((r) => (r as { publication_id: string }).publication_id),
+      );
+      if (doneSet.size > 0) {
+        candidates = candidates.filter((r) => !doneSet.has(r.id));
+      }
+    }
 
     // Filtra fora quem tem pedido em orders. Usa uma consulta separada
     // porque `raw->>{...}` não é indexável facilmente com .in().
