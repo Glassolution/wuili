@@ -444,6 +444,17 @@ Deno.serve(async (req) => {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
+    // Idempotência via SQL: pega upfront todos os publication_ids já
+    // logados (sucesso ou falha) pra excluir na própria query — assim o
+    // pool inicial não é ocupado por itens já processados.
+    const { data: loggedRows } = await supabase
+      .from("ml_republication_log")
+      .select("publication_id")
+      .in("status", ["success", "success_no_description", "new_created_old_close_failed", "failed_create_new"]);
+    const loggedIds = (loggedRows ?? [])
+      .map((r) => (r as { publication_id: string | null }).publication_id)
+      .filter((v): v is string => !!v);
+
     // Alvos: publicações ativas, sem pedido em orders (grupo A).
     let query = supabase
       .from("user_publications")
@@ -455,11 +466,14 @@ Deno.serve(async (req) => {
     if (skipUsers.length > 0) {
       query = query.not("user_id", "in", `(${skipUsers.join(",")})`);
     }
+    if (loggedIds.length > 0) {
+      query = query.not("id", "in", `(${loggedIds.join(",")})`);
+    }
 
     if (forcedItemId) {
       query = query.eq("ml_item_id", forcedItemId).limit(1);
     } else {
-      query = query.limit(limit * 10); // pool maior para absorver skipped_403 em cadeia
+      query = query.limit(limit * 10);
     }
 
     const { data: rows, error: fetchErr } = await query;
