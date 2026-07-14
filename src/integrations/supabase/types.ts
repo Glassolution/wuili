@@ -580,6 +580,51 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_republication_log: {
+        Row: {
+          catalog_product_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          new_ml_item_id: string | null
+          old_ml_item_id: string
+          publication_id: string | null
+          reason: string
+          republished_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          catalog_product_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          new_ml_item_id?: string | null
+          old_ml_item_id: string
+          publication_id?: string | null
+          reason?: string
+          republished_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          catalog_product_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          new_ml_item_id?: string | null
+          old_ml_item_id?: string
+          publication_id?: string | null
+          reason?: string
+          republished_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null
