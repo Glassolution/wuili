@@ -495,7 +495,8 @@ const DashboardSidebar = () => {
     const items = [...baseNavItems];
     if (isAdmin) {
       items.splice(4, 0, affiliatesNavItem);
-      items.push(editStoreBetaNavItem);
+      // "Editar minha loja (beta)" removido — novo fluxo em /onboarding/nicho.
+      // Rota /comecar permanece acessível por URL direta para testes.
     }
     return items;
   }, [isAdmin]);
