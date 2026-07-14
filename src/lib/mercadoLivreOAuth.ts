@@ -10,7 +10,8 @@ type MercadoLivreConnectResponse = {
 const readUrl = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
 
 export const startMercadoLivreOAuth = async () => {
-  const { data, error } = await supabase.functions.invoke<MercadoLivreConnectResponse>("ml-connect");
+  const { data: rawData, error } = await supabase.functions.invoke("ml-connect");
+  const data = rawData as MercadoLivreConnectResponse | null;
 
   if (error) {
     throw new Error(error.message || "Nao foi possivel iniciar a conexao com o Mercado Livre");
