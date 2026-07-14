@@ -131,7 +131,11 @@ const READ_ONLY_ATTR_PREFIXES = [
   "CATALOG_",
   "MAIN_",
 ];
-const READ_ONLY_ATTR_IDS = new Set<string>([]);
+const READ_ONLY_ATTR_IDS = new Set<string>([
+  "HAZMAT_TRANSPORTABILITY",
+  "IS_HIGHLIGHT_BRAND",
+  "IS_KIT",
+]);
 
 function cloneAttributes(
   oldAttrs: Array<Record<string, unknown>> | undefined,
@@ -271,9 +275,23 @@ async function republishOne(
   }
 
   if (!createRes.ok || !createBody?.id) {
+    const errText = `POST ${createRes.status}: ${JSON.stringify(createBody).slice(0, 500)}`;
+    // Grava log de falha pra tornar o filtro de idempotência efetivo — sem
+    // isso o mesmo item volta a bater no topo da fila em todo batch.
+    await supabase.from("ml_republication_log").insert({
+      user_id: row.user_id,
+      old_ml_item_id: oldId,
+      new_ml_item_id: null,
+      catalog_product_id: row.catalog_product_id,
+      publication_id: row.id,
+      reason: "shipping_dimensions_fix",
+      status: "failed_create_new",
+      error: errText,
+      republished_at: new Date().toISOString(),
+    });
     return {
       outcome: "failed_create_new",
-      error: `POST ${createRes.status}: ${JSON.stringify(createBody).slice(0, 500)}`,
+      error: errText,
     };
   }
 
@@ -418,13 +436,24 @@ Deno.serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const limit = Math.min(20, Math.max(1, parseInt(url.searchParams.get("limit") ?? "3", 10) || 3));
+    const limit = Math.min(10, Math.max(1, parseInt(url.searchParams.get("limit") ?? "3", 10) || 3));
     const dryRun = ["1", "true"].includes(url.searchParams.get("dry_run") ?? "");
     const forcedItemId = url.searchParams.get("item_id");
     const skipUsers = (url.searchParams.get("skip_users") ?? "")
       .split(",")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
+
+    // Idempotência via SQL: pega upfront todos os publication_ids já
+    // logados (sucesso ou falha) pra excluir na própria query — assim o
+    // pool inicial não é ocupado por itens já processados.
+    const { data: loggedRows } = await supabase
+      .from("ml_republication_log")
+      .select("publication_id")
+      .in("status", ["success", "success_no_description", "new_created_old_close_failed", "failed_create_new"]);
+    const loggedIds = (loggedRows ?? [])
+      .map((r) => (r as { publication_id: string | null }).publication_id)
+      .filter((v): v is string => !!v);
 
     // Alvos: publicações ativas, sem pedido em orders (grupo A).
     let query = supabase
@@ -437,18 +466,39 @@ Deno.serve(async (req) => {
     if (skipUsers.length > 0) {
       query = query.not("user_id", "in", `(${skipUsers.join(",")})`);
     }
+    if (loggedIds.length > 0) {
+      query = query.not("id", "in", `(${loggedIds.join(",")})`);
+    }
 
     if (forcedItemId) {
       query = query.eq("ml_item_id", forcedItemId).limit(1);
     } else {
-      query = query.limit(limit * 10); // pool maior para absorver skipped_403 em cadeia
+      query = query.limit(limit * 10);
     }
 
     const { data: rows, error: fetchErr } = await query;
     if (fetchErr) {
       return new Response(JSON.stringify({ error: fetchErr.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const candidates = (rows ?? []) as Row[];
+    let candidates = (rows ?? []) as Row[];
+
+    // Idempotência: exclui publications que já tenham log de sucesso (ou
+    // duplicata new+old_close_failed). Isso protege contra reprocessamento
+    // se um batch anterior sofreu timeout de gateway após gravar o log.
+    if (candidates.length > 0) {
+      const pubIds = candidates.map((r) => r.id);
+      const { data: alreadyDone } = await supabase
+        .from("ml_republication_log")
+        .select("publication_id")
+        .in("publication_id", pubIds)
+        .in("status", ["success", "success_no_description", "new_created_old_close_failed", "failed_create_new"]);
+      const doneSet = new Set(
+        (alreadyDone ?? []).map((r) => (r as { publication_id: string }).publication_id),
+      );
+      if (doneSet.size > 0) {
+        candidates = candidates.filter((r) => !doneSet.has(r.id));
+      }
+    }
 
     // Filtra fora quem tem pedido em orders. Usa uma consulta separada
     // porque `raw->>{...}` não é indexável facilmente com .in().
