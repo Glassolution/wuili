@@ -22,6 +22,11 @@ const StoreImagesGenerationPage = lazy(() => import("./pages/StoreImagesGenerati
 const StoreBuildProgressPage = lazy(() => import("./pages/StoreBuildProgressPage"));
 const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditorPage"));
 const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
+const NichoPage = lazy(() => import("./pages/onboarding/NichoPage"));
+const ProdutoPage = lazy(() => import("./pages/onboarding/ProdutoPage"));
+const GerandoPage = lazy(() => import("./pages/onboarding/GerandoPage"));
+const PreviewPage = lazy(() => import("./pages/PreviewPage"));
+const BemVindoPage = lazy(() => import("./pages/BemVindoPage"));
 // AuthEntryPage removed — all auth flows consolidated in LoginPage
 // CadastroPage removed — progressive login flow handles both signup and login
 const SetupPage = lazy(() => import("./pages/SetupPage"));
@@ -136,6 +141,12 @@ const App = () => (
               <Route path="/docs" element={<Docs />} />
               <Route path="/termos" element={<TermsPage />} />
               <Route path="/privacidade" element={<PrivacyPage />} />
+              <Route path="/onboarding/nicho" element={<ProtectedRoute><NichoPage /></ProtectedRoute>} />
+              <Route path="/onboarding/produto" element={<ProtectedRoute><ProdutoPage /></ProtectedRoute>} />
+              <Route path="/onboarding/gerando" element={<ProtectedRoute><GerandoPage /></ProtectedRoute>} />
+              <Route path="/preview/:slug" element={<PreviewPage />} />
+              <Route path="/loja/:slug" element={<PreviewPage />} />
+              <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
               <Route path="/admin/dashboard" element={<Navigate to="/admin/painel" replace />} />

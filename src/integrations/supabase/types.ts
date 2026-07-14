@@ -406,6 +406,71 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_sales_pages: {
+        Row: {
+          benefits: Json
+          catalog_product_id: string | null
+          created_at: string
+          cta_text: string
+          headline: string
+          hero_image_url: string | null
+          id: string
+          price_brl: number | null
+          product_title: string | null
+          published: boolean
+          published_at: string | null
+          slug: string
+          subheadline: string | null
+          testimonials: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          benefits?: Json
+          catalog_product_id?: string | null
+          created_at?: string
+          cta_text?: string
+          headline: string
+          hero_image_url?: string | null
+          id?: string
+          price_brl?: number | null
+          product_title?: string | null
+          published?: boolean
+          published_at?: string | null
+          slug: string
+          subheadline?: string | null
+          testimonials?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          benefits?: Json
+          catalog_product_id?: string | null
+          created_at?: string
+          cta_text?: string
+          headline?: string
+          hero_image_url?: string | null
+          id?: string
+          price_brl?: number | null
+          product_title?: string | null
+          published?: boolean
+          published_at?: string | null
+          slug?: string
+          subheadline?: string | null
+          testimonials?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_sales_pages_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       help_feed_comments: {
         Row: {
           author_id: string
@@ -807,15 +872,19 @@ export type Database = {
           disponibilidade_semanal: string | null
           email: string | null
           experiencia: string | null
+          full_store_upsell_status: string | null
           id: string
           is_admin: boolean
           loja_nome: string | null
           nicho: string | null
           objetivo: string | null
           onboarding_completed: boolean
+          onboarding_completed_at: string | null
+          onboarding_niche: string | null
           plano: string | null
           refund_cooldown_until: string | null
           store_name: string | null
+          tutorial_completed: boolean
           updated_at: string
           user_id: string
           whatsapp: string | null
@@ -828,15 +897,19 @@ export type Database = {
           disponibilidade_semanal?: string | null
           email?: string | null
           experiencia?: string | null
+          full_store_upsell_status?: string | null
           id?: string
           is_admin?: boolean
           loja_nome?: string | null
           nicho?: string | null
           objetivo?: string | null
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_niche?: string | null
           plano?: string | null
           refund_cooldown_until?: string | null
           store_name?: string | null
+          tutorial_completed?: boolean
           updated_at?: string
           user_id: string
           whatsapp?: string | null
@@ -849,15 +922,19 @@ export type Database = {
           disponibilidade_semanal?: string | null
           email?: string | null
           experiencia?: string | null
+          full_store_upsell_status?: string | null
           id?: string
           is_admin?: boolean
           loja_nome?: string | null
           nicho?: string | null
           objetivo?: string | null
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_niche?: string | null
           plano?: string | null
           refund_cooldown_until?: string | null
           store_name?: string | null
+          tutorial_completed?: boolean
           updated_at?: string
           user_id?: string
           whatsapp?: string | null
