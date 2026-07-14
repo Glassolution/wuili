@@ -227,10 +227,7 @@ export function useHelpFeed() {
     }>;
     if (rows.length === 0) return [];
     const authorIds = Array.from(new Set(rows.map((r) => r.author_id)));
-    const { data: profs } = await sb
-      .from("profiles")
-      .select("user_id, display_name, avatar_url")
-      .in("user_id", authorIds);
+    const { data: profs } = await sb.rpc("get_help_feed_authors", { _author_ids: authorIds });
     const profMap = new Map<string, { display_name: string | null; avatar_url: string | null }>();
     for (const p of (profs ?? []) as Array<{ user_id: string; display_name: string | null; avatar_url: string | null }>) {
       profMap.set(p.user_id, { display_name: p.display_name, avatar_url: p.avatar_url });
