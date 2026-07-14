@@ -141,6 +141,12 @@ const App = () => (
               <Route path="/docs" element={<Docs />} />
               <Route path="/termos" element={<TermsPage />} />
               <Route path="/privacidade" element={<PrivacyPage />} />
+              <Route path="/onboarding/nicho" element={<ProtectedRoute><NichoPage /></ProtectedRoute>} />
+              <Route path="/onboarding/produto" element={<ProtectedRoute><ProdutoPage /></ProtectedRoute>} />
+              <Route path="/onboarding/gerando" element={<ProtectedRoute><GerandoPage /></ProtectedRoute>} />
+              <Route path="/preview/:slug" element={<PreviewPage />} />
+              <Route path="/loja/:slug" element={<PreviewPage />} />
+              <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
               <Route path="/admin/dashboard" element={<Navigate to="/admin/painel" replace />} />
