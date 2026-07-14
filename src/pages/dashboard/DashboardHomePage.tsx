@@ -387,11 +387,10 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
       let authorName = "Equipe Velo";
       let authorAvatar: string | null = null;
       if (data.author_id) {
-        const { data: prof } = await sb
-          .from("profiles")
-          .select("display_name, avatar_url")
-          .eq("user_id", data.author_id)
-          .maybeSingle();
+        const { data: profs } = await sb.rpc("get_help_feed_authors", {
+          _author_ids: [data.author_id],
+        });
+        const prof = Array.isArray(profs) ? profs[0] : null;
         if (prof) {
           authorName = prof.display_name || authorName;
           authorAvatar = prof.avatar_url || null;
