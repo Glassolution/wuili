@@ -97,7 +97,7 @@ const LoginPage = () => {
       const [result] = await Promise.all([
         supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: `${window.location.origin}/comecar`, skipBrowserRedirect: true },
+          options: { redirectTo: `${window.location.origin}/onboarding/nicho`, skipBrowserRedirect: true },
         }),
         veloToast.waitForMinimum(toastId),
       ]);
