@@ -477,7 +477,7 @@ Deno.serve(async (req) => {
         .from("ml_republication_log")
         .select("publication_id")
         .in("publication_id", pubIds)
-        .in("status", ["success", "success_no_description", "new_created_old_close_failed"]);
+        .in("status", ["success", "success_no_description", "new_created_old_close_failed", "failed_create_new"]);
       const doneSet = new Set(
         (alreadyDone ?? []).map((r) => (r as { publication_id: string }).publication_id),
       );
