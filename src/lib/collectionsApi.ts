@@ -63,6 +63,8 @@ type CollectionProductJoinRow = {
 const collectionsDb = supabase as any;
 
 const COLLECTIONS_UPDATED_EVENT = "velo:collections-updated";
+const EXAMPLE_COLLECTION_NAME = "Produtos de exemplo";
+const EXAMPLE_PRODUCTS_LIMIT = 8;
 
 const getAuthenticatedUserId = async (expectedUserId?: string) => {
   const { data, error } = await supabase.auth.getUser();
@@ -250,6 +252,131 @@ export const addProductToCollection = async (collectionId: string, productId: st
 
   if (error) throw error;
   notifyCollectionsUpdated();
+};
+
+type EnsureExampleCollectionProductsResult = {
+  collectionId: string | null;
+  productIds: string[];
+  inserted: boolean;
+};
+
+const fetchExampleCatalogProductIds = async (preferredProductId?: string | null, limit = EXAMPLE_PRODUCTS_LIMIT) => {
+  const preferredId = preferredProductId?.trim();
+  const productIds: string[] = [];
+
+  if (preferredId) {
+    const { data, error } = await supabase
+      .from("catalog_products")
+      .select("id")
+      .eq("id", preferredId)
+      .eq("source", "c7drop")
+      .eq("is_active", true)
+      .eq("is_blocked", false)
+      .gt("stock_quantity", 0)
+      .limit(1);
+
+    if (error) throw error;
+    const [preferredProduct] = (data ?? []) as Array<{ id: string }>;
+    if (preferredProduct?.id) productIds.push(preferredProduct.id);
+  }
+
+  const remaining = Math.max(limit - productIds.length, 0);
+  if (remaining === 0) return productIds;
+
+  let query = supabase
+    .from("catalog_products")
+    .select("id")
+    .eq("source", "c7drop")
+    .eq("is_active", true)
+    .eq("is_blocked", false)
+    .gt("stock_quantity", 0);
+
+  if (preferredId) query = query.neq("id", preferredId);
+
+  const { data, error } = await query
+    .order("orders_count", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(remaining);
+  if (error) throw error;
+
+  for (const product of (data ?? []) as Array<{ id: string }>) {
+    if (product.id && !productIds.includes(product.id)) productIds.push(product.id);
+  }
+
+  return productIds;
+};
+
+export const ensureExampleCollectionProducts = async ({
+  userId,
+  preferredProductId,
+  limit = EXAMPLE_PRODUCTS_LIMIT,
+}: {
+  userId: string;
+  preferredProductId?: string | null;
+  limit?: number;
+}): Promise<EnsureExampleCollectionProductsResult> => {
+  const authenticatedUserId = await getAuthenticatedUserId(userId);
+
+  const { data: existingProducts, error: existingProductsError } = await collectionsDb
+    .from("collection_products")
+    .select("product_id,collections!inner(user_id),catalog_products!inner(is_active,is_blocked,stock_quantity)")
+    .eq("collections.user_id", authenticatedUserId)
+    .eq("catalog_products.is_active", true)
+    .eq("catalog_products.is_blocked", false)
+    .gt("catalog_products.stock_quantity", 0)
+    .limit(1);
+
+  if (existingProductsError) throw existingProductsError;
+  if ((existingProducts ?? []).length > 0) {
+    return { collectionId: null, productIds: [], inserted: false };
+  }
+
+  const productIds = await fetchExampleCatalogProductIds(preferredProductId, limit);
+  if (productIds.length === 0) {
+    return { collectionId: null, productIds: [], inserted: false };
+  }
+
+  const { data: existingCollections, error: existingCollectionsError } = await collectionsDb
+    .from("collections")
+    .select("id")
+    .eq("user_id", authenticatedUserId)
+    .eq("name", EXAMPLE_COLLECTION_NAME)
+    .limit(1);
+
+  if (existingCollectionsError) throw existingCollectionsError;
+
+  let collectionId = ((existingCollections ?? []) as Array<{ id: string }>)[0]?.id ?? null;
+
+  if (!collectionId) {
+    const { data: createdCollection, error: createCollectionError } = await collectionsDb
+      .from("collections")
+      .insert({
+        user_id: authenticatedUserId,
+        name: EXAMPLE_COLLECTION_NAME,
+        category: null,
+      })
+      .select("id")
+      .single();
+
+    if (createCollectionError) throw createCollectionError;
+    collectionId = (createdCollection as { id: string } | null)?.id ?? null;
+  }
+
+  if (!collectionId) {
+    return { collectionId: null, productIds: [], inserted: false };
+  }
+
+  const { error: productsError } = await collectionsDb
+    .from("collection_products")
+    .upsert(
+      productIds.map((productId) => ({ collection_id: collectionId, product_id: productId })),
+      { onConflict: "collection_id,product_id", ignoreDuplicates: true },
+    );
+
+  if (productsError) throw productsError;
+  notifyCollectionsUpdated();
+
+  return { collectionId, productIds, inserted: true };
 };
 
 export const removeProductFromCollection = async (collectionId: string, productId: string) => {

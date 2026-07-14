@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, Filter, Heart, History, LayoutTemplate, Monitor, MoreHorizontal, Package, Palette, Play, Search, Settings, ShoppingCart, SlidersHorizontal, Smartphone, Trash2, Type, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Code2, ExternalLink, Filter, Globe2, Heart, History, LayoutTemplate, Monitor, MoreHorizontal, Package, Palette, Play, RefreshCw, Search, Settings, ShoppingCart, SlidersHorizontal, Smartphone, Trash2, Type, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
+import { ensureExampleCollectionProducts } from "@/lib/collectionsApi";
 
 type StoreProduct = {
   id: string;
@@ -16,6 +17,7 @@ type StoreProduct = {
   imageUrl: string;
   price: number;
   originalPrice: number | null;
+  stockQuantity: number;
   createdAt: string | null;
   addedAt: string | null;
 };
@@ -45,6 +47,7 @@ type StoreCatalogRow = {
         cost_price: number | null;
         suggested_price: number | null;
         original_price: number | null;
+        stock_quantity: number | null;
         created_at: string | null;
       }
     | Array<{
@@ -57,6 +60,7 @@ type StoreCatalogRow = {
         cost_price: number | null;
         suggested_price: number | null;
         original_price: number | null;
+        stock_quantity: number | null;
         created_at: string | null;
       }>
     | null;
@@ -68,7 +72,6 @@ type FilterOption = {
   value: string;
   count?: number;
   indicator?: string;
-  previewChecked?: boolean;
 };
 type CatalogEditorShellProps = {
   storeName: string;
@@ -76,28 +79,7 @@ type CatalogEditorShellProps = {
 };
 
 const PAGE_SIZE = 12;
-// TODO: placeholder — substituir por dados reais quando o vendedor cadastrar marca/modelo.
-const MOCK_FILTER_GROUPS = {
-  brands: [
-    { value: "Marca A" },
-    { value: "Marca B" },
-    { value: "Marca C" },
-    { value: "Marca D", previewChecked: true },
-    { value: "Marca E" },
-  ],
-  models: [
-    { value: "Clássico", indicator: "CL" },
-    { value: "Compacto", indicator: "CP" },
-    { value: "Premium", indicator: "PR" },
-    { value: "Multifunção", indicator: "MF", previewChecked: true },
-    { value: "Essencial", indicator: "ES" },
-  ],
-  stock: [
-    { value: "Disponível" },
-    { value: "Últimas unidades" },
-    { value: "Reposição rápida" },
-  ],
-} satisfies Record<string, FilterOption[]>;
+const STOCK_FILTERS = ["Disponível", "Últimas unidades"] as const;
 
 const getFirstImage = (images: Json | null): string => {
   if (!images) return "";
@@ -162,6 +144,46 @@ const getFacetOptions = (products: StoreProduct[], key: "brand" | "model") =>
     .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "pt-BR"))
     .slice(0, 8);
 
+const matchesStockFilter = (product: StoreProduct, value: string) => {
+  if (value === "Disponível") return product.stockQuantity > 0;
+  if (value === "Últimas unidades") return product.stockQuantity > 0 && product.stockQuantity <= 10;
+  return false;
+};
+
+const getStockOptions = (products: StoreProduct[]): FilterOption[] =>
+  STOCK_FILTERS.map((value) => ({
+    value,
+    count: products.filter((product) => matchesStockFilter(product, value)).length,
+  })).filter((option) => (option.count ?? 0) > 0);
+
+const readStoredExampleProductId = () => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const storedProduct = sessionStorage.getItem("velo-example-product");
+    if (!storedProduct) return null;
+    const parsed = JSON.parse(storedProduct) as { id?: unknown };
+    return typeof parsed.id === "string" && parsed.id.trim() ? parsed.id.trim() : null;
+  } catch {
+    return null;
+  }
+};
+
+const fetchStoreCatalogRows = (userId: string) =>
+  supabase
+    .from("collection_products")
+    .select(`
+      added_at,
+      collections!inner(id,name,category,user_id),
+      catalog_products!inner(id,title,category,brand,model,images,cost_price,suggested_price,original_price,created_at,is_active,is_blocked,stock_quantity)
+    `)
+    .eq("collections.user_id", userId)
+    .eq("catalog_products.is_active", true)
+    .eq("catalog_products.is_blocked", false)
+    .gt("catalog_products.stock_quantity", 0)
+    .order("added_at", { ascending: false })
+    .limit(500);
+
 const FilterGroup = ({
   title,
   open,
@@ -184,129 +206,151 @@ const FilterGroup = ({
 
 const CatalogEditorShell = ({ storeName, children }: CatalogEditorShellProps) => {
   const navigate = useNavigate();
-  const [panelOpen, setPanelOpen] = useState(false);
   const [mobilePreview, setMobilePreview] = useState(false);
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-[#050505] text-white">
-      <header className="flex h-[72px] shrink-0 items-center justify-between px-5">
-        <div className="flex min-w-0 items-center gap-4">
-          <button type="button" onClick={() => navigate("/minha-loja/editor")} className="shrink-0 text-white/55 transition hover:text-white" aria-label="Voltar para a loja">
-            <ChevronLeft />
-          </button>
-          <button
-            type="button"
-            onClick={() => setPanelOpen((open) => !open)}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition ${panelOpen ? "bg-white/15 text-white" : "bg-white/[0.07] text-white/60 hover:text-white"}`}
-            aria-label="Personalizar loja"
-          >
-            <MoreHorizontal size={18} />
-          </button>
+    <main className="flex h-screen flex-col overflow-hidden bg-[#1f1f1d] text-white">
+      <header className="grid h-[70px] shrink-0 grid-cols-[minmax(280px,520px)_minmax(0,1fr)_auto] items-center border-b border-white/[0.07] bg-[#1f1f1d] px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-gradient-to-br from-[#ff7a18] via-[#f43f5e] to-[#2563eb]" />
           <div className="min-w-0">
-            <strong className="block truncate text-[14px]">{storeName}</strong>
-            <span className="block truncate text-[10px] text-white/30">Template 01 {"\u00b7"} Velo Modern</span>
+            <div className="flex items-center gap-1.5">
+              <strong className="truncate text-[14px] font-semibold">{storeName}</strong>
+              <ChevronDown size={13} className="text-white/45" />
+            </div>
+            <span className="block truncate text-[12px] text-white/45">Editando Velo Modern</span>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden rounded-[9px] bg-white/[0.06] p-1 sm:flex">
-            <button type="button" onClick={() => setMobilePreview(false)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${!mobilePreview ? "bg-white/15" : "text-white/35"}`} aria-label="Preview desktop">
-              <Monitor size={17} />
+        <div className="hidden min-w-0 items-center justify-center gap-3 lg:flex">
+          <div className="flex h-10 items-center gap-1 rounded-full border border-white/[0.09] bg-[#171716] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <button type="button" className="inline-flex h-8 items-center gap-2 rounded-full bg-[#234cba] px-4 text-[13px] font-semibold text-[#9db7ff] shadow-[0_0_0_1px_rgba(96,145,255,0.35)]">
+              <Globe2 size={16} /> Preview
             </button>
-            <button type="button" onClick={() => setMobilePreview(true)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${mobilePreview ? "bg-white/15" : "text-white/35"}`} aria-label="Preview mobile">
-              <Smartphone size={17} />
+            <button type="button" className="flex h-8 w-9 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white" aria-label="Código">
+              <Code2 size={15} />
             </button>
           </div>
-          <button type="button" onClick={() => setPanelOpen(true)} className="p-3 text-white/45 transition hover:text-white" aria-label="Configurações da loja">
+          <div className="flex h-10 min-w-[260px] max-w-[380px] flex-1 items-center gap-2 rounded-full border border-white/[0.09] bg-[#171716] px-3 text-[13px] text-white/75">
+            <button type="button" className="text-white/45 transition hover:text-white" aria-label="Atualizar preview">
+              <RefreshCw size={15} />
+            </button>
+            <span className="text-white/35">/</span>
+            <span className="truncate font-medium">catalogo</span>
+            <ChevronDown size={14} className="ml-auto text-white/35" />
+          </div>
+          <button type="button" className="text-white/45 transition hover:text-white" aria-label="Abrir preview">
+            <ExternalLink size={17} />
+          </button>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          <div className="hidden rounded-full border border-white/[0.08] bg-[#171716] p-1 sm:flex">
+            <button type="button" onClick={() => setMobilePreview(false)} className={`flex h-8 w-10 items-center justify-center rounded-full transition ${!mobilePreview ? "bg-white/[0.12] text-white" : "text-white/35 hover:text-white"}`} aria-label="Preview desktop">
+              <Monitor size={16} />
+            </button>
+            <button type="button" onClick={() => setMobilePreview(true)} className={`flex h-8 w-10 items-center justify-center rounded-full transition ${mobilePreview ? "bg-white/[0.12] text-white" : "text-white/35 hover:text-white"}`} aria-label="Preview mobile">
+              <Smartphone size={15} />
+            </button>
+          </div>
+          <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:flex" aria-label="Configurações da loja">
             <Settings size={18} />
           </button>
-          <button type="button" className="hidden p-3 text-white/45 transition hover:text-white sm:block" aria-label="Visualizar loja">
+          <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:flex" aria-label="Visualizar loja">
             <Play size={18} />
           </button>
-          <button type="button" className="hidden p-3 text-white/45 transition hover:text-white sm:block" aria-label="Histórico">
+          <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:flex" aria-label="Histórico">
             <History size={18} />
           </button>
-          <div className="relative ml-1 pb-2">
-            <button
-              type="button"
-              onClick={() => navigate("/checkout")}
-              className="relative min-w-[112px] overflow-hidden rounded-[9px] bg-gradient-to-r from-[#3b82f6] via-[#2563eb] to-[#1d4ed8] px-5 pb-3 pt-2 text-[13px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_rgba(37,99,235,0.28)] transition hover:-translate-y-0.5 hover:brightness-110"
-            >
-              <span className="relative z-10">Publicar</span>
-              <span className="absolute inset-x-0 top-0 h-px bg-white/45" />
-            </button>
-            <span className="absolute -bottom-0.5 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-b from-[#fde047] to-[#facc15] px-3 py-1 text-[8px] font-extrabold tracking-[0.02em] text-[#5b4300] shadow-[0_2px_7px_rgba(0,0,0,0.38)]">
-              DOMÍNIO GRÁTIS
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/checkout")}
+            className="h-10 rounded-[12px] bg-[#2f6df6] px-5 text-[14px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_22px_rgba(47,109,246,0.24)] transition hover:brightness-110"
+          >
+            Publicar
+          </button>
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        {panelOpen ? (
-          <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-r border-white/[0.06] bg-[#0b0b0b]">
-            <div className="flex items-center justify-between px-5 pb-4 pt-5">
-              <div>
-                <strong className="block text-[14px]">Personalizar template</strong>
-                <span className="text-[10.5px] text-white/40">Ajuste a cara da sua loja</span>
-              </div>
-              <button type="button" onClick={() => setPanelOpen(false)} className="text-white/40 transition hover:text-white" aria-label="Fechar personalização">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-3 px-5 pb-6">
-              <button type="button" className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] shadow-[0_6px_16px_rgba(37,99,235,0.35)]">
-                  <LayoutTemplate size={20} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-semibold">Trocar template</span>
-                  <span className="block text-[11px] text-white/45">Atual: Velo Modern</span>
-                </span>
-                <ChevronLeft size={14} className="rotate-180 text-white/35" />
-              </button>
-
-              <button type="button" onClick={() => navigate("/dashboard/catalogo")} className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#f97316] to-[#c2410c] shadow-[0_6px_16px_rgba(249,115,22,0.35)]">
-                  <Package size={20} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-semibold">Adicionar produtos</span>
-                  <span className="block text-[11px] text-white/45">Escolha do catálogo Velo</span>
-                </span>
-              </button>
-            </div>
-
-            <div className="mx-5 border-t border-white/[0.06]" />
-
-            <div className="space-y-6 px-5 py-6">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Palette size={13} className="text-white/55" />
-                  <strong className="text-[12px]">Cor de destaque</strong>
-                </div>
-                <p className="mt-1 text-[10.5px] text-white/40">Usada em botões, preços e tags.</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {["#111111", "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed"].map((color) => (
-                    <span key={color} className="h-8 w-8 rounded-full ring-1 ring-white/15" style={{ backgroundColor: color }} />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2">
-                  <Type size={13} className="text-white/55" />
-                  <strong className="text-[12px]">Tipografia</strong>
-                </div>
-                <p className="mt-1 text-[10.5px] text-white/40">Fonte dos títulos e textos da loja.</p>
+        <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-r border-white/[0.08] bg-[#1f1f1d] px-5 py-9 xl:block xl:w-[520px]">
+          <section className="overflow-hidden rounded-[20px] border border-white/[0.09] bg-[#282826] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1d]">
+                <LayoutTemplate size={16} />
+              </span>
+              <div className="min-w-0">
+                <strong className="block truncate text-[16px] font-semibold">Velo Modern</strong>
+                <span className="block truncate text-[12px] text-white/45">Template 01</span>
               </div>
             </div>
-          </aside>
-        ) : null}
+            <div className="grid grid-cols-2 gap-2 p-3">
+              <button type="button" className="h-11 rounded-[11px] border border-white/[0.11] bg-[#242423] text-[14px] font-medium text-white/78 transition hover:bg-white/[0.07]">Detalhes</button>
+              <button type="button" className="h-11 rounded-[11px] border border-white/[0.12] bg-gradient-to-b from-white/[0.16] to-white/[0.07] text-[14px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">Personalizar</button>
+            </div>
+          </section>
 
-        <div className="relative min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
-          <div className={`relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview ? "max-w-[390px]" : "max-w-[1180px]"}`}>
+          <div className="mt-7 flex items-center gap-5 text-white/72">
+            <button type="button" onClick={() => navigate("/minha-loja/editor")} className="transition hover:text-white" aria-label="Voltar">
+              <ChevronLeft size={20} />
+            </button>
+            <button type="button" className="transition hover:text-white" aria-label="Mais opções">
+              <MoreHorizontal size={22} />
+            </button>
+          </div>
+
+          <section className="mt-7 space-y-4">
+            <button type="button" className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#2563eb] text-white shadow-[0_12px_26px_rgba(37,99,235,0.28)]">
+                <LayoutTemplate size={23} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold">Trocar template</span>
+                <span className="mt-1 block text-[13px] text-white/42">Atual: Velo Modern</span>
+              </span>
+              <ChevronRight size={18} className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
+            </button>
+
+            <button type="button" onClick={() => navigate("/dashboard/catalogo")} className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#f97316] text-white shadow-[0_12px_26px_rgba(249,115,22,0.24)]">
+                <Package size={23} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold">Adicionar produtos</span>
+                <span className="mt-1 block text-[13px] text-white/42">Escolha do catálogo Velo</span>
+              </span>
+              <ChevronRight size={18} className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
+            </button>
+          </section>
+
+          <div className="my-8 border-t border-white/[0.08]" />
+
+          <section className="space-y-7">
+            <div>
+              <div className="flex items-center gap-3">
+                <Palette size={17} className="text-white/70" />
+                <strong className="text-[15px] font-semibold">Cor de destaque</strong>
+              </div>
+              <p className="mt-2 text-[13px] text-white/38">Usada em botões, preços e tags.</p>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {["#111111", "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed"].map((color) => (
+                  <span key={color} className="h-11 w-11 rounded-full ring-1 ring-white/15" style={{ backgroundColor: color }} />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-3">
+                <Type size={17} className="text-white/70" />
+                <strong className="text-[15px] font-semibold">Tipografia</strong>
+              </div>
+              <p className="mt-2 text-[13px] text-white/38">Fonte dos títulos e textos da loja.</p>
+            </div>
+          </section>
+        </aside>
+
+        <div className="min-w-0 flex-1 overflow-auto bg-[#1f1f1d] p-3 sm:p-5">
+          <div className={`relative mx-auto min-h-full overflow-hidden rounded-[24px] bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.38)] ring-1 ring-black/10 transition-all ${mobilePreview ? "max-w-[390px]" : "max-w-[1488px]"}`}>
             {children}
           </div>
         </div>
@@ -421,24 +465,32 @@ const StoreCatalogPage = () => {
       setIsLoading(true);
       setError(null);
 
-      const [{ data: profile }, { data: rows, error: rowsError }] = await Promise.all([
+      const [profileResult, initialRowsResult] = await Promise.all([
         supabase.from("profiles").select("store_name,loja_nome").eq("user_id", user.id).maybeSingle(),
-        supabase
-          .from("collection_products")
-          .select(`
-            added_at,
-            collections!inner(id,name,category,user_id),
-            catalog_products!inner(id,title,category,brand,model,images,cost_price,suggested_price,original_price,created_at,is_active,is_blocked,stock_quantity)
-          `)
-          .eq("collections.user_id", user.id)
-          .eq("catalog_products.is_active", true)
-          .eq("catalog_products.is_blocked", false)
-          .gt("catalog_products.stock_quantity", 0)
-          .order("added_at", { ascending: false })
-          .limit(500),
+        fetchStoreCatalogRows(user.id),
       ]);
 
       if (!mounted) return;
+
+      let rows = initialRowsResult.data;
+      let rowsError = initialRowsResult.error;
+
+      if (!rowsError && (rows ?? []).length === 0) {
+        try {
+          const seedResult = await ensureExampleCollectionProducts({
+            userId: user.id,
+            preferredProductId: readStoredExampleProductId(),
+          });
+
+          if (seedResult.inserted) {
+            const retryRowsResult = await fetchStoreCatalogRows(user.id);
+            rows = retryRowsResult.data;
+            rowsError = retryRowsResult.error;
+          }
+        } catch (seedError) {
+          console.error("Erro ao adicionar produtos de exemplo:", seedError);
+        }
+      }
 
       if (rowsError) {
         setError("Não foi possível carregar os produtos da loja.");
@@ -447,6 +499,7 @@ const StoreCatalogPage = () => {
         return;
       }
 
+      const profile = profileResult.data;
       const savedName = profile?.store_name || profile?.loja_nome || sessionStorage.getItem("velo-store-name");
       if (savedName?.trim()) setStoreName(savedName.trim());
 
@@ -471,6 +524,7 @@ const StoreCatalogPage = () => {
             imageUrl: getFirstImage(product.images),
             price,
             originalPrice: product.original_price,
+            stockQuantity: Number(product.stock_quantity ?? 0),
             createdAt: product.created_at,
             addedAt: row.added_at,
           },
@@ -494,10 +548,7 @@ const StoreCatalogPage = () => {
   );
   const brandOptions = useMemo(() => getFacetOptions(products, "brand"), [products]);
   const modelOptions = useMemo(() => getFacetOptions(products, "model"), [products]);
-  const displayedBrandOptions = brandOptions.length > 0 ? brandOptions : MOCK_FILTER_GROUPS.brands;
-  const displayedModelOptions = modelOptions.length > 0 ? modelOptions : MOCK_FILTER_GROUPS.models;
-  const usingMockBrandOptions = brandOptions.length === 0;
-  const usingMockModelOptions = modelOptions.length === 0;
+  const stockOptions = useMemo(() => getStockOptions(products), [products]);
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -505,7 +556,7 @@ const StoreCatalogPage = () => {
       if (activeCategory && product.category !== activeCategory) return false;
       if (activeBrands.length > 0 && (!product.brand || !activeBrands.includes(product.brand))) return false;
       if (activeModels.length > 0 && (!product.model || !activeModels.includes(product.model))) return false;
-      if (activeStockFilters.length > 0) return false;
+      if (activeStockFilters.length > 0 && !activeStockFilters.some((value) => matchesStockFilter(product, value))) return false;
       if (minPrice !== null && product.price < minPrice) return false;
       if (maxPrice !== null && product.price > maxPrice) return false;
       if (normalizedSearch) {
@@ -637,33 +688,33 @@ const StoreCatalogPage = () => {
         <div className="mt-3 space-y-3">
           <FilterGroup title="Marca" open={openFilterGroups.brand} onToggle={() => toggleFilterGroup("brand")}>
             <div className="space-y-2">
-              {displayedBrandOptions.map((option) => {
-                const previewChecked = usingMockBrandOptions && activeBrands.length === 0 && option.previewChecked;
-                return (
+              {brandOptions.length > 0 ? (
+                brandOptions.map((option) => (
                   <label key={option.value} className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
                     <input
                       type="checkbox"
-                      checked={activeBrands.includes(option.value) || Boolean(previewChecked)}
+                      checked={activeBrands.includes(option.value)}
                       onChange={() => toggleListFilter("marca", option.value)}
                       className="h-3 w-3 rounded-[2px] border-border text-[hsl(var(--store-accent-color))] accent-[hsl(var(--store-accent-color))]"
                     />
                     <span className="min-w-0 flex-1 truncate">{option.value}</span>
                     {option.count ? <span className="text-[10px] text-muted-foreground/60">{option.count}</span> : null}
                   </label>
-                );
-              })}
+                ))
+              ) : (
+                <p className="text-[11px] text-muted-foreground/70">Sem marcas cadastradas.</p>
+              )}
             </div>
           </FilterGroup>
 
           <FilterGroup title="Modelo" open={openFilterGroups.model} onToggle={() => toggleFilterGroup("model")}>
             <div className="space-y-2">
-              {displayedModelOptions.map((option) => {
-                const previewChecked = usingMockModelOptions && activeModels.length === 0 && option.previewChecked;
-                return (
+              {modelOptions.length > 0 ? (
+                modelOptions.map((option) => (
                   <label key={option.value} className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
                     <input
                       type="checkbox"
-                      checked={activeModels.includes(option.value) || Boolean(previewChecked)}
+                      checked={activeModels.includes(option.value)}
                       onChange={() => toggleListFilter("modelo", option.value)}
                       className="h-3 w-3 rounded-[2px] border-border text-[hsl(var(--store-accent-color))] accent-[hsl(var(--store-accent-color))]"
                     />
@@ -675,14 +726,16 @@ const StoreCatalogPage = () => {
                     ) : null}
                     {option.count ? <span className="text-[10px] text-muted-foreground/60">{option.count}</span> : null}
                   </label>
-                );
-              })}
+                ))
+              ) : (
+                <p className="text-[11px] text-muted-foreground/70">Sem modelos cadastrados.</p>
+              )}
             </div>
           </FilterGroup>
 
           <FilterGroup title="Estoque" open={openFilterGroups.stock} onToggle={() => toggleFilterGroup("stock")}>
             <div className="space-y-2">
-              {MOCK_FILTER_GROUPS.stock.map((option) => (
+              {stockOptions.map((option) => (
                 <label key={option.value} className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
                   <input
                     type="checkbox"
@@ -691,6 +744,7 @@ const StoreCatalogPage = () => {
                     className="h-3 w-3 rounded-[2px] border-border text-[hsl(var(--store-accent-color))] accent-[hsl(var(--store-accent-color))]"
                   />
                   <span className="min-w-0 flex-1 truncate">{option.value}</span>
+                  {option.count ? <span className="text-[10px] text-muted-foreground/60">{option.count}</span> : null}
                 </label>
               ))}
             </div>

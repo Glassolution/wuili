@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AlignCenter, AlignLeft, AlignRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, Circle, Copy, Dumbbell, Eraser, Gamepad2, Gem, Gift, Headphones, Heart, HeartPulse, History, Home, ImageIcon, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, Minus, Monitor, MoreHorizontal, MousePointer2, Package, PaintBucket, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Settings, Shirt, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Type, X, type LucideIcon } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, Circle, Code2, Copy, Dumbbell, Eraser, ExternalLink, Gamepad2, Gem, Gift, Globe2, Headphones, Heart, HeartPulse, History, Home, ImageIcon, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, Minus, Monitor, MoreHorizontal, MousePointer2, Package, PaintBucket, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Settings, Shirt, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Type, X, type LucideIcon } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
+import { ensureExampleCollectionProducts } from "@/lib/collectionsApi";
 import { formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
-type EditorPanel = "template" | null;
 
 const getFirstImage = (images: unknown) => {
   if (Array.isArray(images)) return images.find((image): image is string => typeof image === "string" && image.trim().length > 0) || "";
@@ -19,6 +19,17 @@ const getFirstImage = (images: unknown) => {
   return "";
 };
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const fetchEditorCollectionProducts = (userId: string) =>
+  supabase
+    .from("collection_products")
+    .select("added_at,collections!inner(user_id),catalog_products!inner(id,title,cost_price,images,category,is_active,is_blocked,stock_quantity)")
+    .eq("collections.user_id", userId)
+    .eq("catalog_products.is_active", true)
+    .eq("catalog_products.is_blocked", false)
+    .gt("catalog_products.stock_quantity", 0)
+    .order("added_at", { ascending: false })
+    .limit(12);
 
 const catalogTaxonomy = [
   "Casa",
@@ -34,46 +45,6 @@ const catalogTaxonomy = [
   "Outros",
 ];
 
-const mockStudioImage = (variant: string, accent = "#111827") => {
-  const objects: Record<string, string> = {
-    lamp: `<g><rect x="136" y="116" width="48" height="92" rx="18" fill="${accent}"/><path d="M112 110h96l-18-42h-60z" fill="#f8fafc" stroke="${accent}" stroke-width="8"/><rect x="116" y="214" width="88" height="14" rx="7" fill="#cbd5e1"/></g>`,
-    headphones: `<g><path d="M88 165c0-48 34-86 72-86s72 38 72 86" fill="none" stroke="${accent}" stroke-width="18" stroke-linecap="round"/><rect x="66" y="154" width="46" height="72" rx="18" fill="${accent}"/><rect x="208" y="154" width="46" height="72" rx="18" fill="${accent}"/><path d="M116 225c28 16 60 16 88 0" fill="none" stroke="#94a3b8" stroke-width="10" stroke-linecap="round"/></g>`,
-    backpack: `<g><rect x="98" y="86" width="124" height="154" rx="30" fill="${accent}"/><path d="M118 112h84" stroke="#f8fafc" stroke-width="10" stroke-linecap="round" opacity=".55"/><rect x="120" y="164" width="80" height="52" rx="16" fill="#f8fafc" opacity=".22"/><path d="M98 142c-24 12-32 40-20 70" fill="none" stroke="#64748b" stroke-width="12" stroke-linecap="round"/><path d="M222 142c24 12 32 40 20 70" fill="none" stroke="#64748b" stroke-width="12" stroke-linecap="round"/></g>`,
-    jewelry: `<g><circle cx="160" cy="156" r="54" fill="none" stroke="${accent}" stroke-width="10"/><circle cx="160" cy="218" r="22" fill="#f8fafc" stroke="${accent}" stroke-width="8"/><circle cx="128" cy="112" r="10" fill="#cbd5e1"/><circle cx="192" cy="112" r="10" fill="#cbd5e1"/></g>`,
-    bottle: `<g><rect x="134" y="78" width="52" height="24" rx="8" fill="#94a3b8"/><rect x="122" y="98" width="76" height="146" rx="28" fill="${accent}"/><path d="M138 126h44" stroke="#f8fafc" stroke-width="8" stroke-linecap="round" opacity=".5"/><path d="M138 188h44" stroke="#f8fafc" stroke-width="8" stroke-linecap="round" opacity=".25"/></g>`,
-    skincare: `<g><rect x="100" y="104" width="54" height="128" rx="18" fill="#f8fafc" stroke="${accent}" stroke-width="8"/><rect x="170" y="80" width="54" height="152" rx="18" fill="${accent}"/><circle cx="127" cy="82" r="18" fill="#cbd5e1"/><path d="M185 116h24" stroke="#f8fafc" stroke-width="7" stroke-linecap="round" opacity=".55"/></g>`,
-    chair: `<g><rect x="102" y="98" width="116" height="74" rx="18" fill="${accent}"/><rect x="122" y="170" width="76" height="48" rx="14" fill="#94a3b8"/><path d="M122 222l-18 36M198 222l18 36" stroke="#64748b" stroke-width="10" stroke-linecap="round"/></g>`,
-    teddy: `<g><circle cx="160" cy="156" r="54" fill="${accent}"/><circle cx="116" cy="112" r="26" fill="${accent}"/><circle cx="204" cy="112" r="26" fill="${accent}"/><circle cx="142" cy="148" r="7" fill="#f8fafc"/><circle cx="178" cy="148" r="7" fill="#f8fafc"/><ellipse cx="160" cy="174" rx="24" ry="18" fill="#f8fafc" opacity=".75"/><rect x="112" y="206" width="96" height="38" rx="19" fill="${accent}"/></g>`,
-    pet: `<g><circle cx="122" cy="124" r="22" fill="${accent}"/><circle cx="198" cy="124" r="22" fill="${accent}"/><circle cx="160" cy="112" r="24" fill="${accent}"/><circle cx="116" cy="184" r="26" fill="${accent}"/><circle cx="204" cy="184" r="26" fill="${accent}"/><path d="M126 214c18-34 50-34 68 0" fill="${accent}"/></g>`,
-    wheel: `<g><circle cx="160" cy="160" r="72" fill="none" stroke="${accent}" stroke-width="18"/><circle cx="160" cy="160" r="22" fill="${accent}"/><path d="M160 92v136M92 160h136M112 112l96 96M208 112l-96 96" stroke="#94a3b8" stroke-width="8" stroke-linecap="round"/></g>`,
-    sneakers: `<g><path d="M78 184c42 0 62-34 88-64 22 28 44 50 84 54 8 22-5 42-30 42H92c-20 0-28-12-14-32z" fill="${accent}"/><path d="M104 184h128" stroke="#f8fafc" stroke-width="8" stroke-linecap="round" opacity=".6"/><path d="M142 146l30 20" stroke="#f8fafc" stroke-width="7" stroke-linecap="round" opacity=".55"/></g>`,
-  };
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320"><defs><radialGradient id="bg" cx="50%" cy="34%" r="70%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#f2f4f7"/></radialGradient><filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.12"/></filter></defs><rect width="320" height="320" fill="url(#bg)"/><ellipse cx="160" cy="254" rx="86" ry="18" fill="#d8dee7" opacity="0.55"/><g filter="url(#shadow)">${objects[variant] || objects.lamp}</g></svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-};
-
-const previewFallbackProducts: CatalogItem[] = [
-  { id: "preview-casa-01", title: "Lumin\u00e1ria de Mesa Minimalista", price: 89.9, category: "Casa", imageUrl: mockStudioImage("lamp", "#334155") },
-  { id: "preview-eletronicos-01", title: "Fone Bluetooth Compacto", price: 52.9, category: "Eletr\u00f4nicos", imageUrl: mockStudioImage("headphones", "#111827") },
-  { id: "preview-moda-01", title: "Mochila Urbana Imperme\u00e1vel", price: 134.9, category: "Moda", imageUrl: mockStudioImage("backpack", "#1e3a8a") },
-  { id: "preview-bijuterias-01", title: "Colar Dourado Delicado", price: 39.9, category: "Bijuterias", imageUrl: mockStudioImage("jewelry", "#475569") },
-  { id: "preview-beleza-01", title: "Kit Skincare Di\u00e1rio", price: 76.9, category: "Beleza", imageUrl: mockStudioImage("skincare", "#64748b") },
-  { id: "preview-esporte-01", title: "Garrafa T\u00e9rmica Fitness", price: 48.9, category: "Esporte e Fitness", imageUrl: mockStudioImage("bottle", "#0f766e") },
-];
-
-const categoryPreviewImages: Record<string, string> = {
-  Casa: mockStudioImage("lamp", "#334155"),
-  "Eletr\u00f4nicos": mockStudioImage("headphones", "#111827"),
-  Moda: mockStudioImage("backpack", "#1e3a8a"),
-  Bijuterias: mockStudioImage("jewelry", "#475569"),
-  "Decora\u00e7\u00e3o": mockStudioImage("chair", "#64748b"),
-  "Beb\u00ea e Infantil": mockStudioImage("teddy", "#8b5e3c"),
-  Pet: mockStudioImage("pet", "#334155"),
-  Beleza: mockStudioImage("skincare", "#64748b"),
-  "Sa\u00fade e Bem-estar": mockStudioImage("bottle", "#0f766e"),
-  "Esporte e Fitness": mockStudioImage("wheel", "#111827"),
-  Outros: mockStudioImage("sneakers", "#475569"),
-};
 const getCategoryIcon = (category: string) => {
   const normalized = category.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (/moda|fashion|roupa|feminin|masculin/.test(normalized)) return Shirt;
@@ -168,7 +139,6 @@ const GeneratedStoreEditorPage = () => {
   const previewRef = useRef<HTMLDivElement>(null);
   const selectedElementRef = useRef<HTMLElement | null>(null);
   const [mobilePreview, setMobilePreview] = useState(false);
-  const [panel, setPanel] = useState<EditorPanel>(null);
   const [accent, setAccent] = useState("#111111");
   const [font, setFont] = useState("Geist");
   const [columns, setColumns] = useState(3);
@@ -640,20 +610,31 @@ const GeneratedStoreEditorPage = () => {
       const userId = authData.user?.id;
       if (!userId) return;
 
-      const [{ data: profile }, { data: collectionProducts }] = await Promise.all([
+      const [profileResult, initialCollectionProductsResult] = await Promise.all([
         supabase.from("profiles").select("store_name,loja_nome").eq("user_id", userId).maybeSingle(),
-        supabase
-          .from("collection_products")
-          .select("added_at,collections!inner(user_id),catalog_products!inner(id,title,cost_price,images,category,is_active,is_blocked,stock_quantity)")
-          .eq("collections.user_id", userId)
-          .eq("catalog_products.is_active", true)
-          .eq("catalog_products.is_blocked", false)
-          .gt("catalog_products.stock_quantity", 0)
-          .order("added_at", { ascending: false })
-          .limit(12),
+        fetchEditorCollectionProducts(userId),
       ]);
 
       if (!mounted) return;
+      let collectionProducts = initialCollectionProductsResult.data;
+
+      if ((collectionProducts ?? []).length === 0) {
+        try {
+          const seedResult = await ensureExampleCollectionProducts({
+            userId,
+            preferredProductId: flow.product.id,
+          });
+
+          if (seedResult.inserted) {
+            const retryCollectionProductsResult = await fetchEditorCollectionProducts(userId);
+            collectionProducts = retryCollectionProductsResult.data;
+          }
+        } catch (seedError) {
+          console.error("Erro ao adicionar produtos de exemplo:", seedError);
+        }
+      }
+
+      const profile = profileResult.data;
       const savedName = profile?.store_name || profile?.loja_nome || sessionStorage.getItem("velo-store-name");
       if (savedName?.trim()) setStoreName(savedName.trim());
 
@@ -678,12 +659,12 @@ const GeneratedStoreEditorPage = () => {
   }, [flow]);
 
   if (!flow) return <Navigate to="/comecar" replace />;
-  const baseProducts = products.length ? products : [];
-  const displayedProducts = [...baseProducts, ...previewFallbackProducts.filter((fallback) => !baseProducts.some((product) => product.id === fallback.id))].slice(0, Math.max(6, baseProducts.length));
+  const baseProducts = products.length ? products : [{ ...flow.product, category: "Outros" }];
+  const displayedProducts = baseProducts;
   const categories = Array.from(new Set(displayedProducts.map((product) => product.category).filter(Boolean))).slice(0, 8);
   const browseCategories = catalogTaxonomy.map((category, index) => ({
     category,
-    imageUrl: displayedProducts.find((product) => product.category === category)?.imageUrl || categoryPreviewImages[category] || displayedProducts[index % displayedProducts.length]?.imageUrl || heroImage,
+    imageUrl: displayedProducts.find((product) => product.category === category)?.imageUrl || displayedProducts[index % displayedProducts.length]?.imageUrl || heroImage,
   }));
   const menuCategories = catalogTaxonomy;
   const sidebarIconCategories = catalogTaxonomy.slice(0, 10);
@@ -780,100 +761,167 @@ const GeneratedStoreEditorPage = () => {
   ];
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-[#050505] text-white" style={{ fontFamily: selectedFontStack }}>
+    <main className="flex h-screen flex-col overflow-hidden bg-[#1f1f1d] text-white" style={{ fontFamily: selectedFontStack }}>
       <style>{`.store-editor-preview [data-editor-selected="true"]{outline:2px solid #111827;outline-offset:3px}.editor-mode-active *:hover{outline:1.5px dashed #2563eb;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}`}</style>
-      <header className="flex h-[72px] shrink-0 items-center justify-between px-5">
+      <header className="grid h-[70px] shrink-0 grid-cols-[minmax(280px,520px)_minmax(0,1fr)_auto] items-center border-b border-white/[0.07] bg-[#1f1f1d] px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-gradient-to-br from-[#ff7a18] via-[#f43f5e] to-[#2563eb]" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <strong className="truncate text-[14px] font-semibold">{storeName}</strong>
+              <ChevronDown size={13} className="text-white/45" />
+            </div>
+            <span className="block truncate text-[12px] text-white/45">Editando última versão salva</span>
+          </div>
+        </div>
 
-        <div className="flex items-center gap-4"><button type="button" onClick={() => history.back()} className="text-white/55 hover:text-white"><ChevronLeft /></button><button type="button" onClick={()=>setPanel(panel==="template"?null:"template")} className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition ${panel==="template"?"bg-white/15 text-white":"bg-white/[0.07] text-white/60 hover:text-white"}`} aria-label="Editar template"><MoreHorizontal size={18}/></button><div><strong className="block text-[14px]">{storeName}</strong><span className="text-[10px] text-white/30">Template 01 {"\u00b7"} {currentTemplate}</span></div></div>
-        <div className="flex items-center gap-2"><div className="flex rounded-[9px] bg-white/[0.06] p-1"><button onClick={()=>setMobilePreview(false)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${!mobilePreview?"bg-white/15":"text-white/35"}`}><Monitor size={17}/></button><button onClick={()=>setMobilePreview(true)} className={`flex h-9 w-12 items-center justify-center rounded-[7px] ${mobilePreview?"bg-white/15":"text-white/35"}`}><Smartphone size={17}/></button></div><button className="p-3 text-white/45"><Settings size={18}/></button><button className="p-3 text-white/45"><Play size={18}/></button><button className="p-3 text-white/45"><History size={18}/></button><div className="relative ml-1 pb-2"><button onClick={()=>setShowPlans(true)} className="relative min-w-[112px] overflow-hidden rounded-[9px] bg-gradient-to-r from-[#3b82f6] via-[#2563eb] to-[#1d4ed8] px-5 pb-3 pt-2 text-[13px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_18px_rgba(37,99,235,0.28)] transition hover:-translate-y-0.5 hover:brightness-110"><span className="relative z-10">Publicar</span><span className="absolute inset-x-0 top-0 h-px bg-white/45" /></button><span className="absolute -bottom-0.5 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-b from-[#fde047] to-[#facc15] px-3 py-1 text-[8px] font-extrabold tracking-[0.02em] text-[#5b4300] shadow-[0_2px_7px_rgba(0,0,0,0.38)]">{"DOM\u00cdNIO GR\u00c1TIS"}</span></div></div>
+        <div className="hidden min-w-0 items-center justify-center gap-3 lg:flex">
+          <div className="flex h-10 items-center gap-1 rounded-full border border-white/[0.09] bg-[#171716] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <button type="button" className="inline-flex h-8 items-center gap-2 rounded-full bg-[#234cba] px-4 text-[13px] font-semibold text-[#9db7ff] shadow-[0_0_0_1px_rgba(96,145,255,0.35)]">
+              <Globe2 size={16} /> Preview
+            </button>
+            <button type="button" className="flex h-8 w-9 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white" aria-label="Código">
+              <Code2 size={15} />
+            </button>
+          </div>
+          <div className="flex h-10 min-w-[260px] max-w-[380px] flex-1 items-center gap-2 rounded-full border border-white/[0.09] bg-[#171716] px-3 text-[13px] text-white/75">
+            <button type="button" className="text-white/45 transition hover:text-white" aria-label="Atualizar preview">
+              <RefreshCcw size={15} />
+            </button>
+            <span className="text-white/35">/</span>
+            <span className="truncate font-medium">minha-loja/editor</span>
+            <ChevronDown size={14} className="ml-auto text-white/35" />
+          </div>
+          <button type="button" className="text-white/45 transition hover:text-white" aria-label="Abrir preview">
+            <ExternalLink size={17} />
+          </button>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          <div className="hidden rounded-full border border-white/[0.08] bg-[#171716] p-1 sm:flex">
+            <button type="button" onClick={()=>setMobilePreview(false)} className={`flex h-8 w-10 items-center justify-center rounded-full transition ${!mobilePreview?"bg-white/[0.12] text-white":"text-white/35 hover:text-white"}`} aria-label="Preview desktop">
+              <Monitor size={16}/>
+            </button>
+            <button type="button" onClick={()=>setMobilePreview(true)} className={`flex h-8 w-10 items-center justify-center rounded-full transition ${mobilePreview?"bg-white/[0.12] text-white":"text-white/35 hover:text-white"}`} aria-label="Preview mobile">
+              <Smartphone size={15}/>
+            </button>
+          </div>
+          <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:flex" aria-label="Configurações">
+            <Settings size={18}/>
+          </button>
+          <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:flex" aria-label="Visualizar">
+            <Play size={18}/>
+          </button>
+          <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:flex" aria-label="Histórico">
+            <History size={18}/>
+          </button>
+          <button onClick={()=>setShowPlans(true)} className="h-10 rounded-[12px] bg-[#2f6df6] px-5 text-[14px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_22px_rgba(47,109,246,0.24)] transition hover:brightness-110">
+            Publicar
+          </button>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
         <input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={(event)=>{const file=event.target.files?.[0];if(file)setHeroImage(URL.createObjectURL(file));}}/>
         <input ref={contextMediaInput} type="file" accept="image/*" className="hidden" onChange={handleContextImageUpload}/>
-        {panel==="template" ? (
-          <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-r border-white/[0.06] bg-[#0b0b0b]">
-            <div className="flex items-center justify-between px-5 pt-5 pb-4">
-              <div><strong className="block text-[14px]">Personalizar template</strong><span className="text-[10.5px] text-white/40">Ajuste a cara da sua loja</span></div>
-              <button onClick={()=>setPanel(null)} className="text-white/40 hover:text-white"><X size={16}/></button>
-            </div>
-
-            <div className="space-y-3 px-5 pb-6">
-              {/* Acoes principais */}
-              <button type="button" onClick={()=>setShowTemplates(true)} className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#3b82f6] to-[#1d4ed8] shadow-[0_6px_16px_rgba(37,99,235,0.35)]"><LayoutTemplate size={20}/></span>
-                <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Trocar template</span><span className="block text-[11px] text-white/45">Atual: {currentTemplate}</span></span>
-                <ChevronLeft size={14} className="rotate-180 text-white/35" />
-              </button>
-
-              <button type="button" onClick={()=>navigate("/catalogo")} className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#f97316] to-[#c2410c] shadow-[0_6px_16px_rgba(249,115,22,0.35)]"><Package size={20}/></span>
-                <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Adicionar produtos</span><span className="block text-[11px] text-white/45">Escolha do cat\u00e1logo Velo</span></span>
-                <Plus size={14} className="text-white/35" />
-              </button>
-
-              <button type="button" onClick={()=>imageInput.current?.click()} className="group flex w-full items-center gap-3 rounded-[13px] bg-white/[0.05] p-3 text-left transition hover:bg-white/[0.09]">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[#a855f7] to-[#6d28d9] shadow-[0_6px_16px_rgba(168,85,247,0.35)]"><Sparkles size={20}/></span>
-                <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Imagem principal</span><span className="block text-[11px] text-white/45">Envie a foto do banner</span></span>
-                <Plus size={14} className="text-white/35" />
-              </button>
-              <label className="block rounded-[13px] border border-white/10 bg-white/[0.035] p-3">
-                <span className="text-[12px] font-semibold text-white/75">Link do CTA do hero</span>
-                <input value={heroCtaUrl} onChange={(event)=>setHeroCtaUrl(event.target.value)} placeholder="/catalogo ou https://..." className="mt-2 h-9 w-full rounded-[9px] border border-white/10 bg-black/30 px-3 text-[12px] text-white outline-none transition placeholder:text-white/25 focus:border-white/35" />
-              </label>
-            </div>
-
-            <div className="mx-5 border-t border-white/[0.06]" />
-
-            <div className="space-y-6 px-5 py-6">
-              {/* Cor de destaque */}
-              <div>
-                <div className="flex items-center gap-2"><Palette size={13} className="text-white/55"/><strong className="text-[12px]">Cor de destaque</strong></div>
-                <p className="mt-1 text-[10.5px] text-white/40">Usada em bot\u00f5es, pre\u00e7os e tags.</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {["#111111","#2563eb","#dc2626","#16a34a","#f59e0b","#ec4899","#7c3aed"].map((color)=>(
-                    <button key={color} type="button" onClick={()=>setAccent(color)} aria-label={color} className={`relative h-8 w-8 rounded-full transition ${accent===color?"ring-2 ring-white ring-offset-2 ring-offset-[#0b0b0b]":"ring-1 ring-white/10"}`} style={{backgroundColor:color}}>{accent===color?<Check size={13} className="absolute inset-0 m-auto text-white drop-shadow"/>:null}</button>
-                  ))}
-                  <label className="relative h-8 w-8 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/15" title="Cor personalizada">
-                    <span className="absolute inset-0 bg-[conic-gradient(from_0deg,#ff0080,#ff8c00,#ffee00,#00ff85,#00b8ff,#8a2be2,#ff0080)]" />
-                    <input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"/>
-                  </label>
-                </div>
-              </div>
-
-              {/* Tipografia */}
-              <div>
-                <div className="flex items-center gap-2"><Type size={13} className="text-white/55"/><strong className="text-[12px]">Tipografia</strong></div>
-                <p className="mt-1 text-[10.5px] text-white/40">{"Fonte dos t\u00edtulos e textos da loja."}</p>
-                <div className="mt-3 grid grid-cols-1 gap-2">
-                  {fontOptions.map((option)=>(
-                    <button key={option.name} type="button" onClick={()=>setFont(option.name)} className={`flex items-center justify-between rounded-[11px] border p-3 text-left transition ${font===option.name?"border-white/70 bg-white/[0.08]":"border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
-                      <span><span className="block text-[15px]" style={{fontFamily:option.stack}}>{option.name}</span><span className="block text-[10.5px] text-white/40">{option.mood}</span></span>
-                      {font===option.name?<Check size={14} className="text-white"/>:null}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Colunas */}
-              <div>
-                <div className="flex items-center gap-2"><LayoutGrid size={13} className="text-white/55"/><strong className="text-[12px]">Colunas da grade</strong></div>
-                <p className="mt-1 text-[10.5px] text-white/40">Quantos produtos por linha no desktop.</p>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {[2,3,4].map((value)=>(
-                    <button key={value} type="button" onClick={()=>setColumns(value)} className={`flex flex-col items-center gap-2 rounded-[11px] border p-3 transition ${columns===value?"border-white/70 bg-white/[0.08]":"border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
-                      <span className={`grid w-full gap-1`} style={{gridTemplateColumns:`repeat(${value}, minmax(0,1fr))`}}>{Array.from({length:value}).map((_,index)=><span key={index} className="h-6 rounded-[3px] bg-white/25"/>)}</span>
-                      <span className="text-[10.5px] text-white/55">{value} colunas</span>
-                    </button>
-                  ))}
-                </div>
+        <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-r border-white/[0.08] bg-[#1f1f1d] px-5 py-9 xl:block xl:w-[520px]">
+          <section className="overflow-hidden rounded-[20px] border border-white/[0.09] bg-[#282826] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1d]">
+                <LayoutTemplate size={16} />
+              </span>
+              <div className="min-w-0">
+                <strong className="block truncate text-[16px] font-semibold">{currentTemplate}</strong>
+                <span className="block truncate text-[12px] text-white/45">Template 01</span>
               </div>
             </div>
-          </aside>
-        ) : null}
+            <div className="grid grid-cols-2 gap-2 p-3">
+              <button type="button" className="h-11 rounded-[11px] border border-white/[0.11] bg-[#242423] text-[14px] font-medium text-white/78 transition hover:bg-white/[0.07]">Detalhes</button>
+              <button type="button" className="h-11 rounded-[11px] border border-white/[0.12] bg-gradient-to-b from-white/[0.16] to-white/[0.07] text-[14px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">Personalizar</button>
+            </div>
+          </section>
 
-        <div className="relative min-w-0 flex-1 overflow-auto rounded-tl-[18px] bg-[#111] p-3 sm:p-5">
-          <div ref={previewRef} onClick={handlePreviewClick} className={`store-editor-preview relative mx-auto min-h-full overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.5)] transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1180px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: editMode==="fill"?"copy":editMode==="eraser"?"not-allowed":editMode?"pointer":"default" }}>
+          <div className="mt-7 flex items-center gap-5 text-white/72">
+            <button type="button" onClick={() => history.back()} className="transition hover:text-white" aria-label="Voltar">
+              <ChevronLeft size={20} />
+            </button>
+            <button type="button" className="transition hover:text-white" aria-label="Mais opções">
+              <MoreHorizontal size={22} />
+            </button>
+          </div>
+
+          <section className="mt-7 space-y-4">
+            <button type="button" onClick={()=>setShowTemplates(true)} className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#2563eb] text-white shadow-[0_12px_26px_rgba(37,99,235,0.28)]"><LayoutTemplate size={23}/></span>
+              <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">Trocar template</span><span className="mt-1 block text-[13px] text-white/42">Atual: {currentTemplate}</span></span>
+              <ChevronLeft size={18} className="rotate-180 text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
+            </button>
+
+            <button type="button" onClick={()=>navigate("/catalogo")} className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#f97316] text-white shadow-[0_12px_26px_rgba(249,115,22,0.24)]"><Package size={23}/></span>
+              <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">Adicionar produtos</span><span className="mt-1 block text-[13px] text-white/42">Escolha do catálogo Velo</span></span>
+              <Plus size={17} className="text-white/35" />
+            </button>
+
+            <button type="button" onClick={()=>imageInput.current?.click()} className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#7c3aed] text-white shadow-[0_12px_26px_rgba(124,58,237,0.24)]"><Sparkles size={23}/></span>
+              <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">Imagem principal</span><span className="mt-1 block text-[13px] text-white/42">Envie a foto do banner</span></span>
+              <Plus size={17} className="text-white/35" />
+            </button>
+
+            <label className="block rounded-[18px] border border-white/[0.08] bg-[#282826] p-4">
+              <span className="text-[14px] font-semibold text-white/85">Link do CTA do hero</span>
+              <input value={heroCtaUrl} onChange={(event)=>setHeroCtaUrl(event.target.value)} placeholder="/catalogo ou https://..." className="mt-3 h-11 w-full rounded-[12px] border border-white/[0.10] bg-[#1f1f1d] px-3 text-[13px] text-white outline-none transition placeholder:text-white/28 focus:border-white/35" />
+            </label>
+          </section>
+
+          <div className="my-8 border-t border-white/[0.08]" />
+
+          <section className="space-y-8">
+            <div>
+              <div className="flex items-center gap-3"><Palette size={17} className="text-white/70"/><strong className="text-[15px] font-semibold">Cor de destaque</strong></div>
+              <p className="mt-2 text-[13px] text-white/38">Usada em botões, preços e tags.</p>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {["#111111","#2563eb","#dc2626","#16a34a","#f59e0b","#ec4899","#7c3aed"].map((color)=>(
+                  <button key={color} type="button" onClick={()=>setAccent(color)} aria-label={color} className={`relative h-11 w-11 rounded-full transition ${accent===color?"ring-2 ring-white ring-offset-2 ring-offset-[#1f1f1d]":"ring-1 ring-white/15 hover:scale-105"}`} style={{backgroundColor:color}}>{accent===color?<Check size={15} className="absolute inset-0 m-auto text-white drop-shadow"/>:null}</button>
+                ))}
+                <label className="relative h-11 w-11 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/15" title="Cor personalizada">
+                  <span className="absolute inset-0 bg-[conic-gradient(from_0deg,#ff0080,#ff8c00,#ffee00,#00ff85,#00b8ff,#8a2be2,#ff0080)]" />
+                  <input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"/>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-3"><Type size={17} className="text-white/70"/><strong className="text-[15px] font-semibold">Tipografia</strong></div>
+              <p className="mt-2 text-[13px] text-white/38">{"Fonte dos títulos e textos da loja."}</p>
+              <div className="mt-4 grid grid-cols-1 gap-2">
+                {fontOptions.map((option)=>(
+                  <button key={option.name} type="button" onClick={()=>setFont(option.name)} className={`flex items-center justify-between rounded-[14px] border p-3 text-left transition ${font===option.name?"border-white/70 bg-white/[0.08]":"border-white/[0.08] bg-[#282826] hover:bg-[#30302e]"}`}>
+                    <span><span className="block text-[15px]" style={{fontFamily:option.stack}}>{option.name}</span><span className="block text-[11px] text-white/40">{option.mood}</span></span>
+                    {font===option.name?<Check size={14} className="text-white"/>:null}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-3"><LayoutGrid size={17} className="text-white/70"/><strong className="text-[15px] font-semibold">Colunas da grade</strong></div>
+              <p className="mt-2 text-[13px] text-white/38">Quantos produtos por linha no desktop.</p>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {[2,3,4].map((value)=>(
+                  <button key={value} type="button" onClick={()=>setColumns(value)} className={`flex flex-col items-center gap-2 rounded-[14px] border p-3 transition ${columns===value?"border-white/70 bg-white/[0.08]":"border-white/[0.08] bg-[#282826] hover:bg-[#30302e]"}`}>
+                    <span className="grid w-full gap-1" style={{gridTemplateColumns:`repeat(${value}, minmax(0,1fr))`}}>{Array.from({length:value}).map((_,index)=><span key={index} className="h-6 rounded-[4px] bg-white/25"/>)}</span>
+                    <span className="text-[11px] text-white/55">{value}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        </aside>
+
+        <div className="min-w-0 flex-1 overflow-auto bg-[#1f1f1d] p-3 sm:p-5">
+          <div ref={previewRef} onClick={handlePreviewClick} className={`store-editor-preview relative mx-auto min-h-full overflow-hidden rounded-[24px] bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.38)] ring-1 ring-black/10 transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1488px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: editMode==="fill"?"copy":editMode==="eraser"?"not-allowed":editMode?"pointer":"default" }}>
             {/* === TEMPLATE 01 - C-STYLE INSPIRED === */}
             {/* Main header */}
             <StorefrontNavbar storeName={brandName} activePage="store" className="relative z-30" />
