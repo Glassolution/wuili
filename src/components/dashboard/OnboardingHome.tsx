@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Link2, Package, ArrowRight, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
+import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 
 
 interface OnboardingHomeProps {
@@ -14,13 +14,12 @@ const OnboardingHome = ({ name, mlConnected, hasPublication }: OnboardingHomePro
   const navigate = useNavigate();
 
   const handleConnectML = async () => {
-    const { data, error } = await supabase.functions.invoke("ml-connect");
-    const authUrl = data?.authUrl ?? data?.auth_url;
-    if (error || !authUrl) {
+    try {
+      await startMercadoLivreOAuth();
+    } catch (err) {
       veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
       return;
     }
-    window.location.href = authUrl;
   };
 
   const step2Locked = !mlConnected && !hasPublication;

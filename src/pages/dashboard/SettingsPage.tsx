@@ -18,6 +18,7 @@ import {
   type VeloStore,
 } from "@/components/dashboard/FirstStoreOnboarding";
 import { veloToast } from "@/components/ui/velo-toast";
+import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 
 type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
 
@@ -30,6 +31,8 @@ const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
   { id: "Segurança", icon: Shield },
   { id: "Suporte", icon: MessageCircle, separatorBefore: true },
 ];
+
+const MOBILE_NAV = NAV.filter((item) => item.id !== "Suporte");
 
 const SettingsPage = () => {
   const [searchParams] = useSearchParams();
@@ -111,9 +114,9 @@ const SettingsPage = () => {
         </div>
 
         {/* Mobile tab pills */}
-        <div className={`-mx-3 mb-4 overflow-x-auto px-3 pb-1 md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden ${isSupportTab ? "hidden md:block" : ""}`} style={{ scrollbarWidth: "none" }}>
-          <div className="inline-flex min-w-full gap-1 rounded-2xl border border-[#E5E5E5] bg-white p-1 shadow-sm">
-            {NAV.map((item) => {
+        <div className={`-mx-3 mb-5 overflow-x-auto px-3 pb-2 pt-1 md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden ${isSupportTab ? "hidden md:block" : ""}`} style={{ scrollbarWidth: "none" }}>
+          <div className="flex w-max min-w-full items-center gap-2">
+            {MOBILE_NAV.map((item) => {
               const active = tab === item.id;
               const Icon = item.icon;
               return (
@@ -121,11 +124,17 @@ const SettingsPage = () => {
                   key={item.id}
                   ref={(node) => { mobileTabRefs.current[item.id] = node; }}
                   onClick={() => setTab(item.id)}
-                  className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-semibold whitespace-nowrap transition-colors ${
-                    active ? "bg-[#0A0A0A] text-white shadow-sm" : "bg-transparent text-[#0A0A0A] hover:bg-[#F5F5F5]"
+                  className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-[13px] font-semibold whitespace-nowrap transition-all ${
+                    active
+                      ? "border-[#0A0A0A] bg-[#0A0A0A] text-white shadow-[0_10px_24px_rgba(0,0,0,0.22)]"
+                      : "border-black/[0.07] bg-white text-[#525252] shadow-[0_6px_18px_rgba(15,23,42,0.06)] hover:border-black/[0.14] hover:text-[#0A0A0A]"
                   }`}
                 >
-                  <Icon size={14} />
+                  <span className={`grid h-6 w-6 place-items-center rounded-full ${
+                    active ? "bg-white/12 text-white" : "bg-[#F5F5F5] text-[#0A0A0A]"
+                  }`}>
+                    <Icon size={13.5} />
+                  </span>
                   {item.id}
                 </button>
               );
@@ -427,14 +436,14 @@ const IntegrationsTab = () => {
   const handleConnect = async (platform: string) => {
     if (platform === "mercadolivre" && user) {
       const toastId = veloToast.loading("Conectando com o Mercado Livre...");
-      const { data, error } = await supabase.functions.invoke("ml-connect");
-      const authUrl = data?.authUrl ?? data?.auth_url;
-      if (error || !authUrl) {
+      try {
+        await startMercadoLivreOAuth();
+        veloToast.dismiss(toastId);
+      } catch (err) {
         veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre", { id: toastId });
         return;
       }
-      veloToast.dismiss(toastId);
-      window.location.href = authUrl;
+      return;
     }
 
     if (platform !== "mercadolivre") {

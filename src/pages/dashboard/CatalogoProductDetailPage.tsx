@@ -9,14 +9,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Lock,
-  Truck,
   ExternalLink,
   PackagePlus,
-  Boxes,
-  ShoppingBag,
 } from "lucide-react";
-import { formatPrice } from "@/components/dashboard/ProductCard";
+import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { veloToast } from "@/components/ui/velo-toast";
 
@@ -220,13 +216,15 @@ const CatalogoProductDetailPage = () => {
   }
 
   const gallery = product.images;
+  const catalogMetrics = getProductCatalogMetrics(product);
+  const [suggestedPriceMain, suggestedPriceCents = "00"] = formatPrice(product.suggestedPrice).split(",");
 
   return (
     <div className="-m-5 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)]">
       <div className="w-full px-5 py-6 sm:px-8 sm:py-8 lg:px-10">
         
         {/* CABEÇALHO DA PÁGINA */}
-        <div className="mb-8 flex items-center justify-between border-b border-black/[0.07] pb-5">
+        <div className="mb-8 hidden items-center justify-between border-b border-black/[0.07] pb-5 lg:flex">
           <button
             type="button"
             onClick={() => navigate("/dashboard/catalogo")}
@@ -241,10 +239,148 @@ const CatalogoProductDetailPage = () => {
         </div>
 
         {/* SEÇÃO PRINCIPAL (duas colunas) */}
-        <div className="grid grid-cols-1 items-start gap-10 pb-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,0.95fr)] lg:gap-14">
+        <div className="-mx-5 -mt-6 pb-10 lg:hidden">
+          <section className="bg-white">
+            <div className="relative h-[394px] overflow-hidden bg-[#F5F5F4]">
+              <div className="absolute right-4 top-4 z-10 flex items-center">
+                <button
+                  type="button"
+                  aria-label={favorited ? "Remover dos favoritos" : "Salvar para depois"}
+                  aria-pressed={favorited}
+                  onClick={() => setFavorited((value) => !value)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-[#111111] ring-1 ring-black/[0.06] backdrop-blur-sm transition-transform active:scale-95"
+                >
+                  <Heart size={18} strokeWidth={2} className={favorited ? "fill-red-500 text-red-500" : ""} />
+                </button>
+              </div>
+
+              <img
+                src={gallery[activeImg] || gallery[0] || FALLBACK_IMG}
+                alt={product.title}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Imagem anterior"
+                    onClick={() => setActiveImg((current) => (current - 1 + gallery.length) % gallery.length)}
+                    className="absolute inset-y-14 left-0 z-[1] w-1/2"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Próxima imagem"
+                    onClick={() => setActiveImg((current) => (current + 1) % gallery.length)}
+                    className="absolute inset-y-14 right-0 z-[1] w-1/2"
+                  />
+                </>
+              )}
+
+              {gallery.length > 1 && (
+                <span className="absolute bottom-4 right-4 z-10 rounded-full bg-black/55 px-2.5 py-1 text-[12px] font-bold text-white">
+                  {activeImg + 1}/{gallery.length}
+                </span>
+              )}
+            </div>
+          </section>
+
+          <section className="px-5 pt-5">
+            <span className="mb-3 inline-flex rounded-full bg-[#F3F3F2] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#52525B]">
+              {product.category ? (product.category.charAt(0).toUpperCase() + product.category.slice(1).toLowerCase()) : "Produto"}
+            </span>
+
+            <h1 className="max-w-[340px] text-[18px] font-medium leading-[1.18] tracking-[-0.015em] text-[#111111]">
+              {product.title}
+            </h1>
+
+            <div className="mt-3 flex items-center gap-2 text-[12px]">
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star
+                    key={i}
+                    size={13}
+                    className={
+                      i < Math.round(catalogMetrics.rating)
+                        ? "fill-[#111] text-[#111]"
+                        : "fill-[#E5E7EB] text-[#E5E7EB]"
+                    }
+                  />
+                ))}
+              </div>
+              <span className="font-semibold text-[#111111]">{catalogMetrics.rating.toFixed(1)}</span>
+              <span className="font-medium text-[#6B7280]">{formatReviewCount(catalogMetrics.ordersCount)} vendidos</span>
+            </div>
+
+            <div className="mt-5 border-t border-black/[0.08] pt-5">
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">Preço sugerido de venda</p>
+              <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
+                <span className="text-[34px] font-semibold leading-none tracking-[-0.045em] text-[#111111]">
+                  {suggestedPriceMain}
+                  <sup className="ml-0.5 align-super text-[17px] font-semibold leading-none tracking-[-0.02em]">
+                    {suggestedPriceCents}
+                  </sup>
+                </span>
+                <span className="pb-0.5 text-[12px] text-[#71717A] line-through">
+                  Custo {formatPrice(product.price)}
+                </span>
+              </div>
+              <p className="mt-2 text-[11.5px] leading-5 text-[#71717A]">
+                Lucro bruto estimado de {formatPrice(Math.max(0, product.suggestedPrice - product.price))}.
+              </p>
+            </div>
+
+            <p className="mt-5 text-[13px] leading-6 text-[#3F3F46]">
+              {product.description || "O fornecedor ainda não disponibilizou uma descrição detalhada para este produto."}
+            </p>
+
+            <div className="mt-6 grid grid-cols-1 gap-3">
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(true)}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white shadow-[0_10px_25px_rgba(0,0,0,0.16)] transition-transform active:scale-[0.98]"
+              >
+                <PackagePlus size={17} strokeWidth={1.8} />
+                Importar para minha loja
+              </button>
+              {product.product_url ? (
+                <a
+                  href={product.product_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111]"
+                >
+                  Ver no fornecedor
+                  <ExternalLink size={16} strokeWidth={1.8} />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => veloToast.info("O fornecedor não disponibilizou um link para este produto.")}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111]"
+                >
+                  Ver no fornecedor
+                  <ExternalLink size={16} strokeWidth={1.8} />
+                </button>
+              )}
+            </div>
+          </section>
+
+        </div>
+
+        <div className="hidden items-start gap-10 pb-14 lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,0.95fr)] lg:gap-14">
           {/* COLUNA ESQUERDA — GALERIA */}
           <div className="min-w-0">
-            <div className="flex aspect-square items-center justify-center overflow-hidden rounded-[26px] border border-black/[0.06] bg-[#F1F1F0]">
+            <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[26px] border border-black/[0.06] bg-[#F1F1F0]">
+              <button
+                type="button"
+                aria-label={favorited ? "Remover dos favoritos" : "Salvar para depois"}
+                aria-pressed={favorited}
+                onClick={() => setFavorited((value) => !value)}
+                className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/95 text-[#111111] shadow-[0_8px_18px_rgba(17,24,39,0.14)] backdrop-blur-sm transition-transform active:scale-95"
+              >
+                <Heart size={18} strokeWidth={2} className={favorited ? "fill-red-500 text-red-500" : ""} />
+              </button>
               <img
                 src={gallery[activeImg] || gallery[0] || FALLBACK_IMG}
                 alt={product.title}
@@ -300,7 +436,6 @@ const CatalogoProductDetailPage = () => {
             </h1>
 
             {/* Avaliação */}
-            {product.rating !== null && (
             <div className="mb-6 flex items-center gap-2 text-[13px]">
               <div className="flex items-center gap-0.5">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -308,17 +443,16 @@ const CatalogoProductDetailPage = () => {
                     key={i}
                     size={13}
                     className={
-                      i < Math.round(product.rating)
+                      i < Math.round(catalogMetrics.rating)
                         ? "fill-[#111] text-[#111]"
                         : "text-[#E5E7EB] fill-[#E5E7EB]"
                     }
                   />
                 ))}
               </div>
-              <span className="font-semibold text-[#111]">{product.rating.toFixed(1)}</span>
-              <span className="text-[#6B7280]">Avaliação informada pelo fornecedor</span>
+              <span className="font-semibold text-[#111]">{catalogMetrics.rating.toFixed(1)}</span>
+              <span className="text-[#6B7280]">{formatReviewCount(catalogMetrics.ordersCount)} vendidos</span>
             </div>
-            )}
 
             {/* Bloco de Precificação e Simulador de Lucro */}
             <div className="mb-6 border-y border-black/[0.08] py-5">
@@ -376,29 +510,6 @@ const CatalogoProductDetailPage = () => {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setFavorited((value) => !value)}
-              className="mt-4 inline-flex self-end items-center gap-2 text-[12px] font-medium text-[#71717A] transition-colors hover:text-[#111111]"
-            >
-              <Heart size={15} className={favorited ? "fill-[#111111] text-[#111111]" : ""} />
-              {favorited ? "Salvo para depois" : "Salvar para depois"}
-            </button>
-
-            <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-[18px] border border-black/[0.08] bg-black/[0.08]">
-              {[
-                { icon: Lock, label: "Importação segura" },
-                { icon: Truck, label: "Logística do fornecedor" },
-                { icon: Boxes, label: product.stockQuantity === null ? "Estoque não informado" : `${product.stockQuantity} em estoque` },
-                { icon: ShoppingBag, label: product.ordersCount === null ? "Pedidos não informados" : `${product.ordersCount} pedidos` },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex min-h-14 items-center gap-2.5 bg-white px-4 text-[12px] font-medium text-[#52525B]">
-                  <Icon size={15} className="shrink-0 text-[#A1A1AA]" strokeWidth={1.8} />
-                  <span>{label}</span>
-                </div>
-              ))}
-            </div>
-
           </div>
         </div>
 
@@ -453,47 +564,51 @@ const CatalogoProductDetailPage = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {relatedWindow.map((p) => (
-                <Link
-                  key={p.id}
-                  to={`/dashboard/catalogo/${p.id}`}
-                  onClick={() => {
-                    veloToast.loading("Carregando produto...", {
-                      id: `loading-product-${p.id}`,
-                      fullscreen: true,
-                      minDuration: 3000,
-                    });
-                  }}
-                  className="group min-w-0"
-                >
-                  <div className="aspect-square overflow-hidden rounded-[20px] border border-black/[0.05] bg-[#F1F1F0]">
-                    <img
-                      src={p.images[0]}
-                      alt={p.title}
-                      className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.035]"
-                    />
-                  </div>
-                  <div className="mt-3">
-                    <div className="line-clamp-2 text-[13px] font-semibold leading-5 text-[#111]">{p.title}</div>
-                    {p.rating !== null && (
+              {relatedWindow.map((p) => {
+                const relatedMetrics = getProductCatalogMetrics(p);
+
+                return (
+                  <Link
+                    key={p.id}
+                    to={`/dashboard/catalogo/${p.id}`}
+                    onClick={() => {
+                      veloToast.loading("Carregando produto...", {
+                        id: `loading-product-${p.id}`,
+                        fullscreen: true,
+                        minDuration: 3000,
+                      });
+                    }}
+                    className="group min-w-0"
+                  >
+                    <div className="aspect-square overflow-hidden rounded-[20px] border border-black/[0.05] bg-[#F1F1F0]">
+                      <img
+                        src={p.images[0]}
+                        alt={p.title}
+                        className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.035]"
+                      />
+                    </div>
+                    <div className="mt-3">
+                      <div className="line-clamp-2 text-[13px] font-semibold leading-5 text-[#111]">{p.title}</div>
                       <div className="mt-1 flex items-center gap-1 text-[11px] text-[#71717A]">
                         <Star size={11} className="fill-[#111] text-[#111]" />
-                        <span>{p.rating.toFixed(1)}</span>
+                        <span>{relatedMetrics.rating.toFixed(1)}</span>
+                        <span>·</span>
+                        <span>{formatReviewCount(relatedMetrics.ordersCount)} vendidos</span>
                       </div>
-                    )}
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-[15px] font-bold text-[#111]">
-                        {formatPrice(p.suggestedPrice)}
-                      </span>
-                      {p.originalPrice && (
-                        <span className="text-[11.5px] text-[#9CA3AF] line-through">
-                          {formatPrice(p.originalPrice)}
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-[15px] font-bold text-[#111]">
+                          {formatPrice(p.suggestedPrice)}
                         </span>
-                      )}
+                        {p.originalPrice && (
+                          <span className="text-[11.5px] text-[#9CA3AF] line-through">
+                            {formatPrice(p.originalPrice)}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </section>
         )}

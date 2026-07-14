@@ -40,6 +40,14 @@ const getMockCatalogMetrics = (productId: string) => {
   };
 };
 
+export const getMockRating = (productId: string) => {
+  const metrics = getMockCatalogMetrics(productId);
+  return {
+    rating: metrics.rating,
+    reviewCount: metrics.ordersCount,
+  };
+};
+
 export const getProductCatalogMetrics = (product: Pick<Product, "id" | "rating" | "ordersCount">) => {
   const mockMetrics = getMockCatalogMetrics(product.id);
   const rating = mockMetrics.rating;

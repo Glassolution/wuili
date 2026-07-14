@@ -5,6 +5,7 @@ import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { veloToast } from "@/components/ui/velo-toast";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
+import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 
 type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
 
@@ -49,14 +50,14 @@ const IntegracoesPage = () => {
   const handleConnect = async (platformId: string) => {
     if (platformId === "mercadolivre" && user) {
       const toastId = veloToast.loading("Conectando com o Mercado Livre...");
-      const { data, error } = await supabase.functions.invoke("ml-connect");
-      const authUrl = data?.authUrl ?? data?.auth_url;
-      if (error || !authUrl) {
+      try {
+        await startMercadoLivreOAuth();
+        veloToast.dismiss(toastId);
+      } catch (err) {
         veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre", { id: toastId });
         return;
       }
-      veloToast.dismiss(toastId);
-      window.location.href = authUrl;
+      return;
     }
 
     if (platformId !== "mercadolivre") {

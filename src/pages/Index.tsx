@@ -166,39 +166,39 @@ function OperationLogo({ logo }: { logo: (typeof operationLogos)[number] }) {
 function ProcessVisual({ type }: { type: string }) {
   if (type === "workflow") {
     return (
-      <div className="relative h-[236px] overflow-hidden rounded-[24px] bg-[#101816] ring-1 ring-white/[0.04]">
+      <div className="relative h-[188px] overflow-hidden rounded-[20px] bg-[#101816] ring-1 ring-white/[0.04] sm:h-[236px] sm:rounded-[24px]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_26%,rgba(216,240,200,0.16),transparent_34%)]" />
-        <div className="absolute left-8 top-8 z-10 w-[176px] rounded-[22px] bg-white p-3 shadow-[0_20px_46px_rgba(0,0,0,0.24)]">
-          <div className="h-[118px] overflow-hidden rounded-[16px] bg-[#f2f1ec]">
+        <div className="absolute left-5 top-6 z-10 w-[146px] rounded-[18px] bg-white p-2.5 shadow-[0_20px_46px_rgba(0,0,0,0.24)] sm:left-8 sm:top-8 sm:w-[176px] sm:rounded-[22px] sm:p-3">
+          <div className="h-[92px] overflow-hidden rounded-[14px] bg-[#f2f1ec] sm:h-[118px] sm:rounded-[16px]">
             <PremiumImage src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=520&q=85" alt="Produto encontrado" />
           </div>
           <div className="mt-3 h-2 w-20 rounded-full bg-black/12" />
           <div className="mt-2 h-2 w-28 rounded-full bg-black/7" />
         </div>
-        <div className="absolute right-7 top-12 z-20 w-[156px] rounded-[20px] border border-white/10 bg-[#17201d]/88 p-4 shadow-[0_18px_42px_rgba(0,0,0,0.18)] backdrop-blur-sm">
+        <div className="absolute right-5 top-8 z-20 w-[138px] rounded-[18px] border border-white/10 bg-[#17201d]/88 p-3 shadow-[0_18px_42px_rgba(0,0,0,0.18)] backdrop-blur-sm sm:right-7 sm:top-12 sm:w-[156px] sm:rounded-[20px] sm:p-4">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/42">Publicação</div>
-          <div className="mt-4 space-y-2.5">
+          <div className="mt-3 space-y-2 sm:mt-4 sm:space-y-2.5">
             {["Mercado Livre", "Shopee", "Catálogo"].map((item, index) => (
-              <div key={item} className="flex items-center justify-between rounded-full bg-white/[0.08] px-3 py-2 text-[12px] text-white/72">
+              <div key={item} className="flex items-center justify-between rounded-full bg-white/[0.08] px-2.5 py-1.5 text-[11px] text-white/72 sm:px-3 sm:py-2 sm:text-[12px]">
                 <span>{item}</span>
                 <span className={index === 0 ? "text-[#d8f0c8]" : "text-white/30"}>{index === 0 ? "ativo" : "ok"}</span>
               </div>
             ))}
           </div>
         </div>
-        <div className="absolute bottom-6 left-1/2 h-2 w-48 -translate-x-1/2 rounded-full bg-white/8" />
-        <div className="absolute bottom-6 left-[calc(50%-96px)] h-2 w-32 rounded-full bg-[#d8f0c8]" />
+        <div className="absolute bottom-5 left-1/2 h-2 w-40 -translate-x-1/2 rounded-full bg-white/8 sm:bottom-6 sm:w-48" />
+        <div className="absolute bottom-5 left-[calc(50%-80px)] h-2 w-28 rounded-full bg-[#d8f0c8] sm:bottom-6 sm:left-[calc(50%-96px)] sm:w-32" />
       </div>
     );
   }
 
   if (type === "uptime") {
     return (
-      <div className="relative h-[236px] overflow-hidden rounded-[24px] bg-[#101816] ring-1 ring-white/[0.04]">
+      <div className="relative h-[188px] overflow-hidden rounded-[20px] bg-[#101816] ring-1 ring-white/[0.04] sm:h-[236px] sm:rounded-[24px]">
         <div className="absolute inset-0 opacity-[0.16] [background-image:radial-gradient(circle,rgba(255,255,255,0.24)_1px,transparent_1px)] [background-size:12px_12px]" />
-        <div className="absolute inset-x-8 top-8 h-[110px] rounded-full border border-white/[0.07]" />
+        <div className="absolute inset-x-6 top-7 h-[88px] rounded-full border border-white/[0.07] sm:inset-x-8 sm:top-8 sm:h-[110px]" />
 
-        <div className="absolute left-1/2 top-8 h-[142px] w-[142px] -translate-x-1/2">
+        <div className="absolute left-1/2 top-7 h-[118px] w-[118px] -translate-x-1/2 sm:top-8 sm:h-[142px] sm:w-[142px]">
           <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-hidden="true">
             <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" />
             <circle
@@ -215,13 +215,13 @@ function ProcessVisual({ type }: { type: string }) {
 
           <div className="absolute inset-0 grid place-items-center text-center">
             <div>
-              <div className="text-[36px] font-[300] leading-none tracking-[-0.055em] text-white">99,9%</div>
+              <div className="text-[31px] font-[300] leading-none tracking-[-0.055em] text-white sm:text-[36px]">99,9%</div>
               <div className="mt-2 text-[12px] tracking-[-0.01em] text-white/48">operação estável</div>
             </div>
           </div>
         </div>
 
-        <div className="absolute bottom-7 left-1/2 flex -translate-x-1/2 gap-2">
+        <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-2 sm:bottom-7">
           {["ML", "C7", "MP"].map((item) => (
             <span key={item} className="rounded-full border border-white/[0.08] bg-white/[0.045] px-3.5 py-1.5 text-[11px] font-medium text-white/46">
               {item}
@@ -233,9 +233,9 @@ function ProcessVisual({ type }: { type: string }) {
   }
 
   return (
-    <div className="relative h-[236px] overflow-hidden rounded-[24px] bg-[#101816] ring-1 ring-white/[0.04]">
+    <div className="relative h-[188px] overflow-hidden rounded-[20px] bg-[#101816] ring-1 ring-white/[0.04] sm:h-[236px] sm:rounded-[24px]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_44%_28%,rgba(216,240,200,0.14),transparent_34%)]" />
-      <div className="absolute left-1/2 top-6 w-[238px] -translate-x-1/2 rounded-[22px] bg-white p-4 text-black shadow-[0_22px_54px_rgba(0,0,0,0.28)]">
+      <div className="absolute left-1/2 top-5 w-[220px] -translate-x-1/2 rounded-[20px] bg-white p-3 text-black shadow-[0_22px_54px_rgba(0,0,0,0.28)] sm:top-6 sm:w-[238px] sm:rounded-[22px] sm:p-4">
         <div className="flex items-center gap-3.5">
           <div className="h-14 w-14 overflow-hidden rounded-[16px] bg-[#f3f1e9]">
             <PremiumImage src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=260&q=85" alt="Produto com potencial" />
@@ -256,10 +256,10 @@ function ProcessVisual({ type }: { type: string }) {
           </div>
         </div>
       </div>
-      <div className="absolute bottom-5 left-7 rounded-full border border-white/12 bg-white/[0.07] px-4 py-2 text-[12px] text-white/60 backdrop-blur">
+      <div className="absolute bottom-4 left-5 rounded-full border border-white/12 bg-white/[0.07] px-3 py-1.5 text-[11px] text-white/60 backdrop-blur sm:bottom-5 sm:left-7 sm:px-4 sm:py-2 sm:text-[12px]">
         Produto validado
       </div>
-      <div className="absolute bottom-5 right-7 rounded-full bg-[#d8f0c8] px-4 py-2 text-[12px] font-semibold text-[#152012] shadow-[0_12px_28px_rgba(216,240,200,0.16)]">
+      <div className="absolute bottom-4 right-5 rounded-full bg-[#d8f0c8] px-3 py-1.5 text-[11px] font-semibold text-[#152012] shadow-[0_12px_28px_rgba(216,240,200,0.16)] sm:bottom-5 sm:right-7 sm:px-4 sm:py-2 sm:text-[12px]">
         pronto para testar
       </div>
     </div>
@@ -449,47 +449,47 @@ export default function Index() {
         </button>
       </header>
 
-      <section className="mx-auto grid min-h-[470px] w-full max-w-[1340px] items-center gap-10 px-6 pb-3 pt-5 sm:px-8 lg:min-h-[505px] lg:grid-cols-[0.52fr_0.48fr] lg:px-12 lg:pb-2 lg:pt-6">
+      <section className="mx-auto grid w-full max-w-[1340px] items-center gap-7 px-6 pb-10 pt-5 sm:min-h-[470px] sm:gap-10 sm:px-8 sm:pb-3 lg:min-h-[505px] lg:grid-cols-[0.52fr_0.48fr] lg:px-12 lg:pb-2 lg:pt-6">
         <div data-reveal className="max-w-[720px]">
           <h1 className="max-w-[780px] text-[#12120f] antialiased [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-synthesis-weight:none] [text-rendering:geometricPrecision]">
-            <span className="block whitespace-nowrap text-[36px] font-[385] leading-[1.035] tracking-[-0.041em] sm:text-[42px] md:text-[52px] lg:text-[58px] xl:text-[64px]">
+            <span className="block text-[34px] font-[385] leading-[1.035] tracking-[-0.041em] sm:whitespace-nowrap sm:text-[42px] md:text-[52px] lg:text-[58px] xl:text-[64px]">
               Comece sua loja
             </span>
-            <span className="mt-0 block whitespace-nowrap text-[36px] font-[385] leading-[1.035] tracking-[-0.041em] sm:text-[42px] md:text-[52px] lg:text-[58px] xl:text-[64px]">
+            <span className="mt-0 block text-[34px] font-[385] leading-[1.035] tracking-[-0.041em] sm:whitespace-nowrap sm:text-[42px] md:text-[52px] lg:text-[58px] xl:text-[64px]">
               com produtos prontos
             </span>
           </h1>
 
-          <p className="mt-7 max-w-[720px] text-[20px] font-[400] leading-[1.36] tracking-[-0.021em] text-[#64635f] antialiased md:text-[22px] lg:text-[23px]">
+          <p className="mt-5 max-w-[720px] text-[18px] font-[400] leading-[1.38] tracking-[-0.021em] text-[#64635f] antialiased sm:mt-7 sm:text-[20px] md:text-[22px] lg:text-[23px]">
             A Velo encontra oportunidades para você vender online sem estoque, sem operação complexa e sem perder tempo procurando produtos.
           </p>
 
           <form
             onSubmit={handleSubmit}
-            className="mt-8 flex h-[54px] max-w-[510px] items-center rounded-full border border-black/[0.075] bg-white p-[3px] shadow-[0_1px_0_rgba(0,0,0,0.014)]"
+            className="mt-7 hidden max-w-[510px] flex-col gap-2 rounded-[28px] border border-black/[0.075] bg-white p-2 shadow-[0_1px_0_rgba(0,0,0,0.014)] sm:mt-8 sm:flex sm:h-[54px] sm:flex-row sm:items-center sm:gap-0 sm:rounded-full sm:p-[3px]"
           >
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Digite seu e-mail"
-              className="min-w-0 flex-1 bg-transparent px-6 text-[16px] font-normal tracking-[-0.01em] text-[#141411] outline-none placeholder:text-black/56"
+              className="h-12 min-w-0 flex-1 bg-transparent px-5 text-[16px] font-normal tracking-[-0.01em] text-[#141411] outline-none placeholder:text-black/56 sm:h-auto sm:px-6"
             />
             <button
               type="submit"
-              className="h-[46px] rounded-full bg-[#060606] px-6 text-[15px] font-medium tracking-[-0.008em] text-white transition hover:bg-black/85 sm:px-7"
+              className="h-[46px] w-full rounded-full bg-[#060606] px-6 text-[15px] font-medium tracking-[-0.008em] text-white transition hover:bg-black/85 sm:w-auto sm:px-7"
             >
               {ctaLabel}
             </button>
           </form>
 
-          <p className="mt-4 text-[13px] font-normal tracking-[-0.004em] text-[#77746e] md:text-[14px]">
+          <p className="mt-4 hidden text-[13px] font-normal tracking-[-0.004em] text-[#77746e] sm:block md:text-[14px]">
             Você concorda em receber e-mails da Velo.
           </p>
         </div>
 
-        <div data-reveal className="relative min-h-[300px] lg:min-h-[405px]">
-          <div className="absolute inset-0 flex items-center justify-center">
+        <div data-reveal className="relative min-h-[250px] sm:min-h-[300px] lg:min-h-[405px]">
+          <div className="flex items-center justify-center sm:absolute sm:inset-0">
             <StoreMockup />
           </div>
         </div>
@@ -517,29 +517,29 @@ export default function Index() {
         </div>
       </section>
 
-      <section className="relative mt-8 overflow-hidden rounded-t-[44px] bg-[#030b0a] px-6 py-20 text-white sm:px-8 lg:mx-auto lg:max-w-[1440px] lg:rounded-t-[56px] lg:px-20 lg:py-28">
+      <section className="relative mt-4 overflow-hidden rounded-t-[30px] bg-[#030b0a] px-4 py-12 text-white sm:mt-8 sm:rounded-t-[44px] sm:px-8 sm:py-20 lg:mx-auto lg:max-w-[1440px] lg:rounded-t-[56px] lg:px-20 lg:py-28">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_8%,rgba(216,240,200,0.08),transparent_32%)]" />
         <div className="relative mx-auto max-w-[1180px]">
-          <h2 data-reveal className="max-w-[820px] text-[46px] font-[300] leading-[1.02] tracking-[-0.055em] md:text-[64px] lg:text-[74px]">
+          <h2 data-reveal className="max-w-[820px] text-[34px] font-[300] leading-[1.04] tracking-[-0.055em] sm:text-[46px] md:text-[64px] lg:text-[74px]">
             Um processo de vendas mais inteligente começa aqui
           </h2>
 
-          <div className="mt-16 grid gap-6 lg:grid-cols-3">
+          <div className="mt-9 grid gap-4 sm:mt-16 sm:gap-6 lg:grid-cols-3">
             {processCards.map((card) => (
               <article
                 data-reveal
                 key={card.title}
-                className="group rounded-[30px] bg-white/[0.055] p-6 ring-1 ring-white/[0.055] transition duration-300 hover:-translate-y-1 hover:bg-white/[0.075]"
+                className="group rounded-[24px] bg-white/[0.055] p-5 ring-1 ring-white/[0.055] transition duration-300 hover:-translate-y-1 hover:bg-white/[0.075] sm:rounded-[30px] sm:p-6"
               >
                 <ProcessVisual type={card.visual} />
-                <h3 className="mt-8 max-w-[340px] text-[32px] font-[300] leading-[1.05] tracking-[-0.05em] text-white">{card.title}</h3>
-                <p className="mt-5 text-[17px] leading-[1.45] tracking-[-0.01em] text-white/60">{card.text}</p>
+                <h3 className="mt-6 max-w-[340px] text-[27px] font-[300] leading-[1.06] tracking-[-0.05em] text-white sm:mt-8 sm:text-[32px]">{card.title}</h3>
+                <p className="mt-3 text-[15px] leading-[1.45] tracking-[-0.01em] text-white/60 sm:mt-5 sm:text-[17px]">{card.text}</p>
               </article>
             ))}
           </div>
 
-          <div data-reveal className="mt-24 max-w-[980px]">
-            <blockquote className="text-[34px] font-[300] leading-[1.14] tracking-[-0.045em] text-white md:text-[46px]">
+          <div data-reveal className="mt-14 max-w-[980px] sm:mt-24">
+            <blockquote className="text-[26px] font-[300] leading-[1.14] tracking-[-0.045em] text-white sm:text-[34px] md:text-[46px]">
               “A melhor operação começa quando você entende o produto, o canal e o próximo passo com clareza.”
             </blockquote>
             <div className="mt-8 text-[18px] font-semibold text-white">Velo</div>

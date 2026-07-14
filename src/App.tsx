@@ -167,6 +167,7 @@ const App = () => (
                 <Route path="publicacoes/:id" element={<ProductDetailPage />} />
                 <Route path="relatorios" element={<ReportsPage />} />
                 <Route path="resultados" element={<ResultsPage />} />
+                <Route path="minha-conta" element={<div />} />
                 <Route path="mais" element={<MorePage />} />
                 <Route path="integracoes" element={<IntegracoesPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />

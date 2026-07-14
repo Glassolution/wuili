@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 
 type Platform = {
   id: string;
@@ -66,13 +67,12 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
   const connectML = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase.functions.invoke("ml-connect");
-    const authUrl = data?.authUrl ?? data?.auth_url;
-    if (error || !authUrl) {
+    try {
+      await startMercadoLivreOAuth();
+    } catch (err) {
       veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
       return;
     }
-    window.location.href = authUrl;
   };
 
   const disconnectML = async () => {

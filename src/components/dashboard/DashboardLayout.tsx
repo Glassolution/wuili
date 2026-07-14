@@ -42,12 +42,12 @@ import {
   Landmark,
   MessageSquare,
   Settings,
+  Search,
   ShieldCheck,
   ShoppingCart,
   TrendingUp,
   UserRound,
   Video,
-  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -73,6 +73,7 @@ const mobileRoutes: MobileRouteMeta[] = [
   { test: (p) => p.startsWith("/dashboard/comissoes"), title: "Comissões" },
   { test: (p) => p.startsWith("/dashboard/relatorios"), title: "Relatórios" },
   { test: (p) => p.startsWith("/dashboard/resultados"), title: "Resultados" },
+  { test: (p) => p.startsWith("/dashboard/minha-conta"), title: "Minha Conta" },
   { test: (p) => p.startsWith("/dashboard/configuracoes"), title: "Perfil" },
 ];
 
@@ -155,7 +156,7 @@ const MobileBottomItem = ({
 
   if (to) {
     return (
-      <Link to={to} className={className} style={style} aria-current={active ? "page" : undefined}>
+      <Link to={to} onClick={onClick} className={className} style={style} aria-current={active ? "page" : undefined}>
         {content}
       </Link>
     );
@@ -178,7 +179,7 @@ const MobileDrawerLink = ({
   to: string;
   label: string;
   icon: LucideIcon;
-  onClick: () => void;
+  onClick?: () => void;
   badge?: string;
 }) => (
   <Link
@@ -194,6 +195,71 @@ const MobileDrawerLink = ({
   </Link>
 );
 
+const MobileAccountPage = ({
+  displayName,
+  foto,
+  initials,
+  planLabel,
+  planLoading,
+  isAdmin,
+}: {
+  displayName: string;
+  foto?: string | null;
+  initials: string;
+  planLabel: string;
+  planLoading: boolean;
+  isAdmin: boolean;
+}) => (
+  <section className="-mx-4 -mt-4 min-h-screen bg-white pb-8">
+    <div className="bg-[#111111] px-5 pb-6 pt-6 text-white">
+      <div className="mb-6">
+        <span className="text-[24px] font-bold tracking-[-0.04em]">Velo</span>
+      </div>
+      <Link to="/dashboard/configuracoes" className="flex min-w-0 items-center gap-4">
+        <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/80 bg-white text-[18px] font-bold text-[#111111] shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+          {foto ? <img src={foto} alt="Avatar" className="h-full w-full object-cover" /> : initials || "VL"}
+        </span>
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-[21px] font-bold tracking-[-0.03em]">{displayName}</p>
+            {!planLoading && (
+              <span className="shrink-0 rounded-full border border-white/20 bg-white/12 px-2 py-1 text-[9px] font-black uppercase leading-none text-white/85">
+                {planLabel}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 truncate text-[13px] font-medium text-white/75">Meu perfil ›</p>
+        </div>
+      </Link>
+      <Link to="/dashboard/configuracoes" className="mt-6 flex h-14 items-center justify-between rounded-2xl bg-white px-4 text-[#111111] shadow-[0_10px_25px_rgba(0,0,0,0.10)]">
+        <div>
+          <p className="text-[13px] font-bold">Sua conta Velo</p>
+          <p className="text-[11px] text-black/50">Plano, loja e preferências</p>
+        </div>
+        <span className="text-[20px]">›</span>
+      </Link>
+    </div>
+
+    <div className="px-5 pb-6">
+      <div>
+        <MobileDrawerLink to="/dashboard" label="Início" icon={Home} />
+        <MobileDrawerLink to="/dashboard/configuracoes?tab=Suporte" label="Suporte" icon={Headphones} />
+        <MobileDrawerLink to="/dashboard/publicacoes" label="Publicações" icon={Archive} />
+        <MobileDrawerLink to="/colecoes" label="Coleções" icon={Copy} />
+        <MobileDrawerLink to="/dashboard/relatorios" label="Relatórios" icon={ClipboardList} />
+        <MobileDrawerLink to="/docs" label="Ajuda & Central" icon={HelpCircle} />
+        {isAdmin && (
+          <MobileDrawerLink to="/admin/painel" label="Painel Admin" icon={ShieldCheck} badge="Admin" />
+        )}
+      </div>
+
+      <div className="pt-0">
+        <MobileDrawerLink to="/dashboard/configuracoes" label="Configurações" icon={Settings} />
+      </div>
+    </div>
+  </section>
+);
+
 const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -202,7 +268,6 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const { foto } = useProfile();
   const isStartMode = false;
   const hasActivePlan = true;
-  const [menuOpen, setMenuOpen] = useState(false);
   const [showStartModeModal, setShowStartModeModal] = useState(false);
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
@@ -217,6 +282,8 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
       ? { title: "Suporte" }
       : mobileRoutes.find((r) => r.test(location.pathname)) ?? mobileRoutes[0];
   const isRootDashboard = location.pathname === "/dashboard";
+  const isAccountPage = location.pathname === "/dashboard/minha-conta";
+  const isCatalogProductDetail = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
   const displayName = user?.user_metadata?.full_name ?? user?.email ?? "Velo";
   const initials = displayName
     .split(/[\s._\-@]+/)
@@ -230,7 +297,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
     go: "Go",
     pro: "Pro",
     business: "Business",
-  }[plan];
+  }[plan] ?? "Grátis";
 
   useEffect(() => {
     setResolvedRole(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
@@ -277,29 +344,43 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
 
   const isAdmin = resolvedRole === "admin";
   const canAccessCommissions = resolvedRole === "influencer" || resolvedRole === "affiliate" || resolvedRole === "admin";
-  const closeMenu = () => setMenuOpen(false);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-      {!isRootDashboard && (
-        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-black/[0.06] bg-white/96 px-4 backdrop-blur-xl">
-          <div className="flex min-w-0 items-center gap-3">
+      {!isRootDashboard && !isAccountPage && (
+        <header
+          className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-[#050505] px-4 backdrop-blur-xl"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F4F4F2] text-[#111111]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white"
               aria-label="Voltar"
             >
               <ArrowLeft size={19} />
             </button>
-            <div className="min-w-0">
-              <p className="truncate text-[15px] font-semibold leading-5 tracking-[-0.02em] text-[#111111]">{routeMeta.title}</p>
-              <p className="truncate text-[11px] font-medium text-black/38">Velo mobile</p>
-            </div>
+            {isCatalogProductDetail ? (
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/catalogo")}
+                className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 text-left text-[#5F6670]"
+              >
+                <Search size={16} strokeWidth={2} className="shrink-0 text-[#3E454D]" />
+                <span className="truncate text-[13px] font-semibold">Buscar na Velo</span>
+              </button>
+            ) : (
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-semibold leading-5 tracking-[-0.02em] text-white">{routeMeta.title}</p>
+                <p className="truncate text-[11px] font-medium text-white">Velo mobile</p>
+              </div>
+            )}
           </div>
 
           <div className="flex shrink-0 items-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F4F4F2] [&_button]:!flex [&_button]:!h-10 [&_button]:!w-10 [&_button]:!items-center [&_button]:!justify-center [&_svg]:!h-[18px] [&_svg]:!w-[18px]">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white [&_button]:!flex [&_button]:!h-10 [&_button]:!w-10 [&_button]:!items-center [&_button]:!justify-center [&_button]:!text-white [&_svg]:!h-[18px] [&_svg]:!w-[18px] [&_svg]:!text-white"
+            >
               <NotificacoesPopover />
             </div>
           </div>
@@ -312,7 +393,20 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
         }`}
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        <PageErrorBoundary>{children}</PageErrorBoundary>
+        <PageErrorBoundary>
+          {isAccountPage ? (
+            <MobileAccountPage
+              displayName={displayName}
+              foto={foto}
+              initials={initials}
+              planLabel={planLabel}
+              planLoading={planLoading}
+              isAdmin={isAdmin}
+            />
+          ) : (
+            children
+          )}
+        </PageErrorBoundary>
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl md:hidden">
@@ -320,64 +414,9 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
           <MobileBottomItem to="/dashboard" label="Início" icon={Home} active={location.pathname === "/dashboard"} />
           <MobileBottomItem to="/dashboard/pedidos" label="Pedidos" icon={ShoppingCart} active={location.pathname.startsWith("/dashboard/pedidos")} />
           <MobileBottomItem to="/dashboard/resultados" label="Resultados" icon={TrendingUp} active={location.pathname.startsWith("/dashboard/resultados")} />
-          <MobileBottomItem label="Minha Conta" icon={UserRound} active={menuOpen || location.pathname === "/colecoes" || location.pathname.startsWith("/dashboard/configuracoes")} onClick={() => setMenuOpen(true)} />
+          <MobileBottomItem to="/dashboard/minha-conta" label="Minha Conta" icon={UserRound} active={isAccountPage || location.pathname === "/colecoes" || location.pathname.startsWith("/dashboard/configuracoes")} />
         </div>
       </nav>
-
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 overflow-y-auto bg-white pb-[calc(84px+env(safe-area-inset-bottom))]">
-            <section className="bg-[#111111] px-5 pb-6 pt-[calc(18px+env(safe-area-inset-top))] text-white">
-              <div className="mb-6 flex items-center justify-between">
-                <span className="text-[24px] font-bold tracking-[-0.04em]">Velo</span>
-                <button type="button" onClick={closeMenu} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15" aria-label="Fechar minha conta">
-                  <X size={20} />
-                </button>
-              </div>
-              <Link to="/dashboard/configuracoes" onClick={closeMenu} className="flex min-w-0 items-center gap-4">
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/80 bg-white text-[18px] font-bold text-[#111111] shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-                  {foto ? <img src={foto} alt="Avatar" className="h-full w-full object-cover" /> : initials || "VL"}
-                </span>
-                <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <p className="truncate text-[21px] font-bold tracking-[-0.03em]">{displayName}</p>
-                    {!planLoading && (
-                      <span className="shrink-0 rounded-full border border-white/20 bg-white/12 px-2 py-1 text-[9px] font-black uppercase leading-none text-white/85">
-                        {planLabel}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 truncate text-[13px] font-medium text-white/75">Meu perfil ›</p>
-                </div>
-              </Link>
-              <Link to="/dashboard/configuracoes" onClick={closeMenu} className="mt-6 flex h-14 items-center justify-between rounded-2xl bg-white px-4 text-[#111111] shadow-[0_10px_25px_rgba(0,0,0,0.10)]">
-                <div>
-                  <p className="text-[13px] font-bold">Sua conta Velo</p>
-                  <p className="text-[11px] text-black/50">Plano, loja e preferências</p>
-                </div>
-                <span className="text-[20px]">›</span>
-              </Link>
-            </section>
-
-            <div className="px-5 pb-6">
-              <div>
-                <MobileDrawerLink to="/dashboard/publicacoes" label="Publicações" icon={Archive} onClick={closeMenu} />
-                <MobileDrawerLink to="/colecoes" label="Coleções" icon={Copy} onClick={closeMenu} />
-                <MobileDrawerLink to="/dashboard/relatorios" label="Relatórios" icon={ClipboardList} onClick={closeMenu} />
-                <MobileDrawerLink to="/docs" label="Ajuda & Central" icon={HelpCircle} onClick={closeMenu} />
-                {isAdmin && (
-                  <MobileDrawerLink to="/admin/painel" label="Painel Admin" icon={ShieldCheck} onClick={closeMenu} badge="Admin" />
-                )}
-              </div>
-
-              <div className="pt-0">
-                <MobileDrawerLink to="/dashboard/configuracoes" label="Perfil e configurações" icon={Settings} onClick={closeMenu} />
-                <MobileDrawerLink to="/dashboard/configuracoes?tab=Suporte" label="Suporte" icon={Headphones} onClick={closeMenu} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <StartModeModal isOpen={showStartModeModal} onClose={() => setShowStartModeModal(false)} />
     </div>

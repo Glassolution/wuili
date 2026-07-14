@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { veloToast } from "@/components/ui/velo-toast";
+import { getMockLucasOrder, isLucasMockOrderUser, isMockLucasOrder } from "@/lib/mockLucasOrder";
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
 
@@ -56,44 +57,6 @@ const getStatusLabel = (status: string | null | undefined) => {
   const key = (status ?? "pending").toLowerCase();
   return statusLabels[key] ?? clean(status);
 };
-
-const mockOrderEmail = "lucassrby@gmail.com";
-
-const getMockLucasOrder = (userId: string): MlOrderRow => ({
-  id: "mock-lucassrby-order-001",
-  user_id: userId,
-  ml_order_id: "ML-MOCK-20260712-001",
-  ml_user_id: "lucas-demo-ml",
-  external_order_id: "VELO-MOCK-001",
-  shipment_id: "SHIP-MOCK-001",
-  status: "paid",
-  fulfillment_status: "pending",
-  sale_price: 189.9,
-  total_amount: 189.9,
-  cost_price: 82.4,
-  profit: 107.5,
-  quantity: 1,
-  ordered_at: "2026-07-12T14:20:00.000Z",
-  created_at: "2026-07-12T14:20:00.000Z",
-  product_title: "Fone de ouvido Bluetooth TWS E10 Pro",
-  product_image: "/placeholder.svg",
-  buyer_name: "Cliente Mercado Livre",
-  buyer_email: "cliente.demo@mercadolivre.com",
-  buyer_phone: "(11) 99999-0000",
-  buyer_address: "Rua das Palmeiras",
-  buyer_number: "120",
-  buyer_complement: "Apto 42",
-  buyer_neighborhood: "Centro",
-  buyer_city: "Sao Paulo",
-  buyer_state: "SP",
-  buyer_zip: "01000-000",
-  tracking_code: "BR123456789MOCK",
-  catalog_product_id: null,
-  supplier_url: null,
-  supplier_name: "Fornecedor Velo",
-  catalog_title: null,
-  catalog_images: null,
-});
 
 const getOrderCode = (order: MlOrderRow) => clean(order.ml_order_id ?? order.external_order_id ?? order.id);
 
@@ -164,60 +127,112 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
   const image = getOrderImage(order);
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
-      className="group grid cursor-pointer grid-cols-1 gap-3 border-b border-black/[0.06] bg-white px-4 py-4 outline-none transition hover:bg-[#FAFAFA] focus-visible:ring-2 focus-visible:ring-black/20 md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center"
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#F5F5F5]">
-          {image ? (
-            <img src={image} alt={getProductName(order)} className="h-full w-full object-cover" />
-          ) : (
-            <Package size={20} strokeWidth={1.5} className="text-[#A3A3A3]" />
-          )}
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
+        className="cursor-pointer rounded-[28px] bg-[#F6F6F6] p-5 outline-none transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-black/20 md:hidden"
+      >
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_18px_rgba(0,0,0,0.05)]">
+            {image ? (
+              <img src={image} alt={getProductName(order)} className="h-full w-full object-cover" />
+            ) : (
+              <Package size={22} strokeWidth={1.5} className="text-[#A3A3A3]" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 text-[16px] font-black leading-tight tracking-[-0.03em] text-[#0A0A0A]">{getProductName(order)}</p>
+            <p className="mt-1 text-[12px] font-bold text-black/45">
+              Qtd. {clean(order.quantity)} · {formatBRL(order.total_amount ?? order.sale_price)}
+            </p>
+          </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-x-5 gap-y-5">
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold text-black/42">Product ID:</p>
+            <p className="mt-2 truncate text-[16px] font-black tracking-[-0.03em] text-[#0A0A0A]">{getOrderCode(order)}</p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold text-black/42">Comprador:</p>
+            <p className="mt-2 truncate text-[14px] font-black tracking-[-0.03em] text-[#0A0A0A]">{clean(order.buyer_name)}</p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold text-black/42">Status:</p>
+            <span className="mt-2 inline-flex h-8 items-center rounded-full bg-[#C8F7DF] px-3 text-[12px] font-black text-[#137443]">
+              Confirmado
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold text-black/42">Data:</p>
+            <p className="mt-2 text-[14px] font-bold leading-tight text-[#0A0A0A]">{formatDate(order.ordered_at ?? order.created_at)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
+        className="group hidden cursor-pointer grid-cols-1 gap-3 border-b border-black/[0.06] bg-white px-4 py-4 outline-none transition hover:bg-[#FAFAFA] focus-visible:ring-2 focus-visible:ring-black/20 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#F5F5F5]">
+            {image ? (
+              <img src={image} alt={getProductName(order)} className="h-full w-full object-cover" />
+            ) : (
+              <Package size={20} strokeWidth={1.5} className="text-[#A3A3A3]" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="line-clamp-1 text-[14px] font-semibold text-[#0A0A0A]">{getProductName(order)}</p>
+            <p className="mt-1 text-[12px] text-[#737373]">Qtd. {clean(order.quantity)} · ML {getOrderCode(order)}</p>
+          </div>
+        </div>
+
         <div className="min-w-0">
-          <p className="line-clamp-1 text-[14px] font-semibold text-[#0A0A0A]">{getProductName(order)}</p>
-          <p className="mt-1 text-[12px] text-[#737373]">Qtd. {clean(order.quantity)} · ML {getOrderCode(order)}</p>
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Comprador</p>
+          <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{clean(order.buyer_name)}</p>
         </div>
-      </div>
 
-      <div className="min-w-0">
-        <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Comprador</p>
-        <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{clean(order.buyer_name)}</p>
-      </div>
+        <div>
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Status</p>
+          <span className="inline-flex h-7 items-center rounded-full border border-black/[0.08] bg-[#F5F5F5] px-2.5 text-[12px] font-semibold text-[#404040]">
+            {getStatusLabel(order.status)}
+          </span>
+        </div>
 
-      <div>
-        <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Status</p>
-        <span className="inline-flex h-7 items-center rounded-full border border-black/[0.08] bg-[#F5F5F5] px-2.5 text-[12px] font-semibold text-[#404040]">
-          {getStatusLabel(order.status)}
-        </span>
-      </div>
+        <div>
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Valor</p>
+          <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total_amount ?? order.sale_price)}</p>
+        </div>
 
-      <div>
-        <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Valor</p>
-        <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total_amount ?? order.sale_price)}</p>
-      </div>
+        <div>
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Data</p>
+          <p className="text-[13px] font-medium text-[#525252]">{formatDate(order.ordered_at ?? order.created_at)}</p>
+        </div>
 
-      <div>
-        <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Data</p>
-        <p className="text-[13px] font-medium text-[#525252]">{formatDate(order.ordered_at ?? order.created_at)}</p>
-      </div>
+        <div className="flex items-center gap-2 md:justify-end">
+          <SupplierButton url={order.supplier_url} compact />
+        </div>
 
-      <div className="flex items-center gap-2 md:justify-end">
-        <SupplierButton url={order.supplier_url} compact />
+        <ChevronRight size={18} strokeWidth={1.5} className="hidden text-[#A3A3A3] transition group-hover:translate-x-0.5 group-hover:text-[#0A0A0A] md:block" />
       </div>
-
-      <ChevronRight size={18} strokeWidth={1.5} className="hidden text-[#A3A3A3] transition group-hover:translate-x-0.5 group-hover:text-[#0A0A0A] md:block" />
-    </div>
+    </>
   );
 };
 
@@ -274,12 +289,11 @@ const OrdersPage = () => {
 
   const orders = useMemo(
     () => {
-      const email = user?.email?.trim().toLowerCase();
       const baseOrders =
-        email === mockOrderEmail && user?.id
+        isLucasMockOrderUser(user?.email) && user?.id
           ? [
               getMockLucasOrder(user.id),
-              ...(rawOrders ?? []).filter((order) => order.id !== "mock-lucassrby-order-001"),
+              ...(rawOrders ?? []).filter((order) => !isMockLucasOrder(order)),
             ]
           : [...(rawOrders ?? [])];
 
@@ -323,7 +337,7 @@ const OrdersPage = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-black/[0.08] bg-white">
+          <div className="space-y-3 bg-transparent md:space-y-0 md:overflow-hidden md:rounded-xl md:border md:border-black/[0.08] md:bg-white">
             <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] border-b border-black/[0.08] bg-[#FAFAFA] px-4 py-3 text-[11px] font-semibold uppercase text-[#737373] md:grid">
               <span>Produto</span>
               <span>Comprador</span>

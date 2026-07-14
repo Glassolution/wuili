@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowUp, Check, CheckCheck, Headphones, Loader2, UserRound, X } from "lucide-react";
+import { ArrowUp, Headphones, Loader2, UserRound, X } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -46,8 +46,6 @@ type SupportMessage = {
   sender: "user" | "admin" | "ai";
   created_at: string;
 };
-
-type MessageReceipt = "sent" | "seen";
 
 const SupportTab = () => {
   const { user } = useAuth();
@@ -325,16 +323,6 @@ const SupportTab = () => {
 
   const visibleSupportMessages = supportMessages.filter((m) => m.sender !== "ai");
   const hasAdminReply = visibleSupportMessages.some((m) => m.sender === "admin");
-  const getMessageReceipt = (message: SupportMessage): MessageReceipt => {
-    if (message.sender === "admin") return "seen";
-
-    const messageTime = new Date(message.created_at).getTime();
-    const hasReplyAfter = visibleSupportMessages.some((item) => {
-      return item.sender === "admin" && new Date(item.created_at).getTime() > messageTime;
-    });
-
-    return hasReplyAfter ? "seen" : "sent";
-  };
   const supportClosed = ticket?.status === "closed";
   const supportReady = ticketLoading || (!!ticket && !supportClosed);
 
@@ -437,7 +425,7 @@ const SupportTab = () => {
             )}
 
             {visibleSupportMessages.map((m) => (
-              <HumanMessageBubble key={m.id} msg={m} receipt={getMessageReceipt(m)} />
+              <HumanMessageBubble key={m.id} msg={m} />
             ))}
           </>
 
@@ -477,7 +465,7 @@ const SupportTab = () => {
   );
 };
 
-const HumanMessageBubble = ({ msg, receipt }: { msg: SupportMessage; receipt: MessageReceipt }) => {
+const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
   const isUser = msg.sender === "user";
 
   if (isUser) {
@@ -485,7 +473,6 @@ const HumanMessageBubble = ({ msg, receipt }: { msg: SupportMessage; receipt: Me
       <div className="flex justify-end">
         <div className="max-w-[75%] rounded-[16px_4px_16px_16px] bg-black px-4 py-2.5 text-[14px] leading-[1.6] text-white whitespace-pre-wrap dark:bg-white dark:text-black">
           {msg.message}
-          <MessageReceiptLabel receipt={receipt} inverted />
         </div>
       </div>
     );
@@ -501,25 +488,8 @@ const HumanMessageBubble = ({ msg, receipt }: { msg: SupportMessage; receipt: Me
           Suporte Velo
         </p>
         {msg.message}
-        <MessageReceiptLabel receipt={receipt} />
       </div>
     </div>
-  );
-};
-
-const MessageReceiptLabel = ({ receipt, inverted = false }: { receipt: MessageReceipt; inverted?: boolean }) => {
-  const Icon = receipt === "seen" ? CheckCheck : Check;
-
-  return (
-    <span
-      className={[
-        "mt-1.5 flex items-center justify-end gap-1 text-[10px] font-semibold leading-none",
-        inverted ? "text-white/65 dark:text-black/60" : "text-[#A3A3A3] dark:text-zinc-400",
-      ].join(" ")}
-    >
-      <Icon size={12} strokeWidth={2.4} />
-      {receipt === "seen" ? "Visto" : "Enviado"}
-    </span>
   );
 };
 

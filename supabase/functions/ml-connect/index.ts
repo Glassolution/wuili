@@ -66,5 +66,5 @@ serve(async (req) => {
   });
 
   const authUrl = `https://auth.mercadolivre.com.br/authorization?${params}`;
-  return json({ authUrl, auth_url: authUrl });
+  return json({ authUrl, auth_url: authUrl, url: authUrl });
 });

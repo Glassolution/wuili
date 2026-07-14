@@ -1088,9 +1088,85 @@ const CollectionsOverview = ({ kpis }: { kpis: CollectionKpis }) => {
   );
 };
 
+type SoldProductSummary = {
+  key: string;
+  title: string;
+  image: string | null;
+  quantity: number;
+  revenue: number;
+  lastSoldAt: string | null;
+};
+
+type OrderProductRow = Pick<
+  Database["public"]["Tables"]["orders"]["Row"],
+  "id" | "product_title" | "product_image" | "quantity" | "sale_price" | "total_amount" | "ordered_at" | "created_at" | "status"
+>;
+
+const formatShortDate = (dateValue: string | null) => {
+  if (!dateValue) return "Sem data";
+
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "Sem data";
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+  }).format(date);
+};
+
+const loadSoldProducts = async (userId: string): Promise<SoldProductSummary[]> => {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id,product_title,product_image,quantity,sale_price,total_amount,ordered_at,created_at,status")
+    .eq("user_id", userId)
+    .order("ordered_at", { ascending: false, nullsFirst: false })
+    .limit(40);
+
+  if (error) throw error;
+
+  const rows = ((data ?? []) as OrderProductRow[]).filter((order) => {
+    const status = String(order.status || "").toLowerCase();
+    return !["cancelled", "canceled", "refunded", "returned"].includes(status);
+  });
+
+  const grouped = rows.reduce<Map<string, SoldProductSummary>>((map, order) => {
+    const title = order.product_title || "Produto vendido";
+    const key = title.trim().toLowerCase();
+    const quantity = Number(order.quantity || 1);
+    const revenue = Number(order.total_amount ?? order.sale_price * quantity ?? 0);
+    const soldAt = order.ordered_at || order.created_at;
+    const current = map.get(key);
+
+    if (!current) {
+      map.set(key, {
+        key,
+        title,
+        image: order.product_image,
+        quantity,
+        revenue,
+        lastSoldAt: soldAt,
+      });
+      return map;
+    }
+
+    current.quantity += quantity;
+    current.revenue += revenue;
+    if (!current.image && order.product_image) current.image = order.product_image;
+    if (soldAt && (!current.lastSoldAt || new Date(soldAt) > new Date(current.lastSoldAt))) {
+      current.lastSoldAt = soldAt;
+    }
+    return map;
+  }, new Map<string, SoldProductSummary>());
+
+  return Array.from(grouped.values())
+    .sort((a, b) => b.revenue - a.revenue || b.quantity - a.quantity)
+    .slice(0, 5);
+};
+
 export const MobileResultsOverview = () => {
   const { user } = useAuth();
   const [kpis, setKpis] = useState<CollectionKpis>(emptyKpis);
+  const [soldProducts, setSoldProducts] = useState<SoldProductSummary[]>([]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -1099,6 +1175,13 @@ export const MobileResultsOverview = () => {
     void loadCollectionKpis(user.id).then((nextKpis) => {
       if (isMounted) setKpis(nextKpis);
     });
+    void loadSoldProducts(user.id)
+      .then((products) => {
+        if (isMounted) setSoldProducts(products);
+      })
+      .catch(() => {
+        if (isMounted) setSoldProducts([]);
+      });
 
     return () => {
       isMounted = false;
@@ -1107,53 +1190,91 @@ export const MobileResultsOverview = () => {
 
   const chartValues = kpis.monthlySales.some((value) => value > 0) ? kpis.monthlySales : kpis.monthlyOrders;
   const metrics = [
-    ["Vendas", kpis.revenue],
-    ["Pedidos", kpis.orders],
-    ["Entregues", kpis.fulfilledOrders],
-    ["Ticket médio", kpis.averageOrderValue],
+    ["Vendas", kpis.revenue, "Receita confirmada"],
+    ["Pedidos", kpis.orders, "Vendas registradas"],
+    ["Entregues", kpis.fulfilledOrders, "Pedidos finalizados"],
+    ["Ticket médio", kpis.averageOrderValue, "Valor por pedido"],
+    ["Publicados", kpis.activePublications, "Anúncios ativos"],
+    ["Recorrência", kpis.returningCustomerRate, "Clientes que voltam"],
   ];
 
   return (
-    <section className="space-y-4 bg-[#F4F4F2] p-1 pb-5">
-      <div>
-        <h1 className="text-[24px] font-black tracking-[-0.05em] text-[#111111]">Seus resultados</h1>
-        <p className="mt-1 text-[13px] font-medium text-black/50">Visão simples do desempenho da sua loja.</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2.5">
-        {metrics.map(([label, value]) => (
-          <article key={label} className="min-h-[104px] rounded-[16px] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.05)]">
-            <p className="text-[12px] font-semibold text-black/48">{label}</p>
-            <p className="mt-3 text-[21px] font-black tracking-[-0.04em] text-[#111111]">{value}</p>
-          </article>
-        ))}
-      </div>
-
-      <article className="rounded-[18px] bg-white p-4 shadow-[0_1px_0_rgba(0,0,0,0.05)]">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-[12px] font-semibold text-black/48">Evolução das vendas</p>
-            <p className="mt-1 text-[22px] font-black tracking-[-0.04em] text-[#111111]">{kpis.revenue}</p>
-          </div>
-          <span className="rounded-full bg-[#F1F1F1] px-3 py-1.5 text-[11px] font-bold text-black/60">6 meses</span>
+    <section className="-mx-1 -mt-1 min-h-screen bg-[#F1F3F7] px-3 pb-5 pt-3">
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="min-w-0">
+          <p className="text-[12px] font-bold text-black/38">Velo Analytics</p>
+          <h1 className="mt-0.5 text-[19px] font-black tracking-[-0.04em] text-[#111111]">Seus resultados</h1>
         </div>
-        <Sparkline values={chartValues} className="mt-5 h-[108px] w-full" />
-      </article>
+      </div>
 
-      <article className="rounded-[18px] bg-[#111111] p-4 text-white">
-        <p className="text-[12px] font-semibold text-white/55">Resumo da operação</p>
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          {[
-            ["Catálogo", kpis.catalogProducts],
-            ["Publicados", kpis.activePublications],
-            ["Recorrência", kpis.returningCustomerRate],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <p className="text-[18px] font-black">{value}</p>
-              <p className="mt-1 text-[10px] font-semibold text-white/50">{label}</p>
-            </div>
+      <article className="mt-4 overflow-hidden rounded-[18px] border border-white/70 bg-white/72 p-3 shadow-[0_18px_42px_rgba(33,45,66,0.07)]">
+        <div className="mb-3 flex items-center justify-between gap-2 px-1">
+          <h2 className="text-[15px] font-black tracking-[-0.03em] text-[#111111]">Atividade de vendas</h2>
+          <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black text-black/55 shadow-[0_6px_14px_rgba(17,17,17,0.04)]">6 meses</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          {metrics.map(([label, value, description]) => (
+            <article key={label} className="relative min-h-[106px] rounded-[16px] bg-[#F8F8FB] px-4 py-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.8)]">
+              <p className="text-[22px] font-black leading-none tracking-[-0.05em] text-[#111111]">{value}</p>
+              <p className="mt-4 text-[11px] font-semibold leading-tight text-black/45">{label}</p>
+              <p className="mt-1 line-clamp-1 text-[9px] font-semibold text-black/28">{description}</p>
+            </article>
           ))}
         </div>
+      </article>
+
+      <article className="mt-4 rounded-[18px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_42px_rgba(33,45,66,0.07)]">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[12px] font-bold text-black/45">Evolução das vendas</p>
+            <p className="mt-1 text-[25px] font-black tracking-[-0.05em] text-[#111111]">{kpis.revenue}</p>
+          </div>
+          <span className="rounded-full bg-[#F1F3F7] px-3 py-1.5 text-[11px] font-black text-black/50">6 meses</span>
+        </div>
+        <Sparkline values={chartValues} className="mt-5 h-[86px] w-full" />
+      </article>
+
+      <article className="mt-4 overflow-hidden rounded-[18px] border border-white/70 bg-white/86 shadow-[0_18px_42px_rgba(33,45,66,0.07)]">
+        <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-4">
+          <h2 className="text-[15px] font-black tracking-[-0.03em] text-[#111111]">Produtos vendidos</h2>
+        </div>
+
+        {soldProducts.length > 0 ? (
+          <div className="divide-y divide-black/[0.06]">
+            {soldProducts.map((product) => (
+              <div key={product.key} className="flex gap-3 px-4 py-3">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[#EEF1F5]">
+                  {product.image ? (
+                    <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-[18px]">📦</div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="line-clamp-1 text-[13px] font-black tracking-[-0.02em] text-[#111111]">{product.title}</p>
+                      <p className="mt-0.5 text-[10px] font-semibold text-black/42">{product.quantity} vendido{product.quantity === 1 ? "" : "s"}</p>
+                    </div>
+                    <span className="shrink-0 text-[12px] font-black text-[#111111]">{formatCurrency(product.revenue)}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[10px] font-semibold text-black/42">
+                    <span>Última venda {formatShortDate(product.lastSoldAt)}</span>
+                    <span>Mercado Livre</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="px-4 pb-5 pt-2">
+            <div className="rounded-[16px] bg-[#F8F8FB] px-4 py-6 text-center">
+              <p className="text-[13px] font-black tracking-[-0.02em] text-[#111111]">Nenhum produto vendido ainda</p>
+              <p className="mt-1 text-[11px] font-semibold text-black/42">Quando entrarem pedidos, eles aparecem aqui.</p>
+            </div>
+          </div>
+        )}
       </article>
     </section>
   );
@@ -2112,6 +2233,22 @@ const mobileShortcutItems = [
   { label: "Cashback", kind: "cashback", to: "/dashboard/catalogo" },
 ] as const;
 
+const legacyMobileVeloActionItems = [
+  { label: "Importar", emoji: "🛒", to: "/dashboard/catalogo" },
+  { label: "Pedidos", emoji: "📦", to: "/dashboard/pedidos" },
+  { label: "Resultados", emoji: "📈", to: "/dashboard/resultados" },
+  { label: "Publicações", emoji: "🧾", to: "/dashboard/publicacoes" },
+  { label: "Coleções", emoji: "🗂️", to: "/colecoes" },
+  { label: "Suporte", emoji: "🎧", to: "/dashboard/configuracoes?tab=Suporte" },
+] as const;
+
+const mobileVeloActionItems = [
+  { label: "Comunidade", image: "/assets/mobile-action-comunidade.png", to: "/docs" },
+  { label: "Coleções", image: "/assets/mobile-action-colecoes.png", to: "/colecoes" },
+  { label: "Publicações", image: "/assets/mobile-action-publicacoes.png", to: "/dashboard/publicacoes" },
+  { label: "Relatórios", image: "/assets/mobile-action-relatorios.png", to: "/dashboard/relatorios" },
+] as const;
+
 const MobileShortcutIcon = ({ kind }: { kind: (typeof mobileShortcutItems)[number]["kind"] }) => {
   if (kind === "group") {
     return (
@@ -2532,6 +2669,28 @@ const MobileAliVeloHome = ({
 
         {products.length > 0 && (
           <section className="bg-white px-4 pt-5">
+            <div className="mb-5 grid grid-cols-4 gap-0.5 pb-1">
+              {mobileVeloActionItems.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => navigate(item.to)}
+                  className="flex min-w-0 flex-col items-center text-center"
+                >
+                  <span className="flex h-[58px] w-[58px] items-center justify-center overflow-hidden">
+                    <img
+                      src={item.image}
+                      alt=""
+                      className="h-full w-full object-contain object-center"
+                    />
+                  </span>
+                  <span className="line-clamp-1 max-w-full text-[10px] font-bold leading-tight tracking-[-0.02em] text-[#4A4A4A]">
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
             <div className="mb-3 flex items-end justify-between gap-3">
               <h2 className="text-[22px] font-black tracking-[-0.05em] text-[#111111]">Produtos para vender</h2>
               <span className="shrink-0 text-[11px] font-bold text-black/40">
