@@ -87,12 +87,14 @@ export default function ProdutoPage() {
       eyebrow="Produto inicial"
       title="Escolha o primeiro produto"
       subtitle="Esse item vira a sua primeira página de venda. Depois você pode adicionar mais produtos no painel."
+      previewTitle="Produto da primeira página"
+      previewSubtitle={selected ? "Produto selecionado para gerar a página de venda." : "Selecione um produto real do catálogo Velo para continuar."}
       footer={
         <div className="space-y-3">
           <button
             onClick={handleContinue}
             disabled={!selected}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(37,99,235,0.28)] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
           >
             Gerar minha página <ArrowRight size={17} />
           </button>
@@ -103,19 +105,19 @@ export default function ProdutoPage() {
       }
     >
       {fetching ? (
-        <div className="mt-16 flex items-center gap-3 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-500 shadow-sm">
-          <Loader2 className="animate-spin text-blue-600" size={18} /> Carregando produtos do catálogo...
+        <div className="mt-10 flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-500">
+          <Loader2 className="animate-spin text-slate-950" size={17} /> Carregando produtos do catálogo...
         </div>
       ) : products.length === 0 ? (
-        <div className="mt-14 flex max-w-md flex-col items-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-50 text-slate-400">
-            <PackageSearch size={24} />
+        <div className="mt-10 flex max-w-md flex-col items-center rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-slate-50 text-slate-400">
+            <PackageSearch size={21} />
           </div>
           <p className="mt-4 font-semibold text-slate-950">Nenhum produto disponível para este nicho.</p>
           <p className="mt-2 text-sm leading-6 text-slate-500">Volte e escolha outro segmento para montar a primeira página.</p>
         </div>
       ) : (
-        <div className="mt-9 grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-7 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
           {products.map((p) => {
             const active = selected === p.id;
             const img = getProductImage(p.images);
@@ -124,31 +126,31 @@ export default function ProdutoPage() {
                 key={p.id}
                 type="button"
                 onClick={() => setSelected(p.id)}
-                className={`group relative overflow-hidden rounded-3xl border bg-white text-left shadow-[0_18px_55px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_24px_70px_rgba(37,99,235,0.10)] ${
-                  active ? "border-blue-500 ring-4 ring-blue-100" : "border-slate-200"
+                className={`group relative overflow-hidden rounded-xl border bg-white text-left transition hover:border-slate-400 ${
+                  active ? "border-slate-950 ring-2 ring-slate-200" : "border-slate-200"
                 }`}
               >
-                <div className="aspect-[4/3] bg-gradient-to-b from-slate-50 to-white p-5">
+                <div className="aspect-[4/3] bg-slate-50 p-3">
                   {img ? (
-                    <img src={img} alt={p.title} className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.03]" />
+                    <img src={img} alt={p.title} className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.02]" />
                   ) : (
-                    <div className="grid h-full w-full place-items-center rounded-2xl bg-slate-50 text-slate-300">
-                      <PackageSearch size={34} />
+                    <div className="grid h-full w-full place-items-center rounded-lg bg-white text-slate-300">
+                      <PackageSearch size={28} />
                     </div>
                   )}
                 </div>
-                <div className="border-t border-slate-100 p-5">
-                  <p className="line-clamp-2 min-h-[2.75rem] text-sm font-semibold leading-5 text-slate-950">{p.title}</p>
-                  <div className="mt-4 flex items-center justify-between">
-                    <p className="text-base font-bold text-blue-600">{currencyFormatter.format(p.suggested_price)}</p>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <div className="border-t border-slate-100 p-3.5">
+                  <p className="line-clamp-2 min-h-[2.5rem] text-[13px] font-semibold leading-5 text-slate-950">{p.title}</p>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-slate-950">{currencyFormatter.format(p.suggested_price)}</p>
+                    <span className="truncate rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                       {p.category ?? "Catálogo"}
                     </span>
                   </div>
                 </div>
                 {active && (
-                  <span className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/30">
-                    <Check size={16} strokeWidth={2.5} />
+                  <span className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full bg-slate-950 text-white">
+                    <Check size={14} strokeWidth={2.5} />
                   </span>
                 )}
               </button>

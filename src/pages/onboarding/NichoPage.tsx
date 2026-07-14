@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Shirt, Smartphone, Home, PawPrint, Dumbbell, Sparkles, ArrowRight, Check } from "lucide-react";
-import { OnboardingQuizLayout, VeloOnboardingIllustration } from "./OnboardingQuizLayout";
+import { OnboardingQuizLayout } from "./OnboardingQuizLayout";
 
 const NICHES = [
   { id: "moda", label: "Moda e Vestuário", hint: "Looks, acessórios e itens de rotina", icon: Shirt },
@@ -43,19 +43,19 @@ export default function NichoPage() {
       eyebrow="Primeira vitrine"
       title="Escolha o nicho da sua loja"
       subtitle="A Velo usa essa escolha para separar produtos reais do catálogo e montar uma primeira página com cara de loja pronta."
+      previewTitle="Nicho da loja"
+      previewSubtitle={selected ? "Segmento selecionado. O próximo passo traz produtos reais do catálogo." : "Escolha um segmento para começar a montar a sua primeira vitrine."}
       footer={
         <button
           onClick={handleContinue}
           disabled={!selected || saving}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(37,99,235,0.28)] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
         >
           {saving ? "Salvando..." : "Continuar"} <ArrowRight size={17} />
         </button>
       }
     >
-      <VeloOnboardingIllustration />
-
-      <div className="mt-8 grid w-full max-w-5xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-7 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
         {NICHES.map((n) => {
           const Icon = n.icon;
           const active = selected === n.id;
@@ -64,22 +64,22 @@ export default function NichoPage() {
               key={n.id}
               type="button"
               onClick={() => setSelected(n.id)}
-              className={`group relative min-h-[118px] rounded-2xl border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_22px_60px_rgba(37,99,235,0.10)] ${
-                active ? "border-blue-500 ring-4 ring-blue-100" : "border-slate-200"
+              className={`group relative min-h-[88px] rounded-xl border bg-white p-4 text-left transition hover:border-slate-400 ${
+                active ? "border-slate-950 ring-2 ring-slate-200" : "border-slate-200"
               }`}
             >
-              <div className="flex items-start gap-4">
-                <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${active ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-500"}`}>
-                  <Icon size={21} />
+              <div className="flex items-start gap-3">
+                <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${active ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-500"}`}>
+                  <Icon size={18} />
                 </div>
-                <div>
-                  <p className="text-[15px] font-semibold leading-5 text-slate-950">{n.label}</p>
-                  <p className="mt-1.5 text-xs leading-5 text-slate-500">{n.hint}</p>
+                <div className="pr-5">
+                  <p className="text-[13px] font-semibold leading-5 text-slate-950">{n.label}</p>
+                  <p className="mt-0.5 text-[12px] leading-5 text-slate-500">{n.hint}</p>
                 </div>
               </div>
               {active && (
-                <span className="absolute right-4 top-4 grid h-6 w-6 place-items-center rounded-full bg-blue-600 text-white">
-                  <Check size={14} strokeWidth={2.5} />
+                <span className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-slate-950 text-white">
+                  <Check size={12} strokeWidth={2.5} />
                 </span>
               )}
             </button>
