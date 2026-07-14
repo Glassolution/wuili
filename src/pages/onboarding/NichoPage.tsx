@@ -45,17 +45,21 @@ export default function NichoPage() {
       subtitle="A Velo usa essa escolha para separar produtos reais do catálogo e montar uma primeira página com cara de loja pronta."
       previewTitle="Nicho da loja"
       previewSubtitle={selected ? "Segmento selecionado. O próximo passo traz produtos reais do catálogo." : "Escolha um segmento para começar a montar a sua primeira vitrine."}
+      backTo="/dashboard"
       footer={
-        <button
-          onClick={handleContinue}
-          disabled={!selected || saving}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-        >
-          {saving ? "Salvando..." : "Continuar"} <ArrowRight size={17} />
-        </button>
+        <>
+          <button
+            onClick={handleContinue}
+            disabled={!selected || saving}
+            className="inline-flex h-[56px] w-full items-center justify-center gap-2 rounded-[8px] bg-[#f3efe8] text-[16px] font-semibold text-black transition hover:bg-white disabled:cursor-not-allowed disabled:bg-white/55 disabled:text-black/80"
+          >
+            {saving ? "Salvando..." : "Continuar"} <ArrowRight size={17} />
+          </button>
+          <p className="mt-3 text-center text-[11px] text-white/35">Experimente grátis</p>
+        </>
       }
     >
-      <div className="mt-7 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
+      <div className="mt-7 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
         {NICHES.map((n) => {
           const Icon = n.icon;
           const active = selected === n.id;
@@ -64,23 +68,17 @@ export default function NichoPage() {
               key={n.id}
               type="button"
               onClick={() => setSelected(n.id)}
-              className={`group relative min-h-[88px] rounded-xl border bg-white p-4 text-left transition hover:border-slate-400 ${
-                active ? "border-slate-950 ring-2 ring-slate-200" : "border-slate-200"
+              className={`group relative flex min-h-[142px] flex-col rounded-[9px] bg-white/[0.06] p-5 text-left outline-none transition hover:-translate-y-0.5 hover:bg-white/[0.09] focus-visible:ring-2 focus-visible:ring-white/50 ${
+                active ? "bg-white/[0.12] shadow-[inset_3px_0_0_rgba(243,239,232,0.7)]" : ""
               }`}
             >
-              <div className="flex items-start gap-3">
-                <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${active ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-500"}`}>
-                  <Icon size={18} />
-                </div>
-                <div className="pr-5">
-                  <p className="text-[13px] font-semibold leading-5 text-slate-950">{n.label}</p>
-                  <p className="mt-0.5 text-[12px] leading-5 text-slate-500">{n.hint}</p>
-                </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.05] text-white/70">
+                <Icon size={19} />
               </div>
+              <span className="mt-5 block text-[14px] font-semibold leading-snug text-white/92">{n.label}</span>
+              <span className="mt-1 block text-[12px] leading-relaxed text-white/52">{n.hint}</span>
               {active && (
-                <span className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-slate-950 text-white">
-                  <Check size={12} strokeWidth={2.5} />
-                </span>
+                <Check size={15} className="absolute right-4 top-4 text-white/75" />
               )}
             </button>
           );

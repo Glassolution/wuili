@@ -89,35 +89,37 @@ export default function ProdutoPage() {
       subtitle="Esse item vira a sua primeira página de venda. Depois você pode adicionar mais produtos no painel."
       previewTitle="Produto da primeira página"
       previewSubtitle={selected ? "Produto selecionado para gerar a página de venda." : "Selecione um produto real do catálogo Velo para continuar."}
+      previewIcon="📦"
+      backTo="/onboarding/nicho"
       footer={
         <div className="space-y-3">
           <button
             onClick={handleContinue}
             disabled={!selected}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            className="inline-flex h-[56px] w-full items-center justify-center gap-2 rounded-[8px] bg-[#f3efe8] text-[16px] font-semibold text-black transition hover:bg-white disabled:cursor-not-allowed disabled:bg-white/55 disabled:text-black/80"
           >
             Gerar minha página <ArrowRight size={17} />
           </button>
-          <button onClick={() => navigate("/onboarding/nicho")} className="mx-auto flex items-center gap-2 text-xs font-semibold text-slate-400 transition hover:text-slate-700">
+          <button onClick={() => navigate("/onboarding/nicho")} className="mx-auto flex items-center gap-2 text-[11px] font-medium text-white/35 transition hover:text-white/70">
             <ArrowLeft size={14} /> Trocar nicho
           </button>
         </div>
       }
     >
       {fetching ? (
-        <div className="mt-10 flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-500">
-          <Loader2 className="animate-spin text-slate-950" size={17} /> Carregando produtos do catálogo...
+        <div className="mt-8 flex items-center gap-3 rounded-[9px] bg-white/[0.06] px-5 py-4 text-[13px] font-medium text-white/52">
+          <Loader2 className="animate-spin text-white/75" size={17} /> Carregando produtos do catálogo...
         </div>
       ) : products.length === 0 ? (
-        <div className="mt-10 flex max-w-md flex-col items-center rounded-2xl border border-slate-200 bg-white p-6 text-center">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-slate-50 text-slate-400">
+        <div className="mt-8 flex max-w-md flex-col items-center rounded-[9px] bg-white/[0.06] p-6 text-center">
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-white/[0.05] text-white/45">
             <PackageSearch size={21} />
           </div>
-          <p className="mt-4 font-semibold text-slate-950">Nenhum produto disponível para este nicho.</p>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Volte e escolha outro segmento para montar a primeira página.</p>
+          <p className="mt-4 text-[14px] font-semibold text-white/92">Nenhum produto disponível para este nicho.</p>
+          <p className="mt-2 text-[12px] leading-relaxed text-white/52">Volte e escolha outro segmento para montar a primeira página.</p>
         </div>
       ) : (
-        <div className="mt-7 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div className="mt-7 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
           {products.map((p) => {
             const active = selected === p.id;
             const img = getProductImage(p.images);
@@ -126,32 +128,30 @@ export default function ProdutoPage() {
                 key={p.id}
                 type="button"
                 onClick={() => setSelected(p.id)}
-                className={`group relative overflow-hidden rounded-xl border bg-white text-left transition hover:border-slate-400 ${
-                  active ? "border-slate-950 ring-2 ring-slate-200" : "border-slate-200"
+                className={`group relative overflow-hidden rounded-[9px] bg-white/[0.06] text-left outline-none transition hover:-translate-y-0.5 hover:bg-white/[0.09] focus-visible:ring-2 focus-visible:ring-white/50 ${
+                  active ? "bg-white/[0.12] shadow-[inset_3px_0_0_rgba(243,239,232,0.7)]" : ""
                 }`}
               >
-                <div className="aspect-[4/3] bg-slate-50 p-3">
+                <div className="aspect-[4/3] bg-white/[0.04] p-3">
                   {img ? (
                     <img src={img} alt={p.title} className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.02]" />
                   ) : (
-                    <div className="grid h-full w-full place-items-center rounded-lg bg-white text-slate-300">
+                    <div className="grid h-full w-full place-items-center rounded-[7px] bg-white/[0.04] text-white/25">
                       <PackageSearch size={28} />
                     </div>
                   )}
                 </div>
-                <div className="border-t border-slate-100 p-3.5">
-                  <p className="line-clamp-2 min-h-[2.5rem] text-[13px] font-semibold leading-5 text-slate-950">{p.title}</p>
+                <div className="border-t border-white/[0.07] p-3.5">
+                  <p className="line-clamp-2 min-h-[2.5rem] text-[13px] font-semibold leading-5 text-white/92">{p.title}</p>
                   <div className="mt-3 flex items-center justify-between gap-2">
-                    <p className="text-sm font-bold text-slate-950">{currencyFormatter.format(p.suggested_price)}</p>
-                    <span className="truncate rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    <p className="text-sm font-bold text-[#f3efe8]">{currencyFormatter.format(p.suggested_price)}</p>
+                    <span className="truncate rounded-full bg-white/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/45">
                       {p.category ?? "Catálogo"}
                     </span>
                   </div>
                 </div>
                 {active && (
-                  <span className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full bg-slate-950 text-white">
-                    <Check size={14} strokeWidth={2.5} />
-                  </span>
+                  <Check size={15} className="absolute right-4 top-4 text-white/75" />
                 )}
               </button>
             );

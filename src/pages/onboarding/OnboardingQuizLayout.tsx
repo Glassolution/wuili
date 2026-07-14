@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Box } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type OnboardingQuizLayoutProps = {
   step: number;
@@ -13,6 +14,8 @@ type OnboardingQuizLayoutProps = {
   previewTitle?: string;
   previewSubtitle?: string;
   previewBadge?: string;
+  previewIcon?: string;
+  backTo?: string;
 };
 
 export function OnboardingQuizLayout({
@@ -27,56 +30,58 @@ export function OnboardingQuizLayout({
   previewTitle = "Vitrine personalizada",
   previewSubtitle = "Suas escolhas aparecem aqui enquanto a loja ganha forma.",
   previewBadge = "PT",
+  previewIcon = "🙋",
+  backTo,
 }: OnboardingQuizLayoutProps) {
+  const navigate = useNavigate();
   const progress = Math.min(100, Math.max(0, (step / totalSteps) * 100));
 
   return (
-    <main className="grid min-h-screen bg-white text-slate-950 lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,0.95fr)]">
-      <section className="flex min-h-screen flex-col border-slate-200 bg-white lg:border-r">
-        <header className="flex h-14 items-center justify-between px-5 md:px-8">
-          <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-full border border-slate-200 bg-white text-slate-950">
-              <Box size={15} />
-            </span>
-            <span className="text-sm font-semibold tracking-tight">Velo</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-[11px] font-medium text-slate-400 sm:inline">Passo {step} de {totalSteps}</span>
-            <div className="h-1 w-28 overflow-hidden rounded-full bg-slate-200">
-              <div className="h-full rounded-full bg-slate-950 transition-all duration-500" style={{ width: `${progress}%` }} />
+    <main className="min-h-screen bg-black text-white" style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
+      <div className="grid min-h-screen lg:grid-cols-[55%_45%]">
+        <section className="relative flex min-h-screen flex-col overflow-hidden bg-[#0d0d0d] px-7 py-7 sm:px-10 lg:px-16 lg:py-8 xl:px-24">
+          <header className="relative z-10 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => backTo ? navigate(backTo) : navigate(-1)}
+              className="inline-flex items-center gap-2 text-[12px] font-medium text-white/45 transition hover:text-white"
+              aria-label="Voltar"
+            >
+              <ChevronLeft size={16} /> Voltar
+            </button>
+            <div className="w-[42%] max-w-[310px]">
+              <div className="h-[4px] overflow-hidden rounded-full bg-white/[0.09]">
+                <div className="h-full rounded-full bg-white/50 transition-all duration-500" style={{ width: `${progress}%` }} />
+              </div>
             </div>
+          </header>
+
+          <div className={`relative z-10 mx-auto flex w-full max-w-[580px] flex-1 flex-col ${compact ? "pt-9 lg:pt-10" : "pt-12 lg:pt-12"}`}>
+            <div>
+              <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/32">{eyebrow}</div>
+              <h1 className="text-[25px] font-semibold leading-tight tracking-[-0.035em] text-white sm:text-[27px]">{title}</h1>
+              <p className="mt-3 max-w-[520px] text-[15px] leading-relaxed text-white/58">{subtitle}</p>
+            </div>
+
+            {children}
+
+            {footer && <div className="mt-auto pb-2 pt-8">{footer}</div>}
           </div>
-        </header>
+        </section>
 
-        <div className={`mx-auto flex w-full max-w-[640px] flex-1 flex-col px-5 md:px-8 ${compact ? "py-6" : "py-8"}`}>
-          <div>
-            <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{eyebrow}</div>
-            <h1 className="max-w-xl text-2xl font-semibold tracking-tight text-slate-950 md:text-[32px] md:leading-[1.08]">{title}</h1>
-            <p className="mt-2 max-w-lg text-sm leading-6 text-slate-500">{subtitle}</p>
+        <aside className="relative hidden min-h-screen items-center justify-center overflow-hidden bg-[#010101] p-12 lg:flex">
+          <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(255,255,255,0.16)_1px,transparent_1.2px)] [background-position:2px_2px] [background-size:32px_32px]" />
+          <div className="relative z-10 flex min-h-[330px] w-full max-w-[420px] flex-col items-center justify-center rounded-[18px] bg-[#1a1a1a] p-8 text-center shadow-[0_30px_90px_rgba(0,0,0,0.65)]">
+            <span className="relative flex h-[110px] w-[110px] items-center justify-center rounded-full bg-white/[0.06] text-[42px]">
+              {previewIcon}
+              <span className="absolute -bottom-1 -right-1 text-[20px] font-semibold text-white/90">{previewBadge}</span>
+            </span>
+            <p className="mt-9 text-[20px] font-semibold tracking-[-0.025em] text-white/92">{previewTitle}</p>
+            <p className="mt-4 max-w-[280px] text-[15px] leading-relaxed text-white/24">{previewSubtitle}</p>
+            <p className="mt-8 text-[11px] text-white/18">Passo {step} de {totalSteps}</p>
           </div>
-
-          {children}
-
-          {footer && <div className="mt-auto w-full pt-7">{footer}</div>}
-        </div>
-      </section>
-
-      <aside
-        className="hidden min-h-screen items-center justify-center bg-[#fbfbfb] px-10 lg:flex"
-        style={{
-          backgroundImage: "radial-gradient(circle, rgba(15,23,42,0.12) 1px, transparent 1px)",
-          backgroundSize: "18px 18px",
-        }}
-      >
-        <div className="w-full max-w-[340px] rounded-[18px] border border-slate-200 bg-white p-8 text-center shadow-[0_18px_55px_rgba(15,23,42,0.06)]">
-          <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border border-dashed border-slate-300 bg-slate-50">
-            <Box size={25} className="text-slate-950" />
-          </div>
-          <div className="mt-3 text-xs font-semibold tracking-[0.22em] text-slate-500">{previewBadge}</div>
-          <h2 className="mt-5 text-lg font-semibold tracking-tight text-slate-950">{previewTitle}</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{previewSubtitle}</p>
-        </div>
-      </aside>
+        </aside>
+      </div>
     </main>
   );
 }
