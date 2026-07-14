@@ -2,16 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import type { Database, Json } from "@/integrations/supabase/types";
+import { ArrowLeft, ArrowRight, Check, Loader2, PackageSearch } from "lucide-react";
+import { OnboardingQuizLayout } from "./OnboardingQuizLayout";
 
-type Product = {
-  id: string;
-  title: string;
-  price: number | null;
-  image_url: string | null;
-  images: any;
-  category: string | null;
-};
+type CatalogProduct = Pick<
+  Database["public"]["Tables"]["catalog_products"]["Row"],
+  "id" | "title" | "suggested_price" | "images" | "category"
+>;
 
 const NICHE_KEYWORDS: Record<string, string[]> = {
   moda: ["moda", "roupa", "vestido", "camisa", "calça"],
@@ -22,10 +20,27 @@ const NICHE_KEYWORDS: Record<string, string[]> = {
   beleza: ["beleza", "cosmetico", "maquiagem", "cuidado"],
 };
 
+const currencyFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+function getProductImage(images: Json | null) {
+  if (Array.isArray(images)) {
+    return images.find((image): image is string => typeof image === "string") ?? null;
+  }
+
+  if (images && typeof images === "object") {
+    return Object.values(images).find((image): image is string => typeof image === "string") ?? null;
+  }
+
+  return null;
+}
+
 export default function ProdutoPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
 
@@ -42,18 +57,18 @@ export default function ProdutoPage() {
     (async () => {
       setFetching(true);
       const keywords = NICHE_KEYWORDS[niche] ?? [];
-      // Buscar produtos com stock; filtro por category/title contendo keywords
-      let query = (supabase as any).from("catalog_products")
-        .select("id, title, price, image_url, images, category")
+      const query = supabase
+        .from("catalog_products")
+        .select("id, title, suggested_price, images, category")
         .gt("stock_quantity", 0)
         .limit(9);
       const { data, error } = await query;
       if (error || !data) { setProducts([]); setFetching(false); return; }
-      const filtered = (data as Product[]).filter((p) => {
+      const filtered = data.filter((p) => {
         const hay = `${p.category ?? ""} ${p.title ?? ""}`.toLowerCase();
         return keywords.length === 0 || keywords.some((k) => hay.includes(k));
       });
-      setProducts(filtered.length > 0 ? filtered.slice(0, 9) : (data as Product[]).slice(0, 9));
+      setProducts(filtered.length > 0 ? filtered.slice(0, 9) : data.slice(0, 9));
       setFetching(false);
     })();
   }, [navigate]);
@@ -65,64 +80,82 @@ export default function ProdutoPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white flex flex-col">
-      <header className="p-6 flex items-center justify-between">
-        <button onClick={() => navigate("/onboarding/nicho")} className="flex items-center gap-2 text-white/60 hover:text-white text-sm">
-          <ArrowLeft size={16} /> Voltar
-        </button>
-        <div className="w-40 h-1 bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full w-2/4 bg-emerald-400 rounded-full" />
-        </div>
-      </header>
-
-      <section className="flex-1 flex flex-col items-center px-6 pt-6 pb-16">
-        <div className="max-w-2xl w-full text-center">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Escolha um produto pra começar</h1>
-          <p className="mt-3 text-white/60">Vamos gerar uma landing page pronta pra vender esse produto. Depois você pode criar quantas quiser.</p>
-        </div>
-
-        {fetching ? (
-          <div className="mt-16 flex items-center gap-3 text-white/60"><Loader2 className="animate-spin" size={18} /> Carregando produtos...</div>
-        ) : products.length === 0 ? (
-          <p className="mt-16 text-white/50">Nenhum produto disponível para este nicho.</p>
-        ) : (
-          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl w-full">
-            {products.map((p) => {
-              const active = selected === p.id;
-              const img = p.image_url || (Array.isArray(p.images) ? p.images[0] : null);
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setSelected(p.id)}
-                  className={`group text-left rounded-2xl border overflow-hidden transition-all ${
-                    active ? "border-emerald-400/70 shadow-[0_0_0_1px_rgba(52,211,153,0.4)]" : "border-white/10 hover:border-white/25"
-                  }`}
-                >
-                  <div className="aspect-square bg-white/[0.04]">
-                    {img ? <img src={img} alt={p.title} className="w-full h-full object-cover" /> : null}
-                  </div>
-                  <div className="p-4 bg-white/[0.02]">
-                    <p className="text-sm line-clamp-2 min-h-[2.5rem]">{p.title}</p>
-                    <p className="mt-2 text-emerald-300 font-semibold">R$ {p.price?.toFixed(2) ?? "—"}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="mt-12 max-w-md w-full">
+    <OnboardingQuizLayout
+      step={2}
+      totalSteps={4}
+      compact
+      eyebrow="Produto inicial"
+      title="Escolha o primeiro produto"
+      subtitle="Esse item vira a sua primeira página de venda. Depois você pode adicionar mais produtos no painel."
+      footer={
+        <div className="space-y-3">
           <button
             onClick={handleContinue}
             disabled={!selected}
-            className="w-full h-12 rounded-xl bg-white text-slate-950 font-semibold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(37,99,235,0.28)] transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
           >
-            Gerar minha página <ArrowRight size={18} />
+            Gerar minha página <ArrowRight size={17} />
           </button>
-          <p className="mt-3 text-center text-xs text-white/40">Passo 2 de 4</p>
+          <button onClick={() => navigate("/onboarding/nicho")} className="mx-auto flex items-center gap-2 text-xs font-semibold text-slate-400 transition hover:text-slate-700">
+            <ArrowLeft size={14} /> Trocar nicho
+          </button>
         </div>
-      </section>
-    </main>
+      }
+    >
+      {fetching ? (
+        <div className="mt-16 flex items-center gap-3 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-500 shadow-sm">
+          <Loader2 className="animate-spin text-blue-600" size={18} /> Carregando produtos do catálogo...
+        </div>
+      ) : products.length === 0 ? (
+        <div className="mt-14 flex max-w-md flex-col items-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-50 text-slate-400">
+            <PackageSearch size={24} />
+          </div>
+          <p className="mt-4 font-semibold text-slate-950">Nenhum produto disponível para este nicho.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Volte e escolha outro segmento para montar a primeira página.</p>
+        </div>
+      ) : (
+        <div className="mt-9 grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {products.map((p) => {
+            const active = selected === p.id;
+            const img = getProductImage(p.images);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelected(p.id)}
+                className={`group relative overflow-hidden rounded-3xl border bg-white text-left shadow-[0_18px_55px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-[0_24px_70px_rgba(37,99,235,0.10)] ${
+                  active ? "border-blue-500 ring-4 ring-blue-100" : "border-slate-200"
+                }`}
+              >
+                <div className="aspect-[4/3] bg-gradient-to-b from-slate-50 to-white p-5">
+                  {img ? (
+                    <img src={img} alt={p.title} className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.03]" />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center rounded-2xl bg-slate-50 text-slate-300">
+                      <PackageSearch size={34} />
+                    </div>
+                  )}
+                </div>
+                <div className="border-t border-slate-100 p-5">
+                  <p className="line-clamp-2 min-h-[2.75rem] text-sm font-semibold leading-5 text-slate-950">{p.title}</p>
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-base font-bold text-blue-600">{currencyFormatter.format(p.suggested_price)}</p>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      {p.category ?? "Catálogo"}
+                    </span>
+                  </div>
+                </div>
+                {active && (
+                  <span className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/30">
+                    <Check size={16} strokeWidth={2.5} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </OnboardingQuizLayout>
   );
 }
