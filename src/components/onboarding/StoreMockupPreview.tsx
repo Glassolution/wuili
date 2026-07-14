@@ -65,10 +65,11 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
   const priceLabel = product ? `R$ ${product.price.toFixed(2).replace(".", ",")}` : null;
 
   return (
-    <div className={`flex flex-col items-center ${className ?? ""}`}>
+    <div className={`relative flex flex-col items-center ${className ?? ""}`}>
+      <div className="pointer-events-none absolute left-1/2 top-[585px] h-[54px] w-[245px] -translate-x-1/2 rounded-full bg-black/24 blur-[20px]" />
       {/* Tooltip */}
-      <div className="relative mb-3">
-        <div className="rounded-[10px] bg-[#1a1a1a] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_6px_20px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.06]">
+      <div className="relative z-20 mb-3">
+        <div className="rounded-[10px] bg-[#1a1a1a] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_18px_34px_rgba(0,0,0,0.36),0_7px_18px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.08]">
           {label}
         </div>
         <div
@@ -82,7 +83,7 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
       </div>
 
       {/* Phone frame */}
-      <div className="relative h-[560px] w-[280px] rounded-[36px] bg-[#1a1a1a] p-[6px] shadow-[0_28px_80px_rgba(0,0,0,0.7),_0_0_0_1px_rgba(255,255,255,0.05)]">
+      <div className="relative z-10 h-[560px] w-[280px] rounded-[36px] bg-[#1a1a1a] p-[6px] shadow-[0_24px_42px_rgba(0,0,0,0.28),0_8px_18px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.06)]">
         {/* Notch */}
         <div className="pointer-events-none absolute left-1/2 top-[6px] z-10 h-[18px] w-[92px] -translate-x-1/2 rounded-b-2xl bg-[#1a1a1a]" />
         <div className="pointer-events-none absolute left-[calc(50%+26px)] top-[10px] z-20 h-[6px] w-[6px] rounded-full bg-[#333]" />
@@ -232,7 +233,7 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
           <div
             key={i}
             className="h-[3px] w-6 rounded-full transition-colors duration-300"
-            style={{ background: filled ? "#f3efe8" : "rgba(255,255,255,0.14)" }}
+            style={{ background: filled ? "#111827" : "#d8dde8" }}
           />
         ))}
       </div>

@@ -716,13 +716,14 @@ const DashboardLayoutInner = () => {
           {/* Header - no shell cinza */}
           <DashboardHeader />
           {/* Main content area - sem moldura externa */}
-          <main className="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ background: "transparent" }}>
+          <main data-dashboard-tour="dashboard-main" className="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ background: "transparent" }}>
             <PageErrorBoundary>
               <Outlet />
             </PageErrorBoundary>
           </main>
         </div>
       </div>
+      <TutorialOverlay />
       {storesHydrated &&
         ((stores.length === 0 && shouldAutoShowStoreOnboarding) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
         <FirstStoreOnboarding

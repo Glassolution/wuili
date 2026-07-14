@@ -23,12 +23,23 @@ const baseNavItems: NavItem[] = [
   { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
   { label: "Comunidade e Ajuda", icon: Info, to: "/docs", dimmed: true },
   { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes", dimmed: true },
+  { label: "Minha loja", icon: Sparkles, to: "/minha-loja/editor" },
 ];
 
 const affiliatesNavItem: NavItem = { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
 const editStoreBetaNavItem: NavItem = { label: "Editar minha loja (beta)", icon: Sparkles, to: "/comecar" };
 
 const normalizePath = (path: string) => path.split("?")[0].replace(/\/$/, "");
+
+const tourTargetByLabel: Record<string, string> = {
+  Início: "inicio",
+  Catálogo: "catalogo",
+  Publicações: "publicacoes",
+  Pedidos: "pedidos",
+  Relatórios: "relatorios",
+  Configurações: "configuracoes",
+  "Minha loja": "minha-loja",
+};
 
 type SidebarSubscription = {
   plan: string | null;
@@ -464,7 +475,7 @@ const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) =>
   };
 
   return (
-    <Link to={item.to} aria-current={active ? "page" : undefined} style={linkStyle}>
+    <Link to={item.to} aria-current={active ? "page" : undefined} data-dashboard-tour={tourTargetByLabel[item.label]} style={linkStyle}>
       <Icon size={16} strokeWidth={1.65} fill={active ? "currentColor" : "none"} aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
@@ -495,8 +506,7 @@ const DashboardSidebar = () => {
     const items = [...baseNavItems];
     if (isAdmin) {
       items.splice(4, 0, affiliatesNavItem);
-      // "Editar minha loja (beta)" removido — novo fluxo em /onboarding/nicho.
-      // Rota /comecar permanece acessível por URL direta para testes.
+      // "Editar minha loja (beta)" removido da sidebar; o fluxo principal começa em /comecar.
     }
     return items;
   }, [isAdmin]);

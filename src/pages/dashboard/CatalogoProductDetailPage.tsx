@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ChevronDown,
   ExternalLink,
+  FilePlus2,
   PackagePlus,
 } from "lucide-react";
 import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
@@ -130,7 +131,7 @@ const CatalogoProductDetailPage = () => {
       const toastId = veloToast.loading("Carregando produto...", {
         id: `loading-product-${id}`,
         fullscreen: true,
-        minDuration: 3000,
+        minDuration: 650,
       });
       setLoading(true);
       setError(null);
@@ -195,7 +196,36 @@ const CatalogoProductDetailPage = () => {
 
 
   if (loading) {
-    return <div className="min-h-screen" aria-hidden="true" />;
+    return (
+      <div className="-m-5 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] bg-white p-6 text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] sm:p-8 lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)] lg:p-10">
+        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="animate-pulse">
+            <div className="h-[520px] rounded-[28px] bg-[#f3f4f6]" />
+            <div className="mt-5 grid grid-cols-4 gap-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-20 rounded-2xl bg-[#f3f4f6]" />
+              ))}
+            </div>
+          </div>
+          <div className="animate-pulse rounded-[28px] border border-black/[0.08] bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+            <div className="h-5 w-28 rounded-full bg-[#eef0f3]" />
+            <div className="mt-6 h-8 w-4/5 rounded-full bg-[#eef0f3]" />
+            <div className="mt-3 h-8 w-3/5 rounded-full bg-[#eef0f3]" />
+            <div className="mt-8 h-12 w-48 rounded-full bg-[#eef0f3]" />
+            <div className="mt-8 space-y-3">
+              <div className="h-4 w-full rounded-full bg-[#eef0f3]" />
+              <div className="h-4 w-11/12 rounded-full bg-[#eef0f3]" />
+              <div className="h-4 w-3/4 rounded-full bg-[#eef0f3]" />
+            </div>
+            <div className="mt-10 grid gap-3 sm:grid-cols-3">
+              <div className="h-12 rounded-full bg-[#111]" />
+              <div className="h-12 rounded-full bg-[#eef0f3]" />
+              <div className="h-12 rounded-full bg-[#eef0f3]" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error || !product) {
@@ -218,6 +248,23 @@ const CatalogoProductDetailPage = () => {
   const gallery = product.images;
   const catalogMetrics = getProductCatalogMetrics(product);
   const [suggestedPriceMain, suggestedPriceCents = "00"] = formatPrice(product.suggestedPrice).split(",");
+  const handleCreateSalesPage = () => {
+    const flowProduct = {
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      imageUrl: product.images[0] || FALLBACK_IMG,
+    };
+
+    try {
+      sessionStorage.setItem("velo-example-product", JSON.stringify(flowProduct));
+      sessionStorage.setItem("velo-example-products", JSON.stringify([flowProduct]));
+    } catch {
+      // O fluxo também recebe o produto via state; storage é apenas continuidade entre reloads.
+    }
+
+    navigate("/onboarding/idioma", { state: { product: flowProduct, products: [flowProduct] } });
+  };
 
   return (
     <div className="-m-5 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)]">
@@ -334,14 +381,24 @@ const CatalogoProductDetailPage = () => {
               {product.description || "O fornecedor ainda não disponibilizou uma descrição detalhada para este produto."}
             </p>
 
-            <div className="mt-6 grid grid-cols-1 gap-3">
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setIsImportModalOpen(true)}
+                data-dashboard-tour="produto-importar"
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white shadow-[0_10px_25px_rgba(0,0,0,0.16)] transition-transform active:scale-[0.98]"
               >
                 <PackagePlus size={17} strokeWidth={1.8} />
                 Importar para minha loja
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateSalesPage}
+                data-dashboard-tour="produto-criar-pagina"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111] transition-colors hover:bg-[#F7F7F6]"
+              >
+                <FilePlus2 size={16} strokeWidth={1.8} />
+                Criar página de vendas
               </button>
               {product.product_url ? (
                 <a
@@ -479,14 +536,24 @@ const CatalogoProductDetailPage = () => {
             </p>
 
             {/* CTAs principais */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <button
                 type="button"
                 onClick={() => setIsImportModalOpen(true)}
+                data-dashboard-tour="produto-importar"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white shadow-[0_10px_25px_rgba(0,0,0,0.16)] transition-all hover:-translate-y-0.5 hover:bg-[#202020]"
               >
                 <PackagePlus size={17} strokeWidth={1.8} />
                 Importar para minha loja
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateSalesPage}
+                data-dashboard-tour="produto-criar-pagina"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111] transition-all hover:-translate-y-0.5 hover:border-black/30 hover:bg-[#F7F7F6]"
+              >
+                <FilePlus2 size={16} strokeWidth={1.8} />
+                Criar página de vendas
               </button>
               {product.product_url ? (
                 <a

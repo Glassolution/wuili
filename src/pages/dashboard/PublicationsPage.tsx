@@ -90,7 +90,7 @@ const PublicationsPage = () => {
       <div className="flex flex-col gap-3 pb-4">
         
         {/* Top Row: Tabs + View Settings */}
-        <div className="flex items-center justify-between gap-2 overflow-hidden">
+        <div className="flex items-center justify-between gap-2 overflow-hidden" data-dashboard-tour="publicacoes-filtros">
           {/* Tabs */}
           <div className="mobile-hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             {[
@@ -200,7 +200,7 @@ const PublicationsPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((pub) => {
+          {filtered.map((pub, index) => {
             const status = pub.status || "pending";
             const preset = statusPresets[status] ?? statusPresets.pending;
             const retailPrice = pub.price ?? 0;
@@ -209,6 +209,7 @@ const PublicationsPage = () => {
             return (
               <div
                 key={pub.id}
+                data-dashboard-tour={index === 0 ? "publicacoes-card" : undefined}
                 className="group relative flex flex-col overflow-hidden rounded-2xl border border-black/[0.05] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
               >
                 {/* Header: Image + Title + Menu */}

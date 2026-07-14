@@ -248,7 +248,7 @@ const ProfileTab = () => {
   const avatarSrc = fotoPreview ?? foto;
 
   return (
-    <div>
+      <div data-dashboard-tour="configuracoes-perfil">
       {/* Avatar header */}
       <div className="flex flex-col items-center text-center pb-2">
         <div className="relative">

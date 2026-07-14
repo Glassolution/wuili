@@ -119,6 +119,7 @@ const ReportsPage = () => {
         <button
           onClick={() => generate.mutate()}
           disabled={generate.isPending}
+          data-dashboard-tour="relatorios-criar"
           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60"
         >
           {generate.isPending ? (

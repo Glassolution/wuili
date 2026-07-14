@@ -145,7 +145,7 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="space-y-3 border-t border-slate-200 p-5">
-        {/* "Editar minha loja (beta)" removido da sidebar — novo fluxo em /onboarding/nicho. Rotas antigas /comecar permanecem por URL direta para testes. */}
+        {/* "Editar minha loja (beta)" removido da sidebar; o fluxo principal começa em /comecar. */}
         {false && isAdmin && null}
         <button className="flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100">
           <span>Start Mode</span>

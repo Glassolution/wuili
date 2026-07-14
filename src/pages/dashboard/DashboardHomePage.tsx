@@ -342,6 +342,10 @@ const mapProductPreview = (product: CatalogProductRow): ProductPreview | null =>
 };
 
 const ANNOUNCEMENT_SEEN_KEY_PREFIX = "velo:announcement-seen";
+const ACTIVE_MODAL_ATTR = "data-velo-active-modal";
+const ACTIVE_MODAL_EVENT = "velo:active-modal-change";
+const ANNOUNCEMENT_MODAL_ID = "dashboard-announcement";
+const ANNOUNCEMENT_WAIT_DASHBOARD_RETURN_KEY = "velo:announcement-wait-dashboard-return";
 
 type AnnouncementPost = {
   id: string;
@@ -352,8 +356,39 @@ type AnnouncementPost = {
   author_avatar: string | null;
 };
 
-const getAnnouncementSeenKey = (userId: string | undefined, postId: string) =>
+const getAnnouncementSeenKey = (postId: string) => `${ANNOUNCEMENT_SEEN_KEY_PREFIX}:${postId}`;
+const getLegacyAnnouncementSeenKey = (userId: string | undefined, postId: string) =>
   `${ANNOUNCEMENT_SEEN_KEY_PREFIX}:${userId ?? "visitante"}:${postId}`;
+
+const hasSeenAnnouncement = (postId: string, userId: string | undefined) => {
+  try {
+    return Boolean(
+      window.localStorage.getItem(getAnnouncementSeenKey(postId)) ||
+        window.localStorage.getItem(getLegacyAnnouncementSeenKey(undefined, postId)) ||
+        (userId && window.localStorage.getItem(getLegacyAnnouncementSeenKey(userId, postId))),
+    );
+  } catch {
+    return true;
+  }
+};
+
+const getActiveModal = () => {
+  if (typeof document === "undefined") return null;
+  return document.body.getAttribute(ACTIVE_MODAL_ATTR);
+};
+
+const setActiveModal = (modalId: string | null) => {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+  const currentModal = document.body.getAttribute(ACTIVE_MODAL_ATTR);
+  if (currentModal === modalId) return;
+  if (!modalId && !currentModal) return;
+  if (modalId) {
+    document.body.setAttribute(ACTIVE_MODAL_ATTR, modalId);
+  } else {
+    document.body.removeAttribute(ACTIVE_MODAL_ATTR);
+  }
+  window.dispatchEvent(new CustomEvent(ACTIVE_MODAL_EVENT));
+};
 
 const formatAnnouncementDate = (iso: string) => {
   try {
@@ -365,9 +400,36 @@ const formatAnnouncementDate = (iso: string) => {
 };
 
 const AnnouncementModal = ({ userId }: { userId?: string }) => {
+  const location = useLocation();
   const [post, setPost] = useState<AnnouncementPost | null>(null);
   const [signedImage, setSignedImage] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const releasePendingReturnRef = useRef(false);
+
+  useEffect(() => {
+    if (location.pathname !== "/dashboard") return;
+
+    try {
+      const isWaitingForDashboardReturn = Boolean(
+        window.sessionStorage.getItem(ANNOUNCEMENT_WAIT_DASHBOARD_RETURN_KEY),
+      );
+      if (!isWaitingForDashboardReturn || releasePendingReturnRef.current) return;
+
+      releasePendingReturnRef.current = true;
+      const timeout = window.setTimeout(() => {
+        try {
+          window.sessionStorage.removeItem(ANNOUNCEMENT_WAIT_DASHBOARD_RETURN_KEY);
+        } catch {
+          // ignore storage errors
+        }
+        window.dispatchEvent(new CustomEvent(ACTIVE_MODAL_EVENT));
+      }, 300);
+
+      return () => window.clearTimeout(timeout);
+    } catch {
+      return;
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     let isMounted = true;
@@ -397,12 +459,7 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
         }
       }
 
-      const seenKey = getAnnouncementSeenKey(userId, data.id);
-      try {
-        if (window.localStorage.getItem(seenKey)) return;
-      } catch {
-        return;
-      }
+      if (hasSeenAnnouncement(data.id, userId)) return;
 
       if (data.image_url && !/^https?:\/\//.test(data.image_url)) {
         const { data: signed } = await sb.storage
@@ -422,7 +479,6 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
         author_name: authorName,
         author_avatar: authorAvatar,
       });
-      setOpen(true);
     };
 
     fetchLatest();
@@ -432,16 +488,53 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
     };
   }, [userId]);
 
-  if (!open || !post) return null;
+  useEffect(() => {
+    if (!post || open) return;
+
+    const tryOpen = () => {
+      if (location.pathname !== "/dashboard") return;
+
+      try {
+        if (window.sessionStorage.getItem(ANNOUNCEMENT_WAIT_DASHBOARD_RETURN_KEY)) return;
+      } catch {
+        // Se sessionStorage falhar, seguimos apenas com o controle de modal ativo.
+      }
+
+      const activeModal = getActiveModal();
+      if (!activeModal) {
+        setActiveModal(ANNOUNCEMENT_MODAL_ID);
+        setOpen(true);
+      }
+    };
+
+    tryOpen();
+    window.addEventListener(ACTIVE_MODAL_EVENT, tryOpen);
+
+    return () => {
+      window.removeEventListener(ACTIVE_MODAL_EVENT, tryOpen);
+    };
+  }, [location.pathname, open, post]);
 
   const closeModal = () => {
+    if (!post) return;
     try {
-      window.localStorage.setItem(getAnnouncementSeenKey(userId, post.id), new Date().toISOString());
+      window.localStorage.setItem(getAnnouncementSeenKey(post.id), new Date().toISOString());
     } catch {
       // localStorage indisponível — modal continua funcional apenas na sessão
     }
     setOpen(false);
+    if (getActiveModal() === ANNOUNCEMENT_MODAL_ID) setActiveModal(null);
   };
+
+  useEffect(() => {
+    if (!open) return;
+    setActiveModal(ANNOUNCEMENT_MODAL_ID);
+    return () => {
+      if (getActiveModal() === ANNOUNCEMENT_MODAL_ID) setActiveModal(null);
+    };
+  }, [open]);
+
+  if (!open || !post) return null;
 
   const preview = (post.content || "").trim().split("\n").filter(Boolean).slice(0, 3).join("\n");
 

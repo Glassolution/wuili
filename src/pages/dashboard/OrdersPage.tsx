@@ -319,7 +319,7 @@ const OrdersPage = () => {
                 Vendas do Mercado Livre com comprador, entrega e fornecedor vinculados.
               </p>
             </div>
-            <div className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] font-semibold text-[#404040]">
+            <div data-dashboard-tour="pedidos-resumo" className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] font-semibold text-[#404040]">
               <Calendar size={15} strokeWidth={1.5} />
               {orders.length} {orders.length === 1 ? "pedido" : "pedidos"}
             </div>
@@ -337,7 +337,7 @@ const OrdersPage = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-3 bg-transparent md:space-y-0 md:overflow-hidden md:rounded-xl md:border md:border-black/[0.08] md:bg-white">
+          <div data-dashboard-tour="pedidos-lista" className="space-y-3 bg-transparent md:space-y-0 md:overflow-hidden md:rounded-xl md:border md:border-black/[0.08] md:bg-white">
             <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] border-b border-black/[0.08] bg-[#FAFAFA] px-4 py-3 text-[11px] font-semibold uppercase text-[#737373] md:grid">
               <span>Produto</span>
               <span>Comprador</span>

@@ -97,7 +97,7 @@ const LoginPage = () => {
       const [result] = await Promise.all([
         supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: `${window.location.origin}/onboarding/nicho`, skipBrowserRedirect: true },
+          options: { redirectTo: `${window.location.origin}/comecar`, skipBrowserRedirect: true },
         }),
         veloToast.waitForMinimum(toastId),
       ]);
@@ -126,11 +126,11 @@ const LoginPage = () => {
       veloToast.dismiss(toastId);
       if (error) { veloToast.error(error.message === "Invalid login credentials" ? "Email ou senha incorretos." : error.message); return; }
       if (data.session || data.user) {
-        // Se onboarding não concluído → manda pro novo fluxo
+        // Se onboarding não concluído, inicia na escolha principal de loja.
         const uid = data.user?.id ?? data.session?.user?.id;
         if (uid) {
           const { data: prof } = await (supabase as any).from("profiles").select("onboarding_completed_at").eq("user_id", uid).maybeSingle();
-          if (!prof?.onboarding_completed_at) { navigate("/onboarding/nicho", { replace: true }); return; }
+          if (!prof?.onboarding_completed_at) { navigate("/comecar", { replace: true }); return; }
         }
         navigate("/dashboard", { replace: true }); return;
       }
@@ -166,7 +166,7 @@ const LoginPage = () => {
     if (data.user) {
       await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
       veloToast.success("Conta criada com sucesso.");
-      navigate("/onboarding/nicho", { replace: true });
+      navigate("/comecar", { replace: true });
     }
   };
 

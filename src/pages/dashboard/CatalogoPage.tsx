@@ -1169,6 +1169,7 @@ const CatalogoPage = () => {
         <>
             <div
               ref={filterBarRef}
+              data-dashboard-tour="catalogo-busca"
               className="mobile-hide-scrollbar mb-3 flex gap-2 overflow-x-auto md:mb-5 md:flex-col md:gap-3 md:overflow-visible xl:flex-row xl:items-center"
             >
               <div className="relative min-w-[220px] flex-1 md:min-w-0 xl:w-[260px] xl:flex-shrink-0">
@@ -1281,24 +1282,25 @@ const CatalogoPage = () => {
               </div>
             ) : (
               <div className="grid h-auto grid-cols-2 gap-2 overflow-visible md:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
-                {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    categoryLabel={product.categoria}
-                    isFavorited={favoritedIds.includes(product.id)}
-                    onToggleFavorite={() => toggleFavorite(product.id)}
-                    denseMobile
-                    collectionSelection={
-                      isCollectionSelectionMode
-                        ? {
-                            selected: collectionProductIds.includes(product.id),
-                            loading: collectionToggleLoadingId === product.id,
-                            onToggle: () => toggleCollectionProduct(product.id),
-                          }
-                        : undefined
-                    }
-                  />
+                {products.map((product, index) => (
+                  <div key={product.id} data-dashboard-tour={index === 0 ? "catalogo-produto" : undefined}>
+                    <ProductCard
+                      product={product}
+                      categoryLabel={product.categoria}
+                      isFavorited={favoritedIds.includes(product.id)}
+                      onToggleFavorite={() => toggleFavorite(product.id)}
+                      denseMobile
+                      collectionSelection={
+                        isCollectionSelectionMode
+                          ? {
+                              selected: collectionProductIds.includes(product.id),
+                              loading: collectionToggleLoadingId === product.id,
+                              onToggle: () => toggleCollectionProduct(product.id),
+                            }
+                          : undefined
+                      }
+                    />
+                  </div>
                 ))}
               </div>
             )}

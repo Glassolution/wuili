@@ -204,6 +204,7 @@ export const ProductCard = ({
         >
           <Link
             to={`/dashboard/catalogo/${product.id}`}
+            data-dashboard-tour="catalogo-produto-abrir"
             onClick={() => {
               veloToast.loading("Carregando produto...", {
                 id: `loading-product-${product.id}`,
