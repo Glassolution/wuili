@@ -166,7 +166,7 @@ const LoginPage = () => {
     if (data.user) {
       await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
       veloToast.success("Conta criada com sucesso.");
-      navigate("/dashboard", { replace: true });
+      navigate("/onboarding/nicho", { replace: true });
     }
   };
 
