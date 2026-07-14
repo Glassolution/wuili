@@ -275,9 +275,23 @@ async function republishOne(
   }
 
   if (!createRes.ok || !createBody?.id) {
+    const errText = `POST ${createRes.status}: ${JSON.stringify(createBody).slice(0, 500)}`;
+    // Grava log de falha pra tornar o filtro de idempotência efetivo — sem
+    // isso o mesmo item volta a bater no topo da fila em todo batch.
+    await supabase.from("ml_republication_log").insert({
+      user_id: row.user_id,
+      old_ml_item_id: oldId,
+      new_ml_item_id: null,
+      catalog_product_id: row.catalog_product_id,
+      publication_id: row.id,
+      reason: "shipping_dimensions_fix",
+      status: "failed_create_new",
+      error: errText,
+      republished_at: new Date().toISOString(),
+    });
     return {
       outcome: "failed_create_new",
-      error: `POST ${createRes.status}: ${JSON.stringify(createBody).slice(0, 500)}`,
+      error: errText,
     };
   }
 
