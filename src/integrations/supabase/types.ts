@@ -1411,7 +1411,14 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      get_help_feed_authors: {
+        Args: { _author_ids: string[] }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "influencer"

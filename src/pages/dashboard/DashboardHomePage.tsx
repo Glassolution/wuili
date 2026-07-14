@@ -387,11 +387,10 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
       let authorName = "Equipe Velo";
       let authorAvatar: string | null = null;
       if (data.author_id) {
-        const { data: prof } = await sb
-          .from("profiles")
-          .select("display_name, avatar_url")
-          .eq("user_id", data.author_id)
-          .maybeSingle();
+        const { data: profs } = await sb.rpc("get_help_feed_authors", {
+          _author_ids: [data.author_id],
+        });
+        const prof = Array.isArray(profs) ? profs[0] : null;
         if (prof) {
           authorName = prof.display_name || authorName;
           authorAvatar = prof.avatar_url || null;
@@ -1133,7 +1132,7 @@ const loadSoldProducts = async (userId: string): Promise<SoldProductSummary[]> =
     const title = order.product_title || "Produto vendido";
     const key = title.trim().toLowerCase();
     const quantity = Number(order.quantity || 1);
-    const revenue = Number(order.total_amount ?? order.sale_price * quantity ?? 0);
+    const revenue = Number(order.total_amount ?? (order.sale_price ? order.sale_price * quantity : 0));
     const soldAt = order.ordered_at || order.created_at;
     const current = map.get(key);
 
