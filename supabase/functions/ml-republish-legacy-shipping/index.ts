@@ -370,7 +370,8 @@ async function republishOne(
     catalog_product_id: row.catalog_product_id,
     publication_id: row.id,
     reason: "shipping_dimensions_fix",
-    status: "success",
+    status: descriptionFailed ? "success_no_description" : "success",
+    error: descriptionError,
     republished_at: new Date().toISOString(),
   });
 
@@ -381,7 +382,11 @@ async function republishOne(
       error: updErr.message,
     };
   }
-  return { outcome: "republished", newItemId };
+  return {
+    outcome: descriptionFailed ? "republished_no_description" : "republished",
+    newItemId,
+    error: descriptionError,
+  };
 }
 
 Deno.serve(async (req) => {
