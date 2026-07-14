@@ -1133,7 +1133,7 @@ const loadSoldProducts = async (userId: string): Promise<SoldProductSummary[]> =
     const title = order.product_title || "Produto vendido";
     const key = title.trim().toLowerCase();
     const quantity = Number(order.quantity || 1);
-    const revenue = Number(order.total_amount ?? order.sale_price * quantity ?? 0);
+    const revenue = Number(order.total_amount ?? (order.sale_price ? order.sale_price * quantity : 0));
     const soldAt = order.ordered_at || order.created_at;
     const current = map.get(key);
 
