@@ -687,36 +687,61 @@ Deno.serve(async (req) => {
       }
     }
 
-    // PRIORIDADE 3: Fallback padrão de segurança (0.5 kg / 500g)
+    // PRIORIDADE 3: Fallback baseado na categoria do catálogo. Antes usávamos
+    // 0,5 kg fixo, mas isso combinado com o formato errado de SELLER_PACKAGE_DIMENSIONS
+    // (com espaço em vez de vírgula) fazia o ML descartar as dimensões e aplicar
+    // a tabela de "pacote grande" — o que gerava fretes absurdos (R$170+) em
+    // produtos pequenos. O mapa abaixo é uma estimativa realista por categoria.
     if (!rawWeight || rawWeight <= 0) {
-      rawWeight = 0.5
-      console.log(`[ml-publish] Peso não obtido em nenhuma das fontes. Usando fallback de segurança: ${rawWeight} kg`)
+      const catRaw = (productRecord.category || '').toString().toLowerCase()
+      const weightByCategory: Array<[RegExp, number]> = [
+        [/beleza|cosm|maquiag|cabelo/, 0.2],
+        [/moda|roupa|vestu|calc|acess/, 0.3],
+        [/bebê|beb[eê]|crian/, 0.4],
+        [/eletr[oô]n|gadget|fone|celular/, 0.5],
+        [/pet/, 0.5],
+        [/organiza|utilid/, 0.6],
+        [/esport|lazer|fitness/, 0.8],
+        [/casa|jardim|cozinh/, 0.8],
+      ]
+      const match = weightByCategory.find(([re]) => re.test(catRaw))
+      rawWeight = match ? match[1] : 0.4
+      console.log(`[ml-publish] Peso ausente na origem — usando fallback por categoria (${catRaw || 'desconhecida'}): ${rawWeight} kg`)
     }
 
     // Para SELLER_PACKAGE_WEIGHT, a API do Mercado Livre permite APENAS a unidade 'g' (gramas)
-    const weightValName = `${Math.round(rawWeight * 1000)} g`
-      
+    const weightGrams = Math.max(50, Math.round(rawWeight * 1000))
+    const weightValName = `${weightGrams} g`
+
     mergeAttribute(allAttrs, {
       id: 'SELLER_PACKAGE_WEIGHT',
       value_name: weightValName,
     })
 
-    // 3.6) SELLER_PACKAGE_DIMENSIONS — CRÍTICO para o cálculo do frete.
-    // Sem dimensões, o Mercado Livre aplica uma tabela padrão de "pacote
-    // grande" que resulta em fretes absurdos (R$170+) independente do peso
-    // ou preço real. Estimamos dimensões proporcionais ao peso.
+    // 3.6) Dimensões da embalagem — CRÍTICO para o cálculo do frete.
+    // Sem dimensões válidas, o Mercado Livre aplica uma tabela padrão de "pacote
+    // grande" que resulta em fretes absurdos (R$170+) independente do peso ou
+    // preço real. Estimamos dimensões proporcionais ao peso.
     let dimsCm: [number, number, number]
     if (rawWeight <= 0.3) dimsCm = [20, 15, 5]
     else if (rawWeight <= 1) dimsCm = [25, 20, 10]
     else if (rawWeight <= 3) dimsCm = [35, 25, 15]
     else if (rawWeight <= 6) dimsCm = [40, 30, 20]
     else dimsCm = [50, 40, 30]
-    const dimsValName = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]} cm`
+
+    // Formato aceito pelo ML: "AxBxC,cm" (vírgula antes da unidade). Antes
+    // enviávamos "AxBxC cm" com espaço, o que era descartado pela API — daí
+    // vinham os fretes gigantescos mesmo com peso correto.
+    const dimsValName = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},cm`
     mergeAttribute(allAttrs, {
       id: 'SELLER_PACKAGE_DIMENSIONS',
       value_name: dimsValName,
     })
-    console.log(`[ml-publish] Dimensões da embalagem: ${dimsValName} (peso ${rawWeight}kg)`)
+    // Exposto no objeto para reaproveitar no payload de shipping abaixo.
+    const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
+    console.log(`[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg)`)
+
+
 
     // 4) Atributos obrigatórios que o usuário NÃO enviou:
     //    - BRAND: fallback seguro "Genérica"
