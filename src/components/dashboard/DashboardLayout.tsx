@@ -655,6 +655,7 @@ const DashboardLayoutInner = () => {
           <MobileDashboardChrome>
             <Outlet />
           </MobileDashboardChrome>
+          <TutorialOverlay />
           {storesHydrated &&
             ((stores.length === 0 && shouldAutoShowStoreOnboarding) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
             <FirstStoreOnboarding
