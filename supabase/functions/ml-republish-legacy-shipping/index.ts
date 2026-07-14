@@ -421,6 +421,10 @@ Deno.serve(async (req) => {
     const limit = Math.min(20, Math.max(1, parseInt(url.searchParams.get("limit") ?? "3", 10) || 3));
     const dryRun = ["1", "true"].includes(url.searchParams.get("dry_run") ?? "");
     const forcedItemId = url.searchParams.get("item_id");
+    const skipUsers = (url.searchParams.get("skip_users") ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
 
     // Alvos: publicações ativas, sem pedido em orders (grupo A).
     let query = supabase
@@ -430,10 +434,14 @@ Deno.serve(async (req) => {
       .not("ml_item_id", "is", null)
       .order("created_at", { ascending: true });
 
+    if (skipUsers.length > 0) {
+      query = query.not("user_id", "in", `(${skipUsers.join(",")})`);
+    }
+
     if (forcedItemId) {
       query = query.eq("ml_item_id", forcedItemId).limit(1);
     } else {
-      query = query.limit(limit * 3); // pega mais para filtrar por orders
+      query = query.limit(limit * 10); // pool maior para absorver skipped_403 em cadeia
     }
 
     const { data: rows, error: fetchErr } = await query;
