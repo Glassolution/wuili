@@ -41,6 +41,7 @@ type Row = {
 
 type Outcome =
   | "republished"
+  | "republished_no_description"
   | "dry_run"
   | "skipped_has_orders"
   | "skipped_403_permission"
