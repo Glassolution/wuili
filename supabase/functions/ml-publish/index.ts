@@ -852,8 +852,14 @@ Deno.serve(async (req) => {
         local_pick_up: false,
         free_shipping: true,
         free_methods: [],
+        // Campo canônico do ML para cálculo de frete: "AxBxC,pesoEmGramas".
+        // Sem isso a API usa a tabela padrão de pacote grande e o frete
+        // volta a ficar absurdo (R$170+) mesmo com atributos de dimensão
+        // preenchidos, porque o motor de frete lê primeiro este campo.
+        dimensions: shippingDimensions,
         tags: ['self_service_in'],
       },
+
     }
 
     console.log('Payload:', JSON.stringify(mlPayload))
