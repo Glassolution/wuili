@@ -131,7 +131,11 @@ const READ_ONLY_ATTR_PREFIXES = [
   "CATALOG_",
   "MAIN_",
 ];
-const READ_ONLY_ATTR_IDS = new Set<string>([]);
+const READ_ONLY_ATTR_IDS = new Set<string>([
+  "HAZMAT_TRANSPORTABILITY",
+  "IS_HIGHLIGHT_BRAND",
+  "IS_KIT",
+]);
 
 function cloneAttributes(
   oldAttrs: Array<Record<string, unknown>> | undefined,
