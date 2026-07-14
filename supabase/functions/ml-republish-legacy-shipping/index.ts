@@ -41,6 +41,7 @@ type Row = {
 
 type Outcome =
   | "republished"
+  | "republished_no_description"
   | "dry_run"
   | "skipped_has_orders"
   | "skipped_403_permission"
@@ -279,19 +280,37 @@ async function republishOne(
   const newItemId = String(createBody.id);
   const newPermalink = String(createBody.permalink ?? "");
 
-  // 5) Descrição (só se havia descrição relevante)
+  // 5) Descrição (só se havia descrição relevante). Se falhar, o item novo
+  //    já foi criado com sucesso — não abortamos, mas sinalizamos o outcome
+  //    diferente para o suporte reenviar manualmente.
+  let descriptionFailed = false;
+  let descriptionError: string | undefined;
   if (descriptionText.length > 20) {
-    await fetch(`https://api.mercadolibre.com/items/${newItemId}/description`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ plain_text: descriptionText }),
-    }).catch((err) => {
-      console.warn(`[republish] falha ao enviar description para ${newItemId}:`, err);
-    });
+    try {
+      const dRes = await fetch(
+        `https://api.mercadolibre.com/items/${newItemId}/description`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ plain_text: descriptionText }),
+        },
+      );
+      if (!dRes.ok) {
+        descriptionFailed = true;
+        const t = await dRes.text().catch(() => "");
+        descriptionError = `POST description ${dRes.status}: ${t.slice(0, 300)}`;
+        console.warn(`[republish] descrição falhou em ${newItemId}: ${descriptionError}`);
+      }
+    } catch (err) {
+      descriptionFailed = true;
+      descriptionError = String(err instanceof Error ? err.message : err);
+      console.warn(`[republish] descrição throw em ${newItemId}: ${descriptionError}`);
+    }
   }
+
 
   // 6) Pausa/fecha o antigo (padrão do cleanup-ml-duplicates)
   const authHeaders = {
@@ -351,7 +370,8 @@ async function republishOne(
     catalog_product_id: row.catalog_product_id,
     publication_id: row.id,
     reason: "shipping_dimensions_fix",
-    status: "success",
+    status: descriptionFailed ? "success_no_description" : "success",
+    error: descriptionError,
     republished_at: new Date().toISOString(),
   });
 
@@ -362,7 +382,11 @@ async function republishOne(
       error: updErr.message,
     };
   }
-  return { outcome: "republished", newItemId };
+  return {
+    outcome: descriptionFailed ? "republished_no_description" : "republished",
+    newItemId,
+    error: descriptionError,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -523,9 +547,17 @@ Deno.serve(async (req) => {
       await new Promise((r) => setTimeout(r, 400));
     }
 
+    const duplicatesToInvestigate = report.filter(
+      (r) => r.outcome === "failed_close_old",
+    );
+    const missingDescription = report.filter(
+      (r) => r.outcome === "republished_no_description",
+    );
+
     const summary = {
       total: report.length,
       republished: report.filter((r) => r.outcome === "republished").length,
+      republished_no_description: missingDescription.length,
       dry_run: report.filter((r) => r.outcome === "dry_run").length,
       skipped_has_orders: report.filter((r) => r.outcome === "skipped_has_orders").length,
       skipped_403_permission: report.filter((r) => r.outcome === "skipped_403_permission").length,
@@ -534,11 +566,35 @@ Deno.serve(async (req) => {
       failed: report.filter((r) =>
         r.outcome === "failed_get_item" ||
         r.outcome === "failed_create_new" ||
-        r.outcome === "failed_close_old" ||
         r.outcome === "failed_db_update"
       ).length,
+      // ⚠️ Casos que precisam de ação humana rápida:
+      //  - failed_close_old: novo item ativo + antigo AINDA ativo (catálogo
+      //    duplicado no ML). Fechar o antigo manualmente.
+      //  - republished_no_description: anúncio novo publicado sem descrição.
+      //    Reenviar via painel do ML ou re-executar o POST /description.
+      requires_manual_action: {
+        duplicates_new_and_old_active: {
+          count: duplicatesToInvestigate.length,
+          items: duplicatesToInvestigate.map((r) => ({
+            old_ml_item_id: r.old_ml_item_id,
+            new_ml_item_id: r.new_ml_item_id,
+            user_id: r.user_id,
+            error: r.error,
+          })),
+        },
+        missing_description: {
+          count: missingDescription.length,
+          items: missingDescription.map((r) => ({
+            new_ml_item_id: r.new_ml_item_id,
+            user_id: r.user_id,
+            error: r.error,
+          })),
+        },
+      },
       sellers_needing_reconnect: Array.from(noTokenUsers),
     };
+
 
     return new Response(JSON.stringify({ summary, report }, null, 2), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
