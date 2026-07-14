@@ -273,78 +273,78 @@ const CatalogEditorShell = ({ storeName, children }: CatalogEditorShellProps) =>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="w-[min(520px,58vw)] min-w-[360px] shrink-0 overflow-y-auto border-r border-white/[0.08] bg-[#1f1f1d] px-5 py-9">
-          <section className="overflow-hidden rounded-[20px] border border-white/[0.09] bg-[#282826] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-            <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1d]">
-                <LayoutTemplate size={16} />
+        <aside className="w-[360px] shrink-0 overflow-y-auto border-r border-white/[0.08] bg-[#1f1f1d] px-4 py-6">
+          <section className="overflow-hidden rounded-[16px] border border-white/[0.09] bg-[#282826] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="flex items-center gap-3 border-b border-white/[0.08] px-4 py-4">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#1f1f1d]">
+                <LayoutTemplate size={14} />
               </span>
               <div className="min-w-0">
-                <strong className="block truncate text-[16px] font-semibold">Velo Modern</strong>
-                <span className="block truncate text-[12px] text-white/45">Template 01</span>
+                <strong className="block truncate text-[14px] font-semibold">Velo Modern</strong>
+                <span className="block truncate text-[11px] text-white/45">Template 01</span>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 p-3">
-              <button type="button" className="h-11 rounded-[11px] border border-white/[0.11] bg-[#242423] text-[14px] font-medium text-white/78 transition hover:bg-white/[0.07]">Detalhes</button>
-              <button type="button" className="h-11 rounded-[11px] border border-white/[0.12] bg-gradient-to-b from-white/[0.16] to-white/[0.07] text-[14px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">Personalizar</button>
+            <div className="grid grid-cols-2 gap-2 p-2.5">
+              <button type="button" className="h-9 rounded-[9px] border border-white/[0.11] bg-[#242423] text-[12px] font-medium text-white/78 transition hover:bg-white/[0.07]">Detalhes</button>
+              <button type="button" className="h-9 rounded-[9px] border border-white/[0.12] bg-gradient-to-b from-white/[0.16] to-white/[0.07] text-[12px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">Personalizar</button>
             </div>
           </section>
 
-          <div className="mt-7 flex items-center gap-5 text-white/72">
+          <div className="mt-5 flex items-center gap-4 text-white/72">
             <button type="button" onClick={() => navigate("/minha-loja/editor")} className="transition hover:text-white" aria-label="Voltar">
-              <ChevronLeft size={20} />
+              <ChevronLeft size={18} />
             </button>
             <button type="button" className="transition hover:text-white" aria-label="Mais opções">
-              <MoreHorizontal size={22} />
+              <MoreHorizontal size={19} />
             </button>
           </div>
 
-          <section className="mt-7 space-y-4">
-            <button type="button" className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#2563eb] text-white shadow-[0_12px_26px_rgba(37,99,235,0.28)]">
-                <LayoutTemplate size={23} />
+          <section className="mt-5 space-y-3">
+            <button type="button" className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.08] bg-[#282826] p-3 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#2563eb] text-white shadow-[0_10px_20px_rgba(37,99,235,0.24)]">
+                <LayoutTemplate size={19} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-semibold">Trocar template</span>
-                <span className="mt-1 block text-[13px] text-white/42">Atual: Velo Modern</span>
+                <span className="block text-[13px] font-semibold">Trocar template</span>
+                <span className="mt-0.5 block text-[11px] text-white/42">Atual: Velo Modern</span>
               </span>
-              <ChevronRight size={18} className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
+              <ChevronRight size={15} className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
             </button>
 
-            <button type="button" onClick={() => navigate("/dashboard/catalogo")} className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#f97316] text-white shadow-[0_12px_26px_rgba(249,115,22,0.24)]">
-                <Package size={23} />
+            <button type="button" onClick={() => navigate("/dashboard/catalogo")} className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.08] bg-[#282826] p-3 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#f97316] text-white shadow-[0_10px_20px_rgba(249,115,22,0.22)]">
+                <Package size={19} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-semibold">Adicionar produtos</span>
-                <span className="mt-1 block text-[13px] text-white/42">Escolha do catálogo Velo</span>
+                <span className="block text-[13px] font-semibold">Adicionar produtos</span>
+                <span className="mt-0.5 block text-[11px] text-white/42">Escolha do catálogo Velo</span>
               </span>
-              <ChevronRight size={18} className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
+              <ChevronRight size={15} className="text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
             </button>
           </section>
 
-          <div className="my-8 border-t border-white/[0.08]" />
+          <div className="my-5 border-t border-white/[0.08]" />
 
-          <section className="space-y-7">
+          <section className="space-y-5">
             <div>
-              <div className="flex items-center gap-3">
-                <Palette size={17} className="text-white/70" />
-                <strong className="text-[15px] font-semibold">Cor de destaque</strong>
+              <div className="flex items-center gap-2.5">
+                <Palette size={14} className="text-white/70" />
+                <strong className="text-[13px] font-semibold">Cor de destaque</strong>
               </div>
-              <p className="mt-2 text-[13px] text-white/38">Usada em botões, preços e tags.</p>
-              <div className="mt-5 flex flex-wrap items-center gap-3">
+              <p className="mt-1.5 text-[11px] text-white/38">Usada em botões, preços e tags.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 {["#111111", "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed"].map((color) => (
-                  <span key={color} className="h-11 w-11 rounded-full ring-1 ring-white/15" style={{ backgroundColor: color }} />
+                  <span key={color} className="h-8 w-8 rounded-full ring-1 ring-white/15" style={{ backgroundColor: color }} />
                 ))}
               </div>
             </div>
 
             <div>
-              <div className="flex items-center gap-3">
-                <Type size={17} className="text-white/70" />
-                <strong className="text-[15px] font-semibold">Tipografia</strong>
+              <div className="flex items-center gap-2.5">
+                <Type size={14} className="text-white/70" />
+                <strong className="text-[13px] font-semibold">Tipografia</strong>
               </div>
-              <p className="mt-2 text-[13px] text-white/38">Fonte dos títulos e textos da loja.</p>
+              <p className="mt-1.5 text-[11px] text-white/38">Fonte dos títulos e textos da loja.</p>
             </div>
           </section>
         </aside>

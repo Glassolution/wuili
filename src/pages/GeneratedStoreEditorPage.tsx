@@ -824,68 +824,68 @@ const GeneratedStoreEditorPage = () => {
       <div className="flex min-h-0 flex-1">
         <input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={(event)=>{const file=event.target.files?.[0];if(file)setHeroImage(URL.createObjectURL(file));}}/>
         <input ref={contextMediaInput} type="file" accept="image/*" className="hidden" onChange={handleContextImageUpload}/>
-        <aside className="w-[min(520px,58vw)] min-w-[360px] shrink-0 overflow-y-auto border-r border-white/[0.08] bg-[#1f1f1d] px-5 py-9">
-          <section className="overflow-hidden rounded-[20px] border border-white/[0.09] bg-[#282826] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-            <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1d]">
-                <LayoutTemplate size={16} />
+        <aside className="w-[360px] shrink-0 overflow-y-auto border-r border-white/[0.08] bg-[#1f1f1d] px-4 py-6">
+          <section className="overflow-hidden rounded-[16px] border border-white/[0.09] bg-[#282826] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="flex items-center gap-3 border-b border-white/[0.08] px-4 py-4">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#1f1f1d]">
+                <LayoutTemplate size={14} />
               </span>
               <div className="min-w-0">
-                <strong className="block truncate text-[16px] font-semibold">{currentTemplate}</strong>
-                <span className="block truncate text-[12px] text-white/45">Template 01</span>
+                <strong className="block truncate text-[14px] font-semibold">{currentTemplate}</strong>
+                <span className="block truncate text-[11px] text-white/45">Template 01</span>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 p-3">
-              <button type="button" className="h-11 rounded-[11px] border border-white/[0.11] bg-[#242423] text-[14px] font-medium text-white/78 transition hover:bg-white/[0.07]">Detalhes</button>
-              <button type="button" className="h-11 rounded-[11px] border border-white/[0.12] bg-gradient-to-b from-white/[0.16] to-white/[0.07] text-[14px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">Personalizar</button>
+            <div className="grid grid-cols-2 gap-2 p-2.5">
+              <button type="button" className="h-9 rounded-[9px] border border-white/[0.11] bg-[#242423] text-[12px] font-medium text-white/78 transition hover:bg-white/[0.07]">Detalhes</button>
+              <button type="button" className="h-9 rounded-[9px] border border-white/[0.12] bg-gradient-to-b from-white/[0.16] to-white/[0.07] text-[12px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">Personalizar</button>
             </div>
           </section>
 
-          <div className="mt-7 flex items-center gap-5 text-white/72">
+          <div className="mt-5 flex items-center gap-4 text-white/72">
             <button type="button" onClick={() => history.back()} className="transition hover:text-white" aria-label="Voltar">
-              <ChevronLeft size={20} />
+              <ChevronLeft size={18} />
             </button>
             <button type="button" className="transition hover:text-white" aria-label="Mais opções">
-              <MoreHorizontal size={22} />
+              <MoreHorizontal size={19} />
             </button>
           </div>
 
-          <section className="mt-7 space-y-4">
-            <button type="button" onClick={()=>setShowTemplates(true)} className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#2563eb] text-white shadow-[0_12px_26px_rgba(37,99,235,0.28)]"><LayoutTemplate size={23}/></span>
-              <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">Trocar template</span><span className="mt-1 block text-[13px] text-white/42">Atual: {currentTemplate}</span></span>
-              <ChevronLeft size={18} className="rotate-180 text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
+          <section className="mt-5 space-y-3">
+            <button type="button" onClick={()=>setShowTemplates(true)} className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.08] bg-[#282826] p-3 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#2563eb] text-white shadow-[0_10px_20px_rgba(37,99,235,0.24)]"><LayoutTemplate size={19}/></span>
+              <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Trocar template</span><span className="mt-0.5 block text-[11px] text-white/42">Atual: {currentTemplate}</span></span>
+              <ChevronLeft size={15} className="rotate-180 text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
             </button>
 
-            <button type="button" onClick={()=>navigate("/catalogo")} className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#f97316] text-white shadow-[0_12px_26px_rgba(249,115,22,0.24)]"><Package size={23}/></span>
-              <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">Adicionar produtos</span><span className="mt-1 block text-[13px] text-white/42">Escolha do catálogo Velo</span></span>
-              <Plus size={17} className="text-white/35" />
+            <button type="button" onClick={()=>navigate("/catalogo")} className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.08] bg-[#282826] p-3 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#f97316] text-white shadow-[0_10px_20px_rgba(249,115,22,0.22)]"><Package size={19}/></span>
+              <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Adicionar produtos</span><span className="mt-0.5 block text-[11px] text-white/42">Escolha do catálogo Velo</span></span>
+              <Plus size={15} className="text-white/35" />
             </button>
 
-            <button type="button" onClick={()=>imageInput.current?.click()} className="group flex w-full items-center gap-4 rounded-[18px] border border-white/[0.08] bg-[#282826] p-4 text-left transition hover:bg-[#30302e]">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px] bg-[#7c3aed] text-white shadow-[0_12px_26px_rgba(124,58,237,0.24)]"><Sparkles size={23}/></span>
-              <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold">Imagem principal</span><span className="mt-1 block text-[13px] text-white/42">Envie a foto do banner</span></span>
-              <Plus size={17} className="text-white/35" />
+            <button type="button" onClick={()=>imageInput.current?.click()} className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.08] bg-[#282826] p-3 text-left transition hover:bg-[#30302e]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#7c3aed] text-white shadow-[0_10px_20px_rgba(124,58,237,0.22)]"><Sparkles size={19}/></span>
+              <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Imagem principal</span><span className="mt-0.5 block text-[11px] text-white/42">Envie a foto do banner</span></span>
+              <Plus size={15} className="text-white/35" />
             </button>
 
-            <label className="block rounded-[18px] border border-white/[0.08] bg-[#282826] p-4">
-              <span className="text-[14px] font-semibold text-white/85">Link do CTA do hero</span>
-              <input value={heroCtaUrl} onChange={(event)=>setHeroCtaUrl(event.target.value)} placeholder="/catalogo ou https://..." className="mt-3 h-11 w-full rounded-[12px] border border-white/[0.10] bg-[#1f1f1d] px-3 text-[13px] text-white outline-none transition placeholder:text-white/28 focus:border-white/35" />
+            <label className="block rounded-[14px] border border-white/[0.08] bg-[#282826] p-3">
+              <span className="text-[12px] font-semibold text-white/85">Link do CTA do hero</span>
+              <input value={heroCtaUrl} onChange={(event)=>setHeroCtaUrl(event.target.value)} placeholder="/catalogo ou https://..." className="mt-2 h-9 w-full rounded-[10px] border border-white/[0.10] bg-[#1f1f1d] px-3 text-[12px] text-white outline-none transition placeholder:text-white/28 focus:border-white/35" />
             </label>
           </section>
 
-          <div className="my-8 border-t border-white/[0.08]" />
+          <div className="my-5 border-t border-white/[0.08]" />
 
-          <section className="space-y-8">
+          <section className="space-y-5">
             <div>
-              <div className="flex items-center gap-3"><Palette size={17} className="text-white/70"/><strong className="text-[15px] font-semibold">Cor de destaque</strong></div>
-              <p className="mt-2 text-[13px] text-white/38">Usada em botões, preços e tags.</p>
-              <div className="mt-5 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2.5"><Palette size={14} className="text-white/70"/><strong className="text-[13px] font-semibold">Cor de destaque</strong></div>
+              <p className="mt-1.5 text-[11px] text-white/38">Usada em botões, preços e tags.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 {["#111111","#2563eb","#dc2626","#16a34a","#f59e0b","#ec4899","#7c3aed"].map((color)=>(
-                  <button key={color} type="button" onClick={()=>setAccent(color)} aria-label={color} className={`relative h-11 w-11 rounded-full transition ${accent===color?"ring-2 ring-white ring-offset-2 ring-offset-[#1f1f1d]":"ring-1 ring-white/15 hover:scale-105"}`} style={{backgroundColor:color}}>{accent===color?<Check size={15} className="absolute inset-0 m-auto text-white drop-shadow"/>:null}</button>
+                  <button key={color} type="button" onClick={()=>setAccent(color)} aria-label={color} className={`relative h-8 w-8 rounded-full transition ${accent===color?"ring-2 ring-white ring-offset-2 ring-offset-[#1f1f1d]":"ring-1 ring-white/15 hover:scale-105"}`} style={{backgroundColor:color}}>{accent===color?<Check size={12} className="absolute inset-0 m-auto text-white drop-shadow"/>:null}</button>
                 ))}
-                <label className="relative h-11 w-11 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/15" title="Cor personalizada">
+                <label className="relative h-8 w-8 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/15" title="Cor personalizada">
                   <span className="absolute inset-0 bg-[conic-gradient(from_0deg,#ff0080,#ff8c00,#ffee00,#00ff85,#00b8ff,#8a2be2,#ff0080)]" />
                   <input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"/>
                 </label>
@@ -893,26 +893,26 @@ const GeneratedStoreEditorPage = () => {
             </div>
 
             <div>
-              <div className="flex items-center gap-3"><Type size={17} className="text-white/70"/><strong className="text-[15px] font-semibold">Tipografia</strong></div>
-              <p className="mt-2 text-[13px] text-white/38">{"Fonte dos títulos e textos da loja."}</p>
-              <div className="mt-4 grid grid-cols-1 gap-2">
+              <div className="flex items-center gap-2.5"><Type size={14} className="text-white/70"/><strong className="text-[13px] font-semibold">Tipografia</strong></div>
+              <p className="mt-1.5 text-[11px] text-white/38">{"Fonte dos títulos e textos da loja."}</p>
+              <div className="mt-3 grid grid-cols-1 gap-2">
                 {fontOptions.map((option)=>(
-                  <button key={option.name} type="button" onClick={()=>setFont(option.name)} className={`flex items-center justify-between rounded-[14px] border p-3 text-left transition ${font===option.name?"border-white/70 bg-white/[0.08]":"border-white/[0.08] bg-[#282826] hover:bg-[#30302e]"}`}>
-                    <span><span className="block text-[15px]" style={{fontFamily:option.stack}}>{option.name}</span><span className="block text-[11px] text-white/40">{option.mood}</span></span>
-                    {font===option.name?<Check size={14} className="text-white"/>:null}
+                  <button key={option.name} type="button" onClick={()=>setFont(option.name)} className={`flex items-center justify-between rounded-[11px] border px-3 py-2 text-left transition ${font===option.name?"border-white/70 bg-white/[0.08]":"border-white/[0.08] bg-[#282826] hover:bg-[#30302e]"}`}>
+                    <span><span className="block text-[12px]" style={{fontFamily:option.stack}}>{option.name}</span><span className="block text-[10px] text-white/40">{option.mood}</span></span>
+                    {font===option.name?<Check size={12} className="text-white"/>:null}
                   </button>
                 ))}
               </div>
             </div>
 
             <div>
-              <div className="flex items-center gap-3"><LayoutGrid size={17} className="text-white/70"/><strong className="text-[15px] font-semibold">Colunas da grade</strong></div>
-              <p className="mt-2 text-[13px] text-white/38">Quantos produtos por linha no desktop.</p>
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="flex items-center gap-2.5"><LayoutGrid size={14} className="text-white/70"/><strong className="text-[13px] font-semibold">Colunas da grade</strong></div>
+              <p className="mt-1.5 text-[11px] text-white/38">Quantos produtos por linha no desktop.</p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 {[2,3,4].map((value)=>(
-                  <button key={value} type="button" onClick={()=>setColumns(value)} className={`flex flex-col items-center gap-2 rounded-[14px] border p-3 transition ${columns===value?"border-white/70 bg-white/[0.08]":"border-white/[0.08] bg-[#282826] hover:bg-[#30302e]"}`}>
-                    <span className="grid w-full gap-1" style={{gridTemplateColumns:`repeat(${value}, minmax(0,1fr))`}}>{Array.from({length:value}).map((_,index)=><span key={index} className="h-6 rounded-[4px] bg-white/25"/>)}</span>
-                    <span className="text-[11px] text-white/55">{value}</span>
+                  <button key={value} type="button" onClick={()=>setColumns(value)} className={`flex flex-col items-center gap-1.5 rounded-[11px] border p-2 transition ${columns===value?"border-white/70 bg-white/[0.08]":"border-white/[0.08] bg-[#282826] hover:bg-[#30302e]"}`}>
+                    <span className="grid w-full gap-1" style={{gridTemplateColumns:`repeat(${value}, minmax(0,1fr))`}}>{Array.from({length:value}).map((_,index)=><span key={index} className="h-4 rounded-[3px] bg-white/25"/>)}</span>
+                    <span className="text-[10px] text-white/55">{value}</span>
                   </button>
                 ))}
               </div>
