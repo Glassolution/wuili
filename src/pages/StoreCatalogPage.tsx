@@ -273,7 +273,7 @@ const CatalogEditorShell = ({ storeName, children }: CatalogEditorShellProps) =>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-r border-white/[0.08] bg-[#1f1f1d] px-5 py-9 xl:block xl:w-[520px]">
+        <aside className="w-[min(520px,58vw)] min-w-[360px] shrink-0 overflow-y-auto border-r border-white/[0.08] bg-[#1f1f1d] px-5 py-9">
           <section className="overflow-hidden rounded-[20px] border border-white/[0.09] bg-[#282826] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-5">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#1f1f1d]">
