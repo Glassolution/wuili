@@ -280,19 +280,37 @@ async function republishOne(
   const newItemId = String(createBody.id);
   const newPermalink = String(createBody.permalink ?? "");
 
-  // 5) Descrição (só se havia descrição relevante)
+  // 5) Descrição (só se havia descrição relevante). Se falhar, o item novo
+  //    já foi criado com sucesso — não abortamos, mas sinalizamos o outcome
+  //    diferente para o suporte reenviar manualmente.
+  let descriptionFailed = false;
+  let descriptionError: string | undefined;
   if (descriptionText.length > 20) {
-    await fetch(`https://api.mercadolibre.com/items/${newItemId}/description`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ plain_text: descriptionText }),
-    }).catch((err) => {
-      console.warn(`[republish] falha ao enviar description para ${newItemId}:`, err);
-    });
+    try {
+      const dRes = await fetch(
+        `https://api.mercadolibre.com/items/${newItemId}/description`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ plain_text: descriptionText }),
+        },
+      );
+      if (!dRes.ok) {
+        descriptionFailed = true;
+        const t = await dRes.text().catch(() => "");
+        descriptionError = `POST description ${dRes.status}: ${t.slice(0, 300)}`;
+        console.warn(`[republish] descrição falhou em ${newItemId}: ${descriptionError}`);
+      }
+    } catch (err) {
+      descriptionFailed = true;
+      descriptionError = String(err instanceof Error ? err.message : err);
+      console.warn(`[republish] descrição throw em ${newItemId}: ${descriptionError}`);
+    }
   }
+
 
   // 6) Pausa/fecha o antigo (padrão do cleanup-ml-duplicates)
   const authHeaders = {
