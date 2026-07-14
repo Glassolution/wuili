@@ -107,7 +107,7 @@ export function useHelpFeed() {
       const postIds = rows.map((r) => r.id);
 
       const [profRes, likesRes, myLikesRes, commentsRes] = await Promise.all([
-        sb.from("profiles").select("user_id, display_name, avatar_url").in("user_id", authorIds),
+        sb.rpc("get_help_feed_authors", { _author_ids: authorIds }),
         sb.from("help_feed_likes").select("post_id").in("post_id", postIds),
         user
           ? sb.from("help_feed_likes").select("post_id").eq("user_id", user.id).in("post_id", postIds)
