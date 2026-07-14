@@ -547,9 +547,17 @@ Deno.serve(async (req) => {
       await new Promise((r) => setTimeout(r, 400));
     }
 
+    const duplicatesToInvestigate = report.filter(
+      (r) => r.outcome === "failed_close_old",
+    );
+    const missingDescription = report.filter(
+      (r) => r.outcome === "republished_no_description",
+    );
+
     const summary = {
       total: report.length,
       republished: report.filter((r) => r.outcome === "republished").length,
+      republished_no_description: missingDescription.length,
       dry_run: report.filter((r) => r.outcome === "dry_run").length,
       skipped_has_orders: report.filter((r) => r.outcome === "skipped_has_orders").length,
       skipped_403_permission: report.filter((r) => r.outcome === "skipped_403_permission").length,
@@ -558,11 +566,35 @@ Deno.serve(async (req) => {
       failed: report.filter((r) =>
         r.outcome === "failed_get_item" ||
         r.outcome === "failed_create_new" ||
-        r.outcome === "failed_close_old" ||
         r.outcome === "failed_db_update"
       ).length,
+      // ⚠️ Casos que precisam de ação humana rápida:
+      //  - failed_close_old: novo item ativo + antigo AINDA ativo (catálogo
+      //    duplicado no ML). Fechar o antigo manualmente.
+      //  - republished_no_description: anúncio novo publicado sem descrição.
+      //    Reenviar via painel do ML ou re-executar o POST /description.
+      requires_manual_action: {
+        duplicates_new_and_old_active: {
+          count: duplicatesToInvestigate.length,
+          items: duplicatesToInvestigate.map((r) => ({
+            old_ml_item_id: r.old_ml_item_id,
+            new_ml_item_id: r.new_ml_item_id,
+            user_id: r.user_id,
+            error: r.error,
+          })),
+        },
+        missing_description: {
+          count: missingDescription.length,
+          items: missingDescription.map((r) => ({
+            new_ml_item_id: r.new_ml_item_id,
+            user_id: r.user_id,
+            error: r.error,
+          })),
+        },
+      },
       sellers_needing_reconnect: Array.from(noTokenUsers),
     };
+
 
     return new Response(JSON.stringify({ summary, report }, null, 2), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
