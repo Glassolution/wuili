@@ -33,8 +33,8 @@ serve(async (req) => {
       return Response.redirect(`${dashboardUrl}?ali_error=missing_params`, 302);
     }
 
-    const appKey = Deno.env.get("ALIEXPRESS_APP_KEY");
-    const appSecret = Deno.env.get("ALIEXPRESS_APP_SECRET");
+    const appKey = Deno.env.get("ALIEXPRESS_APP_KEY")?.trim();
+    const appSecret = Deno.env.get("ALIEXPRESS_APP_SECRET")?.trim();
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
