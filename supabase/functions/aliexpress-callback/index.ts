@@ -33,8 +33,8 @@ serve(async (req) => {
       return Response.redirect(`${dashboardUrl}?ali_error=missing_params`, 302);
     }
 
-    const appKey = Deno.env.get("ALIEXPRESS_APP_KEY");
-    const appSecret = Deno.env.get("ALIEXPRESS_APP_SECRET");
+    const appKey = Deno.env.get("ALIEXPRESS_APP_KEY")?.trim();
+    const appSecret = Deno.env.get("ALIEXPRESS_APP_SECRET")?.trim();
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -90,18 +90,29 @@ serve(async (req) => {
 
     const redirectUri = `${supabaseUrl}/functions/v1/aliexpress-callback`;
 
-    // Exchange authorization code for access token
+    // TEMP DEBUG: masked app key to verify secret is loaded correctly
+    console.log(
+      `[aliexpress-callback] ALIEXPRESS_APP_KEY masked: ${appKey.slice(0, 2)}...${appKey.slice(-2)} (len=${appKey.length})`,
+    );
+    console.log(`[aliexpress-callback] redirect_uri: ${redirectUri}`);
+
+    // Exchange authorization code for access token (OAuth2 standard endpoint)
+    const tokenBody = new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: appKey,
+      client_secret: appSecret,
+      code,
+      redirect_uri: redirectUri,
+      sp: "ae",
+    });
+
     const tokenRes = await fetch("https://oauth.aliexpress.com/token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code,
-        client_id: appKey,
-        client_secret: appSecret,
-        redirect_uri: redirectUri,
-        sp: "ae",
-      }),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: tokenBody,
     });
 
     const tokenText = await tokenRes.text();
