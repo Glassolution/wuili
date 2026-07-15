@@ -102,23 +102,27 @@ serve(async (req) => {
 
     const redirectUri = `${supabaseUrl}/functions/v1/aliexpress-callback`;
 
-    // TEMP DEBUG: masked app key to verify secret is loaded correctly
     console.log(
       `[aliexpress-callback] ALIEXPRESS_APP_KEY masked: ${appKey.slice(0, 2)}...${appKey.slice(-2)} (len=${appKey.length})`,
     );
     console.log(`[aliexpress-callback] redirect_uri: ${redirectUri}`);
 
-    // Exchange authorization code for access token (OAuth2 standard endpoint)
-    const tokenBody = new URLSearchParams({
-      grant_type: "authorization_code",
-      client_id: appKey,
-      client_secret: appSecret,
+    // AliExpress Open Platform token exchange (assinado HMAC-SHA256)
+    const apiName = "/auth/token/create";
+    const signParams: Record<string, string> = {
+      app_key: appKey,
       code,
-      redirect_uri: redirectUri,
-      sp: "ae",
-    });
+      sign_method: "sha256",
+      timestamp: String(Date.now()),
+    };
+    const sign = signRest(apiName, signParams, appSecret);
 
-    const tokenRes = await fetch("https://oauth.aliexpress.com/token", {
+    const tokenBody = new URLSearchParams({ ...signParams, sign });
+    const tokenUrl = `https://api-sg.aliexpress.com/rest${apiName}`;
+
+    console.log("[aliexpress-callback] signing base params keys:", Object.keys(signParams).sort().join(","));
+
+    const tokenRes = await fetch(tokenUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
