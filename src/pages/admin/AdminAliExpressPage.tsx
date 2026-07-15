@@ -47,18 +47,37 @@ export default function AdminAliExpressPage() {
 
   const load = async () => {
     setLoading(true);
-    const [m, l] = await Promise.all([
+    const [m, l, p] = await Promise.all([
       supabase.from("category_mapping").select("*").order("velo_category"),
       supabase.from("aliexpress_sync_log").select("*").order("started_at", { ascending: false }).limit(10),
+      user?.id
+        ? supabase.from("profiles").select("aliexpress_access_token").eq("user_id", user.id).maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
     if (m.data) setMappings(m.data as Mapping[]);
     if (l.data) setLogs(l.data as SyncLog[]);
+    setIsConnected(Boolean((p as any)?.data?.aliexpress_access_token));
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const connectAliExpress = async () => {
+    setConnecting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("aliexpress-connect");
+      if (error) throw error;
+      const authUrl = (data as any)?.authUrl || (data as any)?.auth_url || (data as any)?.url;
+      if (!authUrl) throw new Error("URL de autorização não retornada");
+      window.location.href = authUrl;
+    } catch (err) {
+      veloToast.error(err instanceof Error ? err.message : "Falha ao iniciar conexão");
+      setConnecting(false);
+    }
+  };
 
   const addMapping = async () => {
     if (!form.velo_category.trim() || !form.aliexpress_category_id.trim()) {
