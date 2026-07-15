@@ -12,6 +12,7 @@ import {
   PackageCheck,
   RefreshCcw,
   Settings,
+  ShoppingBag,
   Sparkles,
   User,
   Users as UsersIcon,
