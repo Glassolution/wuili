@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
+import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import { veloToast } from "@/components/ui/velo-toast";
 
 const FAQItem = ({ question, answer }: { question: string; answer: string }) => {
@@ -122,6 +123,7 @@ const CatalogoProductDetailPage = () => {
   const [relatedIndex, setRelatedIndex] = useState(0);
   const [rawProduct, setRawProduct] = useState<CatalogProductRow | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [showSalesPageSoon, setShowSalesPageSoon] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -255,6 +257,12 @@ const CatalogoProductDetailPage = () => {
   const catalogMetrics = getProductCatalogMetrics(product);
   const [suggestedPriceMain, suggestedPriceCents = "00"] = formatPrice(product.suggestedPrice).split(",");
   const handleCreateSalesPage = () => {
+    const activeStore = getActiveStore();
+    if (activeStore) {
+      setShowSalesPageSoon(true);
+      return;
+    }
+
     const flowProduct = {
       id: product.id,
       title: product.title,
@@ -693,6 +701,29 @@ const CatalogoProductDetailPage = () => {
         product={rawProduct}
         onClose={() => setIsImportModalOpen(false)}
       />
+
+      {showSalesPageSoon ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/35 px-4 backdrop-blur-[6px]">
+          <div className="w-full max-w-[420px] rounded-[28px] border border-black/[0.08] bg-white p-6 text-center shadow-[0_28px_80px_rgba(0,0,0,0.22)]">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#F4F4F3] text-[#111]">
+              <FilePlus2 size={23} strokeWidth={1.7} />
+            </div>
+            <h2 className="mt-5 text-[22px] font-semibold tracking-[-0.04em] text-[#111]">
+              Página de vendas individual em breve
+            </h2>
+            <p className="mx-auto mt-3 max-w-[320px] text-[14px] leading-6 text-[#6B7280]">
+              Sua loja ativa foi preservada. Em breve você poderá criar uma página de vendas separada para este produto sem refazer o onboarding.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowSalesPageSoon(false)}
+              className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition hover:bg-[#202020]"
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
