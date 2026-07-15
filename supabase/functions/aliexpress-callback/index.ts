@@ -50,6 +50,8 @@ serve(async (req) => {
 
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
+    const refreshToken = tokenData.refresh_token ?? null;
+    const expiresIn = Number(tokenData.expires_in ?? 86400);
 
     if (!accessToken) {
       throw new Error("No access_token in AliExpress response");
@@ -78,10 +80,13 @@ serve(async (req) => {
       });
     }
 
-    // Save access token to profiles table
     const { error: updateError } = await supabase
       .from("profiles")
-      .update({ aliexpress_token: accessToken })
+      .update({
+        aliexpress_access_token: accessToken,
+        aliexpress_refresh_token: refreshToken,
+        aliexpress_token_expires_at: new Date(Date.now() + expiresIn * 1000).toISOString(),
+      })
       .eq("user_id", user.id);
 
     if (updateError) {
