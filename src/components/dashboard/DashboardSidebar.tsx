@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ChevronDown, ChevronUp, ClipboardList, Copy, CreditCard, Home, Info, LogOut, MessagesSquare, Plus, Search, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, Users, X } from "lucide-react";
+import { Archive, BadgeCheck, ChevronDown, ChevronUp, ClipboardList, Copy, CreditCard, Home, Info, LogOut, MessagesSquare, Plus, Search, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ type NavItem = {
 const baseNavItems: NavItem[] = [
   { label: "Início", icon: Home, to: "/dashboard", end: true },
   { label: "Catálogo", icon: ShoppingCart, to: "/dashboard/catalogo" },
+  { label: "Produtos em Alta", icon: TrendingUp, to: "/dashboard/produtos-em-alta" },
   { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
   { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
@@ -34,6 +35,7 @@ const normalizePath = (path: string) => path.split("?")[0].replace(/\/$/, "");
 const tourTargetByLabel: Record<string, string> = {
   Início: "inicio",
   Catálogo: "catalogo",
+  "Produtos em Alta": "produtos-em-alta",
   Publicações: "publicacoes",
   Pedidos: "pedidos",
   Relatórios: "relatorios",

@@ -34,6 +34,7 @@ const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayou
 const CatalogPage = lazy(() => import("./pages/dashboard/CatalogPage"));
 const CatalogoPage = lazy(() => import("./pages/dashboard/CatalogoPage"));
 const CatalogoProductDetailPage = lazy(() => import("./pages/dashboard/CatalogoProductDetailPage"));
+const TrendingProductsPage = lazy(() => import("./pages/dashboard/TrendingProductsPage"));
 const OrdersPage = lazy(() => import("./pages/dashboard/OrdersPage"));
 const OrderDetailPage = lazy(() => import("./pages/dashboard/OrderDetailPage"));
 const PublicationsPage = lazy(() => import("./pages/dashboard/PublicationsPage"));
@@ -164,6 +165,7 @@ const App = () => (
                 <Route path="atlas/:threadId" element={<AtlasChatPage />} />
                 <Route path="catalogo" element={<CatalogoPage />} />
                 <Route path="catalogo/:id" element={<CatalogoProductDetailPage />} />
+                <Route path="produtos-em-alta" element={<TrendingProductsPage />} />
                 <Route path="produtos-ml" element={<ProdutosMLPage />} />
                 <Route path="saldos" element={<SaldosPage />} />
                 <Route path="transacoes" element={<TransacoesPage />} />
