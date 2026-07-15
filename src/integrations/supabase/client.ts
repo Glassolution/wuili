@@ -109,7 +109,7 @@ export const supabase = SUPABASE_DISABLED
 export const isSupabaseEnabled = !SUPABASE_DISABLED;
 export const supabaseUrl = SUPABASE_URL;
 
-type SupabaseResultWithError = { error: unknown };
+type SupabaseResultWithError = { error: unknown; data?: any; count?: number | null };
 
 const JWT_EXPIRED_MESSAGES = ["jwt expired", "token is expired", "invalid jwt"];
 const SESSION_REFRESH_WINDOW_MS = 60_000;

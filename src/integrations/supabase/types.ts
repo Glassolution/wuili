@@ -146,6 +146,54 @@ export type Database = {
         }
         Relationships: []
       }
+      aliexpress_sync_log: {
+        Row: {
+          categories_processed: number
+          created_at: string
+          duration_ms: number | null
+          error_count: number
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          products_dropped_from_top: number
+          products_new: number
+          products_updated: number
+          started_at: string
+          status: string
+          triggered_by: string
+        }
+        Insert: {
+          categories_processed?: number
+          created_at?: string
+          duration_ms?: number | null
+          error_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          products_dropped_from_top?: number
+          products_new?: number
+          products_updated?: number
+          started_at?: string
+          status?: string
+          triggered_by?: string
+        }
+        Update: {
+          categories_processed?: number
+          created_at?: string
+          duration_ms?: number | null
+          error_count?: number
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          products_dropped_from_top?: number
+          products_new?: number
+          products_updated?: number
+          started_at?: string
+          status?: string
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       atlas_messages: {
         Row: {
           content: string
@@ -210,6 +258,7 @@ export type Database = {
       }
       catalog_products: {
         Row: {
+          aliexpress_category_id: string | null
           brand: string | null
           category: string | null
           cost_price: number
@@ -218,6 +267,7 @@ export type Database = {
           external_id: string
           id: string
           images: Json | null
+          in_top_50: boolean
           is_active: boolean | null
           is_blocked: boolean
           margin_percent: number
@@ -238,6 +288,7 @@ export type Database = {
           weight: number | null
         }
         Insert: {
+          aliexpress_category_id?: string | null
           brand?: string | null
           category?: string | null
           cost_price: number
@@ -246,6 +297,7 @@ export type Database = {
           external_id: string
           id?: string
           images?: Json | null
+          in_top_50?: boolean
           is_active?: boolean | null
           is_blocked?: boolean
           margin_percent: number
@@ -266,6 +318,7 @@ export type Database = {
           weight?: number | null
         }
         Update: {
+          aliexpress_category_id?: string | null
           brand?: string | null
           category?: string | null
           cost_price?: number
@@ -274,6 +327,7 @@ export type Database = {
           external_id?: string
           id?: string
           images?: Json | null
+          in_top_50?: boolean
           is_active?: boolean | null
           is_blocked?: boolean
           margin_percent?: number
@@ -292,6 +346,36 @@ export type Database = {
           updated_at?: string | null
           variants?: Json | null
           weight?: number | null
+        }
+        Relationships: []
+      }
+      category_mapping: {
+        Row: {
+          active: boolean
+          aliexpress_category_id: string
+          aliexpress_category_name: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          velo_category: string
+        }
+        Insert: {
+          active?: boolean
+          aliexpress_category_id: string
+          aliexpress_category_name?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          velo_category: string
+        }
+        Update: {
+          active?: boolean
+          aliexpress_category_id?: string
+          aliexpress_category_name?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          velo_category?: string
         }
         Relationships: []
       }
@@ -865,6 +949,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          aliexpress_access_token: string | null
+          aliexpress_refresh_token: string | null
+          aliexpress_token_expires_at: string | null
           avatar_url: string | null
           categorias: string[] | null
           created_at: string
@@ -890,6 +977,9 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          aliexpress_access_token?: string | null
+          aliexpress_refresh_token?: string | null
+          aliexpress_token_expires_at?: string | null
           avatar_url?: string | null
           categorias?: string[] | null
           created_at?: string
@@ -915,6 +1005,9 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          aliexpress_access_token?: string | null
+          aliexpress_refresh_token?: string | null
+          aliexpress_token_expires_at?: string | null
           avatar_url?: string | null
           categorias?: string[] | null
           created_at?: string
@@ -1527,6 +1620,7 @@ export type Database = {
           viral_score: number
         }[]
       }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "influencer"
