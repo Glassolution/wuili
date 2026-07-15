@@ -61,32 +61,45 @@ async function callAliExpress(
   return json;
 }
 
+/** Assinatura HMAC-SHA256 para endpoints /rest/* (inclui apiName no início). */
+function signRest(apiName: string, params: Record<string, string>, secret: string): string {
+  const sorted = Object.keys(params).sort();
+  const base = apiName + sorted.map((k) => `${k}${params[k]}`).join("");
+  return createHmac("sha256", secret).update(base).digest("hex").toUpperCase();
+}
+
 async function refreshAccessToken(
   refreshToken: string,
   appKey: string,
   appSecret: string,
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
-  const res = await fetch("https://api.aliexpress.com/auth/token/refresh", {
+  const apiName = "/auth/token/refresh";
+  const params: Record<string, string> = {
+    app_key: appKey,
+    refresh_token: refreshToken,
+    sign_method: "sha256",
+    timestamp: String(Date.now()),
+  };
+  const sign = signRest(apiName, params, appSecret);
+  const res = await fetch(`https://api-sg.aliexpress.com/rest${apiName}`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: appKey,
-      client_secret: appSecret,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
+    body: new URLSearchParams({ ...params, sign }),
   });
+  const text = await res.text();
   if (!res.ok) {
-    throw new Error(`Falha ao renovar token AliExpress: ${res.status}`);
+    throw new Error(`Falha ao renovar token AliExpress: ${res.status} ${text}`);
   }
-  const data = await res.json();
-  if (!data.access_token) throw new Error("Refresh AliExpress sem access_token");
+  const data = JSON.parse(text);
+  const accessToken = data.access_token ?? data.data?.access_token;
+  if (!accessToken) throw new Error(`Refresh AliExpress sem access_token: ${text}`);
   return {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token ?? refreshToken,
-    expires_in: Number(data.expires_in ?? 86400),
+    access_token: accessToken,
+    refresh_token: data.refresh_token ?? data.data?.refresh_token ?? refreshToken,
+    expires_in: Number(data.expires_in ?? data.data?.expires_in ?? 86400),
   };
 }
+
 
 /** Normaliza resposta variada da API em produtos padronizados. */
 function normalizeProducts(json: any, categoryId: string): any[] {
