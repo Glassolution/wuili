@@ -1,5 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createHmac } from "node:crypto";
+
+/**
+ * Assinatura HMAC-SHA256 padrão AliExpress Open Platform para endpoints /rest/*.
+ * Formato: apiName + (k1+v1) + (k2+v2) + ... em ordem alfabética das chaves,
+ * HMAC-SHA256 com app_secret como chave, resultado em HEX MAIÚSCULO.
+ */
+function signRest(apiName: string, params: Record<string, string>, secret: string): string {
+  const sorted = Object.keys(params).sort();
+  const base = apiName + sorted.map((k) => `${k}${params[k]}`).join("");
+  return createHmac("sha256", secret).update(base).digest("hex").toUpperCase();
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
