@@ -437,7 +437,7 @@ export default function TutorialOverlay() {
                 <p className="text-[13px] font-bold text-[#111827]">Atlas</p>
                 <p className="text-[11px] font-medium text-[#8b94a6]">Guia rápido da Velo</p>
               </div>
-              <button onClick={finish} className="rounded-full p-1.5 text-[#8b94a6] transition hover:bg-[#f1f3f7] hover:text-[#111827]" aria-label="Fechar tour">
+              <button onClick={() => { void finish(); }} className="rounded-full p-1.5 text-[#8b94a6] transition hover:bg-[#f1f3f7] hover:text-[#111827]" aria-label="Fechar tour">
                 <X size={17} />
               </button>
             </div>
@@ -468,7 +468,7 @@ export default function TutorialOverlay() {
             </div>
 
             <div className="mt-5 flex items-center justify-between gap-3">
-              <button onClick={finish} className="text-[13px] font-semibold text-[#697083] transition hover:text-[#111827]">Pular tour</button>
+              <button onClick={() => { void finish(); }} className="text-[13px] font-semibold text-[#697083] transition hover:text-[#111827]">Pular tour</button>
               <div className="flex gap-2">
                 {step > 0 ? (
                   <button onClick={() => goToStep(step - 1)} className="inline-flex h-10 items-center justify-center rounded-full border border-[#dfe4ef] px-3 text-[#111827] transition hover:bg-[#f5f6f8]" aria-label="Voltar passo">

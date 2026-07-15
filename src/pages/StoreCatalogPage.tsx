@@ -719,9 +719,9 @@ const StoreCatalogPage = () => {
                       className="h-3 w-3 rounded-[2px] border-border text-[hsl(var(--store-accent-color))] accent-[hsl(var(--store-accent-color))]"
                     />
                     <span className="min-w-0 flex-1 truncate">{option.value}</span>
-                    {option.indicator ? (
+                    {(option as { indicator?: string }).indicator ? (
                       <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[8px] font-semibold text-muted-foreground/80">
-                        {option.indicator}
+                        {(option as { indicator?: string }).indicator}
                       </span>
                     ) : null}
                     {option.count ? <span className="text-[10px] text-muted-foreground/60">{option.count}</span> : null}
