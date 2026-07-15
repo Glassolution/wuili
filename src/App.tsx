@@ -157,6 +157,7 @@ const App = () => (
               <Route path="/admin/comissoes" element={<AdminRoute><AdminCommissionsPage /></AdminRoute>} />
               <Route path="/admin/suporte" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
               <Route path="/admin/reembolsos" element={<AdminRoute><AdminRefundsPage /></AdminRoute>} />
+              <Route path="/admin/aliexpress" element={<AdminRoute><AdminAliExpressPage /></AdminRoute>} />
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
               <Route path="/dashboard" element={<DashboardShell />}>
                 <Route index element={<DashboardHomePage />} />
