@@ -169,7 +169,7 @@ export const ensureFreshSupabaseSession = async () => {
 };
 
 export const withFreshSupabaseSession = async <T extends SupabaseResultWithError>(
-  request: () => Promise<T>,
+  request: () => PromiseLike<T>,
 ): Promise<T> => {
   await ensureFreshSupabaseSession();
 

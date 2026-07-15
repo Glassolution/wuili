@@ -1496,6 +1496,37 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_trending_products: {
+        Args: {
+          niche?: string
+          page?: number
+          page_size?: number
+          period?: string
+          sort_by?: string
+        }
+        Returns: {
+          brand: string
+          category: string
+          cost_price: number
+          demand_score: number
+          ease_score: number
+          id: string
+          image: string
+          images: Json
+          margin_percent: number
+          margin_score: number
+          orders_count: number
+          original_price: number
+          rating: number
+          score: number
+          scraped_at: string
+          stock_quantity: number
+          suggested_price: number
+          title: string
+          total_count: number
+          viral_score: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "influencer"
