@@ -143,14 +143,26 @@ export default function AdminAliExpressPage() {
               Mapeamento de categorias e status da sincronização automática (a cada 6h).
             </p>
           </div>
-          <button
-            onClick={syncNow}
-            disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
-          >
-            {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            {syncing ? "Sincronizando..." : "Sincronizar agora"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {isConnected === false && (
+              <button
+                onClick={connectAliExpress}
+                disabled={connecting}
+                className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
+              >
+                {connecting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+                {connecting ? "Conectando..." : "Conectar AliExpress"}
+              </button>
+            )}
+            <button
+              onClick={syncNow}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
+            >
+              {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              {syncing ? "Sincronizando..." : "Sincronizar agora"}
+            </button>
+          </div>
         </header>
 
         {/* Status card */}
