@@ -8,7 +8,6 @@ import {
   Loader2,
   PackageOpen,
   RefreshCcw,
-  Sparkles,
   Star,
   Store,
   TrendingUp,
@@ -291,45 +290,42 @@ const TrendingProductsPage = () => {
   };
 
   return (
-    <div className="-m-5 min-h-[calc(100%+2.5rem)] bg-[#F3F3F1] px-5 py-6 text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:px-7 sm:py-7 lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:px-8 lg:py-8">
-      <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-5">
-        <header className="overflow-hidden rounded-[28px] border border-black/[0.06] bg-white shadow-[0_20px_70px_rgba(15,23,42,0.06)]">
-          <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-[760px]">
-              <div className="inline-flex items-center gap-2 rounded-full bg-black px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
-                <TrendingUp size={14} strokeWidth={1.5} />
-                Produtos em Alta
-              </div>
-              <h1 className="mt-4 text-[30px] font-semibold tracking-[-0.055em] text-[#111111] sm:text-[38px]">
-                Ranking de produtos vencedores
-              </h1>
-              <p className="mt-3 max-w-[680px] text-[15px] leading-7 text-[#667085]">
-                Veja demanda, margem e avaliação em um só lugar para escolher produtos com mais chance de virar venda na sua operação.
+    <div className="-m-5 min-h-[calc(100%+2.5rem)] bg-[#F3F3F1] px-4 py-4 text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:px-5 sm:py-5 lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:px-6 lg:py-5">
+      <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-3">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_10px_22px_rgba(0,0,0,0.14)]">
+              <TrendingUp size={16} strokeWidth={1.5} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-[22px] font-semibold leading-7 tracking-[-0.04em] text-[#111111]">Produtos em Alta</h1>
+              <p className="mt-0.5 max-w-[720px] text-[13px] leading-5 text-[#667085]">
+                Ranking compacto de demanda, margem e avaliação para escolher produtos vencedores.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={refresh}
-              disabled={refreshing}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border border-black/[0.08] bg-[#F7F7F5] px-4 text-[13px] font-semibold text-[#111111] transition hover:bg-white disabled:opacity-60"
-            >
-              <RefreshCcw size={15} strokeWidth={1.6} className={refreshing ? "animate-spin" : ""} />
-              Atualizar
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={refreshing}
+            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[10px] border border-black/[0.08] bg-white px-3 text-[12px] font-semibold text-[#111111] shadow-sm transition hover:bg-[#FAFAF9] disabled:opacity-60"
+          >
+            <RefreshCcw size={13} strokeWidth={1.6} className={refreshing ? "animate-spin" : ""} />
+            Atualizar
+          </button>
         </header>
 
-        <section className="rounded-[24px] border border-black/[0.06] bg-white p-4 shadow-[0_18px_50px_rgba(15,23,42,0.045)]">
-          <div className="grid gap-3 lg:grid-cols-[minmax(180px,260px)_minmax(280px,1fr)_minmax(220px,280px)] lg:items-start">
-            <label className="group relative block">
-              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A93A3]">Nicho</span>
+        <section className="rounded-[18px] border border-black/[0.06] bg-white px-3 py-2 shadow-[0_12px_34px_rgba(15,23,42,0.045)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="group relative flex min-w-[190px] items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8A93A3]">Nicho</span>
               <select
                 value={niche ?? "all"}
                 onChange={(event) => {
                   setNiche(event.target.value === "all" ? null : event.target.value);
                   resetPage();
                 }}
-                className="h-11 w-full appearance-none rounded-[14px] border border-black/[0.08] bg-[#F7F7F5] px-4 pr-10 text-[13px] font-semibold outline-none transition focus:border-black/25"
+                className="h-9 min-w-[150px] appearance-none rounded-[11px] border border-black/[0.08] bg-[#F7F7F5] px-3 pr-8 text-[12px] font-semibold outline-none transition focus:border-black/25"
               >
                 {niches.map((item) => (
                   <option key={item.value ?? "all"} value={item.value ?? "all"}>
@@ -337,12 +333,12 @@ const TrendingProductsPage = () => {
                   </option>
                 ))}
               </select>
-              <ChevronDown size={15} strokeWidth={1.5} className="pointer-events-none absolute bottom-3.5 right-4 text-[#8A93A3]" />
+              <ChevronDown size={14} strokeWidth={1.5} className="pointer-events-none absolute right-3 text-[#8A93A3]" />
             </label>
 
-            <div>
-              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A93A3]">Período</span>
-              <div className="inline-flex rounded-[15px] border border-black/[0.07] bg-[#F7F7F5] p-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8A93A3]">Período</span>
+              <div className="inline-flex rounded-[12px] border border-black/[0.07] bg-[#F7F7F5] p-0.5">
                 {periodOptions.map((item) => (
                   <button
                     key={item.value}
@@ -351,7 +347,7 @@ const TrendingProductsPage = () => {
                       setPeriod(item.value);
                       resetPage();
                     }}
-                    className={`h-9 rounded-[11px] px-4 text-[13px] font-semibold transition ${
+                    className={`h-8 rounded-[9px] px-3 text-[12px] font-semibold transition ${
                       period === item.value ? "bg-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.16)]" : "text-[#667085] hover:text-[#111111]"
                     }`}
                   >
@@ -359,18 +355,18 @@ const TrendingProductsPage = () => {
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-[11px] text-[#98A2B3]">baseado em atividade recente</p>
+              <span className="hidden text-[11px] text-[#98A2B3] sm:inline">baseado em atividade recente</span>
             </div>
 
-            <label className="group relative block">
-              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A93A3]">Ordenar por</span>
+            <label className="group relative ml-auto flex min-w-[220px] items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8A93A3]">Ordenar</span>
               <select
                 value={sortBy}
                 onChange={(event) => {
                   setSortBy(event.target.value as SortBy);
                   resetPage();
                 }}
-                className="h-11 w-full appearance-none rounded-[14px] border border-black/[0.08] bg-[#F7F7F5] px-4 pr-10 text-[13px] font-semibold outline-none transition focus:border-black/25"
+                className="h-9 min-w-[160px] appearance-none rounded-[11px] border border-black/[0.08] bg-[#F7F7F5] px-3 pr-8 text-[12px] font-semibold outline-none transition focus:border-black/25"
               >
                 {sortOptions.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -378,22 +374,44 @@ const TrendingProductsPage = () => {
                   </option>
                 ))}
               </select>
-              <ChevronDown size={15} strokeWidth={1.5} className="pointer-events-none absolute bottom-3.5 right-4 text-[#8A93A3]" />
+              <ChevronDown size={14} strokeWidth={1.5} className="pointer-events-none absolute right-3 text-[#8A93A3]" />
             </label>
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[28px] border border-black/[0.06] bg-white shadow-[0_22px_80px_rgba(15,23,42,0.07)]">
-          <div className="flex flex-col gap-2 border-b border-black/[0.06] bg-[#FAFAF9] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="overflow-hidden rounded-[18px] border border-black/[0.06] bg-white shadow-[0_18px_55px_rgba(15,23,42,0.055)]">
+          <div className="flex flex-col gap-2 border-b border-black/[0.06] bg-[#FAFAF9] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-[18px] font-semibold tracking-[-0.035em]">Top produtos · {selectedNicheLabel}</h2>
-              <p className="mt-1 text-[12px] text-[#8A93A3]">
+              <h2 className="text-[15px] font-semibold tracking-[-0.025em]">Top produtos · {selectedNicheLabel}</h2>
+              <p className="mt-0.5 text-[11px] text-[#8A93A3]">
                 {loading ? "Carregando ranking..." : `${formatNumber(totalCount)} produtos encontrados`}
               </p>
             </div>
-            <p className="text-[12px] font-medium text-[#8A93A3]">
-              {startItem}-{endItem} de {formatNumber(totalCount)}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-[12px] font-medium text-[#8A93A3]">
+                {startItem}-{endItem} de {formatNumber(totalCount)}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={page <= 1 || loading}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-black/[0.08] bg-white text-[#111111] transition hover:bg-[#F7F7F5] disabled:cursor-not-allowed disabled:opacity-35"
+                  aria-label="Página anterior"
+                >
+                  <ArrowLeft size={13} strokeWidth={1.6} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  disabled={page >= totalPages || loading}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] bg-black text-white transition hover:bg-[#1F1F1F] disabled:cursor-not-allowed disabled:opacity-35"
+                  aria-label="Próxima página"
+                >
+                  <ArrowRight size={13} strokeWidth={1.6} />
+                </button>
+              </div>
+            </div>
           </div>
 
           {loading ? (
@@ -428,15 +446,15 @@ const TrendingProductsPage = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-[1040px] w-full border-collapse">
+              <table className="min-w-[1080px] w-full border-collapse">
                 <thead>
                   <tr className="border-b border-black/[0.06] bg-white text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A93A3]">
-                    <th className="px-5 py-4">Produto</th>
-                    <th className="px-4 py-4">Preço</th>
-                    <th className="px-4 py-4">Demanda</th>
-                    <th className="px-4 py-4">Margem</th>
-                    <th className="px-4 py-4">Avaliação</th>
-                    <th className="px-5 py-4 text-right">Ações</th>
+                    <th className="px-4 py-2.5">Produto</th>
+                    <th className="px-3 py-2.5">Preço</th>
+                    <th className="px-3 py-2.5">Demanda</th>
+                    <th className="px-3 py-2.5">Margem</th>
+                    <th className="px-3 py-2.5">Avaliação</th>
+                    <th className="px-4 py-2.5 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -446,72 +464,75 @@ const TrendingProductsPage = () => {
                     const rating = Number(product.rating ?? 0);
 
                     return (
-                      <tr key={product.id} className="border-b border-black/[0.06] transition hover:bg-[#FAFAF9]">
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[16px] border border-black/[0.06] bg-[#F7F7F5]">
-                              <img src={getProductImage(product)} alt="" className="h-full w-full object-contain p-1.5" />
-                              <span className="absolute left-1.5 top-1.5 rounded-full bg-black px-1.5 py-0.5 text-[9px] font-bold text-white">
-                                #{(page - 1) * PAGE_SIZE + index + 1}
-                              </span>
+                      <tr key={product.id} className="h-16 border-b border-black/[0.06] transition hover:bg-[#FAFAF9]">
+                        <td className="px-4 py-2">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[10px] border border-black/[0.06] bg-[#F7F7F5]">
+                              <img src={getProductImage(product)} alt="" className="h-full w-full object-contain p-1" />
                             </div>
-                            <div className="min-w-0">
-                              <p className="line-clamp-2 max-w-[390px] text-[14px] font-semibold leading-5 tracking-[-0.02em] text-[#111111]">
-                                {product.title}
-                              </p>
-                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className="shrink-0 rounded-full bg-black px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
+                                  #{(page - 1) * PAGE_SIZE + index + 1}
+                                </span>
+                                <p className="truncate text-[13px] font-semibold leading-5 tracking-[-0.015em] text-[#111111]">
+                                  {product.title}
+                                </p>
+                              </div>
+                              <div className="mt-1 flex min-w-0 items-center gap-1.5">
                                 {product.category ? (
-                                  <span className="rounded-full bg-[#F3F3F1] px-2 py-1 text-[11px] font-semibold text-[#667085]">
+                                  <span className="max-w-[120px] truncate rounded-full bg-[#F3F3F1] px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-[#667085]">
                                     {product.category}
                                   </span>
                                 ) : null}
                                 {product.brand ? (
-                                  <span className="text-[11px] font-medium text-[#98A2B3]">{product.brand}</span>
+                                  <span className="truncate text-[10px] font-medium text-[#98A2B3]">{product.brand}</span>
                                 ) : null}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-4 align-middle">
-                          <p className="text-[14px] font-semibold text-[#111111]">{formatBRL(product.suggested_price ?? product.original_price)}</p>
-                          <p className="mt-1 text-[11px] text-[#98A2B3]">custo {formatBRL(product.cost_price)}</p>
+                        <td className="px-3 py-2 align-middle">
+                          <p className="whitespace-nowrap text-[13px] font-semibold text-[#111111]">{formatBRL(product.suggested_price ?? product.original_price)}</p>
+                          <p className="mt-0.5 whitespace-nowrap text-[10px] text-[#98A2B3]">custo {formatBRL(product.cost_price)}</p>
                         </td>
-                        <td className="px-4 py-4 align-middle">
-                          <span className="inline-flex items-center gap-2 rounded-full bg-[#EEF4FF] px-3 py-1.5 text-[12px] font-semibold text-[#2563EB]">
-                            <TrendingUp size={13} strokeWidth={1.6} />
+                        <td className="px-3 py-2 align-middle">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EEF4FF] px-2 py-1 text-[12px] font-semibold text-[#2563EB]">
+                            <TrendingUp size={12} strokeWidth={1.6} />
                             {formatNumber(demand)}
                           </span>
-                          <p className="mt-1.5 text-[11px] text-[#98A2B3]">sinal de demanda</p>
                         </td>
-                        <td className="px-4 py-4 align-middle">
-                          <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1.5 text-[12px] font-bold text-emerald-600">
+                        <td className="px-3 py-2 align-middle">
+                          <span className="inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[12px] font-bold leading-4 text-emerald-600">
                             {margin.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
                           </span>
                         </td>
-                        <td className="px-4 py-4 align-middle">
-                          <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#111111]">
-                            <Star size={14} fill="currentColor" strokeWidth={1.5} />
+                        <td className="px-3 py-2 align-middle">
+                          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#111111]">
+                            <Star size={13} fill="currentColor" strokeWidth={1.5} />
                             {rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "—"}
                           </span>
-                          <p className="mt-1 text-[11px] text-[#98A2B3]">score {Number(product.score ?? 0).toFixed(0)}</p>
+                          <span className="ml-2 text-[10px] text-[#98A2B3]">score {Number(product.score ?? 0).toFixed(0)}</span>
                         </td>
-                        <td className="px-5 py-4 align-middle">
-                          <div className="flex justify-end gap-2">
+                        <td className="px-4 py-2 align-middle">
+                          <div className="flex justify-end gap-1.5">
                             <button
                               type="button"
                               onClick={() => handleCreateStore(product)}
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-[13px] bg-black px-3.5 text-[12px] font-semibold text-white transition hover:bg-[#1F1F1F]"
+                              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] bg-black px-2.5 text-[11px] font-semibold text-white transition hover:bg-[#1F1F1F]"
                             >
-                              <Store size={14} strokeWidth={1.6} />
+                              <Store size={12} strokeWidth={1.6} />
                               Criar Loja
                             </button>
                             <button
                               type="button"
                               onClick={() => handleCreateSalesPage(product)}
-                              className="inline-flex h-10 items-center justify-center gap-2 rounded-[13px] border border-black/[0.08] bg-white px-3.5 text-[12px] font-semibold text-[#111111] transition hover:bg-[#F7F7F5]"
+                              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[10px] border border-black/[0.08] bg-white px-2.5 text-[11px] font-semibold text-[#111111] transition hover:bg-[#F7F7F5]"
+                              title="Criar Página de Venda"
+                              aria-label="Criar Página de Venda"
                             >
-                              <FilePlus2 size={14} strokeWidth={1.6} />
-                              Criar Página de Venda
+                              <FilePlus2 size={12} strokeWidth={1.6} />
+                              Página
                             </button>
                           </div>
                         </td>
@@ -523,32 +544,6 @@ const TrendingProductsPage = () => {
             </div>
           )}
 
-          <div className="flex flex-col gap-3 border-t border-black/[0.06] bg-[#FAFAF9] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[12px] text-[#8A93A3]">
-              Página <span className="font-semibold text-[#111111]">{page}</span> de{" "}
-              <span className="font-semibold text-[#111111]">{totalPages}</span>
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                disabled={page <= 1 || loading}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-[13px] border border-black/[0.08] bg-white px-4 text-[12px] font-semibold text-[#111111] transition hover:bg-[#F7F7F5] disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                <ArrowLeft size={14} strokeWidth={1.5} />
-                Anterior
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                disabled={page >= totalPages || loading}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-[13px] bg-black px-4 text-[12px] font-semibold text-white transition hover:bg-[#1F1F1F] disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                Próxima
-                <ArrowRight size={14} strokeWidth={1.5} />
-              </button>
-            </div>
-          </div>
         </section>
       </div>
 
