@@ -1172,7 +1172,10 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           </div>
 
           {/* Footer */}
-          <div className="flex shrink-0 items-center justify-end border-t border-gray-100 bg-white px-4 py-3 sm:px-6 md:justify-between md:px-8 md:py-4">
+          <div
+            className="flex shrink-0 items-center justify-end border-t border-gray-100 bg-white px-4 py-3 sm:px-6 md:justify-between md:px-8 md:py-4"
+            style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+          >
             <p className="hidden text-[11.5px] text-gray-400 md:block">
               Saiba mais sobre <span className="text-[#0A0A0A] underline cursor-pointer">Importar Produto</span>
             </p>
