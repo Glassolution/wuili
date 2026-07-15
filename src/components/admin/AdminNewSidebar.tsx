@@ -147,6 +147,7 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
         <SideItem icon={UsersIcon} label="Usuários & times" to="/admin/usuarios" active={activeSection === "users"} collapsed={isCollapsed} />
         <SideItem icon={DollarSign} label="Comissões" to="/admin/comissoes" active={activeSection === "commissions"} collapsed={isCollapsed} />
         <SideItem icon={RefreshCcw} label="Reembolsos" to="/admin/reembolsos" active={activeSection === "refunds"} collapsed={isCollapsed} />
+        <SideItem icon={ShoppingBag} label="AliExpress" to="/admin/aliexpress" active={activeSection === "aliexpress"} collapsed={isCollapsed} />
       </nav>
 
       <div className="space-y-1 border-t border-white/[0.08] px-4 py-4 text-[13px]">
