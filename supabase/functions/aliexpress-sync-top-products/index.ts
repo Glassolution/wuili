@@ -1,0 +1,339 @@
+// deno-lint-ignore-file no-explicit-any
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createHmac } from "node:crypto";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const ALI_API_URL = "https://api-sg.aliexpress.com/sync";
+const USD_TO_BRL = 5.0;
+const PAGE_SIZE = 50; // top 50 por categoria
+const RATE_LIMIT_DELAY_MS = 400; // ~2.5 req/s
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Assinatura HMAC-SHA256 padrão AliExpress Open Platform. */
+function signParams(params: Record<string, string>, secret: string): string {
+  const sorted = Object.keys(params).sort();
+  const base = sorted.map((k) => `${k}${params[k]}`).join("");
+  return createHmac("sha256", secret)
+    .update(base)
+    .digest("hex")
+    .toUpperCase();
+}
+
+async function callAliExpress(
+  method: string,
+  bizParams: Record<string, string>,
+  ctx: { appKey: string; appSecret: string; accessToken: string },
+): Promise<any> {
+  const sysParams: Record<string, string> = {
+    app_key: ctx.appKey,
+    method,
+    access_token: ctx.accessToken,
+    sign_method: "sha256",
+    timestamp: String(Date.now()),
+    ...bizParams,
+  };
+  sysParams.sign = signParams(sysParams, ctx.appSecret);
+
+  const body = new URLSearchParams(sysParams);
+  const res = await fetch(ALI_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const text = await res.text();
+  let json: any;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`AliExpress resposta inválida (${res.status}): ${text.slice(0, 200)}`);
+  }
+  if (json.error_response) {
+    const e = json.error_response;
+    throw new Error(`AliExpress ${e.code}: ${e.msg || e.sub_msg || "erro desconhecido"}`);
+  }
+  return json;
+}
+
+async function refreshAccessToken(
+  refreshToken: string,
+  appKey: string,
+  appSecret: string,
+): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
+  const res = await fetch("https://api.aliexpress.com/auth/token/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: appKey,
+      client_secret: appSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Falha ao renovar token AliExpress: ${res.status}`);
+  }
+  const data = await res.json();
+  if (!data.access_token) throw new Error("Refresh AliExpress sem access_token");
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token ?? refreshToken,
+    expires_in: Number(data.expires_in ?? 86400),
+  };
+}
+
+/** Normaliza resposta variada da API em produtos padronizados. */
+function normalizeProducts(json: any, categoryId: string): any[] {
+  const products: any[] =
+    json?.aliexpress_ds_recommend_feed_get_response?.result?.products?.traffic_product_d_t_o ??
+    json?.aliexpress_ds_text_search_response?.data?.products?.selection_search_product ??
+    json?.result?.products?.traffic_product_d_t_o ??
+    [];
+
+  return (Array.isArray(products) ? products : [products]).filter(Boolean).map((p) => {
+    const externalId = String(
+      p.product_id ?? p.item_id ?? p.itemId ?? p.productId ?? "",
+    );
+    const title = String(p.product_title ?? p.subject ?? p.title ?? "").trim();
+    const image =
+      p.product_main_image_url ??
+      p.image_url ??
+      p.product_image_url ??
+      p.mainImageUrl ??
+      null;
+    const images = Array.isArray(p.product_small_image_urls?.string)
+      ? p.product_small_image_urls.string
+      : image
+        ? [image]
+        : [];
+
+    const salePriceUsd = Number(
+      p.target_sale_price ?? p.sale_price ?? p.app_sale_price ?? p.price ?? 0,
+    );
+    const originalPriceUsd = Number(
+      p.target_original_price ?? p.original_price ?? salePriceUsd,
+    );
+    const cost = +(salePriceUsd * USD_TO_BRL).toFixed(2);
+    const suggested = +(cost * 2).toFixed(2); // margem padrão 100%
+    const original = +(originalPriceUsd * USD_TO_BRL).toFixed(2);
+    const margin = suggested > 0 ? +(((suggested - cost) / suggested) * 100).toFixed(2) : 0;
+
+    return {
+      source: "aliexpress",
+      external_id: externalId,
+      title,
+      images,
+      cost_price: cost,
+      suggested_price: suggested,
+      original_price: original,
+      margin_percent: margin,
+      rating: p.evaluate_rate ? Number(String(p.evaluate_rate).replace("%", "")) / 20 : Number(p.avg_rating ?? 0) || null,
+      orders_count: Number(p.lastest_volume ?? p.sale_count ?? p.orders ?? 0) || 0,
+      stock_quantity: Number(p.stock_quantity ?? 999) || 999,
+      product_url: p.product_detail_url ?? p.itemUrl ?? null,
+      aliexpress_category_id: categoryId,
+      in_top_50: true,
+      is_active: true,
+      is_blocked: false,
+      scraped_at: new Date().toISOString(),
+    };
+  }).filter((p) => p.external_id && p.title);
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const startedAt = Date.now();
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+
+  // Detecta trigger
+  let triggeredBy = "cron";
+  try {
+    const body = await req.clone().json().catch(() => ({}));
+    if (body?.triggered_by === "manual") triggeredBy = "manual";
+  } catch { /* ignore */ }
+
+  // Cria log
+  const { data: logRow } = await supabase
+    .from("aliexpress_sync_log")
+    .insert({ status: "running", triggered_by: triggeredBy })
+    .select()
+    .single();
+  const logId = logRow?.id as string | undefined;
+
+  const finalize = async (patch: Record<string, unknown>) => {
+    if (!logId) return;
+    await supabase
+      .from("aliexpress_sync_log")
+      .update({
+        ...patch,
+        finished_at: new Date().toISOString(),
+        duration_ms: Date.now() - startedAt,
+      })
+      .eq("id", logId);
+  };
+
+  try {
+    const appKey = Deno.env.get("ALIEXPRESS_APP_KEY");
+    const appSecret = Deno.env.get("ALIEXPRESS_APP_SECRET");
+    if (!appKey || !appSecret) throw new Error("Credenciais AliExpress ausentes (ALIEXPRESS_APP_KEY/SECRET)");
+
+    // Busca token do primeiro admin com token válido
+    const { data: adminProfile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("user_id, aliexpress_access_token, aliexpress_refresh_token, aliexpress_token_expires_at")
+      .eq("is_admin", true)
+      .not("aliexpress_access_token", "is", null)
+      .order("aliexpress_token_expires_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (profileErr) throw profileErr;
+    if (!adminProfile?.aliexpress_access_token) {
+      throw new Error("Nenhum admin conectado ao AliExpress. Conecte via OAuth primeiro.");
+    }
+
+    let accessToken = adminProfile.aliexpress_access_token as string;
+    const refreshToken = adminProfile.aliexpress_refresh_token as string | null;
+    const expiresAt = adminProfile.aliexpress_token_expires_at
+      ? new Date(adminProfile.aliexpress_token_expires_at).getTime()
+      : 0;
+
+    if (expiresAt && expiresAt < Date.now() + 60_000 && refreshToken) {
+      const refreshed = await refreshAccessToken(refreshToken, appKey, appSecret);
+      accessToken = refreshed.access_token;
+      await supabase
+        .from("profiles")
+        .update({
+          aliexpress_access_token: refreshed.access_token,
+          aliexpress_refresh_token: refreshed.refresh_token,
+          aliexpress_token_expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
+        })
+        .eq("user_id", adminProfile.user_id);
+    }
+
+    // Categorias ativas
+    const { data: mappings, error: mapErr } = await supabase
+      .from("category_mapping")
+      .select("velo_category, aliexpress_category_id")
+      .eq("active", true);
+    if (mapErr) throw mapErr;
+    if (!mappings || mappings.length === 0) {
+      await finalize({ status: "success", error_message: "Nenhuma categoria ativa mapeada." });
+      return new Response(JSON.stringify({ ok: true, message: "Sem mapeamentos ativos" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let productsNew = 0;
+    let productsUpdated = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
+    const currentTopIds = new Set<string>();
+
+    for (const m of mappings) {
+      try {
+        const json = await callAliExpress(
+          "aliexpress.ds.recommend.feed.get",
+          {
+            feed_name: "DS bestseller",
+            category_id: m.aliexpress_category_id,
+            page_no: "1",
+            page_size: String(PAGE_SIZE),
+            target_currency: "USD",
+            target_language: "PT",
+            country: "BR",
+            sort: "orders_desc",
+          },
+          { appKey, appSecret, accessToken },
+        );
+
+        const products = normalizeProducts(json, m.aliexpress_category_id)
+          .map((p) => ({ ...p, category: m.velo_category }));
+
+        for (const p of products) currentTopIds.add(`${p.source}:${p.external_id}`);
+
+        // Existentes?
+        if (products.length > 0) {
+          const ids = products.map((p) => p.external_id);
+          const { data: existing } = await supabase
+            .from("catalog_products")
+            .select("external_id")
+            .eq("source", "aliexpress")
+            .in("external_id", ids);
+          const existingSet = new Set((existing ?? []).map((r: any) => r.external_id));
+
+          productsNew += products.filter((p) => !existingSet.has(p.external_id)).length;
+          productsUpdated += products.filter((p) => existingSet.has(p.external_id)).length;
+
+          const { error: upsertErr } = await supabase
+            .from("catalog_products")
+            .upsert(products, { onConflict: "source,external_id" });
+          if (upsertErr) throw upsertErr;
+        }
+
+        await sleep(RATE_LIMIT_DELAY_MS);
+      } catch (err) {
+        errorCount++;
+        errors.push(`[${m.velo_category}] ${err instanceof Error ? err.message : String(err)}`);
+        console.error("Erro sincronizando", m, err);
+      }
+    }
+
+    // Marcar produtos AliExpress que caíram do top 50
+    const { data: existingTop } = await supabase
+      .from("catalog_products")
+      .select("id, external_id")
+      .eq("source", "aliexpress")
+      .eq("in_top_50", true);
+
+    const droppedIds = (existingTop ?? [])
+      .filter((r: any) => !currentTopIds.has(`aliexpress:${r.external_id}`))
+      .map((r: any) => r.id);
+
+    if (droppedIds.length > 0) {
+      await supabase
+        .from("catalog_products")
+        .update({ in_top_50: false })
+        .in("id", droppedIds);
+    }
+
+    await finalize({
+      status: errorCount > 0 && productsNew + productsUpdated === 0 ? "failed" : "success",
+      categories_processed: mappings.length,
+      products_new: productsNew,
+      products_updated: productsUpdated,
+      products_dropped_from_top: droppedIds.length,
+      error_count: errorCount,
+      error_message: errors.slice(0, 5).join(" | ") || null,
+    });
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        categories_processed: mappings.length,
+        products_new: productsNew,
+        products_updated: productsUpdated,
+        products_dropped_from_top: droppedIds.length,
+        errors: errorCount,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("aliexpress-sync fatal:", message);
+    await finalize({ status: "failed", error_count: 1, error_message: message });
+    return new Response(JSON.stringify({ ok: false, error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
