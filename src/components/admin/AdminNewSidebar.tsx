@@ -49,11 +49,12 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
   const [collapsed, setCollapsed] = useState(false);
   const isCollapsed = collapsed || isMobile;
 
-  const activeSection: "panel" | "users" | "commissions" | "support" | "refunds" | null = useMemo(() => {
+  const activeSection: "panel" | "users" | "commissions" | "support" | "refunds" | "aliexpress" | null = useMemo(() => {
     if (pathname.startsWith("/admin/usuarios")) return "users";
     if (pathname.startsWith("/admin/comissoes")) return "commissions";
     if (pathname.startsWith("/admin/suporte")) return "support";
     if (pathname.startsWith("/admin/reembolsos")) return "refunds";
+    if (pathname.startsWith("/admin/aliexpress")) return "aliexpress";
     if (pathname.startsWith("/admin/painel")) return "panel";
     return null;
   }, [pathname]);
