@@ -232,13 +232,12 @@ const MobileAccountPage = ({
           <p className="mt-0.5 truncate text-[13px] font-medium text-white/75">Meu perfil ›</p>
         </div>
       </Link>
-      <Link to="/dashboard/configuracoes" className="mt-6 flex h-14 items-center justify-between rounded-2xl bg-white px-4 text-[#111111] shadow-[0_10px_25px_rgba(0,0,0,0.10)]">
+      <div className="mt-6 flex h-14 items-center rounded-2xl bg-white px-4 text-[#111111] shadow-[0_10px_25px_rgba(0,0,0,0.10)]">
         <div>
           <p className="text-[13px] font-bold">Sua conta Velo</p>
-          <p className="text-[11px] text-black/50">Plano, loja e preferências</p>
+          <p className="text-[11px] text-black/50">Seu plano e sua loja, do seu jeito.</p>
         </div>
-        <span className="text-[20px]">›</span>
-      </Link>
+      </div>
     </div>
 
     <div className="px-5 pb-6">

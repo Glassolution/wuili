@@ -9,6 +9,9 @@ import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowComple
 import { ensureExampleCollectionProducts } from "@/lib/collectionsApi";
 import { formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
+import ProductTemplate from "@/components/store-templates/ProductTemplate";
+import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateBeauty";
+import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
@@ -148,7 +151,9 @@ const GeneratedStoreEditorPage = () => {
   const [storeName, setStoreName] = useState("Velo");
   const [showPlans, setShowPlans] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [currentTemplate, setCurrentTemplate] = useState("Velo Modern");
+  const [templateCategory, setTemplateCategory] = useState<"loja" | "produto">("loja");
+  const [currentTemplate, setCurrentTemplate] = useState("Template 1");
+  const [activeTemplate, setActiveTemplate] = useState<{ kind: "loja" | "produto"; id: string }>({ kind: "loja", id: "loja-1" });
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [elementOverrides, setElementOverrides] = useState<Record<string, ElementOverride>>({});
@@ -661,6 +666,8 @@ const GeneratedStoreEditorPage = () => {
   if (!flow) return <Navigate to="/comecar" replace />;
   const baseProducts = products.length ? products : [{ ...flow.product, category: "Outros" }];
   const displayedProducts = baseProducts;
+  const featuredProduct = displayedProducts[0];
+  const featuredPrice = featuredProduct?.price || 149.9;
   const categories = Array.from(new Set(displayedProducts.map((product) => product.category).filter(Boolean))).slice(0, 8);
   const browseCategories = catalogTaxonomy.map((category, index) => ({
     category,
@@ -922,6 +929,43 @@ const GeneratedStoreEditorPage = () => {
 
         <div className="min-w-0 flex-1 overflow-auto bg-[#1f1f1d] p-3 sm:p-5">
           <div ref={previewRef} onClick={handlePreviewClick} className={`store-editor-preview relative mx-auto min-h-full overflow-hidden rounded-[24px] bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.38)] ring-1 ring-black/10 transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1488px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: editMode==="fill"?"copy":editMode==="eraser"?"not-allowed":editMode?"pointer":"default" }}>
+            {activeTemplate.kind === "produto" ? (
+              activeTemplate.id === "produto-2" ? (
+                <ProductTemplateBeauty
+                  brand={brandName}
+                  title={featuredProduct?.title || storeName}
+                  description={(flow.salesAngle || "Serum leve de rapida absorcao que hidrata profundamente e deixa a pele macia e saudavel no uso diario.").slice(0, 240)}
+                  price={featuredPrice}
+                  originalPrice={featuredPrice * 1.25}
+                  image={featuredProduct?.imageUrl || heroImage}
+                  accent={accent}
+                  mobile={mobilePreview}
+                />
+              ) : activeTemplate.id === "produto-3" ? (
+                <ProductTemplateShopify
+                  brand={brandName}
+                  title={featuredProduct?.title || storeName}
+                  description={(flow.salesAngle || "Fuja do ruido e aumente seu foco. Conforto duradouro com ANC avancado, chamadas nitidas e 30 horas de bateria.").slice(0, 240)}
+                  price={featuredPrice}
+                  originalPrice={featuredPrice * 1.34}
+                  image={featuredProduct?.imageUrl || heroImage}
+                  accent={accent}
+                  mobile={mobilePreview}
+                />
+              ) : (
+                <ProductTemplate
+                  brand={brandName}
+                  title={featuredProduct?.title || storeName}
+                  description={(flow.salesAngle || "Confeccionado em algodao premium de alta gramatura, entrega conforto e durabilidade. A modelagem oversized e o design minimalista tornam a peca um coringa para qualquer guarda-roupa.").slice(0, 240)}
+                  price={featuredPrice}
+                  originalPrice={featuredPrice * 1.5}
+                  image={featuredProduct?.imageUrl || heroImage}
+                  accent={accent}
+                  mobile={mobilePreview}
+                />
+              )
+            ) : (
+            <>
             {/* === TEMPLATE 01 - C-STYLE INSPIRED === */}
             {/* Main header */}
             <StorefrontNavbar storeName={brandName} activePage="store" className="relative z-30" />
@@ -1099,8 +1143,8 @@ const GeneratedStoreEditorPage = () => {
             </section>
 
             <footer className="border-t border-black/10 bg-[#f5f4f2] px-8 py-7 text-center text-[10px] tracking-[0.12em] text-black/45">{"\u00a9"} {new Date().getFullYear()} {brandName} {"\u00b7"} Todos os direitos reservados</footer>
-
-
+            </>
+            )}
 
           </div>
 
@@ -1350,22 +1394,43 @@ const GeneratedStoreEditorPage = () => {
             <button type="button" onClick={()=>setShowTemplates(false)} className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.07] text-white/55 transition hover:bg-white/10 hover:text-white"><X size={16}/></button>
             <h2 id="templates-title" className="text-[24px] font-semibold tracking-[-0.03em]">Escolha um template</h2>
             <p className="mt-1 text-[12px] text-white/45">{"Troque o visual base da sua loja. Todo o conte\u00fado \u00e9 mantido."}</p>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-5 flex items-center gap-5 border-b border-white/10">
               {[
-                {name:"Velo Modern",desc:"Clean e minimalista",gradient:"from-neutral-100 to-neutral-300"},
-                {name:"Velo Bold",desc:"Alto contraste e s\u00e9rio",gradient:"from-zinc-800 to-black"},
-                {name:"Velo Warm",desc:"Aconchegante e artesanal",gradient:"from-amber-100 to-orange-300"},
-                {name:"Velo Neo",desc:"Vibrante e jovem",gradient:"from-fuchsia-400 to-indigo-500"},
-                {name:"Velo Studio",desc:"Editorial e fotogr\u00e1fico",gradient:"from-stone-200 to-stone-400"},
-                {name:"Velo Fresh",desc:"Natural e leve",gradient:"from-emerald-200 to-teal-400"},
-              ].map((template)=>(
-                <button key={template.name} type="button" onClick={()=>{setCurrentTemplate(template.name);setShowTemplates(false);}} className={`group overflow-hidden rounded-[16px] border text-left transition ${currentTemplate===template.name?"border-white/70 bg-white/[0.08]":"border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
-                  <div className={`relative aspect-[4/3] w-full bg-gradient-to-br ${template.gradient}`}>
-                    <div className="absolute inset-3 flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-[8px] font-semibold text-black/50"><span>VELO</span><span>{"\u25a0 \u25a0 \u25a0"}</span></div>
-                      <div className="grid grid-cols-3 gap-1">{[0,1,2].map((index)=><span key={index} className="aspect-square rounded-[3px] bg-white/70"/>)}</div>
-                    </div>
-                    {currentTemplate===template.name?<span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-black"><Check size={13}/></span>:null}
+                { id: "loja" as const, label: "Loja" },
+                { id: "produto" as const, label: "Produto" },
+              ].map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => setTemplateCategory(category.id)}
+                  className={`relative h-9 text-[13px] font-semibold transition ${
+                    templateCategory === category.id
+                      ? "text-white"
+                      : "text-white/45 hover:text-white/70"
+                  }`}
+                >
+                  {category.label}
+                  {templateCategory === category.id ? (
+                    <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-white" />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(templateCategory === "loja"
+                ? [
+                    {id:"loja-1",name:"Template 1",desc:"Clean e minimalista",image:"/template-01-loja-preview.png"},
+                  ]
+                : [
+                    {id:"produto-1",name:"Template 1",desc:"Pagina de produto Velora",image:"/template-produto-preview.png"},
+                    {id:"produto-2",name:"Template 2",desc:"Pagina de produto Beauty",image:"/template-produto-2-preview.png"},
+                    {id:"produto-3",name:"Template 3",desc:"Pagina de produto Shopify",image:"/template-produto-3-preview.png"},
+                  ]
+              ).map((template)=>(
+                <button key={template.id} type="button" onClick={()=>{setCurrentTemplate(template.name);setActiveTemplate({kind:templateCategory,id:template.id});setShowTemplates(false);}} className={`group overflow-hidden rounded-[16px] border text-left transition ${activeTemplate.id===template.id?"border-white/70 bg-white/[0.08]":"border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
+                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-white">
+                    <img src={template.image} alt={template.name} className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-105"/>
+                    {activeTemplate.id===template.id?<span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.25)]"><Check size={13}/></span>:null}
                   </div>
                   <div className="p-3"><strong className="block text-[13px]">{template.name}</strong><span className="block text-[11px] text-white/45">{template.desc}</span></div>
                 </button>

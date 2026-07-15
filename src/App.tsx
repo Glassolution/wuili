@@ -21,6 +21,7 @@ const SalesAnglePage = lazy(() => import("./pages/SalesAnglePage"));
 const StoreImagesGenerationPage = lazy(() => import("./pages/StoreImagesGenerationPage"));
 const StoreBuildProgressPage = lazy(() => import("./pages/StoreBuildProgressPage"));
 const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditorPage"));
+const ProductLandingEditorPage = lazy(() => import("./pages/ProductLandingEditorPage"));
 const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
 const PreviewPage = lazy(() => import("./pages/PreviewPage"));
 const BemVindoPage = lazy(() => import("./pages/BemVindoPage"));
@@ -131,6 +132,8 @@ const App = () => (
               <Route path="/onboarding/gerando-imagens" element={<ProtectedRoute><StoreImagesGenerationPage /></ProtectedRoute>} />
               <Route path="/onboarding/preparando-loja" element={<ProtectedRoute><StoreBuildProgressPage /></ProtectedRoute>} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute><GeneratedStoreEditorPage /></ProtectedRoute>} />
+              <Route path="/produto/editor" element={<ProtectedRoute><ProductLandingEditorPage /></ProtectedRoute>} />
+              <Route path="/velods/produto/editor" element={<Navigate to="/produto/editor" replace />} />
               <Route path="/catalogo" element={<StoreCatalogPage />} />
               <Route path="/cadastro" element={<Navigate to="/login" replace />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />

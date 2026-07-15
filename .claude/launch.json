@@ -6,14 +6,14 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 8080,
-      "cwd": "/Users/luisfelipexavier/Desktop/Velo/wuili_github"
+      "cwd": "C:/Dev/Velo V2"
     },
     {
       "name": "Vite Preview",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview"],
       "port": 4173,
-      "cwd": "/Users/luisfelipexavier/Desktop/Velo/wuili_github"
+      "cwd": "C:/Dev/Velo V2"
     }
   ]
 }
