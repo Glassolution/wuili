@@ -198,7 +198,12 @@ serve(async (req) => {
       .maybeSingle();
     if (profileErr) throw profileErr;
     if (!adminProfile?.aliexpress_access_token) {
-      throw new Error("Nenhum admin conectado ao AliExpress. Conecte via OAuth primeiro.");
+      const msg = "Nenhum admin conectado ao AliExpress. Conecte via OAuth primeiro.";
+      await finalize({ status: "failed", error_count: 1, error_message: msg });
+      return new Response(
+        JSON.stringify({ ok: false, status: "not_connected", error: msg }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     let accessToken = adminProfile.aliexpress_access_token as string;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Loader2, Link2 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,24 +39,45 @@ export default function AdminAliExpressPage() {
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [form, setForm] = useState({ velo_category: "", aliexpress_category_id: "", aliexpress_category_name: "" });
 
   const lastLog = useMemo(() => logs[0] ?? null, [logs]);
 
   const load = async () => {
     setLoading(true);
-    const [m, l] = await Promise.all([
+    const [m, l, p] = await Promise.all([
       supabase.from("category_mapping").select("*").order("velo_category"),
       supabase.from("aliexpress_sync_log").select("*").order("started_at", { ascending: false }).limit(10),
+      user?.id
+        ? supabase.from("profiles").select("aliexpress_access_token").eq("user_id", user.id).maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
     if (m.data) setMappings(m.data as Mapping[]);
     if (l.data) setLogs(l.data as SyncLog[]);
+    setIsConnected(Boolean((p as any)?.data?.aliexpress_access_token));
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const connectAliExpress = async () => {
+    setConnecting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("aliexpress-connect");
+      if (error) throw error;
+      const authUrl = (data as any)?.authUrl || (data as any)?.auth_url || (data as any)?.url;
+      if (!authUrl) throw new Error("URL de autorização não retornada");
+      window.location.href = authUrl;
+    } catch (err) {
+      veloToast.error(err instanceof Error ? err.message : "Falha ao iniciar conexão");
+      setConnecting(false);
+    }
+  };
 
   const addMapping = async () => {
     if (!form.velo_category.trim() || !form.aliexpress_category_id.trim()) {
@@ -122,14 +143,26 @@ export default function AdminAliExpressPage() {
               Mapeamento de categorias e status da sincronização automática (a cada 6h).
             </p>
           </div>
-          <button
-            onClick={syncNow}
-            disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
-          >
-            {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            {syncing ? "Sincronizando..." : "Sincronizar agora"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {isConnected === false && (
+              <button
+                onClick={connectAliExpress}
+                disabled={connecting}
+                className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
+              >
+                {connecting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+                {connecting ? "Conectando..." : "Conectar AliExpress"}
+              </button>
+            )}
+            <button
+              onClick={syncNow}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
+            >
+              {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              {syncing ? "Sincronizando..." : "Sincronizar agora"}
+            </button>
+          </div>
         </header>
 
         {/* Status card */}
