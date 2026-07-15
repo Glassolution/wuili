@@ -142,9 +142,9 @@ serve(async (req) => {
       console.error("[aliexpress-callback] non-JSON token response");
     }
 
-    const accessToken = tokenData.access_token;
-    const refreshToken = tokenData.refresh_token ?? null;
-    const expiresIn = Number(tokenData.expires_in ?? 86400);
+    const accessToken = tokenData.access_token ?? tokenData.data?.access_token;
+    const refreshToken = tokenData.refresh_token ?? tokenData.data?.refresh_token ?? null;
+    const expiresIn = Number(tokenData.expires_in ?? tokenData.data?.expires_in ?? 86400);
 
     if (!tokenRes.ok || !accessToken) {
       console.error("[aliexpress-callback] token error:", tokenRes.status, tokenText);
