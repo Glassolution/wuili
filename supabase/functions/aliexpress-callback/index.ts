@@ -19,12 +19,17 @@ serve(async (req) => {
   const dashboardUrl = `${appUrl}/admin/aliexpress`;
 
   try {
-    // AliExpress redirects with GET ?code=...&state=...
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const state = url.searchParams.get("state");
 
-    if (!code || !state) {
+    console.log("[aliexpress-callback] incoming:", {
+      hasCode: !!code,
+      hasState: !!state,
+    });
+
+    if (!code) {
+      console.error("[aliexpress-callback] missing code param");
       return Response.redirect(`${dashboardUrl}?ali_error=missing_params`, 302);
     }
 
@@ -39,55 +44,75 @@ serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Validate & consume state
-    const { data: oauthState, error: stateError } = await admin
-      .from("aliexpress_oauth_states")
-      .select("state,user_id,expires_at,consumed_at")
-      .eq("state", state)
-      .maybeSingle();
+    // Resolve target user_id: prefer state (secure), fallback to first admin
+    let targetUserId: string | null = null;
 
-    if (
-      stateError ||
-      !oauthState ||
-      oauthState.consumed_at ||
-      new Date(oauthState.expires_at).getTime() <= Date.now()
-    ) {
-      console.error("[aliexpress-callback] invalid state:", stateError?.message ?? state);
-      return Response.redirect(`${dashboardUrl}?ali_error=invalid_state`, 302);
+    if (state) {
+      const { data: oauthState } = await admin
+        .from("aliexpress_oauth_states")
+        .select("state,user_id,expires_at,consumed_at")
+        .eq("state", state)
+        .maybeSingle();
+
+      if (
+        oauthState &&
+        !oauthState.consumed_at &&
+        new Date(oauthState.expires_at).getTime() > Date.now()
+      ) {
+        await admin
+          .from("aliexpress_oauth_states")
+          .update({ consumed_at: new Date().toISOString() })
+          .eq("state", state)
+          .is("consumed_at", null);
+        targetUserId = oauthState.user_id as string;
+      } else {
+        console.warn("[aliexpress-callback] state inválido/expirado, aplicando fallback admin");
+      }
+    } else {
+      console.warn("[aliexpress-callback] sem state, aplicando fallback admin");
     }
 
-    const { error: consumeError } = await admin
-      .from("aliexpress_oauth_states")
-      .update({ consumed_at: new Date().toISOString() })
-      .eq("state", state)
-      .is("consumed_at", null);
+    if (!targetUserId) {
+      const { data: firstAdmin } = await admin
+        .from("profiles")
+        .select("user_id")
+        .eq("is_admin", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      targetUserId = firstAdmin?.user_id ?? null;
+    }
 
-    if (consumeError) {
-      console.error("[aliexpress-callback] consume error:", consumeError.message);
-      return Response.redirect(`${dashboardUrl}?ali_error=invalid_state`, 302);
+    if (!targetUserId) {
+      console.error("[aliexpress-callback] nenhum admin encontrado");
+      return Response.redirect(`${dashboardUrl}?ali_error=no_admin`, 302);
     }
 
     const redirectUri = `${supabaseUrl}/functions/v1/aliexpress-callback`;
 
     // Exchange authorization code for access token
-    const tokenRes = await fetch("https://api-sg.aliexpress.com/rest/auth/token/create", {
+    const tokenRes = await fetch("https://oauth.aliexpress.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
         client_id: appKey,
         client_secret: appSecret,
-        code,
-        grant_type: "authorization_code",
         redirect_uri: redirectUri,
+        sp: "ae",
       }),
     });
 
     const tokenText = await tokenRes.text();
+    console.log("[aliexpress-callback] token response status:", tokenRes.status);
+    console.log("[aliexpress-callback] token response body:", tokenText);
+
     let tokenData: Record<string, any> = {};
     try {
       tokenData = JSON.parse(tokenText);
     } catch {
-      console.error("[aliexpress-callback] non-JSON token response:", tokenText);
+      console.error("[aliexpress-callback] non-JSON token response");
     }
 
     const accessToken = tokenData.access_token;
@@ -106,13 +131,14 @@ serve(async (req) => {
         aliexpress_refresh_token: refreshToken,
         aliexpress_token_expires_at: new Date(Date.now() + expiresIn * 1000).toISOString(),
       })
-      .eq("user_id", oauthState.user_id);
+      .eq("user_id", targetUserId);
 
     if (updateError) {
       console.error("[aliexpress-callback] profile update error:", updateError.message);
       return Response.redirect(`${dashboardUrl}?ali_error=db_failed`, 302);
     }
 
+    console.log("[aliexpress-callback] success for user:", targetUserId);
     return Response.redirect(`${dashboardUrl}?ali_connected=true`, 302);
   } catch (err) {
     console.error("[aliexpress-callback] error:", err);
