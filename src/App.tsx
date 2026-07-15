@@ -63,6 +63,7 @@ const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
 const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsPage"));
+const AdminAliExpressPage = lazy(() => import("./pages/admin/AdminAliExpressPage"));
 const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsPage"));
 const AdminBlankPage = lazy(() => import("./pages/admin/AdminBlankPage"));
 
