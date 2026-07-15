@@ -33,7 +33,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import ProductScoutAI, { type AtlasResults } from "@/components/dashboard/ProductScoutAI";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { Database, Json } from "@/integrations/supabase/types";
@@ -1021,10 +1021,12 @@ const CatalogoPage = () => {
             setTotalCount(0);
             return;
           }
-          const { data, error: fetchError } = await supabase
-            .from("catalog_products")
-            .select("*")
-            .in("id", atlasResults.ids);
+          const { data, error: fetchError } = await withFreshSupabaseSession(() =>
+            supabase
+              .from("catalog_products")
+              .select("*")
+              .in("id", atlasResults.ids),
+          );
           if (fetchError) throw fetchError;
           const byId = new Map((data || []).map((p) => [p.id, p]));
           const ordered = atlasResults.ids
@@ -1039,27 +1041,31 @@ const CatalogoPage = () => {
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
         const end = start + ITEMS_PER_PAGE - 1;
 
-        let query = supabase
-          .from("catalog_products")
-          .select("*", { count: "exact" })
-          .eq("source", "c7drop")
-          .eq("is_blocked", false)
-          .gt("stock_quantity", 0)
-          .order("created_at", { ascending: false })
-          .range(start, end);
+        const fetchCatalogPage = () => {
+          let query = supabase
+            .from("catalog_products")
+            .select("*", { count: "exact" })
+            .eq("source", "c7drop")
+            .eq("is_blocked", false)
+            .gt("stock_quantity", 0)
+            .order("created_at", { ascending: false })
+            .range(start, end);
 
-        if (activeCategory !== "todos") {
-          const dbCategory = categoryMap[activeCategory];
-          if (dbCategory) {
-            query = query.eq("category", dbCategory);
+          if (activeCategory !== "todos") {
+            const dbCategory = categoryMap[activeCategory];
+            if (dbCategory) {
+              query = query.eq("category", dbCategory);
+            }
           }
-        }
 
-        if (searchQuery.trim()) {
-          query = query.ilike("title", `%${searchQuery.trim()}%`);
-        }
+          if (searchQuery.trim()) {
+            query = query.ilike("title", `%${searchQuery.trim()}%`);
+          }
 
-        const { data, count, error: fetchError } = await query;
+          return query;
+        };
+
+        const { data, count, error: fetchError } = await withFreshSupabaseSession(fetchCatalogPage);
 
         if (fetchError) throw fetchError;
 
@@ -1081,13 +1087,15 @@ const CatalogoPage = () => {
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        const { data, error: fetchError } = await supabase
-          .from("catalog_products")
-          .select("*")
-          .eq("source", "c7drop")
-          .eq("is_blocked", false)
-          .gt("stock_quantity", 0)
-          .limit(10);
+        const { data, error: fetchError } = await withFreshSupabaseSession(() =>
+          supabase
+            .from("catalog_products")
+            .select("*")
+            .eq("source", "c7drop")
+            .eq("is_blocked", false)
+            .gt("stock_quantity", 0)
+            .limit(10),
+        );
 
         if (fetchError) throw fetchError;
         setRecommendations((data || []).map(mapProduct));

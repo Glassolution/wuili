@@ -404,6 +404,7 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
   const [post, setPost] = useState<AnnouncementPost | null>(null);
   const [signedImage, setSignedImage] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [dismissedPostId, setDismissedPostId] = useState<string | null>(null);
   const releasePendingReturnRef = useRef(false);
 
   useEffect(() => {
@@ -493,6 +494,7 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
 
     const tryOpen = () => {
       if (location.pathname !== "/dashboard") return;
+      if (dismissedPostId === post.id || hasSeenAnnouncement(post.id, userId)) return;
 
       try {
         if (window.sessionStorage.getItem(ANNOUNCEMENT_WAIT_DASHBOARD_RETURN_KEY)) return;
@@ -513,10 +515,11 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
     return () => {
       window.removeEventListener(ACTIVE_MODAL_EVENT, tryOpen);
     };
-  }, [location.pathname, open, post]);
+  }, [dismissedPostId, location.pathname, open, post, userId]);
 
   const closeModal = () => {
     if (!post) return;
+    setDismissedPostId(post.id);
     try {
       window.localStorage.setItem(getAnnouncementSeenKey(post.id), new Date().toISOString());
     } catch {
@@ -536,70 +539,96 @@ const AnnouncementModal = ({ userId }: { userId?: string }) => {
 
   if (!open || !post) return null;
 
-  const preview = (post.content || "").trim().split("\n").filter(Boolean).slice(0, 3).join("\n");
+  const contentLines = (post.content || "")
+    .trim()
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const preview = contentLines.slice(0, 4).join("\n");
+  const announcementBullets =
+    contentLines.length >= 2
+      ? contentLines.slice(0, 3)
+      : [
+          "O feed da comunidade agora fica dentro do painel da Velo.",
+          "Novidades, tutoriais e avisos importantes aparecem primeiro por lá.",
+          "Você pode abrir a comunidade para ver o post completo, curtir e comentar.",
+        ];
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/30 px-4 py-8 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/25 px-4 py-8 backdrop-blur-[3px]">
       <motion.section
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 12, scale: 0.98 }}
         transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-[440px]"
+        className="relative w-full max-w-[490px]"
         aria-modal="true"
         role="dialog"
       >
-        <article className="overflow-hidden rounded-[18px] bg-white shadow-[0_28px_70px_rgba(17,17,17,0.22)]">
-          <header className="flex items-start justify-between gap-3 px-6 pt-5 pb-4">
-            <h2 className="text-[17px] font-semibold leading-tight tracking-[-0.01em] text-[#111]">
+        <article className="overflow-hidden rounded-[12px] bg-white shadow-[0_24px_64px_rgba(15,23,42,0.22)]">
+          <header className="flex min-h-[52px] items-center justify-between gap-3 px-4 sm:px-5">
+            <h2 className="text-[18px] font-medium leading-tight text-[#111827]">
               Novidades no painel
             </h2>
             <button
               type="button"
               onClick={closeModal}
               aria-label="Fechar novidade"
-              className="-mr-1 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8A8A8A] transition-colors hover:bg-[#F2F2F1] hover:text-black"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#737A90] transition-colors hover:bg-[#F1F3F7] hover:text-[#111827]"
             >
-              <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
+              <X className="h-[21px] w-[21px]" strokeWidth={1.6} />
             </button>
           </header>
 
-          <div className="px-6 pb-5">
-            <p className="mb-4 text-[13.5px] leading-[1.55] text-[#111] font-medium">
-              Agora temos uma comunidade dentro da própria Velo. Já deu uma olhada nas novidades?
+          <div className="px-4 pb-6 pt-4 sm:px-5">
+            <p className="text-[14px] leading-[1.7] text-[#5F6677]">
+              Organizamos o painel para deixar as novidades, tutoriais e avisos da comunidade mais claros no dia a dia:
             </p>
 
-
-            <div className="rounded-[12px] border border-[#1f1f22] bg-[#0d0d0e] p-4">
-              <div className="flex items-center gap-2.5">
-                <div className="grid h-8 w-8 place-items-center overflow-hidden rounded-[8px] bg-[#29292b] text-[11px] font-semibold text-white">
-                  {post.author_avatar ? (
-                    <img src={post.author_avatar} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    post.author_name.slice(0, 1).toUpperCase()
-                  )}
+            <div className="mt-4 overflow-hidden rounded-[6px] border border-[#DDE3EC] bg-[#F8FAFC] shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+              {signedImage ? (
+                <img
+                  src={signedImage}
+                  alt="Prévia da novidade publicada no painel"
+                  className="block aspect-[1.58/1] w-full object-cover"
+                  onError={() => setSignedImage(null)}
+                />
+              ) : (
+                <div className="aspect-[1.58/1] bg-white p-5">
+                  <div className="rounded-[10px] border border-[#E5EAF1] bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
+                    <div className="flex items-center gap-2.5">
+                      <div className="grid h-8 w-8 place-items-center overflow-hidden rounded-[8px] bg-[#111827] text-[11px] font-semibold text-white">
+                        {post.author_avatar ? (
+                          <img src={post.author_avatar} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          post.author_name.slice(0, 1).toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-[12px] font-semibold text-[#111827]">{post.author_name}</p>
+                        <p className="text-[11px] text-[#8A93A3]">{formatAnnouncementDate(post.created_at) || "Agora"}</p>
+                      </div>
+                    </div>
+                    <p className="mt-3 line-clamp-5 whitespace-pre-line text-[12px] leading-[1.55] text-[#4B5563]">
+                      {preview}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[13px] font-semibold text-white">{post.author_name}</span>
-                  <span className="text-[11.5px] text-[#67676c]">agora</span>
-                </div>
-              </div>
-              <p className="mt-3 whitespace-pre-line text-[12.5px] leading-[1.55] text-[#c8c8cb] line-clamp-4">
-                {preview}
-              </p>
+              )}
             </div>
 
-            <p className="mt-4 text-[13.5px] leading-[1.6] text-[#111] font-medium">
-              Estamos publicando novidades, tutoriais e conversando direto com você aqui pelo painel. Abra o feed da comunidade para ver o post completo, curtir e deixar seu comentário — é assim que a gente decide o que construir a seguir.
-            </p>
-
+            <ul className="mt-4 list-disc space-y-2.5 pl-5 text-[14px] leading-[1.6] text-[#1F2937]">
+              {announcementBullets.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           </div>
 
-          <div className="flex justify-end border-t border-[#EFEFEE] px-6 py-4">
+          <div className="flex justify-end border-t border-[#E5E7EB] px-4 py-3.5 sm:px-5">
             <button
               type="button"
               onClick={closeModal}
-              className="rounded-[10px] bg-[#111] px-5 py-2.5 text-[13.5px] font-semibold text-white transition-colors hover:bg-black"
+              className="rounded-[7px] bg-[#91EA62] px-4 py-2.5 text-[15px] font-medium text-[#064E2F] transition-colors hover:bg-[#7FE24E]"
             >
               Entendi
             </button>

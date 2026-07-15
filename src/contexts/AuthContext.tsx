@@ -1,6 +1,6 @@
 // NÃO MODIFIQUE ESTE ARQUIVO — qualquer alteração quebra a autenticação global
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
+import { ensureFreshSupabaseSession, supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
 type AuthContextType = {
@@ -75,6 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
 
+        await ensureFreshSupabaseSession();
         const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError || !userData.user) {
           await supabase.auth.signOut({ scope: "local" });

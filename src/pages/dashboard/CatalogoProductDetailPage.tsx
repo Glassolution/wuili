@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import {
   Star,
@@ -137,11 +137,13 @@ const CatalogoProductDetailPage = () => {
       setError(null);
       setActiveImg(0);
       try {
-        const { data, error: e } = await supabase
-          .from("catalog_products")
-          .select("*")
-          .eq("id", id)
-          .single();
+        const { data, error: e } = await withFreshSupabaseSession(() =>
+          supabase
+            .from("catalog_products")
+            .select("*")
+            .eq("id", id)
+            .single(),
+        );
         if (e) throw e;
         if (!data) throw new Error("Produto não encontrado.");
 
@@ -149,24 +151,28 @@ const CatalogoProductDetailPage = () => {
         setProduct(mapped);
         setRawProduct(data);
 
-        const { data: rel } = await supabase
-          .from("catalog_products")
-          .select("*")
-          .eq("is_blocked", false)
-          .eq("source", "c7drop")
-          .neq("id", id)
-          .eq("category", data.category || "")
-          .limit(12);
-        if (rel && rel.length > 0) {
-          setRelated(rel.map(mapProduct));
-        } else {
-          const { data: fb } = await supabase
+        const { data: rel } = await withFreshSupabaseSession(() =>
+          supabase
             .from("catalog_products")
             .select("*")
             .eq("is_blocked", false)
             .eq("source", "c7drop")
             .neq("id", id)
-            .limit(12);
+            .eq("category", data.category || "")
+            .limit(12),
+        );
+        if (rel && rel.length > 0) {
+          setRelated(rel.map(mapProduct));
+        } else {
+          const { data: fb } = await withFreshSupabaseSession(() =>
+            supabase
+              .from("catalog_products")
+              .select("*")
+              .eq("is_blocked", false)
+              .eq("source", "c7drop")
+              .neq("id", id)
+              .limit(12),
+          );
           if (fb) setRelated(fb.map(mapProduct));
         }
       } catch (err) {

@@ -60,6 +60,7 @@ function createDisabledSupabaseClient() {
       signUp: () => disabledPromise({}),
       resetPasswordForEmail: () => disabledPromise({}),
       updateUser: () => disabledPromise({}),
+      refreshSession: () => disabledPromise({ session: null }),
       setSession: () => disabledPromise({}),
       exchangeCodeForSession: () => disabledPromise({}),
     },
@@ -90,3 +91,74 @@ export const supabase = SUPABASE_DISABLED
 
 export const isSupabaseEnabled = !SUPABASE_DISABLED;
 export const supabaseUrl = SUPABASE_URL;
+
+type SupabaseResultWithError = { error: unknown };
+
+const JWT_EXPIRED_MESSAGES = ["jwt expired", "token is expired", "invalid jwt"];
+const SESSION_REFRESH_WINDOW_MS = 60_000;
+let sessionRefreshPromise: Promise<void> | null = null;
+
+export const isJwtExpiredError = (error: unknown) => {
+  if (!error) return false;
+
+  const message =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : typeof error === "object" && "message" in error
+          ? String((error as { message?: unknown }).message ?? "")
+          : String(error);
+
+  const normalized = message.toLowerCase();
+  return JWT_EXPIRED_MESSAGES.some((item) => normalized.includes(item));
+};
+
+const refreshOrClearExpiredSession = async () => {
+  if (!isSupabaseEnabled) return;
+
+  if (!sessionRefreshPromise) {
+    sessionRefreshPromise = supabase.auth
+      .refreshSession()
+      .then(async ({ error }) => {
+        if (!error) return;
+        console.warn("[supabase] não foi possível renovar a sessão; limpando token local vencido.", error);
+        await supabase.auth.signOut({ scope: "local" });
+      })
+      .finally(() => {
+        sessionRefreshPromise = null;
+      });
+  }
+
+  await sessionRefreshPromise;
+};
+
+export const ensureFreshSupabaseSession = async () => {
+  if (!isSupabaseEnabled) return;
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error && isJwtExpiredError(error)) {
+    await refreshOrClearExpiredSession();
+    return;
+  }
+
+  const expiresAt = data.session?.expires_at;
+  if (!expiresAt) return;
+
+  const msUntilExpiry = expiresAt * 1000 - Date.now();
+  if (msUntilExpiry <= SESSION_REFRESH_WINDOW_MS) {
+    await refreshOrClearExpiredSession();
+  }
+};
+
+export const withFreshSupabaseSession = async <T extends SupabaseResultWithError>(
+  request: () => Promise<T>,
+): Promise<T> => {
+  await ensureFreshSupabaseSession();
+
+  const firstResult = await request();
+  if (!isJwtExpiredError(firstResult.error)) return firstResult;
+
+  await refreshOrClearExpiredSession();
+  return request();
+};
