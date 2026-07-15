@@ -12,6 +12,7 @@ import {
   PackageCheck,
   RefreshCcw,
   Settings,
+  ShoppingBag,
   Sparkles,
   User,
   Users as UsersIcon,
@@ -48,11 +49,12 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
   const [collapsed, setCollapsed] = useState(false);
   const isCollapsed = collapsed || isMobile;
 
-  const activeSection: "panel" | "users" | "commissions" | "support" | "refunds" | null = useMemo(() => {
+  const activeSection: "panel" | "users" | "commissions" | "support" | "refunds" | "aliexpress" | null = useMemo(() => {
     if (pathname.startsWith("/admin/usuarios")) return "users";
     if (pathname.startsWith("/admin/comissoes")) return "commissions";
     if (pathname.startsWith("/admin/suporte")) return "support";
     if (pathname.startsWith("/admin/reembolsos")) return "refunds";
+    if (pathname.startsWith("/admin/aliexpress")) return "aliexpress";
     if (pathname.startsWith("/admin/painel")) return "panel";
     return null;
   }, [pathname]);
@@ -145,6 +147,7 @@ export const AdminNewSidebar = ({ activeSub }: Props) => {
         <SideItem icon={UsersIcon} label="Usuários & times" to="/admin/usuarios" active={activeSection === "users"} collapsed={isCollapsed} />
         <SideItem icon={DollarSign} label="Comissões" to="/admin/comissoes" active={activeSection === "commissions"} collapsed={isCollapsed} />
         <SideItem icon={RefreshCcw} label="Reembolsos" to="/admin/reembolsos" active={activeSection === "refunds"} collapsed={isCollapsed} />
+        <SideItem icon={ShoppingBag} label="AliExpress" to="/admin/aliexpress" active={activeSection === "aliexpress"} collapsed={isCollapsed} />
       </nav>
 
       <div className="space-y-1 border-t border-white/[0.08] px-4 py-4 text-[13px]">
