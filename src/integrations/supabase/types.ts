@@ -949,6 +949,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          aliexpress_access_token: string | null
+          aliexpress_refresh_token: string | null
+          aliexpress_token_expires_at: string | null
           avatar_url: string | null
           categorias: string[] | null
           created_at: string
@@ -974,6 +977,9 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          aliexpress_access_token?: string | null
+          aliexpress_refresh_token?: string | null
+          aliexpress_token_expires_at?: string | null
           avatar_url?: string | null
           categorias?: string[] | null
           created_at?: string
@@ -999,6 +1005,9 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          aliexpress_access_token?: string | null
+          aliexpress_refresh_token?: string | null
+          aliexpress_token_expires_at?: string | null
           avatar_url?: string | null
           categorias?: string[] | null
           created_at?: string
