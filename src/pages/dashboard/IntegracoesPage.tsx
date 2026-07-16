@@ -6,6 +6,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { veloToast } from "@/components/ui/velo-toast";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
 
 type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
 
