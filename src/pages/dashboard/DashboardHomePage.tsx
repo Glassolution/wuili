@@ -52,11 +52,11 @@ const metricCards = [
     title: "Integracoes",
     description: "Contas conectadas para publicar e acompanhar vendas.",
   },
-];
+] as const;
 
 type DashboardStatKey = (typeof metricCards)[number]["key"];
 
-type DashboardStats = Record<DashboardStatKey, number> & {
+type DashboardStats = { [K in DashboardStatKey]: number } & {
   displayName: string;
 };
 
@@ -135,7 +135,7 @@ const ctaSlides = [
     button: "Ver produtos em alta",
     href: "/dashboard/produtos-em-alta",
   },
-];
+] as const satisfies ReadonlyArray<{ visual: CtaVisualKind; badge: string; meta: string; title: string; description: string; button: string; href: string }>;
 
 type CtaVisualKind = "referral" | "page" | "trending";
 type SupportTab = "home" | "messages" | "help" | "news";

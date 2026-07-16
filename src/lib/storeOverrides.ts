@@ -193,7 +193,7 @@ export const applyOverrideToElement = (
         override.buttonIconColor ?? "currentColor",
       );
       const createdIcon = template.content.firstElementChild;
-      if (createdIcon instanceof SVGElement) {
+      if (createdIcon instanceof SVGSVGElement) {
         element.append(createdIcon);
         icon = createdIcon;
       }
@@ -207,7 +207,7 @@ export const applyOverrideToElement = (
           override.buttonIconColor ?? "currentColor",
         );
         const replacement = template.content.firstElementChild;
-        if (replacement instanceof SVGElement) {
+        if (replacement instanceof SVGSVGElement) {
           icon.replaceWith(replacement);
           icon = replacement;
         }

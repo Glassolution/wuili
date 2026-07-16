@@ -630,7 +630,7 @@ const GeneratedStoreEditorPage = () => {
           override.buttonIconColor ?? "currentColor",
         );
         const createdIcon = template.content.firstElementChild;
-        if (createdIcon instanceof SVGElement) {
+        if (createdIcon instanceof SVGSVGElement) {
           element.append(createdIcon);
           icon = createdIcon;
         }
@@ -644,7 +644,7 @@ const GeneratedStoreEditorPage = () => {
             override.buttonIconColor ?? "currentColor",
           );
           const replacement = template.content.firstElementChild;
-          if (replacement instanceof SVGElement) {
+          if (replacement instanceof SVGSVGElement) {
             icon.replaceWith(replacement);
             icon = replacement;
           }
