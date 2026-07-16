@@ -462,16 +462,11 @@ const CheckoutPage = () => {
                     <div className="flex items-start justify-between gap-4">
                       {/* Marca da Velo com tratamento tonal por plano: o plano em
                           destaque vem sólido, os demais em cinza claro. */}
-                      <VeloMark
-                        size={44}
-                        background={isFeatured ? "#0A0A0A" : "#F1F1EF"}
-                        stroke={isFeatured ? "#FFFFFF" : "#0A0A0A"}
-                        className="shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
-                      />
+                      <VeloMark size={44} tone={isFeatured ? "solid" : "soft"} />
                       {currentPlan.badge && (
                         <span
-                          className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${
-                            isFeatured ? "bg-[#F1F1EF] text-[#0A0A0A]" : "bg-[#F4F4F3] text-[#777]"
+                          className={`rounded-[6px] px-2 py-[3px] text-[11px] font-semibold leading-[16px] ${
+                            isFeatured ? "bg-[#F1F1EF] text-[#0A0A0A]" : "bg-[#F6F6F5] text-[#8A8A86]"
                           }`}
                         >
                           {currentPlan.badge}
