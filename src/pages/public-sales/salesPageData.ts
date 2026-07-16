@@ -29,7 +29,23 @@ export function useSalesPageData(slug: string | undefined) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const isPreview = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "1";
+    const demoData: SalesPageData = {
+      slug: slug ?? "preview",
+      ownerUserId: "",
+      productTitle: "Kit Manicure E Pedicure Portátil Com 18 Peças",
+      productImage: null,
+      price: 25,
+      accent: "#0A0A0A",
+      brand: "Sua loja",
+    };
     if (!slug) {
+      if (isPreview) {
+        setData(demoData);
+        setLoading(false);
+        setError(null);
+        return;
+      }
       setLoading(false);
       setError("slug ausente");
       return;
@@ -64,7 +80,12 @@ export function useSalesPageData(slug: string | undefined) {
         // 2) Tenta user_projects publicado
         const project: UserProject | null = await fetchPublicProject(slug);
         if (!project) {
-          if (active) setError("página não encontrada");
+          if (!active) return;
+          if (isPreview) {
+            setData(demoData);
+          } else {
+            setError("página não encontrada");
+          }
           return;
         }
         const productIds = getProjectProductIds(project);
@@ -82,7 +103,12 @@ export function useSalesPageData(slug: string | undefined) {
           brand: getProjectStoreName(project) || project.nome,
         });
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : "erro");
+        if (!active) return;
+        if (isPreview) {
+          setData(demoData);
+        } else {
+          setError(err instanceof Error ? err.message : "erro");
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -91,6 +117,7 @@ export function useSalesPageData(slug: string | undefined) {
       active = false;
     };
   }, [slug]);
+
 
   return { data, loading, error };
 }
