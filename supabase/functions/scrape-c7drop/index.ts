@@ -26,6 +26,8 @@ type WCProduct = {
   is_in_stock: boolean;
   prices?: {
     price?: string;            // em centavos (string)
+    regular_price?: string;
+    sale_price?: string;
     currency_minor_unit?: number;
     price_range?: { min_amount?: string; max_amount?: string } | null;
   };
