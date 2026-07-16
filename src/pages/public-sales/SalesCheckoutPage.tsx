@@ -266,9 +266,10 @@ const SalesCheckoutPage = () => {
                 type="button"
                 disabled={submitting}
                 onClick={handleSubmit}
-                className="mt-6 inline-flex h-14 w-full items-center justify-center rounded-full bg-black text-[14px] font-semibold text-white transition hover:bg-black/90 disabled:opacity-60"
+                className="mt-6 inline-flex h-14 w-full items-center justify-center rounded-full text-[14px] font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                style={{ backgroundColor: accent }}
               >
-                {submitting ? <Loader2 className="animate-spin" size={18} /> : "Pagar agora"}
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : payLabel}
               </button>
             )}
 
