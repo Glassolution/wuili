@@ -3029,7 +3029,61 @@ const GeneratedStoreEditorPage = () => {
             )}
 
           </div>
+
+          {activeTemplate.kind === "produto" && projectSlug ? (
+            <>
+              {[
+                { key: "carrinho", label: "Tela 2 · Carrinho", path: `/loja/${projectSlug}/carrinho` },
+                { key: "checkout", label: "Tela 3 · Checkout", path: `/loja/${projectSlug}/checkout` },
+              ].map((screen, idx) => {
+                const baseWidth = mobilePreview ? 390 : 1440;
+                const gap = 120;
+                const leftOffset = (baseWidth + gap) * (idx + 1);
+                return (
+                  <div
+                    key={screen.key}
+                    data-canvas-ui
+                    className="absolute top-0"
+                    style={{ left: leftOffset, width: baseWidth }}
+                  >
+                    <div className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
+                      <Monitor size={20} strokeWidth={1.8} />
+                      {screen.label}
+                      <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold tracking-normal text-white/55">Preview</span>
+                    </div>
+                    <div
+                      className="relative overflow-hidden bg-white shadow-[0_30px_100px_rgba(0,0,0,0.46)] ring-1 ring-white/[0.10]"
+                      style={{ width: baseWidth, height: mobilePreview ? 780 : 900 }}
+                    >
+                      <iframe
+                        src={screen.path}
+                        title={screen.label}
+                        style={{ width: "100%", height: "100%", border: 0, pointerEvents: "none" }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {[1, 2].map((idx) => {
+                const baseWidth = mobilePreview ? 390 : 1440;
+                const gap = 120;
+                const leftOffset = (baseWidth + gap) * idx - gap + 20;
+                return (
+                  <div
+                    key={`arrow-${idx}`}
+                    data-canvas-ui
+                    className="pointer-events-none absolute flex items-center text-white/30"
+                    style={{ left: leftOffset, top: mobilePreview ? 400 : 460, width: gap - 40 }}
+                  >
+                    <div className="h-px flex-1 bg-white/20" />
+                    <ArrowRight size={28} strokeWidth={1.8} />
+                  </div>
+                );
+              })}
+            </>
+          ) : null}
         </div>
+
 
           {selectedSectionAnchor && activeTemplate.kind === "loja" ? (
             <button
