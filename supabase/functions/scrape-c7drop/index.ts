@@ -26,8 +26,8 @@ type WCProduct = {
   is_in_stock: boolean;
   prices?: {
     price?: string;            // em centavos (string)
-    regular_price?: string;    // preço cheio (em centavos)
-    sale_price?: string;       // preço promocional (em centavos)
+    regular_price?: string;
+    sale_price?: string;
     currency_minor_unit?: number;
     price_range?: { min_amount?: string; max_amount?: string } | null;
   };
@@ -117,21 +117,6 @@ function parsePriceMinor(p: WCProduct): number {
   const n = parseInt(raw, 10);
   if (isNaN(n)) return 0;
   return n / Math.pow(10, unit);
-}
-
-/**
- * Preço "de" (riscado) — só existe quando o fornecedor realmente pratica um
- * desconto, isto é, regular_price > sale_price. Retorna null caso contrário.
- * NUNCA derivar esse valor do preço de venda: anunciar um preço de referência
- * que nunca foi praticado é publicidade enganosa (CDC art. 37).
- */
-function parseOriginalPrice(p: WCProduct): number | null {
-  const unit = p.prices?.currency_minor_unit ?? 2;
-  const regular = parseInt(p.prices?.regular_price ?? "", 10);
-  const sale = parseInt(p.prices?.sale_price ?? "", 10);
-  if (isNaN(regular) || isNaN(sale)) return null;
-  if (regular <= sale) return null;
-  return regular / Math.pow(10, unit);
 }
 
 function parsePositiveMetric(value: unknown): number | null {
@@ -233,20 +218,32 @@ Deno.serve(async (req) => {
         const weight = extractWeightFromDescription(p.description || p.short_description);
         const rating = parsePositiveMetric(p.average_rating);
         const ordersCount = parsePositiveIntegerMetric(p.total_sales);
-        // Variações reais (Cor, Tamanho...). O fornecedor só informa para ~8%
-        // dos produtos; para o resto isso fica [] e a vitrine omite o seletor.
-        const variantOptions = extractVariantOptions(p.attributes);
-        const originalPrice = parseOriginalPrice(p);
+        const variants = extractVariantOptions(p.attributes);
+        // Descrição: usamos short_description quando disponível (resumo curto que
+        // o fornecedor mantém limpo), com fallback para a descrição completa.
+        // Decodificamos entidades HTML mas preservamos as tags — o template
+        // renderiza como HTML sanitizado.
+        const rawDesc = (p.short_description && p.short_description.trim().length > 0)
+          ? p.short_description
+          : (p.description ?? "");
+        const description = rawDesc && rawDesc.trim().length > 0
+          ? decodeHtmlEntities(rawDesc).trim()
+          : null;
+        // original_price ("de" riscado): SÓ preenchemos quando o fornecedor
+        // pratica desconto real (regular_price > sale_price). Preço de referência
+        // fabricado é publicidade enganosa (CDC art. 37).
+        const unit = p.prices?.currency_minor_unit ?? 2;
+        let originalPrice: number | null = null;
+        const rp = p.prices?.regular_price ? parseInt(p.prices.regular_price, 10) : NaN;
+        const sp = p.prices?.sale_price ? parseInt(p.prices.sale_price, 10) : NaN;
+        if (Number.isFinite(rp) && Number.isFinite(sp) && rp > sp && sp > 0) {
+          originalPrice = Math.round((rp / Math.pow(10, unit)) * 2 * 100) / 100;
+        }
         return {
           source: SOURCE,
           external_id: p.slug,
           title,
-          // HTML de especificações vindo do fornecedor. É sanitizado antes de
-          // renderizar (ver sanitizeSupplierHtml no frontend).
-          description: p.description?.trim() || null,
-          // Array [{ name, values }] — mesmo formato do DEFAULT '[]' da coluna.
-          variants: variantOptions,
-          ...(originalPrice !== null ? { original_price: originalPrice } : {}),
+          description,
           images,
           cost_price: price,
           suggested_price: Math.round(price * 2 * 100) / 100,
@@ -260,6 +257,8 @@ Deno.serve(async (req) => {
           brand,
           model,
           weight,
+          variants,
+          ...(originalPrice !== null ? { original_price: originalPrice } : {}),
           ...(rating !== null ? { rating } : {}),
           ...(ordersCount !== null ? { orders_count: ordersCount } : {}),
           scraped_at: now,

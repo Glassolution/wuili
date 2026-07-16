@@ -107,39 +107,36 @@ export function detectBrand(title: string): string | null {
   return null;
 }
 
-/**
- * Atributos que NÃO são variação do produto e nunca podem virar opção de compra
- * na vitrine do usuário. "Compra" (Atacado/Dropshipping/Grupo Vip) é a modalidade
- * comercial da C7Drop com o lojista — aparece em 100% dos produtos e não tem
- * nenhum significado para o cliente final.
- */
-const NON_VARIANT_ATTRIBUTES = ["compra"];
+// Extrai variações reais do produto a partir dos atributos do WooCommerce.
+// A C7 Drop expõe um atributo "Compra" (Atacado/Dropshipping/Grupo Vip) que
+// NÃO é variação de produto — é a modalidade comercial de compra do lojista.
+// Também descartamos atributos vazios e nomes de marca/modelo (já gravados em
+// colunas próprias). Retorna [] quando o produto não tem variação real.
+const VARIANT_BLOCKED_NAMES = new Set([
+  "compra",
+  "marca",
+  "brand",
+  "modelo",
+  "model",
+]);
 
-export type ProductVariantOption = { name: string; values: string[] };
-
-/**
- * Extrai as variações reais do produto (Cor, Tamanho, Tipo...), descartando
- * atributos comerciais. Retorna [] quando o fornecedor não informa variação —
- * a maioria dos produtos. Nesse caso a vitrine deve OMITIR o seletor, nunca
- * inventar opções.
- */
 export function extractVariantOptions(
   attributes: Array<{ name?: string; taxonomy?: string; terms?: Array<{ name?: string }> }> | undefined,
-): ProductVariantOption[] {
+): Array<{ name: string; options: string[] }> {
   if (!Array.isArray(attributes)) return [];
-  const options: ProductVariantOption[] = [];
+  const result: Array<{ name: string; options: string[] }> = [];
   for (const attr of attributes) {
     const rawName = String(attr?.name ?? attr?.taxonomy ?? "").trim();
     if (!rawName) continue;
-    const normalized = stripAccents(rawName).toLowerCase();
-    if (NON_VARIANT_ATTRIBUTES.some((skip) => normalized === skip || normalized === `pa_${skip}`)) continue;
-    const values = (attr?.terms ?? [])
-      .map((term) => String(term?.name ?? "").trim())
-      .filter((value) => value.length > 0);
-    if (values.length === 0) continue;
-    options.push({ name: rawName, values });
+    const norm = stripAccents(rawName).toLowerCase().replace(/^pa_/, "");
+    if (VARIANT_BLOCKED_NAMES.has(norm)) continue;
+    const options = (attr?.terms ?? [])
+      .map((t) => (t?.name ?? "").trim())
+      .filter((s) => s.length > 0);
+    if (options.length === 0) continue;
+    result.push({ name: rawName, options });
   }
-  return options;
+  return result;
 }
 
 /**

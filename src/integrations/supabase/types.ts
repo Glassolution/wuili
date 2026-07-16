@@ -1802,11 +1802,15 @@ export type Database = {
       get_public_store_products: {
         Args: { p_ids: string[] }
         Returns: {
+          brand: string | null
           category: string | null
           description: string | null
           id: string
           images: Json
+          model: string | null
           original_price: number | null
+          rating: number | null
+          reviews_count: number | null
           suggested_price: number
           title: string
           variants: Json

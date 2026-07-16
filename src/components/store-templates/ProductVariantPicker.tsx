@@ -22,14 +22,14 @@ const ProductVariantPicker = ({ options, accent }: ProductVariantPickerProps) =>
   return (
     <>
       {options.map((option) => {
-        const active = selected[option.name] ?? option.values[0];
+        const active = selected[option.name] ?? option.options[0];
         return (
           <div key={option.name} className="mt-6">
             <p className="text-[14px] font-semibold text-black">
               {option.name}: <span className="font-medium text-black/55">{active}</span>
             </p>
             <div className="mt-3 flex flex-wrap gap-2.5">
-              {option.values.map((value) => {
+              {option.options.map((value) => {
                 const isActive = active === value;
                 return (
                   <button

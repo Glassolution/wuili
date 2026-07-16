@@ -131,8 +131,9 @@ export async function publishProject(project: UserProject): Promise<UserProject>
   return data as UserProject;
 }
 
-/** Variação real informada pelo fornecedor (ex.: { name: "Cor", values: ["Preto", "Branco"] }). */
-export type ProductVariantOption = { name: string; values: string[] };
+/** Variação real informada pelo fornecedor (ex.: { name: "Cor", options: ["Preto", "Branco"] }).
+ *  O formato espelha o que o scraper grava em catalog_products.variants. */
+export type ProductVariantOption = { name: string; options: string[] };
 
 export type PublicStoreProduct = {
   id: string;
@@ -286,10 +287,10 @@ export function parseVariantOptions(value: Json | null): ProductVariantOption[] 
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
-    const { name, values } = entry as { name?: unknown; values?: unknown };
-    if (typeof name !== "string" || !name.trim() || !Array.isArray(values)) return [];
-    const parsed = values.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-    return parsed.length > 0 ? [{ name: name.trim(), values: parsed }] : [];
+    const { name, options } = entry as { name?: unknown; options?: unknown };
+    if (typeof name !== "string" || !name.trim() || !Array.isArray(options)) return [];
+    const parsed = options.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    return parsed.length > 0 ? [{ name: name.trim(), options: parsed }] : [];
   });
 }
 
