@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { PUBLIC_APP_URL } from "@/lib/constants";
 
 const MercadoPagoCallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -28,7 +29,7 @@ const MercadoPagoCallbackPage = () => {
           return;
         }
 
-        const redirectUri = `${window.location.origin}/mercadopago/callback`;
+        const redirectUri = `${PUBLIC_APP_URL}/mercadopago/callback`;
         const { error: fnErr } = await supabase.functions.invoke("connect-mercadopago-seller", {
           body: { code, redirect_uri: redirectUri },
         });

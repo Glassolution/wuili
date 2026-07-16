@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { useSearchParams } from "react-router-dom";
+import { PUBLIC_APP_URL } from "@/lib/constants";
 
 type Account = {
   mp_user_id: string;
@@ -48,7 +49,7 @@ const MercadoPagoIntegrationCard = () => {
   const connect = async () => {
     setConnecting(true);
     try {
-      const redirectUri = `${window.location.origin}/mercadopago/callback`;
+      const redirectUri = `${PUBLIC_APP_URL}/mercadopago/callback`;
       const { data: sess } = await supabase.auth.getSession();
       const projectRef = "nqzpoioxvbqavrtphtoa";
       const url = `https://${projectRef}.supabase.co/functions/v1/mp-seller-auth-url?redirect_uri=${encodeURIComponent(redirectUri)}`;
