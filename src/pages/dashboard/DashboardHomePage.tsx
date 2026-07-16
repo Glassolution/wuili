@@ -135,7 +135,7 @@ const ctaSlides = [
     button: "Ver produtos em alta",
     href: "/dashboard/produtos-em-alta",
   },
-];
+] as const satisfies ReadonlyArray<{ visual: CtaVisualKind; badge: string; meta: string; title: string; description: string; button: string; href: string }>;
 
 type CtaVisualKind = "referral" | "page" | "trending";
 type SupportTab = "home" | "messages" | "help" | "news";
