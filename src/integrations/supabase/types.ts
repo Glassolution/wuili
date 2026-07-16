@@ -1829,28 +1829,16 @@ export type Database = {
         Returns: {
           brand: string
           category: string
-          created_at: string
           description: string
-          external_id: string
           id: string
           images: Json
-          is_active: boolean
-          is_blocked: boolean
           model: string
-          orders_count: number
           original_price: number
-          product_url: string
           rating: number
           reviews_count: number
-          scraped_at: string
-          source: string
-          stock_quantity: number
           suggested_price: number
-          supplier_name: string
           title: string
-          updated_at: string
           variants: Json
-          weight: number
         }[]
       }
       get_trending_products: {
