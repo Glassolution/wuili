@@ -1276,6 +1276,106 @@ export type Database = {
         }
         Relationships: []
       }
+      store_orders: {
+        Row: {
+          buyer_cpf: string | null
+          buyer_email: string
+          buyer_name: string
+          buyer_phone: string | null
+          catalog_product_id: string | null
+          created_at: string
+          id: string
+          mp_external_reference: string | null
+          mp_payment_id: string | null
+          payment_method: string
+          payment_status: string
+          pix_qr_code: string | null
+          pix_qr_code_base64: string | null
+          product_image_url: string | null
+          product_title: string
+          project_id: string | null
+          quantity: number
+          sales_page_id: string | null
+          shipping_address: Json | null
+          total: number
+          unit_price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          buyer_cpf?: string | null
+          buyer_email: string
+          buyer_name: string
+          buyer_phone?: string | null
+          catalog_product_id?: string | null
+          created_at?: string
+          id?: string
+          mp_external_reference?: string | null
+          mp_payment_id?: string | null
+          payment_method: string
+          payment_status?: string
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
+          product_image_url?: string | null
+          product_title: string
+          project_id?: string | null
+          quantity?: number
+          sales_page_id?: string | null
+          shipping_address?: Json | null
+          total: number
+          unit_price: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          buyer_cpf?: string | null
+          buyer_email?: string
+          buyer_name?: string
+          buyer_phone?: string | null
+          catalog_product_id?: string | null
+          created_at?: string
+          id?: string
+          mp_external_reference?: string | null
+          mp_payment_id?: string | null
+          payment_method?: string
+          payment_status?: string
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
+          product_image_url?: string | null
+          product_title?: string
+          project_id?: string | null
+          quantity?: number
+          sales_page_id?: string | null
+          shipping_address?: Json | null
+          total?: number
+          unit_price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_orders_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_orders_sales_page_id_fkey"
+            columns: ["sales_page_id"]
+            isOneToOne: false
+            referencedRelation: "generated_sales_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           amount: number
