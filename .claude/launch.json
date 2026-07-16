@@ -5,15 +5,13 @@
       "name": "Vite Dev Server",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 8080,
-      "cwd": "C:/Dev/Velo V2"
+      "port": 8080
     },
     {
       "name": "Vite Preview",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview"],
-      "port": 4173,
-      "cwd": "C:/Dev/Velo V2"
+      "port": 4173
     }
   ]
 }

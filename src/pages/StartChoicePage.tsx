@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, FlaskConical, PackageOpen, Store } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { isAdminEmail } from "@/lib/adminAccess";
 
 export type ExampleProduct = {
   id: string;
@@ -57,10 +59,15 @@ const feedbackCards = [
 
 const StartChoicePage = () => {
   const navigate = useNavigate();
+  const { user, role } = useAuth();
   const [showWelcome, setShowWelcome] = useState(true);
   const [welcomeReady, setWelcomeReady] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const metadataRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined);
+  const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
 
   useEffect(() => {
     if (!showWelcome) return;
@@ -271,16 +278,21 @@ const StartChoicePage = () => {
             Como você quer começar?
           </h1>
           <p className="mt-3 max-w-[500px] text-[13px] font-normal leading-[1.55] text-[#687086] sm:text-[13.5px]">
-            Escolha o caminho que combina com o seu momento. Você pode montar sua loja ou publicar produtos diretamente no Mercado Livre.
+            {isAdmin
+              ? "Escolha o caminho que combina com o seu momento. Você pode montar sua loja ou criar uma página de vendas."
+              : "A criação de loja completa está em testes. Por enquanto, você pode criar e personalizar sua página de vendas."}
           </p>
 
           <div className="mt-8 w-full max-w-[650px]">
             <div className="grid gap-4 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => setSelectedPath("/onboarding/criar-loja")}
+                onClick={() => isAdmin && setSelectedPath("/onboarding/criar-loja")}
+                disabled={!isAdmin}
                 aria-pressed={selectedPath === "/onboarding/criar-loja"}
-                className={`group relative min-h-[178px] rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
+                className={`group relative min-h-[178px] rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 focus-visible:ring-4 focus-visible:ring-black/10 ${
+                  isAdmin ? "hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)]" : "cursor-not-allowed opacity-55"
+                } ${
                   selectedPath === "/onboarding/criar-loja" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
                 }`}
               >
@@ -288,7 +300,7 @@ const StartChoicePage = () => {
                   <Store size={19} strokeWidth={1.8} />
                 </span>
                 <span className="absolute right-4 top-4 rounded-[8px] bg-black px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white">
-                  Recomendado
+                  {isAdmin ? "Ambiente interno" : "Em fase de testes"}
                 </span>
                 <span className="mt-14 flex items-end justify-between gap-4">
                   <span>
@@ -303,10 +315,10 @@ const StartChoicePage = () => {
 
               <button
                 type="button"
-                onClick={() => setSelectedPath("/dashboard/catalogo")}
-                aria-pressed={selectedPath === "/dashboard/catalogo"}
+                onClick={() => setSelectedPath("/produto/editor")}
+                aria-pressed={selectedPath === "/produto/editor"}
                 className={`group relative min-h-[178px] rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
-                  selectedPath === "/dashboard/catalogo" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
+                  selectedPath === "/produto/editor" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
                 }`}
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
@@ -314,9 +326,9 @@ const StartChoicePage = () => {
                 </span>
                 <span className="mt-14 flex items-end justify-between gap-4">
                   <span>
-                    <span className="block text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Importar produtos</span>
+                    <span className="block text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Criar página de vendas</span>
                     <span className="mt-2 block max-w-[210px] text-[12.5px] leading-5 text-[#687086]">
-                      Escolha no catálogo e publique direto no Mercado Livre.
+                      Personalize uma oferta focada em um produto e prepare sua página para vender.
                     </span>
                   </span>
                   <ArrowUpRight size={18} className="shrink-0 text-[#9aa2b5] transition group-hover:text-black" />
@@ -324,31 +336,35 @@ const StartChoicePage = () => {
               </button>
             </div>
 
-            <div className="my-5 flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.16em] text-[#9aa2b5]">
-              <span className="h-px flex-1 bg-[#e1e5ed]" />
-              ou
-              <span className="h-px flex-1 bg-[#e1e5ed]" />
-            </div>
+            {isAdmin ? (
+              <>
+                <div className="my-5 flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.16em] text-[#9aa2b5]">
+                  <span className="h-px flex-1 bg-[#e1e5ed]" />
+                  ou
+                  <span className="h-px flex-1 bg-[#e1e5ed]" />
+                </div>
 
-            <button
-              type="button"
-              onClick={() => setSelectedPath("/onboarding/escolher-produto")}
-              aria-pressed={selectedPath === "/onboarding/escolher-produto"}
-              className={`group flex min-h-[88px] w-full items-center gap-5 rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
-                selectedPath === "/onboarding/escolher-produto" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
-              }`}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
-                <FlaskConical size={19} strokeWidth={1.8} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Testar com produto de exemplo</span>
-                <span className="mt-1 block truncate text-[12.5px] leading-5 text-[#687086]">
-                  Veja como funciona antes de importar seus próprios produtos.
-                </span>
-              </span>
-              <ArrowUpRight size={18} className="shrink-0 text-[#9aa2b5] transition group-hover:text-black" />
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPath("/onboarding/escolher-produto")}
+                  aria-pressed={selectedPath === "/onboarding/escolher-produto"}
+                  className={`group flex min-h-[88px] w-full items-center gap-5 rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
+                    selectedPath === "/onboarding/escolher-produto" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
+                  }`}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
+                    <FlaskConical size={19} strokeWidth={1.8} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Testar com produto de exemplo</span>
+                    <span className="mt-1 block truncate text-[12.5px] leading-5 text-[#687086]">
+                      Veja como funciona antes de importar seus próprios produtos.
+                    </span>
+                  </span>
+                  <ArrowUpRight size={18} className="shrink-0 text-[#9aa2b5] transition group-hover:text-black" />
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
 

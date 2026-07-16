@@ -444,6 +444,7 @@ const DashboardLayoutInner = () => {
   useActivityTracker(user?.id ?? null);
 
   const isStartMode = false;
+  const hideDesktopHeader = location.pathname === "/dashboard/minha-loja";
 
   useEffect(() => {
     const syncStores = () => setStores(readUserStores());
@@ -713,7 +714,7 @@ const DashboardLayoutInner = () => {
         {/* Área principal com header e conteúdo */}
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {/* Header - no shell cinza */}
-          <DashboardHeader />
+          {!hideDesktopHeader && <DashboardHeader />}
           {/* Main content area - sem moldura externa */}
           <main data-dashboard-tour="dashboard-main" className="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ background: "transparent" }}>
             <PageErrorBoundary>

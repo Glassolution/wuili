@@ -24,7 +24,7 @@ const baseNavItems: NavItem[] = [
   { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
   { label: "Comunidade e Ajuda", icon: Info, to: "/docs", dimmed: true },
   { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes", dimmed: true },
-  { label: "Minha loja", icon: Sparkles, to: "/minha-loja/editor" },
+  { label: "Minha loja", icon: Sparkles, to: "/dashboard/minha-loja" },
 ];
 
 const affiliatesNavItem: NavItem = { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
@@ -41,6 +41,7 @@ const tourTargetByLabel: Record<string, string> = {
   Relatórios: "relatorios",
   Configurações: "configuracoes",
   "Minha loja": "minha-loja",
+  "Páginas de venda": "minha-loja",
 };
 
 type SidebarSubscription = {
@@ -505,7 +506,11 @@ const DashboardSidebar = () => {
     null;
 
   const visibleNavItems = useMemo(() => {
-    const items = [...baseNavItems];
+    const items = baseNavItems.map((item) =>
+      !isAdmin && item.label === "Minha loja"
+        ? { ...item, label: "Páginas de venda" }
+        : item,
+    );
     if (isAdmin) {
       items.splice(4, 0, affiliatesNavItem);
       // "Editar minha loja (beta)" removido da sidebar; o fluxo principal começa em /comecar.

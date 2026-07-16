@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AlignCenter, AlignLeft, AlignRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, Circle, Code2, Copy, Dumbbell, Eraser, ExternalLink, Gamepad2, Gem, Gift, Globe2, Headphones, Heart, HeartPulse, History, Home, ImageIcon, Laptop, LayoutGrid, LayoutTemplate, LockKeyhole, Menu, Minus, Monitor, MoreHorizontal, MousePointer2, Package, PaintBucket, Palette, PawPrint, Pencil, Play, Plus, RefreshCcw, Settings, Shirt, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Type, X, type LucideIcon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlignCenter, AlignLeft, AlignRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/lib/profileContext";
+import { claimProjectInvites, publishProject, saveProjectDraft, type UserProject } from "@/lib/userProjects";
+import ProjectSettingsOverlay, { type SettingsSection } from "@/components/editor/ProjectSettingsOverlay";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
-import { ensureExampleCollectionProducts } from "@/lib/collectionsApi";
+import { addProductToCollection, createCollection, ensureExampleCollectionProducts, getCollectionProductIds, listCollections } from "@/lib/collectionsApi";
 import { formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
 import ProductTemplate from "@/components/store-templates/ProductTemplate";
@@ -25,6 +29,8 @@ const getFirstImage = (images: unknown) => {
   return "";
 };
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const PUBLIC_APP_URL = ((import.meta.env.VITE_PUBLIC_APP_URL as string | undefined) ?? "https://velods.com.br").replace(/\/+$/, "");
 
 const fetchEditorCollectionProducts = (userId: string) =>
   supabase
@@ -69,30 +75,54 @@ const getCategoryIcon = (category: string) => {
 
 type EditMode = "select" | "edit" | "fill" | "eraser" | null;
 type ToolbarTool = Exclude<EditMode, null>;
+type CanvasToolbarMode = "select" | "edit" | "pan" | "media" | "appearance" | "favorites";
 type EditorElementType = "image" | "icon" | "text" | "other";
+type EditableDomElement = HTMLElement | SVGElement;
 type ImageShape = "auto" | "wide" | "square" | "circle";
 type TextWeight = "400" | "500" | "600" | "700";
+type ButtonToolbarPanel = "style" | "size" | "radius" | "text" | "icon" | null;
+type ButtonStylePreset = "primary" | "secondary" | "accent" | "outline" | "black";
+type ButtonSizePreset = "xs" | "sm" | "md" | "lg" | "xl";
+type CustomStoreSection = {
+  id: string;
+  after: string;
+};
 type ElementOverride = {
   backgroundColor?: string;
+  hoverBackgroundColor?: string;
   color?: string;
+  textContent?: string;
+  buttonTextContent?: string;
   fontSize?: number;
   fontWeight?: TextWeight;
   textAlign?: "left" | "center" | "right";
+  borderRadius?: number;
+  borderColor?: string;
+  borderWidth?: number;
+  paddingInline?: number;
+  minHeight?: number;
   imageSrc?: string;
   imageShape?: ImageShape;
   iconName?: string;
   iconSize?: number;
+  buttonIconName?: string;
+  buttonIconSize?: number;
+  buttonIconColor?: string;
+  buttonIconHidden?: boolean;
 };
 type SelectedEditorElement = {
   path: string;
   type: EditorElementType;
+  label: string;
   rect: { top: number; left: number; width: number; height: number };
 };
 type ContextControls = {
   color: string;
+  hoverBackgroundColor: string;
   fontSize: number;
   fontWeight: TextWeight;
   textAlign: "left" | "center" | "right";
+  borderRadius: number;
   imageShape: ImageShape;
   iconName: string;
   iconSize: number;
@@ -100,9 +130,11 @@ type ContextControls = {
 
 const defaultContextControls: ContextControls = {
   color: "#111111",
+  hoverBackgroundColor: "#303337",
   fontSize: 16,
   fontWeight: "500",
   textAlign: "center",
+  borderRadius: 12,
   imageShape: "auto",
   iconName: "Sparkles",
   iconSize: 42,
@@ -121,12 +153,60 @@ const iconPickerOptions: Array<{ name: string; label: string; icon: LucideIcon }
   { name: "Square", label: "Quadrado", icon: Square },
 ];
 
-const getIconComponent = (name: string) =>
-  iconPickerOptions.find((option) => option.name === name)?.icon ?? Sparkles;
+const editorIconRegistry: Record<string, LucideIcon> = {
+  ...Object.fromEntries(iconPickerOptions.map((option) => [option.name, option.icon])),
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Facebook,
+  Instagram,
+  Leaf,
+  Minus,
+  Phone,
+  Plus,
+  Search,
+  Share2,
+  ShoppingBag,
+  Twitter,
+  UserRound,
+  Youtube,
+};
+
+const getIconComponent = (name: string) => editorIconRegistry[name] ?? Sparkles;
 
 const renderIconMarkup = (name: string, size: number, color: string) => {
   const Icon = getIconComponent(name);
   return renderToStaticMarkup(<Icon size={size} strokeWidth={1.85} color={color} />);
+};
+
+const hslToHex = (hue: number, saturation: number, lightness: number) => {
+  const saturationRatio = saturation / 100;
+  const lightnessRatio = lightness / 100;
+  const chroma = (1 - Math.abs(2 * lightnessRatio - 1)) * saturationRatio;
+  const section = ((hue % 360) + 360) % 360 / 60;
+  const secondary = chroma * (1 - Math.abs((section % 2) - 1));
+  const match = lightnessRatio - chroma / 2;
+  const [red, green, blue] =
+    section < 1 ? [chroma, secondary, 0]
+      : section < 2 ? [secondary, chroma, 0]
+        : section < 3 ? [0, chroma, secondary]
+          : section < 4 ? [0, secondary, chroma]
+            : section < 5 ? [secondary, 0, chroma]
+              : [chroma, 0, secondary];
+  return `#${[red, green, blue]
+    .map((channel) => Math.round((channel + match) * 255).toString(16).padStart(2, "0"))
+    .join("")}`;
+};
+
+const colorToHex = (value: string, fallback = "#111111") => {
+  const normalized = value.trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(normalized)) return normalized;
+  if (/^#[0-9a-f]{3}$/.test(normalized)) {
+    return `#${normalized.slice(1).split("").map((character) => character.repeat(2)).join("")}`;
+  }
+  const rgb = normalized.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+  if (!rgb) return fallback;
+  return `#${rgb.slice(1, 4).map((channel) => Math.max(0, Math.min(255, Number(channel))).toString(16).padStart(2, "0")).join("")}`;
 };
 
 const textWeightOptions: Array<{ value: TextWeight; label: string }> = [
@@ -136,23 +216,69 @@ const textWeightOptions: Array<{ value: TextWeight; label: string }> = [
   { value: "700", label: "Negrito" },
 ];
 
+const buttonStylePresets: Array<{ value: ButtonStylePreset; label: string }> = [
+  { value: "primary", label: "Primary" },
+  { value: "secondary", label: "Secondary" },
+  { value: "accent", label: "Accent" },
+  { value: "outline", label: "Outline" },
+  { value: "black", label: "Black" },
+];
+
+const buttonSizePresets: Array<{ value: ButtonSizePreset; label: string }> = [
+  { value: "xs", label: "Extra Small" },
+  { value: "sm", label: "Small" },
+  { value: "md", label: "Medium" },
+  { value: "lg", label: "Large" },
+  { value: "xl", label: "Extra Large" },
+];
+
 const GeneratedStoreEditorPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { nome: profileName, foto: profilePhoto } = useProfile();
   const imageInput = useRef<HTMLInputElement>(null);
+  const logoInput = useRef<HTMLInputElement>(null);
+  const creationFileInput = useRef<HTMLInputElement>(null);
   const contextMediaInput = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-  const selectedElementRef = useRef<HTMLElement | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const canvasDragRef = useRef<{ pointerX: number; pointerY: number; offsetX: number; offsetY: number; startedOnPreview: boolean } | null>(null);
+  const selectionDragRef = useRef<{ startX: number; startY: number; currentX: number; currentY: number; moved: boolean } | null>(null);
+  const suppressCanvasClickRef = useRef(false);
+  const suppressPreviewClickRef = useRef(false);
+  const selectedElementRef = useRef<EditableDomElement | null>(null);
+  const nativePinchZoomRef = useRef<(event: WheelEvent) => void>(() => undefined);
   const [mobilePreview, setMobilePreview] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [canvasZoom, setCanvasZoom] = useState(0.52);
+  const canvasZoomRef = useRef(0.52);
+  const [isCanvasDragging, setIsCanvasDragging] = useState(false);
+  const [selectionMarquee, setSelectionMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [pageSelected, setPageSelected] = useState(false);
   const [accent, setAccent] = useState("#111111");
   const [font, setFont] = useState("Geist");
   const [columns, setColumns] = useState(3);
   const [heroImage, setHeroImage] = useState("/hero-pasted-image-2.png");
+  const [logoImage, setLogoImage] = useState<string | null>(null);
   const [heroCtaUrl, setHeroCtaUrl] = useState("/catalogo");
   const [products, setProducts] = useState<CatalogItem[]>([]);
+  const [catalogSuggestions, setCatalogSuggestions] = useState<CatalogItem[]>([]);
+  const [sidebarImportingId, setSidebarImportingId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState("Velo");
   const [showPlans, setShowPlans] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [currentProject, setCurrentProject] = useState<UserProject | null>(null);
+  const [menuBusy, setMenuBusy] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("geral");
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishCopied, setPublishCopied] = useState(false);
   const [editorPanelTab, setEditorPanelTab] = useState<EditorPanelTab>("personalizar");
   const [openPanelSections, setOpenPanelSections] = useState<Record<EditorPanelSection, boolean>>({
     template: true,
@@ -165,8 +291,10 @@ const GeneratedStoreEditorPage = () => {
   const [currentTemplate, setCurrentTemplate] = useState("Template 1");
   const [activeTemplate, setActiveTemplate] = useState<{ kind: "loja" | "produto"; id: string }>({ kind: "loja", id: "loja-1" });
   const [draftTemplate, setDraftTemplate] = useState<{ kind: "loja" | "produto"; id: string }>({ kind: "loja", id: "loja-1" });
-  const [draftProductId, setDraftProductId] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState<EditMode>(null);
+  const [draftProductIds, setDraftProductIds] = useState<string[]>([]);
+  const [replacingProductPath, setReplacingProductPath] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState<EditMode>("select");
+  const [canvasToolbarMode, setCanvasToolbarMode] = useState<CanvasToolbarMode>("select");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [elementOverrides, setElementOverrides] = useState<Record<string, ElementOverride>>({});
   const [selectedElement, setSelectedElement] = useState<SelectedEditorElement | null>(null);
@@ -174,6 +302,13 @@ const GeneratedStoreEditorPage = () => {
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [weightMenuOpen, setWeightMenuOpen] = useState(false);
+  const [buttonToolbarPanel, setButtonToolbarPanel] = useState<ButtonToolbarPanel>(null);
+  const [buttonStylePreset, setButtonStylePreset] = useState<ButtonStylePreset>("primary");
+  const [buttonSizePreset, setButtonSizePreset] = useState<ButtonSizePreset>("md");
+  const [buttonColorHue, setButtonColorHue] = useState(218);
+  const [buttonColorSaturation, setButtonColorSaturation] = useState(82);
+  const [buttonColorLightness, setButtonColorLightness] = useState(55);
+  const [customSections, setCustomSections] = useState<CustomStoreSection[]>([]);
   const [contextNotice, setContextNotice] = useState<string | null>(null);
   const [fillColor, setFillColor] = useState("#111111");
   const [fillPickerOpen, setFillPickerOpen] = useState(false);
@@ -181,6 +316,35 @@ const GeneratedStoreEditorPage = () => {
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [copyVariant, setCopyVariant] = useState(0);
   const [taglineVariant, setTaglineVariant] = useState(0);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const previous = {
+      htmlBackground: html.style.background,
+      htmlOverflow: html.style.overflow,
+      htmlOverscroll: html.style.overscrollBehavior,
+      bodyBackground: body.style.background,
+      bodyOverflow: body.style.overflow,
+      bodyOverscroll: body.style.overscrollBehavior,
+    };
+
+    html.style.background = "#18191b";
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    body.style.background = "#18191b";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+
+    return () => {
+      html.style.background = previous.htmlBackground;
+      html.style.overflow = previous.htmlOverflow;
+      html.style.overscrollBehavior = previous.htmlOverscroll;
+      body.style.background = previous.bodyBackground;
+      body.style.overflow = previous.bodyOverflow;
+      body.style.overscrollBehavior = previous.bodyOverscroll;
+    };
+  }, []);
 
   const generateBanner = async () => {
     if (generatingBanner) return;
@@ -207,9 +371,9 @@ const GeneratedStoreEditorPage = () => {
     }
   };
 
-  const getElementPath = (element: HTMLElement, root: HTMLElement): string => {
+  const getElementPath = (element: EditableDomElement, root: HTMLElement): string => {
     const parts: string[] = [];
-    let current: HTMLElement | null = element;
+    let current: Element | null = element;
     while (current && current !== root) {
       const parent = current.parentElement;
       if (!parent) break;
@@ -220,7 +384,7 @@ const GeneratedStoreEditorPage = () => {
     return parts.join(">");
   };
 
-  const getElementByPath = (path: string): HTMLElement | null => {
+  const getElementByPath = (path: string): EditableDomElement | null => {
     const root = previewRef.current;
     if (!root || !path) return null;
     let current: Element = root;
@@ -229,33 +393,48 @@ const GeneratedStoreEditorPage = () => {
       const index = Number(indexValue);
       if (!Number.isInteger(index)) return null;
       const child = current.children.item(index);
-      if (!(child instanceof HTMLElement)) return null;
+      if (!(child instanceof HTMLElement) && !(child instanceof SVGElement)) return null;
       current = child;
     }
-    return current instanceof HTMLElement && current !== root ? current : null;
+    return (current instanceof HTMLElement || current instanceof SVGElement) && current !== root ? current : null;
   };
 
-  const getEditableTarget = (target: HTMLElement): HTMLElement | null => {
-    const explicit = target.closest("[data-editor-type]");
-    if (explicit instanceof HTMLElement) return explicit;
+  const getEditableTarget = (target: Element): EditableDomElement | null => {
     const svg = target.closest("svg");
-    if (svg instanceof HTMLElement) return svg;
+    if (svg instanceof SVGElement) return svg;
+    const interactive = target.closest('button,[data-editor-role="button"]');
+    if (interactive instanceof HTMLElement) return interactive;
+    const explicit = target.closest("[data-editor-type]");
+    if (explicit instanceof HTMLElement || explicit instanceof SVGElement) return explicit;
     if (target instanceof HTMLImageElement) return target;
     const textTarget = target.closest("h1,h2,h3,p,span,strong,a,button,li");
     if (textTarget instanceof HTMLElement) return textTarget;
-    return target === previewRef.current ? null : target;
+    const section = target.closest("[data-editor-section]");
+    if (section instanceof HTMLElement) return section;
+    return target === previewRef.current || (!(target instanceof HTMLElement) && !(target instanceof SVGElement)) ? null : target;
   };
 
-  const getEditorElementType = (element: HTMLElement): EditorElementType => {
+  const getEditorElementType = (element: EditableDomElement): EditorElementType => {
     const explicit = element.dataset.editorType as EditorElementType | undefined;
-    if (explicit === "image" || explicit === "icon" || explicit === "text") return explicit;
+    if (explicit === "image" || explicit === "icon" || explicit === "text" || explicit === "other") return explicit;
     if (element instanceof HTMLImageElement) return "image";
     if (element.tagName.toLowerCase() === "svg") return "icon";
     if (element.textContent?.trim() && !element.querySelector("img,svg")) return "text";
     return "other";
   };
 
-  const getElementRect = (element: HTMLElement) => {
+  const getEditorElementLabel = (element: EditableDomElement, type: EditorElementType) => {
+    const explicitLabel = element.getAttribute("data-editor-label") || element.getAttribute("aria-label");
+    if (explicitLabel) return explicitLabel;
+    if (element.hasAttribute("data-editor-section")) return "Seção da página";
+    if (element.tagName.toLowerCase() === "button") return "Botão";
+    if (type === "image") return "Imagem";
+    if (type === "icon") return "Ícone";
+    if (type === "text") return "Texto";
+    return "Elemento";
+  };
+
+  const getElementRect = (element: EditableDomElement) => {
     const rect = element.getBoundingClientRect();
     return { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
   };
@@ -273,7 +452,7 @@ const GeneratedStoreEditorPage = () => {
     return "400";
   };
 
-  const readControlsFromElement = (element: HTMLElement, type: EditorElementType): ContextControls => {
+  const readControlsFromElement = (element: EditableDomElement, type: EditorElementType): ContextControls => {
     const computed = window.getComputedStyle(element);
     const override = selectedPath ? elementOverrides[selectedPath] : undefined;
     const color = override?.color || computed.color || accent;
@@ -286,9 +465,11 @@ const GeneratedStoreEditorPage = () => {
 
     return {
       color,
+      hoverBackgroundColor: override?.hoverBackgroundColor ?? "#303337",
       fontSize: Math.round(override?.fontSize ?? fontSize),
       fontWeight: override?.fontWeight ?? detectFontWeight(computed.fontWeight),
       textAlign: override?.textAlign ?? detectTextAlign(computed.textAlign),
+      borderRadius: Math.max(0, Math.round(override?.borderRadius ?? (Number.parseFloat(computed.borderRadius || "0") || 0))),
       imageShape: override?.imageShape ?? "auto",
       iconName: override?.iconName ?? element.dataset.editorIcon ?? (type === "icon" ? "Sparkles" : "Sparkles"),
       iconSize: Math.max(12, Math.round(override?.iconSize ?? iconSize)),
@@ -300,26 +481,34 @@ const GeneratedStoreEditorPage = () => {
     selectedElementRef.current = null;
     setSelectedPath(null);
     setSelectedElement(null);
+    setPageSelected(false);
+    setContextNotice(null);
     setMediaModalOpen(false);
     setIconPickerOpen(false);
     setWeightMenuOpen(false);
+    setButtonToolbarPanel(null);
     setFillPickerOpen(false);
   };
 
-  const selectElement = (element: HTMLElement, options?: { openMedia?: boolean }) => {
+  const selectElement = (element: EditableDomElement, options?: { openMedia?: boolean }) => {
     const root = previewRef.current;
     if (!root) return;
     const path = getElementPath(element, root);
     const type = getEditorElementType(element);
+    setPageSelected(false);
     setSelectedPath(path);
-    setSelectedElement({ path, type, rect: getElementRect(element) });
+    setSelectedElement({ path, type, label: getEditorElementLabel(element, type), rect: getElementRect(element) });
     setContextControls(readControlsFromElement(element, type));
+    const computedBackground = window.getComputedStyle(element).backgroundColor;
+    setFillColor(colorToHex(elementOverrides[path]?.backgroundColor ?? computedBackground, "#111111"));
     if (type !== "icon") setIconPickerOpen(false);
     if (type !== "text") setWeightMenuOpen(false);
-    if (type === "image" && options?.openMedia) setMediaModalOpen(true);
+    setButtonToolbarPanel(null);
+    setFillPickerOpen(false);
+    setMediaModalOpen(type === "image" && Boolean(options?.openMedia));
   };
 
-  const applyOverrideToElement = (element: HTMLElement, override: ElementOverride) => {
+  const applyOverrideToElement = (element: EditableDomElement, override: ElementOverride) => {
     if (element.dataset.editorOriginalBackgroundColor === undefined) {
       element.dataset.editorOriginalBackgroundColor = element.style.backgroundColor;
     }
@@ -327,12 +516,30 @@ const GeneratedStoreEditorPage = () => {
       element.style.backgroundColor = override.backgroundColor;
       element.dataset.editorFillOverride = "true";
     }
+    if (override.hoverBackgroundColor) {
+      element.style.setProperty("--editor-hover-bg", override.hoverBackgroundColor);
+      element.dataset.editorHoverBg = "true";
+    }
     if (override.color) {
       if (element.dataset.editorOriginalColor === undefined) element.dataset.editorOriginalColor = element.style.color;
       element.style.color = override.color;
       if (element.tagName.toLowerCase() === "svg") {
         element.setAttribute("color", override.color);
         element.style.color = override.color;
+      }
+    }
+    if (override.textContent !== undefined && !element.querySelector("svg")) {
+      element.textContent = override.textContent;
+    }
+    if (override.buttonTextContent !== undefined) {
+      const inlineText = element.querySelector("[data-editor-inline-text]");
+      if (inlineText instanceof HTMLElement) {
+        inlineText.textContent = override.buttonTextContent;
+      } else {
+        const textNode = Array.from(element.childNodes).find(
+          (node) => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()),
+        );
+        if (textNode) textNode.textContent = ` ${override.buttonTextContent} `;
       }
     }
     if (override.fontSize) {
@@ -346,6 +553,29 @@ const GeneratedStoreEditorPage = () => {
     if (override.textAlign) {
       if (element.dataset.editorOriginalTextAlign === undefined) element.dataset.editorOriginalTextAlign = element.style.textAlign;
       element.style.textAlign = override.textAlign;
+    }
+    if (override.borderRadius !== undefined) {
+      if (element.dataset.editorOriginalBorderRadius === undefined) element.dataset.editorOriginalBorderRadius = element.style.borderRadius;
+      element.style.borderRadius = `${override.borderRadius}px`;
+    }
+    if (override.borderColor !== undefined) {
+      if (element.dataset.editorOriginalBorderColor === undefined) element.dataset.editorOriginalBorderColor = element.style.borderColor;
+      element.style.borderColor = override.borderColor;
+      element.style.borderStyle = "solid";
+    }
+    if (override.borderWidth !== undefined) {
+      if (element.dataset.editorOriginalBorderWidth === undefined) element.dataset.editorOriginalBorderWidth = element.style.borderWidth;
+      element.style.borderWidth = `${override.borderWidth}px`;
+      element.style.borderStyle = "solid";
+    }
+    if (override.paddingInline !== undefined) {
+      if (element.dataset.editorOriginalPaddingInline === undefined) element.dataset.editorOriginalPaddingInline = element.style.paddingInline;
+      element.style.paddingInline = `${override.paddingInline}px`;
+    }
+    if (override.minHeight !== undefined) {
+      if (element.dataset.editorOriginalMinHeight === undefined) element.dataset.editorOriginalMinHeight = element.style.minHeight;
+      element.style.minHeight = `${override.minHeight}px`;
+      element.style.height = "auto";
     }
     if (override.imageSrc && element instanceof HTMLImageElement) {
       element.src = override.imageSrc;
@@ -382,19 +612,71 @@ const GeneratedStoreEditorPage = () => {
         element.dataset.editorIcon = iconName;
       }
     }
+    if (
+      (element.tagName.toLowerCase() === "button" || element.getAttribute("data-editor-role") === "button") &&
+      (override.buttonIconName || override.buttonIconSize || override.buttonIconColor || override.buttonIconHidden !== undefined)
+    ) {
+      let icon = element.querySelector("svg");
+      if (!icon && override.buttonIconName && !override.buttonIconHidden) {
+        const template = document.createElement("template");
+        template.innerHTML = renderIconMarkup(
+          override.buttonIconName,
+          override.buttonIconSize ?? 16,
+          override.buttonIconColor ?? "currentColor",
+        );
+        const createdIcon = template.content.firstElementChild;
+        if (createdIcon instanceof SVGElement) {
+          element.append(createdIcon);
+          icon = createdIcon;
+        }
+      }
+      if (icon instanceof SVGElement) {
+        if (override.buttonIconName) {
+          const template = document.createElement("template");
+          template.innerHTML = renderIconMarkup(
+            override.buttonIconName,
+            override.buttonIconSize ?? (Number(icon.getAttribute("width")) || 16),
+            override.buttonIconColor ?? "currentColor",
+          );
+          const replacement = template.content.firstElementChild;
+          if (replacement instanceof SVGElement) {
+            icon.replaceWith(replacement);
+            icon = replacement;
+          }
+        }
+        if (override.buttonIconSize) {
+          icon.setAttribute("width", String(override.buttonIconSize));
+          icon.setAttribute("height", String(override.buttonIconSize));
+          icon.style.width = `${override.buttonIconSize}px`;
+          icon.style.height = `${override.buttonIconSize}px`;
+        }
+        if (override.buttonIconColor) {
+          icon.setAttribute("color", override.buttonIconColor);
+          icon.style.color = override.buttonIconColor;
+        }
+        icon.style.display = override.buttonIconHidden ? "none" : "";
+      }
+    }
   };
 
-  const resetElementOverride = (element: HTMLElement) => {
+  const resetElementOverride = (element: EditableDomElement) => {
     const originalBackground = element.dataset.editorOriginalBackgroundColor;
     if (originalBackground) element.style.backgroundColor = originalBackground;
     else element.style.removeProperty("background-color");
     delete element.dataset.editorOriginalBackgroundColor;
     delete element.dataset.editorFillOverride;
+    delete element.dataset.editorHoverBg;
+    element.style.removeProperty("--editor-hover-bg");
     element.style.color = element.dataset.editorOriginalColor || "";
     element.style.fontSize = element.dataset.editorOriginalFontSize || "";
     element.style.fontWeight = element.dataset.editorOriginalFontWeight || "";
     element.style.textAlign = element.dataset.editorOriginalTextAlign || "";
     element.style.borderRadius = element.dataset.editorOriginalBorderRadius || "";
+    element.style.borderColor = element.dataset.editorOriginalBorderColor || "";
+    element.style.borderWidth = element.dataset.editorOriginalBorderWidth || "";
+    element.style.paddingInline = element.dataset.editorOriginalPaddingInline || "";
+    element.style.minHeight = element.dataset.editorOriginalMinHeight || "";
+    element.style.height = "";
     element.style.aspectRatio = element.dataset.editorOriginalAspectRatio || "";
     element.style.objectFit = element.dataset.editorOriginalObjectFit || "";
     delete element.dataset.editorOriginalColor;
@@ -402,6 +684,10 @@ const GeneratedStoreEditorPage = () => {
     delete element.dataset.editorOriginalFontWeight;
     delete element.dataset.editorOriginalTextAlign;
     delete element.dataset.editorOriginalBorderRadius;
+    delete element.dataset.editorOriginalBorderColor;
+    delete element.dataset.editorOriginalBorderWidth;
+    delete element.dataset.editorOriginalPaddingInline;
+    delete element.dataset.editorOriginalMinHeight;
     delete element.dataset.editorOriginalAspectRatio;
     delete element.dataset.editorOriginalObjectFit;
   };
@@ -433,18 +719,68 @@ const GeneratedStoreEditorPage = () => {
 
   const startInlineEditing = (target: HTMLElement) => {
     if (!target.textContent?.trim()) return;
-    target.dataset.editorType = target.dataset.editorType || "text";
-    target.setAttribute("contenteditable", "true");
-    target.style.outline = "2px solid #2563eb";
-    target.style.outlineOffset = "2px";
-    target.focus();
+    const root = previewRef.current;
+    if (!root) return;
+    const selectedTarget =
+      target.matches('button,[data-editor-role="button"]')
+        ? target
+        : getEditableTarget(target) ?? target;
+    const isButton =
+      selectedTarget instanceof HTMLElement &&
+      (selectedTarget.matches("button") || selectedTarget.getAttribute("data-editor-role") === "button");
+    const path = getElementPath(selectedTarget, root);
+    let editingTarget = target;
+
+    if (isButton && selectedTarget instanceof HTMLElement) {
+      const existingText = selectedTarget.querySelector("[data-editor-inline-text]");
+      if (existingText instanceof HTMLElement) {
+        editingTarget = existingText;
+      } else {
+        const textNode = Array.from(selectedTarget.childNodes).find(
+          (node) => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()),
+        );
+        if (textNode) {
+          const span = document.createElement("span");
+          span.dataset.editorInlineText = "true";
+          span.textContent = textNode.textContent?.trim() ?? "";
+          textNode.replaceWith(span);
+          editingTarget = span;
+        }
+      }
+    }
+
+    editingTarget.dataset.editorType = editingTarget.dataset.editorType || "text";
+    editingTarget.setAttribute("contenteditable", "true");
+    editingTarget.style.outline = "2px solid #7b8188";
+    editingTarget.style.outlineOffset = "3px";
+    editingTarget.style.cursor = "text";
+    editingTarget.focus();
+
+    requestAnimationFrame(() => {
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editingTarget);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+
     const cleanup = () => {
-      target.removeAttribute("contenteditable");
-      target.style.outline = "";
-      target.style.outlineOffset = "";
-      target.removeEventListener("blur", cleanup);
+      const editedText = editingTarget.innerText.trim();
+      editingTarget.removeAttribute("contenteditable");
+      editingTarget.style.outline = "";
+      editingTarget.style.outlineOffset = "";
+      editingTarget.style.cursor = "";
+      editingTarget.removeEventListener("blur", cleanup);
+      if (!editedText) return;
+      setElementOverrides((previous) => ({
+        ...previous,
+        [path]: {
+          ...(previous[path] ?? {}),
+          ...(isButton ? { buttonTextContent: editedText } : { textContent: editedText }),
+        },
+      }));
     };
-    target.addEventListener("blur", cleanup);
+    editingTarget.addEventListener("blur", cleanup);
   };
 
   const handleFillColorChange = (color: string) => {
@@ -459,10 +795,91 @@ const GeneratedStoreEditorPage = () => {
 
     if (tool === "edit" && selectedPath) {
       const element = getElementByPath(selectedPath);
-      if (element) startInlineEditing(element);
+      if (element instanceof HTMLElement) startInlineEditing(element);
     }
     if (tool === "fill") setFillPickerOpen(Boolean(selectedPath));
     if (tool === "eraser" && selectedPath) resetPathOverride(selectedPath);
+  };
+
+  const handleCanvasToolbarClick = (tool: CanvasToolbarMode) => {
+    setCanvasToolbarMode(tool);
+    if (tool === "select") {
+      setEditMode("select");
+      setFillPickerOpen(false);
+      return;
+    }
+    if (tool === "edit") {
+      handleToolbarToolClick("edit");
+      return;
+    }
+    if (tool === "pan") {
+      setEditMode(null);
+      setFillPickerOpen(false);
+      return;
+    }
+    if (tool === "media") {
+      if (selectedElement?.type === "image") contextMediaInput.current?.click();
+      else imageInput.current?.click();
+      return;
+    }
+    if (tool === "appearance") {
+      handleToolbarToolClick("fill");
+      if (!selectedPath) setContextNotice("Selecione um elemento para ajustar sua aparência.");
+      return;
+    }
+    setEditorPanelTab("detalhes");
+    setSidebarCollapsed(false);
+  };
+
+  const focusCreationElement = (selector: string, label: string) => {
+    const element = previewRef.current?.querySelector(selector);
+    if (!(element instanceof HTMLElement)) {
+      setContextNotice(`${label} ainda não está disponível nesta página.`);
+      return;
+    }
+    setCanvasToolbarMode("select");
+    selectElement(element, { openMedia: element instanceof HTMLImageElement });
+  };
+
+  const handleCreationLibraryAction = (action: string) => {
+    if (action === "image") {
+      setCanvasToolbarMode("media");
+      imageInput.current?.click();
+      return;
+    }
+    if (action === "logo") {
+      logoInput.current?.click();
+      return;
+    }
+    if (action === "file") {
+      creationFileInput.current?.click();
+      return;
+    }
+    const targetByAction: Record<string, { selector: string; label: string }> = {
+      button: { selector: "button:not([data-editor-ignore]), a", label: "Botão" },
+      title: { selector: "h1, h2, h3", label: "Título" },
+      text: { selector: "p", label: "Bloco de texto" },
+      list: { selector: "li", label: "Lista" },
+      quote: { selector: "blockquote, p", label: "Citação" },
+      link: { selector: "a", label: "Link" },
+    };
+    const target = targetByAction[action];
+    if (target) focusCreationElement(target.selector, target.label);
+  };
+
+  const handleCreationFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setContextNotice(`Arquivo “${file.name}” selecionado para a página.`);
+    event.target.value = "";
+  };
+
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setLogoImage(URL.createObjectURL(file));
+    setContextNotice("Logo atualizado na página.");
+    event.target.value = "";
   };
 
   useEffect(() => {
@@ -482,13 +899,14 @@ const GeneratedStoreEditorPage = () => {
       }
       setSelectedElement((current) => (current ? { ...current, rect: getElementRect(element) } : current));
     };
+    update();
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     return () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
-  }, [selectedElement?.path]);
+  }, [selectedElement?.path, canvasOffset.x, canvasOffset.y, canvasZoom]);
 
   useEffect(() => {
     Object.entries(elementOverrides).forEach(([path, override]) => {
@@ -499,30 +917,78 @@ const GeneratedStoreEditorPage = () => {
 
   const handlePreviewClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!previewRef.current) return;
-    const target = event.target as HTMLElement;
+    if (suppressPreviewClickRef.current) {
+      suppressPreviewClickRef.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (canvasToolbarMode === "pan") {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    setSidebarCollapsed(false);
+    const target = event.target;
+    if (!(target instanceof Element)) return;
     if (target.closest("[data-editor-ignore]")) return;
     const editableTarget = getEditableTarget(target);
     if (!editableTarget) {
       clearSelection();
+      setPageSelected(true);
       return;
     }
     event.preventDefault();
     event.stopPropagation();
     const type = getEditorElementType(editableTarget);
-    selectElement(editableTarget, { openMedia: type === "image" });
+    selectElement(editableTarget, {
+      openMedia: type === "image" && canvasToolbarMode === "media",
+    });
 
-    if (editMode === "edit") {
-      startInlineEditing(editableTarget);
+    if (canvasToolbarMode === "edit") {
+      if (type === "text" && editableTarget instanceof HTMLElement) startInlineEditing(editableTarget);
+      else if (type === "image" && editableTarget instanceof HTMLImageElement && editableTarget.dataset.editorProduct === "true") {
+        setReplacingProductPath(getElementPath(editableTarget, previewRef.current));
+        setDraftProductIds([]);
+        setContextDrawer("products");
+      } else if (type === "image") setMediaModalOpen(true);
       return;
     }
-    if (type === "text") startInlineEditing(editableTarget);
-    if (editMode === "fill") {
+    if (canvasToolbarMode === "media" && type === "image") {
+      if (editableTarget instanceof HTMLImageElement && editableTarget.dataset.editorProduct === "true") {
+        setReplacingProductPath(getElementPath(editableTarget, previewRef.current));
+        setDraftProductIds([]);
+        setContextDrawer("products");
+      } else {
+        setMediaModalOpen(true);
+      }
+      return;
+    }
+    if (canvasToolbarMode === "appearance") {
       setFillPickerOpen(true);
       return;
     }
     if (editMode === "eraser") {
       resetPathOverride(getElementPath(editableTarget, previewRef.current));
     }
+  };
+
+  const handlePreviewDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (canvasToolbarMode === "pan") return;
+    const target = event.target;
+    if (!(target instanceof Element) || target.closest("[data-editor-ignore]")) return;
+    const editableTarget = getEditableTarget(target);
+    if (!(editableTarget instanceof HTMLElement)) return;
+    const type = getEditorElementType(editableTarget);
+    const isButton =
+      editableTarget.matches("button") ||
+      editableTarget.getAttribute("data-editor-role") === "button";
+    if (type !== "text" && !isButton) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    selectElement(editableTarget);
+    startInlineEditing(editableTarget);
   };
 
   const getSelectedDomElement = () =>
@@ -551,7 +1017,7 @@ const GeneratedStoreEditorPage = () => {
   const duplicateSelectedElement = () => {
     const element = getSelectedDomElement();
     if (!element || !previewRef.current) return;
-    const clone = element.cloneNode(true) as HTMLElement;
+    const clone = element.cloneNode(true) as EditableDomElement;
     clone.removeAttribute("data-editor-selected");
     clone.style.transform = `${clone.style.transform || ""} translate(10px, 10px)`.trim();
     element.insertAdjacentElement("afterend", clone);
@@ -588,6 +1054,185 @@ const GeneratedStoreEditorPage = () => {
     updateSelectedOverride({ color });
   };
 
+  const applyElementBackground = (color: string) => {
+    setFillColor(color);
+    updateSelectedOverride({ backgroundColor: color });
+  };
+
+  const applyElementHoverBackground = (color: string) => {
+    setContextControls((current) => ({ ...current, hoverBackgroundColor: color }));
+    updateSelectedOverride({ hoverBackgroundColor: color });
+  };
+
+  const applyButtonRadius = (delta: number) => {
+    const next = Math.max(0, Math.min(999, contextControls.borderRadius + delta));
+    setContextControls((current) => ({ ...current, borderRadius: next }));
+    updateSelectedOverride({ borderRadius: next });
+  };
+
+  const applyButtonRadiusValue = (value: number) => {
+    const next = Math.max(0, Math.min(999, Math.round(value)));
+    setContextControls((current) => ({ ...current, borderRadius: next }));
+    updateSelectedOverride({ borderRadius: next });
+  };
+
+  const toggleButtonToolbarPanel = (panel: Exclude<ButtonToolbarPanel, null>) => {
+    setButtonToolbarPanel(panel);
+    setEditorPanelTab("personalizar");
+    setSidebarCollapsed(false);
+    if (panel !== "icon") setIconPickerOpen(false);
+  };
+
+  const getButtonStylePreset = (preset: ButtonStylePreset): ElementOverride => {
+    const primary = hslToHex(buttonColorHue, buttonColorSaturation, buttonColorLightness);
+    const primaryHover = hslToHex(
+      buttonColorHue,
+      Math.min(100, buttonColorSaturation + 4),
+      Math.max(5, buttonColorLightness - 9),
+    );
+    const secondary = hslToHex(
+      buttonColorHue,
+      Math.max(10, Math.round(buttonColorSaturation * 0.28)),
+      Math.max(18, buttonColorLightness - 13),
+    );
+    const secondaryHover = hslToHex(
+      buttonColorHue,
+      Math.max(12, Math.round(buttonColorSaturation * 0.34)),
+      Math.max(23, buttonColorLightness - 6),
+    );
+    const accentHue = (buttonColorHue + 42) % 360;
+    const accent = hslToHex(
+      accentHue,
+      Math.min(100, buttonColorSaturation + 10),
+      Math.min(70, buttonColorLightness + 8),
+    );
+    const accentHover = hslToHex(
+      accentHue,
+      Math.min(100, buttonColorSaturation + 14),
+      Math.max(28, Math.min(61, buttonColorLightness)),
+    );
+    const darkest = hslToHex(buttonColorHue, Math.min(28, buttonColorSaturation), 7);
+
+    return {
+      primary: {
+        backgroundColor: primary,
+        hoverBackgroundColor: primaryHover,
+        color: buttonColorLightness > 64 ? "#101214" : "#ffffff",
+        borderColor: primary,
+        borderWidth: 0,
+      },
+      secondary: {
+        backgroundColor: secondary,
+        hoverBackgroundColor: secondaryHover,
+        color: "#ffffff",
+        borderColor: secondary,
+        borderWidth: 0,
+      },
+      accent: {
+        backgroundColor: accent,
+        hoverBackgroundColor: accentHover,
+        color: buttonColorLightness > 54 ? "#17130a" : "#ffffff",
+        borderColor: accent,
+        borderWidth: 0,
+      },
+      outline: {
+        backgroundColor: "transparent",
+        hoverBackgroundColor: hslToHex(buttonColorHue, Math.max(16, buttonColorSaturation * 0.25), 92),
+        color: primary,
+        borderColor: primary,
+        borderWidth: 1,
+      },
+      black: {
+        backgroundColor: darkest,
+        hoverBackgroundColor: hslToHex(buttonColorHue, Math.min(32, buttonColorSaturation), 15),
+        color: "#ffffff",
+        borderColor: darkest,
+        borderWidth: 0,
+      },
+    }[preset];
+  };
+
+  const applyButtonStylePreset = (preset: ButtonStylePreset) => {
+    const next = getButtonStylePreset(preset);
+    setButtonStylePreset(preset);
+    setFillColor(next.backgroundColor ?? "#111111");
+    setContextControls((current) => ({
+      ...current,
+      color: next.color ?? current.color,
+      hoverBackgroundColor: next.hoverBackgroundColor ?? current.hoverBackgroundColor,
+    }));
+    updateSelectedOverride(next);
+  };
+
+  const applyButtonCustomColor = (hue: number, saturation: number, lightness: number) => {
+    const color = hslToHex(hue, saturation, lightness);
+    const hoverColor = hslToHex(hue, Math.min(100, saturation + 4), Math.max(5, lightness - 9));
+    setButtonColorHue(hue);
+    setButtonColorSaturation(saturation);
+    setButtonColorLightness(lightness);
+    setFillColor(color);
+    setButtonStylePreset("primary");
+    setContextControls((current) => ({
+      ...current,
+      color: lightness > 62 ? "#101214" : "#ffffff",
+      hoverBackgroundColor: hoverColor,
+    }));
+    updateSelectedOverride({
+      backgroundColor: color,
+      hoverBackgroundColor: hoverColor,
+      color: lightness > 62 ? "#101214" : "#ffffff",
+      borderColor: color,
+      borderWidth: 0,
+    });
+  };
+
+  const applyButtonSizePreset = (preset: ButtonSizePreset) => {
+    const sizes: Record<ButtonSizePreset, Pick<ElementOverride, "fontSize" | "paddingInline" | "minHeight">> = {
+      xs: { fontSize: 10, paddingInline: 14, minHeight: 30 },
+      sm: { fontSize: 12, paddingInline: 18, minHeight: 36 },
+      md: { fontSize: 14, paddingInline: 24, minHeight: 44 },
+      lg: { fontSize: 16, paddingInline: 30, minHeight: 52 },
+      xl: { fontSize: 18, paddingInline: 38, minHeight: 60 },
+    };
+    const next = sizes[preset];
+    setButtonSizePreset(preset);
+    setContextControls((current) => ({ ...current, fontSize: next.fontSize ?? current.fontSize }));
+    updateSelectedOverride(next);
+  };
+
+  const startButtonTextEditing = () => {
+    const button = getSelectedDomElement();
+    if (button instanceof HTMLElement) startInlineEditing(button);
+  };
+
+  const selectButtonIcon = () => {
+    toggleButtonToolbarPanel("icon");
+  };
+
+  const applyButtonIconName = (iconName: string) => {
+    const button = getSelectedDomElement();
+    const icon = button?.querySelector("svg");
+    const size = icon instanceof SVGElement ? Number(icon.getAttribute("width")) || 16 : 16;
+    updateSelectedOverride({ buttonIconName: iconName, buttonIconSize: size, buttonIconHidden: false });
+    setIconPickerOpen(false);
+  };
+
+  const applyButtonIconSize = (delta: number) => {
+    const button = getSelectedDomElement();
+    const icon = button?.querySelector("svg");
+    const current = icon instanceof SVGElement ? Number(icon.getAttribute("width")) || 16 : 16;
+    updateSelectedOverride({ buttonIconSize: Math.max(10, Math.min(72, current + delta)), buttonIconHidden: false });
+  };
+
+  const applyButtonIconColor = (color: string) => {
+    updateSelectedOverride({ buttonIconColor: color, buttonIconHidden: false });
+  };
+
+  const removeButtonIcon = () => {
+    updateSelectedOverride({ buttonIconHidden: true });
+    setIconPickerOpen(false);
+  };
+
   const applyIconSize = (delta: number) => {
     const next = Math.max(12, Math.min(96, contextControls.iconSize + delta));
     setContextControls((current) => ({ ...current, iconSize: next }));
@@ -618,6 +1263,233 @@ const GeneratedStoreEditorPage = () => {
     if (flow && user?.id) markStoreFlowCompleted(user.id, flow);
   }, [flow, user?.id]);
 
+  const projectId = useMemo(() => {
+    const state = location.state as { projectId?: string } | null;
+    return state?.projectId ?? null;
+  }, [location.state]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    let active = true;
+    void (async () => {
+      const { data } = await supabase.from("user_projects").select("*").eq("id", projectId).maybeSingle();
+      if (active && data) setCurrentProject(data as UserProject);
+    })();
+    return () => { active = false; };
+  }, [projectId]);
+
+  // Hidrata template e nome a partir do projeto salvo (uma vez por projeto),
+  // para renderizar exatamente o template que o usuário escolheu na criação/edição.
+  const hydratedProjectRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentProject?.id || hydratedProjectRef.current === currentProject.id) return;
+    hydratedProjectRef.current = currentProject.id;
+
+    const metadata = currentProject.metadata;
+    const meta = metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>)
+      : {};
+
+    const templateValue = typeof meta.template === "string" ? meta.template : "";
+    if (templateValue) {
+      const kind: "loja" | "produto" = templateValue.startsWith("loja") ? "loja" : "produto";
+      setActiveTemplate({ kind, id: templateValue });
+      setDraftTemplate({ kind, id: templateValue });
+      setTemplateCategory(kind);
+    }
+
+    const savedName = typeof meta.storeName === "string" && meta.storeName.trim()
+      ? meta.storeName.trim()
+      : currentProject.nome?.trim();
+    if (savedName) setStoreName(savedName);
+  }, [currentProject]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void claimProjectInvites().catch(() => { /* usuário sem convites ou sem plano pago */ });
+  }, [user?.id]);
+
+  const autosaveReadyRef = useRef(false);
+  useEffect(() => {
+    if (!currentProject?.id) return;
+    if (!autosaveReadyRef.current) {
+      autosaveReadyRef.current = true;
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      void saveProjectDraft(currentProject.id, {
+        storeName,
+        template: activeTemplate.id,
+      }).catch(() => { /* autosave silencioso */ });
+    }, 900);
+    return () => window.clearTimeout(timeout);
+  }, [currentProject?.id, storeName, activeTemplate]);
+
+  const projectTitle = currentProject?.nome || storeName || "Velo";
+
+  const closeProjectMenu = () => setProjectMenuOpen(false);
+
+  const handleOpenAllProjects = () => { closeProjectMenu(); navigate("/dashboard/minha-loja"); };
+
+  const handleShareProject = () => {
+    if (!currentProject) {
+      setContextNotice("Abra um projeto salvo para poder compartilhá-lo.");
+      closeProjectMenu();
+      return;
+    }
+    closeProjectMenu();
+    setSettingsSection("equipe");
+    setSettingsOpen(true);
+  };
+
+  const handleDownloadProject = () => {
+    const payload = {
+      id: currentProject?.id ?? projectId,
+      nome: projectTitle,
+      tipo_projeto: currentProject?.tipo_projeto ?? null,
+      status: currentProject?.status ?? null,
+      metadata: currentProject?.metadata ?? {},
+      exported_at: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${(projectTitle || "projeto").replace(/[^a-z0-9-_]+/gi, "-").toLowerCase()}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setContextNotice("Projeto exportado como arquivo JSON.");
+    closeProjectMenu();
+  };
+
+  const handleDuplicateProject = async () => {
+    if (!currentProject || !user?.id) {
+      setContextNotice("Abra um projeto salvo para poder duplicá-lo.");
+      closeProjectMenu();
+      return;
+    }
+    setMenuBusy(true);
+    const { error } = await supabase.from("user_projects").insert({
+      user_id: user.id,
+      tipo_projeto: currentProject.tipo_projeto,
+      status: "rascunho",
+      nome: `${currentProject.nome} (cópia)`,
+      preview_url: currentProject.preview_url,
+      preview_storage_path: currentProject.preview_storage_path,
+      source_kind: null,
+      source_id: null,
+      metadata: currentProject.metadata,
+    });
+    setMenuBusy(false);
+    closeProjectMenu();
+    if (error) { setContextNotice("Não foi possível duplicar o projeto agora."); return; }
+    setContextNotice("Projeto duplicado com sucesso.");
+    navigate("/dashboard/minha-loja");
+  };
+
+  const handleStartRename = () => { setRenameValue(projectTitle); setRenameOpen(true); closeProjectMenu(); };
+
+  const handleConfirmRename = async () => {
+    const name = renameValue.trim();
+    if (!name) return;
+    if (currentProject) {
+      setMenuBusy(true);
+      const { error } = await supabase.from("user_projects").update({ nome: name }).eq("id", currentProject.id);
+      setMenuBusy(false);
+      if (error) { setContextNotice("Não foi possível renomear o projeto."); return; }
+      setCurrentProject({ ...currentProject, nome: name });
+    }
+    setStoreName(name);
+    setRenameOpen(false);
+    setContextNotice("Projeto renomeado.");
+  };
+
+  const handleDeleteProject = async () => {
+    if (!currentProject) { setConfirmDeleteOpen(false); return; }
+    setMenuBusy(true);
+    const { error } = await supabase.from("user_projects").delete().eq("id", currentProject.id);
+    setMenuBusy(false);
+    setConfirmDeleteOpen(false);
+    if (error) { setContextNotice("Não foi possível excluir o projeto."); return; }
+    navigate("/dashboard/minha-loja");
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setProjectMenuOpen((open) => !open);
+      } else if (event.key === "Escape") {
+        setProjectMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const handleOpenHelp = () => { closeProjectMenu(); navigate("/docs"); };
+  const handleOpenSettings = () => {
+    if (!currentProject) {
+      setContextNotice("Abra um projeto salvo para acessar as configurações.");
+      closeProjectMenu();
+      return;
+    }
+    closeProjectMenu();
+    setSettingsSection("geral");
+    setSettingsOpen(true);
+  };
+  const handleSendFeedback = () => {
+    closeProjectMenu();
+    const subject = encodeURIComponent(`Feedback — ${projectTitle}`);
+    window.location.href = `mailto:contato@velods.com.br?subject=${subject}`;
+  };
+
+  const projectSlug = useMemo(() => {
+    const metadata = currentProject?.metadata;
+    if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+      const value = (metadata as Record<string, unknown>).slug;
+      if (typeof value === "string") return value;
+    }
+    return "";
+  }, [currentProject]);
+
+  const publicUrl = projectSlug ? `${PUBLIC_APP_URL}/loja/${projectSlug}` : "";
+
+  const handleOpenPublish = () => {
+    if (!currentProject) {
+      setContextNotice("Crie ou abra um projeto salvo para poder publicá-lo.");
+      return;
+    }
+    setPublishCopied(false);
+    setPublishOpen(true);
+  };
+
+  const handleConfirmPublish = async () => {
+    if (!currentProject || publishing) return;
+    setPublishing(true);
+    try {
+      const updated = await publishProject(currentProject);
+      setCurrentProject(updated);
+    } catch {
+      setContextNotice("Não foi possível publicar agora. Tente novamente.");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleCopyPublicUrl = async () => {
+    if (!publicUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setPublishCopied(true);
+      window.setTimeout(() => setPublishCopied(false), 1800);
+    } catch {
+      /* clipboard indisponível */
+    }
+  };
+
   useEffect(() => {
     if (!flow) return;
     setHeroImage("/hero-pasted-image-2.png");
@@ -627,9 +1499,18 @@ const GeneratedStoreEditorPage = () => {
       const userId = authData.user?.id;
       if (!userId) return;
 
-      const [profileResult, initialCollectionProductsResult] = await Promise.all([
+      const [profileResult, initialCollectionProductsResult, catalogSuggestionsResult] = await Promise.all([
         supabase.from("profiles").select("store_name,loja_nome").eq("user_id", userId).maybeSingle(),
         fetchEditorCollectionProducts(userId),
+        supabase
+          .from("catalog_products")
+          .select("id,title,cost_price,images,category")
+          .eq("source", "c7drop")
+          .eq("is_active", true)
+          .eq("is_blocked", false)
+          .gt("stock_quantity", 0)
+          .order("orders_count", { ascending: false, nullsFirst: false })
+          .limit(24),
       ]);
 
       if (!mounted) return;
@@ -670,9 +1551,32 @@ const GeneratedStoreEditorPage = () => {
         }];
       }).filter((item) => item.imageUrl);
       setProducts(mapped);
+
+      const suggestions = (catalogSuggestionsResult.data ?? []).flatMap((item) => {
+        const imageUrl = getFirstImage(item.images);
+        if (!imageUrl) return [];
+        return [{
+          id: item.id,
+          title: item.title,
+          price: Number(item.cost_price) || 0,
+          imageUrl,
+          category: item.category?.trim() || "Outros",
+        }];
+      });
+      setCatalogSuggestions(suggestions);
     };
     void loadStore();
     return () => { mounted = false; };
+  }, [flow]);
+
+  useEffect(() => {
+    if (!flow) return;
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+
+    const handleNativePinchZoom = (event: WheelEvent) => nativePinchZoomRef.current(event);
+    workspace.addEventListener("wheel", handleNativePinchZoom, { passive: false, capture: true });
+    return () => workspace.removeEventListener("wheel", handleNativePinchZoom, { capture: true });
   }, [flow]);
 
   if (!flow) return <Navigate to="/comecar" replace />;
@@ -760,7 +1664,14 @@ const GeneratedStoreEditorPage = () => {
   const activeTemplateOption =
     templateOptions[activeTemplate.kind].find((template) => template.id === activeTemplate.id) ?? templateOptions.loja[0];
   const drawerTemplates = templateOptions[templateCategory];
-  const drawerProducts = displayedProducts.slice(0, 9);
+  const sidebarProducts = displayedProducts;
+  const selectedStoreProductIds = new Set(sidebarProducts.map((product) => product.id));
+  const replacementProducts = [...catalogSuggestions, ...displayedProducts].filter(
+    (product, index, collection) => collection.findIndex((item) => item.id === product.id) === index,
+  );
+  const drawerProducts = replacingProductPath
+    ? replacementProducts
+    : catalogSuggestions.filter((product) => !selectedStoreProductIds.has(product.id));
   const togglePanelSection = (section: EditorPanelSection) => {
     setOpenPanelSections((current) => ({ ...current, [section]: !current[section] }));
   };
@@ -770,7 +1681,14 @@ const GeneratedStoreEditorPage = () => {
     setContextDrawer("template");
   };
   const openProductsDrawer = () => {
-    setDraftProductId((current) => current ?? drawerProducts[0]?.id ?? null);
+    setReplacingProductPath(null);
+    setDraftProductIds([]);
+    setContextDrawer("products");
+  };
+  const openProductReplacementDrawer = () => {
+    if (!selectedElement?.path) return;
+    setReplacingProductPath(selectedElement.path);
+    setDraftProductIds([]);
     setContextDrawer("products");
   };
   const applyTemplateDraft = () => {
@@ -780,9 +1698,81 @@ const GeneratedStoreEditorPage = () => {
     setActiveTemplate(draftTemplate);
     setContextDrawer(null);
   };
-  const applyProductDraft = () => {
+  const importStoreProducts = async (selectedProducts: CatalogItem[]) => {
+    if (!user?.id || sidebarImportingId || !selectedProducts.length) return;
+    setSidebarImportingId(selectedProducts[0].id);
+
+    try {
+      const [latestCollection] = await listCollections(user.id, 1);
+      const collection = latestCollection ?? await createCollection({
+        name: "Produtos da loja",
+        category: null,
+        userId: user.id,
+      });
+      const existingProductIds = new Set(await getCollectionProductIds(collection.id));
+      const productsToAdd = selectedProducts.filter((product) => !existingProductIds.has(product.id));
+
+      for (const product of productsToAdd) {
+        await addProductToCollection(collection.id, product.id);
+      }
+
+      setProducts((current) => {
+        const currentIds = new Set(current.map((item) => item.id));
+        return [...selectedProducts.filter((item) => !currentIds.has(item.id)), ...current];
+      });
+      setContextNotice(
+        productsToAdd.length
+          ? `${productsToAdd.length} ${productsToAdd.length === 1 ? "produto adicionado" : "produtos adicionados"} à loja.`
+          : "Os produtos selecionados já estão na sua loja.",
+      );
+    } catch (error) {
+      console.error("Erro ao adicionar produtos pelo editor:", error);
+      setContextNotice("Não foi possível adicionar os produtos agora.");
+    } finally {
+      setSidebarImportingId(null);
+    }
+  };
+  const applyProductDraft = async () => {
+    const selectedProducts = drawerProducts.filter((product) => draftProductIds.includes(product.id));
+    if (!selectedProducts.length) return;
+    if (replacingProductPath) {
+      const replacement = selectedProducts[0];
+      const selectedImage = getElementByPath(replacingProductPath);
+      const currentProductId =
+        selectedImage instanceof HTMLImageElement ? selectedImage.dataset.editorProductId : undefined;
+      if (currentProductId) {
+        setProducts((current) =>
+          current.length
+            ? current.map((product) => product.id === currentProductId ? replacement : product)
+            : [replacement],
+        );
+      } else {
+        const nextOverride = {
+          ...(elementOverrides[replacingProductPath] ?? {}),
+          imageSrc: replacement.imageUrl,
+        };
+        setElementOverrides((current) => ({
+          ...current,
+          [replacingProductPath]: nextOverride,
+        }));
+        if (selectedImage) applyOverrideToElement(selectedImage, nextOverride);
+      }
+      setDraftProductIds([]);
+      setReplacingProductPath(null);
+      setContextDrawer(null);
+      clearSelection();
+      setContextNotice(`Produto substituído por “${replacement.title}”.`);
+      return;
+    }
+    await importStoreProducts(selectedProducts);
+    setDraftProductIds([]);
     setContextDrawer(null);
-    if (!draftProductId) navigate("/catalogo");
+  };
+  const applyInlineTemplate = (kind: "loja" | "produto", template: (typeof templateOptions.loja)[number]) => {
+    setCurrentTemplate(template.name);
+    setActiveTemplate({ kind, id: template.id });
+    setDraftTemplate({ kind, id: template.id });
+    setContextNotice(`${template.name} aplicado à loja.`);
   };
   const panelSections: Array<{ id: EditorPanelSection; label: string }> = [
     { id: "template", label: "Template" },
@@ -790,277 +1780,986 @@ const GeneratedStoreEditorPage = () => {
     { id: "imagem", label: "Imagem" },
     { id: "aparencia", label: "Aparência" },
   ];
-  const toolbarOrientation = mobilePreview ? "vertical" : "horizontal";
-  const toolbarTools = [
-    { id: "select" as const, label: "Select", icon: MousePointer2 },
-    { id: "edit" as const, label: "Pencil", icon: Pencil },
-    { id: "fill" as const, label: "Fill", icon: PaintBucket },
-    { id: "eraser" as const, label: "Eraser", icon: Eraser },
+  const canvasToolbarItems: Array<{ id: CanvasToolbarMode; label: string; icon: LucideIcon; dividerBefore?: boolean }> = [
+    { id: "select", label: "Selecionar", icon: MousePointer2 },
+    { id: "edit", label: "Editar", icon: Pencil },
+    { id: "pan", label: "Mover canvas", icon: Hand },
+    { id: "media", label: "Adicionar imagem", icon: ImageIcon },
+    { id: "appearance", label: "Aparência", icon: Palette, dividerBefore: true },
+    { id: "favorites", label: "Favoritos", icon: Star },
   ];
-  const activeToolbarTool = toolbarTools.find((tool) => tool.id === editMode);
   const fillSwatches = ["#111111", "#2563eb", "#dc2626", "#f59e0b", "#ec4899", "#7c3aed"];
   const selectedDomElement = getSelectedDomElement();
+  const selectedTagName = selectedDomElement?.tagName.toLowerCase();
+  const isSelectedProductImage =
+    selectedElement?.type === "image" &&
+    selectedDomElement instanceof HTMLImageElement &&
+    selectedDomElement.dataset.editorProduct === "true";
+  const selectedMediaKind =
+    selectedDomElement instanceof HTMLImageElement
+      ? selectedDomElement.dataset.editorMediaKind
+      : undefined;
+  const selectedSectionElement =
+    selectedDomElement instanceof HTMLElement
+      ? selectedDomElement.matches("[data-editor-section]")
+        ? selectedDomElement
+        : selectedDomElement.closest<HTMLElement>("[data-editor-section]")
+      : null;
+  const selectedSectionAnchor = selectedSectionElement?.dataset.editorSection;
+  const isSelectedButton =
+    selectedTagName === "button" ||
+    (selectedTagName === "a" && selectedDomElement?.getAttribute("data-editor-role") === "button");
+  const selectedButtonIcon = isSelectedButton ? selectedDomElement?.querySelector("svg") : null;
+  const selectedButtonIconSize =
+    (selectedPath ? elementOverrides[selectedPath]?.buttonIconSize : undefined) ??
+    (selectedButtonIcon instanceof SVGElement ? Number(selectedButtonIcon.getAttribute("width")) || 16 : 16);
+  const selectedButtonIconColor =
+    selectedPath && elementOverrides[selectedPath]?.buttonIconColor
+      ? elementOverrides[selectedPath].buttonIconColor ?? "#ffffff"
+      : "#ffffff";
   const selectedMediaSrc =
     selectedElement?.type === "image" && selectedDomElement instanceof HTMLImageElement
       ? selectedDomElement.currentSrc || selectedDomElement.src
       : "";
+  const selectedToolbarWidth =
+    isSelectedButton ? 570 : selectedElement?.type === "text" ? 720 : selectedElement?.type === "icon" ? 610 : 500;
+  const selectedToolbarLeftBoundary = sidebarCollapsed ? 102 : 316;
+  const selectedToolbarZoomScale = Math.max(0.4, Math.min(1, Math.sqrt(canvasZoom) * 0.78));
+  const selectedToolbarAvailableWidth = Math.max(220, window.innerWidth - selectedToolbarLeftBoundary - 16);
+  const selectedToolbarScale = Math.min(selectedToolbarZoomScale, selectedToolbarAvailableWidth / selectedToolbarWidth);
+  const selectedToolbarHeight = selectedElement?.type === "image" ? 136 : isSelectedButton ? 52 : 62;
+  const selectedToolbarVisualWidth = selectedToolbarWidth * selectedToolbarScale;
+  const selectedToolbarVisualHeight = selectedToolbarHeight * selectedToolbarScale;
   const selectedToolbarTop = selectedElement
-    ? Math.max(12, selectedElement.rect.top - (selectedElement.type === "image" ? 2 : 74))
+    ? selectedElement.type === "image"
+      ? Math.min(
+          window.innerHeight - selectedToolbarVisualHeight - 16,
+          Math.max(16, selectedElement.rect.top + selectedElement.rect.height / 2 - selectedToolbarVisualHeight / 2),
+        )
+      : selectedElement.rect.top >= selectedToolbarVisualHeight + 18
+        ? selectedElement.rect.top - selectedToolbarVisualHeight - 12
+        : selectedElement.rect.top + selectedElement.rect.height + 12
     : 0;
   const selectedToolbarLeft = selectedElement
     ? selectedElement.type === "image"
-      ? Math.min(window.innerWidth - 72, selectedElement.rect.left + selectedElement.rect.width + 12)
+      ? selectedElement.rect.left + selectedElement.rect.width + selectedToolbarVisualWidth + 28 <= window.innerWidth
+        ? Math.max(selectedToolbarLeftBoundary, selectedElement.rect.left + selectedElement.rect.width + 12)
+        : Math.max(selectedToolbarLeftBoundary, selectedElement.rect.left - selectedToolbarVisualWidth - 12)
       : Math.min(
-          window.innerWidth - 340,
-          Math.max(16, selectedElement.rect.left + selectedElement.rect.width / 2 - 260),
+          window.innerWidth - Math.min(selectedToolbarVisualWidth, window.innerWidth - 32) - 16,
+          Math.max(
+            selectedToolbarLeftBoundary,
+            selectedElement.rect.left + selectedElement.rect.width / 2 - selectedToolbarVisualWidth / 2,
+          ),
         )
     : 0;
+  const selectedToolbarStyle = {
+    top: selectedToolbarTop,
+    left: selectedToolbarLeft,
+    transform: `scale(${selectedToolbarScale})`,
+    transformOrigin: "top left",
+    transition: "transform 180ms cubic-bezier(0.22, 1, 0.36, 1), top 180ms cubic-bezier(0.22, 1, 0.36, 1), left 180ms cubic-bezier(0.22, 1, 0.36, 1)",
+  } satisfies React.CSSProperties;
+  const selectedImagePanelWidth = Math.min(390, window.innerWidth - 32);
+  const selectedImagePanelVisualWidth = selectedImagePanelWidth * selectedToolbarScale;
+  const selectedImagePanelVisualHeight = 470 * selectedToolbarScale;
+  const selectedImagePanelLeft = selectedElement
+    ? Math.min(
+        window.innerWidth - selectedImagePanelVisualWidth - 16,
+        Math.max(16, selectedElement.rect.left + selectedElement.rect.width / 2 - selectedImagePanelVisualWidth / 2),
+      )
+    : 16;
+  const selectedImagePanelTop = selectedElement
+    ? Math.min(
+        window.innerHeight - selectedImagePanelVisualHeight - 16,
+        Math.max(16, selectedElement.rect.top + selectedElement.rect.height / 2 - selectedImagePanelVisualHeight / 2),
+      )
+    : 16;
+  const addSectionButtonLeft = selectedElement
+    ? Math.min(
+        window.innerWidth - 120,
+        Math.max(selectedToolbarLeftBoundary + 90, selectedElement.rect.left + selectedElement.rect.width / 2),
+      )
+    : 0;
+  const addSectionButtonTop = selectedElement
+    ? Math.min(window.innerHeight - 34, Math.max(92, selectedElement.rect.top + selectedElement.rect.height))
+    : 0;
+  const resetCanvasView = () => {
+    if (workspaceRef.current) {
+      workspaceRef.current.scrollLeft = 0;
+      workspaceRef.current.scrollTop = 0;
+    }
+    setCanvasOffset({ x: 0, y: 0 });
+    const resetZoom = mobilePreview ? 0.88 : 0.52;
+    canvasZoomRef.current = resetZoom;
+    setCanvasZoom(resetZoom);
+  };
+  const changeCanvasZoom = (delta: number, anchor?: { clientX: number; clientY: number }) => {
+    const currentZoom = canvasZoomRef.current;
+    const nextZoom = Math.max(0.28, Math.min(1.2, Number((currentZoom + delta).toFixed(2))));
+    if (nextZoom === currentZoom) return;
+    const workspace = workspaceRef.current;
+    if (workspace) {
+      workspace.scrollLeft = 0;
+      workspace.scrollTop = 0;
+    }
+    const workspaceRect = workspace?.getBoundingClientRect();
+    if (!workspaceRect) {
+      canvasZoomRef.current = nextZoom;
+      setCanvasZoom(nextZoom);
+      return;
+    }
+    const previewRect = previewRef.current?.getBoundingClientRect();
+    const clientX = anchor?.clientX ?? (previewRect ? previewRect.left + previewRect.width / 2 : workspaceRect.left + workspaceRect.width / 2);
+    const clientY = anchor?.clientY ?? (previewRect ? previewRect.top + previewRect.height / 2 : workspaceRect.top + workspaceRect.height / 2);
+    const anchorX = clientX - workspaceRect.left - 330;
+    const anchorY = clientY - workspaceRect.top - 130;
+    setCanvasOffset((current) => ({
+      x: anchorX - ((anchorX - current.x) / currentZoom) * nextZoom,
+      y: anchorY - ((anchorY - current.y) / currentZoom) * nextZoom,
+    }));
+    canvasZoomRef.current = nextZoom;
+    setCanvasZoom(nextZoom);
+  };
+  nativePinchZoomRef.current = (event) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const target = event.target;
+    if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
+
+    changeCanvasZoom(event.deltaY > 0 ? -0.04 : 0.04, {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+  };
+  const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
+    suppressCanvasClickRef.current = false;
+    suppressPreviewClickRef.current = false;
+
+    if (canvasToolbarMode === "pan") {
+      canvasDragRef.current = {
+        pointerX: event.clientX,
+        pointerY: event.clientY,
+        offsetX: canvasOffset.x,
+        offsetY: canvasOffset.y,
+        startedOnPreview: target instanceof Element && Boolean(target.closest(".store-editor-preview")),
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setIsCanvasDragging(true);
+      return;
+    }
+
+    if (canvasToolbarMode === "select") {
+      if (target instanceof Element && target.closest(".store-editor-preview")) return;
+      const workspaceRect = event.currentTarget.getBoundingClientRect();
+      const startX = event.clientX - workspaceRect.left;
+      const startY = event.clientY - workspaceRect.top;
+      selectionDragRef.current = { startX, startY, currentX: startX, currentY: startY, moved: false };
+      setSelectionMarquee({ x: startX, y: startY, width: 0, height: 0 });
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  };
+  const handleCanvasPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const selection = selectionDragRef.current;
+    if (selection) {
+      const workspaceRect = event.currentTarget.getBoundingClientRect();
+      const currentX = event.clientX - workspaceRect.left;
+      const currentY = event.clientY - workspaceRect.top;
+      const moved = selection.moved || Math.abs(currentX - selection.startX) > 4 || Math.abs(currentY - selection.startY) > 4;
+      selectionDragRef.current = { ...selection, currentX, currentY, moved };
+      setSelectionMarquee({
+        x: Math.min(selection.startX, currentX),
+        y: Math.min(selection.startY, currentY),
+        width: Math.abs(currentX - selection.startX),
+        height: Math.abs(currentY - selection.startY),
+      });
+      return;
+    }
+
+    const drag = canvasDragRef.current;
+    if (!drag) return;
+    setCanvasOffset({
+      x: drag.offsetX + event.clientX - drag.pointerX,
+      y: drag.offsetY + event.clientY - drag.pointerY,
+    });
+  };
+  const finishCanvasDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const selection = selectionDragRef.current;
+    if (selection) {
+      selectionDragRef.current = null;
+      setSelectionMarquee(null);
+      suppressCanvasClickRef.current = selection.moved;
+      suppressPreviewClickRef.current = selection.moved;
+
+      if (selection.moved && event.type === "pointerup") {
+        const workspaceRect = event.currentTarget.getBoundingClientRect();
+        const marqueeRect = {
+          left: workspaceRect.left + Math.min(selection.startX, selection.currentX),
+          top: workspaceRect.top + Math.min(selection.startY, selection.currentY),
+          right: workspaceRect.left + Math.max(selection.startX, selection.currentX),
+          bottom: workspaceRect.top + Math.max(selection.startY, selection.currentY),
+        };
+        const previewRect = previewRef.current?.getBoundingClientRect();
+        const intersectsPreview = Boolean(
+          previewRect &&
+          marqueeRect.right >= previewRect.left &&
+          marqueeRect.left <= previewRect.right &&
+          marqueeRect.bottom >= previewRect.top &&
+          marqueeRect.top <= previewRect.bottom,
+        );
+        clearSelection();
+        if (intersectsPreview) {
+          setPageSelected(true);
+          setContextNotice("Página selecionada. Escolha uma ferramenta para editá-la.");
+        }
+      }
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      return;
+    }
+
+    const drag = canvasDragRef.current;
+    if (!drag) return;
+    const wasEmptyAreaClick =
+      event.type === "pointerup" &&
+      !drag.startedOnPreview &&
+      Math.abs(event.clientX - drag.pointerX) <= 4 &&
+      Math.abs(event.clientY - drag.pointerY) <= 4;
+    suppressCanvasClickRef.current = !wasEmptyAreaClick;
+    canvasDragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    setIsCanvasDragging(false);
+    if (wasEmptyAreaClick) setSidebarCollapsed(true);
+  };
+  const handleCanvasWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (event.ctrlKey || event.metaKey) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
+    event.preventDefault();
+    setCanvasOffset((current) => ({
+      x: current.x - event.deltaX,
+      y: current.y - event.deltaY,
+    }));
+  };
+  const handleWorkspaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof Element) || target.closest("[data-canvas-ui], .store-editor-preview")) return;
+    if (suppressCanvasClickRef.current) {
+      suppressCanvasClickRef.current = false;
+      return;
+    }
+    clearSelection();
+    setSidebarCollapsed(true);
+  };
   const imageShapeOptions: Array<{ value: ImageShape; label: string; icon: LucideIcon }> = [
     { value: "auto", label: "Automático", icon: ImageIcon },
     { value: "wide", label: "Retangular", icon: LayoutGrid },
     { value: "square", label: "Quadrado", icon: Square },
     { value: "circle", label: "Circular", icon: Circle },
   ];
+  const addSectionAfterSelected = () => {
+    if (!selectedSectionAnchor) return;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setCustomSections((current) => [...current, { id, after: selectedSectionAnchor }]);
+    setContextNotice("Nova seção adicionada à página.");
+  };
+  const renderCustomSectionsAfter = (anchor: string): React.ReactNode =>
+    customSections
+      .filter((section) => section.after === anchor)
+      .map((section, index) => {
+        const sectionAnchor = `custom-${section.id}`;
+        return (
+          <Fragment key={section.id}>
+            <section
+              data-editor-type="other"
+              data-editor-section={sectionAnchor}
+              data-editor-label="Seção personalizada"
+              className="relative isolate overflow-hidden border-y border-black/10 bg-[#f4f2ed] px-10 py-16 text-[#151719]"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute -right-16 -top-24 h-72 w-72 rounded-full opacity-10 blur-2xl"
+                style={{ backgroundColor: accent }}
+              />
+              <div className="relative mx-auto grid max-w-[1040px] items-center gap-10 md:grid-cols-[1.1fr_0.9fr]">
+                <div>
+                  <span data-editor-type="text" className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: accent }}>
+                    Nova seção {index + 1}
+                  </span>
+                  <h2 data-editor-type="text" className="mt-3 max-w-[620px] text-[34px] font-semibold leading-[1.05] tracking-[-0.035em]">
+                    Conte uma nova parte da história da sua loja
+                  </h2>
+                  <p data-editor-type="text" className="mt-4 max-w-[590px] text-[14px] leading-relaxed text-black/55">
+                    Clique duas vezes nos textos para editar. Use esta área para benefícios, depoimentos, coleções ou qualquer conteúdo adicional.
+                  </p>
+                  <button data-editor-role="button" type="button" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full px-6 text-[13px] font-semibold text-white shadow-sm" style={{ backgroundColor: accent }}>
+                    Explorar conteúdo
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+                <div className="grid min-h-[210px] place-items-center rounded-[24px] border border-black/10 bg-white/75 shadow-[0_22px_55px_rgba(20,24,28,0.08)]">
+                  <div className="text-center">
+                    <LayoutGrid size={34} strokeWidth={1.35} className="mx-auto text-black/35" />
+                    <strong data-editor-type="text" className="mt-3 block text-[14px] font-semibold">Área de conteúdo</strong>
+                    <span data-editor-type="text" className="mt-1 block text-[11px] text-black/42">Adicione imagens e elementos pela sidebar.</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+            {renderCustomSectionsAfter(sectionAnchor)}
+          </Fragment>
+        );
+      });
+
+  const menuItem = (
+    Icon: LucideIcon,
+    label: string,
+    onClick: () => void,
+    opts: { danger?: boolean; shortcut?: string } = {},
+  ) => (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={menuBusy}
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-[11px] px-3 py-[9px] text-left text-[13px] font-medium transition duration-150 disabled:pointer-events-none disabled:opacity-45 ${opts.danger ? "text-[#ff6a6a] hover:bg-[#ff6a6a]/[0.12]" : "text-white/82 hover:bg-white/[0.07] hover:text-white"}`}
+    >
+      <Icon size={17} strokeWidth={1.85} className="shrink-0" />
+      <span className="flex-1 truncate">{label}</span>
+      {opts.shortcut ? <span className="text-[11px] font-medium tracking-wide text-white/35">{opts.shortcut}</span> : null}
+    </button>
+  );
+
+  const renderProjectMenu = () => (
+    <AnimatePresence>
+      {projectMenuOpen ? (
+        <>
+          <div className="fixed inset-0 z-[80]" aria-hidden onClick={closeProjectMenu} />
+          <motion.div
+            role="menu"
+            initial={{ opacity: 0, scale: 0.96, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: -6 }}
+            transition={{ duration: 0.17, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute left-0 top-[52px] z-[90] w-[300px] origin-top-left overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#1c1d1f]/95 p-1.5 text-white shadow-[0_28px_74px_rgba(0,0,0,0.52)] backdrop-blur-2xl"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleOpenAllProjects}
+              className="flex w-full items-center gap-3 rounded-[11px] px-3 py-[9px] text-left text-[13px] font-semibold text-white/88 transition duration-150 hover:bg-white/[0.07] hover:text-white"
+            >
+              <ChevronLeft size={17} strokeWidth={2} className="shrink-0" />
+              <span className="flex-1 truncate">Acessar todos os projetos</span>
+            </button>
+
+            <div className="my-1.5 h-px bg-white/[0.07]" />
+
+            {menuItem(Share2, "Compartilhar", handleShareProject)}
+            {menuItem(Download, "Baixar projeto", handleDownloadProject)}
+            {menuItem(Copy, "Duplicar projeto", handleDuplicateProject)}
+
+            <div className="my-1.5 h-px bg-white/[0.07]" />
+
+            {menuItem(Pencil, "Editar", handleStartRename)}
+            {menuItem(HelpCircle, "Ajuda", handleOpenHelp)}
+            {menuItem(Settings, "Configurações", handleOpenSettings)}
+
+            <div className="my-1.5 h-px bg-white/[0.07]" />
+
+            {menuItem(Trash2, "Excluir projeto", () => { closeProjectMenu(); setConfirmDeleteOpen(true); }, { danger: true })}
+            {menuItem(Command, "Menu de comandos", () => setProjectMenuOpen(false), { shortcut: "⌘K" })}
+            {menuItem(MessageSquare, "Enviar feedback", handleSendFeedback)}
+
+            <div className="mt-1.5 rounded-[12px] border border-dashed border-white/[0.12] bg-white/[0.02] px-3 py-3 text-[11px] leading-relaxed text-white/40">
+              Área reservada — me diga o que colocar aqui.
+            </div>
+          </motion.div>
+        </>
+      ) : null}
+    </AnimatePresence>
+  );
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-[#1f1f1d] text-white" style={{ fontFamily: selectedFontStack }}>
-      <style>{`.store-editor-preview [data-editor-selected="true"]{outline:2px solid #111827;outline-offset:3px}.editor-mode-active *:hover{outline:1.5px dashed #2563eb;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}.editor-context-drawer{animation:editorDrawerIn 200ms ease both}@keyframes editorDrawerIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
-      <header className="grid h-[70px] shrink-0 grid-cols-[minmax(280px,520px)_minmax(0,1fr)_auto] items-center border-b border-white/[0.07] bg-[#1f1f1d] px-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-gradient-to-br from-[#ff7a18] via-[#f43f5e] to-[#2563eb]" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <strong className="truncate text-[14px] font-semibold">{storeName}</strong>
-              <ChevronDown size={13} className="text-white/45" />
-            </div>
-            <span className="block truncate text-[12px] text-white/45">Editando última versão salva</span>
-          </div>
+    <main className="relative flex h-screen flex-col overflow-hidden bg-[#18191b] text-white" style={{ fontFamily: selectedFontStack }}>
+      <style>{`.store-editor-preview [data-editor-selected="true"]{outline:2px solid #686d72;outline-offset:4px}.store-editor-preview [data-editor-hover-bg="true"]:hover{background-color:var(--editor-hover-bg)!important}.editor-mode-active [data-editor-type]:hover,.editor-mode-active button:hover,.editor-mode-active [data-editor-role="button"]:hover{outline:1.5px dashed #686d72;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}.editor-sidebar-scroll{scrollbar-width:thin;scrollbar-color:#4a4f55 transparent}.editor-sidebar-scroll::-webkit-scrollbar{width:5px}.editor-sidebar-scroll::-webkit-scrollbar-track{background:transparent}.editor-sidebar-scroll::-webkit-scrollbar-thumb{border-radius:999px;background:#4a4f55}.editor-sidebar-scroll::-webkit-scrollbar-thumb:hover{background:#636970}.editor-context-drawer{animation:editorDrawerIn 200ms ease both}@keyframes editorDrawerIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+      <header data-canvas-ui className="pointer-events-none absolute inset-x-0 top-0 z-[70] grid h-[72px] grid-cols-[1fr_auto_1fr] items-center px-5 text-[#f4f4f5]">
+        <div className="pointer-events-auto relative flex min-w-0 items-center gap-3">
+          <button type="button" onClick={() => setProjectMenuOpen((open) => !open)} className={`flex h-10 w-12 shrink-0 items-center justify-center rounded-full text-white/82 shadow-[0_12px_38px_rgba(0,0,0,0.22)] backdrop-blur-xl transition duration-200 hover:bg-black/52 hover:text-white ${projectMenuOpen ? "bg-black/60 text-white" : "bg-black/32"}`} aria-label="Menu do projeto" aria-haspopup="menu" aria-expanded={projectMenuOpen}>
+            <Menu size={18} strokeWidth={1.75} />
+          </button>
+          <strong className="block min-w-0 truncate text-[13px] font-semibold tracking-[-0.015em] text-white/92">{projectTitle}</strong>
+          {renderProjectMenu()}
         </div>
 
-        <div className="hidden min-w-0 items-center justify-center gap-3 lg:flex">
-          <div className="flex h-10 items-center gap-1 rounded-full border border-white/[0.09] bg-[#171716] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-            <button type="button" className="inline-flex h-8 items-center gap-2 rounded-full bg-[#234cba] px-4 text-[13px] font-semibold text-[#9db7ff] shadow-[0_0_0_1px_rgba(96,145,255,0.35)]">
-              <Globe2 size={16} /> Preview
-            </button>
-            <button type="button" className="flex h-8 w-9 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white" aria-label="Código">
-              <Code2 size={15} />
-            </button>
-          </div>
-          <div className="flex h-10 min-w-[260px] max-w-[380px] flex-1 items-center gap-2 rounded-full border border-white/[0.09] bg-[#171716] px-3 text-[13px] text-white/75">
-            <button type="button" className="text-white/45 transition hover:text-white" aria-label="Atualizar preview">
-              <RefreshCcw size={15} />
-            </button>
-            <span className="text-white/35">/</span>
-            <span className="truncate font-medium">minha-loja/editor</span>
-            <ChevronDown size={14} className="ml-auto text-white/35" />
-          </div>
-          <button type="button" className="text-white/45 transition hover:text-white" aria-label="Abrir preview">
-            <ExternalLink size={17} />
+        <div className="pointer-events-auto hidden min-w-0 items-center justify-center rounded-full border border-white/[0.10] bg-black/38 p-1 shadow-[0_12px_38px_rgba(0,0,0,0.20)] backdrop-blur-xl lg:flex">
+          <button type="button" onClick={() => { setMobilePreview(false); canvasZoomRef.current = 0.52; setCanvasZoom(0.52); }} className={`flex h-7 items-center gap-1.5 rounded-full px-3 text-[9px] font-semibold transition ${!mobilePreview ? "bg-white text-black" : "text-white/45 hover:text-white"}`} aria-label="Preview desktop">
+            <Monitor size={14} strokeWidth={1.8} /> Desktop
+          </button>
+          <button type="button" onClick={() => { setMobilePreview(true); canvasZoomRef.current = 0.88; setCanvasZoom(0.88); }} className={`flex h-7 items-center gap-1.5 rounded-full px-3 text-[9px] font-semibold transition ${mobilePreview ? "bg-white text-black" : "text-white/45 hover:text-white"}`} aria-label="Preview mobile">
+            <Smartphone size={13} strokeWidth={1.8} /> Mobile
           </button>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2">
-          <div className="hidden rounded-full border border-white/[0.08] bg-[#171716] p-1 sm:flex">
-            <button type="button" onClick={()=>setMobilePreview(false)} className={`flex h-8 w-10 items-center justify-center rounded-full transition ${!mobilePreview?"bg-white/[0.12] text-white":"text-white/35 hover:text-white"}`} aria-label="Preview desktop">
-              <Monitor size={16}/>
-            </button>
-            <button type="button" onClick={()=>setMobilePreview(true)} className={`flex h-8 w-10 items-center justify-center rounded-full transition ${mobilePreview?"bg-white/[0.12] text-white":"text-white/35 hover:text-white"}`} aria-label="Preview mobile">
-              <Smartphone size={15}/>
-            </button>
-          </div>
-          <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:flex" aria-label="Configurações">
-            <Settings size={18}/>
+        <div className="pointer-events-auto flex shrink-0 items-center justify-end gap-2">
+          <button type="button" className="hidden h-9 w-9 items-center justify-center rounded-full border border-white/[0.13] bg-black/30 text-white/78 shadow-[0_12px_34px_rgba(0,0,0,0.20)] backdrop-blur-xl transition hover:border-white/25 hover:bg-black/48 hover:text-white sm:flex" aria-label="Visualizar loja">
+            <Play size={15} strokeWidth={1.8} />
           </button>
-          <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:flex" aria-label="Visualizar">
-            <Play size={18}/>
-          </button>
-          <button type="button" className="hidden h-10 w-10 items-center justify-center rounded-full text-white/45 transition hover:bg-white/[0.06] hover:text-white md:flex" aria-label="Histórico">
-            <History size={18}/>
-          </button>
-          <button onClick={()=>setShowPlans(true)} className="h-10 rounded-[12px] bg-[#2f6df6] px-5 text-[14px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_22px_rgba(47,109,246,0.24)] transition hover:brightness-110">
+          <button type="button" onClick={handleOpenPublish} className="hidden h-9 items-center justify-center rounded-[10px] bg-[#3567e9] px-5 text-[10px] font-semibold text-white shadow-[0_10px_28px_rgba(37,86,220,0.34)] transition duration-200 hover:bg-[#4272ee] hover:shadow-[0_13px_34px_rgba(37,86,220,0.42)] active:scale-[0.98] md:flex">
             Publicar
+          </button>
+          <button type="button" className="hidden h-9 items-center justify-center rounded-[10px] bg-[#f1f2f4] px-5 text-[10px] font-semibold text-[#525660] shadow-[0_10px_28px_rgba(0,0,0,0.20)] transition duration-200 hover:bg-white hover:text-[#272a30] active:scale-[0.98] md:flex">
+            Convidar
+          </button>
+          <button type="button" className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#d8b287] text-[#4c2414] ring-1 ring-white/15" aria-label={`Perfil de ${profileName || user?.email || "usuário"}`}>
+            {profilePhoto ? (
+              <img src={profilePhoto} alt={`Foto de ${profileName || user?.email || "perfil"}`} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="grid h-full w-full place-items-center bg-[radial-gradient(circle_at_50%_28%,#f6d2a7_0_20%,transparent_21%),linear-gradient(135deg,#b66a3e,#7c341b)] text-[10px] font-bold text-white">
+                {(profileName || user?.email || "V").slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-[#0e0f10] bg-[#7ac943]" />
           </button>
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
+      <div
+        ref={workspaceRef}
+        className={`relative min-h-0 flex-1 overflow-clip overscroll-none bg-[#222325] text-white touch-none ${canvasToolbarMode === "pan" ? (isCanvasDragging ? "cursor-grabbing" : "cursor-grab") : selectionMarquee ? "cursor-crosshair" : "cursor-default"}`}
+        onPointerDown={handleCanvasPointerDown}
+        onPointerMove={handleCanvasPointerMove}
+        onPointerUp={finishCanvasDrag}
+        onPointerCancel={finishCanvasDrag}
+        onWheel={handleCanvasWheel}
+        onScroll={(event) => {
+          event.currentTarget.scrollLeft = 0;
+          event.currentTarget.scrollTop = 0;
+        }}
+        onClick={handleWorkspaceClick}
+        onDoubleClick={(event) => {
+          const target = event.target;
+          if (!(target instanceof Element) || !target.closest("[data-canvas-ui], .store-editor-preview")) resetCanvasView();
+        }}
+        style={{
+          backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.20) 1px, transparent 1.25px), radial-gradient(circle at 50% -20%, rgba(255,255,255,0.035), transparent 48%)",
+          backgroundPosition: `${canvasOffset.x}px ${canvasOffset.y}px`,
+          backgroundSize: "22px 22px, 100% 100%",
+        }}
+        aria-label="Área de trabalho arrastável"
+      >
         <input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={(event)=>{const file=event.target.files?.[0];if(file)setHeroImage(URL.createObjectURL(file));}}/>
+        <input ref={logoInput} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload}/>
+        <input ref={creationFileInput} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" className="hidden" onChange={handleCreationFileUpload}/>
         <input ref={contextMediaInput} type="file" accept="image/*" className="hidden" onChange={handleContextImageUpload}/>
-        <aside className="w-[360px] shrink-0 overflow-y-auto border-r border-[#27272A] bg-[#0f0f0f] px-4 py-5">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => history.back()} className="flex h-9 w-9 items-center justify-center rounded-[8px] text-white/70 transition hover:bg-white/[0.06] hover:text-white" aria-label="Voltar">
-              <ChevronLeft size={18} />
-            </button>
-            <div className="min-w-0">
-              <strong className="block truncate text-[14px] font-semibold">{storeName}</strong>
-              <span className="block truncate text-[11px] text-white/42">Painel de edição</span>
-            </div>
-            <button type="button" className="ml-auto flex h-9 w-9 items-center justify-center rounded-[8px] text-white/50 transition hover:bg-white/[0.06] hover:text-white" aria-label="Mais opções">
-              <MoreHorizontal size={18} />
-            </button>
-          </div>
+        {selectionMarquee && selectionMarquee.width > 2 && selectionMarquee.height > 2 ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute z-[48] border border-white bg-white/[0.10] shadow-[0_0_0_1px_rgba(0,0,0,0.18),0_8px_28px_rgba(0,0,0,0.16)]"
+            style={{ left: selectionMarquee.x, top: selectionMarquee.y, width: selectionMarquee.width, height: selectionMarquee.height }}
+          />
+        ) : null}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-[72px] z-10 flex h-7 items-start justify-around px-[340px] pt-1 text-[8px] font-medium text-white/25">
+          {[-3200, -2800, -2400, -2000, -1600, -1200, -800, -400, 0, 400].map((mark) => <span key={mark}>{mark}</span>)}
+        </div>
 
-          <div className="mt-5 flex items-center gap-5 border-b border-[#27272A]">
-            {[
-              { id: "detalhes" as const, label: "Detalhes", icon: LayoutTemplate },
-              { id: "personalizar" as const, label: "Personalizar", icon: Palette },
-            ].map((tab) => {
-              const TabIcon = tab.icon;
-              const active = editorPanelTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setEditorPanelTab(tab.id)}
-                  className={`relative flex h-11 items-center gap-2 text-[13px] font-semibold transition ${active ? "text-white" : "text-[#71717A] hover:text-white/80"}`}
-                >
-                  <TabIcon size={16} strokeWidth={1.5} />
-                  {tab.label}
-                  {active ? <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-white" /> : null}
-                </button>
-              );
-            })}
-          </div>
+        <aside data-canvas-ui data-sidebar-state={sidebarCollapsed ? "recolhido" : "aberto"} className="absolute bottom-5 left-5 top-[106px] z-40 w-[280px] origin-top-left">
+          <div className="flex h-full min-h-0 flex-col text-white">
+            <motion.section
+              aria-label="Painel de personalização da loja"
+              className={`relative min-w-0 origin-top-left overflow-hidden border backdrop-blur-xl will-change-[width,height] transition-[width,height,min-height,max-height,border-radius,background-color,box-shadow] duration-700 ${sidebarCollapsed ? "h-[66px] min-h-[66px] max-h-[66px] w-[66px] rounded-[22px] border-[#292d31]/75 bg-[rgba(5,7,9,0.82)] shadow-[0_20px_54px_rgba(0,0,0,0.46)]" : "h-[76%] min-h-[390px] max-h-[540px] w-full rounded-[24px] border-[#292d31]/95 bg-[linear-gradient(180deg,rgba(7,9,11,0.88)_0%,rgba(5,7,9,0.93)_46%,rgba(3,5,7,0.96)_100%)] shadow-[0_28px_90px_rgba(0,0,0,0.58)]"}`}
+              style={{ transitionTimingFunction: "cubic-bezier(0.32, 0.72, 0, 1)" }}
+            >
+              <AnimatePresence initial={false} mode="wait">
+                {sidebarCollapsed ? (
+                  <motion.div
+                    key="editor-sidebar-collapsed-content"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
+                    className="flex h-full w-full items-center justify-center"
+                  >
+                    <button type="button" onClick={() => setSidebarCollapsed(false)} className="group flex h-7 w-10 items-center justify-center gap-1 rounded-full bg-[#f7f7f5] text-black shadow-[0_6px_18px_rgba(0,0,0,0.24)] transition duration-200 hover:scale-[1.03]" aria-label="Expandir painel">
+                      <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                    </button>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="editor-sidebar-expanded-content"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+                    className="flex h-full min-h-0 flex-col"
+                  >
 
-          <section className="mt-2 divide-y divide-[#27272A]">
-            {panelSections.map((section) => (
-              <div key={section.id}>
-                <button
-                  type="button"
-                  onClick={() => togglePanelSection(section.id)}
-                  className="flex w-full items-center justify-between px-1 py-3 text-left"
-                >
-                  <span className="text-[13px] font-semibold text-white">{section.label}</span>
-                  <ChevronDown size={16} className={`text-white/45 transition duration-150 ease-out ${openPanelSections[section.id] ? "rotate-180" : ""}`} />
-                </button>
+                  <div className="relative shrink-0 px-3 pb-2.5 pt-3">
+                    <button type="button" onClick={() => setSidebarCollapsed(true)} className="group flex h-6 w-10 items-center justify-center gap-1 rounded-full bg-[#f4f4f2] text-black shadow-[0_6px_18px_rgba(0,0,0,0.28)] transition hover:scale-105" aria-label="Recolher painel">
+                      <span className="h-1 w-1 rounded-full bg-black transition group-hover:-translate-x-0.5" />
+                      <span className="h-1 w-1 rounded-full bg-black transition group-hover:translate-x-0.5" />
+                    </button>
 
-                {openPanelSections[section.id] ? (
-                  <div className="pb-4">
-                    {section.id === "template" ? (
-                      <div className="grid grid-cols-3 gap-3">
-                        <button
-                          type="button"
-                          onClick={openTemplateDrawer}
-                          className="group aspect-[4/3] rounded-[12px] border-2 border-white bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]"
-                        >
-                          <div className="flex h-full flex-col justify-between">
-                            <LayoutTemplate size={18} strokeWidth={1.6} className="text-white" />
-                            <span className="text-[12px] font-medium text-white">{activeTemplateOption.name}</span>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={openTemplateDrawer}
-                          className="group aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]"
-                        >
-                          <div className="flex h-full flex-col justify-between">
-                            <Plus size={18} strokeWidth={1.6} className="text-white/70" />
-                            <span className="text-[12px] font-medium text-white/75">Trocar</span>
-                          </div>
-                        </button>
-                      </div>
-                    ) : null}
-
-                    {section.id === "produtos" ? (
-                      <div className="grid grid-cols-3 gap-3">
-                        <button type="button" onClick={openProductsDrawer} className="aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]">
-                          <div className="flex h-full flex-col justify-between">
-                            <Package size={18} strokeWidth={1.6} className="text-white" />
-                            <span className="text-[12px] font-medium text-white">Adicionar</span>
-                          </div>
-                        </button>
-                        <button type="button" onClick={() => navigate("/catalogo")} className="aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]">
-                          <div className="flex h-full flex-col justify-between">
-                            <LayoutGrid size={18} strokeWidth={1.6} className="text-white/70" />
-                            <span className="text-[12px] font-medium text-white/75">Catálogo</span>
-                          </div>
-                        </button>
-                      </div>
-                    ) : null}
-
-                    {section.id === "imagem" ? (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-3 gap-3">
-                          <button type="button" onClick={()=>imageInput.current?.click()} className="aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]">
-                            <div className="flex h-full flex-col justify-between">
-                              <ImageIcon size={18} strokeWidth={1.6} className="text-white" />
-                              <span className="text-[12px] font-medium text-white">Banner</span>
-                            </div>
+                    <div className="relative mt-4 grid h-[44px] grid-cols-2 rounded-[16px] border border-[#292d31] bg-black/55 p-1 shadow-[0_10px_26px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+                      {[
+                        { id: "personalizar" as const, label: "Criação", icon: FolderPlus },
+                        { id: "detalhes" as const, label: "Templates", icon: Layers3 },
+                      ].map((tab) => {
+                        const TabIcon = tab.icon;
+                        const active = editorPanelTab === tab.id;
+                        return (
+                          <button key={tab.id} type="button" onClick={() => setEditorPanelTab(tab.id)} className={`relative z-10 flex items-center justify-center gap-1.5 rounded-[12px] text-[10px] font-semibold outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#666b70] ${active ? "text-white" : "text-white/58 hover:text-white"}`}>
+                            {active ? <motion.span layoutId="editor-sidebar-active-tab" className="absolute inset-0 -z-10 rounded-[12px] bg-[#303337] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_8px_22px_rgba(0,0,0,0.34)]" transition={{ type: "spring", stiffness: 430, damping: 36 }} /> : null}
+                            <TabIcon size={14} strokeWidth={1.9} />
+                            {tab.label}
                           </button>
-                          <button type="button" onClick={generateBanner} className="aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]">
-                            <div className="flex h-full flex-col justify-between">
-                              <Sparkles size={18} strokeWidth={1.6} className="text-white/75" />
-                              <span className="text-[12px] font-medium text-white/75">IA</span>
-                            </div>
-                          </button>
-                        </div>
-                        <label className="block rounded-[12px] border border-[#27272A] bg-[#18181B] p-3">
-                          <span className="text-[12px] font-semibold text-white/85">Link do CTA do hero</span>
-                          <input value={heroCtaUrl} onChange={(event)=>setHeroCtaUrl(event.target.value)} placeholder="/catalogo ou https://..." className="mt-2 h-9 w-full rounded-[8px] border border-[#27272A] bg-[#0f0f0f] px-3 text-[12px] text-white outline-none transition placeholder:text-white/28 focus:border-white/45" />
-                        </label>
-                        {bannerError ? <p className="text-[11px] font-medium text-red-300">{bannerError}</p> : null}
-                      </div>
-                    ) : null}
-
-                    {section.id === "aparencia" ? (
-                      <div className="space-y-5">
-                        <div>
-                          <div className="mb-2 flex items-center justify-between">
-                            <span className="text-[12px] font-semibold text-white/85">Cor de destaque</span>
-                            <span className="text-[10px] text-white/36">Botões e preços</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-3">
-                            {["#111111","#2563eb","#dc2626","#f59e0b","#ec4899","#7c3aed"].map((color)=>(
-                              <button key={color} type="button" onClick={()=>setAccent(color)} aria-label={color} className={`aspect-[4/3] rounded-[12px] bg-[#18181B] p-2 transition hover:border-[#3F3F46] ${accent===color?"border-2 border-white":"border border-[#27272A]"}`}>
-                                <span className="block h-full rounded-[8px]" style={{backgroundColor:color}} />
-                              </button>
-                            ))}
-                            <label className={`relative aspect-[4/3] cursor-pointer overflow-hidden rounded-[12px] bg-[#18181B] p-2 transition hover:border-[#3F3F46] ${!["#111111","#2563eb","#dc2626","#f59e0b","#ec4899","#7c3aed"].includes(accent) ? "border-2 border-white" : "border border-[#27272A]"}`} title="Cor personalizada">
-                              <span className="block h-full rounded-[8px] bg-[conic-gradient(from_0deg,#ff0080,#ff8c00,#ffee00,#00ff85,#00b8ff,#8a2be2,#ff0080)]" />
-                              <input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"/>
-                            </label>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="mb-2 flex items-center justify-between">
-                            <span className="text-[12px] font-semibold text-white/85">Tipografia</span>
-                            <span className="text-[10px] text-white/36">1 de {fontOptions.length}</span>
-                          </div>
-                          <div className="space-y-2">
-                            {fontOptions.map((option)=>(
-                              <button key={option.name} type="button" onClick={()=>setFont(option.name)} className={`w-full rounded-[10px] bg-[#18181B] p-4 text-left transition hover:border-[#3F3F46] ${font===option.name?"border-2 border-white":"border border-[#27272A]"}`}>
-                                <span className="block text-[16px] font-bold text-white" style={{fontFamily:option.stack}}>{option.name}</span>
-                                <span className="mt-1 block text-[13px] text-[#A1A1AA]" style={{fontFamily:option.stack}}>abcdefghijklmnopqrstuvwxyz</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="mb-2 flex items-center justify-between">
-                            <span className="text-[12px] font-semibold text-white/85">Colunas da grade</span>
-                            <span className="text-[10px] text-white/36">Desktop</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-3">
-                            {[2,3,4].map((value)=>(
-                              <button key={value} type="button" onClick={()=>setColumns(value)} className={`aspect-[4/3] rounded-[12px] bg-[#18181B] p-2 transition hover:border-[#3F3F46] ${columns===value?"border-2 border-white":"border border-[#27272A]"}`}>
-                                <span className="grid h-full items-end gap-1" style={{gridTemplateColumns:`repeat(${value}, minmax(0,1fr))`}}>{Array.from({length:value}).map((_,index)=><span key={index} className="h-8 rounded-[4px] bg-white/25"/>)}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
+                        );
+                      })}
+                    </div>
                   </div>
-                ) : null}
-              </div>
-            ))}
-          </section>
+
+                  <div className="mx-3 h-px shrink-0 bg-[#303438]/75" />
+
+                  <div className="editor-sidebar-scroll min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 py-3 pr-2">
+                    <AnimatePresence mode="wait" initial={false}>
+                      {editorPanelTab === "personalizar" ? (
+                        <motion.div key="creation-panel" initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2 }}>
+                          {selectedElement ? (
+                            <div className="mb-3 space-y-2">
+                              {!isSelectedButton && selectedElement.type !== "image" ? <section className="rounded-[15px] border border-[#292d31] bg-[#151719]/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <strong className="text-[9px] font-semibold text-white/86">Cor</strong>
+                                  <ChevronRight size={12} className="text-white/35" />
+                                </div>
+                                <label className="flex h-8 items-center gap-2 text-[8px] text-white/48">
+                                  <span className="w-12">Texto</span>
+                                  <span className="relative flex h-7 flex-1 items-center gap-2 rounded-full bg-black/28 px-2.5 text-[8px] font-medium text-white/66">
+                                    <span className="h-4 w-4 rounded-full ring-1 ring-white/15" style={{ backgroundColor: contextControls.color }} />
+                                    {contextControls.color}
+                                    <input type="color" value={colorToHex(contextControls.color)} onChange={(event)=>applyElementColor(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+                                  </span>
+                                </label>
+                                <label className="mt-1 flex h-8 items-center gap-2 text-[8px] text-white/48">
+                                  <span className="w-12">Fundo</span>
+                                  <span className="relative flex h-7 flex-1 items-center gap-2 rounded-full bg-black/28 px-2.5 text-[8px] font-medium text-white/66">
+                                    <span className="h-4 w-4 rounded-full ring-1 ring-white/15" style={{ backgroundColor: fillColor }} />
+                                    {fillColor}
+                                    <input type="color" value={fillColor} onChange={(event)=>applyElementBackground(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+                                  </span>
+                                </label>
+                              </section> : null}
+
+                              {isSelectedButton && buttonToolbarPanel ? (
+                                <section className="rounded-[15px] border border-[#292d31] bg-[#151719]/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+                                  <div className="mb-3 flex items-center justify-between">
+                                    <div>
+                                      <strong className="block text-[10px] font-semibold text-white/90">
+                                        {buttonToolbarPanel === "style"
+                                          ? "Estilo do botão"
+                                          : buttonToolbarPanel === "size"
+                                            ? "Tamanho do botão"
+                                            : buttonToolbarPanel === "radius"
+                                              ? "Raio do botão"
+                                              : buttonToolbarPanel === "text"
+                                                ? "Texto do botão"
+                                                : buttonToolbarPanel === "icon"
+                                                  ? "Ícone do botão"
+                                                  : "Opções do botão"}
+                                      </strong>
+                                      <span className="mt-0.5 block text-[7.5px] text-white/42">As alterações são aplicadas imediatamente.</span>
+                                    </div>
+                                    <button type="button" onClick={()=>setButtonToolbarPanel(null)} className="grid h-7 w-7 place-items-center rounded-full bg-black/25 text-white/50 transition hover:bg-black/40 hover:text-white" aria-label="Sair da configuração">
+                                      <X size={12}/>
+                                    </button>
+                                  </div>
+
+                                  {buttonToolbarPanel === "style" ? (
+                                    <div className="space-y-2">
+                                      {buttonStylePresets.map((preset) => (
+                                        <button key={preset.value} type="button" onClick={()=>applyButtonStylePreset(preset.value)} className={`flex h-10 w-full items-center justify-between rounded-[11px] border px-3 text-[9px] font-semibold transition ${buttonStylePreset===preset.value?"border-[#68717b] bg-[#343a40] text-white shadow-[0_8px_22px_rgba(0,0,0,0.24)]":"border-[#282c30] bg-[#202327] text-white/78 hover:border-[#444a50] hover:bg-[#292d31] hover:text-white"}`}>
+                                          {preset.label}
+                                          <span
+                                            className={`h-5 w-5 rounded-full shadow-[0_0_0_1px_rgba(255,255,255,0.18)] ${preset.value==="outline"?"border bg-transparent":""}`}
+                                            style={{
+                                              backgroundColor: preset.value === "outline" ? "transparent" : getButtonStylePreset(preset.value).backgroundColor,
+                                              borderColor: preset.value === "outline" ? getButtonStylePreset(preset.value).borderColor : undefined,
+                                            }}
+                                          />
+                                        </button>
+                                      ))}
+
+                                      <div className="my-2 h-px bg-[#30353a]" />
+                                      <div className="rounded-[13px] border border-[#2b3035] bg-[#0e1012] p-3">
+                                        <div className="mb-3 flex items-center justify-between">
+                                          <div>
+                                            <strong className="block text-[9px] font-semibold text-white">Cor personalizada</strong>
+                                            <span className="text-[7px] text-white/42">Arraste para criar a cor do botão.</span>
+                                          </div>
+                                          <span className="h-8 w-8 rounded-full shadow-[0_0_0_2px_#2d3237,0_6px_18px_rgba(0,0,0,0.35)]" style={{ backgroundColor: hslToHex(buttonColorHue, buttonColorSaturation, buttonColorLightness) }} />
+                                        </div>
+
+                                        <label className="mb-3 block">
+                                          <span className="mb-1.5 flex justify-between text-[7px] text-white/48"><span>Matiz</span><span>{buttonColorHue}°</span></span>
+                                          <input
+                                            type="range"
+                                            min="0"
+                                            max="360"
+                                            value={buttonColorHue}
+                                            onChange={(event)=>applyButtonCustomColor(Number(event.target.value), buttonColorSaturation, buttonColorLightness)}
+                                            className="h-2 w-full cursor-pointer appearance-none rounded-full accent-white"
+                                            style={{ background: "linear-gradient(90deg,#ff3b30,#ffcc00,#34c759,#00c7be,#0a84ff,#5856d6,#bf5af2,#ff2d55,#ff3b30)" }}
+                                          />
+                                        </label>
+
+                                        <label className="mb-3 block">
+                                          <span className="mb-1.5 flex justify-between text-[7px] text-white/48"><span>Intensidade</span><span>{buttonColorSaturation}%</span></span>
+                                          <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            value={buttonColorSaturation}
+                                            onChange={(event)=>applyButtonCustomColor(buttonColorHue, Number(event.target.value), buttonColorLightness)}
+                                            className="h-2 w-full cursor-pointer appearance-none rounded-full accent-white"
+                                            style={{ background: `linear-gradient(90deg,${hslToHex(buttonColorHue,0,buttonColorLightness)},${hslToHex(buttonColorHue,100,buttonColorLightness)})` }}
+                                          />
+                                        </label>
+
+                                        <label className="block">
+                                          <span className="mb-1.5 flex justify-between text-[7px] text-white/48"><span>Luminosidade</span><span>{buttonColorLightness}%</span></span>
+                                          <input
+                                            type="range"
+                                            min="12"
+                                            max="88"
+                                            value={buttonColorLightness}
+                                            onChange={(event)=>applyButtonCustomColor(buttonColorHue, buttonColorSaturation, Number(event.target.value))}
+                                            className="h-2 w-full cursor-pointer appearance-none rounded-full accent-white"
+                                            style={{ background: `linear-gradient(90deg,#050505,${hslToHex(buttonColorHue,buttonColorSaturation,50)},#f7f7f7)` }}
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+                                  ) : buttonToolbarPanel === "size" ? (
+                                    <div className="space-y-1.5">
+                                      {buttonSizePresets.map((preset) => (
+                                        <button key={preset.value} type="button" onClick={()=>applyButtonSizePreset(preset.value)} className={`flex h-9 w-full items-center rounded-[10px] px-3 text-left text-[9px] font-semibold transition ${buttonSizePreset===preset.value?"bg-[#34373b] text-white":"bg-black/20 text-white/62 hover:bg-black/32 hover:text-white"}`}>
+                                          {preset.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : buttonToolbarPanel === "radius" ? (
+                                    <div className="space-y-3">
+                                      <div className="flex items-center justify-between rounded-[11px] bg-black/24 px-3 py-2">
+                                        <span className="text-[8px] text-white/48">Arredondamento</span>
+                                        <label className="flex h-7 w-[72px] items-center rounded-[8px] bg-white/[0.07] px-2">
+                                          <input type="number" min="0" max="999" value={contextControls.borderRadius} onChange={(event)=>applyButtonRadiusValue(Number(event.target.value))} className="w-full bg-transparent text-right text-[9px] font-semibold text-white outline-none"/>
+                                          <span className="ml-1 text-[7px] text-white/38">px</span>
+                                        </label>
+                                      </div>
+                                      <input type="range" min="0" max="80" value={Math.min(80, contextControls.borderRadius)} onChange={(event)=>applyButtonRadiusValue(Number(event.target.value))} className="h-1 w-full cursor-pointer accent-white"/>
+                                      <div className="grid grid-cols-4 gap-1.5">
+                                        {[0,8,20,999].map((radius)=>(
+                                          <button key={radius} type="button" onClick={()=>applyButtonRadiusValue(radius)} className={`h-8 rounded-[9px] bg-black/24 text-[8px] font-semibold transition hover:bg-black/38 ${contextControls.borderRadius===radius?"ring-1 ring-white/50":""}`}>{radius===999?"Pílula":radius}</button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : buttonToolbarPanel === "text" ? (
+                                    <div className="space-y-2">
+                                      <button type="button" onClick={startButtonTextEditing} className="flex h-9 w-full items-center justify-center gap-2 rounded-[10px] bg-[#34373b] text-[9px] font-semibold text-white transition hover:bg-[#3d4146]"><Pencil size={12}/>Editar texto diretamente</button>
+                                      <div className="flex items-center gap-2 text-[8px] text-white/48">
+                                        <span className="w-12">Tamanho</span>
+                                        <div className="flex h-8 flex-1 items-center justify-between rounded-full bg-black/28 px-1">
+                                          <button type="button" onClick={()=>applyTextSize(-1)} className="grid h-6 w-6 place-items-center rounded-full bg-white/[0.08]"><Minus size={11}/></button>
+                                          <span className="text-[8px] font-semibold text-white/72">{contextControls.fontSize}px</span>
+                                          <button type="button" onClick={()=>applyTextSize(1)} className="grid h-6 w-6 place-items-center rounded-full bg-white/[0.08]"><Plus size={11}/></button>
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-4 gap-1">
+                                        {textWeightOptions.map((option)=><button key={option.value} type="button" onClick={()=>applyTextWeight(option.value)} className={`h-8 rounded-[8px] text-[7px] transition ${contextControls.fontWeight===option.value?"bg-[#34373b] text-white":"bg-black/24 text-white/48"}`}>{option.value}</button>)}
+                                      </div>
+                                      <label className="relative flex h-9 cursor-pointer items-center gap-2 rounded-[10px] bg-black/24 px-3 text-[8px] text-white/55">
+                                        <span className="h-5 w-5 rounded-full ring-1 ring-white/20" style={{ backgroundColor: contextControls.color }}/>
+                                        Cor do texto
+                                        <span className="ml-auto text-white/70">{contextControls.color}</span>
+                                        <input type="color" value={colorToHex(contextControls.color)} onChange={(event)=>applyElementColor(event.target.value)} className="absolute opacity-0"/>
+                                      </label>
+                                    </div>
+                                  ) : buttonToolbarPanel === "icon" ? (
+                                    <div className="space-y-2">
+                                      <div className="grid grid-cols-5 gap-1.5">
+                                        {iconPickerOptions.map(({name,label,icon:PickerIcon})=>(
+                                          <button key={name} type="button" title={label} onClick={()=>applyButtonIconName(name)} className="grid h-9 place-items-center rounded-[9px] bg-black/24 text-white/65 transition hover:bg-white hover:text-black"><PickerIcon size={15}/></button>
+                                        ))}
+                                      </div>
+                                      <div className="flex items-center gap-2 text-[8px] text-white/48">
+                                        <span className="w-12">Tamanho</span>
+                                        <div className="flex h-8 flex-1 items-center justify-between rounded-full bg-black/28 px-1">
+                                          <button type="button" onClick={()=>applyButtonIconSize(-2)} className="grid h-6 w-6 place-items-center rounded-full bg-white/[0.08]"><Minus size={11}/></button>
+                                          <span className="text-[8px] font-semibold text-white/72">{selectedButtonIconSize}px</span>
+                                          <button type="button" onClick={()=>applyButtonIconSize(2)} className="grid h-6 w-6 place-items-center rounded-full bg-white/[0.08]"><Plus size={11}/></button>
+                                        </div>
+                                      </div>
+                                      <label className="relative flex h-9 cursor-pointer items-center gap-2 rounded-[10px] bg-black/24 px-3 text-[8px] text-white/55">
+                                        <span className="h-5 w-5 rounded-full ring-1 ring-white/20" style={{ backgroundColor: selectedButtonIconColor }}/>
+                                        Cor do ícone
+                                        <input type="color" value={colorToHex(selectedButtonIconColor, "#ffffff")} onChange={(event)=>applyButtonIconColor(event.target.value)} className="absolute opacity-0"/>
+                                      </label>
+                                      <button type="button" onClick={removeButtonIcon} className="flex h-9 w-full items-center justify-center gap-2 rounded-[10px] bg-red-500/10 text-[8px] font-semibold text-red-300 transition hover:bg-red-500/18"><Trash2 size={12}/>Remover ícone</button>
+                                    </div>
+                                  ) : null}
+                                </section>
+                              ) : null}
+
+                              {!isSelectedButton ? <section className="rounded-[15px] border border-[#292d31] bg-[#151719]/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <strong className="text-[9px] font-semibold text-white/86">
+                                    {isSelectedButton ? "Opções do botão" : selectedElement.type === "text" ? "Opções de texto" : isSelectedProductImage ? "Opções do produto" : selectedMediaKind === "logo" ? "Opções da logo" : selectedElement.type === "image" ? "Opções da imagem" : selectedElement.type === "icon" ? "Opções do ícone" : `Opções: ${selectedElement.label}`}
+                                  </strong>
+                                  <ChevronRight size={12} className="text-white/35" />
+                                </div>
+                                {isSelectedButton ? (
+                                  <div className="space-y-1.5">
+                                    {[
+                                      { label: "Texto", color: contextControls.color, onChange: applyElementColor },
+                                      { label: "Fundo", color: fillColor, onChange: applyElementBackground },
+                                      { label: "Hover", color: contextControls.hoverBackgroundColor, onChange: applyElementHoverBackground },
+                                    ].map((option) => (
+                                      <label key={option.label} className="flex h-8 items-center gap-2 text-[8px] text-white/48">
+                                        <span className="w-12">{option.label}</span>
+                                        <span className="relative flex h-7 flex-1 items-center gap-2 rounded-full bg-black/28 px-2.5 text-[8px] font-medium text-white/66">
+                                          <span className="h-4 w-4 rounded-full ring-1 ring-white/15" style={{ backgroundColor: option.color }} />
+                                          {option.color}
+                                          <input type="color" value={colorToHex(option.color, fillColor)} onChange={(event)=>option.onChange(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+                                        </span>
+                                      </label>
+                                    ))}
+                                    <div className="flex items-center gap-2 text-[8px] text-white/48">
+                                      <span className="w-12">Peso</span>
+                                      <button type="button" onClick={()=>setWeightMenuOpen(true)} className="h-7 flex-1 rounded-full bg-black/28 px-3 text-left text-white/70">{textWeightOptions.find((item)=>item.value===contextControls.fontWeight)?.label}</button>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[8px] text-white/48">
+                                      <span className="w-12">Tamanho</span>
+                                      <div className="flex h-7 flex-1 items-center justify-between rounded-full bg-black/28 px-1">
+                                        <button type="button" onClick={()=>applyTextSize(-1)} className="grid h-5 w-5 place-items-center rounded-full bg-white/[0.08]"><Minus size={10}/></button>
+                                        <span className="text-[8px] font-semibold text-white/72">{contextControls.fontSize}px</span>
+                                        <button type="button" onClick={()=>applyTextSize(1)} className="grid h-5 w-5 place-items-center rounded-full bg-white/[0.08]"><Plus size={10}/></button>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[8px] text-white/48">
+                                      <span className="w-12">Raio</span>
+                                      <div className="flex h-7 flex-1 items-center justify-between rounded-full bg-black/28 px-1">
+                                        <button type="button" onClick={()=>applyButtonRadius(-2)} className="grid h-5 w-5 place-items-center rounded-full bg-white/[0.08]"><Minus size={10}/></button>
+                                        <span className="text-[8px] font-semibold text-white/72">{contextControls.borderRadius}px</span>
+                                        <button type="button" onClick={()=>applyButtonRadius(2)} className="grid h-5 w-5 place-items-center rounded-full bg-white/[0.08]"><Plus size={10}/></button>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[8px] text-white/48">
+                                      <span className="w-12">Alinhar</span>
+                                      <div className="grid h-7 flex-1 grid-cols-3 rounded-full bg-black/28 p-0.5">
+                                        {([{value:"left" as const,icon:AlignLeft},{value:"center" as const,icon:AlignCenter},{value:"right" as const,icon:AlignRight}]).map(({value,icon:AlignIcon})=><button key={value} type="button" onClick={()=>applyTextAlign(value)} className={`grid place-items-center rounded-full ${contextControls.textAlign===value?"bg-[#34373b] text-white":"text-white/40"}`}><AlignIcon size={11}/></button>)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : selectedElement.type === "text" ? (
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2 text-[8px] text-white/48"><span className="w-12">Fonte</span><span className="flex h-7 flex-1 items-center justify-between rounded-full bg-black/28 px-3 text-white/70">{font}<ChevronDown size={10}/></span></div>
+                                    <div className="flex items-center gap-2 text-[8px] text-white/48"><span className="w-12">Peso</span><button type="button" onClick={()=>setWeightMenuOpen(true)} className="h-7 flex-1 rounded-full bg-black/28 px-3 text-left text-white/70">{textWeightOptions.find((item)=>item.value===contextControls.fontWeight)?.label}</button></div>
+                                    <div className="flex items-center gap-2 text-[8px] text-white/48">
+                                      <span className="w-12">Tamanho</span>
+                                      <div className="flex h-7 flex-1 items-center justify-between rounded-full bg-black/28 px-1">
+                                        <button type="button" onClick={()=>applyTextSize(-1)} className="grid h-5 w-5 place-items-center rounded-full bg-white/[0.08]"><Minus size={10}/></button>
+                                        <span className="text-[8px] font-semibold text-white/72">{contextControls.fontSize}px</span>
+                                        <button type="button" onClick={()=>applyTextSize(1)} className="grid h-5 w-5 place-items-center rounded-full bg-white/[0.08]"><Plus size={10}/></button>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[8px] text-white/48">
+                                      <span className="w-12">Alinhar</span>
+                                      <div className="grid h-7 flex-1 grid-cols-3 rounded-full bg-black/28 p-0.5">
+                                        {([{value:"left" as const,icon:AlignLeft},{value:"center" as const,icon:AlignCenter},{value:"right" as const,icon:AlignRight}]).map(({value,icon:AlignIcon})=><button key={value} type="button" onClick={()=>applyTextAlign(value)} className={`grid place-items-center rounded-full ${contextControls.textAlign===value?"bg-[#34373b] text-white":"text-white/40"}`}><AlignIcon size={11}/></button>)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : selectedElement.type === "image" ? (
+                                  <div className="space-y-2.5">
+                                    <div className="relative h-[92px] overflow-hidden rounded-[11px] border border-[#30353a] bg-[#090a0b]">
+                                      {selectedMediaSrc ? <img src={selectedMediaSrc} alt="" className="h-full w-full object-cover opacity-85" /> : null}
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
+                                      <span className="absolute bottom-2 left-2 text-[8px] font-semibold text-white/88">{isSelectedProductImage ? "Produto selecionado" : selectedMediaKind === "logo" ? "Logo selecionada" : selectedMediaKind === "banner" ? "Banner selecionado" : "Imagem selecionada"}</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={isSelectedProductImage ? openProductReplacementDrawer : selectedMediaKind === "logo" ? ()=>logoInput.current?.click() : ()=>contextMediaInput.current?.click()}
+                                      className="flex h-9 w-full items-center justify-center gap-2 rounded-[10px] bg-[#343a40] text-[8.5px] font-semibold text-white transition hover:bg-[#424950]"
+                                    >
+                                      {isSelectedProductImage ? <Package size={13}/> : selectedMediaKind === "logo" ? <Leaf size={13}/> : <ImageIcon size={13}/>}
+                                      {isSelectedProductImage ? "Substituir produto" : selectedMediaKind === "logo" ? "Substituir logo" : selectedMediaKind === "banner" ? "Substituir banner" : "Substituir imagem"}
+                                    </button>
+                                    {!isSelectedProductImage ? (
+                                      <>
+                                        <div className="grid grid-cols-4 gap-1">
+                                          {imageShapeOptions.map(({value,label,icon:ShapeIcon})=>(
+                                            <button key={value} type="button" onClick={()=>handleImageShapeChange(value)} title={label} className={`grid h-9 place-items-center rounded-[9px] border transition ${contextControls.imageShape===value?"border-[#656d75] bg-[#343a40] text-white":"border-[#292d31] bg-[#202327] text-white/52 hover:bg-[#292d31] hover:text-white"}`}><ShapeIcon size={13}/></button>
+                                          ))}
+                                        </div>
+                                        <button type="button" onClick={()=>setMediaModalOpen(true)} className="flex h-8 w-full items-center justify-center gap-2 rounded-[9px] border border-[#30353a] bg-[#111315] text-[8px] font-semibold text-white/72 transition hover:bg-[#202327] hover:text-white"><Settings size={12}/>Abrir ajustes avançados</button>
+                                      </>
+                                    ) : null}
+                                  </div>
+                                ) : selectedElement.type === "icon" ? (
+                                  <div className="flex h-8 items-center gap-2">
+                                    <button type="button" onClick={()=>setIconPickerOpen(true)} className="h-8 flex-1 rounded-full bg-black/28 text-[8px] font-semibold text-white/70">Trocar ícone</button>
+                                    <button type="button" onClick={()=>applyIconSize(-2)} className="grid h-8 w-8 place-items-center rounded-full bg-black/28"><Minus size={11}/></button>
+                                    <span className="text-[8px] font-semibold text-white/66">{contextControls.iconSize}px</span>
+                                    <button type="button" onClick={()=>applyIconSize(2)} className="grid h-8 w-8 place-items-center rounded-full bg-black/28"><Plus size={11}/></button>
+                                  </div>
+                                ) : (
+                                  <div className="flex gap-2">
+                                    <button type="button" onClick={duplicateSelectedElement} className="h-8 flex-1 rounded-full bg-black/28 text-[8px] font-semibold text-white/66">Duplicar</button>
+                                    <button type="button" onClick={deleteSelectedElement} className="grid h-8 w-8 place-items-center rounded-full bg-black/28 text-white/55"><Trash2 size={12}/></button>
+                                  </div>
+                                )}
+                              </section> : null}
+                            </div>
+                          ) : null}
+
+                          {!(isSelectedButton && buttonToolbarPanel) ? <section>
+                            <div className="mb-2 flex items-center justify-between">
+                              <strong className="text-[9px] font-semibold text-white/82">Básico</strong>
+                              <ChevronDown size={12} className="text-white/42" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {[
+                                { id: "image", label: "Imagem", icon: ImageIcon },
+                                { id: "logo", label: "Logo", icon: Leaf },
+                                { id: "button", label: "Botão", icon: RectangleHorizontal },
+                                { id: "file", label: "Arquivo", icon: FileUp },
+                              ].map(({ id, label, icon: ItemIcon }) => (
+                                <button key={id} type="button" onClick={()=>handleCreationLibraryAction(id)} className="group flex h-[58px] flex-col items-center justify-center gap-1 rounded-[11px] text-[7.5px] font-medium text-white/48 transition hover:bg-white/[0.07] hover:text-white">
+                                  <ItemIcon size={18} strokeWidth={1.65} className="text-white/70 transition group-hover:scale-105 group-hover:text-white" />
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </section> : null}
+
+                          {!(isSelectedButton && buttonToolbarPanel) ? <div className="my-3 h-px bg-white/[0.08]" /> : null}
+
+                          {!(isSelectedButton && buttonToolbarPanel) ? <section>
+                            <div className="mb-2 flex items-center justify-between">
+                              <strong className="text-[9px] font-semibold text-white/82">Tipografia</strong>
+                              <ChevronDown size={12} className="text-white/42" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {[
+                                { id: "title", label: "Título", icon: Type },
+                                { id: "text", label: "Texto", icon: AlignLeft },
+                                { id: "list", label: "Lista", icon: List },
+                                { id: "quote", label: "Citação", icon: Quote },
+                                { id: "link", label: "Link", icon: Link2 },
+                              ].map(({ id, label, icon: ItemIcon }) => (
+                                <button key={id} type="button" onClick={()=>handleCreationLibraryAction(id)} className="group flex h-[58px] flex-col items-center justify-center gap-1 rounded-[11px] text-[7.5px] font-medium text-white/48 transition hover:bg-white/[0.07] hover:text-white">
+                                  <ItemIcon size={18} strokeWidth={1.65} className="text-white/70 transition group-hover:scale-105 group-hover:text-white" />
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </section> : null}
+
+                          {!(isSelectedButton && buttonToolbarPanel) ? <div className="mt-3 space-y-1">
+                            <button type="button" onClick={openProductsDrawer} className="flex h-9 w-full items-center px-1 text-[9px] font-semibold text-white/74 transition hover:text-white"><span className="flex-1 text-left">Estrutura</span><ChevronRight size={13}/></button>
+                            <div className="h-px bg-white/[0.07]" />
+                            <button type="button" onClick={()=>handleCanvasToolbarClick("media")} className="flex h-9 w-full items-center px-1 text-[9px] font-semibold text-white/74 transition hover:text-white"><span className="flex-1 text-left">Mídia</span><ChevronRight size={13}/></button>
+                          </div> : null}
+                        </motion.div>
+                      ) : (
+                        <motion.div key="templates-panel" initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.18 }}>
+                          <div>
+                            <span className="text-[7px] font-semibold uppercase tracking-[0.18em] text-white/46">Biblioteca visual</span>
+                            <h2 className="mt-0.5 text-[14px] font-semibold tracking-[-0.02em]">Escolha seu template</h2>
+                            <p className="mt-0.5 text-[8.5px] text-white/52">Troque a estrutura em um toque.</p>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-2 rounded-[12px] border border-[#292d31] bg-black/40 p-1 backdrop-blur-lg">
+                            {(["loja", "produto"] as const).map((category) => (
+                              <button key={category} type="button" onClick={() => setTemplateCategory(category)} className={`h-7 rounded-[8px] text-[8px] font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-[#5f6469] ${templateCategory === category ? "bg-[#2b2e31] text-white shadow-sm" : "text-white/42 hover:text-white/74"}`}>
+                                {category === "loja" ? "Loja" : "Produto"}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="mt-2 grid grid-cols-2 gap-1.5">
+                            {templateOptions[templateCategory].map((template, index) => {
+                              const selected = activeTemplate.kind === templateCategory && activeTemplate.id === template.id;
+                              return (
+                                <motion.button
+                                  key={template.id}
+                                  type="button"
+                                  initial={{ opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: index * 0.035, duration: 0.18 }}
+                                  onClick={() => applyInlineTemplate(templateCategory, template)}
+                                  title={`Aplicar ${template.name}`}
+                                  className={`group relative aspect-[1/1.04] overflow-hidden rounded-[12px] bg-black/20 text-left shadow-[0_9px_22px_rgba(0,0,0,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_13px_28px_rgba(0,0,0,0.38)] ${selected ? "ring-2 ring-white" : "ring-1 ring-white/[0.14]"}`}
+                                >
+                                  <img src={template.image} alt="" className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
+                                  <span className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/95 to-transparent" />
+                                  <span className="absolute inset-x-2 bottom-1.5 text-[8px] font-semibold text-white">{template.name}</span>
+                                  {selected ? <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-black shadow"><Check size={10} /></span> : null}
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.section>
+
+          <div className="mt-auto shrink-0 rounded-[20px] border border-[#292d31]/80 bg-[rgba(4,6,8,0.62)] p-3.5 shadow-[0_22px_65px_rgba(0,0,0,0.48)] backdrop-blur-xl">
+            {editorPanelTab === "personalizar" ? (
+              <>
+                <button type="button" onClick={openProductsDrawer} className="group flex h-10 w-full items-center justify-center gap-2 rounded-full bg-white/[0.055] text-[9.5px] font-semibold text-white outline-none transition hover:bg-white/[0.10] focus-visible:ring-2 focus-visible:ring-[#666b70]">
+                  <Plus size={13} strokeWidth={2} />
+                  Adicionar produtos
+                </button>
+                <div className="my-3 h-px bg-[#292d31]" />
+                <button type="button" onClick={() => navigate("/catalogo")} className="group flex h-8 w-full items-center gap-2 rounded-[9px] px-2 text-left text-[9px] font-medium text-white/66 outline-none transition hover:bg-white/[0.06] hover:text-white">
+                  <LayoutGrid size={13} strokeWidth={1.8} />
+                  <span className="flex-1">Abrir catálogo completo</span>
+                  <ChevronRight size={12} className="transition group-hover:translate-x-0.5" />
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={openTemplateDrawer} className="group flex h-10 w-full items-center justify-center gap-1.5 rounded-full border-2 bg-[rgba(20,22,24,0.58)] text-[9.5px] font-semibold text-white outline-none transition hover:bg-[rgba(28,30,32,0.68)] focus-visible:ring-2 focus-visible:ring-[#666b70]" style={{ borderColor: "#60656a" }}>
+                Ver todos os templates
+                <ChevronRight size={12} className="transition group-hover:translate-x-0.5" />
+              </button>
+            )}
+          </div>
+          </div>
         </aside>
 
-        <div className="min-w-0 flex-1 overflow-auto bg-[#1f1f1d] p-3 sm:p-5">
-          <div ref={previewRef} onClick={handlePreviewClick} className={`store-editor-preview relative mx-auto min-h-full overflow-hidden rounded-[24px] bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.38)] ring-1 ring-black/10 transition-all ${mobilePreview?"max-w-[390px]":"max-w-[1488px]"} ${editMode?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: editMode==="fill"?"copy":editMode==="eraser"?"not-allowed":editMode?"pointer":"default" }}>
+        <div
+          className="absolute left-[330px] top-[130px] z-20 origin-top-left will-change-transform"
+          style={{
+            transform: `translate3d(${canvasOffset.x}px, ${canvasOffset.y}px, 0) scale(${canvasZoom})`,
+          }}
+        >
+          <div data-canvas-ui className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
+            <Monitor size={20} strokeWidth={1.8} />
+            Página principal · {mobilePreview ? "Mobile" : "Desktop"}
+            <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold tracking-normal text-white/55">Ao vivo</span>
+          </div>
+          <div ref={previewRef} onClickCapture={handlePreviewClick} onDoubleClickCapture={handlePreviewDoubleClick} className={`store-editor-preview relative overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.46)] transition-[width] duration-300 ${pageSelected ? "ring-2 ring-white ring-offset-4 ring-offset-[#222325]" : "ring-1 ring-white/[0.10]"} ${mobilePreview?"w-[390px]":"w-[1440px]"} ${editMode && canvasToolbarMode !== "pan"?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: canvasToolbarMode === "pan" ? (isCanvasDragging ? "grabbing" : "grab") : canvasToolbarMode === "appearance" ? "copy" : canvasToolbarMode === "edit" ? "text" : "default" }}>
             {activeTemplate.kind === "produto" ? (
               activeTemplate.id === "produto-2" ? (
                 <ProductTemplateBeauty
@@ -1070,6 +2769,7 @@ const GeneratedStoreEditorPage = () => {
                   price={featuredPrice}
                   originalPrice={featuredPrice * 1.25}
                   image={featuredProduct?.imageUrl || heroImage}
+                  productId={featuredProduct?.id}
                   accent={accent}
                   mobile={mobilePreview}
                 />
@@ -1081,6 +2781,7 @@ const GeneratedStoreEditorPage = () => {
                   price={featuredPrice}
                   originalPrice={featuredPrice * 1.34}
                   image={featuredProduct?.imageUrl || heroImage}
+                  productId={featuredProduct?.id}
                   accent={accent}
                   mobile={mobilePreview}
                 />
@@ -1092,6 +2793,7 @@ const GeneratedStoreEditorPage = () => {
                   price={featuredPrice}
                   originalPrice={featuredPrice * 1.5}
                   image={featuredProduct?.imageUrl || heroImage}
+                  productId={featuredProduct?.id}
                   accent={accent}
                   mobile={mobilePreview}
                 />
@@ -1100,11 +2802,11 @@ const GeneratedStoreEditorPage = () => {
             <>
             {/* === TEMPLATE 01 - C-STYLE INSPIRED === */}
             {/* Main header */}
-            <StorefrontNavbar storeName={brandName} activePage="store" className="relative z-30" />
+            <StorefrontNavbar storeName={brandName} logoImage={logoImage} activePage="store" className="relative z-30" />
 
             {/* HERO - imagem literal com overlays percentuais */}
-            <section className="relative overflow-hidden bg-[#062f4e] shadow-[0_14px_34px_rgba(6,42,67,0.2)]" style={{fontFamily:selectedFontStack}}>
-              <img data-editor-type="image" data-editor-id="hero-image" src={heroImage} alt="" aria-hidden="true" className="block h-auto w-full"/>
+            <section data-editor-type="other" data-editor-section="hero" data-editor-label="Seção hero" className="relative overflow-hidden bg-[#062f4e] shadow-[0_14px_34px_rgba(6,42,67,0.2)]" style={{fontFamily:selectedFontStack}}>
+              <img data-editor-type="image" data-editor-media-kind="banner" data-editor-id="hero-image" src={heroImage} alt="" aria-hidden="true" className="block h-auto w-full"/>
 
               <div className="absolute inset-0" aria-label={"Conte\u00fado do banner principal"}>
                 <div className="absolute z-20 overflow-hidden bg-white text-[#1f2933]" style={{ left: "3.12%", top: "0%", width: "19.45%", height: "100%" }}>
@@ -1145,7 +2847,7 @@ const GeneratedStoreEditorPage = () => {
                   <span data-editor-type="text" className="block font-semibold uppercase tracking-[0.08em] text-[#e8c878]" style={{ fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{categories[0] || "Novidades"}</span>
                   <h1 data-editor-type="text" className="mt-[2.8%] font-semibold leading-[1.06] tracking-[-0.012em] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.22)]" style={{ fontSize: "clamp(22px,2.55vw,44px)" }}>{headlinePrimary}<br/>{headlineSecondary}</h1>
                   <p data-editor-type="text" className="mt-[3.4%] truncate font-normal leading-none text-white/72" style={{ fontSize: "clamp(8px,0.86vw,13.5px)" }}>{heroSubtitle}</p>
-                  <a href={heroCtaHref} className="mt-[5%] inline-flex items-center justify-center whitespace-nowrap rounded-[4px] bg-[#f6ead2] font-semibold text-[#102434] shadow-[0_7px_18px_rgba(0,0,0,0.15)] transition hover:-translate-y-0.5 hover:bg-white" style={{ minWidth: "36%", height: "clamp(26px,2.65vw,44px)", paddingInline: "5.5%", gap: "0.45rem", fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{ctaPrimary || "Comprar agora"}<ChevronLeft aria-hidden="true" size={10} strokeWidth={2} className="rotate-180"/></a>
+                  <a data-editor-role="button" href={heroCtaHref} className="mt-[5%] inline-flex items-center justify-center whitespace-nowrap rounded-[4px] bg-[#f6ead2] font-semibold text-[#102434] shadow-[0_7px_18px_rgba(0,0,0,0.15)] transition hover:-translate-y-0.5 hover:bg-white" style={{ minWidth: "36%", height: "clamp(26px,2.65vw,44px)", paddingInline: "5.5%", gap: "0.45rem", fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{ctaPrimary || "Comprar agora"}<ChevronLeft aria-hidden="true" size={10} strokeWidth={2} className="rotate-180"/></a>
                 </div>
 
                 <div className="absolute z-20 flex items-center gap-[1.2%]" style={{ left: "39.9%", top: "94.1%", width: "8.8%", height: "2.8%" }} aria-label="Carrossel do banner">
@@ -1155,8 +2857,9 @@ const GeneratedStoreEditorPage = () => {
                 </div>
               </div>
             </section>
+            {renderCustomSectionsAfter("hero")}
             {/* BROWSE BY CATEGORY */}
-            <section className="px-6 pb-7 pt-5">
+            <section data-editor-type="other" data-editor-section="categories" data-editor-label="Seção de categorias" className="px-6 pb-7 pt-5">
               <div className="mb-4 text-center">
                 <h2 className="text-[15px] font-semibold leading-none tracking-normal">Navegue por categorias</h2>
                 <p className="mt-1 text-[9px] leading-none text-black/50">{"Explore cole\u00e7\u00f5es selecionadas para cada parte da sua rotina."}</p>
@@ -1175,9 +2878,10 @@ const GeneratedStoreEditorPage = () => {
                 <button type="button" aria-label="Ver mais categorias" className="absolute right-0 top-[28px] flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black shadow-[0_4px_14px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5"><ChevronLeft size={14} className="rotate-180"/></button>
               </div>
             </section>
+            {renderCustomSectionsAfter("categories")}
 
             {/* TRENDING PRODUCTS */}
-            <section className="px-6 pb-8 pt-1">
+            <section data-editor-type="other" data-editor-section="body" data-editor-label="Seção de produtos" className="px-6 pb-8 pt-1">
               <div className="mb-4 flex items-end justify-between">
                 <div>
                   <h2 className="text-[16px] font-semibold leading-none tracking-normal">Produtos em alta <span className="text-[#f5b800]">{"\u26a1"}</span></h2>
@@ -1194,7 +2898,7 @@ const GeneratedStoreEditorPage = () => {
                   return (
                     <article key={product.id} className="group min-w-0">
                       <div className="relative aspect-[1/1.04] overflow-hidden rounded-[16px] bg-white">
-                        <img data-editor-type="image" src={product.imageUrl||heroImage} alt={product.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
+                        <img data-editor-type="image" data-editor-product="true" data-editor-product-id={product.id} src={product.imageUrl||heroImage} alt={product.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
                         <button type="button" aria-label={`Favoritar ${product.title}`} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-black/70 shadow-sm transition hover:text-black"><Heart data-editor-type="icon" data-editor-icon="Heart" size={12} strokeWidth={1.5}/></button>
                       </div>
                       {ratingLabel ? <div className="mt-2 flex items-center gap-1 text-[8.5px] font-semibold text-black/45"><Star data-editor-type="icon" data-editor-icon="Star" size={10} strokeWidth={1.8} className="fill-[#f5b800] text-[#f5b800]"/><span data-editor-type="text">{ratingLabel}</span></div> : null}
@@ -1208,8 +2912,9 @@ const GeneratedStoreEditorPage = () => {
                 })}
               </div>
             </section>
+            {renderCustomSectionsAfter("body")}
             {/* PROMO BANDS */}
-            <section className="grid grid-cols-1 gap-4 px-8 py-10 md:grid-cols-2">
+            <section data-editor-type="other" data-editor-section="promotions" data-editor-label="Seção promocional" className="grid grid-cols-1 gap-4 px-8 py-10 md:grid-cols-2">
               <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-black text-white">
                 <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
                   <div>
@@ -1219,7 +2924,7 @@ const GeneratedStoreEditorPage = () => {
                   </div>
                   <button className="mt-4 w-fit rounded-full bg-white px-4 py-1.5 text-[9.5px] font-medium text-black">Ver ofertas</button>
                 </div>
-                <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" src={displayedProducts[1%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
+                <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" data-editor-product="true" data-editor-product-id={displayedProducts[1%displayedProducts.length]?.id} src={displayedProducts[1%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
               </div>
               <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-[#eeece7]">
                 <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
@@ -1230,12 +2935,13 @@ const GeneratedStoreEditorPage = () => {
                   </div>
                   <button className="mt-4 w-fit rounded-full bg-black px-4 py-1.5 text-[9.5px] font-medium text-white">Conhecer novidades</button>
                 </div>
-                <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" src={displayedProducts[2%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
+                <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" data-editor-product="true" data-editor-product-id={displayedProducts[2%displayedProducts.length]?.id} src={displayedProducts[2%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
               </div>
             </section>
+            {renderCustomSectionsAfter("promotions")}
 
             {/* FEATURED COLLECTIONS */}
-            <section className="px-8 pb-6 pt-10">
+            <section data-editor-type="other" data-editor-section="collections" data-editor-label="Seção de coleções" className="px-8 pb-6 pt-10">
               <div className="mb-5 flex items-end justify-between gap-4">
                 <div>
                   <h2 className="text-[15px] font-semibold leading-none tracking-normal text-black">{"Cole\u00e7\u00f5es em destaque"}</h2>
@@ -1259,8 +2965,9 @@ const GeneratedStoreEditorPage = () => {
                 ))}
               </div>
             </section>
+            {renderCustomSectionsAfter("collections")}
 
-            <section aria-label="Benef\u00edcios da loja" className="mx-8 mb-8 overflow-hidden rounded-[10px] bg-[#06263b] text-white shadow-[0_14px_30px_rgba(2,20,32,0.14)]">
+            <section data-editor-type="other" data-editor-section="end" data-editor-label="Seção final" aria-label="Benef\u00edcios da loja" className="mx-8 mb-8 overflow-hidden rounded-[10px] bg-[#06263b] text-white shadow-[0_14px_30px_rgba(2,20,32,0.14)]">
               <div className={`grid ${mobilePreview ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"}`}>
                 {trustBadges.map(({title,description,icon: Icon},index)=>(
                   <div key={title} className={`flex min-h-[64px] items-center gap-3 px-5 py-4 ${index > 0 ? "md:border-l md:border-white/10" : ""} ${index > 1 ? "border-t border-white/10 md:border-t-0" : ""}`}>
@@ -1273,21 +2980,43 @@ const GeneratedStoreEditorPage = () => {
                 ))}
               </div>
             </section>
+            {renderCustomSectionsAfter("end")}
 
             <footer className="border-t border-black/10 bg-[#f5f4f2] px-8 py-7 text-center text-[10px] tracking-[0.12em] text-black/45">{"\u00a9"} {new Date().getFullYear()} {brandName} {"\u00b7"} Todos os direitos reservados</footer>
             </>
             )}
 
           </div>
+        </div>
 
-          {selectedElement?.type === "image" ? (
+          {selectedSectionAnchor && activeTemplate.kind === "loja" ? (
+            <button
+              data-editor-ignore
+              data-canvas-ui
+              type="button"
+              onPointerDown={(event)=>event.stopPropagation()}
+              onClick={addSectionAfterSelected}
+              className="fixed z-[58] flex h-11 items-center gap-2 rounded-full border border-[#5b6167] bg-[#111315] px-5 text-[13px] font-semibold text-white shadow-[0_18px_50px_rgba(0,0,0,0.38)] transition hover:-translate-y-0.5 hover:border-[#858c93] hover:bg-[#1b1e21]"
+              style={{
+                left: addSectionButtonLeft,
+                top: addSectionButtonTop,
+                transform: `translate(-50%, -50%) scale(${Math.max(0.72, selectedToolbarScale)})`,
+                transformOrigin: "center",
+              }}
+            >
+              <Plus size={16} strokeWidth={2.1}/>
+              Adicionar uma seção
+            </button>
+          ) : null}
+
+          {selectedElement?.type === "image" && !mediaModalOpen ? (
             <div
               data-editor-ignore
               className="fixed z-50 flex flex-col items-center gap-2 rounded-full bg-[#090909] p-2 text-white shadow-[0_22px_55px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
-              style={{ top: selectedToolbarTop, left: selectedToolbarLeft }}
+              style={selectedToolbarStyle}
             >
-              <button type="button" onClick={()=>setMediaModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/12" aria-label="Editar imagem">
-                <Pencil size={22} strokeWidth={2.1} />
+              <button type="button" onClick={isSelectedProductImage ? openProductReplacementDrawer : ()=>setMediaModalOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/12" aria-label={isSelectedProductImage ? "Substituir produto" : "Editar imagem"}>
+                {isSelectedProductImage ? <Package size={22} strokeWidth={2.1}/> : <Pencil size={22} strokeWidth={2.1} />}
               </button>
               <button type="button" onClick={duplicateSelectedElement} className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/12" aria-label="Duplicar imagem">
                 <Copy size={22} strokeWidth={2.1} />
@@ -1302,7 +3031,7 @@ const GeneratedStoreEditorPage = () => {
             <div
               data-editor-ignore
               className="fixed z-50 flex min-h-[62px] items-center gap-3 rounded-[18px] bg-[#101010] px-4 py-2.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
-              style={{ top: selectedToolbarTop, left: selectedToolbarLeft }}
+              style={selectedToolbarStyle}
             >
               <div className="relative">
                 <button type="button" onClick={()=>setIconPickerOpen((open)=>!open)} className="inline-flex h-11 items-center gap-2 rounded-full px-2.5 text-[18px] font-semibold transition hover:bg-white/10">
@@ -1329,7 +3058,7 @@ const GeneratedStoreEditorPage = () => {
               <label className="relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-full px-2.5 text-[18px] font-semibold transition hover:bg-white/10">
                 <span className="h-8 w-8 rounded-full ring-1 ring-white/25" style={{ backgroundColor: contextControls.color }} />
                 Cor
-                <input type="color" value={contextControls.color.startsWith("rgb") ? fillColor : contextControls.color} onChange={(event)=>applyElementColor(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+                <input type="color" value={colorToHex(contextControls.color)} onChange={(event)=>applyElementColor(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
               </label>
               <span className="h-8 w-px bg-white/12" />
               <button type="button" onClick={deleteSelectedElement} className="flex h-11 w-11 items-center justify-center rounded-full text-white/65 transition hover:bg-white/10 hover:text-white" aria-label="Excluir ícone"><Trash2 size={22}/></button>
@@ -1337,11 +3066,47 @@ const GeneratedStoreEditorPage = () => {
             </div>
           ) : null}
 
-          {selectedElement?.type === "text" ? (
+          {isSelectedButton ? (
+            <div
+              data-editor-ignore
+              data-canvas-ui
+              className="fixed z-50 flex h-[52px] items-center rounded-[14px] bg-[#101010] px-2 text-white shadow-[0_24px_70px_rgba(0,0,0,0.42)] ring-1 ring-white/12"
+              style={selectedToolbarStyle}
+            >
+              <button type="button" onClick={()=>toggleButtonToolbarPanel("style")} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="style"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
+                <Palette size={18} strokeWidth={2} />
+                Estilo
+              </button>
+              <span className="mx-1 h-8 w-px bg-white/12" />
+              <button type="button" onClick={()=>toggleButtonToolbarPanel("size")} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="size"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
+                <Plus size={18} strokeWidth={2} />
+                Tamanho
+              </button>
+              <span className="mx-1 h-8 w-px bg-white/12" />
+              <button type="button" onClick={()=>toggleButtonToolbarPanel("radius")} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="radius"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
+                <span aria-hidden="true" className="h-[18px] w-[18px] rounded-bl-[15px] border-b-2 border-l-2 border-white" />
+                Raio
+              </button>
+              <span className="mx-1 h-8 w-px bg-white/12" />
+              <button type="button" onClick={()=>toggleButtonToolbarPanel("text")} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="text"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
+                <Type size={18} strokeWidth={2} />
+                Texto
+              </button>
+              <span className="mx-1 h-8 w-px bg-white/12" />
+              <button type="button" onClick={selectButtonIcon} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="icon"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
+                <Sparkles size={18} strokeWidth={2} />
+                Ícone
+              </button>
+              <span className="mx-1 h-8 w-px bg-white/12" />
+              <button type="button" onClick={clearSelection} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] text-white/62 transition hover:bg-white/[0.14] hover:text-white" aria-label="Fechar toolbar"><X size={19}/></button>
+            </div>
+          ) : null}
+
+          {selectedElement?.type === "text" && !isSelectedButton ? (
             <div
               data-editor-ignore
               className="fixed z-50 flex min-h-[62px] items-center gap-3 rounded-[18px] bg-[#101010] px-4 py-2.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
-              style={{ top: selectedToolbarTop, left: selectedToolbarLeft }}
+              style={selectedToolbarStyle}
             >
               <button type="button" onClick={()=>handleAiPlaceholder("Reescrever texto com IA")} className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-[18px] font-semibold transition hover:bg-white/16">
                 <Sparkles size={22} />
@@ -1382,8 +3147,34 @@ const GeneratedStoreEditorPage = () => {
               </div>
               <label className="relative h-11 w-11 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/20">
                 <span className="absolute inset-2 rounded-full" style={{ backgroundColor: contextControls.color }} />
-                <input type="color" value={contextControls.color.startsWith("rgb") ? fillColor : contextControls.color} onChange={(event)=>applyElementColor(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+                <input type="color" value={colorToHex(contextControls.color)} onChange={(event)=>applyElementColor(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
               </label>
+              <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/75 transition hover:bg-white/18 hover:text-white" aria-label="Fechar toolbar"><X size={23}/></button>
+            </div>
+          ) : null}
+
+          {selectedElement?.type === "other" && !isSelectedButton ? (
+            <div
+              data-editor-ignore
+              className="fixed z-50 flex min-h-[62px] items-center gap-3 rounded-[18px] bg-[#101010] px-4 py-2.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
+              style={selectedToolbarStyle}
+            >
+              <div className="inline-flex h-11 items-center gap-2 rounded-full px-3 text-[18px] font-semibold">
+                <LayoutGrid size={21} strokeWidth={1.8} />
+                {selectedElement.label}
+              </div>
+              <span className="h-8 w-px bg-white/12" />
+              <label className="relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-full px-3 text-[17px] font-semibold transition hover:bg-white/10">
+                <span className="h-8 w-8 rounded-full ring-1 ring-white/25" style={{ backgroundColor: fillColor }} />
+                Fundo
+                <input type="color" value={fillColor} onChange={(event)=>applyElementBackground(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
+              </label>
+              <span className="h-8 w-px bg-white/12" />
+              <button type="button" onClick={duplicateSelectedElement} className="flex h-11 items-center gap-2 rounded-full px-3 text-[16px] font-semibold text-white/78 transition hover:bg-white/10 hover:text-white" aria-label="Duplicar elemento">
+                <Copy size={20} />
+                Duplicar
+              </button>
+              <button type="button" onClick={deleteSelectedElement} className="flex h-11 w-11 items-center justify-center rounded-full text-white/62 transition hover:bg-white/10 hover:text-white" aria-label="Excluir elemento"><Trash2 size={21}/></button>
               <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/75 transition hover:bg-white/18 hover:text-white" aria-label="Fechar toolbar"><X size={23}/></button>
             </div>
           ) : null}
@@ -1395,9 +3186,17 @@ const GeneratedStoreEditorPage = () => {
             </div>
           ) : null}
 
-          <div data-editor-ignore className={`pointer-events-none sticky z-30 mt-4 flex w-full gap-3 ${toolbarOrientation === "vertical" ? "bottom-6 justify-end pr-4" : "bottom-4 flex-col items-center"}`}>
+          <div data-canvas-ui className="absolute bottom-5 right-5 z-40 flex items-center gap-1 rounded-full border border-white/[0.10] bg-[#17181a]/92 p-1 text-white/62 shadow-[0_18px_54px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+            <button type="button" onClick={() => changeCanvasZoom(-0.08)} className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.09] hover:text-white" aria-label="Diminuir zoom"><Minus size={14} /></button>
+            <button type="button" onClick={resetCanvasView} className="h-8 min-w-[54px] rounded-full px-2 text-[9px] font-semibold tabular-nums transition hover:bg-white/[0.09] hover:text-white" aria-label="Restaurar visualização">{Math.round(canvasZoom * 100)}%</button>
+            <button type="button" onClick={() => changeCanvasZoom(0.08)} className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.09] hover:text-white" aria-label="Aumentar zoom"><Plus size={14} /></button>
+            <span className="mx-1 h-4 w-px bg-white/[0.10]" />
+            <button type="button" onClick={resetCanvasView} className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.09] hover:text-white" aria-label="Centralizar página"><RefreshCcw size={13} /></button>
+          </div>
+
+          <div data-editor-ignore data-canvas-ui className="pointer-events-none fixed right-5 top-1/2 z-50 flex -translate-y-1/2 flex-row items-center gap-3">
             {editMode === "fill" && selectedPath && fillPickerOpen ? (
-              <div className={`pointer-events-auto rounded-[18px] bg-[#101010] p-3 text-white shadow-[0_16px_42px_rgba(0,0,0,0.28)] ${toolbarOrientation === "vertical" ? "mr-2 self-center" : "mb-1"}`}>
+              <div className="pointer-events-auto mr-1 rounded-[16px] border border-white/[0.10] bg-[#17181a]/95 p-3 text-white shadow-[0_20px_60px_rgba(0,0,0,0.40)] backdrop-blur-xl">
                 <div className="mb-2 flex items-center justify-between gap-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
                   <span>Cor de destaque</span>
                   <span className="h-4 w-4 rounded-full ring-1 ring-white/30" style={{ backgroundColor: fillColor }} />
@@ -1413,19 +3212,17 @@ const GeneratedStoreEditorPage = () => {
                 </div>
               </div>
             ) : null}
-            <div className={`pointer-events-auto flex items-center gap-1 rounded-full bg-[#101010] p-1.5 text-white shadow-[0_18px_44px_rgba(0,0,0,0.26)] ring-1 ring-white/10 ${toolbarOrientation === "vertical" ? "flex-col" : "flex-row"}`}>
-              {toolbarTools.map((tool)=>{
+            <div className="pointer-events-auto flex flex-col items-center gap-1 rounded-full border border-[#34383c]/90 bg-[rgba(7,9,11,0.80)] p-1.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.46)] backdrop-blur-xl">
+              {canvasToolbarItems.map((tool)=>{
                 const Icon = tool.icon;
-                const isActive = editMode === tool.id;
+                const isActive = canvasToolbarMode === tool.id;
                 return (
-                  <button key={tool.id} type="button" onClick={()=>handleToolbarToolClick(tool.id)} aria-label={tool.label} className={`relative flex h-10 w-10 items-center justify-center rounded-full transition ${isActive?"bg-white text-black shadow-[0_5px_16px_rgba(255,255,255,0.22)]":"text-white hover:bg-white/10"}`}>
-                    <Icon size={21} strokeWidth={2.2} />
-                    {isActive ? (
-                      <span className={`pointer-events-none absolute rounded-full bg-[#101010] px-3 py-1 text-[11px] font-semibold leading-none text-white shadow-[0_8px_22px_rgba(0,0,0,0.22)] ${toolbarOrientation === "vertical" ? "right-[calc(100%+10px)] top-1/2 -translate-y-1/2" : "left-1/2 top-[calc(100%+9px)] -translate-x-1/2"}`}>
-                        {activeToolbarTool?.label}
-                      </span>
-                    ) : null}
-                  </button>
+                  <div key={tool.id} className="contents">
+                    {tool.dividerBefore ? <span className="my-1 h-px w-7 bg-[#3a3e42]" /> : null}
+                    <button type="button" onClick={()=>handleCanvasToolbarClick(tool.id)} aria-label={tool.label} title={tool.label} className={`relative flex h-10 w-10 items-center justify-center rounded-full transition duration-200 ${isActive?"bg-[#f5f5f3] text-[#111214] shadow-[0_6px_20px_rgba(255,255,255,0.16)]":"text-white/88 hover:bg-white/[0.08] hover:text-white"}`}>
+                      <Icon size={20} strokeWidth={1.9} />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -1433,65 +3230,135 @@ const GeneratedStoreEditorPage = () => {
 
 
         </div>
-      </div>
 
-      {mediaModalOpen && selectedElement?.type === "image" ? (
-        <div
-          data-editor-ignore
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
-          onMouseDown={(event)=>{if(event.target===event.currentTarget)setMediaModalOpen(false)}}
-        >
-          <section className="w-full max-w-[560px] overflow-hidden rounded-[20px] border border-white/12 bg-[#101010] text-white shadow-[0_35px_120px_rgba(0,0,0,0.65)]">
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-              <div>
-                <h2 className="text-[17px] font-semibold">Escolher mídia</h2>
-                <p className="mt-1 text-[11px] text-white/45">Troque a imagem e ajuste o formato direto no preview.</p>
-              </div>
-              <button type="button" onClick={()=>setMediaModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/8 text-white/70 transition hover:bg-white/14 hover:text-white" aria-label="Fechar mídia">
+      <AnimatePresence>
+        {mediaModalOpen && selectedElement?.type === "image" && !isSelectedProductImage ? (
+          <motion.section
+            data-editor-ignore
+            role="dialog"
+            aria-label="Ferramentas da imagem"
+            initial={{ opacity: 0, scale: selectedToolbarScale * 0.96, y: 10 }}
+            animate={{ opacity: 1, scale: selectedToolbarScale, y: 0 }}
+            exit={{ opacity: 0, scale: selectedToolbarScale * 0.97, y: 8 }}
+            transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+            className="fixed z-[70] max-h-[calc(100vh-32px)] overflow-y-auto rounded-[20px] border border-[#34383d] p-4 text-white shadow-[0_30px_100px_rgba(0,0,0,0.68)] backdrop-blur-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ top: selectedImagePanelTop, left: selectedImagePanelLeft, width: selectedImagePanelWidth, transformOrigin: "top left", background: "rgba(8,10,12,0.97)", color: "#ffffff" }}
+          >
+            <div className="relative overflow-hidden rounded-[14px] bg-black">
+              {selectedMediaSrc ? (
+                <img
+                  src={selectedMediaSrc}
+                  alt=""
+                  className="h-[210px] w-full object-cover opacity-90"
+                  style={{
+                    aspectRatio: contextControls.imageShape === "wide" ? "16 / 9" : contextControls.imageShape === "auto" ? undefined : "1 / 1",
+                    borderRadius: contextControls.imageShape === "circle" ? 999 : undefined,
+                  }}
+                />
+              ) : (
+                <div className="grid h-[210px] place-items-center text-[13px] text-white/45">Nenhuma imagem selecionada</div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
+              <button type="button" onClick={()=>contextMediaInput.current?.click()} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[12px] bg-black/78 px-5 py-3 text-[15px] font-semibold text-white shadow-[0_12px_32px_rgba(0,0,0,0.34)] transition hover:bg-black/92">
+                Escolher mídia
+              </button>
+              <button type="button" onClick={()=>setMediaModalOpen(false)} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/65 text-white/72 backdrop-blur-md transition hover:bg-black/85 hover:text-white" aria-label="Fechar mídia">
                 <X size={18} />
               </button>
             </div>
-            <div className="p-5">
-              <div className="relative overflow-hidden rounded-[14px] border border-white/10 bg-black">
-                {selectedMediaSrc ? (
-                  <img
-                    src={selectedMediaSrc}
-                    alt=""
-                    className="h-[260px] w-full object-cover"
-                    style={{
-                      aspectRatio: contextControls.imageShape === "wide" ? "16 / 9" : contextControls.imageShape === "auto" ? undefined : "1 / 1",
-                      borderRadius: contextControls.imageShape === "circle" ? 999 : undefined,
-                    }}
-                  />
-                ) : (
-                  <div className="grid h-[260px] place-items-center text-[13px] text-white/45">Nenhuma imagem selecionada</div>
-                )}
-                <button type="button" onClick={()=>contextMediaInput.current?.click()} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[10px] bg-black/72 px-5 py-3 text-[14px] font-semibold text-white shadow-[0_10px_30px_rgba(0,0,0,0.28)] transition hover:bg-black/86">
-                  Escolher mídia
-                </button>
-              </div>
-              <button type="button" onClick={()=>handleAiPlaceholder("Editar imagem com IA")} className="mt-4 flex h-14 w-full items-center justify-center gap-3 rounded-[12px] bg-white/[0.12] text-[18px] font-semibold transition hover:bg-white/[0.18]">
-                <Sparkles size={22} />
-                Editar com IA
-              </button>
-              <div className="mt-4 rounded-[13px] bg-white/[0.055] p-2">
-                <div className="grid grid-cols-4 gap-2">
-                  {imageShapeOptions.map(({ value, label, icon: ShapeIcon }) => (
-                    <button key={value} type="button" onClick={()=>handleImageShapeChange(value)} className={`flex h-12 items-center justify-center gap-2 rounded-[10px] text-[11px] font-semibold transition ${contextControls.imageShape===value?"bg-white text-black":"text-white/58 hover:bg-white/10 hover:text-white"}`}>
-                      <ShapeIcon size={17} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <button type="button" onClick={()=>setMediaModalOpen(false)} className="mt-5 h-11 w-full rounded-[11px] bg-white text-[13px] font-semibold text-black transition hover:bg-white/90">
-                Aplicar
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
 
+            <button type="button" onClick={()=>handleAiPlaceholder("Editar imagem com IA")} className="mt-3 flex h-14 w-full items-center justify-center gap-3 rounded-[12px] border border-[#34383d] bg-[#24282c] text-[18px] font-semibold text-white transition hover:bg-[#30353a]">
+              <Sparkles size={22} />
+              Editar com IA
+            </button>
+
+            <div className="mt-3 grid grid-cols-4 rounded-[13px] border border-[#292d31] bg-[#111315] p-1.5">
+              {imageShapeOptions.map(({ value, label, icon: ShapeIcon }) => (
+                <button key={value} type="button" onClick={()=>handleImageShapeChange(value)} title={label} className={`flex h-12 flex-col items-center justify-center gap-1 rounded-[10px] text-[9px] font-semibold transition ${contextControls.imageShape===value?"bg-[#3a4046] text-white shadow-sm":"text-white/52 hover:bg-[#272b2f] hover:text-white"}`}>
+                  <ShapeIcon size={18} />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
+              <span className="flex-1 text-[15px] font-semibold text-white/72">Avançado</span>
+              <button type="button" onClick={duplicateSelectedElement} className="flex h-10 w-10 items-center justify-center rounded-full text-white/58 transition hover:bg-white/10 hover:text-white" aria-label="Duplicar imagem"><Copy size={19}/></button>
+              <button type="button" onClick={deleteSelectedElement} className="flex h-10 w-10 items-center justify-center rounded-full text-white/58 transition hover:bg-white/10 hover:text-white" aria-label="Excluir imagem"><Trash2 size={19}/></button>
+              <ChevronDown size={19} className="text-white/48" />
+            </div>
+          </motion.section>
+        ) : null}
+      </AnimatePresence>
+
+
+      <AnimatePresence>
+        {renameOpen ? (
+          <motion.div
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onMouseDown={(event) => { if (event.target === event.currentTarget) setRenameOpen(false); }}
+          >
+            <motion.section
+              role="dialog" aria-modal="true"
+              initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.19, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full max-w-[380px] rounded-[20px] border border-white/[0.08] bg-[#1c1d1f] p-6 text-white shadow-[0_28px_80px_rgba(0,0,0,0.6)]"
+            >
+              <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Renomear projeto</h2>
+              <p className="mt-1 text-[12px] text-white/45">Escolha um novo nome para este projeto.</p>
+              <input
+                autoFocus
+                value={renameValue}
+                onChange={(event) => setRenameValue(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter") void handleConfirmRename(); }}
+                className="mt-4 h-11 w-full rounded-[12px] border border-white/[0.1] bg-black/30 px-4 text-[14px] text-white outline-none transition focus:border-[#3567e9]"
+                placeholder="Nome do projeto"
+              />
+              <div className="mt-5 flex justify-end gap-2">
+                <button type="button" onClick={() => setRenameOpen(false)} className="h-10 rounded-[11px] px-4 text-[13px] font-medium text-white/60 transition hover:bg-white/[0.07] hover:text-white">Cancelar</button>
+                <button type="button" disabled={menuBusy || !renameValue.trim()} onClick={() => void handleConfirmRename()} className="h-10 rounded-[11px] bg-[#3567e9] px-5 text-[13px] font-semibold text-white transition hover:bg-[#4272ee] disabled:opacity-45">Salvar</button>
+              </div>
+            </motion.section>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {confirmDeleteOpen ? (
+          <motion.div
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmDeleteOpen(false); }}
+          >
+            <motion.section
+              role="dialog" aria-modal="true"
+              initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.19, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full max-w-[380px] rounded-[20px] border border-white/[0.08] bg-[#1c1d1f] p-6 text-white shadow-[0_28px_80px_rgba(0,0,0,0.6)]"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#ff6a6a]/[0.14] text-[#ff6a6a]"><Trash2 size={19} /></div>
+              <h2 className="mt-4 text-[16px] font-semibold tracking-[-0.02em]">Excluir projeto</h2>
+              <p className="mt-1 text-[12px] leading-relaxed text-white/45">Tem certeza que deseja excluir <strong className="text-white/75">{projectTitle}</strong>? Essa ação não pode ser desfeita.</p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button type="button" onClick={() => setConfirmDeleteOpen(false)} className="h-10 rounded-[11px] px-4 text-[13px] font-medium text-white/60 transition hover:bg-white/[0.07] hover:text-white">Cancelar</button>
+                <button type="button" disabled={menuBusy} onClick={() => void handleDeleteProject()} className="h-10 rounded-[11px] bg-[#ff6a6a] px-5 text-[13px] font-semibold text-white transition hover:bg-[#ff7d7d] disabled:opacity-45">Excluir</button>
+              </div>
+            </motion.section>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <ProjectSettingsOverlay
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        project={currentProject}
+        initialSection={settingsSection}
+        onProjectChange={setCurrentProject}
+        onNameChange={setStoreName}
+      />
 
       {showPlans ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onMouseDown={(event)=>{if(event.target===event.currentTarget)setShowPlans(false)}}>
@@ -1524,7 +3391,10 @@ const GeneratedStoreEditorPage = () => {
         <div
           className="fixed inset-0 z-[55] bg-black/35 backdrop-blur-[1px]"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setContextDrawer(null);
+            if (event.target === event.currentTarget) {
+              setContextDrawer(null);
+              setReplacingProductPath(null);
+            }
           }}
         >
           <aside
@@ -1537,15 +3407,18 @@ const GeneratedStoreEditorPage = () => {
             <header className="flex min-h-[68px] items-center justify-between border-b border-[#27272A] px-5">
               <div className="min-w-0">
                 <h2 id="editor-drawer-title" className="truncate text-[16px] font-semibold">
-                  {contextDrawer === "template" ? "Trocar template" : "Adicionar produtos"}
+                  {contextDrawer === "template" ? "Trocar template" : replacingProductPath ? "Substituir produto" : "Adicionar produtos"}
                 </h2>
                 <p className="mt-1 truncate text-[11px] text-white/40">
-                  {contextDrawer === "template" ? "Escolha uma base visual para a loja." : "Selecione produtos do catálogo Velo."}
+                  {contextDrawer === "template" ? "Escolha uma base visual para a loja." : replacingProductPath ? "Escolha o novo produto para este espaço." : "Selecione produtos do catálogo Velo."}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setContextDrawer(null)}
+                onClick={() => {
+                  setContextDrawer(null);
+                  setReplacingProductPath(null);
+                }}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-white/55 transition hover:bg-white/[0.08] hover:text-white"
                 aria-label="Fechar painel"
               >
@@ -1610,50 +3483,167 @@ const GeneratedStoreEditorPage = () => {
               ) : null}
 
               {contextDrawer === "products" ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {drawerProducts.map((product) => {
-                    const selected = draftProductId === product.id;
-                    return (
-                      <button
-                        key={product.id}
-                        type="button"
-                        onClick={() => setDraftProductId(product.id)}
-                        className={`overflow-hidden rounded-[12px] bg-[#18181B] text-left transition hover:border-[#3F3F46] ${
-                          selected ? "border-2 border-white" : "border border-[#27272A]"
-                        }`}
-                      >
-                        <div className="relative aspect-[4/3] bg-white">
-                          {product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-contain p-3" /> : <div className="grid h-full place-items-center text-black/30"><Package size={24} /></div>}
-                          {selected ? <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-black shadow-lg"><Check size={13} /></span> : null}
-                        </div>
-                        <div className="p-3">
-                          <strong className="line-clamp-2 text-[12px] font-semibold leading-snug text-white">{product.title}</strong>
-                          <span className="mt-1 block text-[11px] text-white/42">{formatBRL(product.price)}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {!drawerProducts.length ? (
-                    <div className="col-span-2 rounded-[12px] border border-dashed border-[#27272A] p-5 text-center text-[12px] text-white/45">
-                      Nenhum produto disponível nesta coleção.
+                <>
+                  <div className="mb-4 flex items-center justify-between rounded-[12px] border border-[#27272A] bg-[#121214] px-4 py-3">
+                    <div>
+                      <strong className="block text-[12px] font-semibold">{replacingProductPath ? "Escolha o produto" : "Produtos disponíveis"}</strong>
+                      <span className="mt-0.5 block text-[10px] text-white/42">{replacingProductPath ? "A escolha substituirá o produto atual." : "Marque um ou mais itens para sua vitrine."}</span>
                     </div>
-                  ) : null}
-                </div>
+                    <span className="rounded-full bg-white/[0.08] px-2.5 py-1 text-[10px] font-semibold text-white/65">{draftProductIds.length} selecionados</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {drawerProducts.map((product) => {
+                      const selected = draftProductIds.includes(product.id);
+                      return (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => setDraftProductIds((current) => replacingProductPath ? (selected ? [] : [product.id]) : selected ? current.filter((id) => id !== product.id) : [...current, product.id])}
+                          className={`overflow-hidden rounded-[12px] bg-[#18181B] text-left transition hover:border-[#3F3F46] ${
+                            selected ? "border-2 border-white" : "border border-[#27272A]"
+                          }`}
+                        >
+                          <div className="relative aspect-[4/3] bg-white">
+                            {product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-contain p-3" /> : <div className="grid h-full place-items-center text-black/30"><Package size={24} /></div>}
+                            <span className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full shadow-lg transition ${selected ? "bg-white text-black" : "bg-black/65 text-white"}`}>
+                              {selected ? <Check size={13} /> : <Plus size={13} />}
+                            </span>
+                          </div>
+                          <div className="p-3">
+                            <strong className="line-clamp-2 text-[12px] font-semibold leading-snug text-white">{product.title}</strong>
+                            <span className="mt-1 block text-[11px] text-white/42">{formatBRL(product.price)}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                    {!drawerProducts.length ? (
+                      <div className="col-span-2 rounded-[12px] border border-dashed border-[#27272A] p-6 text-center text-[12px] text-white/45">
+                        Todos os produtos disponíveis já estão na sua loja.
+                      </div>
+                    ) : null}
+                  </div>
+                </>
               ) : null}
             </div>
 
             <footer className="border-t border-[#27272A] p-4">
               <button
                 type="button"
-                onClick={contextDrawer === "template" ? applyTemplateDraft : applyProductDraft}
-                className="h-11 w-full rounded-[8px] bg-[#2f6df6] text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(47,109,246,0.24)] transition hover:brightness-110"
+                onClick={contextDrawer === "template" ? applyTemplateDraft : () => void applyProductDraft()}
+                disabled={contextDrawer === "products" && (!draftProductIds.length || Boolean(sidebarImportingId))}
+                className="h-11 w-full rounded-[8px] bg-[#2f6df6] text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(47,109,246,0.24)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[#27272A] disabled:text-white/35 disabled:shadow-none"
               >
-                {contextDrawer === "template" ? "Aplicar" : "Adicionar"}
+                {contextDrawer === "template"
+                  ? "Aplicar"
+                  : sidebarImportingId
+                    ? "Adicionando..."
+                    : replacingProductPath && draftProductIds.length
+                      ? "Substituir produto"
+                    : draftProductIds.length
+                      ? `Adicionar ${draftProductIds.length} ${draftProductIds.length === 1 ? "produto" : "produtos"}`
+                      : "Selecione os produtos"}
               </button>
             </footer>
           </aside>
         </div>
       ) : null}
+
+      <AnimatePresence>
+        {publishOpen ? (
+          <motion.div
+            key="publish-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+            onMouseDown={(event) => { if (event.target === event.currentTarget) setPublishOpen(false); }}
+          >
+            <motion.section
+              key="publish-panel"
+              initial={{ opacity: 0, scale: 0.96, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 8 }}
+              transition={{ type: "spring", stiffness: 320, damping: 30 }}
+              className="w-full max-w-[440px] overflow-hidden rounded-[18px] bg-white text-[#18191c] shadow-[0_40px_120px_rgba(0,0,0,0.4)]"
+            >
+              <div className="flex items-center justify-between border-b border-[#ececea] px-5 py-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e9f7ee] text-[#1f9d55]">
+                    <Check size={16} />
+                  </span>
+                  <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
+                    {currentProject?.status === "publicado" ? "Site publicado" : "Publicar site"}
+                  </h2>
+                </div>
+                <button type="button" onClick={() => setPublishOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#5f6368] transition hover:bg-[#f3f3f1]" aria-label="Fechar">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-4 px-5 py-5">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-[#9a9a96]">
+                    Endereço do site
+                  </label>
+                  {currentProject?.status === "publicado" && publicUrl ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-10 min-w-0 flex-1 items-center rounded-[10px] border border-[#e0e0dc] px-3 text-[13px] font-medium text-[#33363b]">
+                        <span className="truncate">{publicUrl.replace(/^https?:\/\//, "")}</span>
+                      </div>
+                      <button type="button" onClick={() => void handleCopyPublicUrl()} className="flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] bg-[#f2f2f0] px-3 text-[12.5px] font-semibold text-[#33363b] transition hover:bg-[#e8e8e4]">
+                        {publishCopied ? <Check size={15} /> : <Copy size={15} />}
+                        {publishCopied ? "Copiado" : "Copiar"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="rounded-[10px] border border-dashed border-[#e0e0dc] bg-[#fafafa] px-3 py-2.5 text-[12.5px] font-medium text-[#6b7079]">
+                      Publique para gerar o link público do seu projeto.
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between rounded-[10px] bg-[#f7f7f5] px-3.5 py-3">
+                  <div>
+                    <p className="text-[12.5px] font-semibold text-[#33363b]">Quem pode ver este site</p>
+                    <p className="text-[11.5px] text-[#6b7079]">Qualquer pessoa com o link</p>
+                  </div>
+                  <span className="rounded-full bg-[#e9f7ee] px-2.5 py-1 text-[11px] font-bold text-[#1f9d55]">
+                    Público
+                  </span>
+                </div>
+
+                {currentProject?.status === "publicado" && publicUrl ? (
+                  <a
+                    href={publicUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex h-11 items-center justify-center gap-2 rounded-[11px] border border-[#e0e0dc] text-[13px] font-semibold text-[#33363b] transition hover:bg-[#f7f7f5]"
+                  >
+                    <Link2 size={16} />
+                    Abrir site publicado
+                  </a>
+                ) : null}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-[#ececea] px-5 py-4">
+                <button type="button" onClick={() => setPublishOpen(false)} className="h-10 rounded-[10px] px-4 text-[13px] font-semibold text-[#5f6368] transition hover:bg-[#f3f3f1]">
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  disabled={publishing}
+                  onClick={() => void handleConfirmPublish()}
+                  className="flex h-10 items-center gap-2 rounded-[10px] bg-[#3567e9] px-5 text-[13px] font-semibold text-white transition hover:bg-[#4272ee] disabled:opacity-55"
+                >
+                  {publishing ? <RefreshCcw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                  {currentProject?.status === "publicado" ? "Atualizar" : "Publicar agora"}
+                </button>
+              </div>
+            </motion.section>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </main>
   );
 };

@@ -27,9 +27,11 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import { isAdminEmail } from "@/lib/adminAccess";
 
 type Period = "today" | "week" | "month";
 type SortBy = "score" | "demand" | "margin" | "rating" | "recent" | "price_asc" | "price_desc";
@@ -338,10 +340,11 @@ const SalesPageSoonModal = ({ product, onClose }: { product: TrendingProduct; on
 
 const TrendingProductsPage = () => {
   const navigate = useNavigate();
+  const { user, role } = useAuth();
   const [products, setProducts] = useState<TrendingProduct[]>([]);
   const [niche, setNiche] = useState<string | null>("Eletrônicos");
   const period: Period = "week";
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
@@ -357,6 +360,10 @@ const TrendingProductsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [salesPageSoonProduct, setSalesPageSoonProduct] = useState<TrendingProduct | null>(null);
+  const metadataRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined);
+  const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
 
   const normalizedSearchQuery = appliedSearchQuery.trim().toLocaleLowerCase("pt-BR");
   const visibleProducts = useMemo(() => {
@@ -541,6 +548,11 @@ const TrendingProductsPage = () => {
   };
 
   const handleCreateSalesPage = (product: TrendingProduct) => {
+    if (!isAdmin) {
+      navigate("/produto/editor", { state: { product: toOnboardingProduct(product) } });
+      return;
+    }
+
     const activeStore = getActiveStore();
     if (activeStore) {
       setSalesPageSoonProduct(product);
@@ -1088,15 +1100,17 @@ const TrendingProductsPage = () => {
                               >
                                 <FilePlus2 size={15} strokeWidth={1.8} />
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleCreateStore(product)}
-                                className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white transition hover:bg-[#222222]"
-                                aria-label="Criar loja com este produto"
-                                title="Criar loja com este produto"
-                              >
-                                <Store size={15} strokeWidth={1.8} />
-                              </button>
+                              {isAdmin ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCreateStore(product)}
+                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white transition hover:bg-[#222222]"
+                                  aria-label="Criar loja com este produto"
+                                  title="Criar loja com este produto"
+                                >
+                                  <Store size={15} strokeWidth={1.8} />
+                                </button>
+                              ) : null}
                             </div>
                           </td>
                         </tr>

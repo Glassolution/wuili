@@ -9,6 +9,7 @@ type StorefrontNavbarProps = {
   searchValue?: string;
   onSearchChange?: (value: string) => void;
   showNavigation?: boolean;
+  logoImage?: string | null;
   className?: string;
 };
 
@@ -19,6 +20,7 @@ const StorefrontNavbar = ({
   searchValue,
   onSearchChange,
   showNavigation = true,
+  logoImage,
   className = "",
 }: StorefrontNavbarProps) => {
   const navigate = useNavigate();
@@ -53,8 +55,14 @@ const StorefrontNavbar = ({
       <div className="relative mx-auto flex min-h-[68px] max-w-[1120px] items-center gap-4 px-5 py-3">
         <Link to="/minha-loja/editor" className="z-10 flex min-w-[150px] items-center gap-3">
           <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-[13px] font-bold text-foreground">
-            <ShoppingBag size={20} strokeWidth={1.6} />
-            <span className="absolute mt-1 text-[9px] leading-none">{brandInitial}</span>
+            {logoImage ? (
+              <img data-editor-type="image" data-editor-media-kind="logo" src={logoImage} alt={`Logo ${storeName}`} className="h-full w-full rounded-[9px] object-contain p-1" />
+            ) : (
+              <>
+                <ShoppingBag size={20} strokeWidth={1.6} />
+                <span className="absolute mt-1 text-[9px] leading-none">{brandInitial}</span>
+              </>
+            )}
           </span>
           <span className="min-w-0 leading-none">
             <strong className="block truncate text-[18px] font-semibold tracking-[-0.03em] text-foreground">{storeName}</strong>

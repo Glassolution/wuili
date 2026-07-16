@@ -633,6 +633,50 @@ export type Database = {
         }
         Relationships: []
       }
+      project_members: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invited_by: string | null
+          invited_email: string
+          project_id: string
+          role: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          invited_email: string
+          project_id: string
+          role?: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          invited_email?: string
+          project_id?: string
+          role?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       help_feed_comments: {
         Row: {
           author_id: string
@@ -1874,6 +1918,47 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      get_public_project: {
+        Args: { p_slug: string }
+        Returns: {
+          created_at: string
+          id: string
+          last_edited_at: string
+          metadata: Json
+          nome: string
+          preview_storage_path: string | null
+          preview_url: string | null
+          published_at: string | null
+          source_id: string | null
+          source_kind: string | null
+          status: string
+          tipo_projeto: string
+          updated_at: string
+          user_id: string
+        }
+      }
+      invite_project_member: {
+        Args: { p_project: string; p_email: string; p_role?: string }
+        Returns: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invited_by: string | null
+          invited_email: string
+          project_id: string
+          role: string
+          status: string
+          user_id: string | null
+        }
+      }
+      claim_project_invites: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      user_has_active_paid_plan: {
+        Args: { target_user: string }
+        Returns: boolean
       }
       get_trending_products: {
         Args: {

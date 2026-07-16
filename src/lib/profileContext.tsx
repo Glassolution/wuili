@@ -24,6 +24,25 @@ const getMetadataName = (user: ReturnType<typeof useAuth>["user"]) =>
 const getMetadataAvatar = (user: ReturnType<typeof useAuth>["user"]) =>
   user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
 
+const getEmailAvatar = async (email?: string | null) => {
+  const normalizedEmail = email?.trim().toLowerCase();
+  if (!normalizedEmail || !globalThis.crypto?.subtle) return null;
+
+  try {
+    const digest = await globalThis.crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(normalizedEmail),
+    );
+    const hash = Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=160`;
+  } catch {
+    return null;
+  }
+};
+
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const [nome, setNome] = useState("Usuario");
@@ -36,24 +55,32 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
       return;
     }
 
-    setNome(getMetadataName(user));
-    setFoto(getMetadataAvatar(user));
-
-    if (!isSupabaseEnabled) return;
-
     let cancelled = false;
+    const metadataName = getMetadataName(user);
+    const metadataAvatar = getMetadataAvatar(user);
+
+    setNome(metadataName);
+    setFoto(metadataAvatar);
 
     const loadProfile = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("display_name, avatar_url")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const emailAvatarPromise = getEmailAvatar(user.email);
+      const profileResult = isSupabaseEnabled
+        ? await supabase
+            .from("profiles")
+            .select("display_name, avatar_url")
+            .eq("user_id", user.id)
+            .maybeSingle()
+        : { data: null, error: null };
+      const emailAvatar = await emailAvatarPromise;
 
-      if (cancelled || error) return;
+      if (cancelled) return;
 
-      const displayName = data?.display_name || getMetadataName(user);
-      const avatar = data?.avatar_url || getMetadataAvatar(user);
+      const displayName = profileResult.error
+        ? metadataName
+        : profileResult.data?.display_name || metadataName;
+      const avatar = profileResult.error
+        ? metadataAvatar || emailAvatar
+        : profileResult.data?.avatar_url || metadataAvatar || emailAvatar;
 
       setNome(displayName);
       setFoto(avatar);

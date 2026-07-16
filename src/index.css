@@ -7,11 +7,26 @@
   html,
   body,
   #root {
+    min-height: 100%;
+    background: #18191b;
     font-family: "Hanken Grotesk", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-feature-settings: "cv11", "ss01";
+  }
+
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  body {
+    margin: 0;
+  }
+
+  #root {
+    min-height: 100vh;
   }
 
   *,

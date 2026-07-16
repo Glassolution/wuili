@@ -32,7 +32,7 @@ const trustBadges: Array<[typeof LockKeyhole, string, string]> = [
   [ShieldCheck, "Garantia de 30 dias", "Devolucao do dinheiro"],
 ];
 
-const ProductTemplateShopify = ({ brand, title, description, price, originalPrice, image, mobile = false }: ProductTemplateProps) => {
+const ProductTemplateShopify = ({ brand, title, description, price, originalPrice, image, productId, mobile = false }: ProductTemplateProps) => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const discountPct = originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0;
   const savings = Math.max(0, Math.round(originalPrice - price));
@@ -69,12 +69,12 @@ const ProductTemplateShopify = ({ brand, title, description, price, originalPric
           {/* Galeria */}
           <div>
             <div className="relative aspect-square overflow-hidden rounded-[14px] bg-[#eaeaea]">
-              {image ? <img src={image} alt={title} className="absolute inset-0 h-full w-full object-cover" /> : null}
+              {image ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={image} alt={title} className="absolute inset-0 h-full w-full object-cover" /> : null}
             </div>
             <div className="mt-4 grid grid-cols-4 gap-3">
               {thumbnails.map((thumb, index) => (
                 <span key={index} className={`aspect-square overflow-hidden rounded-[10px] bg-[#eaeaea] ${index === 0 ? "ring-2 ring-black ring-offset-2" : ""}`}>
-                  <img src={thumb} alt="" className="h-full w-full object-cover" />
+                  <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={thumb} alt="" className="h-full w-full object-cover" />
                 </span>
               ))}
             </div>

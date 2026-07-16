@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { VeloLoadingPill, VeloToaster } from "@/components/ui/velo-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -20,10 +20,11 @@ const CustomerPersonaPage = lazy(() => import("./pages/CustomerPersonaPage"));
 const SalesAnglePage = lazy(() => import("./pages/SalesAnglePage"));
 const StoreImagesGenerationPage = lazy(() => import("./pages/StoreImagesGenerationPage"));
 const StoreBuildProgressPage = lazy(() => import("./pages/StoreBuildProgressPage"));
+const StoreProjectsPage = lazy(() => import("./pages/StoreProjectsPage"));
 const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditorPage"));
-const ProductLandingEditorPage = lazy(() => import("./pages/ProductLandingEditorPage"));
 const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
 const PreviewPage = lazy(() => import("./pages/PreviewPage"));
+const PublicStorePage = lazy(() => import("./pages/PublicStorePage"));
 const BemVindoPage = lazy(() => import("./pages/BemVindoPage"));
 // AuthEntryPage removed — all auth flows consolidated in LoginPage
 // CadastroPage removed — progressive login flow handles both signup and login
@@ -91,6 +92,12 @@ const DashboardShell = () => (
   </ProfileProvider>
 );
 
+const LegacyProductEditorRedirect = () => {
+  const location = useLocation();
+
+  return <Navigate to="/minha-loja/editor" replace state={location.state} />;
+};
+
 const MorePage = () => (
   <DashboardInfoPage
     title="Mais"
@@ -126,17 +133,18 @@ const App = () => (
               <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/comecar" element={<ProtectedRoute><StartChoicePage /></ProtectedRoute>} />
-              <Route path="/onboarding/criar-loja" element={<ProtectedRoute><CreateStoreStubPage /></ProtectedRoute>} />
-              <Route path="/onboarding/preparando-produto" element={<ProtectedRoute><ProductPreparationPage /></ProtectedRoute>} />
-              <Route path="/onboarding/escolher-produto" element={<ProtectedRoute><ExampleProductSelectionPage /></ProtectedRoute>} />
-              <Route path="/onboarding/idioma" element={<ProtectedRoute><StoreLanguagePage /></ProtectedRoute>} />
-              <Route path="/onboarding/persona" element={<ProtectedRoute><CustomerPersonaPage /></ProtectedRoute>} />
-              <Route path="/onboarding/angulo-vendas" element={<ProtectedRoute><SalesAnglePage /></ProtectedRoute>} />
-              <Route path="/onboarding/gerando-imagens" element={<ProtectedRoute><StoreImagesGenerationPage /></ProtectedRoute>} />
-              <Route path="/onboarding/preparando-loja" element={<ProtectedRoute><StoreBuildProgressPage /></ProtectedRoute>} />
-              <Route path="/minha-loja/editor" element={<ProtectedRoute><GeneratedStoreEditorPage /></ProtectedRoute>} />
-              <Route path="/produto/editor" element={<ProtectedRoute><ProductLandingEditorPage /></ProtectedRoute>} />
-              <Route path="/velods/produto/editor" element={<Navigate to="/produto/editor" replace />} />
+              <Route path="/onboarding/criar-loja" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><CreateStoreStubPage /></ProtectedRoute>} />
+              <Route path="/onboarding/preparando-produto" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><ProductPreparationPage /></ProtectedRoute>} />
+              <Route path="/onboarding/escolher-produto" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><ExampleProductSelectionPage /></ProtectedRoute>} />
+              <Route path="/onboarding/idioma" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><StoreLanguagePage /></ProtectedRoute>} />
+              <Route path="/onboarding/persona" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><CustomerPersonaPage /></ProtectedRoute>} />
+              <Route path="/onboarding/angulo-vendas" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><SalesAnglePage /></ProtectedRoute>} />
+              <Route path="/onboarding/gerando-imagens" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><StoreImagesGenerationPage /></ProtectedRoute>} />
+              <Route path="/onboarding/preparando-loja" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><StoreBuildProgressPage /></ProtectedRoute>} />
+              <Route path="/minha-loja" element={<Navigate to="/dashboard/minha-loja" replace />} />
+              <Route path="/minha-loja/editor" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
+              <Route path="/produto/editor" element={<ProtectedRoute><LegacyProductEditorRedirect /></ProtectedRoute>} />
+              <Route path="/velods/produto/editor" element={<ProtectedRoute><LegacyProductEditorRedirect /></ProtectedRoute>} />
               <Route path="/catalogo" element={<StoreCatalogPage />} />
               <Route path="/cadastro" element={<Navigate to="/login" replace />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -147,8 +155,8 @@ const App = () => (
               <Route path="/onboarding/nicho" element={<Navigate to="/comecar" replace />} />
               <Route path="/onboarding/produto" element={<Navigate to="/comecar" replace />} />
               <Route path="/onboarding/gerando" element={<Navigate to="/comecar" replace />} />
-              <Route path="/preview/:slug" element={<PreviewPage />} />
-              <Route path="/loja/:slug" element={<PreviewPage />} />
+              <Route path="/preview/:slug" element={<PublicStorePage />} />
+              <Route path="/loja/:slug" element={<PublicStorePage />} />
               <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
@@ -190,6 +198,7 @@ const App = () => (
                 <Route path="configuracoes" element={<SettingsPage />} />
                 <Route path="criar-video" element={<CriarVideoPage />} />
                 <Route path="chat-fornecedores" element={<ChatFornecedoresPage />} />
+                <Route path="minha-loja" element={<StoreProjectsPage />} />
               </Route>
               <Route path="/colecoes" element={<DashboardShell />}>
                 <Route index element={<DashboardHomePage />} />
