@@ -20,6 +20,7 @@ import {
 import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
+import ShopifyIntegrationCard from "@/components/dashboard/ShopifyIntegrationCard";
 
 type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
 
@@ -495,6 +496,11 @@ const IntegrationsTab = () => {
       <div className="mb-4">
         <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Pagamentos</h3>
         <MercadoPagoIntegrationCard />
+      </div>
+
+      <div className="mb-4">
+        <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Loja</h3>
+        <ShopifyIntegrationCard />
       </div>
 
       <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Marketplaces</h3>

@@ -1061,6 +1061,50 @@ export type Database = {
         }
         Relationships: []
       }
+      project_members: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invited_by: string | null
+          invited_email: string
+          project_id: string
+          role: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          invited_email: string
+          project_id: string
+          role?: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          invited_email?: string
+          project_id?: string
+          role?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       refund_requests: {
         Row: {
           created_at: string
@@ -1181,6 +1225,54 @@ export type Database = {
           seller_id?: string
           token_expires_at?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      shopify_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          scope: string | null
+          shop_domain: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          id?: string
+          scope?: string | null
+          shop_domain: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          scope?: string | null
+          shop_domain?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      shopify_oauth_states: {
+        Row: {
+          created_at: string
+          shop_domain: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          shop_domain: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          shop_domain?: string
+          state?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1489,6 +1581,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_projects: {
+        Row: {
+          created_at: string
+          id: string
+          last_edited_at: string
+          metadata: Json
+          nome: string
+          preview_storage_path: string | null
+          preview_url: string | null
+          published_at: string | null
+          source_id: string | null
+          source_kind: string | null
+          status: string
+          tipo_projeto: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_edited_at?: string
+          metadata?: Json
+          nome?: string
+          preview_storage_path?: string | null
+          preview_url?: string | null
+          published_at?: string | null
+          source_id?: string | null
+          source_kind?: string | null
+          status?: string
+          tipo_projeto: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_edited_at?: string
+          metadata?: Json
+          nome?: string
+          preview_storage_path?: string | null
+          preview_url?: string | null
+          published_at?: string | null
+          source_id?: string | null
+          source_kind?: string | null
+          status?: string
+          tipo_projeto?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_publications: {
         Row: {
           catalog_product_id: string | null
@@ -1647,6 +1790,7 @@ export type Database = {
       }
     }
     Functions: {
+      claim_project_invites: { Args: never; Returns: number }
       get_help_feed_authors: {
         Args: { _author_ids: string[] }
         Returns: {
@@ -1654,6 +1798,31 @@ export type Database = {
           display_name: string
           user_id: string
         }[]
+      }
+      get_public_project: {
+        Args: { p_slug: string }
+        Returns: {
+          created_at: string
+          id: string
+          last_edited_at: string
+          metadata: Json
+          nome: string
+          preview_storage_path: string | null
+          preview_url: string | null
+          published_at: string | null
+          source_id: string | null
+          source_kind: string | null
+          status: string
+          tipo_projeto: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_projects"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       get_trending_products: {
         Args: {
@@ -1686,7 +1855,68 @@ export type Database = {
           viral_score: number
         }[]
       }
+      get_user_projects: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          last_edited_at: string
+          metadata: Json
+          nome: string
+          preview_storage_path: string | null
+          preview_url: string | null
+          published_at: string | null
+          source_id: string | null
+          source_kind: string | null
+          status: string
+          tipo_projeto: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "user_projects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      invite_project_member: {
+        Args: { p_email: string; p_project: string; p_role?: string }
+        Returns: {
+          accepted_at: string | null
+          created_at: string
+          id: string
+          invited_by: string | null
+          invited_email: string
+          project_id: string
+          role: string
+          status: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "project_members"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      is_active_project_editor: {
+        Args: { p_project: string; p_user: string }
+        Returns: boolean
+      }
+      is_active_project_member: {
+        Args: { p_project: string; p_user: string }
+        Returns: boolean
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_project_owner: {
+        Args: { p_project: string; p_user: string }
+        Returns: boolean
+      }
+      user_has_active_paid_plan: {
+        Args: { target_user: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "influencer"

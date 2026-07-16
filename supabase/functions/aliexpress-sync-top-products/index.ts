@@ -574,7 +574,7 @@ serve(async (req) => {
       });
       if (detail) {
         if (detail.images.length > 0) item.images = detail.images;
-        if (detail.description) item.description = detail.description;
+        // Descrição intencionalmente ignorada — não salvamos mais este campo.
         if (detail.orders_count != null) item.orders_count = detail.orders_count;
         if (detail.rating != null) item.rating = detail.rating;
         if (detail.reviews_count != null) item.reviews_count = detail.reviews_count;
