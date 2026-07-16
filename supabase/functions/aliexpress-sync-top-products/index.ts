@@ -486,6 +486,9 @@ serve(async (req) => {
           const title = String(p.title ?? p.product_title ?? p.subject ?? "").trim();
           if (!externalId || !title) continue;
           if (currentTopIds.has(`aliexpress:${externalId}`)) continue; // dedup entre keywords/páginas
+          const titleKey = title.toLowerCase();
+          if (currentTitles.has(titleKey)) continue; // dedup por título (variantes com mesmo nome)
+
 
           const image =
             p.itemMainPic ??
