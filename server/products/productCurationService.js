@@ -322,7 +322,6 @@ async function fetchCatalogProducts(filters = {}) {
       ].join(","),
     )
     .eq("is_active", true)
-    .eq("is_active", true)
     .gt("stock_quantity", 0)
     .order("orders_count", { ascending: false })
     .limit(candidateLimit);
