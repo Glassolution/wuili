@@ -254,6 +254,8 @@ const GeneratedStoreEditorPage = () => {
   const suppressPreviewClickRef = useRef(false);
   const selectedElementRef = useRef<EditableDomElement | null>(null);
   const nativePinchZoomRef = useRef<(event: WheelEvent) => void>(() => undefined);
+  const wheelPanDeltaRef = useRef({ x: 0, y: 0 });
+  const wheelPanFrameRef = useRef<number | null>(null);
   const [mobilePreview, setMobilePreview] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
@@ -1626,9 +1628,14 @@ const GeneratedStoreEditorPage = () => {
     const workspace = workspaceRef.current;
     if (!workspace) return;
 
-    const handleNativePinchZoom = (event: WheelEvent) => nativePinchZoomRef.current(event);
-    workspace.addEventListener("wheel", handleNativePinchZoom, { passive: false, capture: true });
-    return () => workspace.removeEventListener("wheel", handleNativePinchZoom, { capture: true });
+    const handleNativeCanvasWheel = (event: WheelEvent) => nativePinchZoomRef.current(event);
+    workspace.addEventListener("wheel", handleNativeCanvasWheel, { passive: false, capture: true });
+    return () => {
+      workspace.removeEventListener("wheel", handleNativeCanvasWheel, { capture: true });
+      if (wheelPanFrameRef.current !== null) cancelAnimationFrame(wheelPanFrameRef.current);
+      wheelPanFrameRef.current = null;
+      wheelPanDeltaRef.current = { x: 0, y: 0 };
+    };
   }, [flow]);
 
   if (!flow) return <Navigate to="/comecar" replace />;
@@ -1974,13 +1981,28 @@ const GeneratedStoreEditorPage = () => {
     setCanvasZoom(nextZoom);
   };
   nativePinchZoomRef.current = (event) => {
-    if (!event.ctrlKey && !event.metaKey) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    const target = event.target;
-    if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
+    if (!event.ctrlKey && !event.metaKey) {
+      wheelPanDeltaRef.current.x += event.deltaX;
+      wheelPanDeltaRef.current.y += event.deltaY;
+      if (wheelPanFrameRef.current === null) {
+        wheelPanFrameRef.current = requestAnimationFrame(() => {
+          const delta = wheelPanDeltaRef.current;
+          wheelPanDeltaRef.current = { x: 0, y: 0 };
+          wheelPanFrameRef.current = null;
+          setCanvasOffset((current) => ({
+            x: current.x - delta.x,
+            y: current.y - delta.y,
+          }));
+        });
+      }
+      return;
+    }
 
     changeCanvasZoom(event.deltaY > 0 ? -0.04 : 0.04, {
       clientX: event.clientX,
@@ -2088,16 +2110,6 @@ const GeneratedStoreEditorPage = () => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     setIsCanvasDragging(false);
     if (wasEmptyAreaClick) setSidebarCollapsed(true);
-  };
-  const handleCanvasWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    if (event.ctrlKey || event.metaKey) return;
-    const target = event.target;
-    if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
-    event.preventDefault();
-    setCanvasOffset((current) => ({
-      x: current.x - event.deltaX,
-      y: current.y - event.deltaY,
-    }));
   };
   const handleWorkspaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target;
@@ -2289,7 +2301,6 @@ const GeneratedStoreEditorPage = () => {
         onPointerMove={handleCanvasPointerMove}
         onPointerUp={finishCanvasDrag}
         onPointerCancel={finishCanvasDrag}
-        onWheel={handleCanvasWheel}
         onScroll={(event) => {
           event.currentTarget.scrollLeft = 0;
           event.currentTarget.scrollTop = 0;
@@ -3049,7 +3060,9 @@ const GeneratedStoreEditorPage = () => {
                 const baseWidth = mobilePreview ? 390 : 1440;
                 const gap = 120;
                 const leftOffset = (baseWidth + gap) * (idx + 1);
-                const panelHeight = productPreviewHeight || (mobilePreview ? 780 : 900);
+                const panelHeight = mobilePreview
+                  ? (screen.key === "carrinho" ? 920 : 1420)
+                  : (screen.key === "carrinho" ? 760 : 920);
                 return (
                   <div
                     key={screen.key}
@@ -3078,7 +3091,7 @@ const GeneratedStoreEditorPage = () => {
                 const baseWidth = mobilePreview ? 390 : 1440;
                 const gap = 120;
                 const leftOffset = (baseWidth + gap) * idx - gap + 20;
-                const panelHeight = productPreviewHeight || (mobilePreview ? 780 : 900);
+                const panelHeight = mobilePreview ? 920 : 760;
                 return (
                   <div
                     key={`arrow-${idx}`}
