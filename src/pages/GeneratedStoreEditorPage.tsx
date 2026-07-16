@@ -280,6 +280,30 @@ const GeneratedStoreEditorPage = () => {
   const [heroImage, setHeroImage] = useState("/hero-pasted-image-2.png");
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [heroCtaUrl, setHeroCtaUrl] = useState("/catalogo");
+  // Personalização das telas de Carrinho e Checkout (persistida em metadata.checkout).
+  const [checkoutCfg, setCheckoutCfg] = useState<{
+    brandName: string;
+    logoImage: string;
+    accent: string;
+    priceOverride: string; // string p/ input controlado; converte no salvamento
+    freightLabel: string;
+    freightValue: string;
+    cartTitle: string;
+    cartCtaLabel: string;
+    checkoutTitle: string;
+    checkoutCtaLabel: string;
+  }>({
+    brandName: "",
+    logoImage: "",
+    accent: "#2563EB",
+    priceOverride: "",
+    freightLabel: "",
+    freightValue: "",
+    cartTitle: "",
+    cartCtaLabel: "",
+    checkoutTitle: "",
+    checkoutCtaLabel: "",
+  });
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [catalogSuggestions, setCatalogSuggestions] = useState<CatalogItem[]>([]);
   const [sidebarImportingId, setSidebarImportingId] = useState<string | null>(null);
