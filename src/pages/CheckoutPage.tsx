@@ -451,9 +451,7 @@ const CheckoutPage = () => {
                   <article
                     key={id}
                     onClick={() => setSelectedPlanId(id)}
-                    // "group": passar o mouse em qualquer ponto do card preenche
-                    // o CTA (ver group-hover no botão), não só sobre o botão.
-                    className={`group relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-6 transition duration-200 ${
+                    className={`relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-6 transition duration-200 ${
                       isFeatured
                         ? "border-[#0A0A0A] shadow-[0_10px_36px_rgba(0,0,0,0.09)]"
                         : isSelected
@@ -510,9 +508,9 @@ const CheckoutPage = () => {
                       className={`mt-5 h-11 w-full rounded-[10px] border px-5 text-[13px] font-semibold transition-colors duration-200 ${
                         isFeatured
                           ? "border-[#0A0A0A] bg-[#0A0A0A] text-white hover:bg-[#242424]"
-                          : // Vazado por padrão; preenche quando o mouse entra em
-                            // qualquer parte do card.
-                            "border-black/15 bg-white text-black group-hover:border-[#0A0A0A] group-hover:bg-[#0A0A0A] group-hover:text-white"
+                          : // Vazado por padrão; preenche só com o mouse sobre o
+                            // próprio botão.
+                            "border-black/15 bg-white text-black hover:border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white"
                       }`}
                     >
                       Assinar {currentPlan.name}
