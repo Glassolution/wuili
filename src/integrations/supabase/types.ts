@@ -1799,6 +1799,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_public_store_products: {
+        Args: { p_ids: string[] }
+        Returns: {
+          category: string | null
+          description: string | null
+          id: string
+          images: Json
+          original_price: number | null
+          suggested_price: number
+          title: string
+          variants: Json
+        }[]
+      }
       get_public_project: {
         Args: { p_slug: string }
         Returns: {

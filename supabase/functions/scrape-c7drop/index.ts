@@ -6,7 +6,7 @@
 //   curl -X POST https://<project>.supabase.co/functions/v1/scrape-c7drop \
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { decodeHtmlEntities, detectBrand, extractAttribute, inferCategory, isBlocked, isFakeAdProduct } from "../_shared/catalog-filters.ts";
+import { decodeHtmlEntities, detectBrand, extractAttribute, extractVariantOptions, inferCategory, isBlocked, isFakeAdProduct } from "../_shared/catalog-filters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,6 +26,8 @@ type WCProduct = {
   is_in_stock: boolean;
   prices?: {
     price?: string;            // em centavos (string)
+    regular_price?: string;    // preço cheio (em centavos)
+    sale_price?: string;       // preço promocional (em centavos)
     currency_minor_unit?: number;
     price_range?: { min_amount?: string; max_amount?: string } | null;
   };
@@ -115,6 +117,21 @@ function parsePriceMinor(p: WCProduct): number {
   const n = parseInt(raw, 10);
   if (isNaN(n)) return 0;
   return n / Math.pow(10, unit);
+}
+
+/**
+ * Preço "de" (riscado) — só existe quando o fornecedor realmente pratica um
+ * desconto, isto é, regular_price > sale_price. Retorna null caso contrário.
+ * NUNCA derivar esse valor do preço de venda: anunciar um preço de referência
+ * que nunca foi praticado é publicidade enganosa (CDC art. 37).
+ */
+function parseOriginalPrice(p: WCProduct): number | null {
+  const unit = p.prices?.currency_minor_unit ?? 2;
+  const regular = parseInt(p.prices?.regular_price ?? "", 10);
+  const sale = parseInt(p.prices?.sale_price ?? "", 10);
+  if (isNaN(regular) || isNaN(sale)) return null;
+  if (regular <= sale) return null;
+  return regular / Math.pow(10, unit);
 }
 
 function parsePositiveMetric(value: unknown): number | null {
@@ -216,11 +233,20 @@ Deno.serve(async (req) => {
         const weight = extractWeightFromDescription(p.description || p.short_description);
         const rating = parsePositiveMetric(p.average_rating);
         const ordersCount = parsePositiveIntegerMetric(p.total_sales);
+        // Variações reais (Cor, Tamanho...). O fornecedor só informa para ~8%
+        // dos produtos; para o resto isso fica [] e a vitrine omite o seletor.
+        const variantOptions = extractVariantOptions(p.attributes);
+        const originalPrice = parseOriginalPrice(p);
         return {
           source: SOURCE,
           external_id: p.slug,
           title,
-          description: null,
+          // HTML de especificações vindo do fornecedor. É sanitizado antes de
+          // renderizar (ver sanitizeSupplierHtml no frontend).
+          description: p.description?.trim() || null,
+          // Array [{ name, values }] — mesmo formato do DEFAULT '[]' da coluna.
+          variants: variantOptions,
+          ...(originalPrice !== null ? { original_price: originalPrice } : {}),
           images,
           cost_price: price,
           suggested_price: Math.round(price * 2 * 100) / 100,

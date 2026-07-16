@@ -19,6 +19,7 @@ import {
   Youtube,
 } from "lucide-react";
 import type { ProductTemplateProps } from "./ProductTemplate";
+import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
 
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -26,7 +27,6 @@ const GREEN = "#1f5132";
 const GOLD = "#c6963f";
 
 const storeNav = ["Inicio", "Loja", "Skin Care", "Maquiagem", "Cabelo", "Sobre", "Blog"];
-const volumeOptions = ["30 ml", "60 ml", "80 ml", "100 ml"];
 const tabs = ["Descricao", "Informacoes adicionais", "Avaliacoes"];
 const ratingBars = [
   { label: "5", pct: 90 },
@@ -48,8 +48,7 @@ const additionalSpecs: Array<[string, string]> = [
 ];
 const detailBullets = ["Hidratacao profunda", "Absorcao rapida", "Livre de parabenos", "Testado dermatologicamente"];
 
-const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice, image, productId, mobile = false }: ProductTemplateProps) => {
-  const [selectedVolume, setSelectedVolume] = useState("30 ml");
+const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice, image, productId, mobile = false, variants = [] }: ProductTemplateProps) => {
   const [quantity, setQuantity] = useState(4);
   const [activeTab, setActiveTab] = useState(2);
 
@@ -135,26 +134,8 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
             </div>
             <p data-editor-type="text" className="mt-4 max-w-[520px] text-[14px] leading-[1.6] text-black/60">{description}</p>
 
-            {/* Tamanho/Volume */}
-            <div className="mt-6">
-              <p data-editor-type="text" className="text-[13px] font-semibold text-[#1d1d1d]">Tamanho/Volume</p>
-              <div className="mt-3 flex flex-wrap gap-2.5">
-                {volumeOptions.map((volume) => {
-                  const isActive = selectedVolume === volume;
-                  return (
-                    <button
-                      key={volume}
-                      type="button"
-                      onClick={() => setSelectedVolume(volume)}
-                      className={`h-10 rounded-full border px-5 text-[13px] font-semibold transition ${isActive ? "text-white" : "border-black/15 text-black/70 hover:border-black/40"}`}
-                      style={isActive ? { backgroundColor: GREEN, borderColor: GREEN } : undefined}
-                    >
-                      {volume}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {/* Variações reais do fornecedor (omitido quando não há) */}
+            <ProductVariantPicker options={variants} accent={GREEN} />
 
             {/* Quantidade + acoes */}
             <div className="mt-6 flex flex-wrap items-center gap-3">

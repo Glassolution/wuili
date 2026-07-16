@@ -45,19 +45,16 @@ const fontStackFor = (name: string) => FONT_STACKS[name] || FONT_STACKS.Geist;
 const PRODUCT_TEMPLATES = {
   "produto-2": {
     Component: ProductTemplateBeauty,
-    originalMultiplier: 1.25,
     descFallback:
       "Serum leve de rapida absorcao que hidrata profundamente e deixa a pele macia e saudavel no uso diario.",
   },
   "produto-3": {
     Component: ProductTemplateShopify,
-    originalMultiplier: 1.34,
     descFallback:
       "Fuja do ruido e aumente seu foco. Conforto duradouro com ANC avancado, chamadas nitidas e 30 horas de bateria.",
   },
   "produto-1": {
     Component: ProductTemplate,
-    originalMultiplier: 1.5,
     descFallback:
       "Confeccionado em algodao premium de alta gramatura, entrega conforto e durabilidade. A modelagem oversized e o design minimalista tornam a peca um coringa para qualquer guarda-roupa.",
   },
@@ -91,7 +88,7 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
     };
   }, [project]);
 
-  const { Component, originalMultiplier, descFallback } = resolveProductTemplate(getProjectTemplate(project));
+  const { Component, descFallback } = resolveProductTemplate(getProjectTemplate(project));
   const brand = getProjectStoreName(project) || project.nome;
   const price = product?.price || 149.9;
   const accent = getProjectAccent(project);
@@ -119,11 +116,15 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
         title={product?.title || brand}
         description={(getProjectDescription(project) || descFallback).slice(0, 240)}
         price={price}
-        originalPrice={product?.originalPrice && product.originalPrice > price ? product.originalPrice : price * originalMultiplier}
+        // Só o desconto real do fornecedor. Antes, na ausência dele, a página
+        // fabricava um preço riscado (price * originalMultiplier) — preço de
+        // referência falso é publicidade enganosa (CDC art. 37).
+        originalPrice={product?.originalPrice && product.originalPrice > price ? product.originalPrice : null}
         image={product?.imageUrl || ""}
         productId={product?.id}
         accent={accent}
         mobile={false}
+        variants={product?.variants ?? []}
       />
     </div>
   );

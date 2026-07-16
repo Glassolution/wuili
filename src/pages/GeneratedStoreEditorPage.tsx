@@ -1,13 +1,13 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlignCenter, AlignLeft, AlignRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
-import { claimProjectInvites, publishProject, saveProjectDraft, type UserProject } from "@/lib/userProjects";
+import { claimProjectInvites, getProjectProductIds, parseVariantOptions, publishProject, saveProjectDraft, type ProductVariantOption, type UserProject } from "@/lib/userProjects";
 import ProjectSettingsOverlay, { type SettingsSection } from "@/components/editor/ProjectSettingsOverlay";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 import { addProductToCollection, createCollection, ensureExampleCollectionProducts, getCollectionProductIds, listCollections } from "@/lib/collectionsApi";
@@ -18,7 +18,7 @@ import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateB
 import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
-type CatalogItem = ExampleProduct & { category: string; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
+type CatalogItem = ExampleProduct & { category: string; variants?: ProductVariantOption[]; originalPrice?: number | null; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
 type EditorPanelTab = "detalhes" | "personalizar";
 type EditorPanelSection = "template" | "produtos" | "imagem" | "aparencia";
 type ContextDrawerMode = "template" | "products";
@@ -270,6 +270,10 @@ const GeneratedStoreEditorPage = () => {
   const [showPlans, setShowPlans] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState<UserProject | null>(null);
+  // Produtos escolhidos no wizard de criação (metadata.productIds do projeto).
+  // Têm prioridade sobre as coleções do usuário: são o que o usuário selecionou
+  // para ESTE projeto, na ordem em que escolheu.
+  const [projectProducts, setProjectProducts] = useState<CatalogItem[]>([]);
   const [menuBusy, setMenuBusy] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -289,6 +293,10 @@ const GeneratedStoreEditorPage = () => {
   const [contextDrawer, setContextDrawer] = useState<ContextDrawerMode | null>(null);
   const [templateCategory, setTemplateCategory] = useState<"loja" | "produto">("loja");
   const [currentTemplate, setCurrentTemplate] = useState("Template 1");
+  // Id do projeto cujo template já foi hidratado. Enquanto for diferente do
+  // projeto aberto, o canvas não renderiza — senão o "loja-1" default apareceria
+  // por um instante antes do template realmente escolhido.
+  const [hydratedProjectId, setHydratedProjectId] = useState<string | null>(null);
   const [activeTemplate, setActiveTemplate] = useState<{ kind: "loja" | "produto"; id: string }>({ kind: "loja", id: "loja-1" });
   const [draftTemplate, setDraftTemplate] = useState<{ kind: "loja" | "produto"; id: string }>({ kind: "loja", id: "loja-1" });
   const [draftProductIds, setDraftProductIds] = useState<string[]>([]);
@@ -1294,6 +1302,45 @@ const GeneratedStoreEditorPage = () => {
     return () => { active = false; };
   }, [projectId]);
 
+  // Carrega os produtos que o usuário escolheu para este projeto. Sem isso o
+  // editor caía nas coleções do usuário (fetchEditorCollectionProducts), e o
+  // produto em destaque acabava sendo o mais recente de qualquer coleção — não
+  // o que foi selecionado no wizard.
+  useEffect(() => {
+    const ids = getProjectProductIds(currentProject);
+    if (ids.length === 0) { setProjectProducts([]); return; }
+    let active = true;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("catalog_products")
+        .select("id,title,suggested_price,cost_price,original_price,images,category,variants")
+        .in("id", ids)
+        .eq("is_active", true)
+        .eq("is_blocked", false);
+      if (!active || error) return;
+      // Preserva a ordem em que o usuário selecionou: productIds[0] é o destaque.
+      const order = new Map(ids.map((id, index) => [id, index]));
+      const mapped = (data ?? [])
+        .map((item) => ({
+          id: item.id,
+          title: item.title,
+          // Mesmo preço que a página publicada mostra (suggested_price), para o
+          // preview do editor não divergir da loja no ar.
+          price: Number(item.suggested_price ?? 0) || Number(item.cost_price) * 5 || 0,
+          // Só existe quando o fornecedor pratica desconto real (a coluna tem
+          // DEFAULT 0); 0 vira null para não renderizar "de R$ 0,00".
+          originalPrice: Number(item.original_price) || null,
+          variants: parseVariantOptions(item.variants),
+          imageUrl: getFirstImage(item.images),
+          category: item.category?.trim() || "Outros",
+        }))
+        .filter((item) => item.imageUrl)
+        .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+      setProjectProducts(mapped);
+    })();
+    return () => { active = false; };
+  }, [currentProject]);
+
   // Hidrata template e nome a partir do projeto salvo (uma vez por projeto),
   // para renderizar exatamente o template que o usuário escolheu na criação/edição.
   const hydratedProjectRef = useRef<string | null>(null);
@@ -1331,6 +1378,9 @@ const GeneratedStoreEditorPage = () => {
     if (meta.elementOverrides && typeof meta.elementOverrides === "object" && !Array.isArray(meta.elementOverrides)) {
       setElementOverrides(meta.elementOverrides as Record<string, ElementOverride>);
     }
+
+    // Libera o canvas só depois de aplicar o template salvo.
+    setHydratedProjectId(currentProject.id);
   }, [currentProject]);
 
   useEffect(() => {
@@ -1617,7 +1667,16 @@ const GeneratedStoreEditorPage = () => {
   }, [flow]);
 
   if (!flow) return <Navigate to="/comecar" replace />;
-  const baseProducts = products.length ? products : [{ ...flow.product, category: "Outros" }];
+  // Ao abrir um projeto salvo, espera a hidratação do template antes de pintar o
+  // canvas. Sem projectId (fluxo de onboarding) não há o que hidratar.
+  const templateReady = !projectId || hydratedProjectId === projectId;
+  // Prioridade: produtos escolhidos para este projeto > coleções do usuário >
+  // produto do onboarding. Garante que o template mostre o produto selecionado.
+  const baseProducts = projectProducts.length
+    ? projectProducts
+    : products.length
+      ? products
+      : [{ ...flow.product, category: "Outros" }];
   const displayedProducts = baseProducts;
   const featuredProduct = displayedProducts[0];
   const featuredPrice = featuredProduct?.price || 149.9;
@@ -2797,14 +2856,19 @@ const GeneratedStoreEditorPage = () => {
             <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold tracking-normal text-white/55">Ao vivo</span>
           </div>
           <div ref={previewRef} onClickCapture={handlePreviewClick} onDoubleClickCapture={handlePreviewDoubleClick} className={`store-editor-preview relative overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.46)] transition-[width] duration-300 ${pageSelected ? "ring-2 ring-white ring-offset-4 ring-offset-[#222325]" : "ring-1 ring-white/[0.10]"} ${mobilePreview?"w-[390px]":"w-[1440px]"} ${editMode && canvasToolbarMode !== "pan"?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: canvasToolbarMode === "pan" ? (isCanvasDragging ? "grabbing" : "grab") : canvasToolbarMode === "appearance" ? "copy" : canvasToolbarMode === "edit" ? "text" : "default" }}>
-            {activeTemplate.kind === "produto" ? (
+            {!templateReady ? (
+              <div className="grid h-[720px] w-full place-items-center bg-white">
+                <Loader2 size={22} className="animate-spin text-black/25" />
+              </div>
+            ) : activeTemplate.kind === "produto" ? (
               activeTemplate.id === "produto-2" ? (
                 <ProductTemplateBeauty
                   brand={brandName}
                   title={featuredProduct?.title || storeName}
                   description={(flow.salesAngle || "Serum leve de rapida absorcao que hidrata profundamente e deixa a pele macia e saudavel no uso diario.").slice(0, 240)}
                   price={featuredPrice}
-                  originalPrice={featuredPrice * 1.25}
+                  originalPrice={featuredProduct?.originalPrice ?? null}
+                  variants={featuredProduct?.variants ?? []}
                   image={featuredProduct?.imageUrl || heroImage}
                   productId={featuredProduct?.id}
                   accent={accent}
@@ -2816,7 +2880,8 @@ const GeneratedStoreEditorPage = () => {
                   title={featuredProduct?.title || storeName}
                   description={(flow.salesAngle || "Fuja do ruido e aumente seu foco. Conforto duradouro com ANC avancado, chamadas nitidas e 30 horas de bateria.").slice(0, 240)}
                   price={featuredPrice}
-                  originalPrice={featuredPrice * 1.34}
+                  originalPrice={featuredProduct?.originalPrice ?? null}
+                  variants={featuredProduct?.variants ?? []}
                   image={featuredProduct?.imageUrl || heroImage}
                   productId={featuredProduct?.id}
                   accent={accent}
@@ -2828,7 +2893,8 @@ const GeneratedStoreEditorPage = () => {
                   title={featuredProduct?.title || storeName}
                   description={(flow.salesAngle || "Confeccionado em algodao premium de alta gramatura, entrega conforto e durabilidade. A modelagem oversized e o design minimalista tornam a peca um coringa para qualquer guarda-roupa.").slice(0, 240)}
                   price={featuredPrice}
-                  originalPrice={featuredPrice * 1.5}
+                  originalPrice={featuredProduct?.originalPrice ?? null}
+                  variants={featuredProduct?.variants ?? []}
                   image={featuredProduct?.imageUrl || heroImage}
                   productId={featuredProduct?.id}
                   accent={accent}
