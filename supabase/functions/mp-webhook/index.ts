@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
     const userId = payment.metadata?.user_id;
     const plan = payment.metadata?.plan;
     const affiliateRef = payment.metadata?.affiliate_ref ?? payment.external_reference;
+    const paymentKind = payment.metadata?.kind;
 
     // Hybrid deployment: DB may live on a different project than the functions
     const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
@@ -63,6 +64,43 @@ Deno.serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
     const adminClient = createClient(dbUrl, dbKey);
+
+    // ── Store orders (pedidos da loja do vendedor) ──────────────────────────
+    // Pedidos vindos de páginas de vendas publicadas — kind === 'store_order'.
+    // Nunca tratamos como assinatura; atualizamos o pedido pelo external_reference.
+    if (paymentKind === "store_order") {
+      const extRef = payment.external_reference ?? payment.metadata?.store_order_id;
+      if (extRef) {
+        const newStatus =
+          payment.status === "approved"
+            ? "approved"
+            : payment.status === "rejected" || payment.status === "cancelled"
+            ? "rejected"
+            : payment.status === "refunded"
+            ? "refunded"
+            : "pending";
+
+        const query = adminClient
+          .from("store_orders")
+          .update({
+            payment_status: newStatus,
+            mp_payment_id: String(paymentId),
+            updated_at: new Date().toISOString(),
+          });
+
+        const filter = String(extRef).startsWith("store_")
+          ? query.eq("mp_external_reference", String(extRef))
+          : query.eq("id", String(extRef));
+
+        const { error: updErr } = await filter;
+        if (updErr) console.error("store_orders update failed:", updErr);
+      }
+
+      return new Response(JSON.stringify({ ok: true, kind: "store_order" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // ── Affiliate sales tracking (influencer commissions) ───────────────────
     // If this payment has an affiliate ref, we register it as an affiliate sale.
