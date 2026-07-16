@@ -266,136 +266,165 @@ serve(async (req) => {
         .eq("user_id", adminProfile.user_id);
     }
 
-    // PASSO 1 — Buscar IDs dos mais vendidos (sem filtro de categoria)
-    console.log("[aliexpress-sync-top-products] PASSO 1: buscando IDs via aliexpress.ds.feed.itemids.get");
-    const idsJson = await callAliExpress(
-      "aliexpress.ds.feed.itemids.get",
-      {
-        feed_name: "DS bestseller",
-        page_size: String(PAGE_SIZE),
-        page_no: "1",
-      },
-      { appKey, appSecret, accessToken },
+    // Carrega keywords ativas (category_mapping) — cai em fallback quando vazio
+    let keywords: string[] = [];
+    let testKeywordOverride: string | null = null;
+    try {
+      const bodyClone = await req.clone().json().catch(() => ({} as any));
+      if (bodyClone?.keyword && typeof bodyClone.keyword === "string") {
+        testKeywordOverride = bodyClone.keyword.trim();
+      }
+    } catch { /* ignore */ }
+
+    if (testKeywordOverride) {
+      keywords = [testKeywordOverride];
+      console.log(`[aliexpress-sync-top-products] modo teste: keyword única="${testKeywordOverride}"`);
+    } else {
+      const { data: mappings } = await supabase
+        .from("category_mapping")
+        .select("velo_category, aliexpress_category_name, aliexpress_category_id")
+        .eq("active", true);
+      keywords = (mappings ?? [])
+        .map((m: any) =>
+          String(
+            m.aliexpress_category_name ??
+              m.aliexpress_category_id ??
+              m.velo_category ??
+              "",
+          ).trim(),
+        )
+        .filter((s) => s.length > 0);
+      if (keywords.length === 0) {
+        keywords = ["eletrônicos"];
+        console.log(
+          "[aliexpress-sync-top-products] nenhum mapping ativo — usando fallback keyword=\"eletrônicos\"",
+        );
+      }
+    }
+
+    console.log(
+      `[aliexpress-sync-top-products] keywords a processar (${keywords.length}):`,
+      JSON.stringify(keywords),
     );
-
-    // Extrai IDs de forma tolerante a diferentes formatos de resposta
-    const rawIdsContainer =
-      idsJson?.aliexpress_ds_feed_itemids_get_response?.result?.products ??
-      idsJson?.aliexpress_ds_feed_itemids_get_response?.result ??
-      idsJson?.result?.products ??
-      idsJson?.result ??
-      [];
-    let productIds: string[] = [];
-    if (Array.isArray(rawIdsContainer)) {
-      productIds = rawIdsContainer.map((v: any) =>
-        typeof v === "object" ? String(v.product_id ?? v.item_id ?? v.id ?? "") : String(v),
-      );
-    } else if (typeof rawIdsContainer === "object" && rawIdsContainer !== null) {
-      const arr = rawIdsContainer.product_id ?? rawIdsContainer.item_id ?? rawIdsContainer.string ?? [];
-      if (Array.isArray(arr)) productIds = arr.map((v: any) => String(v));
-      else if (typeof arr === "string") productIds = arr.split(",").map((s) => s.trim());
-    }
-    productIds = productIds.filter((s) => s && s !== "undefined");
-    console.log(`[aliexpress-sync-top-products] PASSO 1 OK: ${productIds.length} IDs recebidos`);
-
-    if (productIds.length === 0) {
-      await finalize({
-        status: "success",
-        categories_processed: 0,
-        products_new: 0,
-        products_updated: 0,
-        error_message: "Feed retornou 0 IDs",
-      });
-      return new Response(
-        JSON.stringify({ ok: true, message: "Feed vazio", products_new: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
     let productsNew = 0;
     let productsUpdated = 0;
     let errorCount = 0;
     const errors: string[] = [];
     const currentTopIds = new Set<string>();
-
-    // PASSO 2 — Buscar detalhes de cada produto (1 chamada por ID)
-    console.log(`[aliexpress-sync-top-products] PASSO 2: detalhando ${productIds.length} produtos`);
     const detailed: any[] = [];
-    for (let i = 0; i < productIds.length; i++) {
-      const pid = productIds[i];
+
+    // PASSO 1 — Para cada keyword, chama aliexpress.ds.text.search
+    for (const keyword of keywords) {
+      console.log(
+        `[aliexpress-sync-top-products] → text.search keyword="${keyword}"`,
+      );
+      let json: any;
       try {
-        const detailJson = await callAliExpress(
-          "aliexpress.ds.product.get",
+        json = await callAliExpress(
+          "aliexpress.ds.text.search",
           {
-            product_id: pid,
-            target_currency: "USD",
-            target_language: "PT",
-            ship_to_country: "BR",
+            keyWord: keyword,
+            local: "pt_BR",
+            countryCode: "BR",
+            currency: "BRL",
+            sortBy: "orders,desc",
+            pageSize: String(PAGE_SIZE),
+            pageIndex: "1",
           },
           { appKey, appSecret, accessToken },
         );
-
-        const resp =
-          detailJson?.aliexpress_ds_product_get_response?.result ??
-          detailJson?.result ??
-          detailJson;
-
-        const base = resp?.ae_item_base_info_dto ?? {};
-        const sku = resp?.ae_item_sku_info_dtos?.ae_item_sku_info_d_t_o?.[0] ?? {};
-        const media = resp?.ae_multimedia_info_dto ?? {};
-        const store = resp?.ae_store_info ?? {};
-
-        const imagesStr: string = media?.image_urls ?? "";
-        const images = imagesStr ? imagesStr.split(";").filter(Boolean) : [];
-
-        const salePriceUsd = Number(sku?.offer_sale_price ?? sku?.sku_price ?? base?.sale_price ?? 0);
-        const originalPriceUsd = Number(sku?.sku_price ?? base?.original_price ?? salePriceUsd);
-        const cost = +(salePriceUsd * USD_TO_BRL).toFixed(2);
-        const suggested = +(cost * 2).toFixed(2);
-        const original = +(originalPriceUsd * USD_TO_BRL).toFixed(2);
-        const margin = suggested > 0 ? +(((suggested - cost) / suggested) * 100).toFixed(2) : 0;
-
-        const externalId = String(base?.product_id ?? pid);
-        const title = String(base?.subject ?? base?.product_title ?? "").trim();
-
-        if (!externalId || !title) {
-          console.warn(`[aliexpress-sync-top-products] produto ${pid} sem dados suficientes, ignorando`);
-        } else {
-          detailed.push({
-            source: "aliexpress",
-            external_id: externalId,
-            title,
-            images: images.length > 0 ? images : (base?.image_url ? [base.image_url] : []),
-            cost_price: cost,
-            suggested_price: suggested,
-            original_price: original,
-            margin_percent: margin,
-            rating: base?.evaluation_rate ? Number(String(base.evaluation_rate).replace("%", "")) / 20 : null,
-            orders_count: Number(base?.sales_count ?? base?.evaluation_count ?? 0) || 0,
-            stock_quantity: Number(sku?.sku_available_stock ?? 999) || 999,
-            product_url: base?.detail_url ?? `https://www.aliexpress.com/item/${externalId}.html`,
-            aliexpress_category_id: String(base?.category_id ?? ""),
-            brand: store?.store_name ?? null,
-            in_top_50: true,
-            is_active: true,
-            is_blocked: false,
-            scraped_at: new Date().toISOString(),
-          });
-          currentTopIds.add(`aliexpress:${externalId}`);
-        }
       } catch (err) {
         errorCount++;
         const msg = err instanceof Error ? err.message : String(err);
-        errors.push(`[${pid}] ${msg}`);
-        console.error(`[aliexpress-sync-top-products] erro em product.get id=${pid}:`, msg);
+        errors.push(`[keyword=${keyword}] ${msg}`);
+        console.error(
+          `[aliexpress-sync-top-products] falha text.search keyword="${keyword}":`,
+          msg,
+        );
+        await sleep(RATE_LIMIT_DELAY_MS);
+        continue;
       }
-      // Pequeno delay para respeitar rate limit
+
+      // Extrai lista de produtos, tolerante a envelopes distintos
+      const products: any[] =
+        json?.aliexpress_ds_text_search_response?.data?.products?.selection_search_product ??
+        json?.aliexpress_ds_text_search_response?.data?.products ??
+        json?.data?.products?.selection_search_product ??
+        json?.data?.products ??
+        json?.result?.products ??
+        [];
+      const list = Array.isArray(products) ? products : [products].filter(Boolean);
+      console.log(
+        `[aliexpress-sync-top-products] ← keyword="${keyword}" total_retornado=${list.length}`,
+      );
+
+      for (const p of list) {
+        const externalId = String(
+          p.itemId ?? p.item_id ?? p.product_id ?? p.productId ?? "",
+        );
+        const title = String(p.title ?? p.product_title ?? p.subject ?? "").trim();
+        if (!externalId || !title) continue;
+        if (currentTopIds.has(`aliexpress:${externalId}`)) continue; // dedup entre keywords
+
+        const image =
+          p.itemMainPic ??
+          p.item_main_pic ??
+          p.product_main_image_url ??
+          p.image_url ??
+          null;
+        // targetSalePrice/targetOriginalPrice vêm em BRL (moeda alvo);
+        // salePrice/originalPrice podem vir em CNY. Preferir os "target*".
+        const salePriceBrl = Number(
+          p.targetSalePrice ?? p.target_sale_price ?? p.salePrice ?? p.sale_price ?? 0,
+        );
+        const originalPriceBrl = Number(
+          p.targetOriginalPrice ?? p.target_original_price ?? p.originalPrice ?? p.original_price ?? salePriceBrl,
+        );
+        const cost = +Number(salePriceBrl).toFixed(2);
+        const suggested = +(cost * 2).toFixed(2);
+        const original = +Number(originalPriceBrl).toFixed(2);
+        const margin =
+          suggested > 0 ? +(((suggested - cost) / suggested) * 100).toFixed(2) : 0;
+
+        detailed.push({
+          source: "aliexpress",
+          external_id: externalId,
+          title,
+          images: image ? [image] : [],
+          cost_price: cost,
+          suggested_price: suggested,
+          original_price: original,
+          margin_percent: margin,
+          rating: p.score ? Number(p.score) : null,
+          orders_count: (() => {
+            const raw = String(p.orders ?? p.sales_count ?? "0").replace(/[+,\s]/g, "");
+            const n = parseInt(raw, 10);
+            return Number.isFinite(n) ? n : 0;
+          })(),
+          stock_quantity: 999,
+          product_url:
+            p.itemUrl ??
+            p.product_detail_url ??
+            `https://www.aliexpress.com/item/${externalId}.html`,
+          aliexpress_category_id: null,
+          brand: null,
+          in_top_50: true,
+          is_active: true,
+          is_blocked: false,
+          scraped_at: new Date().toISOString(),
+        });
+        currentTopIds.add(`aliexpress:${externalId}`);
+      }
+
       await sleep(RATE_LIMIT_DELAY_MS);
     }
 
-    console.log(`[aliexpress-sync-top-products] PASSO 2 OK: ${detailed.length}/${productIds.length} produtos normalizados`);
+    console.log(
+      `[aliexpress-sync-top-products] agregado: ${detailed.length} produtos únicos em ${keywords.length} keywords`,
+    );
 
-    // PASSO 3 — Upsert em catalog_products
+    // PASSO 2 — Upsert em catalog_products
     if (detailed.length > 0) {
       const ids = detailed.map((p) => p.external_id);
       const { data: existing } = await supabase
@@ -415,7 +444,9 @@ serve(async (req) => {
         console.error("[aliexpress-sync-top-products] erro no upsert:", upsertErr);
         throw upsertErr;
       }
-      console.log(`[aliexpress-sync-top-products] PASSO 3 OK: ${productsNew} novos, ${productsUpdated} atualizados`);
+      console.log(
+        `[aliexpress-sync-top-products] upsert OK: ${productsNew} novos, ${productsUpdated} atualizados`,
+      );
     }
 
     // Marcar produtos AliExpress que caíram do top 50
@@ -438,7 +469,7 @@ serve(async (req) => {
 
     await finalize({
       status: errorCount > 0 && productsNew + productsUpdated === 0 ? "failed" : "success",
-      categories_processed: 1,
+      categories_processed: keywords.length,
       products_new: productsNew,
       products_updated: productsUpdated,
       products_dropped_from_top: droppedIds.length,
