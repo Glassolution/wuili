@@ -84,6 +84,10 @@ function mapProduct(p: CatalogProductRow): DetailedProduct {
   const imgs = extractImages(p.images);
   const cost = p.cost_price || 0;
   const suggested = p.suggested_price || (cost ? cost * 2 : 0);
+  const supplierLabel =
+    p.source === "aliexpress"
+      ? "AliExpress"
+      : p.supplier_name ?? (p.source === "c7drop" ? "C7 Drop" : null);
   return {
     id: p.id,
     title: p.title || "Produto sem nome",
@@ -98,7 +102,7 @@ function mapProduct(p: CatalogProductRow): DetailedProduct {
         : null,
     images: imgs.length > 0 ? imgs : [FALLBACK_IMG],
     product_url: p.product_url ?? null,
-    supplier_name: p.supplier_name ?? null,
+    supplier_name: supplierLabel,
     description: p.description ?? null,
     rating: typeof p.rating === "number" ? p.rating : null,
     stockQuantity: typeof p.stock_quantity === "number" ? p.stock_quantity : null,
@@ -158,7 +162,6 @@ const CatalogoProductDetailPage = () => {
             .from("catalog_products")
             .select("*")
             .eq("is_blocked", false)
-            .eq("source", "c7drop")
             .neq("id", id)
             .eq("category", data.category || "")
             .limit(12),
@@ -171,7 +174,6 @@ const CatalogoProductDetailPage = () => {
               .from("catalog_products")
               .select("*")
               .eq("is_blocked", false)
-              .eq("source", "c7drop")
               .neq("id", id)
               .limit(12),
           );
