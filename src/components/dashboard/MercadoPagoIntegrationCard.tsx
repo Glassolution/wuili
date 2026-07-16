@@ -49,25 +49,15 @@ const MercadoPagoIntegrationCard = () => {
     setConnecting(true);
     try {
       const redirectUri = `${window.location.origin}/mercadopago/callback`;
-      const { data, error } = await supabase.functions.invoke("mp-seller-auth-url", {
-        method: "GET" as any,
-        body: undefined,
+      const { data: sess } = await supabase.auth.getSession();
+      const projectRef = "nqzpoioxvbqavrtphtoa";
+      const url = `https://${projectRef}.supabase.co/functions/v1/mp-seller-auth-url?redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${sess.session?.access_token ?? ""}` },
       });
-      // fallback: chamar via fetch com query string
-      let authUrl = (data as any)?.auth_url as string | undefined;
-      if (!authUrl) {
-        const url = `${(supabase as any).functionsUrl ?? ""}/mp-seller-auth-url?redirect_uri=${encodeURIComponent(redirectUri)}`;
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}` },
-        });
-        const j = await res.json();
-        authUrl = j.auth_url;
-      } else {
-        // reappend redirect_uri (function default returns empty redirect)
-        authUrl = authUrl.replace(/redirect_uri=[^&]*/, `redirect_uri=${encodeURIComponent(redirectUri)}`);
-      }
-      if (error || !authUrl) throw error ?? new Error("URL indisponível");
-      window.location.href = authUrl;
+      const json = await res.json();
+      if (!res.ok || !json.auth_url) throw new Error(json.error ?? "URL indisponível");
+      window.location.href = json.auth_url;
     } catch (err) {
       console.error(err);
       veloToast.error("Não foi possível iniciar a conexão com o Mercado Pago");
