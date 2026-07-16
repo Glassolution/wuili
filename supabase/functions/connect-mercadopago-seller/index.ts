@@ -32,9 +32,22 @@ serve(async (req) => {
     if (userErr || !userData.user) return json({ error: "Não autenticado" }, 401);
 
     const sellerId = userData.user.id;
-    const { code, redirect_uri } = await req.json();
-    if (!code || !redirect_uri) return json({ error: "code e redirect_uri são obrigatórios" }, 400);
+    const body = await req.json().catch(() => ({}));
+    const { code } = body ?? {};
+    if (!code) return json({ error: "code é obrigatório" }, 400);
 
+    const envRedirectUri = Deno.env.get("MP_MARKETPLACE_REDIRECT_URI");
+    if (!envRedirectUri) {
+      console.error("[connect-mp-seller] MP_MARKETPLACE_REDIRECT_URI não configurado");
+      return json({ error: "MP_MARKETPLACE_REDIRECT_URI não configurado" }, 500);
+    }
+    const bodyRedirectUri: string | undefined = body?.redirect_uri;
+    if (bodyRedirectUri && bodyRedirectUri !== envRedirectUri) {
+      console.error("[connect-mp-seller] redirect_uri mismatch", { fromBody: bodyRedirectUri, fromEnv: envRedirectUri });
+      return json({ error: "redirect_uri não corresponde ao configurado no servidor" }, 400);
+    }
+    const redirect_uri = envRedirectUri;
+    console.log("[connect-mp-seller] redirect_uri final:", redirect_uri);
     console.log("[connect-mp-seller] trocando code por token para seller", sellerId);
 
     const tokenRes = await fetch("https://api.mercadopago.com/oauth/token", {
