@@ -258,6 +258,16 @@ const GeneratedStoreEditorPage = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [canvasZoom, setCanvasZoom] = useState(0.52);
+  const [productPreviewHeight, setProductPreviewHeight] = useState<number>(0);
+  useEffect(() => {
+    const node = previewRef.current;
+    if (!node) return;
+    const update = () => setProductPreviewHeight(node.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [mobilePreview]);
   const canvasZoomRef = useRef(0.52);
   const [isCanvasDragging, setIsCanvasDragging] = useState(false);
   const [selectionMarquee, setSelectionMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
