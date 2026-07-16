@@ -3043,12 +3043,13 @@ const GeneratedStoreEditorPage = () => {
           {activeTemplate.kind === "produto" && projectSlug ? (
             <>
               {[
-                { key: "carrinho", label: "Tela 2 · Carrinho", path: `/loja/${projectSlug}/carrinho` },
-                { key: "checkout", label: "Tela 3 · Checkout", path: `/loja/${projectSlug}/checkout` },
+                { key: "carrinho", label: "Tela 2 · Carrinho", path: `/loja/${projectSlug}/carrinho?preview=1` },
+                { key: "checkout", label: "Tela 3 · Checkout", path: `/loja/${projectSlug}/checkout?preview=1` },
               ].map((screen, idx) => {
                 const baseWidth = mobilePreview ? 390 : 1440;
                 const gap = 120;
                 const leftOffset = (baseWidth + gap) * (idx + 1);
+                const panelHeight = productPreviewHeight || (mobilePreview ? 780 : 900);
                 return (
                   <div
                     key={screen.key}
@@ -3063,7 +3064,7 @@ const GeneratedStoreEditorPage = () => {
                     </div>
                     <div
                       className="relative overflow-hidden bg-white shadow-[0_30px_100px_rgba(0,0,0,0.46)] ring-1 ring-white/[0.10]"
-                      style={{ width: baseWidth, height: mobilePreview ? 780 : 900 }}
+                      style={{ width: baseWidth, height: panelHeight }}
                     >
                       <iframe
                         src={screen.path}
@@ -3078,12 +3079,13 @@ const GeneratedStoreEditorPage = () => {
                 const baseWidth = mobilePreview ? 390 : 1440;
                 const gap = 120;
                 const leftOffset = (baseWidth + gap) * idx - gap + 20;
+                const panelHeight = productPreviewHeight || (mobilePreview ? 780 : 900);
                 return (
                   <div
                     key={`arrow-${idx}`}
                     data-canvas-ui
                     className="pointer-events-none absolute flex items-center text-white/30"
-                    style={{ left: leftOffset, top: mobilePreview ? 400 : 460, width: gap - 40 }}
+                    style={{ left: leftOffset, top: 56 + panelHeight / 2 - 14, width: gap - 40 }}
                   >
                     <div className="h-px flex-1 bg-white/20" />
                     <ArrowRight size={28} strokeWidth={1.8} />
