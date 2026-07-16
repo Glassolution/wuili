@@ -1050,11 +1050,11 @@ const CatalogoPage = () => {
           let query = supabase
             .from("catalog_products")
             .select("*", { count: "exact" })
-            .eq("source", "c7drop")
             .eq("is_blocked", false)
             .gt("stock_quantity", 0)
             .order("created_at", { ascending: false })
             .range(start, end);
+
 
           if (activeCategory !== "todos") {
             const dbCategory = categoryMap[activeCategory];
