@@ -42,12 +42,20 @@ async function callAliExpress(
   sysParams.sign = signParams(sysParams, ctx.appSecret);
 
   const body = new URLSearchParams(sysParams);
+  console.log(
+    `[aliexpress-sync-top-products] → chamando ${method} params=`,
+    JSON.stringify({ ...bizParams }),
+  );
   const res = await fetch(ALI_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
   const text = await res.text();
+  console.log(
+    `[aliexpress-sync-top-products] ← ${method} status=${res.status} body(raw)=`,
+    text.slice(0, 4000),
+  );
   let json: any;
   try {
     json = JSON.parse(text);
