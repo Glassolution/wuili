@@ -995,6 +995,10 @@ const CatalogoPage = () => {
     if (imgUrls.length === 0) {
       imgUrls = [defaultImage];
     }
+    const supplierLabel =
+      p.source === "aliexpress"
+        ? "AliExpress"
+        : p.supplier_name ?? (p.source === "c7drop" ? "C7 Drop" : null);
     return {
       id: p.id,
       nome: p.title || "Produto sem nome",
@@ -1005,6 +1009,7 @@ const CatalogoPage = () => {
       product_url: p.product_url,
       rating: p.rating,
       ordersCount: p.orders_count,
+      supplierLabel,
     };
   };
 
