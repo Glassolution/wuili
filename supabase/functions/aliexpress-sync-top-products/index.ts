@@ -14,8 +14,98 @@ const USD_TO_BRL = 5.0;
 const PAGE_SIZE = 100; // alvo: 100 produtos por keyword
 const RATE_LIMIT_DELAY_MS = 400; // ~2.5 req/s
 const MAX_PAGES_PER_KEYWORD = 5; // fallback quando API limita pageSize < 100
+const MAX_DETAIL_FETCHES = 250; // cap de chamadas a product.get por execução
+const DETAIL_DELAY_MS = 350;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Busca detalhes reais (galeria completa, descrição, vendas, avaliações) de um produto AliExpress. */
+async function fetchProductDetail(
+  productId: string,
+  ctx: { appKey: string; appSecret: string; accessToken: string },
+): Promise<{
+  images: string[];
+  description: string | null;
+  orders_count: number | null;
+  rating: number | null;
+  reviews_count: number | null;
+} | null> {
+  try {
+    const json = await callAliExpress(
+      "aliexpress.ds.product.get",
+      {
+        product_id: productId,
+        ship_to_country: "BR",
+        target_currency: "BRL",
+        target_language: "pt",
+        local: "pt_BR",
+      },
+      ctx,
+    );
+    const result =
+      json?.aliexpress_ds_product_get_response?.result ??
+      json?.result ??
+      json?.data ??
+      {};
+    const multimedia = result.ae_multimedia_info_dto ?? result.multimedia_info ?? {};
+    const base = result.ae_item_base_info_dto ?? result.base_info ?? {};
+    const stats = result.ae_item_sku_info_dtos ?? {};
+
+    // Galeria: pode vir como string separada por ";" ou array
+    let images: string[] = [];
+    const rawImgs = multimedia.image_urls ?? multimedia.imageUrls ?? multimedia.imageUrl;
+    if (typeof rawImgs === "string") {
+      images = rawImgs.split(/[;,]/).map((s: string) => s.trim()).filter(Boolean);
+    } else if (Array.isArray(rawImgs)) {
+      images = rawImgs.filter(Boolean).map(String);
+    }
+
+    const description: string | null =
+      base.detail ??
+      base.description ??
+      result.description ??
+      null;
+
+    const ordersRaw =
+      base.sales_count ??
+      base.sale_count ??
+      base.orders ??
+      stats?.sales_count ??
+      null;
+    const orders_count = ordersRaw != null
+      ? (() => {
+          const n = parseInt(String(ordersRaw).replace(/[+,\s]/g, ""), 10);
+          return Number.isFinite(n) ? n : null;
+        })()
+      : null;
+
+    const ratingRaw = base.avg_evaluation_rating ?? base.avg_rating ?? base.evaluation_rate ?? null;
+    const rating = ratingRaw != null
+      ? (() => {
+          const s = String(ratingRaw);
+          if (s.endsWith("%")) return +(parseFloat(s) / 20).toFixed(2);
+          const n = parseFloat(s);
+          return Number.isFinite(n) ? +n.toFixed(2) : null;
+        })()
+      : null;
+
+    const reviewsRaw = base.evaluation_count ?? base.reviews_count ?? null;
+    const reviews_count = reviewsRaw != null
+      ? (() => {
+          const n = parseInt(String(reviewsRaw).replace(/[+,\s]/g, ""), 10);
+          return Number.isFinite(n) ? n : null;
+        })()
+      : null;
+
+    return { images, description, orders_count, rating, reviews_count };
+  } catch (err) {
+    console.warn(
+      `[aliexpress-sync-top-products] product.get falhou para ${productId}:`,
+      err instanceof Error ? err.message : err,
+    );
+    return null;
+  }
+}
 
 /** Assinatura HMAC-SHA256 padrão AliExpress Open Platform. */
 function signParams(params: Record<string, string>, secret: string): string {
@@ -313,6 +403,7 @@ serve(async (req) => {
     let errorCount = 0;
     const errors: string[] = [];
     const currentTopIds = new Set<string>();
+    const currentTitles = new Set<string>();
     const detailed: any[] = [];
 
     // PASSO 1 — Para cada keyword, chama aliexpress.ds.text.search paginando até PAGE_SIZE
@@ -395,6 +486,9 @@ serve(async (req) => {
           const title = String(p.title ?? p.product_title ?? p.subject ?? "").trim();
           if (!externalId || !title) continue;
           if (currentTopIds.has(`aliexpress:${externalId}`)) continue; // dedup entre keywords/páginas
+          const titleKey = title.toLowerCase();
+          if (currentTitles.has(titleKey)) continue; // dedup por título (variantes com mesmo nome)
+
 
           const image =
             p.itemMainPic ??
@@ -443,9 +537,11 @@ serve(async (req) => {
             scraped_at: new Date().toISOString(),
           });
           currentTopIds.add(`aliexpress:${externalId}`);
+          currentTitles.add(titleKey);
           collectedForKeyword++;
           if (collectedForKeyword >= PAGE_SIZE) break;
         }
+
 
         await sleep(RATE_LIMIT_DELAY_MS);
 
@@ -462,6 +558,34 @@ serve(async (req) => {
     console.log(
       `[aliexpress-sync-top-products] agregado: ${detailed.length} produtos únicos em ${keywords.length} keywords`,
     );
+
+    // PASSO 1.5 — Enriquecimento: puxa dados reais (galeria completa, descrição, vendas, avaliação, reviews)
+    const enrichLimit = Math.min(detailed.length, MAX_DETAIL_FETCHES);
+    console.log(
+      `[aliexpress-sync-top-products] enriquecendo ${enrichLimit} produtos via aliexpress.ds.product.get`,
+    );
+    let enrichedCount = 0;
+    for (let i = 0; i < enrichLimit; i++) {
+      const item = detailed[i];
+      const detail = await fetchProductDetail(item.external_id, {
+        appKey,
+        appSecret,
+        accessToken,
+      });
+      if (detail) {
+        if (detail.images.length > 0) item.images = detail.images;
+        if (detail.description) item.description = detail.description;
+        if (detail.orders_count != null) item.orders_count = detail.orders_count;
+        if (detail.rating != null) item.rating = detail.rating;
+        if (detail.reviews_count != null) item.reviews_count = detail.reviews_count;
+        enrichedCount++;
+      }
+      await sleep(DETAIL_DELAY_MS);
+    }
+    console.log(
+      `[aliexpress-sync-top-products] enriquecimento concluído: ${enrichedCount}/${enrichLimit}`,
+    );
+
 
     // PASSO 2 — Upsert em catalog_products
     if (detailed.length > 0) {

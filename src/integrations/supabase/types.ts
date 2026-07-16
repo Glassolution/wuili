@@ -300,6 +300,7 @@ export type Database = {
           original_price: number | null
           product_url: string | null
           rating: number | null
+          reviews_count: number | null
           scraped_at: string | null
           source: string
           stock_quantity: number | null
@@ -330,6 +331,7 @@ export type Database = {
           original_price?: number | null
           product_url?: string | null
           rating?: number | null
+          reviews_count?: number | null
           scraped_at?: string | null
           source?: string
           stock_quantity?: number | null
@@ -360,6 +362,7 @@ export type Database = {
           original_price?: number | null
           product_url?: string | null
           rating?: number | null
+          reviews_count?: number | null
           scraped_at?: string | null
           source?: string
           stock_quantity?: number | null

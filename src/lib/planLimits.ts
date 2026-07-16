@@ -14,6 +14,8 @@ export type OperationalPlanLimits = {
   marketplaces: LimitValue;
   aiAgents: LimitValue;
   automations: LimitValue;
+  salesPages: LimitValue;
+  stores: LimitValue;
   analytics: "none" | "basic" | "premium";
   monitoring: "none" | "basic" | "premium";
   autoReplies: "none" | "limited" | "unlimited";
@@ -25,56 +27,34 @@ export type OperationalPlanLimits = {
 
 export const PLAN_LIMITS: Record<PlanName, OperationalPlanLimits> = {
   gratis: {
-    products: 0,
-    marketplaces: 1,
-    aiAgents: 0,
-    automations: 0,
-    analytics: "none",
-    monitoring: "none",
-    autoReplies: "none",
-    advancedReports: false,
-    prioritySupport: false,
-    dedicatedSupport: false,
-    apiAccess: false,
+    products: 0, marketplaces: 1, aiAgents: 0, automations: 0,
+    salesPages: 0, stores: 0,
+    analytics: "none", monitoring: "none", autoReplies: "none",
+    advancedReports: false, prioritySupport: false, dedicatedSupport: false, apiAccess: false,
   },
   go: {
-    products: 0,
-    marketplaces: 1,
-    aiAgents: 0,
-    automations: 0,
-    analytics: "none",
-    monitoring: "none",
-    autoReplies: "none",
-    advancedReports: false,
-    prioritySupport: false,
-    dedicatedSupport: false,
-    apiAccess: false,
+    products: 0, marketplaces: 1, aiAgents: 0, automations: 0,
+    salesPages: 0, stores: 0,
+    analytics: "none", monitoring: "none", autoReplies: "none",
+    advancedReports: false, prioritySupport: false, dedicatedSupport: false, apiAccess: false,
+  },
+  base: {
+    products: 50, marketplaces: 1, aiAgents: 0, automations: 0,
+    salesPages: 1, stores: 0,
+    analytics: "basic", monitoring: "basic", autoReplies: "none",
+    advancedReports: false, prioritySupport: false, dedicatedSupport: false, apiAccess: false,
   },
   pro: {
-    products: 30,
-    marketplaces: 2,
-    aiAgents: 3,
-    automations: 3,
-    analytics: "basic",
-    monitoring: "basic",
-    autoReplies: "limited",
-    advancedReports: true,
-    prioritySupport: true,
-    dedicatedSupport: false,
-    apiAccess: false,
+    products: 200, marketplaces: 2, aiAgents: 3, automations: 3,
+    salesPages: 5, stores: 3,
+    analytics: "basic", monitoring: "basic", autoReplies: "limited",
+    advancedReports: true, prioritySupport: true, dedicatedSupport: false, apiAccess: false,
   },
   business: {
-    products: null,
-    marketplaces: null,
-    aiAgents: null,
-    automations: null,
-    analytics: "premium",
-    monitoring: "premium",
-    autoReplies: "unlimited",
-    advancedReports: true,
-    prioritySupport: true,
-    dedicatedSupport: true,
-    apiAccess: true,
+    products: null, marketplaces: null, aiAgents: null, automations: null,
+    salesPages: null, stores: null,
+    analytics: "premium", monitoring: "premium", autoReplies: "unlimited",
+    advancedReports: true, prioritySupport: true, dedicatedSupport: true, apiAccess: true,
   },
 };
 
@@ -82,6 +62,7 @@ const NORMALIZE_PLAN: Record<string, PlanName> = {
   gratis: "gratis",
   free: "gratis",
   go: "go",
+  base: "base",
   plus: "pro",
   pro: "pro",
   business: "business",

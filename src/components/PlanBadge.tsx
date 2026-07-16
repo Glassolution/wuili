@@ -3,6 +3,7 @@ import { usePlan, type PlanName } from "@/hooks/usePlan";
 const LABELS: Record<PlanName, string> = {
   gratis: "Plano Gratuito",
   go: "Plano Go",
+  base: "Plano Base",
   pro: "Plano Pro",
   business: "Plano Business",
 };

@@ -26,57 +26,57 @@ type PlanData = {
 };
 
 const PLANS_DATA: Record<string, PlanData> = {
+  base: {
+    name: "Base",
+    price: "R$ 97,00",
+    description: "Pra quem quer começar a vender sem travar no operacional.",
+    features: [
+      "Importação automática de até 50 produtos por mês pro Mercado Livre",
+      "1 página de vendas gerada por IA por mês",
+      "Loja completa: não incluída neste plano",
+      "Acesso completo ao catálogo validado da Velo",
+      "Subdomínio grátis (seunome.velo.store)",
+    ],
+  },
   pro: {
     name: "Pro",
-    price: "R$ 99,90",
-    description: "Para validar produtos, publicar com segurança e operar com IA sem complexidade.",
+    price: "R$ 149,90",
+    description: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
     badge: "Mais escolhido",
     features: [
-      "Até 30 produtos publicados",
-      "Até 2 marketplaces conectados",
-      "Até 3 agentes IA",
-      "Automações limitadas",
-      "Analytics básico",
-      "Monitoramento básico 24h",
-      "Respostas automáticas limitadas",
-      "Publicação automática",
-      "Memória de operação entre sessões",
-      "Relatórios financeiros",
+      "Importação automática de até 200 produtos por mês pro Mercado Livre",
+      "5 páginas de vendas geradas por IA por mês",
+      "3 lojas completas geradas por IA — dá pra separar por nicho, se quiser",
+      "Domínio próprio grátis",
+      "Atualização automática de preço e estoque nos produtos publicados",
       "Suporte prioritário",
     ],
   },
   business: {
     name: "Business",
-    price: "R$ 149,90",
-    originalPrice: "R$ 249,90",
-    description: "Para quem quer escalar catálogo, automações e análise avançada sem limites.",
+    price: "R$ 299,90",
+    description: "Pra quem já vive disso e quer parar de contar produto.",
     badge: "Escala",
     features: [
-      "Produtos ilimitados",
-      "Marketplaces ilimitados",
-      "Agentes IA ilimitados",
-      "Automações ilimitadas",
-      "IA estratégica avançada",
-      "Análise de concorrência",
-      "Score de produtos",
-      "Insights automáticos",
-      "Analytics premium",
-      "Acesso antecipado",
-      "Processamento prioritário",
-      "Operação sem limites",
-      "Suporte dedicado",
+      "Importação ilimitada de produtos pro Mercado Livre",
+      "Páginas de vendas ilimitadas",
+      "Lojas completas ilimitadas",
+      "Domínio próprio grátis em todas as lojas",
+      "Suporte prioritário com atendimento dedicado",
     ],
   },
 };
 
 const PLAN_AMOUNTS: Record<string, number> = {
-  pro: 99.9,
-  business: 149.9,
+  base: 97,
+  pro: 149.9,
+  business: 299.9,
 };
 
 const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
-  pro: 1079.9,
-  business: 1619.9,
+  base: 1047.6,   // 97 * 12 * 0.9
+  pro: 1618.92,   // 149.90 * 12 * 0.9
+  business: 3238.92, // 299.90 * 12 * 0.9
 };
 
 const splitPlanPrice = (price: string) => {
