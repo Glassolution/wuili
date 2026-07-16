@@ -559,6 +559,34 @@ serve(async (req) => {
       `[aliexpress-sync-top-products] agregado: ${detailed.length} produtos únicos em ${keywords.length} keywords`,
     );
 
+    // PASSO 1.5 — Enriquecimento: puxa dados reais (galeria completa, descrição, vendas, avaliação, reviews)
+    const enrichLimit = Math.min(detailed.length, MAX_DETAIL_FETCHES);
+    console.log(
+      `[aliexpress-sync-top-products] enriquecendo ${enrichLimit} produtos via aliexpress.ds.product.get`,
+    );
+    let enrichedCount = 0;
+    for (let i = 0; i < enrichLimit; i++) {
+      const item = detailed[i];
+      const detail = await fetchProductDetail(item.external_id, {
+        appKey,
+        appSecret,
+        accessToken,
+      });
+      if (detail) {
+        if (detail.images.length > 0) item.images = detail.images;
+        if (detail.description) item.description = detail.description;
+        if (detail.orders_count != null) item.orders_count = detail.orders_count;
+        if (detail.rating != null) item.rating = detail.rating;
+        if (detail.reviews_count != null) item.reviews_count = detail.reviews_count;
+        enrichedCount++;
+      }
+      await sleep(DETAIL_DELAY_MS);
+    }
+    console.log(
+      `[aliexpress-sync-top-products] enriquecimento concluído: ${enrichedCount}/${enrichLimit}`,
+    );
+
+
     // PASSO 2 — Upsert em catalog_products
     if (detailed.length > 0) {
       const ids = detailed.map((p) => p.external_id);
