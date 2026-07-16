@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import {
   fetchPublicProject,
@@ -72,6 +72,8 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
   const [product, setProduct] = useState<PublicStoreProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { slug } = useParams();
 
   useEffect(() => {
     let active = true;
@@ -112,8 +114,22 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
     );
   }
 
+  // Click delegation: qualquer botão dentro do template cujo texto seja
+  // "Adicionar ao carrinho" / "Comprar" / "Comprar agora" leva o cliente para
+  // a próxima tela do fluxo (carrinho). Assim os templates existentes não
+  // precisam saber do fluxo.
+  const handleTemplateClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = (event.target as HTMLElement).closest("button");
+    if (!target) return;
+    const text = (target.textContent || "").trim().toLowerCase();
+    if (/adicionar ao carrinho|comprar/.test(text)) {
+      event.preventDefault();
+      if (slug) navigate(`/loja/${slug}/carrinho`);
+    }
+  };
+
   return (
-    <div ref={rootRef} style={{ fontFamily: fontStack }}>
+    <div ref={rootRef} style={{ fontFamily: fontStack }} onClick={handleTemplateClick}>
       <Component
         brand={brand}
         title={product?.title || brand}

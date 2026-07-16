@@ -25,6 +25,10 @@ const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditor
 const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
 const PreviewPage = lazy(() => import("./pages/PreviewPage"));
 const PublicStorePage = lazy(() => import("./pages/PublicStorePage"));
+const SalesCartPage = lazy(() => import("./pages/public-sales/SalesCartPage"));
+const SalesCheckoutPage = lazy(() => import("./pages/public-sales/SalesCheckoutPage"));
+const SalesThankYouPage = lazy(() => import("./pages/public-sales/SalesThankYouPage"));
+const SalesFlowEditorPage = lazy(() => import("./pages/SalesFlowEditorPage"));
 const BemVindoPage = lazy(() => import("./pages/BemVindoPage"));
 // AuthEntryPage removed — all auth flows consolidated in LoginPage
 // CadastroPage removed — progressive login flow handles both signup and login
@@ -157,6 +161,13 @@ const App = () => (
               <Route path="/onboarding/gerando" element={<Navigate to="/comecar" replace />} />
               <Route path="/preview/:slug" element={<PublicStorePage />} />
               <Route path="/loja/:slug" element={<PublicStorePage />} />
+              <Route path="/loja/:slug/carrinho" element={<SalesCartPage />} />
+              <Route path="/loja/:slug/checkout" element={<SalesCheckoutPage />} />
+              <Route path="/loja/:slug/obrigado" element={<SalesThankYouPage />} />
+              <Route path="/preview/:slug/carrinho" element={<SalesCartPage />} />
+              <Route path="/preview/:slug/checkout" element={<SalesCheckoutPage />} />
+              <Route path="/preview/:slug/obrigado" element={<SalesThankYouPage />} />
+              <Route path="/minha-loja/fluxo" element={<ProtectedRoute><SalesFlowEditorPage /></ProtectedRoute>} />
               <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />

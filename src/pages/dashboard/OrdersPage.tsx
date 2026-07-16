@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
@@ -257,9 +257,87 @@ const OrderSkeleton = () => (
   </div>
 );
 
+type OrderTab = "ml" | "loja";
+
+type StoreOrderRow = {
+  id: string;
+  product_title: string;
+  product_image_url: string | null;
+  buyer_name: string;
+  buyer_email: string;
+  quantity: number;
+  total: number;
+  payment_method: string;
+  payment_status: string;
+  created_at: string;
+};
+
+const StoreOrdersList = ({ userId }: { userId: string }) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["store-orders", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("store_orders")
+        .select("id,product_title,product_image_url,buyer_name,buyer_email,quantity,total,payment_method,payment_status,created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as StoreOrderRow[];
+    },
+  });
+
+  if (isLoading) return <OrderSkeleton />;
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-black/[0.12] bg-white py-20 text-center">
+        <ShoppingBag size={48} strokeWidth={1.5} className="mb-4 text-[#D4D4D4]" />
+        <p className="text-[15px] font-semibold text-[#0A0A0A]">Nenhum pedido da sua loja ainda</p>
+        <p className="mt-1 max-w-md text-[13px] text-[#737373]">
+          Quando um cliente comprar em uma das suas páginas de vendas, o pedido aparece aqui automaticamente.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-black/[0.08] bg-white">
+      <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(140px,0.8fr)_110px_120px_120px_140px] border-b border-black/[0.08] bg-[#FAFAFA] px-4 py-3 text-[11px] font-semibold uppercase text-[#737373] md:grid">
+        <span>Produto</span>
+        <span>Comprador</span>
+        <span>Qtd.</span>
+        <span>Total</span>
+        <span>Pagamento</span>
+        <span>Data</span>
+      </div>
+      {data.map((order) => (
+        <div key={order.id} className="grid gap-2 border-b border-black/[0.06] px-4 py-4 md:grid-cols-[minmax(0,1.7fr)_minmax(140px,0.8fr)_110px_120px_120px_140px] md:items-center">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#F5F5F5]">
+              {order.product_image_url ? <img src={order.product_image_url} alt="" className="h-full w-full object-cover" /> : <Package size={20} className="m-3 text-[#A3A3A3]" />}
+            </div>
+            <p className="line-clamp-1 text-[14px] font-semibold text-[#0A0A0A]">{order.product_title}</p>
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{order.buyer_name}</p>
+            <p className="truncate text-[11px] text-[#737373]">{order.buyer_email}</p>
+          </div>
+          <p className="text-[13px] text-[#525252]">{order.quantity}</p>
+          <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total)}</p>
+          <span className={`inline-flex h-7 w-fit items-center rounded-full px-2.5 text-[12px] font-semibold ${order.payment_status === "approved" ? "bg-[#C8F7DF] text-[#137443]" : order.payment_status === "rejected" ? "bg-red-100 text-red-700" : "bg-[#F5F5F5] text-[#404040]"}`}>
+            {order.payment_method === "pix" ? "Pix" : "Cartão"} · {order.payment_status === "approved" ? "Pago" : order.payment_status === "rejected" ? "Rejeitado" : "Pendente"}
+          </span>
+          <p className="text-[13px] text-[#525252]">{formatDate(order.created_at)}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const OrdersPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [tab, setTab] = useState<OrderTab>("ml");
 
   const {
     data: rawOrders,
@@ -316,7 +394,7 @@ const OrdersPage = () => {
             <div>
               <h1 className="text-[24px] font-semibold tracking-normal text-[#0A0A0A]">Pedidos</h1>
               <p className="mt-1 text-[13px] text-[#737373]">
-                Vendas do Mercado Livre com comprador, entrega e fornecedor vinculados.
+                Vendas do Mercado Livre e da sua loja com comprador, entrega e fornecedor vinculados.
               </p>
             </div>
             <div data-dashboard-tour="pedidos-resumo" className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] font-semibold text-[#404040]">
@@ -324,9 +402,28 @@ const OrdersPage = () => {
               {orders.length} {orders.length === 1 ? "pedido" : "pedidos"}
             </div>
           </div>
+
+          <div className="inline-flex w-fit gap-1 rounded-xl border border-black/[0.08] bg-white p-1">
+            <button
+              type="button"
+              onClick={() => setTab("ml")}
+              className={`rounded-lg px-4 py-1.5 text-[13px] font-semibold transition ${tab === "ml" ? "bg-[#0A0A0A] text-white" : "text-[#525252] hover:bg-[#F5F5F5]"}`}
+            >
+              Mercado Livre
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("loja")}
+              className={`rounded-lg px-4 py-1.5 text-[13px] font-semibold transition ${tab === "loja" ? "bg-[#0A0A0A] text-white" : "text-[#525252] hover:bg-[#F5F5F5]"}`}
+            >
+              Minha Loja
+            </button>
+          </div>
         </div>
 
-        {isLoading ? (
+        {tab === "loja" && user?.id ? (
+          <StoreOrdersList userId={user.id} />
+        ) : isLoading ? (
           <OrderSkeleton />
         ) : isEmpty ? (
           <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-black/[0.12] bg-white py-20 text-center">
