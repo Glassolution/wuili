@@ -266,21 +266,50 @@ serve(async (req) => {
         .eq("user_id", adminProfile.user_id);
     }
 
-    // Categorias ativas
-    const { data: mappings, error: mapErr } = await supabase
-      .from("category_mapping")
-      .select("velo_category, aliexpress_category_id")
-      .eq("active", true);
-    if (mapErr) throw mapErr;
-    console.log(
-      "[aliexpress-sync-top-products] mapeamentos ativos:",
-      JSON.stringify(mappings ?? []),
+    // PASSO 1 — Buscar IDs dos mais vendidos (sem filtro de categoria)
+    console.log("[aliexpress-sync-top-products] PASSO 1: buscando IDs via aliexpress.ds.feed.itemids.get");
+    const idsJson = await callAliExpress(
+      "aliexpress.ds.feed.itemids.get",
+      {
+        feed_name: "DS bestseller",
+        page_size: String(PAGE_SIZE),
+        page_no: "1",
+      },
+      { appKey, appSecret, accessToken },
     );
-    if (!mappings || mappings.length === 0) {
-      await finalize({ status: "success", error_message: "Nenhuma categoria ativa mapeada." });
-      return new Response(JSON.stringify({ ok: true, message: "Sem mapeamentos ativos" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+
+    // Extrai IDs de forma tolerante a diferentes formatos de resposta
+    const rawIdsContainer =
+      idsJson?.aliexpress_ds_feed_itemids_get_response?.result?.products ??
+      idsJson?.aliexpress_ds_feed_itemids_get_response?.result ??
+      idsJson?.result?.products ??
+      idsJson?.result ??
+      [];
+    let productIds: string[] = [];
+    if (Array.isArray(rawIdsContainer)) {
+      productIds = rawIdsContainer.map((v: any) =>
+        typeof v === "object" ? String(v.product_id ?? v.item_id ?? v.id ?? "") : String(v),
+      );
+    } else if (typeof rawIdsContainer === "object" && rawIdsContainer !== null) {
+      const arr = rawIdsContainer.product_id ?? rawIdsContainer.item_id ?? rawIdsContainer.string ?? [];
+      if (Array.isArray(arr)) productIds = arr.map((v: any) => String(v));
+      else if (typeof arr === "string") productIds = arr.split(",").map((s) => s.trim());
+    }
+    productIds = productIds.filter((s) => s && s !== "undefined");
+    console.log(`[aliexpress-sync-top-products] PASSO 1 OK: ${productIds.length} IDs recebidos`);
+
+    if (productIds.length === 0) {
+      await finalize({
+        status: "success",
+        categories_processed: 0,
+        products_new: 0,
+        products_updated: 0,
+        error_message: "Feed retornou 0 IDs",
       });
+      return new Response(
+        JSON.stringify({ ok: true, message: "Feed vazio", products_new: 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     let productsNew = 0;
@@ -289,53 +318,104 @@ serve(async (req) => {
     const errors: string[] = [];
     const currentTopIds = new Set<string>();
 
-    for (const m of mappings) {
+    // PASSO 2 — Buscar detalhes de cada produto (1 chamada por ID)
+    console.log(`[aliexpress-sync-top-products] PASSO 2: detalhando ${productIds.length} produtos`);
+    const detailed: any[] = [];
+    for (let i = 0; i < productIds.length; i++) {
+      const pid = productIds[i];
       try {
-        const json = await callAliExpress(
-          "aliexpress.ds.recommend.feed.get",
+        const detailJson = await callAliExpress(
+          "aliexpress.ds.product.get",
           {
-            feed_name: "DS bestseller",
-            category_id: m.aliexpress_category_id,
-            page_no: "1",
-            page_size: String(PAGE_SIZE),
+            product_id: pid,
             target_currency: "USD",
             target_language: "PT",
-            country: "BR",
-            sort: "orders_desc",
+            ship_to_country: "BR",
           },
           { appKey, appSecret, accessToken },
         );
 
-        const products = normalizeProducts(json, m.aliexpress_category_id)
-          .map((p) => ({ ...p, category: m.velo_category }));
+        const resp =
+          detailJson?.aliexpress_ds_product_get_response?.result ??
+          detailJson?.result ??
+          detailJson;
 
-        for (const p of products) currentTopIds.add(`${p.source}:${p.external_id}`);
+        const base = resp?.ae_item_base_info_dto ?? {};
+        const sku = resp?.ae_item_sku_info_dtos?.ae_item_sku_info_d_t_o?.[0] ?? {};
+        const media = resp?.ae_multimedia_info_dto ?? {};
+        const store = resp?.ae_store_info ?? {};
 
-        // Existentes?
-        if (products.length > 0) {
-          const ids = products.map((p) => p.external_id);
-          const { data: existing } = await supabase
-            .from("catalog_products")
-            .select("external_id")
-            .eq("source", "aliexpress")
-            .in("external_id", ids);
-          const existingSet = new Set((existing ?? []).map((r: any) => r.external_id));
+        const imagesStr: string = media?.image_urls ?? "";
+        const images = imagesStr ? imagesStr.split(";").filter(Boolean) : [];
 
-          productsNew += products.filter((p) => !existingSet.has(p.external_id)).length;
-          productsUpdated += products.filter((p) => existingSet.has(p.external_id)).length;
+        const salePriceUsd = Number(sku?.offer_sale_price ?? sku?.sku_price ?? base?.sale_price ?? 0);
+        const originalPriceUsd = Number(sku?.sku_price ?? base?.original_price ?? salePriceUsd);
+        const cost = +(salePriceUsd * USD_TO_BRL).toFixed(2);
+        const suggested = +(cost * 2).toFixed(2);
+        const original = +(originalPriceUsd * USD_TO_BRL).toFixed(2);
+        const margin = suggested > 0 ? +(((suggested - cost) / suggested) * 100).toFixed(2) : 0;
 
-          const { error: upsertErr } = await supabase
-            .from("catalog_products")
-            .upsert(products, { onConflict: "source,external_id" });
-          if (upsertErr) throw upsertErr;
+        const externalId = String(base?.product_id ?? pid);
+        const title = String(base?.subject ?? base?.product_title ?? "").trim();
+
+        if (!externalId || !title) {
+          console.warn(`[aliexpress-sync-top-products] produto ${pid} sem dados suficientes, ignorando`);
+        } else {
+          detailed.push({
+            source: "aliexpress",
+            external_id: externalId,
+            title,
+            images: images.length > 0 ? images : (base?.image_url ? [base.image_url] : []),
+            cost_price: cost,
+            suggested_price: suggested,
+            original_price: original,
+            margin_percent: margin,
+            rating: base?.evaluation_rate ? Number(String(base.evaluation_rate).replace("%", "")) / 20 : null,
+            orders_count: Number(base?.sales_count ?? base?.evaluation_count ?? 0) || 0,
+            stock_quantity: Number(sku?.sku_available_stock ?? 999) || 999,
+            product_url: base?.detail_url ?? `https://www.aliexpress.com/item/${externalId}.html`,
+            aliexpress_category_id: String(base?.category_id ?? ""),
+            brand: store?.store_name ?? null,
+            in_top_50: true,
+            is_active: true,
+            is_blocked: false,
+            scraped_at: new Date().toISOString(),
+          });
+          currentTopIds.add(`aliexpress:${externalId}`);
         }
-
-        await sleep(RATE_LIMIT_DELAY_MS);
       } catch (err) {
         errorCount++;
-        errors.push(`[${m.velo_category}] ${err instanceof Error ? err.message : String(err)}`);
-        console.error("Erro sincronizando", m, err);
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`[${pid}] ${msg}`);
+        console.error(`[aliexpress-sync-top-products] erro em product.get id=${pid}:`, msg);
       }
+      // Pequeno delay para respeitar rate limit
+      await sleep(RATE_LIMIT_DELAY_MS);
+    }
+
+    console.log(`[aliexpress-sync-top-products] PASSO 2 OK: ${detailed.length}/${productIds.length} produtos normalizados`);
+
+    // PASSO 3 — Upsert em catalog_products
+    if (detailed.length > 0) {
+      const ids = detailed.map((p) => p.external_id);
+      const { data: existing } = await supabase
+        .from("catalog_products")
+        .select("external_id")
+        .eq("source", "aliexpress")
+        .in("external_id", ids);
+      const existingSet = new Set((existing ?? []).map((r: any) => r.external_id));
+
+      productsNew = detailed.filter((p) => !existingSet.has(p.external_id)).length;
+      productsUpdated = detailed.filter((p) => existingSet.has(p.external_id)).length;
+
+      const { error: upsertErr } = await supabase
+        .from("catalog_products")
+        .upsert(detailed, { onConflict: "source,external_id" });
+      if (upsertErr) {
+        console.error("[aliexpress-sync-top-products] erro no upsert:", upsertErr);
+        throw upsertErr;
+      }
+      console.log(`[aliexpress-sync-top-products] PASSO 3 OK: ${productsNew} novos, ${productsUpdated} atualizados`);
     }
 
     // Marcar produtos AliExpress que caíram do top 50
