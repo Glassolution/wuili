@@ -109,6 +109,11 @@ const IntegracoesPage = () => {
         <p className="text-sm text-muted-foreground mt-1">Conecte suas contas para publicar e gerenciar produtos.</p>
       </div>
 
+      <div>
+        <h2 className="text-sm font-semibold text-foreground mb-3">Pagamentos</h2>
+        <MercadoPagoIntegrationCard />
+      </div>
+
       {loading ? (
         <div className="text-sm text-muted-foreground animate-pulse">Carregando...</div>
       ) : (
