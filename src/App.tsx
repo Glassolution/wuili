@@ -25,6 +25,10 @@ const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditor
 const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
 const PreviewPage = lazy(() => import("./pages/PreviewPage"));
 const PublicStorePage = lazy(() => import("./pages/PublicStorePage"));
+const SalesCartPage = lazy(() => import("./pages/public-sales/SalesCartPage"));
+const SalesCheckoutPage = lazy(() => import("./pages/public-sales/SalesCheckoutPage"));
+const SalesThankYouPage = lazy(() => import("./pages/public-sales/SalesThankYouPage"));
+const SalesFlowEditorPage = lazy(() => import("./pages/SalesFlowEditorPage"));
 const BemVindoPage = lazy(() => import("./pages/BemVindoPage"));
 // AuthEntryPage removed — all auth flows consolidated in LoginPage
 // CadastroPage removed — progressive login flow handles both signup and login
