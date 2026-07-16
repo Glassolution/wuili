@@ -1228,6 +1228,54 @@ export type Database = {
         }
         Relationships: []
       }
+      shopify_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          scope: string | null
+          shop_domain: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          id?: string
+          scope?: string | null
+          shop_domain: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          scope?: string | null
+          shop_domain?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      shopify_oauth_states: {
+        Row: {
+          created_at: string
+          shop_domain: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          shop_domain: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          shop_domain?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number
