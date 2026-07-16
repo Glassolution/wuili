@@ -42,12 +42,20 @@ async function callAliExpress(
   sysParams.sign = signParams(sysParams, ctx.appSecret);
 
   const body = new URLSearchParams(sysParams);
+  console.log(
+    `[aliexpress-sync-top-products] → chamando ${method} params=`,
+    JSON.stringify({ ...bizParams }),
+  );
   const res = await fetch(ALI_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
   });
   const text = await res.text();
+  console.log(
+    `[aliexpress-sync-top-products] ← ${method} status=${res.status} body(raw)=`,
+    text.slice(0, 4000),
+  );
   let json: any;
   try {
     json = JSON.parse(text);
@@ -162,6 +170,14 @@ function normalizeProducts(json: any, categoryId: string): any[] {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  console.log(
+    "[aliexpress-sync-top-products] iniciando execução, método:",
+    req.method,
+    "url:",
+    req.url,
+  );
+
+
   const startedAt = Date.now();
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -225,6 +241,18 @@ serve(async (req) => {
       ? new Date(adminProfile.aliexpress_token_expires_at).getTime()
       : 0;
 
+    console.log(
+      "[aliexpress-sync-top-products] admin token OK user_id=",
+      adminProfile.user_id,
+      "expiresAt=",
+      adminProfile.aliexpress_token_expires_at,
+      "token_prefix=",
+      accessToken.slice(0, 8),
+      "token_len=",
+      accessToken.length,
+    );
+
+
     if (expiresAt && expiresAt < Date.now() + 60_000 && refreshToken) {
       const refreshed = await refreshAccessToken(refreshToken, appKey, appSecret);
       accessToken = refreshed.access_token;
@@ -244,6 +272,10 @@ serve(async (req) => {
       .select("velo_category, aliexpress_category_id")
       .eq("active", true);
     if (mapErr) throw mapErr;
+    console.log(
+      "[aliexpress-sync-top-products] mapeamentos ativos:",
+      JSON.stringify(mappings ?? []),
+    );
     if (!mappings || mappings.length === 0) {
       await finalize({ status: "success", error_message: "Nenhuma categoria ativa mapeada." });
       return new Response(JSON.stringify({ ok: true, message: "Sem mapeamentos ativos" }), {
