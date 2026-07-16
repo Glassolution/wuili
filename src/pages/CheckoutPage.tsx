@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
 import { veloToast as toast } from "@/components/ui/velo-toast";
-import { VeloLogo } from "@/components/VeloLogo";
+import { VeloLogo, VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
 
@@ -366,22 +366,43 @@ const CheckoutPage = () => {
       <div className="min-h-screen overflow-hidden bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
         <div className="relative min-h-screen w-full">
           <section className="min-h-screen w-full bg-white px-4 py-6 sm:px-6 lg:px-10">
-            <div className="mb-8 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F3F2] text-black transition hover:bg-[#E9E9E7]"
-                aria-label="Voltar"
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <span className="h-10 w-10" aria-hidden="true" />
+            {/* Marca à esquerda e progresso do checkout ao centro. As três
+                etapas espelham o fluxo real: plano -> pagamento -> confirmação;
+                aqui estamos sempre na primeira. */}
+            <div className="mx-auto mb-10 grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-4">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F3F2] text-black transition hover:bg-[#E9E9E7]"
+                  aria-label="Voltar"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <VeloMark size={34} />
+              </div>
+
+              <div className="flex items-center gap-2" role="presentation">
+                {[0, 1, 2].map((step) => (
+                  <span
+                    key={step}
+                    // Largura menor no mobile: com 86px fixos as três barras não
+                    // cabem ao lado da marca e a última era cortada pelo
+                    // overflow-hidden do container.
+                    className={`h-[5px] w-[42px] rounded-full transition-colors sm:w-[86px] ${
+                      step === 0 ? "bg-[#0A0A0A]" : "bg-[#E9E9E7]"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <span aria-hidden="true" />
             </div>
 
             {/* Cabeçalho: título à esquerda, alternador de cobrança à direita. */}
             <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-[26px] font-semibold tracking-[-0.03em] text-black sm:text-[30px]">
+                <h1 className="text-[24px] font-bold tracking-[-0.015em] text-[#0A0A0A] sm:text-[27px]">
                   Escolha o plano que combina com você
                 </h1>
                 <p className="mt-1.5 text-[13px] leading-5 text-[#8A8A86]">
@@ -396,7 +417,7 @@ const CheckoutPage = () => {
               >
                 <span
                   className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
-                    billingCycle === "annual" ? "bg-[#2563EB]" : "bg-[#DFDEDA]"
+                    billingCycle === "annual" ? "bg-[#0A0A0A]" : "bg-[#DFDEDA]"
                   }`}
                 >
                   <span
@@ -432,24 +453,25 @@ const CheckoutPage = () => {
                     onClick={() => setSelectedPlanId(id)}
                     className={`relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-6 transition duration-200 ${
                       isFeatured
-                        ? "border-[#2563EB] shadow-[0_10px_36px_rgba(37,99,235,0.10)]"
+                        ? "border-[#0A0A0A] shadow-[0_10px_36px_rgba(0,0,0,0.09)]"
                         : isSelected
                           ? "border-black/25"
                           : "border-black/10 hover:border-black/25"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <div
-                        className={`flex h-11 w-11 items-center justify-center rounded-[12px] ${
-                          isFeatured ? "bg-[#2563EB] text-white" : "bg-[#111] text-white"
-                        }`}
-                      >
-                        <span className="h-3 w-3 rounded-full bg-white/90" />
-                      </div>
+                      {/* Marca da Velo com tratamento tonal por plano: o plano em
+                          destaque vem sólido, os demais em cinza claro. */}
+                      <VeloMark
+                        size={44}
+                        background={isFeatured ? "#0A0A0A" : "#F1F1EF"}
+                        stroke={isFeatured ? "#FFFFFF" : "#0A0A0A"}
+                        className="shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+                      />
                       {currentPlan.badge && (
                         <span
                           className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${
-                            isFeatured ? "bg-[#EFF4FF] text-[#2563EB]" : "bg-[#F4F4F3] text-[#777]"
+                            isFeatured ? "bg-[#F1F1EF] text-[#0A0A0A]" : "bg-[#F4F4F3] text-[#777]"
                           }`}
                         >
                           {currentPlan.badge}
@@ -457,17 +479,17 @@ const CheckoutPage = () => {
                       )}
                     </div>
 
-                    <h2 className="mt-5 text-[19px] font-semibold tracking-[-0.02em] text-black">{currentPlan.name}</h2>
+                    <h2 className="mt-5 text-[19px] font-bold tracking-[-0.015em] text-[#0A0A0A]">{currentPlan.name}</h2>
                     {/* Altura fixa: as descrições têm tamanhos diferentes e, sem
                         isso, preço e CTA saem desalinhados entre os cards. */}
                     <p className="mt-1.5 min-h-[60px] text-[13px] leading-5 text-[#777]">{currentPlan.description}</p>
 
                     <div className="mt-5">
                       {originalPrice && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="text-[15px] font-semibold text-[#A8A8A3] line-through">{originalPrice}</span>
                           {savings && (
-                            <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                            <span className="whitespace-nowrap rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                               Economize {savings}
                             </span>
                           )}
@@ -490,7 +512,7 @@ const CheckoutPage = () => {
                       onClick={() => startCheckout(id)}
                       className={`mt-5 h-11 w-full rounded-[10px] px-5 text-[13px] font-semibold transition ${
                         isFeatured
-                          ? "bg-[#2563EB] text-white hover:bg-[#1D4FD8]"
+                          ? "bg-[#0A0A0A] text-white hover:bg-[#242424]"
                           : "border border-black/15 bg-white text-black hover:border-black/40 hover:bg-black/[0.03]"
                       }`}
                     >
@@ -501,7 +523,7 @@ const CheckoutPage = () => {
                     <ul className="space-y-2.5">
                       {currentPlan.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-[#3D3D3A]">
-                          <Check size={14} className="mt-[3px] shrink-0 text-[#2563EB]" strokeWidth={2.6} />
+                          <Check size={14} className="mt-[3px] shrink-0 text-[#0A0A0A]" strokeWidth={2.6} />
                           {feature}
                         </li>
                       ))}

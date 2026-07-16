@@ -5,6 +5,43 @@ interface VeloLogoProps {
   variant?: "dark" | "light";
 }
 
+interface VeloMarkProps {
+  /** Lado do quadrado, em px. */
+  size?: number;
+  /** Cor de fundo da marca. */
+  background?: string;
+  /** Cor do traço do símbolo. */
+  stroke?: string;
+  className?: string;
+}
+
+/**
+ * Só o símbolo da Velo, sem o texto, com cores livres — para usos em que a
+ * marca aparece como ícone (ex.: cartões de plano, onde cada plano recebe um
+ * tratamento tonal diferente).
+ */
+export function VeloMark({ size = 44, background = "#0A0A0A", stroke = "#FFFFFF", className }: VeloMarkProps) {
+  // O desenho original é em uma viewBox 48x48. O raio é proporcional ao lado
+  // (~30%) para o arredondamento ficar igual em qualquer tamanho — com raio
+  // fixo, um ícone pequeno vira quase um círculo e um grande, um quadrado.
+  const scale = size / 48;
+  const radius = size * 0.3;
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={{ flexShrink: 0 }}>
+      <rect width="48" height="48" rx={radius / scale} fill={background} />
+      <path d="M33 18 A11 11 0 1 0 33 30" stroke={stroke} strokeWidth={2.5 / scale} strokeLinecap="round" fill="none" />
+      <path
+        d="M30 26 L34 30 L38 26"
+        stroke={stroke}
+        strokeWidth={2.2 / scale}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
 export function VeloLogo({ size = "md", variant = "dark" }: VeloLogoProps) {
   const sizes = {
     sm: { icon: 28, rx: 8, fontSize: 16, gap: 8, stroke: 2 },
