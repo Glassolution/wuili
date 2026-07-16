@@ -192,7 +192,6 @@ async function getPopularCategories() {
       .from("catalog_products")
       .select("category, orders_count")
       .eq("is_active", true)
-      .eq("is_active", true)
       .not("category", "is", null)
       .order("orders_count", { ascending: false })
       .limit(250);
