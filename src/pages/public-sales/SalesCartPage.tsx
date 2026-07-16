@@ -1,22 +1,21 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, ChevronLeft, CreditCard, Loader2, Menu, Search, ShoppingBag, X } from "lucide-react";
+import { ChevronLeft, Loader2, Menu, Search, ShoppingBag, X } from "lucide-react";
 import { useState } from "react";
 import { formatBRL, useSalesPageData } from "./salesPageData";
+import { ProfitPill } from "./ProfitPill";
 
 /**
- * Tela 2 — Carrinho
- * Layout inspirado no exemplo "tarlet" (imagem 2 do briefing): topbar com marca
- * e navegacao, tabela de itens à esquerda, painel "Payment Info." à direita,
- * botao azul de Check Out e rodapé com Continue Shopping + totais.
- * A submissao real do pagamento acontece na Tela 3 (checkout) — este painel
- * é apenas o resumo/coleta visual que leva o cliente para lá.
+ * Tela 2 — Carrinho.
+ * Layout inspirado na referência "tarlet" da tela 2. Todos os textos, cores,
+ * logo e valores respeitam o objeto `checkout` salvo em user_projects.metadata,
+ * permitindo que o dono personalize sem tocar em código. Quando o dono abre
+ * a página em modo preview aparece o pill de lucro (só visível para ele).
  */
 const SalesCartPage = () => {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const { data, loading, error } = useSalesPageData(slug);
   const [qty, setQty] = useState(1);
-  const [method, setMethod] = useState<"card" | "pix">("card");
 
   if (loading) {
     return (
@@ -36,18 +35,25 @@ const SalesCartPage = () => {
     );
   }
 
+  const c = data.checkout;
   const subtotal = data.price * qty;
-  const shipping = 0;
-  const total = subtotal + shipping;
+  const freightValue = typeof c.freightValue === "number" && c.freightValue > 0 ? c.freightValue : 0;
+  const total = subtotal + freightValue;
+  const freightLabel = c.freightLabel || (freightValue > 0 ? formatBRL(freightValue) : "Grátis");
+  const cartTitle = c.cartTitle || "Carrinho.";
+  const ctaLabel = c.cartCtaLabel || "Finalizar pedido";
+  const accent = data.accent || "#2563EB";
 
   return (
     <div className="bg-[#F5F5F5] py-8 px-4 sm:px-8" style={{ fontFamily: '"Inter", system-ui, sans-serif' }}>
       <div className="mx-auto max-w-[1200px] rounded-lg bg-white px-6 py-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.12)] sm:px-10 sm:py-8">
-
         {/* Topbar */}
         <header className="flex items-center justify-between border-b border-black/[0.05] pb-6">
-          <Link to={`/loja/${slug}`} className="text-[18px] font-medium tracking-tight text-black">
-            {(data.brand || "loja").toLowerCase()}
+          <Link to={`/loja/${slug}`} className="flex items-center gap-2 text-[18px] font-medium tracking-tight text-black">
+            {data.logoImage ? (
+              <img src={data.logoImage} alt={data.brand} className="h-7 w-7 rounded-md object-cover" />
+            ) : null}
+            <span>{(data.brand || "loja").toLowerCase()}</span>
           </Link>
           <nav className="hidden items-center gap-10 text-[14px] text-black/70 md:flex">
             <Link to={`/loja/${slug}`} className="hover:text-black">Loja</Link>
@@ -65,12 +71,15 @@ const SalesCartPage = () => {
           </div>
         </header>
 
-        <div className="mt-12 grid gap-10 lg:grid-cols-[1fr_360px]">
+        <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_360px]">
           {/* Cart list */}
           <div>
-            <h1 className="text-[36px] font-bold tracking-tight text-black sm:text-[40px]">Carrinho.</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-[36px] font-bold tracking-tight text-black sm:text-[40px]">{cartTitle}</h1>
+              <ProfitPill price={data.price} cost={data.ownerCostPrice} visible={data.isOwnerPreview} />
+            </div>
 
-            <div className="mt-10 grid grid-cols-[1.6fr_1fr_1fr_40px] items-center gap-4 border-b border-black/[0.08] pb-4 text-[12px] font-medium text-black/50">
+            <div className="mt-8 grid grid-cols-[1.6fr_1fr_1fr_40px] items-center gap-4 border-b border-black/[0.08] pb-4 text-[12px] font-medium text-black/50">
               <span>Produto</span>
               <span>Quantidade</span>
               <span>Total</span>
@@ -111,7 +120,7 @@ const SalesCartPage = () => {
                 </div>
                 <div className="flex justify-between text-black/60">
                   <span>Frete</span>
-                  <span>Grátis</span>
+                  <span>{freightLabel}</span>
                 </div>
                 <div className="mt-3 flex items-baseline justify-between border-t border-black/[0.08] pt-3">
                   <span className="text-[15px] font-bold text-black">Total:</span>
@@ -121,78 +130,37 @@ const SalesCartPage = () => {
             </div>
           </div>
 
-          {/* Payment sidebar */}
+          {/* Resumo → checkout */}
           <aside className="rounded-md bg-[#F5F5F5] p-6 sm:p-8">
-            <h2 className="text-[24px] font-bold tracking-tight text-black">Pagamento.</h2>
+            <h2 className="text-[24px] font-bold tracking-tight text-black">Resumo.</h2>
+            <p className="mt-2 text-[12px] leading-relaxed text-black/55">
+              Continue para o checkout para preencher os dados de entrega e pagamento (Pix ou cartão).
+            </p>
 
-            <p className="mt-6 text-[11px] font-medium uppercase tracking-wider text-black/50">Forma de pagamento</p>
-            <div className="mt-3 space-y-2">
-              <button
-                type="button"
-                onClick={() => setMethod("card")}
-                className={`flex w-full items-center gap-3 rounded-md border px-3 py-3 text-left transition ${method === "card" ? "border-[#2563EB] bg-white" : "border-black/[0.08] bg-white/60"}`}
-              >
-                <span className={`grid h-4 w-4 place-items-center rounded-full border-2 ${method === "card" ? "border-[#2563EB]" : "border-black/25"}`}>
-                  {method === "card" ? <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" /> : null}
-                </span>
-                <CreditCard size={16} className="text-black/70" />
-                <span className="text-[13px] font-medium text-black">Cartão de crédito</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMethod("pix")}
-                className={`flex w-full items-center gap-3 rounded-md border px-3 py-3 text-left transition ${method === "pix" ? "border-[#2563EB] bg-white" : "border-black/[0.08] bg-white/60"}`}
-              >
-                <span className={`grid h-4 w-4 place-items-center rounded-full border-2 ${method === "pix" ? "border-[#2563EB]" : "border-black/25"}`}>
-                  {method === "pix" ? <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" /> : null}
-                </span>
-                <span className="grid h-4 w-4 place-items-center rounded-sm bg-[#32BCAD] text-[9px] font-bold text-white">P</span>
-                <span className="text-[13px] font-medium text-black">Pix</span>
-              </button>
+            <div className="mt-6 space-y-3 text-[13px]">
+              <div className="flex justify-between text-black/60">
+                <span>Itens ({qty})</span>
+                <span>{formatBRL(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-black/60">
+                <span>Frete</span>
+                <span>{freightLabel}</span>
+              </div>
+              <div className="flex justify-between border-t border-black/[0.08] pt-3">
+                <span className="text-[14px] font-semibold text-black">Total</span>
+                <span className="text-[16px] font-bold text-black">{formatBRL(total)}</span>
+              </div>
             </div>
-
-            {method === "card" ? (
-              <div className="mt-6 space-y-4">
-                <div>
-                  <label className="text-[11px] font-medium text-black/50">Nome no cartão:</label>
-                  <div className="mt-1 border-b border-black/20 pb-1 text-[13px] font-medium text-black">João da Silva</div>
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-black/50">Número do cartão:</label>
-                  <div className="mt-1 border-b border-black/20 pb-1 text-[13px] font-medium tracking-wider text-black">•••• •••• •••• 2153</div>
-                </div>
-                <div className="grid grid-cols-[1fr_1fr_60px] gap-3">
-                  <div>
-                    <label className="text-[11px] font-medium text-black/50">Validade:</label>
-                    <button className="mt-1 flex w-full items-center justify-between border-b border-black/20 pb-1 text-[13px] font-medium text-black">
-                      05 <ChevronDown size={12} />
-                    </button>
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-medium text-black/50">Ano:</label>
-                    <button className="mt-1 flex w-full items-center justify-between border-b border-black/20 pb-1 text-[13px] font-medium text-black">
-                      2028 <ChevronDown size={12} />
-                    </button>
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-medium text-black/50">CVV:</label>
-                    <div className="mt-1 border-b border-black/20 pb-1 text-[13px] font-medium text-black">156</div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-6 rounded-md border border-dashed border-black/15 bg-white p-4 text-[12px] leading-relaxed text-black/60">
-                Ao continuar, geramos um QR Code Pix. O pagamento é confirmado em segundos.
-              </div>
-            )}
 
             <button
               type="button"
-              onClick={() => navigate(`/loja/${slug}/checkout?qty=${qty}&method=${method}`)}
-              className="mt-8 inline-flex h-12 w-full items-center justify-center rounded-md bg-[#2563EB] text-[14px] font-semibold text-white transition hover:bg-[#1d4ed8]"
+              onClick={() => navigate(`/loja/${slug}/checkout?qty=${qty}`)}
+              className="mt-8 inline-flex h-12 w-full items-center justify-center rounded-md text-[14px] font-semibold text-white transition hover:opacity-90"
+              style={{ backgroundColor: accent }}
             >
-              Finalizar pedido
+              {ctaLabel}
             </button>
+            <p className="mt-3 text-center text-[11px] text-black/45">Pagamento processado com Mercado Pago.</p>
           </aside>
         </div>
       </div>

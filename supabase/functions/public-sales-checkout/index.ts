@@ -88,8 +88,9 @@ Deno.serve(async (req) => {
         ownerId = project.user_id;
         projectId = project.id;
         // Pega o primeiro produto do projeto, se houver
-        const productIds: string[] = Array.isArray((project.metadata as { productIds?: string[] })?.productIds)
-          ? (project.metadata as { productIds?: string[] }).productIds ?? []
+        const md = (project.metadata as Record<string, unknown> | null) ?? {};
+        const productIds: string[] = Array.isArray((md as { productIds?: string[] }).productIds)
+          ? ((md as { productIds?: string[] }).productIds ?? [])
           : [];
         if (productIds.length > 0) {
           const { data: products } = await admin.rpc("get_public_store_products", { p_ids: productIds });
@@ -102,6 +103,10 @@ Deno.serve(async (req) => {
             unitPrice = Number(first.suggested_price ?? 0);
           }
         }
+        // Override de preço definido pelo dono no editor (metadata.checkout.priceOverride).
+        const checkoutMeta = (md as { checkout?: { priceOverride?: number } }).checkout;
+        const priceOverride = Number(checkoutMeta?.priceOverride ?? 0);
+        if (priceOverride > 0) unitPrice = priceOverride;
         if (!productTitle || productTitle === "Produto") productTitle = project.nome;
       }
     }

@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader2, Copy, Check, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, useSalesPageData } from "./salesPageData";
+import { ProfitPill } from "./ProfitPill";
+
 
 /**
  * Tela 3 — Checkout
@@ -112,18 +114,33 @@ const SalesCheckoutPage = () => {
     );
   }
 
+  const c = data.checkout;
+  const accent = data.accent || "#0A0A0A";
+  const checkoutTitle = c.checkoutTitle || "Finalizar compra";
+  const payLabel = c.checkoutCtaLabel || "Pagar agora";
+  const brandInitial = (data.brand || "L").trim().charAt(0).toUpperCase();
+
   return (
     <div className="bg-white" style={{ fontFamily: '"Geist", system-ui, sans-serif' }}>
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-8">
         <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-[13px] font-medium text-black/70 hover:text-black">
-          <ArrowLeft size={16} /> Configure seu pedido
+          <ArrowLeft size={16} /> Voltar ao carrinho
         </button>
 
         <div className="mt-4 flex items-center gap-3">
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-black text-white text-xs font-bold">V</div>
+          {data.logoImage ? (
+            <img src={data.logoImage} alt={data.brand} className="h-8 w-8 rounded-full object-cover" />
+          ) : (
+            <div className="grid h-8 w-8 place-items-center rounded-full text-white text-xs font-bold" style={{ backgroundColor: accent }}>{brandInitial}</div>
+          )}
+          <span className="text-[13px] font-medium text-black/70">{data.brand}</span>
         </div>
 
-        <h1 className="mt-2 text-[28px] font-medium tracking-tight text-black">Finalizar compra</h1>
+        <div className="mt-2 flex items-center gap-3">
+          <h1 className="text-[28px] font-medium tracking-tight text-black">{checkoutTitle}</h1>
+          <ProfitPill price={data.price} cost={data.ownerCostPrice} visible={data.isOwnerPreview} />
+        </div>
+
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_400px]">
           {/* Coluna esquerda - formulário */}
@@ -249,9 +266,10 @@ const SalesCheckoutPage = () => {
                 type="button"
                 disabled={submitting}
                 onClick={handleSubmit}
-                className="mt-6 inline-flex h-14 w-full items-center justify-center rounded-full bg-black text-[14px] font-semibold text-white transition hover:bg-black/90 disabled:opacity-60"
+                className="mt-6 inline-flex h-14 w-full items-center justify-center rounded-full text-[14px] font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                style={{ backgroundColor: accent }}
               >
-                {submitting ? <Loader2 className="animate-spin" size={18} /> : "Pagar agora"}
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : payLabel}
               </button>
             )}
 

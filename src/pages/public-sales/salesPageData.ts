@@ -7,20 +7,29 @@ import {
   fetchPublicProject,
   fetchPublicStoreProducts,
   getProjectAccent,
+  getProjectCheckout,
   getProjectProductIds,
   getProjectStoreName,
+  getProjectLogoImage,
+  type CheckoutCustomization,
   type UserProject,
 } from "@/lib/userProjects";
 
 export type SalesPageData = {
   slug: string;
+  projectId?: string;
   ownerUserId: string;
   productId?: string;
   productTitle: string;
   productImage: string | null;
-  price: number;
+  price: number;              // preço final aplicado ao cliente (com override, se houver)
   accent: string;
   brand: string;
+  logoImage: string | null;
+  checkout: CheckoutCustomization;
+  // Dados exibidos apenas para o dono da loja (preview): custo unitário e lucro.
+  ownerCostPrice: number | null;
+  isOwnerPreview: boolean;
 };
 
 export function useSalesPageData(slug: string | undefined) {
@@ -38,6 +47,10 @@ export function useSalesPageData(slug: string | undefined) {
       price: 25,
       accent: "#0A0A0A",
       brand: "Sua loja",
+      logoImage: null,
+      checkout: {},
+      ownerCostPrice: null,
+      isOwnerPreview: false,
     };
     if (!slug) {
       if (isPreview) {
@@ -73,6 +86,10 @@ export function useSalesPageData(slug: string | undefined) {
             price: Number(gsp.price_brl ?? 0),
             accent: "#0A0A0A",
             brand: gsp.product_title || "Loja",
+            logoImage: null,
+            checkout: {},
+            ownerCostPrice: null,
+            isOwnerPreview: false,
           });
           return;
         }
@@ -91,16 +108,41 @@ export function useSalesPageData(slug: string | undefined) {
         const productIds = getProjectProductIds(project);
         const products = await fetchPublicStoreProducts(productIds);
         const first = products[0];
+        const checkout = getProjectCheckout(project);
+        const priceOverride = typeof checkout.priceOverride === "number" && checkout.priceOverride > 0 ? checkout.priceOverride : null;
+        const finalPrice = priceOverride ?? (first?.price ?? 149.9);
+
+        // Owner-only: custo real do produto para calcular lucro (apenas em preview e se dono logado).
+        let ownerCostPrice: number | null = null;
+        let isOwnerPreview = false;
+        if (isPreview && first?.id) {
+          const { data: sessionRes } = await supabase.auth.getUser();
+          if (sessionRes?.user?.id === project.user_id) {
+            isOwnerPreview = true;
+            const { data: cp } = await supabase
+              .from("catalog_products")
+              .select("cost_price")
+              .eq("id", first.id)
+              .maybeSingle();
+            ownerCostPrice = cp?.cost_price != null ? Number(cp.cost_price) : null;
+          }
+        }
+
         if (!active) return;
         setData({
           slug,
+          projectId: project.id,
           ownerUserId: project.user_id,
           productId: first?.id,
           productTitle: first?.title || project.nome,
           productImage: first?.imageUrl ?? null,
-          price: first?.price ?? 149.9,
-          accent: getProjectAccent(project),
-          brand: getProjectStoreName(project) || project.nome,
+          price: finalPrice,
+          accent: checkout.accent || getProjectAccent(project),
+          brand: checkout.brandName || getProjectStoreName(project) || project.nome,
+          logoImage: checkout.logoImage ?? getProjectLogoImage(project),
+          checkout,
+          ownerCostPrice,
+          isOwnerPreview,
         });
       } catch (err) {
         if (!active) return;
@@ -124,3 +166,11 @@ export function useSalesPageData(slug: string | undefined) {
 
 export const formatBRL = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
+
+/** Pill de lucro visível apenas para o dono no preview. */
+export function computeProfit(price: number, cost: number | null | undefined) {
+  if (!cost || cost <= 0) return null;
+  const profit = price - cost;
+  const margin = price > 0 ? (profit / price) * 100 : 0;
+  return { profit, margin };
+}
