@@ -113,7 +113,7 @@ const SalesCheckoutPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: '"Geist", system-ui, sans-serif' }}>
+    <div className="bg-white" style={{ fontFamily: '"Geist", system-ui, sans-serif' }}>
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-8">
         <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-[13px] font-medium text-black/70 hover:text-black">
           <ArrowLeft size={16} /> Configure seu pedido

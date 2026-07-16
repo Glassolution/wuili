@@ -3053,7 +3053,6 @@ const GeneratedStoreEditorPage = () => {
                 return (
                   <div
                     key={screen.key}
-                    data-canvas-ui
                     className="pointer-events-none absolute top-0"
                     style={{ left: leftOffset, width: baseWidth }}
                   >
@@ -3083,7 +3082,6 @@ const GeneratedStoreEditorPage = () => {
                 return (
                   <div
                     key={`arrow-${idx}`}
-                    data-canvas-ui
                     className="pointer-events-none absolute flex items-center text-white/30"
                     style={{ left: leftOffset, top: 56 + panelHeight / 2 - 14, width: gap - 40 }}
                   >
@@ -3092,6 +3090,7 @@ const GeneratedStoreEditorPage = () => {
                   </div>
                 );
               })}
+
             </>
           ) : null}
         </div>
