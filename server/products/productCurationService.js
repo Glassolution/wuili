@@ -634,8 +634,7 @@ function applyResultFilters(product, score, filters) {
 
   if (score.score < minScore) return false;
   if (minMargin != null && toNumber(score.criteria?.margin?.estimatedMarginPercent, -Infinity) < minMargin) return false;
-  if (maxShippingDays != null && toNumber(score.criteria?.shipping?.estimatedDays, Infinity) > maxShippingDays) return false;
-  if (product?.source && product.source !== "c7drop") return false;
+  // Origem/fornecedor não filtra mais: todos os produtos do catálogo entram no ranking.
   return true;
 }
 
