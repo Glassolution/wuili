@@ -228,6 +228,28 @@ export function getProjectOverrides(project: UserProject | null): Record<string,
     : {};
 }
 
+// ── Personalização das telas de Carrinho e Checkout ─────────────────────────
+// Todas as chaves são opcionais; a UI aplica fallbacks quando ausentes.
+export type CheckoutCustomization = {
+  brandName?: string;
+  logoImage?: string | null;
+  accent?: string;        // cor primária dos CTAs (hex)
+  priceOverride?: number; // preço final definido pelo dono (BRL)
+  freightLabel?: string;  // rótulo mostrado no frete (ex.: "Grátis")
+  freightValue?: number;  // se > 0, aplica valor de frete além do subtotal
+  cartTitle?: string;
+  cartCtaLabel?: string;
+  checkoutTitle?: string;
+  checkoutCtaLabel?: string;
+};
+
+export function getProjectCheckout(project: UserProject | null): CheckoutCustomization {
+  const value = readMetadata(project).checkout;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as CheckoutCustomization;
+}
+
+
 /** Produtos de um projeto público (catalog_products é legível por anon). */
 export async function fetchPublicStoreProducts(productIds: string[]): Promise<PublicStoreProduct[]> {
   if (productIds.length === 0) {
