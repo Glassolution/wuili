@@ -9,3 +9,4 @@ dist-ssr/
 *.local
 email-previews/
 public/email-previews/
+.claude/
