@@ -373,11 +373,13 @@ serve(async (req) => {
           p.product_main_image_url ??
           p.image_url ??
           null;
+        // targetSalePrice/targetOriginalPrice vêm em BRL (moeda alvo);
+        // salePrice/originalPrice podem vir em CNY. Preferir os "target*".
         const salePriceBrl = Number(
-          p.salePrice ?? p.sale_price ?? p.target_sale_price ?? 0,
+          p.targetSalePrice ?? p.target_sale_price ?? p.salePrice ?? p.sale_price ?? 0,
         );
         const originalPriceBrl = Number(
-          p.originalPrice ?? p.original_price ?? salePriceBrl,
+          p.targetOriginalPrice ?? p.target_original_price ?? p.originalPrice ?? p.original_price ?? salePriceBrl,
         );
         const cost = +Number(salePriceBrl).toFixed(2);
         const suggested = +(cost * 2).toFixed(2);
