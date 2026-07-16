@@ -30,7 +30,12 @@ const getFirstImage = (images: unknown) => {
 };
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const PUBLIC_APP_URL = ((import.meta.env.VITE_PUBLIC_APP_URL as string | undefined) ?? "https://velods.com.br").replace(/\/+$/, "");
+// Usa a origem atual (ex: wuili.lovable.app ou velods.com.br) para que o link
+// publicado sempre aponte para o domínio onde o app está realmente rodando.
+const PUBLIC_APP_URL = (
+  (import.meta.env.VITE_PUBLIC_APP_URL as string | undefined) ??
+  (typeof window !== "undefined" ? window.location.origin : "https://velods.com.br")
+).replace(/\/+$/, "");
 
 const fetchEditorCollectionProducts = (userId: string) =>
   supabase
