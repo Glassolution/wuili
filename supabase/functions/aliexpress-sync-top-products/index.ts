@@ -449,7 +449,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         ok: true,
-        categories_processed: mappings.length,
+        total_ids_fetched: currentTopIds.size,
         products_new: productsNew,
         products_updated: productsUpdated,
         products_dropped_from_top: droppedIds.length,
