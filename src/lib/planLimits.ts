@@ -62,6 +62,7 @@ const NORMALIZE_PLAN: Record<string, PlanName> = {
   gratis: "gratis",
   free: "gratis",
   go: "go",
+  base: "base",
   plus: "pro",
   pro: "pro",
   business: "business",
