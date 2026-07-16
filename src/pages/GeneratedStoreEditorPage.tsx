@@ -3054,7 +3054,7 @@ const GeneratedStoreEditorPage = () => {
                   <div
                     key={screen.key}
                     data-canvas-ui
-                    className="absolute top-0"
+                    className="pointer-events-none absolute top-0"
                     style={{ left: leftOffset, width: baseWidth }}
                   >
                     <div className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
