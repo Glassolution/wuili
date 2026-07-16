@@ -11,10 +11,10 @@ const corsHeaders = {
 
 const ALI_API_URL = "https://api-sg.aliexpress.com/sync";
 const USD_TO_BRL = 5.0;
-const PAGE_SIZE = 100; // alvo: 100 produtos por keyword
+const PAGE_SIZE = 50; // alvo: 50 produtos por keyword
 const RATE_LIMIT_DELAY_MS = 400; // ~2.5 req/s
-const MAX_PAGES_PER_KEYWORD = 5; // fallback quando API limita pageSize < 100
-const MAX_DETAIL_FETCHES = 250; // cap de chamadas a product.get por execução
+const MAX_PAGES_PER_KEYWORD = 5; // fallback quando API limita pageSize < 50
+const MAX_DETAIL_FETCHES = 60; // cap de chamadas a product.get por execução
 const DETAIL_DELAY_MS = 350;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
