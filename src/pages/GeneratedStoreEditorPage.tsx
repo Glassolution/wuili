@@ -3159,9 +3159,150 @@ const GeneratedStoreEditorPage = () => {
                 );
               })}
 
+              {/* Painel de personalização das telas 2 e 3 (posicionado à direita da Tela 3). */}
+              {(() => {
+                const baseWidth = mobilePreview ? 390 : 1440;
+                const gap = 120;
+                const leftOffset = (baseWidth + gap) * 3;
+                const previewPrice = Number(checkoutCfg.priceOverride.replace(",", ".")) || null;
+                return (
+                  <div
+                    className="absolute top-0"
+                    style={{ left: leftOffset, width: 340, pointerEvents: "auto" }}
+                    data-editor-ignore
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onWheel={(e) => e.stopPropagation()}
+                  >
+                    <div className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
+                      <Settings2 size={20} strokeWidth={1.8} />
+                      Personalizar
+                      <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold tracking-normal text-white/55">Autosave</span>
+                    </div>
+                    <div className="space-y-5 rounded-2xl border border-white/[0.08] bg-[#141517] p-5 text-white shadow-[0_30px_100px_rgba(0,0,0,0.46)]">
+                      <p className="text-[11px] leading-relaxed text-white/50">
+                        Edite textos, cores, logo e preço. Aparece igual para o cliente. O indicador de lucro aparece apenas para você no preview.
+                      </p>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-wide text-white/60">Nome da marca</label>
+                        <input
+                          value={checkoutCfg.brandName}
+                          onChange={(e) => setCheckoutCfg((p) => ({ ...p, brandName: e.target.value }))}
+                          placeholder={storeName || "sua loja"}
+                          className="h-9 w-full rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-wide text-white/60">Logo (URL)</label>
+                        <input
+                          value={checkoutCfg.logoImage}
+                          onChange={(e) => setCheckoutCfg((p) => ({ ...p, logoImage: e.target.value }))}
+                          placeholder="https://..."
+                          className="h-9 w-full rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-semibold uppercase tracking-wide text-white/60">Cor do botão</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={checkoutCfg.accent || "#2563EB"}
+                            onChange={(e) => setCheckoutCfg((p) => ({ ...p, accent: e.target.value }))}
+                            className="h-9 w-12 cursor-pointer rounded-md border border-white/[0.08] bg-[#0F1012]"
+                          />
+                          <input
+                            value={checkoutCfg.accent}
+                            onChange={(e) => setCheckoutCfg((p) => ({ ...p, accent: e.target.value }))}
+                            placeholder="#2563EB"
+                            className="h-9 flex-1 rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                          Preço final (R$)
+                          {previewPrice ? (
+                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                              Sobrescreve o preço da loja
+                            </span>
+                          ) : null}
+                        </label>
+                        <input
+                          value={checkoutCfg.priceOverride}
+                          onChange={(e) => setCheckoutCfg((p) => ({ ...p, priceOverride: e.target.value.replace(/[^\d.,]/g, "") }))}
+                          placeholder="Ex.: 79,90"
+                          inputMode="decimal"
+                          className="h-9 w-full rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                        />
+                        <p className="text-[10px] leading-relaxed text-white/40">
+                          Deixe vazio para usar o preço sugerido do catálogo. O lucro aparece no preview.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-semibold uppercase tracking-wide text-white/60">Frete (rótulo)</label>
+                          <input
+                            value={checkoutCfg.freightLabel}
+                            onChange={(e) => setCheckoutCfg((p) => ({ ...p, freightLabel: e.target.value }))}
+                            placeholder="Grátis"
+                            className="h-9 w-full rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-semibold uppercase tracking-wide text-white/60">Valor</label>
+                          <input
+                            value={checkoutCfg.freightValue}
+                            onChange={(e) => setCheckoutCfg((p) => ({ ...p, freightValue: e.target.value.replace(/[^\d.,]/g, "") }))}
+                            placeholder="0"
+                            inputMode="decimal"
+                            className="h-9 w-full rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 border-t border-white/[0.06] pt-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/50">Textos da Tela 2 · Carrinho</p>
+                        <input
+                          value={checkoutCfg.cartTitle}
+                          onChange={(e) => setCheckoutCfg((p) => ({ ...p, cartTitle: e.target.value }))}
+                          placeholder="Carrinho."
+                          className="h-9 w-full rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                        />
+                        <input
+                          value={checkoutCfg.cartCtaLabel}
+                          onChange={(e) => setCheckoutCfg((p) => ({ ...p, cartCtaLabel: e.target.value }))}
+                          placeholder="Finalizar pedido"
+                          className="h-9 w-full rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                        />
+                      </div>
+
+                      <div className="space-y-3 border-t border-white/[0.06] pt-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-white/50">Textos da Tela 3 · Checkout</p>
+                        <input
+                          value={checkoutCfg.checkoutTitle}
+                          onChange={(e) => setCheckoutCfg((p) => ({ ...p, checkoutTitle: e.target.value }))}
+                          placeholder="Finalizar compra"
+                          className="h-9 w-full rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                        />
+                        <input
+                          value={checkoutCfg.checkoutCtaLabel}
+                          onChange={(e) => setCheckoutCfg((p) => ({ ...p, checkoutCtaLabel: e.target.value }))}
+                          placeholder="Pagar agora"
+                          className="h-9 w-full rounded-md border border-white/[0.08] bg-[#0F1012] px-3 text-[13px] text-white outline-none focus:border-white/25"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           ) : null}
         </div>
+
 
 
           {selectedSectionAnchor && activeTemplate.kind === "loja" ? (
