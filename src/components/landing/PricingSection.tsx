@@ -162,7 +162,7 @@ const PricingSection = () => {
               >
                 {highlighted && (
                   <div className="absolute right-6 top-6 rounded-full bg-black px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white">
-                    Superior
+                    Mais escolhido
                   </div>
                 )}
               {/* Plan name */}
