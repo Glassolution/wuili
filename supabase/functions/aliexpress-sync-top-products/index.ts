@@ -403,6 +403,7 @@ serve(async (req) => {
     let errorCount = 0;
     const errors: string[] = [];
     const currentTopIds = new Set<string>();
+    const currentTitles = new Set<string>();
     const detailed: any[] = [];
 
     // PASSO 1 — Para cada keyword, chama aliexpress.ds.text.search paginando até PAGE_SIZE
