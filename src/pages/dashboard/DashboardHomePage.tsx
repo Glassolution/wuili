@@ -52,11 +52,11 @@ const metricCards = [
     title: "Integracoes",
     description: "Contas conectadas para publicar e acompanhar vendas.",
   },
-];
+] as const;
 
 type DashboardStatKey = (typeof metricCards)[number]["key"];
 
-type DashboardStats = Record<DashboardStatKey, number> & {
+type DashboardStats = { [K in DashboardStatKey]: number } & {
   displayName: string;
 };
 
