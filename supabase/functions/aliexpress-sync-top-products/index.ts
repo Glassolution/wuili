@@ -272,6 +272,10 @@ serve(async (req) => {
       .select("velo_category, aliexpress_category_id")
       .eq("active", true);
     if (mapErr) throw mapErr;
+    console.log(
+      "[aliexpress-sync-top-products] mapeamentos ativos:",
+      JSON.stringify(mappings ?? []),
+    );
     if (!mappings || mappings.length === 0) {
       await finalize({ status: "success", error_message: "Nenhuma categoria ativa mapeada." });
       return new Response(JSON.stringify({ ok: true, message: "Sem mapeamentos ativos" }), {
