@@ -265,11 +265,14 @@ type StoreOrderRow = {
   product_image_url: string | null;
   buyer_name: string;
   buyer_email: string;
+  buyer_phone: string | null;
   quantity: number;
   total: number;
   payment_method: string;
   payment_status: string;
   created_at: string;
+  catalog_product_id: string | null;
+  supplier_url: string | null;
 };
 
 const StoreOrdersList = ({ userId }: { userId: string }) => {
@@ -278,12 +281,22 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("store_orders")
-        .select("id,product_title,product_image_url,buyer_name,buyer_email,quantity,total,payment_method,payment_status,created_at")
+        .select("id,product_title,product_image_url,buyer_name,buyer_email,buyer_phone,quantity,total,payment_method,payment_status,created_at,catalog_product_id")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
-      return (data ?? []) as StoreOrderRow[];
+      const rows = (data ?? []) as Omit<StoreOrderRow, "supplier_url">[];
+      const ids = Array.from(new Set(rows.map((r) => r.catalog_product_id).filter((v): v is string => Boolean(v))));
+      let urlMap = new Map<string, string | null>();
+      if (ids.length > 0) {
+        const { data: prods } = await supabase
+          .from("catalog_products")
+          .select("id,product_url")
+          .in("id", ids);
+        urlMap = new Map((prods ?? []).map((p) => [p.id as string, (p.product_url as string | null) ?? null]));
+      }
+      return rows.map((r) => ({ ...r, supplier_url: r.catalog_product_id ? urlMap.get(r.catalog_product_id) ?? null : null })) as StoreOrderRow[];
     },
   });
 
@@ -302,16 +315,17 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
 
   return (
     <div className="overflow-hidden rounded-xl border border-black/[0.08] bg-white">
-      <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(140px,0.8fr)_110px_120px_120px_140px] border-b border-black/[0.08] bg-[#FAFAFA] px-4 py-3 text-[11px] font-semibold uppercase text-[#737373] md:grid">
+      <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_80px_110px_130px_120px_200px] border-b border-black/[0.08] bg-[#FAFAFA] px-4 py-3 text-[11px] font-semibold uppercase text-[#737373] md:grid">
         <span>Produto</span>
         <span>Comprador</span>
         <span>Qtd.</span>
         <span>Total</span>
         <span>Pagamento</span>
         <span>Data</span>
+        <span>Fornecedor</span>
       </div>
       {data.map((order) => (
-        <div key={order.id} className="grid gap-2 border-b border-black/[0.06] px-4 py-4 md:grid-cols-[minmax(0,1.7fr)_minmax(140px,0.8fr)_110px_120px_120px_140px] md:items-center">
+        <div key={order.id} className="grid gap-2 border-b border-black/[0.06] px-4 py-4 md:grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_80px_110px_130px_120px_200px] md:items-center">
           <div className="flex min-w-0 items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#F5F5F5]">
               {order.product_image_url ? <img src={order.product_image_url} alt="" className="h-full w-full object-cover" /> : <Package size={20} className="m-3 text-[#A3A3A3]" />}
@@ -321,6 +335,7 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
           <div className="min-w-0">
             <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{order.buyer_name}</p>
             <p className="truncate text-[11px] text-[#737373]">{order.buyer_email}</p>
+            {order.buyer_phone ? <p className="truncate text-[11px] text-[#737373]">{order.buyer_phone}</p> : null}
           </div>
           <p className="text-[13px] text-[#525252]">{order.quantity}</p>
           <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total)}</p>
@@ -328,6 +343,9 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
             {order.payment_method === "pix" ? "Pix" : "Cartão"} · {order.payment_status === "approved" ? "Pago" : order.payment_status === "rejected" ? "Rejeitado" : "Pendente"}
           </span>
           <p className="text-[13px] text-[#525252]">{formatDate(order.created_at)}</p>
+          <div className="md:justify-self-end">
+            <SupplierButton url={order.supplier_url} compact />
+          </div>
         </div>
       ))}
     </div>

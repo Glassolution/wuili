@@ -3061,8 +3061,8 @@ const GeneratedStoreEditorPage = () => {
                 const gap = 120;
                 const leftOffset = (baseWidth + gap) * (idx + 1);
                 const panelHeight = mobilePreview
-                  ? (screen.key === "carrinho" ? 920 : 1420)
-                  : (screen.key === "carrinho" ? 760 : 920);
+                  ? (screen.key === "carrinho" ? 1080 : 1480)
+                  : (screen.key === "carrinho" ? 940 : 1120);
                 return (
                   <div
                     key={screen.key}
