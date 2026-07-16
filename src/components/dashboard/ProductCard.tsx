@@ -154,6 +154,19 @@ export const ProductCard = ({
           {categoryLabel}
         </span>
 
+        {product.supplierLabel && (
+          <span
+            title={`Fornecedor: ${product.supplierLabel}`}
+            className={`absolute rounded-full border border-[#E6E6E8] bg-white/95 font-semibold uppercase tracking-[0.06em] text-[#6B7280] backdrop-blur-sm ${
+              denseMobile
+                ? "left-2 bottom-2 max-w-[calc(100%-16px)] truncate px-2 py-0.5 text-[8px] md:left-4 md:bottom-4 md:px-2.5 md:py-1 md:text-[9px]"
+                : "left-4 bottom-4 px-2.5 py-1 text-[9px]"
+            }`}
+          >
+            {product.supplierLabel}
+          </span>
+        )}
+
         {product.images && product.images.length < 3 && (
           <span
             title="Este produto tem menos de 3 fotos — pode ser recusado na publicação no ML"
