@@ -1245,7 +1245,7 @@ const GeneratedStoreEditorPage = () => {
     updateSelectedOverride({ iconName });
   };
   const flow = useMemo<FlowState | null>(() => {
-    const state = location.state as Partial<FlowState> | null;
+    const state = location.state as (Partial<FlowState> & { projectId?: string }) | null;
     let product = state?.product; let language = state?.language; let persona = state?.persona; let salesAngle = state?.salesAngle;
     try {
       if (!product) { const value = sessionStorage.getItem("velo-example-product"); product = value ? JSON.parse(value) as ExampleProduct : undefined; }
@@ -1256,11 +1256,27 @@ const GeneratedStoreEditorPage = () => {
     if (product && language && persona && salesAngle) return { product, language, persona, salesAngle };
     // Fallback: fluxo ja concluido anteriormente por este usuario
     const saved = getSavedStoreFlow<FlowState>(user?.id);
-    return saved && saved.product && saved.language && saved.persona && saved.salesAngle ? saved : null;
+    if (saved && saved.product && saved.language && saved.persona && saved.salesAngle) return saved;
+    // Editando um projeto salvo (veio de "Editar" na Minha Loja): abrir o editor
+    // diretamente, sem exigir o fluxo de onboarding. Os produtos reais são
+    // carregados a partir do projeto; aqui só garantimos um flow mínimo válido.
+    if (state?.projectId) {
+      return {
+        product: product ?? { id: "", title: "", price: 0, imageUrl: "" },
+        language: language ?? "pt-BR",
+        persona: persona ?? "",
+        salesAngle: salesAngle ?? "",
+      };
+    }
+    return null;
   }, [location.state, user?.id]);
 
   useEffect(() => {
-    if (flow && user?.id) markStoreFlowCompleted(user.id, flow);
+    // Só persistimos um fluxo genuinamente completo (vindo do onboarding). O flow
+    // mínimo sintetizado ao editar um projeto salvo não deve sobrescrever o real.
+    if (user?.id && flow?.product?.id && flow.language && flow.persona && flow.salesAngle) {
+      markStoreFlowCompleted(user.id, flow);
+    }
   }, [flow, user?.id]);
 
   const projectId = useMemo(() => {
@@ -1302,6 +1318,19 @@ const GeneratedStoreEditorPage = () => {
       ? meta.storeName.trim()
       : currentProject.nome?.trim();
     if (savedName) setStoreName(savedName);
+
+    // Restaura as customizações salvas para que o editor reabra idêntico ao que
+    // foi publicado (as mesmas chaves são reaplicadas na página pública).
+    if (typeof meta.accent === "string") setAccent(meta.accent);
+    if (typeof meta.font === "string") setFont(meta.font);
+    if (typeof meta.columns === "number") setColumns(meta.columns);
+    if (typeof meta.heroImage === "string") setHeroImage(meta.heroImage);
+    if (typeof meta.logoImage === "string") setLogoImage(meta.logoImage);
+    if (typeof meta.heroCtaUrl === "string") setHeroCtaUrl(meta.heroCtaUrl);
+    if (typeof meta.copyVariant === "number") setCopyVariant(meta.copyVariant);
+    if (meta.elementOverrides && typeof meta.elementOverrides === "object" && !Array.isArray(meta.elementOverrides)) {
+      setElementOverrides(meta.elementOverrides as Record<string, ElementOverride>);
+    }
   }, [currentProject]);
 
   useEffect(() => {
@@ -1320,10 +1349,18 @@ const GeneratedStoreEditorPage = () => {
       void saveProjectDraft(currentProject.id, {
         storeName,
         template: activeTemplate.id,
+        accent,
+        font,
+        columns,
+        heroImage,
+        logoImage,
+        heroCtaUrl,
+        copyVariant,
+        elementOverrides,
       }).catch(() => { /* autosave silencioso */ });
     }, 900);
     return () => window.clearTimeout(timeout);
-  }, [currentProject?.id, storeName, activeTemplate]);
+  }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides]);
 
   const projectTitle = currentProject?.nome || storeName || "Velo";
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import { ArrowUpRight, FlaskConical, PackageOpen, Store } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +35,21 @@ const VeloIconLink = () => (
 
 const WELCOME_ANIMATION_MS = 2800;
 
+// A tela "Cadastro concluído / Bem-vindo" só deve aparecer no primeiro acesso
+// logo após o cadastro. Quem já tem conta e está apenas fazendo login não pode
+// vê-la novamente. Consideramos "cadastro recente" quando o último login ocorreu
+// a até 10 minutos da criação da conta (mesma heurística do DashboardLayout).
+const isFreshSignup = (user: User | null): boolean => {
+  if (!user) return false;
+  const createdAt = new Date(user.created_at).getTime();
+  const lastSignInAt = new Date(user.last_sign_in_at ?? "").getTime();
+  return (
+    Number.isFinite(createdAt) &&
+    Number.isFinite(lastSignInAt) &&
+    Math.abs(lastSignInAt - createdAt) <= 10 * 60 * 1000
+  );
+};
+
 const feedbackCards = [
   {
     name: "Marina Alves",
@@ -59,8 +75,11 @@ const feedbackCards = [
 
 const StartChoicePage = () => {
   const navigate = useNavigate();
-  const { user, role } = useAuth();
-  const [showWelcome, setShowWelcome] = useState(true);
+  const location = useLocation();
+  const { user, role, loading } = useAuth();
+  const justSignedUp = (location.state as { justSignedUp?: boolean } | null)?.justSignedUp === true;
+  // null = ainda decidindo (aguardando o auth carregar) para não piscar a tela errada.
+  const [showWelcome, setShowWelcome] = useState<boolean | null>(null);
   const [welcomeReady, setWelcomeReady] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -68,6 +87,20 @@ const StartChoicePage = () => {
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+
+  // Decide o destino assim que o auth terminar de carregar.
+  // - Cadastro recém-concluído (signup ou primeiro acesso): mostra o fluxo de onboarding.
+  // - Quem já tem conta e apenas fez login: vai direto ao dashboard, pulando o cadastro.
+  //   (Admins mantêm acesso a esta tela para testes internos.)
+  useEffect(() => {
+    if (loading || showWelcome !== null) return;
+    const fresh = justSignedUp || isFreshSignup(user);
+    if (!fresh && !isAdmin) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+    setShowWelcome(fresh);
+  }, [loading, user, justSignedUp, isAdmin, showWelcome, navigate]);
 
   useEffect(() => {
     if (!showWelcome) return;
@@ -114,6 +147,12 @@ const StartChoicePage = () => {
     if (!selectedPath) return;
     navigate(selectedPath);
   };
+
+  // Enquanto o auth carrega ainda não sabemos se é cadastro recente; evitamos
+  // renderizar a tela errada mostrando apenas um fundo branco neutro.
+  if (loading || showWelcome === null) {
+    return <main className="min-h-screen bg-white" />;
+  }
 
   if (showWelcome) {
     return (

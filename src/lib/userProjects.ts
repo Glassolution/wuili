@@ -1,5 +1,6 @@
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import type { Json, Tables } from "@/integrations/supabase/types";
+import type { ElementOverride } from "@/lib/storeOverrides";
 
 export type ProjectType = "loja_completa" | "pagina_venda";
 export type ProjectStatus = "rascunho" | "publicado";
@@ -171,9 +172,60 @@ export function getProjectDescription(project: UserProject | null): string {
   return typeof value === "string" ? value : "";
 }
 
+/** Nome de marca exibido na vitrine (o editor grava em metadata.storeName). */
+export function getProjectStoreName(project: UserProject | null): string {
+  const value = readMetadata(project).storeName;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return project?.nome?.trim() || "";
+}
+
 export function getProjectTemplate(project: UserProject | null): string {
   const value = readMetadata(project).template;
   return typeof value === "string" ? value : "loja-1";
+}
+
+// Customizações da vitrine salvas pelo editor (ver GeneratedStoreEditorPage).
+export function getProjectAccent(project: UserProject | null): string {
+  const value = readMetadata(project).accent;
+  return typeof value === "string" ? value : "#111111";
+}
+
+export function getProjectFont(project: UserProject | null): string {
+  const value = readMetadata(project).font;
+  return typeof value === "string" ? value : "";
+}
+
+export function getProjectHeroImage(project: UserProject | null): string {
+  const value = readMetadata(project).heroImage;
+  return typeof value === "string" ? value : "";
+}
+
+export function getProjectLogoImage(project: UserProject | null): string | null {
+  const value = readMetadata(project).logoImage;
+  return typeof value === "string" ? value : null;
+}
+
+export function getProjectColumns(project: UserProject | null): number {
+  const value = readMetadata(project).columns;
+  return typeof value === "number" ? value : 3;
+}
+
+export function getProjectHeroCtaUrl(project: UserProject | null): string {
+  const value = readMetadata(project).heroCtaUrl;
+  return typeof value === "string" ? value : "/catalogo";
+}
+
+export function getProjectCopyVariant(project: UserProject | null): number {
+  const value = readMetadata(project).copyVariant;
+  return typeof value === "number" ? value : 0;
+}
+
+/** Overrides granulares por elemento (mapa path → override). */
+export function getProjectOverrides(project: UserProject | null): Record<string, ElementOverride> {
+  const value = readMetadata(project).elementOverrides;
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, ElementOverride>)
+    : {};
 }
 
 /** Produtos de um projeto público (catalog_products é legível por anon). */

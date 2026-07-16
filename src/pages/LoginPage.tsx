@@ -126,12 +126,7 @@ const LoginPage = () => {
       veloToast.dismiss(toastId);
       if (error) { veloToast.error(error.message === "Invalid login credentials" ? "Email ou senha incorretos." : error.message); return; }
       if (data.session || data.user) {
-        // Se onboarding não concluído, inicia na escolha principal de loja.
-        const uid = data.user?.id ?? data.session?.user?.id;
-        if (uid) {
-          const { data: prof } = await (supabase as any).from("profiles").select("onboarding_completed_at").eq("user_id", uid).maybeSingle();
-          if (!prof?.onboarding_completed_at) { navigate("/comecar", { replace: true }); return; }
-        }
+        // Quem faz login já tem conta: vai direto ao dashboard, pulando o fluxo de cadastro.
         navigate("/dashboard", { replace: true }); return;
       }
       veloToast.error("Não foi possível concluir o login.");
@@ -166,7 +161,7 @@ const LoginPage = () => {
     if (data.user) {
       await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
       veloToast.success("Conta criada com sucesso.");
-      navigate("/comecar", { replace: true });
+      navigate("/comecar", { replace: true, state: { justSignedUp: true } });
     }
   };
 
