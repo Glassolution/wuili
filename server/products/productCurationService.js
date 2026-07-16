@@ -321,7 +321,7 @@ async function fetchCatalogProducts(filters = {}) {
         "orders_count",
       ].join(","),
     )
-    .eq("source", "c7drop")
+    .eq("is_active", true)
     .eq("is_active", true)
     .gt("stock_quantity", 0)
     .order("orders_count", { ascending: false })
