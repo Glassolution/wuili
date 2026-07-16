@@ -241,6 +241,18 @@ serve(async (req) => {
       ? new Date(adminProfile.aliexpress_token_expires_at).getTime()
       : 0;
 
+    console.log(
+      "[aliexpress-sync-top-products] admin token OK user_id=",
+      adminProfile.user_id,
+      "expiresAt=",
+      adminProfile.aliexpress_token_expires_at,
+      "token_prefix=",
+      accessToken.slice(0, 8),
+      "token_len=",
+      accessToken.length,
+    );
+
+
     if (expiresAt && expiresAt < Date.now() + 60_000 && refreshToken) {
       const refreshed = await refreshAccessToken(refreshToken, appKey, appSecret);
       accessToken = refreshed.access_token;
