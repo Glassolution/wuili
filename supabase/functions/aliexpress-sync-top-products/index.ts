@@ -537,9 +537,11 @@ serve(async (req) => {
             scraped_at: new Date().toISOString(),
           });
           currentTopIds.add(`aliexpress:${externalId}`);
+          currentTitles.add(titleKey);
           collectedForKeyword++;
           if (collectedForKeyword >= PAGE_SIZE) break;
         }
+
 
         await sleep(RATE_LIMIT_DELAY_MS);
 
