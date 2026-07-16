@@ -451,7 +451,9 @@ const CheckoutPage = () => {
                   <article
                     key={id}
                     onClick={() => setSelectedPlanId(id)}
-                    className={`relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-6 transition duration-200 ${
+                    // "group": passar o mouse em qualquer ponto do card preenche
+                    // o CTA (ver group-hover no botão), não só sobre o botão.
+                    className={`group relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-6 transition duration-200 ${
                       isFeatured
                         ? "border-[#0A0A0A] shadow-[0_10px_36px_rgba(0,0,0,0.09)]"
                         : isSelected
@@ -505,10 +507,12 @@ const CheckoutPage = () => {
                     <button
                       type="button"
                       onClick={() => startCheckout(id)}
-                      className={`mt-5 h-11 w-full rounded-[10px] px-5 text-[13px] font-semibold transition ${
+                      className={`mt-5 h-11 w-full rounded-[10px] border px-5 text-[13px] font-semibold transition-colors duration-200 ${
                         isFeatured
-                          ? "bg-[#0A0A0A] text-white hover:bg-[#242424]"
-                          : "border border-black/15 bg-white text-black hover:border-black/40 hover:bg-black/[0.03]"
+                          ? "border-[#0A0A0A] bg-[#0A0A0A] text-white hover:bg-[#242424]"
+                          : // Vazado por padrão; preenche quando o mouse entra em
+                            // qualquer parte do card.
+                            "border-black/15 bg-white text-black group-hover:border-[#0A0A0A] group-hover:bg-[#0A0A0A] group-hover:text-white"
                       }`}
                     >
                       Assinar {currentPlan.name}
