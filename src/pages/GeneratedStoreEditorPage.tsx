@@ -1372,6 +1372,22 @@ const GeneratedStoreEditorPage = () => {
     if (meta.elementOverrides && typeof meta.elementOverrides === "object" && !Array.isArray(meta.elementOverrides)) {
       setElementOverrides(meta.elementOverrides as Record<string, ElementOverride>);
     }
+    // Personalização do carrinho/checkout (metadata.checkout).
+    if (meta.checkout && typeof meta.checkout === "object" && !Array.isArray(meta.checkout)) {
+      const co = meta.checkout as Record<string, unknown>;
+      setCheckoutCfg((prev) => ({
+        brandName: typeof co.brandName === "string" ? co.brandName : prev.brandName,
+        logoImage: typeof co.logoImage === "string" ? co.logoImage : prev.logoImage,
+        accent: typeof co.accent === "string" ? co.accent : prev.accent,
+        priceOverride: typeof co.priceOverride === "number" ? String(co.priceOverride) : prev.priceOverride,
+        freightLabel: typeof co.freightLabel === "string" ? co.freightLabel : prev.freightLabel,
+        freightValue: typeof co.freightValue === "number" ? String(co.freightValue) : prev.freightValue,
+        cartTitle: typeof co.cartTitle === "string" ? co.cartTitle : prev.cartTitle,
+        cartCtaLabel: typeof co.cartCtaLabel === "string" ? co.cartCtaLabel : prev.cartCtaLabel,
+        checkoutTitle: typeof co.checkoutTitle === "string" ? co.checkoutTitle : prev.checkoutTitle,
+        checkoutCtaLabel: typeof co.checkoutCtaLabel === "string" ? co.checkoutCtaLabel : prev.checkoutCtaLabel,
+      }));
+    }
   }, [currentProject]);
 
   useEffect(() => {
