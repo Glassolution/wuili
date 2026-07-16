@@ -72,6 +72,8 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
   const [product, setProduct] = useState<PublicStoreProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { slug } = useParams();
 
   useEffect(() => {
     let active = true;
