@@ -582,6 +582,57 @@ export type Database = {
           },
         ]
       }
+      user_projects: {
+        Row: {
+          created_at: string
+          id: string
+          last_edited_at: string
+          metadata: Json
+          nome: string
+          preview_storage_path: string | null
+          preview_url: string | null
+          published_at: string | null
+          source_id: string | null
+          source_kind: string | null
+          status: string
+          tipo_projeto: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_edited_at?: string
+          metadata?: Json
+          nome?: string
+          preview_storage_path?: string | null
+          preview_url?: string | null
+          published_at?: string | null
+          source_id?: string | null
+          source_kind?: string | null
+          status?: string
+          tipo_projeto: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_edited_at?: string
+          metadata?: Json
+          nome?: string
+          preview_storage_path?: string | null
+          preview_url?: string | null
+          published_at?: string | null
+          source_id?: string | null
+          source_kind?: string | null
+          status?: string
+          tipo_projeto?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       help_feed_comments: {
         Row: {
           author_id: string
