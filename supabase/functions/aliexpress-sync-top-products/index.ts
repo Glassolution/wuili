@@ -463,7 +463,7 @@ serve(async (req) => {
 
     await finalize({
       status: errorCount > 0 && productsNew + productsUpdated === 0 ? "failed" : "success",
-      categories_processed: 1,
+      categories_processed: keywords.length,
       products_new: productsNew,
       products_updated: productsUpdated,
       products_dropped_from_top: droppedIds.length,
