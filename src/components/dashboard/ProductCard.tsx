@@ -12,6 +12,7 @@ export interface Product {
   product_url?: string | null;
   rating?: number | null;
   ordersCount?: number | null;
+  supplierLabel?: string | null;
 }
 
 export const formatPrice = (price: number) =>
