@@ -3174,7 +3174,7 @@ const GeneratedStoreEditorPage = () => {
                     onWheel={(e) => e.stopPropagation()}
                   >
                     <div className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
-                      <Settings2 size={20} strokeWidth={1.8} />
+                      <Settings size={20} strokeWidth={1.8} />
                       Personalizar
                       <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold tracking-normal text-white/55">Autosave</span>
                     </div>
