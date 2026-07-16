@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader2, Copy, Check, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, useSalesPageData } from "./salesPageData";
+import { ProfitPill } from "./ProfitPill";
+
 
 /**
  * Tela 3 — Checkout
