@@ -1403,6 +1403,20 @@ const GeneratedStoreEditorPage = () => {
       return;
     }
     const timeout = window.setTimeout(() => {
+      const priceOverrideNum = Number(checkoutCfg.priceOverride.replace(",", "."));
+      const freightValueNum = Number(checkoutCfg.freightValue.replace(",", "."));
+      const checkoutPatch = {
+        brandName: checkoutCfg.brandName.trim() || undefined,
+        logoImage: checkoutCfg.logoImage.trim() || undefined,
+        accent: checkoutCfg.accent || undefined,
+        priceOverride: Number.isFinite(priceOverrideNum) && priceOverrideNum > 0 ? priceOverrideNum : undefined,
+        freightLabel: checkoutCfg.freightLabel.trim() || undefined,
+        freightValue: Number.isFinite(freightValueNum) && freightValueNum > 0 ? freightValueNum : undefined,
+        cartTitle: checkoutCfg.cartTitle.trim() || undefined,
+        cartCtaLabel: checkoutCfg.cartCtaLabel.trim() || undefined,
+        checkoutTitle: checkoutCfg.checkoutTitle.trim() || undefined,
+        checkoutCtaLabel: checkoutCfg.checkoutCtaLabel.trim() || undefined,
+      };
       void saveProjectDraft(currentProject.id, {
         storeName,
         template: activeTemplate.id,
@@ -1414,10 +1428,11 @@ const GeneratedStoreEditorPage = () => {
         heroCtaUrl,
         copyVariant,
         elementOverrides,
+        checkout: checkoutPatch,
       }).catch(() => { /* autosave silencioso */ });
     }, 900);
     return () => window.clearTimeout(timeout);
-  }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides]);
+  }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides, checkoutCfg]);
 
   const projectTitle = currentProject?.nome || storeName || "Velo";
 
