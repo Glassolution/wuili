@@ -161,6 +161,13 @@ const App = () => (
               <Route path="/onboarding/gerando" element={<Navigate to="/comecar" replace />} />
               <Route path="/preview/:slug" element={<PublicStorePage />} />
               <Route path="/loja/:slug" element={<PublicStorePage />} />
+              <Route path="/loja/:slug/carrinho" element={<SalesCartPage />} />
+              <Route path="/loja/:slug/checkout" element={<SalesCheckoutPage />} />
+              <Route path="/loja/:slug/obrigado" element={<SalesThankYouPage />} />
+              <Route path="/preview/:slug/carrinho" element={<SalesCartPage />} />
+              <Route path="/preview/:slug/checkout" element={<SalesCheckoutPage />} />
+              <Route path="/preview/:slug/obrigado" element={<SalesThankYouPage />} />
+              <Route path="/minha-loja/fluxo" element={<ProtectedRoute><SalesFlowEditorPage /></ProtectedRoute>} />
               <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
