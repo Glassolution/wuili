@@ -15,6 +15,9 @@ import ProductTemplateShopify from "@/components/store-templates/ProductTemplate
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
+type EditorPanelTab = "detalhes" | "personalizar";
+type EditorPanelSection = "template" | "produtos" | "imagem" | "aparencia";
+type ContextDrawerMode = "template" | "products";
 
 const getFirstImage = (images: unknown) => {
   if (Array.isArray(images)) return images.find((image): image is string => typeof image === "string" && image.trim().length > 0) || "";
@@ -150,10 +153,19 @@ const GeneratedStoreEditorPage = () => {
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [storeName, setStoreName] = useState("Velo");
   const [showPlans, setShowPlans] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
+  const [editorPanelTab, setEditorPanelTab] = useState<EditorPanelTab>("personalizar");
+  const [openPanelSections, setOpenPanelSections] = useState<Record<EditorPanelSection, boolean>>({
+    template: true,
+    produtos: true,
+    imagem: true,
+    aparencia: true,
+  });
+  const [contextDrawer, setContextDrawer] = useState<ContextDrawerMode | null>(null);
   const [templateCategory, setTemplateCategory] = useState<"loja" | "produto">("loja");
   const [currentTemplate, setCurrentTemplate] = useState("Template 1");
   const [activeTemplate, setActiveTemplate] = useState<{ kind: "loja" | "produto"; id: string }>({ kind: "loja", id: "loja-1" });
+  const [draftTemplate, setDraftTemplate] = useState<{ kind: "loja" | "produto"; id: string }>({ kind: "loja", id: "loja-1" });
+  const [draftProductId, setDraftProductId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [elementOverrides, setElementOverrides] = useState<Record<string, ElementOverride>>({});
@@ -734,7 +746,50 @@ const GeneratedStoreEditorPage = () => {
     { name: "Helvetica Neue", stack: '"Helvetica Neue", Helvetica, sans-serif', mood: "Moderna e limpa" },
     { name: "Georgia", stack: 'Georgia, serif', mood: "Cl\u00e1ssica e elegante" },
   ];
+  const templateOptions = {
+    loja: [
+      { id: "loja-1", name: "Template 1", desc: "Loja completa com vitrine e categorias.", image: "/template-01-loja-preview.png" },
+    ],
+    produto: [
+      { id: "produto-1", name: "Template 1", desc: "Página de produto Velora.", image: "/template-produto-preview.png" },
+      { id: "produto-2", name: "Template 2", desc: "Página de produto Beauty.", image: "/template-produto-2-preview.png" },
+      { id: "produto-3", name: "Template 3", desc: "Página de produto Shopify.", image: "/template-produto-3-preview.png" },
+    ],
+  };
   const selectedFontStack = fontOptions.find((option) => option.name === font)?.stack || fontOptions[0].stack;
+  const activeTemplateOption =
+    templateOptions[activeTemplate.kind].find((template) => template.id === activeTemplate.id) ?? templateOptions.loja[0];
+  const drawerTemplates = templateOptions[templateCategory];
+  const drawerProducts = displayedProducts.slice(0, 9);
+  const togglePanelSection = (section: EditorPanelSection) => {
+    setOpenPanelSections((current) => ({ ...current, [section]: !current[section] }));
+  };
+  const openTemplateDrawer = () => {
+    setTemplateCategory(activeTemplate.kind);
+    setDraftTemplate(activeTemplate);
+    setContextDrawer("template");
+  };
+  const openProductsDrawer = () => {
+    setDraftProductId((current) => current ?? drawerProducts[0]?.id ?? null);
+    setContextDrawer("products");
+  };
+  const applyTemplateDraft = () => {
+    const selected = templateOptions[draftTemplate.kind].find((template) => template.id === draftTemplate.id);
+    if (!selected) return;
+    setCurrentTemplate(selected.name);
+    setActiveTemplate(draftTemplate);
+    setContextDrawer(null);
+  };
+  const applyProductDraft = () => {
+    setContextDrawer(null);
+    if (!draftProductId) navigate("/catalogo");
+  };
+  const panelSections: Array<{ id: EditorPanelSection; label: string }> = [
+    { id: "template", label: "Template" },
+    { id: "produtos", label: "Produtos" },
+    { id: "imagem", label: "Imagem" },
+    { id: "aparencia", label: "Aparência" },
+  ];
   const toolbarOrientation = mobilePreview ? "vertical" : "horizontal";
   const toolbarTools = [
     { id: "select" as const, label: "Select", icon: MousePointer2 },
@@ -743,7 +798,7 @@ const GeneratedStoreEditorPage = () => {
     { id: "eraser" as const, label: "Eraser", icon: Eraser },
   ];
   const activeToolbarTool = toolbarTools.find((tool) => tool.id === editMode);
-  const fillSwatches = ["#111111", "#2563eb", "#dc2626", "#16a34a", "#f59e0b", "#ec4899", "#7c3aed"];
+  const fillSwatches = ["#111111", "#2563eb", "#dc2626", "#f59e0b", "#ec4899", "#7c3aed"];
   const selectedDomElement = getSelectedDomElement();
   const selectedMediaSrc =
     selectedElement?.type === "image" && selectedDomElement instanceof HTMLImageElement
@@ -769,7 +824,7 @@ const GeneratedStoreEditorPage = () => {
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-[#1f1f1d] text-white" style={{ fontFamily: selectedFontStack }}>
-      <style>{`.store-editor-preview [data-editor-selected="true"]{outline:2px solid #111827;outline-offset:3px}.editor-mode-active *:hover{outline:1.5px dashed #2563eb;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}`}</style>
+      <style>{`.store-editor-preview [data-editor-selected="true"]{outline:2px solid #111827;outline-offset:3px}.editor-mode-active *:hover{outline:1.5px dashed #2563eb;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}.editor-context-drawer{animation:editorDrawerIn 200ms ease both}@keyframes editorDrawerIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
       <header className="grid h-[70px] shrink-0 grid-cols-[minmax(280px,520px)_minmax(0,1fr)_auto] items-center border-b border-white/[0.07] bg-[#1f1f1d] px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-gradient-to-br from-[#ff7a18] via-[#f43f5e] to-[#2563eb]" />
@@ -831,99 +886,176 @@ const GeneratedStoreEditorPage = () => {
       <div className="flex min-h-0 flex-1">
         <input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={(event)=>{const file=event.target.files?.[0];if(file)setHeroImage(URL.createObjectURL(file));}}/>
         <input ref={contextMediaInput} type="file" accept="image/*" className="hidden" onChange={handleContextImageUpload}/>
-        <aside className="w-[360px] shrink-0 overflow-y-auto border-r border-white/[0.08] bg-[#1f1f1d] px-4 py-6">
-          <section className="overflow-hidden rounded-[16px] border border-white/[0.09] bg-[#282826] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-            <div className="flex items-center gap-3 border-b border-white/[0.08] px-4 py-4">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#1f1f1d]">
-                <LayoutTemplate size={14} />
-              </span>
-              <div className="min-w-0">
-                <strong className="block truncate text-[14px] font-semibold">{currentTemplate}</strong>
-                <span className="block truncate text-[11px] text-white/45">Template 01</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 p-2.5">
-              <button type="button" className="h-9 rounded-[9px] border border-white/[0.11] bg-[#242423] text-[12px] font-medium text-white/78 transition hover:bg-white/[0.07]">Detalhes</button>
-              <button type="button" className="h-9 rounded-[9px] border border-white/[0.12] bg-gradient-to-b from-white/[0.16] to-white/[0.07] text-[12px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">Personalizar</button>
-            </div>
-          </section>
-
-          <div className="mt-5 flex items-center gap-4 text-white/72">
-            <button type="button" onClick={() => history.back()} className="transition hover:text-white" aria-label="Voltar">
+        <aside className="w-[360px] shrink-0 overflow-y-auto border-r border-[#27272A] bg-[#0f0f0f] px-4 py-5">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => history.back()} className="flex h-9 w-9 items-center justify-center rounded-[8px] text-white/70 transition hover:bg-white/[0.06] hover:text-white" aria-label="Voltar">
               <ChevronLeft size={18} />
             </button>
-            <button type="button" className="transition hover:text-white" aria-label="Mais opções">
-              <MoreHorizontal size={19} />
+            <div className="min-w-0">
+              <strong className="block truncate text-[14px] font-semibold">{storeName}</strong>
+              <span className="block truncate text-[11px] text-white/42">Painel de edição</span>
+            </div>
+            <button type="button" className="ml-auto flex h-9 w-9 items-center justify-center rounded-[8px] text-white/50 transition hover:bg-white/[0.06] hover:text-white" aria-label="Mais opções">
+              <MoreHorizontal size={18} />
             </button>
           </div>
 
-          <section className="mt-5 space-y-3">
-            <button type="button" onClick={()=>setShowTemplates(true)} className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.08] bg-[#282826] p-3 text-left transition hover:bg-[#30302e]">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#2563eb] text-white shadow-[0_10px_20px_rgba(37,99,235,0.24)]"><LayoutTemplate size={19}/></span>
-              <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Trocar template</span><span className="mt-0.5 block text-[11px] text-white/42">Atual: {currentTemplate}</span></span>
-              <ChevronLeft size={15} className="rotate-180 text-white/35 transition group-hover:translate-x-0.5 group-hover:text-white/70" />
-            </button>
+          <div className="mt-5 flex items-center gap-5 border-b border-[#27272A]">
+            {[
+              { id: "detalhes" as const, label: "Detalhes", icon: LayoutTemplate },
+              { id: "personalizar" as const, label: "Personalizar", icon: Palette },
+            ].map((tab) => {
+              const TabIcon = tab.icon;
+              const active = editorPanelTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setEditorPanelTab(tab.id)}
+                  className={`relative flex h-11 items-center gap-2 text-[13px] font-semibold transition ${active ? "text-white" : "text-[#71717A] hover:text-white/80"}`}
+                >
+                  <TabIcon size={16} strokeWidth={1.5} />
+                  {tab.label}
+                  {active ? <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-white" /> : null}
+                </button>
+              );
+            })}
+          </div>
 
-            <button type="button" onClick={()=>navigate("/catalogo")} className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.08] bg-[#282826] p-3 text-left transition hover:bg-[#30302e]">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#f97316] text-white shadow-[0_10px_20px_rgba(249,115,22,0.22)]"><Package size={19}/></span>
-              <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Adicionar produtos</span><span className="mt-0.5 block text-[11px] text-white/42">Escolha do catálogo Velo</span></span>
-              <Plus size={15} className="text-white/35" />
-            </button>
+          <section className="mt-2 divide-y divide-[#27272A]">
+            {panelSections.map((section) => (
+              <div key={section.id}>
+                <button
+                  type="button"
+                  onClick={() => togglePanelSection(section.id)}
+                  className="flex w-full items-center justify-between px-1 py-3 text-left"
+                >
+                  <span className="text-[13px] font-semibold text-white">{section.label}</span>
+                  <ChevronDown size={16} className={`text-white/45 transition duration-150 ease-out ${openPanelSections[section.id] ? "rotate-180" : ""}`} />
+                </button>
 
-            <button type="button" onClick={()=>imageInput.current?.click()} className="group flex w-full items-center gap-3 rounded-[14px] border border-white/[0.08] bg-[#282826] p-3 text-left transition hover:bg-[#30302e]">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#7c3aed] text-white shadow-[0_10px_20px_rgba(124,58,237,0.22)]"><Sparkles size={19}/></span>
-              <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">Imagem principal</span><span className="mt-0.5 block text-[11px] text-white/42">Envie a foto do banner</span></span>
-              <Plus size={15} className="text-white/35" />
-            </button>
+                {openPanelSections[section.id] ? (
+                  <div className="pb-4">
+                    {section.id === "template" ? (
+                      <div className="grid grid-cols-3 gap-3">
+                        <button
+                          type="button"
+                          onClick={openTemplateDrawer}
+                          className="group aspect-[4/3] rounded-[12px] border-2 border-white bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]"
+                        >
+                          <div className="flex h-full flex-col justify-between">
+                            <LayoutTemplate size={18} strokeWidth={1.6} className="text-white" />
+                            <span className="text-[12px] font-medium text-white">{activeTemplateOption.name}</span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openTemplateDrawer}
+                          className="group aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]"
+                        >
+                          <div className="flex h-full flex-col justify-between">
+                            <Plus size={18} strokeWidth={1.6} className="text-white/70" />
+                            <span className="text-[12px] font-medium text-white/75">Trocar</span>
+                          </div>
+                        </button>
+                      </div>
+                    ) : null}
 
-            <label className="block rounded-[14px] border border-white/[0.08] bg-[#282826] p-3">
-              <span className="text-[12px] font-semibold text-white/85">Link do CTA do hero</span>
-              <input value={heroCtaUrl} onChange={(event)=>setHeroCtaUrl(event.target.value)} placeholder="/catalogo ou https://..." className="mt-2 h-9 w-full rounded-[10px] border border-white/[0.10] bg-[#1f1f1d] px-3 text-[12px] text-white outline-none transition placeholder:text-white/28 focus:border-white/35" />
-            </label>
-          </section>
+                    {section.id === "produtos" ? (
+                      <div className="grid grid-cols-3 gap-3">
+                        <button type="button" onClick={openProductsDrawer} className="aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]">
+                          <div className="flex h-full flex-col justify-between">
+                            <Package size={18} strokeWidth={1.6} className="text-white" />
+                            <span className="text-[12px] font-medium text-white">Adicionar</span>
+                          </div>
+                        </button>
+                        <button type="button" onClick={() => navigate("/catalogo")} className="aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]">
+                          <div className="flex h-full flex-col justify-between">
+                            <LayoutGrid size={18} strokeWidth={1.6} className="text-white/70" />
+                            <span className="text-[12px] font-medium text-white/75">Catálogo</span>
+                          </div>
+                        </button>
+                      </div>
+                    ) : null}
 
-          <div className="my-5 border-t border-white/[0.08]" />
+                    {section.id === "imagem" ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <button type="button" onClick={()=>imageInput.current?.click()} className="aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]">
+                            <div className="flex h-full flex-col justify-between">
+                              <ImageIcon size={18} strokeWidth={1.6} className="text-white" />
+                              <span className="text-[12px] font-medium text-white">Banner</span>
+                            </div>
+                          </button>
+                          <button type="button" onClick={generateBanner} className="aspect-[4/3] rounded-[12px] border border-[#27272A] bg-[#18181B] p-2 text-left transition hover:border-[#3F3F46]">
+                            <div className="flex h-full flex-col justify-between">
+                              <Sparkles size={18} strokeWidth={1.6} className="text-white/75" />
+                              <span className="text-[12px] font-medium text-white/75">IA</span>
+                            </div>
+                          </button>
+                        </div>
+                        <label className="block rounded-[12px] border border-[#27272A] bg-[#18181B] p-3">
+                          <span className="text-[12px] font-semibold text-white/85">Link do CTA do hero</span>
+                          <input value={heroCtaUrl} onChange={(event)=>setHeroCtaUrl(event.target.value)} placeholder="/catalogo ou https://..." className="mt-2 h-9 w-full rounded-[8px] border border-[#27272A] bg-[#0f0f0f] px-3 text-[12px] text-white outline-none transition placeholder:text-white/28 focus:border-white/45" />
+                        </label>
+                        {bannerError ? <p className="text-[11px] font-medium text-red-300">{bannerError}</p> : null}
+                      </div>
+                    ) : null}
 
-          <section className="space-y-5">
-            <div>
-              <div className="flex items-center gap-2.5"><Palette size={14} className="text-white/70"/><strong className="text-[13px] font-semibold">Cor de destaque</strong></div>
-              <p className="mt-1.5 text-[11px] text-white/38">Usada em botões, preços e tags.</p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {["#111111","#2563eb","#dc2626","#16a34a","#f59e0b","#ec4899","#7c3aed"].map((color)=>(
-                  <button key={color} type="button" onClick={()=>setAccent(color)} aria-label={color} className={`relative h-8 w-8 rounded-full transition ${accent===color?"ring-2 ring-white ring-offset-2 ring-offset-[#1f1f1d]":"ring-1 ring-white/15 hover:scale-105"}`} style={{backgroundColor:color}}>{accent===color?<Check size={12} className="absolute inset-0 m-auto text-white drop-shadow"/>:null}</button>
-                ))}
-                <label className="relative h-8 w-8 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/15" title="Cor personalizada">
-                  <span className="absolute inset-0 bg-[conic-gradient(from_0deg,#ff0080,#ff8c00,#ffee00,#00ff85,#00b8ff,#8a2be2,#ff0080)]" />
-                  <input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"/>
-                </label>
+                    {section.id === "aparencia" ? (
+                      <div className="space-y-5">
+                        <div>
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-[12px] font-semibold text-white/85">Cor de destaque</span>
+                            <span className="text-[10px] text-white/36">Botões e preços</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            {["#111111","#2563eb","#dc2626","#f59e0b","#ec4899","#7c3aed"].map((color)=>(
+                              <button key={color} type="button" onClick={()=>setAccent(color)} aria-label={color} className={`aspect-[4/3] rounded-[12px] bg-[#18181B] p-2 transition hover:border-[#3F3F46] ${accent===color?"border-2 border-white":"border border-[#27272A]"}`}>
+                                <span className="block h-full rounded-[8px]" style={{backgroundColor:color}} />
+                              </button>
+                            ))}
+                            <label className={`relative aspect-[4/3] cursor-pointer overflow-hidden rounded-[12px] bg-[#18181B] p-2 transition hover:border-[#3F3F46] ${!["#111111","#2563eb","#dc2626","#f59e0b","#ec4899","#7c3aed"].includes(accent) ? "border-2 border-white" : "border border-[#27272A]"}`} title="Cor personalizada">
+                              <span className="block h-full rounded-[8px] bg-[conic-gradient(from_0deg,#ff0080,#ff8c00,#ffee00,#00ff85,#00b8ff,#8a2be2,#ff0080)]" />
+                              <input type="color" value={accent} onChange={(e)=>setAccent(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"/>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-[12px] font-semibold text-white/85">Tipografia</span>
+                            <span className="text-[10px] text-white/36">1 de {fontOptions.length}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {fontOptions.map((option)=>(
+                              <button key={option.name} type="button" onClick={()=>setFont(option.name)} className={`w-full rounded-[10px] bg-[#18181B] p-4 text-left transition hover:border-[#3F3F46] ${font===option.name?"border-2 border-white":"border border-[#27272A]"}`}>
+                                <span className="block text-[16px] font-bold text-white" style={{fontFamily:option.stack}}>{option.name}</span>
+                                <span className="mt-1 block text-[13px] text-[#A1A1AA]" style={{fontFamily:option.stack}}>abcdefghijklmnopqrstuvwxyz</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-[12px] font-semibold text-white/85">Colunas da grade</span>
+                            <span className="text-[10px] text-white/36">Desktop</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            {[2,3,4].map((value)=>(
+                              <button key={value} type="button" onClick={()=>setColumns(value)} className={`aspect-[4/3] rounded-[12px] bg-[#18181B] p-2 transition hover:border-[#3F3F46] ${columns===value?"border-2 border-white":"border border-[#27272A]"}`}>
+                                <span className="grid h-full items-end gap-1" style={{gridTemplateColumns:`repeat(${value}, minmax(0,1fr))`}}>{Array.from({length:value}).map((_,index)=><span key={index} className="h-8 rounded-[4px] bg-white/25"/>)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2.5"><Type size={14} className="text-white/70"/><strong className="text-[13px] font-semibold">Tipografia</strong></div>
-              <p className="mt-1.5 text-[11px] text-white/38">{"Fonte dos títulos e textos da loja."}</p>
-              <div className="mt-3 grid grid-cols-1 gap-2">
-                {fontOptions.map((option)=>(
-                  <button key={option.name} type="button" onClick={()=>setFont(option.name)} className={`flex items-center justify-between rounded-[11px] border px-3 py-2 text-left transition ${font===option.name?"border-white/70 bg-white/[0.08]":"border-white/[0.08] bg-[#282826] hover:bg-[#30302e]"}`}>
-                    <span><span className="block text-[12px]" style={{fontFamily:option.stack}}>{option.name}</span><span className="block text-[10px] text-white/40">{option.mood}</span></span>
-                    {font===option.name?<Check size={12} className="text-white"/>:null}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2.5"><LayoutGrid size={14} className="text-white/70"/><strong className="text-[13px] font-semibold">Colunas da grade</strong></div>
-              <p className="mt-1.5 text-[11px] text-white/38">Quantos produtos por linha no desktop.</p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {[2,3,4].map((value)=>(
-                  <button key={value} type="button" onClick={()=>setColumns(value)} className={`flex flex-col items-center gap-1.5 rounded-[11px] border p-2 transition ${columns===value?"border-white/70 bg-white/[0.08]":"border-white/[0.08] bg-[#282826] hover:bg-[#30302e]"}`}>
-                    <span className="grid w-full gap-1" style={{gridTemplateColumns:`repeat(${value}, minmax(0,1fr))`}}>{Array.from({length:value}).map((_,index)=><span key={index} className="h-4 rounded-[3px] bg-white/25"/>)}</span>
-                    <span className="text-[10px] text-white/55">{value}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            ))}
           </section>
         </aside>
 
@@ -1388,55 +1520,138 @@ const GeneratedStoreEditorPage = () => {
         </div>
       ) : null}
 
-      {showTemplates ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onMouseDown={(event)=>{if(event.target===event.currentTarget)setShowTemplates(false)}}>
-          <section role="dialog" aria-modal="true" aria-labelledby="templates-title" className="relative w-full max-w-[880px] overflow-hidden rounded-[24px] bg-[#111] p-6 text-white shadow-[0_30px_120px_rgba(0,0,0,0.8)] sm:p-8">
-            <button type="button" onClick={()=>setShowTemplates(false)} className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.07] text-white/55 transition hover:bg-white/10 hover:text-white"><X size={16}/></button>
-            <h2 id="templates-title" className="text-[24px] font-semibold tracking-[-0.03em]">Escolha um template</h2>
-            <p className="mt-1 text-[12px] text-white/45">{"Troque o visual base da sua loja. Todo o conte\u00fado \u00e9 mantido."}</p>
-            <div className="mt-5 flex items-center gap-5 border-b border-white/10">
-              {[
-                { id: "loja" as const, label: "Loja" },
-                { id: "produto" as const, label: "Produto" },
-              ].map((category) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  onClick={() => setTemplateCategory(category.id)}
-                  className={`relative h-9 text-[13px] font-semibold transition ${
-                    templateCategory === category.id
-                      ? "text-white"
-                      : "text-white/45 hover:text-white/70"
-                  }`}
-                >
-                  {category.label}
-                  {templateCategory === category.id ? (
-                    <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-white" />
-                  ) : null}
-                </button>
-              ))}
-            </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {(templateCategory === "loja"
-                ? [
-                    {id:"loja-1",name:"Template 1",desc:"Clean e minimalista",image:"/template-01-loja-preview.png"},
-                  ]
-                : [
-                    {id:"produto-1",name:"Template 1",desc:"Pagina de produto Velora",image:"/template-produto-preview.png"},
-                    {id:"produto-2",name:"Template 2",desc:"Pagina de produto Beauty",image:"/template-produto-2-preview.png"},
-                    {id:"produto-3",name:"Template 3",desc:"Pagina de produto Shopify",image:"/template-produto-3-preview.png"},
-                  ]
-              ).map((template)=>(
-                <button key={template.id} type="button" onClick={()=>{setCurrentTemplate(template.name);setActiveTemplate({kind:templateCategory,id:template.id});setShowTemplates(false);}} className={`group overflow-hidden rounded-[16px] border text-left transition ${activeTemplate.id===template.id?"border-white/70 bg-white/[0.08]":"border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
-                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-white">
-                    <img src={template.image} alt={template.name} className="h-full w-full object-cover object-top transition duration-500 group-hover:scale-105"/>
-                    {activeTemplate.id===template.id?<span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-black shadow-[0_2px_8px_rgba(0,0,0,0.25)]"><Check size={13}/></span>:null}
+      {contextDrawer ? (
+        <div
+          className="fixed inset-0 z-[55] bg-black/35 backdrop-blur-[1px]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setContextDrawer(null);
+          }}
+        >
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="editor-drawer-title"
+            className="editor-context-drawer absolute inset-y-0 right-0 flex w-[360px] flex-col border-l border-[#27272A] bg-[#0A0A0A] text-white shadow-[-24px_0_80px_rgba(0,0,0,0.42)]"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="flex min-h-[68px] items-center justify-between border-b border-[#27272A] px-5">
+              <div className="min-w-0">
+                <h2 id="editor-drawer-title" className="truncate text-[16px] font-semibold">
+                  {contextDrawer === "template" ? "Trocar template" : "Adicionar produtos"}
+                </h2>
+                <p className="mt-1 truncate text-[11px] text-white/40">
+                  {contextDrawer === "template" ? "Escolha uma base visual para a loja." : "Selecione produtos do catálogo Velo."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setContextDrawer(null)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-white/55 transition hover:bg-white/[0.08] hover:text-white"
+                aria-label="Fechar painel"
+              >
+                <X size={20} />
+              </button>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              {contextDrawer === "template" ? (
+                <>
+                  <div className="mb-4 flex items-center gap-5 border-b border-[#27272A]">
+                    {[
+                      { id: "loja" as const, label: "Loja" },
+                      { id: "produto" as const, label: "Produto" },
+                    ].map((category) => (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => {
+                          setTemplateCategory(category.id);
+                          setDraftTemplate((current) =>
+                            current.kind === category.id
+                              ? current
+                              : { kind: category.id, id: templateOptions[category.id][0].id },
+                          );
+                        }}
+                        className={`relative h-10 text-[13px] font-semibold transition ${
+                          templateCategory === category.id ? "text-white" : "text-[#71717A] hover:text-white/75"
+                        }`}
+                      >
+                        {category.label}
+                        {templateCategory === category.id ? <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-white" /> : null}
+                      </button>
+                    ))}
                   </div>
-                  <div className="p-3"><strong className="block text-[13px]">{template.name}</strong><span className="block text-[11px] text-white/45">{template.desc}</span></div>
-                </button>
-              ))}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {drawerTemplates.map((template) => {
+                      const selected = draftTemplate.kind === templateCategory && draftTemplate.id === template.id;
+                      return (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => setDraftTemplate({ kind: templateCategory, id: template.id })}
+                          className={`group overflow-hidden rounded-[12px] bg-[#18181B] text-left transition hover:border-[#3F3F46] ${
+                            selected ? "border-2 border-white" : "border border-[#27272A]"
+                          }`}
+                        >
+                          <div className="relative aspect-[4/3] overflow-hidden bg-white">
+                            <img src={template.image} alt="" className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.03]" />
+                            {selected ? <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-black shadow-lg"><Check size={13} /></span> : null}
+                          </div>
+                          <div className="p-3">
+                            <strong className="block text-[12px] font-semibold text-white">{template.name}</strong>
+                            <span className="mt-1 block text-[11px] leading-snug text-white/42">{template.desc}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null}
+
+              {contextDrawer === "products" ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {drawerProducts.map((product) => {
+                    const selected = draftProductId === product.id;
+                    return (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => setDraftProductId(product.id)}
+                        className={`overflow-hidden rounded-[12px] bg-[#18181B] text-left transition hover:border-[#3F3F46] ${
+                          selected ? "border-2 border-white" : "border border-[#27272A]"
+                        }`}
+                      >
+                        <div className="relative aspect-[4/3] bg-white">
+                          {product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-contain p-3" /> : <div className="grid h-full place-items-center text-black/30"><Package size={24} /></div>}
+                          {selected ? <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-black shadow-lg"><Check size={13} /></span> : null}
+                        </div>
+                        <div className="p-3">
+                          <strong className="line-clamp-2 text-[12px] font-semibold leading-snug text-white">{product.title}</strong>
+                          <span className="mt-1 block text-[11px] text-white/42">{formatBRL(product.price)}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {!drawerProducts.length ? (
+                    <div className="col-span-2 rounded-[12px] border border-dashed border-[#27272A] p-5 text-center text-[12px] text-white/45">
+                      Nenhum produto disponível nesta coleção.
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
-          </section>
+
+            <footer className="border-t border-[#27272A] p-4">
+              <button
+                type="button"
+                onClick={contextDrawer === "template" ? applyTemplateDraft : applyProductDraft}
+                className="h-11 w-full rounded-[8px] bg-[#2f6df6] text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(47,109,246,0.24)] transition hover:brightness-110"
+              >
+                {contextDrawer === "template" ? "Aplicar" : "Adicionar"}
+              </button>
+            </footer>
+          </aside>
         </div>
       ) : null}
     </main>
