@@ -315,110 +315,148 @@ serve(async (req) => {
     const currentTopIds = new Set<string>();
     const detailed: any[] = [];
 
-    // PASSO 1 — Para cada keyword, chama aliexpress.ds.text.search
+    // PASSO 1 — Para cada keyword, chama aliexpress.ds.text.search paginando até PAGE_SIZE
     for (const keyword of keywords) {
-      console.log(
-        `[aliexpress-sync-top-products] → text.search keyword="${keyword}"`,
-      );
-      let json: any;
-      try {
-        json = await callAliExpress(
-          "aliexpress.ds.text.search",
-          {
-            keyWord: keyword,
-            local: "pt_BR",
-            countryCode: "BR",
-            currency: "BRL",
-            sortBy: "orders,desc",
-            pageSize: String(PAGE_SIZE),
-            pageIndex: "1",
-          },
-          { appKey, appSecret, accessToken },
+      let collectedForKeyword = 0;
+      let pageIndex = 1;
+      let apiPageSizeCap = PAGE_SIZE;
+
+      while (collectedForKeyword < PAGE_SIZE && pageIndex <= MAX_PAGES_PER_KEYWORD) {
+        const requestedPageSize = Math.min(
+          apiPageSizeCap,
+          PAGE_SIZE - collectedForKeyword,
         );
-      } catch (err) {
-        errorCount++;
-        const msg = err instanceof Error ? err.message : String(err);
-        errors.push(`[keyword=${keyword}] ${msg}`);
-        console.error(
-          `[aliexpress-sync-top-products] falha text.search keyword="${keyword}":`,
-          msg,
+        console.log(
+          `[aliexpress-sync-top-products] → text.search keyword="${keyword}" pageIndex=${pageIndex} pageSize=${requestedPageSize}`,
         );
+        let json: any;
+        try {
+          json = await callAliExpress(
+            "aliexpress.ds.text.search",
+            {
+              keyWord: keyword,
+              local: "pt_BR",
+              countryCode: "BR",
+              currency: "BRL",
+              sortBy: "orders,desc",
+              pageSize: String(requestedPageSize),
+              pageIndex: String(pageIndex),
+            },
+            { appKey, appSecret, accessToken },
+          );
+        } catch (err) {
+          errorCount++;
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push(`[keyword=${keyword} p=${pageIndex}] ${msg}`);
+          console.error(
+            `[aliexpress-sync-top-products] falha text.search keyword="${keyword}" pageIndex=${pageIndex}:`,
+            msg,
+          );
+          await sleep(RATE_LIMIT_DELAY_MS);
+          break;
+        }
+
+        // Detecta pageSize efetivo retornado pela API para ajustar cap.
+        const respPageSize = Number(
+          json?.aliexpress_ds_text_search_response?.data?.pageSize ??
+            json?.aliexpress_ds_text_search_response?.data?.page_size ??
+            json?.data?.pageSize ??
+            0,
+        );
+        if (Number.isFinite(respPageSize) && respPageSize > 0 && respPageSize < apiPageSizeCap) {
+          apiPageSizeCap = respPageSize;
+          console.log(
+            `[aliexpress-sync-top-products] API limitou pageSize efetivo=${respPageSize} para keyword="${keyword}"`,
+          );
+        }
+
+        // Extrai lista de produtos, tolerante a envelopes distintos
+        const products: any[] =
+          json?.aliexpress_ds_text_search_response?.data?.products?.selection_search_product ??
+          json?.aliexpress_ds_text_search_response?.data?.products ??
+          json?.data?.products?.selection_search_product ??
+          json?.data?.products ??
+          json?.result?.products ??
+          [];
+        const list = Array.isArray(products) ? products : [products].filter(Boolean);
+        console.log(
+          `[aliexpress-sync-top-products] ← keyword="${keyword}" pageIndex=${pageIndex} total_retornado=${list.length}`,
+        );
+
+        if (list.length === 0) {
+          await sleep(RATE_LIMIT_DELAY_MS);
+          break; // sem mais itens
+        }
+
+        for (const p of list) {
+          const externalId = String(
+            p.itemId ?? p.item_id ?? p.product_id ?? p.productId ?? "",
+          );
+          const title = String(p.title ?? p.product_title ?? p.subject ?? "").trim();
+          if (!externalId || !title) continue;
+          if (currentTopIds.has(`aliexpress:${externalId}`)) continue; // dedup entre keywords/páginas
+
+          const image =
+            p.itemMainPic ??
+            p.item_main_pic ??
+            p.product_main_image_url ??
+            p.image_url ??
+            null;
+          const salePriceBrl = Number(
+            p.targetSalePrice ?? p.target_sale_price ?? p.salePrice ?? p.sale_price ?? 0,
+          );
+          const originalPriceBrl = Number(
+            p.targetOriginalPrice ?? p.target_original_price ?? p.originalPrice ?? p.original_price ?? salePriceBrl,
+          );
+          const cost = +Number(salePriceBrl).toFixed(2);
+          const suggested = +(cost * 2).toFixed(2);
+          const original = +Number(originalPriceBrl).toFixed(2);
+          const margin =
+            suggested > 0 ? +(((suggested - cost) / suggested) * 100).toFixed(2) : 0;
+
+          detailed.push({
+            source: "aliexpress",
+            supplier_name: "AliExpress",
+            external_id: externalId,
+            title,
+            images: image ? [image] : [],
+            cost_price: cost,
+            suggested_price: suggested,
+            original_price: original,
+            margin_percent: margin,
+            rating: p.score ? Number(p.score) : null,
+            orders_count: (() => {
+              const raw = String(p.orders ?? p.sales_count ?? "0").replace(/[+,\s]/g, "");
+              const n = parseInt(raw, 10);
+              return Number.isFinite(n) ? n : 0;
+            })(),
+            stock_quantity: 999,
+            product_url:
+              p.itemUrl ??
+              p.product_detail_url ??
+              `https://www.aliexpress.com/item/${externalId}.html`,
+            aliexpress_category_id: null,
+            brand: null,
+            in_top_50: true,
+            is_active: true,
+            is_blocked: false,
+            scraped_at: new Date().toISOString(),
+          });
+          currentTopIds.add(`aliexpress:${externalId}`);
+          collectedForKeyword++;
+          if (collectedForKeyword >= PAGE_SIZE) break;
+        }
+
         await sleep(RATE_LIMIT_DELAY_MS);
-        continue;
+
+        // Se a API devolveu menos que o pedido, não há próxima página útil.
+        if (list.length < requestedPageSize) break;
+        pageIndex++;
       }
 
-      // Extrai lista de produtos, tolerante a envelopes distintos
-      const products: any[] =
-        json?.aliexpress_ds_text_search_response?.data?.products?.selection_search_product ??
-        json?.aliexpress_ds_text_search_response?.data?.products ??
-        json?.data?.products?.selection_search_product ??
-        json?.data?.products ??
-        json?.result?.products ??
-        [];
-      const list = Array.isArray(products) ? products : [products].filter(Boolean);
       console.log(
-        `[aliexpress-sync-top-products] ← keyword="${keyword}" total_retornado=${list.length}`,
+        `[aliexpress-sync-top-products] keyword="${keyword}" coletados=${collectedForKeyword}`,
       );
-
-      for (const p of list) {
-        const externalId = String(
-          p.itemId ?? p.item_id ?? p.product_id ?? p.productId ?? "",
-        );
-        const title = String(p.title ?? p.product_title ?? p.subject ?? "").trim();
-        if (!externalId || !title) continue;
-        if (currentTopIds.has(`aliexpress:${externalId}`)) continue; // dedup entre keywords
-
-        const image =
-          p.itemMainPic ??
-          p.item_main_pic ??
-          p.product_main_image_url ??
-          p.image_url ??
-          null;
-        // targetSalePrice/targetOriginalPrice vêm em BRL (moeda alvo);
-        // salePrice/originalPrice podem vir em CNY. Preferir os "target*".
-        const salePriceBrl = Number(
-          p.targetSalePrice ?? p.target_sale_price ?? p.salePrice ?? p.sale_price ?? 0,
-        );
-        const originalPriceBrl = Number(
-          p.targetOriginalPrice ?? p.target_original_price ?? p.originalPrice ?? p.original_price ?? salePriceBrl,
-        );
-        const cost = +Number(salePriceBrl).toFixed(2);
-        const suggested = +(cost * 2).toFixed(2);
-        const original = +Number(originalPriceBrl).toFixed(2);
-        const margin =
-          suggested > 0 ? +(((suggested - cost) / suggested) * 100).toFixed(2) : 0;
-
-        detailed.push({
-          source: "aliexpress",
-          external_id: externalId,
-          title,
-          images: image ? [image] : [],
-          cost_price: cost,
-          suggested_price: suggested,
-          original_price: original,
-          margin_percent: margin,
-          rating: p.score ? Number(p.score) : null,
-          orders_count: (() => {
-            const raw = String(p.orders ?? p.sales_count ?? "0").replace(/[+,\s]/g, "");
-            const n = parseInt(raw, 10);
-            return Number.isFinite(n) ? n : 0;
-          })(),
-          stock_quantity: 999,
-          product_url:
-            p.itemUrl ??
-            p.product_detail_url ??
-            `https://www.aliexpress.com/item/${externalId}.html`,
-          aliexpress_category_id: null,
-          brand: null,
-          in_top_50: true,
-          is_active: true,
-          is_blocked: false,
-          scraped_at: new Date().toISOString(),
-        });
-        currentTopIds.add(`aliexpress:${externalId}`);
-      }
-
-      await sleep(RATE_LIMIT_DELAY_MS);
     }
 
     console.log(
