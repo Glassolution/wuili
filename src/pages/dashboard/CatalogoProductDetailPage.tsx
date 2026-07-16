@@ -162,7 +162,6 @@ const CatalogoProductDetailPage = () => {
             .from("catalog_products")
             .select("*")
             .eq("is_blocked", false)
-            .eq("source", "c7drop")
             .neq("id", id)
             .eq("category", data.category || "")
             .limit(12),
@@ -175,7 +174,6 @@ const CatalogoProductDetailPage = () => {
               .from("catalog_products")
               .select("*")
               .eq("is_blocked", false)
-              .eq("source", "c7drop")
               .neq("id", id)
               .limit(12),
           );
