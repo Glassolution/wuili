@@ -41,8 +41,9 @@ const SalesCartPage = () => {
   const total = subtotal + shipping;
 
   return (
-    <div className="bg-[#F5F5F5] py-10 px-4 sm:px-8 lg:py-16" style={{ fontFamily: '"Inter", system-ui, sans-serif' }}>
-      <div className="mx-auto max-w-[1200px] rounded-lg bg-white px-6 py-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.12)] sm:px-12 sm:py-10">
+    <div className="bg-[#F5F5F5] py-8 px-4 sm:px-8" style={{ fontFamily: '"Inter", system-ui, sans-serif' }}>
+      <div className="mx-auto max-w-[1200px] rounded-lg bg-white px-6 py-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.12)] sm:px-10 sm:py-8">
+
         {/* Topbar */}
         <header className="flex items-center justify-between border-b border-black/[0.05] pb-6">
           <Link to={`/loja/${slug}`} className="text-[18px] font-medium tracking-tight text-black">
