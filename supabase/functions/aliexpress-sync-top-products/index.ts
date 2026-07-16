@@ -170,6 +170,14 @@ function normalizeProducts(json: any, categoryId: string): any[] {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  console.log(
+    "[aliexpress-sync-top-products] iniciando execução, método:",
+    req.method,
+    "url:",
+    req.url,
+  );
+
+
   const startedAt = Date.now();
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
