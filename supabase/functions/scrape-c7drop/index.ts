@@ -6,7 +6,7 @@
 //   curl -X POST https://<project>.supabase.co/functions/v1/scrape-c7drop \
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { decodeHtmlEntities, detectBrand, extractAttribute, inferCategory, isBlocked, isFakeAdProduct } from "../_shared/catalog-filters.ts";
+import { decodeHtmlEntities, detectBrand, extractAttribute, extractVariantOptions, inferCategory, isBlocked, isFakeAdProduct } from "../_shared/catalog-filters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
