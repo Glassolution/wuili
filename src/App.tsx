@@ -29,6 +29,7 @@ const BemVindoPage = lazy(() => import("./pages/BemVindoPage"));
 // CadastroPage removed — progressive login flow handles both signup and login
 const SetupPage = lazy(() => import("./pages/SetupPage"));
 const AliExpressCallbackPage = lazy(() => import("./pages/AliExpressCallbackPage"));
+const MercadoPagoCallbackPage = lazy(() => import("./pages/MercadoPagoCallbackPage"));
 const RefCapturePage = lazy(() => import("./pages/RefCapturePage"));
 const DashboardLayout = lazy(() => import("./components/dashboard/DashboardLayout"));
 const CatalogPage = lazy(() => import("./pages/dashboard/CatalogPage"));
@@ -161,6 +162,7 @@ const App = () => (
               <Route path="/admin/reembolsos" element={<AdminRoute><AdminRefundsPage /></AdminRoute>} />
               <Route path="/admin/aliexpress" element={<AdminRoute><AdminAliExpressPage /></AdminRoute>} />
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
+              <Route path="/mercadopago/callback" element={<MercadoPagoCallbackPage />} />
               <Route path="/dashboard" element={<DashboardShell />}>
                 <Route index element={<DashboardHomePage />} />
                 <Route path="atlas" element={<AtlasChatPage />} />

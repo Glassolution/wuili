@@ -6,6 +6,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { veloToast } from "@/components/ui/velo-toast";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
 
 type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
 
@@ -106,6 +107,11 @@ const IntegracoesPage = () => {
       <div>
         <h1 className="text-2xl font-semibold text-foreground font-[Sora]">Integrações</h1>
         <p className="text-sm text-muted-foreground mt-1">Conecte suas contas para publicar e gerenciar produtos.</p>
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold text-foreground mb-3">Pagamentos</h2>
+        <MercadoPagoIntegrationCard />
       </div>
 
       {loading ? (

@@ -1142,6 +1142,45 @@ export type Database = {
         }
         Relationships: []
       }
+      seller_mp_accounts: {
+        Row: {
+          access_token: string
+          connected_at: string
+          created_at: string
+          id: string
+          mp_user_id: string
+          public_key: string | null
+          refresh_token: string | null
+          seller_id: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          connected_at?: string
+          created_at?: string
+          id?: string
+          mp_user_id: string
+          public_key?: string | null
+          refresh_token?: string | null
+          seller_id: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          connected_at?: string
+          created_at?: string
+          id?: string
+          mp_user_id?: string
+          public_key?: string | null
+          refresh_token?: string | null
+          seller_id?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number
