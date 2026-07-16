@@ -397,7 +397,11 @@ serve(async (req) => {
           original_price: original,
           margin_percent: margin,
           rating: p.score ? Number(p.score) : null,
-          orders_count: Number(p.orders ?? p.sales_count ?? 0) || 0,
+          orders_count: (() => {
+            const raw = String(p.orders ?? p.sales_count ?? "0").replace(/[+,\s]/g, "");
+            const n = parseInt(raw, 10);
+            return Number.isFinite(n) ? n : 0;
+          })(),
           stock_quantity: 999,
           product_url:
             p.itemUrl ??
