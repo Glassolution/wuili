@@ -362,7 +362,15 @@ const DashboardHomePage = () => {
   ];
 
   return (
-    <main className="-m-5 min-h-[calc(100%+2.5rem)] bg-white pb-[clamp(110px,12vw,220px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
+    <main
+      className="-m-5 min-h-[calc(100%+2.5rem)] bg-white pb-[clamp(110px,12vw,220px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      style={{
+        opacity: entered ? 1 : 0,
+        transform: entered ? "translateY(0)" : "translateY(14px)",
+        transition:
+          "opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+      }}
+    >
       <section className="relative w-full overflow-visible bg-white text-[#252936]">
         <img
           src={DASHBOARD_IMAGE_SRC}
@@ -384,6 +392,15 @@ const DashboardHomePage = () => {
                 {loadingStats ? "Carregando dados da sua conta" : `Ola, ${statsData?.displayName ?? "Velo"}. Visao geral da sua conta`}
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => setTutorialOpen(true)}
+              className="pointer-events-auto absolute right-[1.9%] top-1/2 z-30 flex -translate-y-1/2 items-center gap-[0.5vw] rounded-[0.5vw] border border-[#E5E7EB] bg-white px-[0.85vw] py-[0.5vw] text-[clamp(9px,0.82vw,15px)] font-semibold text-black shadow-[0_0.2vw_0.6vw_rgba(15,23,42,0.05)] transition-colors hover:bg-[#f6f7f9]"
+              aria-label="Assistir tutorial"
+            >
+              <PlayCircle className="h-[clamp(12px,1.1vw,20px)] w-[clamp(12px,1.1vw,20px)]" strokeWidth={1.8} />
+              <span>Assistir Tutorial</span>
+            </button>
           </div>
 
           <div className="absolute left-[0.7%] top-[10.5%] h-[17.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
