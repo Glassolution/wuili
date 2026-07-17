@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
-import CreateSalesPageModal, { type CreateSalesPagePayload } from "@/components/dashboard/CreateSalesPageModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
