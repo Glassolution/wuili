@@ -419,7 +419,7 @@ const StoreProjectsPage = () => {
               </p>
               <button
                 type="button"
-                onClick={() => setWizardOpen(true)}
+                onClick={requestCreate}
                 className="mt-6 h-10 rounded-[8px] bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-[#202020]"
               >
                 {isAdmin ? "Criar primeiro projeto" : "Criar página de venda"}
