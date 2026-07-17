@@ -27,6 +27,7 @@ import { usePlan } from "@/hooks/usePlan";
 import { useProfile } from "@/lib/profileContext";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
+import { isChunkLoadError, recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -93,10 +94,12 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[PageErrorBoundary]", error, info.componentStack);
+    recoverFromChunkLoadError(error);
   }
 
   render() {
     if (this.state.error) {
+      const chunkLoadFailed = isChunkLoadError(this.state.error);
       return (
         <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-border bg-card p-12 text-center shadow-card">
           <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-red-50">
@@ -107,14 +110,14 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, EBState> {
               Ocorreu um erro nesta página
             </p>
             <p className="mt-1 max-w-[400px] text-[12px] text-muted-foreground">
-              {this.state.error.message}
+              {chunkLoadFailed ? "Não foi possível carregar a versão mais recente. Atualize a página para continuar." : this.state.error.message}
             </p>
           </div>
           <button
-            onClick={() => this.setState({ error: null })}
+            onClick={() => chunkLoadFailed ? window.location.reload() : this.setState({ error: null })}
             className="rounded-[14px] bg-[#111111] px-6 py-3 text-[13px] font-medium text-white transition-all duration-200 ease-out hover:bg-black/90"
           >
-            Tentar novamente
+            {chunkLoadFailed ? "Atualizar página" : "Tentar novamente"}
           </button>
         </div>
       );
