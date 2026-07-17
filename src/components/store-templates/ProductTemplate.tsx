@@ -13,7 +13,7 @@ import {
 
 import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
 import { StoreBundleOffers, StoreGuaranteeCards, StorePaymentRow } from "@/components/store-templates/storeSections";
-import { StoreBenefitsBar, StoreFeatureGrid, StoreImageCta, StoreThreeSteps } from "@/components/store-templates/storeContentSections";
+import { StoreBenefitsBar, StoreFaqAccordion, StoreFeatureGrid, StoreImageCta, StoreTestimonials, StoreThreeSteps, StoreUrgencyBanner, StoreUsageCarousel, StoreWhyWorthIt } from "@/components/store-templates/storeContentSections";
 import type { ProductVariantOption } from "@/lib/userProjects";
 
 export type ProductTemplateProps = {
@@ -145,11 +145,23 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
       {/* Barra de benefícios */}
       <StoreBenefitsBar accent={accent} />
 
+      {/* Banner de urgência (novo) */}
+      <StoreUrgencyBanner accent={accent} />
+
       {/* Como funciona em 3 passos */}
       <StoreThreeSteps image={image} accent={accent} mobile={mobile} />
 
+      {/* Carrossel de uso (novo) */}
+      <StoreUsageCarousel image={image} accent={accent} mobile={mobile} />
+
+      {/* Por que vale a pena — checklist (novo) */}
+      <StoreWhyWorthIt image={image} accent={accent} mobile={mobile} />
+
       {/* Grade de recursos + imagem */}
       <StoreFeatureGrid image={image} accent={accent} mobile={mobile} />
+
+      {/* Depoimentos (novo) */}
+      <StoreTestimonials image={image} accent={accent} mobile={mobile} />
 
       {/* Abas + detalhes */}
       <section className="border-t border-black/10 px-6 py-10 sm:px-10">
@@ -168,8 +180,12 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
         </div>
       </section>
 
+      {/* FAQ em acordeão (novo) */}
+      <StoreFaqAccordion accent={accent} />
+
       {/* Bloco imagem + CTA */}
       <StoreImageCta image={image} accent={accent} title={title} mobile={mobile} />
+
 
       {/* Voce tambem pode gostar */}
       <section className="bg-[#faf9f8] px-6 py-12 sm:px-10">
