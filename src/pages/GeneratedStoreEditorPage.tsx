@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, ExternalLink, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
@@ -2239,7 +2239,10 @@ const GeneratedStoreEditorPage = () => {
   const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     const target = event.target;
-    if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
+    // Toolbars flutuantes (data-editor-ignore) e a UI do canvas (data-canvas-ui)
+    // não fazem parte da área editável: um clique nelas não deve iniciar
+    // marquee/seleção nem, no clique, limpar a seleção e recolher a sidebar.
+    if (target instanceof Element && target.closest("[data-canvas-ui], [data-editor-ignore]")) return;
     suppressCanvasClickRef.current = false;
     suppressPreviewClickRef.current = false;
 
@@ -2340,7 +2343,7 @@ const GeneratedStoreEditorPage = () => {
   };
   const handleWorkspaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target;
-    if (!(target instanceof Element) || target.closest("[data-canvas-ui], .store-editor-preview")) return;
+    if (!(target instanceof Element) || target.closest("[data-canvas-ui], [data-editor-ignore], .store-editor-preview")) return;
     if (suppressCanvasClickRef.current) {
       suppressCanvasClickRef.current = false;
       return;
@@ -3044,12 +3047,13 @@ const GeneratedStoreEditorPage = () => {
                   Adicionar produtos
                 </button>
                 <div className="my-3 h-px bg-[#292d31]" />
-                {/* Abre o catálogo dentro do editor. Antes levava para /catalogo,
-                    uma tela antiga que tirava o usuário do editor. */}
-                <button type="button" onClick={openProductsDrawer} className="group flex h-8 w-full items-center gap-2 rounded-[9px] px-2 text-left text-[9px] font-medium text-white/66 outline-none transition hover:bg-white/[0.06] hover:text-white">
+                {/* "Adicionar produtos" (acima) abre o drawer de seleção dentro do
+                    editor. Este abre o catálogo completo do Velo numa nova aba,
+                    para navegação mais ampla sem tirar o usuário do editor. */}
+                <button type="button" onClick={() => window.open("/dashboard/catalogo", "_blank", "noopener,noreferrer")} className="group flex h-8 w-full items-center gap-2 rounded-[9px] px-2 text-left text-[9px] font-medium text-white/66 outline-none transition hover:bg-white/[0.06] hover:text-white">
                   <LayoutGrid size={13} strokeWidth={1.8} />
                   <span className="flex-1">Abrir catálogo completo</span>
-                  <ChevronRight size={12} className="transition group-hover:translate-x-0.5" />
+                  <ExternalLink size={12} className="transition group-hover:translate-x-0.5" />
                 </button>
               </>
             ) : (
