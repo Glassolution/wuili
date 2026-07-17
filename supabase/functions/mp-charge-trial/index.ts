@@ -115,6 +115,10 @@ async function chargeSavedCard(params: {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  // Trial de 5 dias foi descontinuado. Esta função permanece desativada
+  // para que o cron não cobre nem converta nada.
+  return json({ processed: 0, disabled: true, message: "Trial de 5 dias descontinuado." });
+
   try {
     const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
