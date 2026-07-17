@@ -549,35 +549,29 @@ const TrendingProductsPage = () => {
   };
 
   const [creatingSalesPageId, setCreatingSalesPageId] = useState<string | null>(null);
-  const [salesPageModalProduct, setSalesPageModalProduct] = useState<TrendingProduct | null>(null);
 
   const handleCreateSalesPage = (product: TrendingProduct) => {
     if (creatingSalesPageId) return;
-    setSalesPageModalProduct(product);
-  };
-
-  const handleConfirmSalesPage = async (payload: CreateSalesPagePayload) => {
-    const product = salesPageModalProduct;
-    if (!product) return;
+    // Redireciona para o editor existente com o produto pré-selecionado.
+    // O editor cuida de nome, logo, descrição e customizações da página.
     setCreatingSalesPageId(product.id);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-sales-page", {
-        body: {
-          catalog_product_id: product.id,
-          store_name: payload.storeName,
-          store_logo_url: payload.storeLogoUrl,
-          store_description: payload.storeDescription,
+      const flowProduct = toOnboardingProduct(product);
+      try {
+        sessionStorage.setItem("velo-example-product", JSON.stringify(flowProduct));
+        sessionStorage.setItem("velo-example-products", JSON.stringify([flowProduct]));
+        sessionStorage.setItem("velo-store-language", "Português (Brasil)");
+        sessionStorage.setItem("velo-customer-persona", "Comprador Prático");
+        sessionStorage.setItem("velo-sales-angle", "Uma Escolha Inteligente");
+      } catch { /* ignore storage errors */ }
+      navigate("/minha-loja/editor", {
+        state: {
+          product: flowProduct,
+          language: "Português (Brasil)",
+          persona: "Comprador Prático",
+          salesAngle: "Uma Escolha Inteligente",
         },
       });
-      if (error) throw error;
-      const slug = (data as { page?: { slug?: string } } | null)?.page?.slug;
-      if (!slug) throw new Error("slug ausente na resposta");
-      veloToast.success("Página de vendas criada!");
-      setSalesPageModalProduct(null);
-      navigate(`/loja/${slug}`);
-    } catch (err) {
-      console.error("create sales page failed:", err);
-      veloToast.error(err instanceof Error ? err.message : "Falha ao criar página de vendas.");
     } finally {
       setCreatingSalesPageId(null);
     }
