@@ -51,13 +51,16 @@ export default function TutorialVideoEmbed() {
   }, []);
 
   return (
-    <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+    <div className="relative w-full">
+      {/* Vidalytics injeta o player DENTRO deste div; o padding-top garante a
+          proporção 16:9 sem precisar de wrapper externo, que fazia o player
+          escapar do container e virar overlay flutuante. */}
       <div
         id={TUTORIAL_EMBED_ID}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        style={{ position: "relative", width: "100%", paddingTop: "56.25%" }}
       />
       {!ready ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-black">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black">
           <div
             className="h-10 w-10 rounded-full border-2 border-white/25 border-t-white"
             style={{ animation: "spin 900ms linear infinite" }}
