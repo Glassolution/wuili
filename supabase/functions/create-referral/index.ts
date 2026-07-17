@@ -32,7 +32,7 @@ const EMAIL_TEMPLATE = `<!DOCTYPE html>
 <p style="margin:0 0 4px;font-size:11px;font-weight:500;color:#16A34A;text-transform:uppercase;letter-spacing:.06em">Os dois ganham</p>
 <p style="margin:0;font-size:14px;color:#111;line-height:1.5">Se você criar sua conta e assinar um plano, tanto você quanto {{inviter_name}} ganham 15% de desconto na assinatura. Uma boa forma de retribuir o toque.</p>
 </td></tr></table>
-<div style="margin:0 0 24px"><a href="{{invite_url}}" style="background:#111;color:#fff;text-decoration:none;display:inline-block;padding:14px 28px;font-size:14px;font-weight:600;letter-spacing:-0.2px;border-radius:10px">Criar minha conta →</a></div>
+<div style="margin:0 0 24px"><a href="{{invite_url}}" style="background:#111;color:#fff;text-decoration:none;display:inline-block;padding:14px 28px;font-size:14px;font-weight:600;letter-spacing:-0.2px;border-radius:10px">Entrar na Velo →</a></div>
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#F9FAFB;border-radius:12px"><tr><td style="padding:16px 20px">
 <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.5">Este convite expira em {{expiration_time}}. Se você não esperava este email, pode ignorá-lo.</p>
 </td></tr></table>

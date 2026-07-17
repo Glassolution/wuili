@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
     const originalAmount = basePlan.amount;
     let rewardInviter = false;
     let inviterUserId: string | null = null;
+    let isInviterReward = false;
     {
       const dbUrlR = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
       const dbKeyR = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -94,19 +95,60 @@ Deno.serve(async (req) => {
       };
       const invitedHadPaid = await hadPaidBefore(userId);
       if (!invitedHadPaid) {
-        const { data: refInvited } = await adminR
+        // 1) Try by invited_user_id (linked or pending)
+        let { data: refInvited } = await adminR
           .from("referrals")
-          .select("id,inviter_id,status,expires_at,invited_rewarded")
+          .select("id,inviter_id,status,expires_at,invited_rewarded,invited_email")
           .eq("invited_user_id", userId)
-          .eq("status", "linked")
+          .in("status", ["linked", "pending"])
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
+
+        // 2) Fallback: match by email (user signed up without visiting /convite/:token)
+        if (!refInvited && userEmail) {
+          const { data: refByEmail } = await adminR
+            .from("referrals")
+            .select("id,inviter_id,status,expires_at,invited_rewarded,invited_email")
+            .ilike("invited_email", userEmail)
+            .in("status", ["pending", "linked"])
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (refByEmail) refInvited = refByEmail;
+        }
+
         if (refInvited && !refInvited.invited_rewarded && new Date(refInvited.expires_at) > new Date()) {
+          // Auto-link if still pending / missing invited_user_id
+          if (refInvited.status !== "linked") {
+            await adminR.from("referrals").update({
+              invited_user_id: userId,
+              status: "linked",
+              linked_at: new Date().toISOString(),
+            }).eq("id", refInvited.id);
+          }
           appliedReferralId = refInvited.id;
           discountPercent = 15;
           inviterUserId = refInvited.inviter_id;
           rewardInviter = !(await hadPaidBefore(refInvited.inviter_id));
+        }
+
+        // 3) Se não é convidado com desconto, checa se é convidador com recompensa disponível
+        if (!appliedReferralId) {
+          const { data: rewardRef } = await adminR
+            .from("referrals")
+            .select("id")
+            .eq("inviter_id", userId)
+            .eq("status", "subscribed")
+            .eq("inviter_rewarded", true)
+            .order("subscribed_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (rewardRef) {
+            appliedReferralId = rewardRef.id;
+            discountPercent = 15;
+            isInviterReward = true;
+          }
         }
       }
       if (discountPercent > 0) {
@@ -292,12 +334,19 @@ Deno.serve(async (req) => {
 
       // Marca o referral como 'subscribed' e credita reward do convidador (se aplicável)
       if (appliedReferralId) {
-        await adminClient.from("referrals").update({
-          status: "subscribed",
-          subscribed_at: now.toISOString(),
-          invited_rewarded: true,
-          inviter_rewarded: rewardInviter,
-        }).eq("id", appliedReferralId);
+        if (isInviterReward) {
+          // Convidador consumindo o desconto — apenas zera o flag
+          await adminClient.from("referrals").update({
+            inviter_rewarded: false,
+          }).eq("id", appliedReferralId);
+        } else {
+          await adminClient.from("referrals").update({
+            status: "subscribed",
+            subscribed_at: now.toISOString(),
+            invited_rewarded: true,
+            inviter_rewarded: rewardInviter,
+          }).eq("id", appliedReferralId);
+        }
       }
 
       if (!isTrial && subscriptionRow) {
