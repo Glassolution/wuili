@@ -138,16 +138,45 @@ export function useSalesPageData(slug: string | undefined) {
         const first = products[0];
         if (!active) return;
         const editedPrice = extractEditedPrice(project);
+        const basePrice = first?.price ?? 149.9;
         setData({
           slug,
           ownerUserId: project.user_id,
           productId: first?.id,
           productTitle: first?.title || project.nome,
           productImage: first?.imageUrl ?? null,
-          price: editedPrice ?? first?.price ?? 149.9,
+          price: editedPrice ?? basePrice,
           accent: getProjectAccent(project),
           brand: getProjectStoreName(project) || project.nome,
         });
+
+        // Realtime: sincroniza preço/marca em tempo real quando o dono edita
+        // no editor. Escuta updates da linha do projeto e re-extrai o preço.
+        const channel = supabase
+          .channel(`sales-page-${project.id}`)
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "user_projects", filter: `id=eq.${project.id}` },
+            (payload) => {
+              if (!active) return;
+              const updated = payload.new as UserProject;
+              const newEdited = extractEditedPrice(updated);
+              setData((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      price: newEdited ?? basePrice,
+                      brand: getProjectStoreName(updated) || prev.brand,
+                      accent: getProjectAccent(updated) || prev.accent,
+                    }
+                  : prev,
+              );
+            },
+          )
+          .subscribe();
+        cleanupChannel = () => {
+          supabase.removeChannel(channel);
+        };
       } catch (err) {
         if (!active) return;
         if (isPreview) {
@@ -161,6 +190,7 @@ export function useSalesPageData(slug: string | undefined) {
     })();
     return () => {
       active = false;
+      cleanupChannel?.();
     };
   }, [slug]);
 
