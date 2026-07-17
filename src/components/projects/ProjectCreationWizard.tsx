@@ -8,11 +8,13 @@ import {
   Search,
   Sparkles,
   Store,
+  Upload,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { createUserProject, type ProjectType } from "@/lib/userProjects";
+import { veloToast } from "@/components/ui/velo-toast";
 
 type CatalogProduct = {
   id: string;
