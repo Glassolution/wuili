@@ -672,7 +672,12 @@ const CheckoutPage = () => {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[13px] font-semibold text-white">{checkoutPrice}</p>
+                  <p className="text-[13px] font-semibold text-white">
+                    {hasReferralDiscount && (
+                      <span className="mr-1.5 text-white/40 line-through">{originalCheckoutPrice}</span>
+                    )}
+                    {finalCheckoutPrice}
+                  </p>
                   <p className="mt-1 text-[12px] text-white/42">{isTrial ? `/ ${TRIAL_DAYS} dias` : recurringPeriodLabel}</p>
                 </div>
               </div>
