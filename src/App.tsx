@@ -135,14 +135,14 @@ const App = () => (
               <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/comecar" element={<ProtectedRoute><StartChoicePage /></ProtectedRoute>} />
-              <Route path="/onboarding/criar-loja" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><CreateStoreStubPage /></ProtectedRoute>} />
-              <Route path="/onboarding/preparando-produto" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><ProductPreparationPage /></ProtectedRoute>} />
-              <Route path="/onboarding/escolher-produto" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><ExampleProductSelectionPage /></ProtectedRoute>} />
-              <Route path="/onboarding/idioma" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><StoreLanguagePage /></ProtectedRoute>} />
-              <Route path="/onboarding/persona" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><CustomerPersonaPage /></ProtectedRoute>} />
-              <Route path="/onboarding/angulo-vendas" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><SalesAnglePage /></ProtectedRoute>} />
-              <Route path="/onboarding/gerando-imagens" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><StoreImagesGenerationPage /></ProtectedRoute>} />
-              <Route path="/onboarding/preparando-loja" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><StoreBuildProgressPage /></ProtectedRoute>} />
+              <Route path="/onboarding/criar-loja" element={<ProtectedRoute><CreateStoreStubPage /></ProtectedRoute>} />
+              <Route path="/onboarding/preparando-produto" element={<ProtectedRoute><ProductPreparationPage /></ProtectedRoute>} />
+              <Route path="/onboarding/escolher-produto" element={<ProtectedRoute><ExampleProductSelectionPage /></ProtectedRoute>} />
+              <Route path="/onboarding/idioma" element={<ProtectedRoute><StoreLanguagePage /></ProtectedRoute>} />
+              <Route path="/onboarding/persona" element={<ProtectedRoute><CustomerPersonaPage /></ProtectedRoute>} />
+              <Route path="/onboarding/angulo-vendas" element={<ProtectedRoute><SalesAnglePage /></ProtectedRoute>} />
+              <Route path="/onboarding/gerando-imagens" element={<ProtectedRoute><StoreImagesGenerationPage /></ProtectedRoute>} />
+              <Route path="/onboarding/preparando-loja" element={<ProtectedRoute><StoreBuildProgressPage /></ProtectedRoute>} />
               <Route path="/minha-loja" element={<Navigate to="/dashboard/minha-loja" replace />} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
               <Route path="/produto/editor" element={<ProtectedRoute><ProductLandingEditorPage /></ProtectedRoute>} />
