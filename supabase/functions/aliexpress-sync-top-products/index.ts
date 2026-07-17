@@ -14,8 +14,9 @@ const USD_TO_BRL = 5.0;
 const PAGE_SIZE = 50; // alvo: 50 produtos por keyword
 const RATE_LIMIT_DELAY_MS = 400; // ~2.5 req/s
 const MAX_PAGES_PER_KEYWORD = 5; // fallback quando API limita pageSize < 50
-const MAX_DETAIL_FETCHES = 60; // cap de chamadas a product.get por execução
+const MAX_DETAIL_FETCHES = 300; // enriquecer todos os produtos coletados para garantir galeria completa (≥3 fotos)
 const DETAIL_DELAY_MS = 350;
+const MIN_IMAGES_REQUIRED = 3; // regra fixa: produto AliExpress só é publicável com ≥ 3 fotos
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -600,6 +601,24 @@ serve(async (req) => {
     }
     console.log(
       `[aliexpress-sync-top-products] enriquecimento concluído: ${enrichedCount}/${enrichLimit}`,
+    );
+
+    // Regra fixa: produto AliExpress só é publicável se tiver >= MIN_IMAGES_REQUIRED fotos.
+    // Produtos abaixo do mínimo entram no banco marcados como não-publicáveis (is_active=false),
+    // continuam visíveis no catálogo interno com badge "Fotos insuficientes", mas não vão para
+    // publicação em marketplaces nem para lojas públicas.
+    let insufficientPhotos = 0;
+    for (const item of detailed) {
+      const imgCount = Array.isArray(item.images) ? item.images.length : 0;
+      if (imgCount < MIN_IMAGES_REQUIRED) {
+        item.is_active = false;
+        insufficientPhotos++;
+      } else {
+        item.is_active = true;
+      }
+    }
+    console.log(
+      `[aliexpress-sync-top-products] regra ≥${MIN_IMAGES_REQUIRED} fotos: ${insufficientPhotos}/${detailed.length} produtos marcados como não-publicáveis (is_active=false)`,
     );
 
 
