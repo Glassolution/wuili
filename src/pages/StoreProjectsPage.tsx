@@ -126,6 +126,7 @@ const ProjectScreenPreview = ({ project }: { project: ProjectCard }) => {
 const StoreProjectsPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
+  const { plan: currentPlan } = usePlan();
   const [projects, setProjects] = useState<ProjectCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -134,6 +135,15 @@ const StoreProjectsPage = () => {
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
+  const requestCreate = () => {
+    if (isFreePlan) {
+      toast.error("Assine um plano pago para criar lojas ou páginas de vendas.");
+      navigate("/dashboard/planos");
+      return;
+    }
+    setWizardOpen(true);
+  };
   const visibleProjects = useMemo(
     () => isAdmin ? projects : projects.filter((project) => project.tipo === "pagina_venda"),
     [isAdmin, projects],
