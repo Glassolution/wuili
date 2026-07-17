@@ -1673,6 +1673,10 @@ const GeneratedStoreEditorPage = () => {
       setContextNotice("Crie ou abra um projeto salvo para poder publicá-lo.");
       return;
     }
+    if (isFreePlan) {
+      setUpgradeModalOpen(true);
+      return;
+    }
     setPublishCopied(false);
     setPublishOpen(true);
   };
