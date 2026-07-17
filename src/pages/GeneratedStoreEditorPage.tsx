@@ -6,6 +6,7 @@ import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom"
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlan } from "@/hooks/usePlan";
 import { useProfile } from "@/lib/profileContext";
 import { claimProjectInvites, getProjectProductIds, parseVariantOptions, publishProject, saveProjectDraft, type ProductVariantOption, type UserProject } from "@/lib/userProjects";
 import ProjectSettingsOverlay, { type SettingsSection } from "@/components/editor/ProjectSettingsOverlay";
