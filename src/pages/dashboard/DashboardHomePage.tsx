@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import TutorialModal from "@/components/dashboard/TutorialModal";
+import { preloadVidalytics } from "@/lib/vidalyticsPreload";
 
 const TUTORIAL_SEEN_KEY = "velo_tutorial_seen";
 
@@ -254,12 +255,23 @@ const DashboardHomePage = () => {
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
   useEffect(() => {
+    // Pré-carrega os scripts do Vidalytics no mount do dashboard para
+    // que o modal (auto ou manual) abra com o player já pronto.
+    preloadVidalytics();
+  }, []);
+
+  useEffect(() => {
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const raf = requestAnimationFrame(() => setEntered(true));
-    if (reduce) setEntered(true);
-    return () => cancelAnimationFrame(raf);
+    if (reduce) {
+      setEntered(true);
+      return;
+    }
+    // setTimeout > requestAnimationFrame: garante que o navegador pinte
+    // o estado inicial (opacity:0, translateY) antes da transição rodar.
+    const t = window.setTimeout(() => setEntered(true), 40);
+    return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {
