@@ -150,8 +150,10 @@ const StartChoicePage = () => {
 
   const continueToSelection = () => {
     if (!selectedPath) return;
-    if (isFreePlan) {
-      toast.error("Assine um plano pago para criar sua loja ou página de vendas.");
+    // Usuários gratuitos podem CRIAR páginas de vendas — a cobrança acontece
+    // no momento de publicar. Apenas a criação de LOJA COMPLETA fica bloqueada.
+    if (isFreePlan && selectedPath !== "sales-page") {
+      toast.error("Assine um plano pago para criar sua loja completa.");
       navigate("/dashboard/planos");
       return;
     }

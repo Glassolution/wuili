@@ -137,11 +137,9 @@ const StoreProjectsPage = () => {
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
   const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
   const requestCreate = () => {
-    if (isFreePlan) {
-      toast.error("Assine um plano pago para criar lojas ou páginas de vendas.");
-      navigate("/dashboard/planos");
-      return;
-    }
+    // Usuários gratuitos podem CRIAR páginas de vendas livremente.
+    // O bloqueio de plano acontece apenas ao PUBLICAR (dentro do editor).
+    // Admin pode criar loja completa; usuários comuns só criam página de venda.
     setWizardOpen(true);
   };
   const visibleProjects = useMemo(
