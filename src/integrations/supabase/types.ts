@@ -531,6 +531,9 @@ export type Database = {
           published: boolean
           published_at: string | null
           slug: string
+          store_description: string | null
+          store_logo_url: string | null
+          store_name: string | null
           subheadline: string | null
           testimonials: Json
           updated_at: string
@@ -549,6 +552,9 @@ export type Database = {
           published?: boolean
           published_at?: string | null
           slug: string
+          store_description?: string | null
+          store_logo_url?: string | null
+          store_name?: string | null
           subheadline?: string | null
           testimonials?: Json
           updated_at?: string
@@ -567,6 +573,9 @@ export type Database = {
           published?: boolean
           published_at?: string | null
           slug?: string
+          store_description?: string | null
+          store_logo_url?: string | null
+          store_name?: string | null
           subheadline?: string | null
           testimonials?: Json
           updated_at?: string
