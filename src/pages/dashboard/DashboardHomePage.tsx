@@ -251,6 +251,7 @@ const DashboardHomePage = () => {
   const [supportTab, setSupportTab] = useState<SupportTab>("home");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [entered, setEntered] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   useEffect(() => {
     const reduce =
@@ -259,6 +260,24 @@ const DashboardHomePage = () => {
     const raf = requestAnimationFrame(() => setEntered(true));
     if (reduce) setEntered(true);
     return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (window.localStorage.getItem(TUTORIAL_SEEN_KEY)) return;
+    } catch {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setTutorialOpen(true);
+      try {
+        window.localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+    }, 900);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const cta = ctaSlides[activeCta];
@@ -366,6 +385,14 @@ const DashboardHomePage = () => {
                 {loadingStats ? "Carregando dados da sua conta" : `Ola, ${statsData?.displayName ?? "Velo"}. Visao geral da sua conta`}
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => setTutorialOpen(true)}
+              className="pointer-events-auto absolute right-[1.9%] top-1/2 flex -translate-y-1/2 items-center gap-[0.4vw] rounded-full border border-black/[0.12] bg-white px-[0.9vw] py-[0.4vw] text-[clamp(9px,0.82vw,16px)] font-semibold text-[#252936] shadow-[0_0.35vw_0.9vw_rgba(15,23,42,0.06)] transition hover:bg-black hover:text-white"
+            >
+              <PlayCircle className="h-[clamp(11px,1.05vw,20px)] w-[clamp(11px,1.05vw,20px)]" strokeWidth={2} />
+              Assistir Tutorial
+            </button>
           </div>
 
           <div className="absolute left-[0.7%] top-[10.5%] h-[17.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
@@ -795,6 +822,7 @@ const DashboardHomePage = () => {
         </button>
       </div>
       <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
+      <TutorialModal open={tutorialOpen} onOpenChange={setTutorialOpen} />
       
     </main>
   );
