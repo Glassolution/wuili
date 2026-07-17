@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     }
     const userId = userData.user.id;
 
-    const { catalog_product_id } = await req.json();
+    const { catalog_product_id, store_name, store_logo_url, store_description } = await req.json();
     if (!catalog_product_id) {
       return new Response(JSON.stringify({ error: "catalog_product_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     const { data: product, error: prodErr } = await admin
       .from("catalog_products")
-      .select("id, title, description, price, image_url, images, category")
+      .select("id, title, description, suggested_price, images, category")
       .eq("id", catalog_product_id)
       .maybeSingle();
     if (prodErr || !product) {
