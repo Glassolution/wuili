@@ -774,6 +774,12 @@ const GeneratedStoreEditorPage = () => {
       }
     }
 
+    // Detecta se o texto original é um preço (começa com "R$"). Nesse caso
+    // protegemos o prefixo "R$ " contra apagamento durante a edição inline.
+    const originalText = editingTarget.textContent ?? "";
+    const isPrice = /^\s*R\$/i.test(originalText);
+    const PRICE_PREFIX = "R$ ";
+
     editingTarget.dataset.editorType = editingTarget.dataset.editorType || "text";
     editingTarget.setAttribute("contenteditable", "true");
     editingTarget.style.outline = "2px solid #7b8188";
@@ -784,18 +790,98 @@ const GeneratedStoreEditorPage = () => {
     requestAnimationFrame(() => {
       const selection = window.getSelection();
       const range = document.createRange();
-      range.selectNodeContents(editingTarget);
+      if (isPrice) {
+        // Coloca o cursor no final para editar o número, mantendo o "R$".
+        range.selectNodeContents(editingTarget);
+        range.collapse(false);
+      } else {
+        range.selectNodeContents(editingTarget);
+      }
       selection?.removeAllRanges();
       selection?.addRange(range);
     });
 
+    const enforcePricePrefix = () => {
+      const current = editingTarget.textContent ?? "";
+      if (!/^R\$\s?/i.test(current)) {
+        // Restaura o prefixo se o usuário conseguir apagá-lo.
+        const rest = current.replace(/^R?\$?\s*/i, "");
+        editingTarget.textContent = PRICE_PREFIX + rest;
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editingTarget);
+        range.collapse(false);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+    };
+
+    const handleBeforeInput = (event: Event) => {
+      if (!isPrice) return;
+      const inputEvent = event as InputEvent;
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+      const range = selection.getRangeAt(0);
+      const text = editingTarget.textContent ?? "";
+      // Calcula o offset dentro do editingTarget
+      const preRange = range.cloneRange();
+      preRange.selectNodeContents(editingTarget);
+      preRange.setEnd(range.startContainer, range.startOffset);
+      const startOffset = preRange.toString().length;
+      const endOffset = startOffset + range.toString().length;
+      const prefixLen = /^R\$\s/.test(text) ? 3 : 2;
+
+      if (inputEvent.inputType?.startsWith("delete")) {
+        // Bloqueia deleção que atinja o prefixo "R$ ".
+        if (inputEvent.inputType === "deleteContentBackward") {
+          if (startOffset <= prefixLen && endOffset <= prefixLen) {
+            event.preventDefault();
+            return;
+          }
+        } else if (inputEvent.inputType === "deleteContentForward") {
+          if (startOffset < prefixLen) {
+            event.preventDefault();
+            return;
+          }
+        } else if (startOffset < prefixLen) {
+          event.preventDefault();
+          return;
+        }
+      } else if (inputEvent.inputType?.startsWith("insert")) {
+        // Impede inserção antes do prefixo.
+        if (startOffset < prefixLen) {
+          event.preventDefault();
+          const selectionRange = document.createRange();
+          selectionRange.selectNodeContents(editingTarget);
+          selectionRange.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(selectionRange);
+        }
+      }
+    };
+
+    const handleInput = () => {
+      if (isPrice) enforcePricePrefix();
+    };
+
+    if (isPrice) {
+      editingTarget.addEventListener("beforeinput", handleBeforeInput);
+      editingTarget.addEventListener("input", handleInput);
+    }
+
     const cleanup = () => {
-      const editedText = editingTarget.innerText.trim();
+      let editedText = editingTarget.innerText.trim();
+      if (isPrice && editedText && !/^R\$/i.test(editedText)) {
+        editedText = PRICE_PREFIX + editedText.replace(/^R?\$?\s*/i, "");
+        editingTarget.textContent = editedText;
+      }
       editingTarget.removeAttribute("contenteditable");
       editingTarget.style.outline = "";
       editingTarget.style.outlineOffset = "";
       editingTarget.style.cursor = "";
       editingTarget.removeEventListener("blur", cleanup);
+      editingTarget.removeEventListener("beforeinput", handleBeforeInput);
+      editingTarget.removeEventListener("input", handleInput);
       if (!editedText) return;
       setElementOverrides((previous) => ({
         ...previous,
