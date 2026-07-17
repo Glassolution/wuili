@@ -1669,12 +1669,12 @@ const GeneratedStoreEditorPage = () => {
   const publicUrl = projectSlug ? `${PUBLIC_APP_URL}/loja/${projectSlug}` : "";
 
   const handleOpenPublish = () => {
-    if (!currentProject) {
-      setContextNotice("Crie ou abra um projeto salvo para poder publicá-lo.");
-      return;
-    }
     if (isFreePlan) {
       setUpgradeModalOpen(true);
+      return;
+    }
+    if (!currentProject) {
+      setContextNotice("Crie ou abra um projeto salvo para poder publicá-lo.");
       return;
     }
     setPublishCopied(false);
