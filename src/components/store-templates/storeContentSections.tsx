@@ -139,14 +139,23 @@ export const StoreImageCta = ({ image, accent, title = "", mobile = false }: Con
 // seção editável do template. Nada de rota separada; render inline.
 // ---------------------------------------------------------------------------
 
-/** Carrossel de uso do produto — 4 fotos com legenda de contexto. */
-export const StoreUsageCarousel = ({ image, accent, mobile = false }: ContentProps) => {
-  const slides = [
+/** Carrossel de uso — adapta o nº de slots ao total de fotos reais do produto.
+ *  Enquanto não houver geração de imagem por IA, evita duplicar a mesma foto. */
+export const StoreUsageCarousel = ({ image, productImages, mobile = false }: ContentProps) => {
+  const gallery = (productImages && productImages.length > 0 ? productImages : image ? [image] : []).filter(Boolean);
+  if (gallery.length === 0) return null;
+  const slideDefs: Array<[string, string]> = [
     ["No dia a dia", "Praticidade que se encaixa em qualquer rotina."],
     ["Em qualquer ambiente", "Combina com a sua casa e o seu estilo."],
     ["Pronto pra usar", "Sem complicação, do primeiro momento."],
     ["Feito pra durar", "Qualidade que acompanha o tempo."],
   ];
+  // Limita legendas ao número de imagens reais (não repete a foto).
+  const slides = slideDefs.slice(0, gallery.length).map(([t, txt], i) => ({ title: t, text: txt, src: gallery[i] }));
+  const cols = Math.min(slides.length, mobile ? 2 : 4);
+  const layout = slides.length === 1
+    ? "1fr"
+    : `repeat(${cols}, minmax(0,1fr))`;
   return (
     <section className="bg-white px-6 py-14 sm:px-10">
       <div className="mx-auto max-w-[1180px]">
@@ -156,15 +165,15 @@ export const StoreUsageCarousel = ({ image, accent, mobile = false }: ContentPro
         <p data-editor-type="text" className="mx-auto mt-2 max-w-[540px] text-center text-[14px] text-black/55">
           Situações reais de quem já leva praticidade pra casa.
         </p>
-        <div className="mt-8 grid gap-4" style={{ gridTemplateColumns: mobile ? "repeat(2, minmax(0,1fr))" : "repeat(4, minmax(0,1fr))" }}>
-          {slides.map(([title, text]) => (
-            <div key={title} className="overflow-hidden rounded-[14px] bg-[#f5f4f2]">
-              <div className="relative aspect-[4/5] overflow-hidden bg-[#e9e7e2]">
-                {image ? <img data-editor-type="image" src={image} alt="" className="h-full w-full object-cover" /> : null}
+        <div className="mx-auto mt-8 grid gap-4" style={{ gridTemplateColumns: layout, maxWidth: slides.length === 1 ? 520 : undefined }}>
+          {slides.map((s) => (
+            <div key={s.title} className="overflow-hidden rounded-[14px] bg-[#f5f4f2]">
+              <div className="relative aspect-[4/5] overflow-hidden bg-[#e9e7e2] flex items-center justify-center p-4">
+                <img data-editor-type="image" src={s.src} alt="" className="h-full w-full object-contain" />
               </div>
               <div className="p-4">
-                <h3 data-editor-type="text" className="text-[14px] font-bold text-black">{title}</h3>
-                <p data-editor-type="text" className="mt-1 text-[12px] leading-relaxed text-black/55">{text}</p>
+                <h3 data-editor-type="text" className="text-[14px] font-bold text-black">{s.title}</h3>
+                <p data-editor-type="text" className="mt-1 text-[12px] leading-relaxed text-black/55">{s.text}</p>
               </div>
             </div>
           ))}
