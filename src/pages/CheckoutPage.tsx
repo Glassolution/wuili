@@ -509,15 +509,25 @@ const CheckoutPage = () => {
               </button>
             </div>
 
+            {hasReferralDiscount && (
+              <div className="mx-auto mt-5 flex max-w-6xl items-center gap-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-800">
+                🎉 Você tem 15% de desconto por indicação — já aplicado nos preços abaixo.
+              </div>
+            )}
+
+
             {/* Três planos lado a lado. Antes era md:grid-cols-2 com 3 planos, o
                 que jogava o Business sozinho para uma segunda linha. */}
             <div className="mx-auto mt-7 grid max-w-6xl items-stretch gap-5 md:grid-cols-3">
               {plans.map(([id, currentPlan]) => {
                 const isSelected = id === selectedPlanId;
-                const displayPrice = getDisplayPrice(id, billingCycle);
+                const rawDisplayPrice = getDisplayPrice(id, billingCycle);
+                const displayPrice = hasReferralDiscount ? applyReferral(rawDisplayPrice) : rawDisplayPrice;
                 const priceParts = splitPlanPrice(displayPrice);
-                const originalPrice = getOriginalDisplayPrice(id, billingCycle);
-                const savings = getSavingsDisplay(originalPrice, displayPrice);
+                const originalPrice = hasReferralDiscount
+                  ? rawDisplayPrice
+                  : getOriginalDisplayPrice(id, billingCycle);
+                const savings = hasReferralDiscount ? null : getSavingsDisplay(originalPrice, displayPrice);
 
                 // O plano em destaque ganha borda de cor e CTA sólido, como no
                 // card "Most Popular" de referência.
@@ -559,11 +569,15 @@ const CheckoutPage = () => {
                       {originalPrice && (
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-[15px] font-semibold text-[#A8A8A3] line-through">{originalPrice}</span>
-                          {savings && (
+                          {hasReferralDiscount ? (
+                            <span className="whitespace-nowrap rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                              -15% indicação
+                            </span>
+                          ) : savings ? (
                             <span className="whitespace-nowrap rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                               Economize {savings}
                             </span>
-                          )}
+                          ) : null}
                         </div>
                       )}
                       <div className="mt-1 flex items-end gap-1">
@@ -582,6 +596,7 @@ const CheckoutPage = () => {
                       type="button"
                       onClick={() => startCheckout(id)}
                       className={`mt-5 h-11 w-full rounded-[10px] border px-5 text-[13px] font-semibold transition-colors duration-200 ${
+
                         isFeatured
                           ? "border-[#0A0A0A] bg-[#0A0A0A] text-white hover:bg-[#242424]"
                           : // Vazado por padrão; preenche só com o mouse sobre o
