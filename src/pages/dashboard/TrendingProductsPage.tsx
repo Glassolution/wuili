@@ -561,7 +561,7 @@ const TrendingProductsPage = () => {
   const handleProjectCreated = (projectId: string) => {
     setWizardProduct(null);
     setCreatingSalesPageId(null);
-    navigate("/dashboard/minha-loja");
+    navigate(`/minha-loja/editor/${projectId}`, { state: { projectId } });
   };
 
   return (

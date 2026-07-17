@@ -185,12 +185,9 @@ const StoreProjectsPage = () => {
   const lastUpdateLabel = selectedProject ? `Última edição ${formatLastEdited(selectedProject.lastEditedAt)}` : "Nenhum projeto ainda";
 
   const openProject = (project: ProjectCard) => {
-    if (project.tipo === "loja_completa") {
-      navigate("/minha-loja/editor", { state: { projectId: project.id, sourceId: project.sourceId } });
-      return;
-    }
-
-    navigate(project.slug ? `/preview/${project.slug}` : "/dashboard/minha-loja");
+    navigate(`/minha-loja/editor/${project.id}`, {
+      state: { projectId: project.id, sourceId: project.sourceId },
+    });
   };
 
   const handleProjectCreated = async (projectId: string) => {
@@ -198,14 +195,9 @@ const StoreProjectsPage = () => {
     try {
       const userProjects = await fetchUserProjects();
       setProjects(userProjects.map(mapUserProject));
-      const created = userProjects.find((project) => project.id === projectId);
-      if (created?.tipo_projeto === "loja_completa") {
-        navigate("/minha-loja/editor", { state: { projectId } });
-        return;
-      }
-      navigate("/dashboard/minha-loja");
+      navigate(`/minha-loja/editor/${projectId}`, { state: { projectId } });
     } catch {
-      navigate("/minha-loja/editor", { state: { projectId } });
+      navigate(`/minha-loja/editor/${projectId}`, { state: { projectId } });
     }
   };
 

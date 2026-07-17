@@ -144,6 +144,7 @@ const App = () => (
               <Route path="/onboarding/preparando-loja" element={<ProtectedRoute><StoreBuildProgressPage /></ProtectedRoute>} />
               <Route path="/minha-loja" element={<Navigate to="/dashboard/minha-loja" replace />} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
+              <Route path="/minha-loja/editor/:projectId" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
               <Route path="/produto/editor" element={<Navigate to="/dashboard" replace />} />
               <Route path="/velods/produto/editor" element={<Navigate to="/dashboard" replace />} />
 

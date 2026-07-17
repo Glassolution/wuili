@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
@@ -240,6 +240,7 @@ const buttonSizePresets: Array<{ value: ButtonSizePreset; label: string }> = [
 const GeneratedStoreEditorPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { projectId: routeProjectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
   const { nome: profileName, foto: profilePhoto } = useProfile();
   const imageInput = useRef<HTMLInputElement>(null);
@@ -1371,7 +1372,7 @@ const GeneratedStoreEditorPage = () => {
     // Editando um projeto salvo (veio de "Editar" na Minha Loja): abrir o editor
     // diretamente, sem exigir o fluxo de onboarding. Os produtos reais são
     // carregados a partir do projeto; aqui só garantimos um flow mínimo válido.
-    if (state?.projectId) {
+    if (state?.projectId || routeProjectId) {
       return {
         product: product ?? { id: "", title: "", price: 0, imageUrl: "" },
         language: language ?? "pt-BR",
@@ -1380,7 +1381,7 @@ const GeneratedStoreEditorPage = () => {
       };
     }
     return null;
-  }, [location.state, user?.id]);
+  }, [location.state, routeProjectId, user?.id]);
 
   useEffect(() => {
     // Só persistimos um fluxo genuinamente completo (vindo do onboarding). O flow
@@ -1392,8 +1393,8 @@ const GeneratedStoreEditorPage = () => {
 
   const projectId = useMemo(() => {
     const state = location.state as { projectId?: string } | null;
-    return state?.projectId ?? null;
-  }, [location.state]);
+    return routeProjectId ?? state?.projectId ?? null;
+  }, [location.state, routeProjectId]);
 
   useEffect(() => {
     if (!projectId) return;
