@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { Check, ChevronDown, Clock, Flame, Heart, Leaf, Quote, Settings2, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Flame, Heart, Leaf, Quote, Settings2, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
+import inspirationImg1 from "@/assets/store-inspiration-1.jpg";
+import inspirationImg2 from "@/assets/store-inspiration-2.jpg";
+import inspirationImg3 from "@/assets/store-inspiration-3.jpg";
+import inspirationImg4 from "@/assets/store-inspiration-4.jpg";
 
 // Seções de conteúdo "abaixo da dobra" — barra de benefícios, passo a passo,
 // grade de recursos e bloco de imagem + CTA. Transformam a página de produto
