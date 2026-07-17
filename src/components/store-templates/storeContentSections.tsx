@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { Check, ChevronDown, Clock, Flame, Heart, Leaf, Quote, Settings2, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Flame, Heart, Leaf, Quote, Settings2, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
+import inspirationImg1 from "@/assets/store-inspiration-1.jpg";
+import inspirationImg2 from "@/assets/store-inspiration-2.jpg";
+import inspirationImg3 from "@/assets/store-inspiration-3.jpg";
+import inspirationImg4 from "@/assets/store-inspiration-4.jpg";
 
 // Seções de conteúdo "abaixo da dobra" — barra de benefícios, passo a passo,
 // grade de recursos e bloco de imagem + CTA. Transformam a página de produto
@@ -139,44 +143,88 @@ export const StoreImageCta = ({ image, accent, title = "", mobile = false }: Con
 // seção editável do template. Nada de rota separada; render inline.
 // ---------------------------------------------------------------------------
 
-/** Carrossel de uso — adapta o nº de slots ao total de fotos reais do produto.
- *  Enquanto não houver geração de imagem por IA, evita duplicar a mesma foto. */
-export const StoreUsageCarousel = ({ image, productImages, mobile = false }: ContentProps) => {
-  const gallery = (productImages && productImages.length > 0 ? productImages : image ? [image] : []).filter(Boolean);
-  if (gallery.length === 0) return null;
-  const slideDefs: Array<[string, string]> = [
-    ["No dia a dia", "Praticidade que se encaixa em qualquer rotina."],
-    ["Em qualquer ambiente", "Combina com a sua casa e o seu estilo."],
-    ["Pronto pra usar", "Sem complicação, do primeiro momento."],
-    ["Feito pra durar", "Qualidade que acompanha o tempo."],
-  ];
-  // Limita legendas ao número de imagens reais (não repete a foto).
-  const slides = slideDefs.slice(0, gallery.length).map(([t, txt], i) => ({ title: t, text: txt, src: gallery[i] }));
-  const cols = Math.min(slides.length, mobile ? 2 : 4);
-  const layout = slides.length === 1
-    ? "1fr"
-    : `repeat(${cols}, minmax(0,1fr))`;
+/** Galeria de inspirações — carrossel horizontal com collages de estilo de vida.
+ *  Substitui o antigo "Veja em uso". Layout inspirado em galeria com setas
+ *  laterais + dots de paginação, cards altos em collage. */
+export const StoreUsageCarousel = ({ productImages, mobile = false }: ContentProps) => {
+  const fallback = [inspirationImg1, inspirationImg2, inspirationImg3, inspirationImg4];
+  const gallery = productImages && productImages.length >= 4 ? productImages.slice(0, 8) : fallback;
+  const perPage = mobile ? 1 : 4;
+  const totalPages = Math.max(1, Math.ceil(gallery.length / perPage));
+  const [page, setPage] = useState(0);
+  const go = (dir: -1 | 1) => setPage((p) => (p + dir + totalPages) % totalPages);
+  const visible = gallery.slice(page * perPage, page * perPage + perPage);
+  const gridCols = mobile ? "1fr" : `repeat(${perPage}, minmax(0,1fr))`;
+
   return (
-    <section className="bg-white px-6 py-14 sm:px-10">
-      <div className="mx-auto max-w-[1180px]">
-        <h2 data-editor-type="text" className="text-center text-[28px] font-black tracking-[-0.02em] text-black md:text-[34px]">
-          Veja em uso
+    <section className="bg-white px-6 py-16 sm:px-10">
+      <div className="mx-auto max-w-[1280px]">
+        <h2 data-editor-type="text" className="text-center text-[30px] font-black tracking-[-0.02em] text-black md:text-[38px]">
+          Inspirações
         </h2>
-        <p data-editor-type="text" className="mx-auto mt-2 max-w-[540px] text-center text-[14px] text-black/55">
-          Situações reais de quem já leva praticidade pra casa.
+        <p data-editor-type="text" className="mx-auto mt-3 max-w-[640px] text-center text-[15px] leading-relaxed text-black/55">
+          Veja como nossos clientes estão transformando o dia a dia com mais praticidade e estilo.
         </p>
-        <div className="mx-auto mt-8 grid gap-4" style={{ gridTemplateColumns: layout, maxWidth: slides.length === 1 ? 520 : undefined }}>
-          {slides.map((s) => (
-            <div key={s.title} className="overflow-hidden rounded-[14px] bg-[#f5f4f2]">
-              <div className="relative aspect-[4/5] overflow-hidden bg-[#e9e7e2] flex items-center justify-center p-4">
-                <img data-editor-type="image" src={s.src} alt="" className="h-full w-full object-contain" />
+
+        <div className="relative mt-10">
+          {/* Setas */}
+          {totalPages > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => go(-1)}
+                aria-label="Anterior"
+                className="absolute left-0 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white text-black/60 shadow-[0_6px_20px_rgba(0,0,0,0.12)] transition hover:text-black"
+              >
+                <ChevronLeft size={22} />
+              </button>
+              <button
+                type="button"
+                onClick={() => go(1)}
+                aria-label="Próximo"
+                className="absolute right-0 top-1/2 z-10 translate-x-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white text-black/60 shadow-[0_6px_20px_rgba(0,0,0,0.12)] transition hover:text-black"
+              >
+                <ChevronRight size={22} />
+              </button>
+            </>
+          )}
+
+          <div className="grid gap-5" style={{ gridTemplateColumns: gridCols }}>
+            {visible.map((src, i) => (
+              <div
+                key={`${page}-${i}`}
+                className="relative overflow-hidden rounded-[18px] bg-[#f1f0ec] shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
+                style={{ aspectRatio: "3 / 4" }}
+              >
+                <img
+                  data-editor-type="image"
+                  src={src}
+                  alt=""
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
               </div>
-              <div className="p-4">
-                <h3 data-editor-type="text" className="text-[14px] font-bold text-black">{s.title}</h3>
-                <p data-editor-type="text" className="mt-1 text-[12px] leading-relaxed text-black/55">{s.text}</p>
-              </div>
+            ))}
+          </div>
+
+          {/* Dots */}
+          {totalPages > 1 && (
+            <div className="mt-7 flex items-center justify-center gap-2">
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  aria-label={`Página ${i + 1}`}
+                  onClick={() => setPage(i)}
+                  className="h-2 rounded-full transition-all"
+                  style={{
+                    width: i === page ? 22 : 8,
+                    backgroundColor: i === page ? "#111" : "rgba(0,0,0,0.2)",
+                  }}
+                />
+              ))}
             </div>
-          ))}
+          )}
         </div>
       </div>
     </section>
