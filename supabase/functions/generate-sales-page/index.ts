@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     }
     const userId = userData.user.id;
 
-    const { catalog_product_id } = await req.json();
+    const { catalog_product_id, store_name, store_logo_url, store_description } = await req.json();
     if (!catalog_product_id) {
       return new Response(JSON.stringify({ error: "catalog_product_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     const { data: product, error: prodErr } = await admin
       .from("catalog_products")
-      .select("id, title, description, price, image_url, images, category")
+      .select("id, title, description, suggested_price, images, category")
       .eq("id", catalog_product_id)
       .maybeSingle();
     if (prodErr || !product) {
@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
 
 Título: ${product.title}
 Descrição: ${(product.description || "").slice(0, 500)}
-Preço sugerido: R$ ${product.price ?? "—"}
+Preço sugerido: R$ ${product.suggested_price ?? "—"}
 
 Retorne JSON com essa estrutura exata:
 {
@@ -132,7 +132,7 @@ Retorne JSON com essa estrutura exata:
       slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
     }
 
-    const heroImage = product.image_url || (Array.isArray(product.images) ? product.images[0] : null);
+    const heroImage = Array.isArray(product.images) ? product.images[0] : null;
 
     const { data: inserted, error: insertErr } = await admin
       .from("generated_sales_pages")
@@ -146,8 +146,11 @@ Retorne JSON com essa estrutura exata:
         testimonials,
         cta_text,
         hero_image_url: heroImage,
-        price_brl: product.price,
+        price_brl: product.suggested_price,
         product_title: product.title,
+        store_name: store_name || null,
+        store_logo_url: store_logo_url || null,
+        store_description: store_description || null,
       })
       .select()
       .single();

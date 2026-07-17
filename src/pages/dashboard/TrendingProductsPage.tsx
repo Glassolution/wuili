@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
+import CreateSalesPageModal, { type CreateSalesPagePayload } from "@/components/dashboard/CreateSalesPageModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -548,18 +549,31 @@ const TrendingProductsPage = () => {
   };
 
   const [creatingSalesPageId, setCreatingSalesPageId] = useState<string | null>(null);
+  const [salesPageModalProduct, setSalesPageModalProduct] = useState<TrendingProduct | null>(null);
 
-  const handleCreateSalesPage = async (product: TrendingProduct) => {
+  const handleCreateSalesPage = (product: TrendingProduct) => {
     if (creatingSalesPageId) return;
+    setSalesPageModalProduct(product);
+  };
+
+  const handleConfirmSalesPage = async (payload: CreateSalesPagePayload) => {
+    const product = salesPageModalProduct;
+    if (!product) return;
     setCreatingSalesPageId(product.id);
     try {
       const { data, error } = await supabase.functions.invoke("generate-sales-page", {
-        body: { catalog_product_id: product.id },
+        body: {
+          catalog_product_id: product.id,
+          store_name: payload.storeName,
+          store_logo_url: payload.storeLogoUrl,
+          store_description: payload.storeDescription,
+        },
       });
       if (error) throw error;
       const slug = (data as { page?: { slug?: string } } | null)?.page?.slug;
       if (!slug) throw new Error("slug ausente na resposta");
       veloToast.success("Página de vendas criada!");
+      setSalesPageModalProduct(null);
       navigate(`/loja/${slug}`);
     } catch (err) {
       console.error("create sales page failed:", err);
@@ -1219,6 +1233,15 @@ const TrendingProductsPage = () => {
       {salesPageSoonProduct ? (
         <SalesPageSoonModal product={salesPageSoonProduct} onClose={() => setSalesPageSoonProduct(null)} />
       ) : null}
+
+      <CreateSalesPageModal
+        open={!!salesPageModalProduct}
+        productTitle={salesPageModalProduct?.title ?? ""}
+        onClose={() => {
+          if (!creatingSalesPageId) setSalesPageModalProduct(null);
+        }}
+        onConfirm={handleConfirmSalesPage}
+      />
     </div>
   );
 };
