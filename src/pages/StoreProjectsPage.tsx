@@ -230,7 +230,7 @@ const StoreProjectsPage = () => {
       <div className="flex h-[54px] shrink-0 items-center gap-3 border-b border-[#ececea] px-6">
         <button
           type="button"
-          onClick={() => setWizardOpen(true)}
+          onClick={requestCreate}
           className="flex h-9 items-center gap-2 rounded-[7px] bg-[#1d1d1f] px-4 text-[13px] font-semibold text-white shadow-[0_10px_18px_rgba(0,0,0,0.10)] transition hover:bg-black"
         >
           <Plus size={15} />
