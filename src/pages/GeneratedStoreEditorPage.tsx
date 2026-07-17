@@ -4015,8 +4015,8 @@ const GeneratedStoreEditorPage = () => {
                   <div className="flex items-start gap-2">
                     <span className="text-[18px]">🎁</span>
                     <div>
-                      <p className="text-[14px] font-bold">Domínio .store GRÁTIS com seu plano PRO!</p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-white/60">Lance sua marca hoje com um domínio .store GRÁTIS — incluído com Velo PRO!</p>
+                      <p className="text-[14px] font-bold">Subdomínio GRÁTIS com o plano Base!</p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-white/60">Lance sua marca hoje com um subdomínio seunome.velo.store — incluído com Velo Base!</p>
                     </div>
                   </div>
                 </div>
