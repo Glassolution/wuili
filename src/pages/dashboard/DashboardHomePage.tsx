@@ -245,6 +245,7 @@ const DashboardHomePage = () => {
   const [activeCta, setActiveCta] = useState(0);
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportTab, setSupportTab] = useState<SupportTab>("home");
+  const [inviteOpen, setInviteOpen] = useState(false);
   const cta = ctaSlides[activeCta];
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
