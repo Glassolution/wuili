@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
-const EMBED_ID = "vidalytics_embed_wE04uZEBIcDLehgY";
-const LOADER_BASE = "https://fast.vidalytics.com/embeds/kW4WSpDT/wE04uZEBIcDLehgY/";
+const EMBED_ID = "vidalytics_embed_2YhLgNzzQFzg0MZP";
+const LOADER_BASE = "https://fast.vidalytics.com/embeds/kW4WSpDT/2YhLgNzzQFzg0MZP/";
 
 /**
  * Vidalytics tutorial video embed.
