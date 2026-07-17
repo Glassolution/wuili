@@ -410,12 +410,22 @@ const DashboardHomePage = () => {
             {cta.description}
           </p>
 
-          <a
-            href={cta.href}
-            className="pointer-events-auto absolute left-[39.35%] top-[53.3%] z-30 flex h-[clamp(22px,2.22vw,42px)] items-center rounded-[0.48vw] bg-black px-[0.95vw] text-[clamp(8px,0.82vw,16px)] font-semibold text-white shadow-[0_0.55vw_1.1vw_rgba(0,0,0,0.16)] transition-transform hover:-translate-y-[1px]"
-          >
-            {cta.button}
-          </a>
+          {cta.visual === "referral" ? (
+            <button
+              type="button"
+              onClick={() => setInviteOpen(true)}
+              className="pointer-events-auto absolute left-[39.35%] top-[53.3%] z-30 flex h-[clamp(22px,2.22vw,42px)] items-center rounded-[0.48vw] bg-black px-[0.95vw] text-[clamp(8px,0.82vw,16px)] font-semibold text-white shadow-[0_0.55vw_1.1vw_rgba(0,0,0,0.16)] transition-transform hover:-translate-y-[1px]"
+            >
+              {cta.button}
+            </button>
+          ) : (
+            <a
+              href={cta.href}
+              className="pointer-events-auto absolute left-[39.35%] top-[53.3%] z-30 flex h-[clamp(22px,2.22vw,42px)] items-center rounded-[0.48vw] bg-black px-[0.95vw] text-[clamp(8px,0.82vw,16px)] font-semibold text-white shadow-[0_0.55vw_1.1vw_rgba(0,0,0,0.16)] transition-transform hover:-translate-y-[1px]"
+            >
+              {cta.button}
+            </a>
+          )}
 
           <div className="absolute left-[42.0%] top-[55.35%] z-20 h-[6.0%] w-[12.6%] bg-white" />
           <div className="absolute left-[41.8%] top-[61.0%] z-0 h-[10.7%] w-[14.2%] bg-white" />
