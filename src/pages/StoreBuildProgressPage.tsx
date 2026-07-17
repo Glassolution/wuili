@@ -4,8 +4,9 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
+import { readOnboardingProjectId, clearOnboardingProjectId } from "@/lib/onboardingProject";
 
-type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
+type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string; projectId?: string | null };
 type OnboardingChoice = "store" | "sales-page" | "example";
 
 const steps = [
@@ -183,13 +184,14 @@ const StoreBuildProgressPage = () => {
   const flow = useMemo<FlowState | null>(() => {
     const state = location.state as Partial<FlowState> | null;
     let product = state?.product; let language = state?.language; let persona = state?.persona; let salesAngle = state?.salesAngle;
+    const projectId = state?.projectId ?? readOnboardingProjectId() ?? null;
     try {
       if (!product) { const value = sessionStorage.getItem("velo-example-product"); product = value ? JSON.parse(value) as ExampleProduct : undefined; }
       language ||= sessionStorage.getItem("velo-store-language") || undefined;
       persona ||= sessionStorage.getItem("velo-customer-persona") || undefined;
       salesAngle ||= sessionStorage.getItem("velo-sales-angle") || undefined;
     } catch { return null; }
-    return product && language && persona && salesAngle ? { product, language, persona, salesAngle } : null;
+    return product && language && persona && salesAngle ? { product, language, persona, salesAngle, projectId } : null;
   }, [location.state]);
   const [progress, setProgress] = useState(0);
   const [leaving, setLeaving] = useState(false);
@@ -223,7 +225,15 @@ const StoreBuildProgressPage = () => {
   const goToNextScreen = () => {
     const onboardingChoice = sessionStorage.getItem("velo-onboarding-choice") as OnboardingChoice | null;
     if (onboardingChoice === "sales-page") {
-      navigate("/minha-loja/editor", { replace: true, state: flow });
+      // Envia o projectId real criado no wizard — o editor abre com currentProject
+      // populado e as ações salvar/publicar/duplicar/renomear passam a funcionar
+      // desde a primeira entrada, sem precisar passar antes pelo dashboard.
+      const projectId = flow?.projectId ?? readOnboardingProjectId() ?? null;
+      const editorPath = projectId ? `/minha-loja/editor/${projectId}` : "/minha-loja/editor";
+      navigate(editorPath, { replace: true, state: { ...flow, projectId } });
+      // O ciclo de onboarding termina aqui: limpa o cache de UI para que o
+      // usuário não crie um novo projeto duplicado se recomeçar /comecar.
+      clearOnboardingProjectId();
       return;
     }
 
