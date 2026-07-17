@@ -250,41 +250,15 @@ const DashboardHomePage = () => {
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportTab, setSupportTab] = useState<SupportTab>("home");
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    // Trigger stagger animation on next frame; skip if reduced motion.
     const raf = requestAnimationFrame(() => setEntered(true));
     if (reduce) setEntered(true);
-
-    // Auto-open tutorial on first visit only, after entrance animation.
-    let timer: number | undefined;
-    try {
-      const seen = window.localStorage.getItem(TUTORIAL_SEEN_KEY);
-      if (!seen) {
-        timer = window.setTimeout(
-          () => {
-            setTutorialOpen(true);
-            try {
-              window.localStorage.setItem(TUTORIAL_SEEN_KEY, "true");
-            } catch {
-              /* ignore */
-            }
-          },
-          reduce ? 200 : 900,
-        );
-      }
-    } catch {
-      /* ignore storage errors */
-    }
-    return () => {
-      cancelAnimationFrame(raf);
-      if (timer) window.clearTimeout(timer);
-    };
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const cta = ctaSlides[activeCta];
@@ -392,15 +366,6 @@ const DashboardHomePage = () => {
                 {loadingStats ? "Carregando dados da sua conta" : `Ola, ${statsData?.displayName ?? "Velo"}. Visao geral da sua conta`}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setTutorialOpen(true)}
-              className="pointer-events-auto absolute right-[1.9%] top-1/2 z-30 flex -translate-y-1/2 items-center gap-[0.5vw] rounded-[0.5vw] border border-[#E5E7EB] bg-white px-[0.85vw] py-[0.5vw] text-[clamp(9px,0.82vw,15px)] font-semibold text-black shadow-[0_0.2vw_0.6vw_rgba(15,23,42,0.05)] transition-colors hover:bg-[#f6f7f9]"
-              aria-label="Assistir tutorial"
-            >
-              <PlayCircle className="h-[clamp(12px,1.1vw,20px)] w-[clamp(12px,1.1vw,20px)]" strokeWidth={1.8} />
-              <span>Assistir Tutorial</span>
-            </button>
           </div>
 
           <div className="absolute left-[0.7%] top-[10.5%] h-[17.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
@@ -830,7 +795,7 @@ const DashboardHomePage = () => {
         </button>
       </div>
       <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
-      <TutorialModal open={tutorialOpen} onOpenChange={setTutorialOpen} />
+      
     </main>
   );
 };
