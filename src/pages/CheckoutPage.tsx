@@ -648,11 +648,20 @@ const CheckoutPage = () => {
           <div>
             <p className="mb-3 text-[13px] font-medium text-white/45">{isTrial ? "Iniciar trial Pro" : `Assinar plano ${plan.name}`}</p>
             <h1 className="text-[44px] font-semibold leading-none tracking-[-0.045em] text-white sm:text-[52px]">
-              {checkoutPrice} {checkoutPeriodLabel}
+              {hasReferralDiscount && (
+                <span className="mr-3 text-[24px] font-medium text-white/40 line-through sm:text-[28px]">{originalCheckoutPrice}</span>
+              )}
+              {finalCheckoutPrice} {checkoutPeriodLabel}
             </h1>
+            {hasReferralDiscount && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[12px] font-semibold text-emerald-300">
+                🎉 Você ganhou 15% de desconto por indicação
+              </div>
+            )}
             <p className="mt-4 max-w-[320px] text-[15px] font-medium leading-6 text-white/54">
               {checkoutDescription}
             </p>
+
 
             <div className="mt-12 border-y border-white/[0.08] py-6">
               <div className="flex items-start justify-between gap-6">
