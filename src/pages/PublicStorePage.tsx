@@ -25,6 +25,8 @@ import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateB
 import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
 import StorefrontLojaTemplate from "@/components/store-templates/StorefrontLojaTemplate";
 import PreviewPage from "@/pages/PreviewPage";
+import SectionRenderer from "@/components/store-sections/SectionRenderer";
+import { parseSections, parseTheme } from "@/lib/storeSections/types";
 
 const DEFAULT_HERO_IMAGE = "/hero-pasted-image-2.png";
 
@@ -260,6 +262,22 @@ const PublicStorePage = () => {
   }
 
   if (project) {
+    // Compat layer (Fase 1 do novo template): se a loja já foi migrada para o
+    // sistema de blocos modulares (metadata.sections presente e não vazio),
+    // renderiza via SectionRenderer. Senão, mantém o template monolítico antigo
+    // para não quebrar lojas existentes.
+    const meta = (project.metadata && typeof project.metadata === "object" && !Array.isArray(project.metadata))
+      ? (project.metadata as Record<string, unknown>)
+      : {};
+    const parsedSections = parseSections(meta.sections);
+    if (parsedSections.length > 0) {
+      const parsedTheme = parseTheme(meta.theme);
+      return (
+        <div style={{ minHeight: "100vh", background: parsedTheme.background }}>
+          <SectionRenderer sections={parsedSections} theme={parsedTheme} />
+        </div>
+      );
+    }
     // Renderiza o mesmo template do editor (idêntico ao que o usuário editou):
     // página de produto ou loja completa, conforme o template salvo.
     if (getProjectTemplate(project).startsWith("produto")) {
