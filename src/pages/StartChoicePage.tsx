@@ -317,29 +317,21 @@ const StartChoicePage = () => {
             Como você quer começar?
           </h1>
           <p className="mt-3 max-w-[500px] text-[13px] font-normal leading-[1.55] text-[#687086] sm:text-[13.5px]">
-            {isAdmin
-              ? "Escolha o caminho que combina com o seu momento. Você pode montar sua loja ou criar uma página de vendas."
-              : "A criação de loja completa está em testes. Por enquanto, você pode criar e personalizar sua página de vendas."}
+            Escolha o caminho que combina com o seu momento. Você pode montar sua loja completa ou criar uma página de vendas focada em um produto.
           </p>
 
           <div className="mt-8 w-full max-w-[650px]">
             <div className="grid gap-4 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => isAdmin && setSelectedPath("/onboarding/criar-loja")}
-                disabled={!isAdmin}
+                onClick={() => setSelectedPath("/onboarding/criar-loja")}
                 aria-pressed={selectedPath === "/onboarding/criar-loja"}
-                className={`group relative min-h-[178px] rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 focus-visible:ring-4 focus-visible:ring-black/10 ${
-                  isAdmin ? "hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)]" : "cursor-not-allowed opacity-55"
-                } ${
+                className={`group relative min-h-[178px] rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
                   selectedPath === "/onboarding/criar-loja" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
                 }`}
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
                   <Store size={19} strokeWidth={1.8} />
-                </span>
-                <span className="absolute right-4 top-4 rounded-[8px] bg-black px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white">
-                  {isAdmin ? "Ambiente interno" : "Em fase de testes"}
                 </span>
                 <span className="mt-14 flex items-end justify-between gap-4">
                   <span>
