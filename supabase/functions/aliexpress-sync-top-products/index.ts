@@ -544,7 +544,8 @@ serve(async (req) => {
               p.itemUrl ??
               p.product_detail_url ??
               `https://www.aliexpress.com/item/${externalId}.html`,
-            aliexpress_category_id: null,
+            aliexpress_category_id: aliCategoryIdForKeyword,
+            category: veloCategoryForKeyword,
             brand: null,
             in_top_50: true,
             is_active: true,
