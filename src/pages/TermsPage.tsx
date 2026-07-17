@@ -28,10 +28,9 @@ const TermsPage = () => (
 
     <LegalSection title="4. Planos e Pagamento">
       <p>
-        4.1. A Velo oferece planos pagos com período de trial de 5 (cinco) dias ao valor de
-        R$29,90, convertendo-se automaticamente no plano escolhido (Pro a R$99,90/mês ou Business
-        a R$149,90/mês) ao término do período de trial, salvo cancelamento expresso pelo Usuário
-        antes do vencimento.
+        4.1. A Velo oferece planos pagos com cobrança mensal recorrente (Pro a R$99,90/mês ou
+        Business a R$149,90/mês), renovando-se automaticamente a cada ciclo, salvo cancelamento
+        expresso pelo Usuário antes do vencimento.
       </p>
       <p>
         4.2. Os pagamentos são processados por terceiros (processadoras de pagamento) e estão
