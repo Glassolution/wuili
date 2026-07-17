@@ -115,7 +115,7 @@ export default function PreviewPage() {
                 {page.price_brl && <span className="text-slate-400 line-through">R$ {(page.price_brl * 1.4).toFixed(2)}</span>}
               </div>
               <button
-                onClick={() => setShowBuyModal(true)}
+                onClick={() => navigate(`/loja/${page.slug}/carrinho`)}
                 className="mt-8 w-full md:w-auto rounded-xl bg-slate-900 text-white px-8 py-4 font-semibold text-lg hover:bg-slate-800 transition"
               >
                 {page.cta_text}
@@ -162,7 +162,7 @@ export default function PreviewPage() {
             <ShieldCheck className="mx-auto mb-4 text-emerald-400" size={36} />
             <h2 className="text-2xl md:text-3xl font-bold">Garantia de 7 dias ou seu dinheiro de volta</h2>
             <p className="mt-3 text-white/70 max-w-lg mx-auto">Se não gostar, devolvemos 100% do valor. Sem burocracia.</p>
-            <button onClick={() => setShowBuyModal(true)} className="mt-8 rounded-xl bg-emerald-400 text-slate-950 px-8 py-3.5 font-semibold hover:bg-emerald-300">
+            <button onClick={() => navigate(`/loja/${page.slug}/carrinho`)} className="mt-8 rounded-xl bg-emerald-400 text-slate-950 px-8 py-3.5 font-semibold hover:bg-emerald-300">
               {page.cta_text}
             </button>
           </section>

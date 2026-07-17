@@ -111,15 +111,15 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
     );
   }
 
-  // Click delegation: qualquer botão dentro do template cujo texto seja
-  // "Adicionar ao carrinho" / "Comprar" / "Comprar agora" leva o cliente para
-  // a próxima tela do fluxo (carrinho). Assim os templates existentes não
-  // precisam saber do fluxo.
+  // Click delegation: qualquer botão/link dentro do template cujo texto ou
+  // aria-label indique intenção de compra ("adicionar ao carrinho", "comprar",
+  // "comprar agora") leva o cliente para a próxima tela do fluxo (carrinho).
   const handleTemplateClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const target = (event.target as HTMLElement).closest("button");
+    const target = (event.target as HTMLElement).closest("button, a");
     if (!target) return;
     const text = (target.textContent || "").trim().toLowerCase();
-    if (/adicionar ao carrinho|comprar/.test(text)) {
+    const aria = (target.getAttribute("aria-label") || "").toLowerCase();
+    if (/adicionar ao carrinho|comprar|carrinho/.test(text + " " + aria)) {
       event.preventDefault();
       if (slug) navigate(`/loja/${slug}/carrinho`);
     }
@@ -151,6 +151,8 @@ const PublishedLojaPage = ({ project }: { project: UserProject }) => {
   const [products, setProducts] = useState<PublicStoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { slug } = useParams();
 
   useEffect(() => {
     let active = true;
@@ -186,8 +188,21 @@ const PublishedLojaPage = ({ project }: { project: UserProject }) => {
     );
   }
 
+  // Mesma delegação de clique do template de produto: qualquer botão/link
+  // com intenção de compra abre o carrinho.
+  const handleTemplateClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = (event.target as HTMLElement).closest("button, a");
+    if (!target) return;
+    const text = (target.textContent || "").trim().toLowerCase();
+    const aria = (target.getAttribute("aria-label") || "").toLowerCase();
+    if (/adicionar ao carrinho|comprar|carrinho/.test(text + " " + aria)) {
+      event.preventDefault();
+      if (slug) navigate(`/loja/${slug}/carrinho`);
+    }
+  };
+
   return (
-    <div ref={rootRef} className="bg-white text-[#111]" style={{ fontFamily: fontStack }}>
+    <div ref={rootRef} className="bg-white text-[#111]" style={{ fontFamily: fontStack }} onClick={handleTemplateClick}>
       <StorefrontLojaTemplate
         storeName={getProjectStoreName(project) || project.nome}
         accent={getProjectAccent(project)}
