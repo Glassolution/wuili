@@ -6,6 +6,8 @@ import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { usePlan } from "@/hooks/usePlan";
+import { toast } from "sonner";
 
 export type ExampleProduct = {
   id: string;
