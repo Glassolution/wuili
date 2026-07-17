@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
+type OnboardingChoice = "store" | "sales-page" | "example";
+
 const steps = [
   "Importando dados do produto...",
   "A IA está pesquisando o mercado...",
@@ -47,7 +49,18 @@ const StoreBuildProgressPage = () => {
   const ready = progress >= 95;
 
   const finishOnboarding = () => {
-    navigate("/minha-loja/editor", { replace: true, state: flow });
+    const onboardingChoice = sessionStorage.getItem("velo-onboarding-choice") as OnboardingChoice | null;
+    if (onboardingChoice === "sales-page") {
+      navigate("/minha-loja/editor", { replace: true, state: flow });
+      return;
+    }
+
+    try {
+      sessionStorage.setItem("velo-dashboard-store-tour", "1");
+    } catch {
+      // O redirecionamento não deve falhar por indisponibilidade do storage.
+    }
+    navigate("/dashboard?tour=loja", { replace: true });
   };
 
   useEffect(() => {
@@ -72,7 +85,7 @@ const StoreBuildProgressPage = () => {
 
         <h1 className="mt-14 text-[30px] font-semibold tracking-[-0.04em]">{ready ? "A sua loja está pronta!" : "Preparando sua loja IA"}</h1>
         <p className={`mt-3 text-[16px] font-medium ${ready ? "text-white/45" : "text-white/55"}`}>{ready ? "Tudo foi preparado para você." : steps[activeIndex]}</p>
-        {ready ? <button type="button" onClick={finishOnboarding} className="mt-10 h-12 w-full rounded-[7px] bg-[#f3efe8] text-[14px] font-semibold text-black transition hover:bg-white">Abrir editor</button> : null}
+        {ready ? <button type="button" onClick={finishOnboarding} className="mt-10 h-12 w-full rounded-[7px] bg-[#f3efe8] text-[14px] font-semibold text-black transition hover:bg-white">{sessionStorage.getItem("velo-onboarding-choice") === "sales-page" ? "Editar minha página" : "Ir para o painel"}</button> : null}
 
         {!ready ? (
           <div className="mt-12 w-full space-y-4 text-left">
