@@ -254,6 +254,10 @@ const DashboardHomePage = () => {
   const [entered, setEntered] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
+  const tutorialSeenKey = user?.id
+    ? `${TUTORIAL_SEEN_KEY}:${user.id}`
+    : null;
+
   useEffect(() => {
     // Pré-carrega os scripts do Vidalytics no mount do dashboard para
     // que o modal (auto ou manual) abra com o player já pronto.
@@ -268,29 +272,35 @@ const DashboardHomePage = () => {
       setEntered(true);
       return;
     }
-    // setTimeout > requestAnimationFrame: garante que o navegador pinte
-    // o estado inicial (opacity:0, translateY) antes da transição rodar.
-    const t = window.setTimeout(() => setEntered(true), 40);
+    // O atraso mantém o primeiro frame invisível tempo suficiente para a
+    // transição continuar perceptível mesmo após a hidratação da sessão.
+    const t = window.setTimeout(() => setEntered(true), 120);
     return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !tutorialSeenKey) return;
     try {
-      if (window.localStorage.getItem(TUTORIAL_SEEN_KEY)) return;
+      if (window.localStorage.getItem(tutorialSeenKey)) return;
     } catch {
-      return;
+      // Mesmo sem localStorage, a primeira entrada deve exibir o tutorial.
     }
     const timer = window.setTimeout(() => {
       setTutorialOpen(true);
+    }, 1100);
+    return () => window.clearTimeout(timer);
+  }, [tutorialSeenKey]);
+
+  const handleTutorialOpenChange = (open: boolean) => {
+    setTutorialOpen(open);
+    if (!open && tutorialSeenKey) {
       try {
-        window.localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+        window.localStorage.setItem(tutorialSeenKey, "1");
       } catch {
         /* ignore */
       }
-    }, 900);
-    return () => window.clearTimeout(timer);
-  }, []);
+    }
+  };
 
   const cta = ctaSlides[activeCta];
   const metadataRole =
@@ -371,9 +381,10 @@ const DashboardHomePage = () => {
       className="-m-5 min-h-[calc(100%+2.5rem)] bg-white pb-[clamp(110px,12vw,220px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
       style={{
         opacity: entered ? 1 : 0,
-        transform: entered ? "translateY(0)" : "translateY(14px)",
+        transform: entered ? "translateY(0) scale(1)" : "translateY(24px) scale(0.992)",
         transition:
-          "opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+          "opacity 700ms cubic-bezier(0.22, 1, 0.36, 1), transform 700ms cubic-bezier(0.22, 1, 0.36, 1)",
+        willChange: "opacity, transform",
       }}
     >
       <section className="relative w-full overflow-visible bg-white text-[#252936]">
@@ -834,7 +845,7 @@ const DashboardHomePage = () => {
         </button>
       </div>
       <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
-      <TutorialModal open={tutorialOpen} onOpenChange={setTutorialOpen} />
+      <TutorialModal open={tutorialOpen} onOpenChange={handleTutorialOpenChange} />
       
     </main>
   );
