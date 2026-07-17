@@ -172,11 +172,86 @@ const CheckoutPage = () => {
   const [cardCvc, setCardCvc] = useState("");
   const [cardHolder, setCardHolder] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [referralDiscount, setReferralDiscount] = useState(0);
   const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (session?.user?.email && !email) setEmail(session.user.email);
   }, [session, email]);
+
+  // Detecta se o usuário tem desconto de indicação disponível (convidado ou convidador com reward).
+  useEffect(() => {
+    const userId = session?.user?.id;
+    const userEmail = session?.user?.email;
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      // Se já tem assinatura paga ativa, não aplica.
+      const { data: subs } = await supabase
+        .from("subscriptions")
+        .select("plan,status")
+        .eq("user_id", userId);
+      const hasPaid = (subs ?? []).some((s) => {
+        const p = String(s.plan ?? "").toLowerCase();
+        return p && p !== "gratis" && p !== "free" && s.status === "active";
+      });
+
+      // 1) Convidado com desconto disponível
+      if (!hasPaid) {
+        const nowIso = new Date().toISOString();
+        let { data: ref } = await supabase
+          .from("referrals")
+          .select("id,expires_at,invited_rewarded,status")
+          .eq("invited_user_id", userId)
+          .in("status", ["linked", "pending"])
+          .eq("invited_rewarded", false)
+          .gt("expires_at", nowIso)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!ref && userEmail) {
+          const { data: refByEmail } = await supabase
+            .from("referrals")
+            .select("id,expires_at,invited_rewarded,status")
+            .ilike("invited_email", userEmail)
+            .in("status", ["pending", "linked"])
+            .eq("invited_rewarded", false)
+            .gt("expires_at", nowIso)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (refByEmail) ref = refByEmail;
+        }
+        if (!cancelled && ref) {
+          setReferralDiscount(15);
+          return;
+        }
+      }
+
+      // 2) Convidador com recompensa disponível
+      const { data: rewardRef } = await supabase
+        .from("referrals")
+        .select("id")
+        .eq("inviter_id", userId)
+        .eq("status", "subscribed")
+        .eq("inviter_rewarded", true)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled && rewardRef) setReferralDiscount(15);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id, session?.user?.email]);
+
+  const applyReferral = (brl: string) => {
+    if (!referralDiscount) return brl;
+    const n = parseBRL(brl);
+    return formatBRL(n * (1 - referralDiscount / 100));
+  };
+  const hasReferralDiscount = referralDiscount > 0;
+  const originalCheckoutPrice = checkoutPrice;
+  const finalCheckoutPrice = hasReferralDiscount ? applyReferral(checkoutPrice) : checkoutPrice;
 
   useEffect(() => {
     if (!showPaymentStep || !session?.user?.id) return;
