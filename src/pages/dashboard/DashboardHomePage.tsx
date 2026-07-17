@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -11,6 +11,7 @@ import {
   Megaphone,
   MessageSquare,
   Package,
+  PlayCircle,
   Search,
   Sparkles,
   X,
@@ -19,6 +20,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
+import TutorialModal from "@/components/dashboard/TutorialModal";
+
+const TUTORIAL_SEEN_KEY = "velo_tutorial_seen";
 
 const DASHBOARD_IMAGE_SRC = "/assets/dashboard-inicio-colado.png";
 const WHATSAPP_SUPPORT_URL =
