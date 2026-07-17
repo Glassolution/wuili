@@ -14,21 +14,7 @@ const getFirstImage = (images: unknown): string => {
 const formatPrice = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const getDailySeed = () => Math.floor(Date.now() / 86_400_000);
-
-const seededHash = (value: string, seed: number) => {
-  let hash = seed || 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-};
-
-const getDailyProducts = (items: ExampleProduct[]) =>
-  [...items]
-    .sort((left, right) => seededHash(left.id, getDailySeed()) - seededHash(right.id, getDailySeed()))
-    .slice(0, 8);
+const PRODUCT_COUNT = 8;
 
 const ExampleProductSelectionPage = () => {
   const location = useLocation();
@@ -46,12 +32,15 @@ const ExampleProductSelectionPage = () => {
         .eq("source", "c7drop")
         .eq("is_blocked", false)
         .gt("stock_quantity", 0)
-        .order("id", { ascending: true })
-        .limit(48);
+        // Sempre mostrar o que entrou de mais novo no catálogo. O scraper regrava
+        // scraped_at/updated_at em todos os produtos a cada rodada, então só
+        // created_at distingue as novidades do dia.
+        .order("created_at", { ascending: false, nullsFirst: false })
+        .limit(PRODUCT_COUNT);
       if (!mounted) return;
       if (error || !data?.length) { veloToast.error("Não foi possível carregar os produtos de exemplo."); setLoading(false); return; }
       const mapped = data.map((product) => ({ id: product.id, title: product.title || "Produto do catálogo Velo", price: Number(product.cost_price) || 0, imageUrl: getFirstImage(product.images) }));
-      setProducts(getDailyProducts(mapped));
+      setProducts(mapped);
       setSelectedProducts([]);
       setLoading(false);
     };
@@ -59,10 +48,20 @@ const ExampleProductSelectionPage = () => {
     return () => { mounted = false; };
   }, []);
 
+  // O state da navegação some se o usuário recarregar a página, então a escolha
+  // feita em /comecar também é lida do sessionStorage.
+  const onboardingChoice =
+    (location.state as { onboardingChoice?: string } | null)?.onboardingChoice ||
+    sessionStorage.getItem("velo-onboarding-choice") ||
+    "";
+  // Uma página de vendas é focada em um único produto.
+  const singleSelection = onboardingChoice === "sales-page";
+
   const toggleProduct = (product: ExampleProduct) => {
     setSelectedProducts((current) => {
       const isSelected = current.some((item) => item.id === product.id);
       if (isSelected) return current.filter((item) => item.id !== product.id);
+      if (singleSelection) return [product];
       return [...current, product];
     });
   };
@@ -70,7 +69,6 @@ const ExampleProductSelectionPage = () => {
   const continueWithProducts = () => {
     const primaryProduct = selectedProducts[0];
     if (!primaryProduct) return;
-    const onboardingChoice = (location.state as { onboardingChoice?: string } | null)?.onboardingChoice;
     if (onboardingChoice) sessionStorage.setItem("velo-onboarding-choice", onboardingChoice);
     sessionStorage.setItem("velo-example-product", JSON.stringify(primaryProduct));
     sessionStorage.setItem("velo-example-products", JSON.stringify(selectedProducts));
@@ -98,7 +96,9 @@ const ExampleProductSelectionPage = () => {
               Escolha o produto que combina com sua loja
             </h1>
             <p className="mt-3 max-w-[560px] text-[13.5px] leading-[1.55] text-[#687086]">
-              Selecione um item real do catálogo Velo para montar a primeira página. Depois você pode trocar tudo no editor.
+              {singleSelection
+                ? "Sua página de vendas é focada em um único produto. Escolha um item real do catálogo Velo — depois você pode trocar tudo no editor."
+                : "Selecione um item real do catálogo Velo para montar a primeira página. Depois você pode trocar tudo no editor."}
             </p>
           </div>
 
@@ -165,7 +165,9 @@ const ExampleProductSelectionPage = () => {
               <p className="text-[12.5px] font-medium text-[#697083]">
                 {selectedProducts.length > 0
                   ? `${selectedProducts.length} produto${selectedProducts.length > 1 ? "s" : ""} selecionado${selectedProducts.length > 1 ? "s" : ""}`
-                  : "Escolha um ou mais produtos para continuar"}
+                  : singleSelection
+                    ? "Escolha um produto para continuar"
+                    : "Escolha um ou mais produtos para continuar"}
               </p>
               <button
                 type="button"

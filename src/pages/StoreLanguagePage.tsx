@@ -1,34 +1,50 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentType } from "react";
 import { Check, ChevronLeft, Globe2, Search, Store } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import {
+  BD, BG, BR, CN, DE, DK, ES, FI, FR, GR, HR, HU, ID, IL, IN, IT, JP, KR,
+  NL, NO, PL, PT, RO, SA, SE, SK, TH, TR, UA, US, ZA,
+} from "country-flag-icons/react/3x2";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 
-type LanguageOption = { name: string; flag: string };
+// Emoji de bandeira não renderiza no Windows (a fonte do sistema não tem os
+// indicadores regionais, e o Chrome cai para as letras "BR"/"PT"). Por isso as
+// bandeiras vêm como SVG, que funciona igual em qualquer sistema.
+type FlagComponent = ComponentType<{ className?: string; title?: string }>;
+type LanguageOption = { name: string; Flag: FlagComponent };
+
+// O catalão não é idioma de um país, então não tem bandeira própria.
+const GenericFlag: FlagComponent = ({ className }) => (
+  <Globe2 className={className} strokeWidth={1.6} />
+);
 
 const featuredLanguages: LanguageOption[] = [
-  { name: "Português (Brasil)", flag: "🇧🇷" },
-  { name: "Português (Portugal)", flag: "🇵🇹" },
-  { name: "Inglês", flag: "🇺🇸" },
-  { name: "Espanhol", flag: "🇪🇸" },
-  { name: "Francês", flag: "🇫🇷" },
-  { name: "Alemão", flag: "🇩🇪" },
+  { name: "Português (Brasil)", Flag: BR },
+  { name: "Português (Portugal)", Flag: PT },
+  { name: "Inglês", Flag: US },
+  { name: "Espanhol", Flag: ES },
+  { name: "Francês", Flag: FR },
+  { name: "Alemão", Flag: DE },
 ];
 
 const otherLanguages: LanguageOption[] = [
-  { name: "Africâner", flag: "🇿🇦" }, { name: "Árabe", flag: "🇸🇦" },
-  { name: "Bengali", flag: "🇧🇩" }, { name: "Búlgaro", flag: "🇧🇬" },
-  { name: "Catalão", flag: "🏳️" }, { name: "Chinês", flag: "🇨🇳" },
-  { name: "Coreano", flag: "🇰🇷" }, { name: "Croata", flag: "🇭🇷" },
-  { name: "Dinamarquês", flag: "🇩🇰" }, { name: "Eslovaco", flag: "🇸🇰" },
-  { name: "Finlandês", flag: "🇫🇮" }, { name: "Grego", flag: "🇬🇷" },
-  { name: "Hebraico", flag: "🇮🇱" }, { name: "Hindi", flag: "🇮🇳" },
-  { name: "Holandês", flag: "🇳🇱" }, { name: "Húngaro", flag: "🇭🇺" },
-  { name: "Indonésio", flag: "🇮🇩" }, { name: "Italiano", flag: "🇮🇹" },
-  { name: "Japonês", flag: "🇯🇵" }, { name: "Norueguês", flag: "🇳🇴" },
-  { name: "Polonês", flag: "🇵🇱" }, { name: "Romeno", flag: "🇷🇴" },
-  { name: "Sueco", flag: "🇸🇪" }, { name: "Tailandês", flag: "🇹🇭" },
-  { name: "Turco", flag: "🇹🇷" }, { name: "Ucraniano", flag: "🇺🇦" },
+  { name: "Africâner", Flag: ZA }, { name: "Árabe", Flag: SA },
+  { name: "Bengali", Flag: BD }, { name: "Búlgaro", Flag: BG },
+  { name: "Catalão", Flag: GenericFlag }, { name: "Chinês", Flag: CN },
+  { name: "Coreano", Flag: KR }, { name: "Croata", Flag: HR },
+  { name: "Dinamarquês", Flag: DK }, { name: "Eslovaco", Flag: SK },
+  { name: "Finlandês", Flag: FI }, { name: "Grego", Flag: GR },
+  { name: "Hebraico", Flag: IL }, { name: "Hindi", Flag: IN },
+  { name: "Holandês", Flag: NL }, { name: "Húngaro", Flag: HU },
+  { name: "Indonésio", Flag: ID }, { name: "Italiano", Flag: IT },
+  { name: "Japonês", Flag: JP }, { name: "Norueguês", Flag: NO },
+  { name: "Polonês", Flag: PL }, { name: "Romeno", Flag: RO },
+  { name: "Sueco", Flag: SE }, { name: "Tailandês", Flag: TH },
+  { name: "Turco", Flag: TR }, { name: "Ucraniano", Flag: UA },
 ];
+
+// Bandeiras claras (Japão, Finlândia) somem no card branco sem o contorno.
+const FLAG_CLASS = "h-[15px] w-[22px] shrink-0 rounded-[2px] object-cover ring-1 ring-black/10";
 
 const StoreLanguagePage = () => {
   const location = useLocation();
@@ -90,7 +106,7 @@ const StoreLanguagePage = () => {
                 const selected = selectedLanguage === language.name;
                 return (
                   <button key={language.name} type="button" onClick={() => chooseLanguage(language.name)} className={`flex h-[54px] items-center gap-3 rounded-[10px] border px-4 text-left outline-none transition hover:-translate-y-0.5 hover:border-black/30 hover:bg-white hover:shadow-[0_14px_34px_rgba(15,23,42,0.07)] focus-visible:ring-4 focus-visible:ring-black/10 ${selected ? "border-black bg-white shadow-[inset_3px_0_0_rgba(0,0,0,0.82),0_14px_34px_rgba(15,23,42,0.08)]" : "border-[#dfe4ef] bg-white"} ${index === featuredLanguages.length - 1 ? "sm:col-span-2" : ""}`}>
-                    <span className="text-[20px] leading-none" aria-hidden="true">{language.flag}</span>
+                    <language.Flag className={FLAG_CLASS} title={language.name} />
                     <span className={`flex-1 text-[13px] font-medium ${selected ? "text-[#101522]" : "text-[#697083]"}`}>{language.name}</span>
                     {selected ? <Check size={15} className="text-[#101522]" /> : null}
                   </button>
@@ -114,7 +130,7 @@ const StoreLanguagePage = () => {
                 <div className="mt-2 max-h-[150px] overflow-y-auto">
                   {filteredLanguages.map((language) => (
                     <button key={language.name} type="button" onClick={() => chooseLanguage(language.name)} className={`flex w-full items-center gap-3 rounded-[6px] px-3 py-2 text-left text-[12px] transition hover:bg-[#f5f6f8] ${selectedLanguage === language.name ? "bg-[#eef0f5] text-[#101522]" : "text-[#697083]"}`}>
-                      <span className="text-[16px]">{language.flag}</span><span className="flex-1">{language.name}</span>{selectedLanguage === language.name ? <Check size={13} /> : null}
+                      <language.Flag className={FLAG_CLASS} title={language.name} /><span className="flex-1">{language.name}</span>{selectedLanguage === language.name ? <Check size={13} /> : null}
                     </button>
                   ))}
                   {filteredLanguages.length === 0 ? <p className="px-3 py-5 text-center text-[11px] text-[#8b94a6]">Nenhum idioma encontrado.</p> : null}

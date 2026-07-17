@@ -24,6 +24,22 @@ type EditorPanelTab = "detalhes" | "personalizar";
 type EditorPanelSection = "template" | "produtos" | "imagem" | "aparencia";
 type ContextDrawerMode = "template" | "products";
 
+type TemplateRef = { kind: "loja" | "produto"; id: string };
+
+const LOJA_TEMPLATE: TemplateRef = { kind: "loja", id: "loja-1" };
+const PRODUTO_TEMPLATE: TemplateRef = { kind: "produto", id: "produto-1" };
+
+// Quem escolheu "página de vendas" no /comecar precisa abrir num template de
+// produto. Sem isso o editor abria sempre em loja-1, independente da escolha.
+// Projeto salvo continua mandando: a hidratação sobrescreve isso depois.
+const getInitialTemplate = (): TemplateRef => {
+  try {
+    return sessionStorage.getItem("velo-onboarding-choice") === "sales-page" ? PRODUTO_TEMPLATE : LOJA_TEMPLATE;
+  } catch {
+    return LOJA_TEMPLATE;
+  }
+};
+
 const getFirstImage = (images: unknown) => {
   if (Array.isArray(images)) return images.find((image): image is string => typeof image === "string" && image.trim().length > 0) || "";
   if (typeof images === "string") { try { return getFirstImage(JSON.parse(images)); } catch { return images; } }
@@ -313,14 +329,15 @@ const GeneratedStoreEditorPage = () => {
     aparencia: true,
   });
   const [contextDrawer, setContextDrawer] = useState<ContextDrawerMode | null>(null);
-  const [templateCategory, setTemplateCategory] = useState<"loja" | "produto">("loja");
+  const initialTemplate = useMemo(getInitialTemplate, []);
+  const [templateCategory, setTemplateCategory] = useState<"loja" | "produto">(initialTemplate.kind);
   const [currentTemplate, setCurrentTemplate] = useState("Template 1");
   // Id do projeto cujo template já foi hidratado. Enquanto for diferente do
-  // projeto aberto, o canvas não renderiza — senão o "loja-1" default apareceria
+  // projeto aberto, o canvas não renderiza — senão o default apareceria
   // por um instante antes do template realmente escolhido.
   const [hydratedProjectId, setHydratedProjectId] = useState<string | null>(null);
-  const [activeTemplate, setActiveTemplate] = useState<{ kind: "loja" | "produto"; id: string }>({ kind: "loja", id: "loja-1" });
-  const [draftTemplate, setDraftTemplate] = useState<{ kind: "loja" | "produto"; id: string }>({ kind: "loja", id: "loja-1" });
+  const [activeTemplate, setActiveTemplate] = useState<{ kind: "loja" | "produto"; id: string }>(initialTemplate);
+  const [draftTemplate, setDraftTemplate] = useState<{ kind: "loja" | "produto"; id: string }>(initialTemplate);
   const [draftProductIds, setDraftProductIds] = useState<string[]>([]);
   const [replacingProductPath, setReplacingProductPath] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<EditMode>("select");
@@ -2427,6 +2444,23 @@ const GeneratedStoreEditorPage = () => {
 
   return (
     <main className="relative flex h-screen flex-col overflow-hidden bg-[#18191b] text-white" style={{ fontFamily: selectedFontStack }}>
+      <style>
+        {`
+          /* Entrada do editor: revela o canvas em vez de trocar de tela seco. */
+          @keyframes veloEditorEnter {
+            0% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .velo-editor-enter { animation-duration: 1ms !important; }
+          }
+        `}
+      </style>
+      <div
+        aria-hidden="true"
+        className="velo-editor-enter pointer-events-none fixed inset-0 z-[999] bg-[#18191b] [animation:veloEditorEnter_620ms_ease-out_forwards]"
+      />
       <style>{`.store-editor-preview [data-editor-selected="true"]{outline:2px solid #686d72;outline-offset:4px}.store-editor-preview [data-editor-hover-bg="true"]:hover{background-color:var(--editor-hover-bg)!important}.editor-mode-active [data-editor-type]:hover,.editor-mode-active button:hover,.editor-mode-active [data-editor-role="button"]:hover{outline:1.5px dashed #686d72;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}.editor-sidebar-scroll{scrollbar-width:thin;scrollbar-color:#4a4f55 transparent}.editor-sidebar-scroll::-webkit-scrollbar{width:5px}.editor-sidebar-scroll::-webkit-scrollbar-track{background:transparent}.editor-sidebar-scroll::-webkit-scrollbar-thumb{border-radius:999px;background:#4a4f55}.editor-sidebar-scroll::-webkit-scrollbar-thumb:hover{background:#636970}.editor-context-drawer{animation:editorDrawerIn 200ms ease both}@keyframes editorDrawerIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
       <header data-canvas-ui className="pointer-events-none absolute inset-x-0 top-0 z-[70] grid h-[72px] grid-cols-[1fr_auto_1fr] items-center px-5 text-[#f4f4f5]">
         <div className="pointer-events-auto relative flex min-w-0 items-center gap-3">
@@ -2975,7 +3009,9 @@ const GeneratedStoreEditorPage = () => {
                   Adicionar produtos
                 </button>
                 <div className="my-3 h-px bg-[#292d31]" />
-                <button type="button" onClick={() => navigate("/catalogo")} className="group flex h-8 w-full items-center gap-2 rounded-[9px] px-2 text-left text-[9px] font-medium text-white/66 outline-none transition hover:bg-white/[0.06] hover:text-white">
+                {/* Abre o catálogo dentro do editor. Antes levava para /catalogo,
+                    uma tela antiga que tirava o usuário do editor. */}
+                <button type="button" onClick={openProductsDrawer} className="group flex h-8 w-full items-center gap-2 rounded-[9px] px-2 text-left text-[9px] font-medium text-white/66 outline-none transition hover:bg-white/[0.06] hover:text-white">
                   <LayoutGrid size={13} strokeWidth={1.8} />
                   <span className="flex-1">Abrir catálogo completo</span>
                   <ChevronRight size={12} className="transition group-hover:translate-x-0.5" />

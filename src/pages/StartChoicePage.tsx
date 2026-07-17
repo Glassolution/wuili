@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ArrowUpRight, FlaskConical, PackageOpen, Store } from "lucide-react";
+import { ArrowUpRight, FlaskConical, LayoutGrid, PackageOpen, Store } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
 import { useAuth } from "@/contexts/AuthContext";
@@ -84,7 +84,7 @@ const StartChoicePage = () => {
   const [showWelcome, setShowWelcome] = useState<boolean | null>(null);
   const [welcomeReady, setWelcomeReady] = useState(false);
   const [displayName, setDisplayName] = useState("");
-  const [selectedPath, setSelectedPath] = useState<"store" | "sales-page" | "example" | null>(null);
+  const [selectedPath, setSelectedPath] = useState<"store" | "sales-page" | "catalog" | "example" | null>(null);
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
@@ -150,6 +150,13 @@ const StartChoicePage = () => {
 
   const continueToSelection = () => {
     if (!selectedPath) return;
+    // Ir ao catálogo é apenas navegação: não cria loja nem página, então não
+    // passa pelo bloqueio de plano nem pelo fluxo de escolha de produto.
+    if (selectedPath === "catalog") {
+      sessionStorage.setItem("velo-onboarding-choice", selectedPath);
+      navigate("/dashboard/catalogo");
+      return;
+    }
     // Usuários gratuitos podem CRIAR páginas de vendas — a cobrança acontece
     // no momento de publicar. Apenas a criação de LOJA COMPLETA fica bloqueada.
     if (isFreePlan && selectedPath !== "sales-page") {
@@ -281,7 +288,7 @@ const StartChoicePage = () => {
               type="button"
               onClick={() => welcomeReady && setShowWelcome(false)}
               disabled={!welcomeReady}
-              className="velo-welcome-button relative -mt-1 flex h-[52px] w-full max-w-[440px] items-center justify-center overflow-hidden rounded-[12px] bg-black text-[15px] font-semibold text-white shadow-[0_16px_40px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-black/70 disabled:text-white/75 disabled:hover:translate-y-0"
+              className="velo-welcome-button relative mt-8 flex h-[52px] w-full max-w-[440px] items-center justify-center overflow-hidden rounded-[12px] bg-black text-[15px] font-semibold text-white shadow-[0_16px_40px_rgba(0,0,0,0.16)] transition hover:-translate-y-0.5 hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-black/70 disabled:text-white/75 disabled:hover:translate-y-0"
             >
               {!welcomeReady ? <span className="velo-button-cooldown absolute inset-y-0 left-0 w-full bg-white/12" /> : null}
               <span className="relative z-10">Continuar</span>
@@ -335,27 +342,25 @@ const StartChoicePage = () => {
 
           <div className="mt-8 w-full max-w-[650px]">
             <div className="grid gap-4 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setSelectedPath("store")}
-                aria-pressed={selectedPath === "store"}
-                className={`group relative min-h-[178px] rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
-                  selectedPath === "store" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
-                }`}
+              <div
+                aria-disabled="true"
+                className="relative min-h-[178px] cursor-not-allowed rounded-[20px] border border-[#e4e8ef] bg-[#f7f8fa] p-5 text-left"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
+                <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#c3c9d4] text-white">
                   <Store size={19} strokeWidth={1.8} />
+                </span>
+                <span className="absolute right-5 top-5 rounded-full bg-[#e9ecf2] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7c8497]">
+                  Em breve
                 </span>
                 <span className="mt-14 flex items-end justify-between gap-4">
                   <span>
-                    <span className="block text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Criar minha loja</span>
-                    <span className="mt-2 block max-w-[210px] text-[12.5px] leading-5 text-[#687086]">
+                    <span className="block text-[15px] font-semibold tracking-[-0.035em] text-[#8b93a3]">Criar minha loja</span>
+                    <span className="mt-2 block max-w-[210px] text-[12.5px] leading-5 text-[#9aa2b5]">
                       Monte sua loja com produtos selecionados do catálogo Velo.
                     </span>
                   </span>
-                  <ArrowUpRight size={18} className="shrink-0 text-[#9aa2b5] transition group-hover:text-black" />
                 </span>
-              </button>
+              </div>
 
               <button
                 type="button"
@@ -379,6 +384,26 @@ const StartChoicePage = () => {
                 </span>
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedPath("catalog")}
+              aria-pressed={selectedPath === "catalog"}
+              className={`group mt-4 flex min-h-[88px] w-full items-center gap-5 rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
+                selectedPath === "catalog" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
+              }`}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
+                <LayoutGrid size={19} strokeWidth={1.8} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Ir direto para o catálogo</span>
+                <span className="mt-1 block text-[12.5px] leading-5 text-[#687086]">
+                  Veja os produtos do catálogo Velo e publique no Mercado Livre sem montar uma loja.
+                </span>
+              </span>
+              <ArrowUpRight size={18} className="shrink-0 text-[#9aa2b5] transition group-hover:text-black" />
+            </button>
 
             {isAdmin ? (
               <>
@@ -412,15 +437,19 @@ const StartChoicePage = () => {
           </div>
         </div>
 
-        <div className="absolute inset-x-6 bottom-8 z-20 flex justify-center sm:inset-x-9 lg:inset-x-14 xl:inset-x-20">
-          <button
-            type="button"
-            onClick={continueToSelection}
-            disabled={!selectedPath}
-            className="flex h-12 w-full max-w-[520px] items-center justify-center rounded-[14px] bg-black text-[14px] font-semibold text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 hover:bg-[#202020] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[#d8dde8] disabled:text-[#8b94a6] disabled:shadow-none"
-          >
-            Continuar
-          </button>
+        <div className="absolute inset-x-6 bottom-8 z-20 sm:inset-x-9 lg:inset-x-14 xl:inset-x-20">
+          <div className="mx-auto w-full max-w-[700px]">
+            <div className="flex w-full max-w-[650px] justify-center">
+              <button
+                type="button"
+                onClick={continueToSelection}
+                disabled={!selectedPath}
+                className="flex h-12 w-full max-w-[520px] items-center justify-center rounded-[14px] bg-black text-[14px] font-semibold text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 hover:bg-[#202020] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[#d8dde8] disabled:text-[#8b94a6] disabled:shadow-none"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
