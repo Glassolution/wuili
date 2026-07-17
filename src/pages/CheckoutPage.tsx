@@ -959,7 +959,7 @@ const CheckoutPage = () => {
                   {checkoutState === "loading" ? (
                     <><Loader2 size={16} className="animate-spin" /> Processando...</>
                   ) : (
-                    `Pagar ${checkoutPrice}`
+                    `Pagar ${finalCheckoutPrice}`
                   )}
                 </button>
               </>
