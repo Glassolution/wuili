@@ -18,6 +18,8 @@ import type { Json } from "@/integrations/supabase/types";
 import { fetchUserProjects, type ProjectType, type UserProject } from "@/lib/userProjects";
 import { isAdminEmail } from "@/lib/adminAccess";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
+import { usePlan } from "@/hooks/usePlan";
+import { toast } from "sonner";
 
 type ProjectCard = {
   id: string;
