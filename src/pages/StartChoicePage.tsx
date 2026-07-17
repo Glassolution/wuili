@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ArrowUpRight, FlaskConical, PackageOpen, Store } from "lucide-react";
+import { ArrowUpRight, FlaskConical, Store } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
 import { useAuth } from "@/contexts/AuthContext";
@@ -317,11 +317,11 @@ const StartChoicePage = () => {
             Como você quer começar?
           </h1>
           <p className="mt-3 max-w-[500px] text-[13px] font-normal leading-[1.55] text-[#687086] sm:text-[13.5px]">
-            Escolha o caminho que combina com o seu momento. Você pode montar sua loja completa ou criar uma página de vendas focada em um produto.
+            Monte sua loja completa seguindo todas as etapas da configuração guiada.
           </p>
 
           <div className="mt-8 w-full max-w-[650px]">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4">
               <button
                 type="button"
                 onClick={() => setSelectedPath("/onboarding/escolher-produto")}
@@ -344,27 +344,6 @@ const StartChoicePage = () => {
                 </span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setSelectedPath("/produto/editor")}
-                aria-pressed={selectedPath === "/produto/editor"}
-                className={`group relative min-h-[178px] rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
-                  selectedPath === "/produto/editor" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
-                }`}
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
-                  <PackageOpen size={19} strokeWidth={1.8} />
-                </span>
-                <span className="mt-14 flex items-end justify-between gap-4">
-                  <span>
-                    <span className="block text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Criar página de vendas</span>
-                    <span className="mt-2 block max-w-[210px] text-[12.5px] leading-5 text-[#687086]">
-                      Personalize uma oferta focada em um produto e prepare sua página para vender.
-                    </span>
-                  </span>
-                  <ArrowUpRight size={18} className="shrink-0 text-[#9aa2b5] transition group-hover:text-black" />
-                </span>
-              </button>
             </div>
 
             {isAdmin ? (

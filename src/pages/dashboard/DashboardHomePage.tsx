@@ -72,14 +72,6 @@ const toolCards = [
     href: "/dashboard/catalogo",
   },
   {
-    left: "26.2%",
-    icon: Sparkles,
-    title: "Pagina de vendas",
-    badge: "NOVO",
-    description: "Crie uma oferta pronta para apresentar e vender.",
-    href: "/produto/editor",
-  },
-  {
     left: "43.8%",
     icon: Home,
     title: "Loja completa",

@@ -190,7 +190,7 @@ const StoreProjectsPage = () => {
       return;
     }
 
-    navigate("/produto/editor", { state: { projectId: project.id, sourceId: project.sourceId, slug: project.slug } });
+    navigate(project.slug ? `/preview/${project.slug}` : "/dashboard/minha-loja");
   };
 
   const handleProjectCreated = async (projectId: string) => {
@@ -203,7 +203,7 @@ const StoreProjectsPage = () => {
         navigate("/minha-loja/editor", { state: { projectId } });
         return;
       }
-      navigate("/produto/editor", { state: { projectId } });
+      navigate("/dashboard/minha-loja");
     } catch {
       navigate("/minha-loja/editor", { state: { projectId } });
     }
