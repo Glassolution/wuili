@@ -1,13 +1,8 @@
+// Fase 1: escreve o copy gerado por IA em user_projects.metadata.copy.
+// Fluxo antigo (insert em generated_sales_pages) foi descontinuado — a tabela
+// legada é somente-leitura a partir de agora (ver migration de deprecação).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-
-const slugify = (s: string) =>
-  s.toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || "loja";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -38,8 +33,50 @@ Deno.serve(async (req) => {
     }
     const userId = userData.user.id;
 
-    const { catalog_product_id, store_name, store_logo_url, store_description } = await req.json();
-    if (!catalog_product_id) {
+    const body = (await req.json().catch(() => ({}))) as {
+      project_id?: string;
+      catalog_product_id?: string;
+      store_name?: string | null;
+      store_logo_url?: string | null;
+      store_description?: string | null;
+    };
+
+    if (!body?.project_id) {
+      return new Response(JSON.stringify({ error: "project_id required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Autoriza pelo dono do projeto (RLS extra: só quem criou pode gerar copy).
+    const { data: project, error: projErr } = await admin
+      .from("user_projects")
+      .select("id, user_id, metadata")
+      .eq("id", body.project_id)
+      .maybeSingle();
+    if (projErr || !project) {
+      return new Response(JSON.stringify({ error: "project_not_found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (project.user_id !== userId) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Descobre o produto: preferência para o passado no body; senão, primeiro
+    // productId salvo em metadata pela persistência do wizard.
+    const metadata =
+      project.metadata && typeof project.metadata === "object" && !Array.isArray(project.metadata)
+        ? (project.metadata as Record<string, unknown>)
+        : {};
+    const productIds = Array.isArray(metadata.productIds)
+      ? (metadata.productIds as unknown[]).filter((id): id is string => typeof id === "string")
+      : [];
+    const catalogProductId =
+      body.catalog_product_id || (typeof metadata.catalog_product_id === "string" ? metadata.catalog_product_id : "") || productIds[0];
+
+    if (!catalogProductId) {
       return new Response(JSON.stringify({ error: "catalog_product_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -48,7 +85,7 @@ Deno.serve(async (req) => {
     const { data: product, error: prodErr } = await admin
       .from("catalog_products")
       .select("id, title, description, suggested_price, images, category")
-      .eq("id", catalog_product_id)
+      .eq("id", catalogProductId)
       .maybeSingle();
     if (prodErr || !product) {
       return new Response(JSON.stringify({ error: "product_not_found" }), {
@@ -56,6 +93,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fallback de copy (idêntico ao antigo — preserva a mesma forma quando a IA falha).
     let headline = `${product.title} — Frete Rápido e Garantia`;
     let subheadline = "Aproveite hoje com envio para todo o Brasil.";
     let benefits: Array<{ title: string; description: string }> = [
@@ -123,23 +161,12 @@ Retorne JSON com essa estrutura exata:
       }
     }
 
-    // Slug único
-    let baseSlug = slugify(product.title);
-    let slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
-    for (let i = 0; i < 5; i++) {
-      const { data: exists } = await admin.from("generated_sales_pages").select("id").eq("slug", slug).maybeSingle();
-      if (!exists) break;
-      slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
-    }
+    const heroImage = Array.isArray(product.images) ? (product.images[0] as string | null) : null;
 
-    const heroImage = Array.isArray(product.images) ? product.images[0] : null;
-
-    const { data: inserted, error: insertErr } = await admin
-      .from("generated_sales_pages")
-      .insert({
-        user_id: userId,
-        catalog_product_id: product.id,
-        slug,
+    // Merge shallow no metadata do projeto: sobrescreve apenas a chave `copy`.
+    const nextMetadata = {
+      ...metadata,
+      copy: {
         headline,
         subheadline,
         benefits,
@@ -148,21 +175,33 @@ Retorne JSON com essa estrutura exata:
         hero_image_url: heroImage,
         price_brl: product.suggested_price,
         product_title: product.title,
-        store_name: store_name || null,
-        store_logo_url: store_logo_url || null,
-        store_description: store_description || null,
+        store_name: body.store_name ?? (typeof metadata.storeName === "string" ? metadata.storeName : null),
+        store_logo_url: body.store_logo_url ?? (typeof metadata.logoImage === "string" ? metadata.logoImage : null),
+        store_description: body.store_description ?? null,
+      },
+      // Guarda o catalog_product_id para consultas rápidas (redundante com productIds
+      // mas evita ter que remontar o array no lado do cliente).
+      catalog_product_id: catalogProductId,
+    };
+
+    const { data: updated, error: updErr } = await admin
+      .from("user_projects")
+      .update({
+        metadata: nextMetadata,
+        last_edited_at: new Date().toISOString(),
       })
-      .select()
+      .eq("id", project.id)
+      .select("id, metadata")
       .single();
 
-    if (insertErr) {
-      console.error("insert error:", insertErr);
-      return new Response(JSON.stringify({ error: "insert_failed", details: insertErr.message }), {
+    if (updErr) {
+      console.error("user_projects update error:", updErr);
+      return new Response(JSON.stringify({ error: "update_failed", details: updErr.message }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ page: inserted }), {
+    return new Response(JSON.stringify({ project: updated }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
