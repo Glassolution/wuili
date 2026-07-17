@@ -175,8 +175,46 @@ export function useSalesPageData(slug: string | undefined) {
             },
           )
           .subscribe();
+
+        // BroadcastChannel: reflete as edições do dono em tempo real, ANTES
+        // do autosave chegar ao banco. O editor emite overrides a cada mudança
+        // e aqui re-extraímos o preço/marca localmente.
+        let bc: BroadcastChannel | null = null;
+        if (typeof BroadcastChannel !== "undefined") {
+          try {
+            bc = new BroadcastChannel(`sales-page:${slug}`);
+            bc.onmessage = (ev) => {
+              if (!active) return;
+              const msg = ev.data as { type?: string; storeName?: string; accent?: string; elementOverrides?: Record<string, { textContent?: string }> } | null;
+              if (!msg || msg.type !== "overrides") return;
+              const priceRe = /R\$\s*([\d.]+(?:,\d{1,2})?)/i;
+              const found: number[] = [];
+              for (const ov of Object.values(msg.elementOverrides ?? {})) {
+                const t = ov?.textContent;
+                if (typeof t !== "string") continue;
+                const m = t.match(priceRe);
+                if (!m) continue;
+                const n = Number(m[1].replace(/\./g, "").replace(",", "."));
+                if (Number.isFinite(n) && n > 0) found.push(n);
+              }
+              const newEdited = found.length ? Math.min(...found) : null;
+              setData((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      price: newEdited ?? basePrice,
+                      brand: msg.storeName || prev.brand,
+                      accent: msg.accent || prev.accent,
+                    }
+                  : prev,
+              );
+            };
+          } catch { /* sem suporte */ }
+        }
+
         cleanupChannel = () => {
           supabase.removeChannel(channel);
+          bc?.close();
         };
       } catch (err) {
         if (!active) return;
