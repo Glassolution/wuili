@@ -148,8 +148,9 @@ const App = () => (
               <Route path="/onboarding/preparando-loja" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><StoreBuildProgressPage /></ProtectedRoute>} />
               <Route path="/minha-loja" element={<Navigate to="/dashboard/minha-loja" replace />} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
-              <Route path="/produto/editor" element={<ProtectedRoute><LegacyProductEditorRedirect /></ProtectedRoute>} />
-              <Route path="/velods/produto/editor" element={<ProtectedRoute><LegacyProductEditorRedirect /></ProtectedRoute>} />
+              <Route path="/produto/editor" element={<ProtectedRoute><ProductLandingEditorPage /></ProtectedRoute>} />
+              <Route path="/velods/produto/editor" element={<ProtectedRoute><ProductLandingEditorPage /></ProtectedRoute>} />
+
               <Route path="/catalogo" element={<StoreCatalogPage />} />
               <Route path="/cadastro" element={<Navigate to="/login" replace />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
