@@ -18,7 +18,15 @@ const tint = (hex: string, alpha: number) => {
   return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
 };
 
-type ContentProps = { image: string; accent: string; title?: string; mobile?: boolean };
+type ContentProps = { image: string; accent: string; title?: string; mobile?: boolean; productImages?: string[] };
+
+/** Gera cor determinística a partir de string (para avatares de iniciais). */
+const stringToHue = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  return Math.abs(hash) % 360;
+};
+const initialsOf = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((p) => p[0] ?? "").join("").toUpperCase() || "?";
 
 /** Barra de benefícios em linha (ícone + label). */
 export const StoreBenefitsBar = ({ accent }: { accent: string }) => {
