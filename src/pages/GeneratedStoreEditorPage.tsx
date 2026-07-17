@@ -2450,9 +2450,14 @@ const GeneratedStoreEditorPage = () => {
           <button type="button" className="hidden h-9 w-9 items-center justify-center rounded-full border border-white/[0.13] bg-black/30 text-white/78 shadow-[0_12px_34px_rgba(0,0,0,0.20)] backdrop-blur-xl transition hover:border-white/25 hover:bg-black/48 hover:text-white sm:flex" aria-label="Visualizar loja">
             <Play size={15} strokeWidth={1.8} />
           </button>
-          <button type="button" onClick={handleOpenPublish} className="hidden h-9 items-center justify-center rounded-[10px] bg-[#3567e9] px-5 text-[10px] font-semibold text-white shadow-[0_10px_28px_rgba(37,86,220,0.34)] transition duration-200 hover:bg-[#4272ee] hover:shadow-[0_13px_34px_rgba(37,86,220,0.42)] active:scale-[0.98] md:flex">
-            Publicar
-          </button>
+          <div className="relative hidden md:block">
+            <button type="button" onClick={handleOpenPublish} className="flex h-9 items-center justify-center rounded-[10px] bg-[#3567e9] px-5 text-[10px] font-semibold text-white shadow-[0_10px_28px_rgba(37,86,220,0.34)] transition duration-200 hover:bg-[#4272ee] hover:shadow-[0_13px_34px_rgba(37,86,220,0.42)] active:scale-[0.98]">
+              Publicar
+            </button>
+            <span className="pointer-events-none absolute left-1/2 top-full mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-[#c98a08] bg-gradient-to-b from-[#ffe27a] to-[#f5b400] px-2 py-[3px] text-[8.5px] font-extrabold uppercase tracking-wide text-[#5c3a00] shadow-[0_4px_10px_rgba(0,0,0,0.35)]">
+              🎁 Domínio grátis
+            </span>
+          </div>
           <button type="button" className="hidden h-9 items-center justify-center rounded-[10px] bg-[#f1f2f4] px-5 text-[10px] font-semibold text-[#525660] shadow-[0_10px_28px_rgba(0,0,0,0.20)] transition duration-200 hover:bg-white hover:text-[#272a30] active:scale-[0.98] md:flex">
             Convidar
           </button>
