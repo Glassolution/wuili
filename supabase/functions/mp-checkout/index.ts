@@ -318,6 +318,10 @@ Deno.serve(async (req) => {
       status: mpData.status,
       payment_id: mpData.id,
       plan: plan,
+      amount: selectedPlan.amount,
+      original_amount: originalAmount,
+      discount_percent: discountPercent > 0 ? discountPercent : null,
+      referral_applied: !!appliedReferralId,
     };
 
     // PIX: return QR code data
