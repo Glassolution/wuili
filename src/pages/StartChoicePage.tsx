@@ -145,6 +145,7 @@ const StartChoicePage = () => {
 
   const continueToSelection = () => {
     if (!selectedPath) return;
+    sessionStorage.setItem("velo-onboarding-choice", selectedPath);
     navigate("/onboarding/escolher-produto", { state: { onboardingChoice: selectedPath } });
   };
 

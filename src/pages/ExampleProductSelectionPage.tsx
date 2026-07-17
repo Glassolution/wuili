@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronLeft, Loader2, PackageOpen, Store } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
@@ -31,6 +31,7 @@ const getDailyProducts = (items: ExampleProduct[]) =>
     .slice(0, 8);
 
 const ExampleProductSelectionPage = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [products, setProducts] = useState<ExampleProduct[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<ExampleProduct[]>([]);
@@ -69,9 +70,11 @@ const ExampleProductSelectionPage = () => {
   const continueWithProducts = () => {
     const primaryProduct = selectedProducts[0];
     if (!primaryProduct) return;
+    const onboardingChoice = (location.state as { onboardingChoice?: string } | null)?.onboardingChoice;
+    if (onboardingChoice) sessionStorage.setItem("velo-onboarding-choice", onboardingChoice);
     sessionStorage.setItem("velo-example-product", JSON.stringify(primaryProduct));
     sessionStorage.setItem("velo-example-products", JSON.stringify(selectedProducts));
-    navigate("/onboarding/preparando-produto", { state: { product: primaryProduct, products: selectedProducts } });
+    navigate("/onboarding/preparando-produto", { state: { product: primaryProduct, products: selectedProducts, onboardingChoice } });
   };
 
   return (
