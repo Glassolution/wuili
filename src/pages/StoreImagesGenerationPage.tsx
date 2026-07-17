@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
+import { readOnboardingProjectId } from "@/lib/onboardingProject";
 import {
   markStoreOnboardingCompleted,
   readUserStores,
