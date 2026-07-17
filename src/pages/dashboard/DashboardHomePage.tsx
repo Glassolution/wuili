@@ -795,7 +795,7 @@ const DashboardHomePage = () => {
         </button>
       </div>
       <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
-      <TutorialModal open={tutorialOpen} onOpenChange={setTutorialOpen} />
+      
     </main>
   );
 };
