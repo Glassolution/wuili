@@ -334,12 +334,19 @@ Deno.serve(async (req) => {
 
       // Marca o referral como 'subscribed' e credita reward do convidador (se aplicável)
       if (appliedReferralId) {
-        await adminClient.from("referrals").update({
-          status: "subscribed",
-          subscribed_at: now.toISOString(),
-          invited_rewarded: true,
-          inviter_rewarded: rewardInviter,
-        }).eq("id", appliedReferralId);
+        if (isInviterReward) {
+          // Convidador consumindo o desconto — apenas zera o flag
+          await adminClient.from("referrals").update({
+            inviter_rewarded: false,
+          }).eq("id", appliedReferralId);
+        } else {
+          await adminClient.from("referrals").update({
+            status: "subscribed",
+            subscribed_at: now.toISOString(),
+            invited_rewarded: true,
+            inviter_rewarded: rewardInviter,
+          }).eq("id", appliedReferralId);
+        }
       }
 
       if (!isTrial && subscriptionRow) {
