@@ -7,10 +7,35 @@ import {
   fetchPublicProject,
   fetchPublicStoreProducts,
   getProjectAccent,
+  getProjectOverrides,
   getProjectProductIds,
   getProjectStoreName,
   type UserProject,
 } from "@/lib/userProjects";
+
+/**
+ * Extrai o preço editado pelo dono no editor visual. O editor guarda a edição
+ * do preço como um textContent override em `metadata.elementOverrides` (path
+ * estrutural → { textContent: "R$ 30,00" }). Aqui varremos todos os overrides
+ * e pegamos o menor valor em BRL — normalmente é o preço promocional exibido
+ * na página; o riscado (original) sempre é maior. Se nenhum override de preço
+ * for encontrado, retorna null e o fallback é o preço vindo do catálogo.
+ */
+function extractEditedPrice(project: UserProject): number | null {
+  const overrides = getProjectOverrides(project);
+  const priceRe = /R\$\s*([\d.]+(?:,\d{1,2})?)/i;
+  const found: number[] = [];
+  for (const override of Object.values(overrides)) {
+    const text = override?.textContent;
+    if (typeof text !== "string") continue;
+    const match = text.match(priceRe);
+    if (!match) continue;
+    const parsed = Number(match[1].replace(/\./g, "").replace(",", "."));
+    if (Number.isFinite(parsed) && parsed > 0) found.push(parsed);
+  }
+  if (found.length === 0) return null;
+  return Math.min(...found);
+}
 
 export type SalesPageData = {
   slug: string;
