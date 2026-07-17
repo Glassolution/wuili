@@ -115,7 +115,7 @@ export default function PreviewPage() {
                 {page.price_brl && <span className="text-slate-400 line-through">R$ {(page.price_brl * 1.4).toFixed(2)}</span>}
               </div>
               <button
-                onClick={() => setShowBuyModal(true)}
+                onClick={() => navigate(`/loja/${page.slug}/carrinho`)}
                 className="mt-8 w-full md:w-auto rounded-xl bg-slate-900 text-white px-8 py-4 font-semibold text-lg hover:bg-slate-800 transition"
               >
                 {page.cta_text}
