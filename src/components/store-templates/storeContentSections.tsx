@@ -50,12 +50,12 @@ export const StoreBenefitsBar = ({ accent }: { accent: string }) => {
   );
 };
 
-/** "Como funciona em 3 passos" — imagem + número + título + descrição. */
-export const StoreThreeSteps = ({ image, accent, mobile = false }: ContentProps) => {
-  const steps = [
-    ["Receba em casa", "Seu pedido chega rápido e bem embalado, pronto para usar."],
-    ["Configure em minutos", "Simples e intuitivo: em poucos passos está tudo pronto."],
-    ["Aproveite todo dia", "Praticidade e qualidade que fazem diferença na sua rotina."],
+/** "Como funciona em 3 passos" — cards com ícone numerado (sem duplicar foto do produto). */
+export const StoreThreeSteps = ({ accent, mobile = false }: ContentProps) => {
+  const steps: Array<[typeof Truck, string, string, string]> = [
+    [Truck, "Truck", "Receba em casa", "Seu pedido chega rápido e bem embalado, pronto para usar."],
+    [Settings2, "Settings2", "Configure em minutos", "Simples e intuitivo: em poucos passos está tudo pronto."],
+    [Sparkles, "Sparkles", "Aproveite todo dia", "Praticidade e qualidade que fazem diferença na sua rotina."],
   ];
   return (
     <section className="bg-white px-6 py-14 sm:px-10">
@@ -64,18 +64,16 @@ export const StoreThreeSteps = ({ image, accent, mobile = false }: ContentProps)
           Como funciona em 3 passos
         </h2>
         <div className="mt-9 grid gap-6" style={{ gridTemplateColumns: mobile ? "1fr" : "repeat(3, minmax(0,1fr))" }}>
-          {steps.map(([title, text], index) => (
-            <div key={title} className="overflow-hidden rounded-[16px] border border-black/[0.07] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
-              <div className="relative aspect-[16/11] overflow-hidden bg-[#f1f1f0]">
-                {image ? <img data-editor-type="image" src={image} alt="" className="h-full w-full object-cover" /> : null}
-                <span className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[15px] font-black text-white" style={{ backgroundColor: accent }}>
+          {steps.map(([Icon, iconName, title, text], index) => (
+            <div key={title} className="relative overflow-hidden rounded-[16px] border border-black/[0.07] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full text-[15px] font-black text-white" style={{ backgroundColor: accent }}>
                   {index + 1}
                 </span>
+                <Icon data-editor-type="icon" data-editor-icon={iconName} size={26} style={{ color: accent }} />
               </div>
-              <div className="p-5">
-                <h3 data-editor-type="text" className="text-[17px] font-bold text-black">{title}</h3>
-                <p data-editor-type="text" className="mt-2 text-[14px] leading-relaxed text-black/60">{text}</p>
-              </div>
+              <h3 data-editor-type="text" className="mt-5 text-[18px] font-bold text-black">{title}</h3>
+              <p data-editor-type="text" className="mt-2 text-[14px] leading-relaxed text-black/60">{text}</p>
             </div>
           ))}
         </div>
