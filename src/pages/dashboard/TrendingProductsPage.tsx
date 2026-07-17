@@ -1215,6 +1215,13 @@ const TrendingProductsPage = () => {
         <SalesPageSoonModal product={salesPageSoonProduct} onClose={() => setSalesPageSoonProduct(null)} />
       ) : null}
 
+      <ProjectCreationWizard
+        open={!!wizardProduct}
+        onClose={() => setWizardProduct(null)}
+        lockedTipo="pagina_venda"
+        preselectedProductIds={wizardProduct ? [wizardProduct.id] : []}
+        onCreated={handleProjectCreated}
+      />
     </div>
   );
 };
