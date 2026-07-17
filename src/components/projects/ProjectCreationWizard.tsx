@@ -8,11 +8,13 @@ import {
   Search,
   Sparkles,
   Store,
+  Upload,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { createUserProject, type ProjectType } from "@/lib/userProjects";
+import { veloToast } from "@/components/ui/velo-toast";
 
 type CatalogProduct = {
   id: string;
@@ -98,6 +100,10 @@ type ProjectCreationWizardProps = {
   open: boolean;
   onClose: () => void;
   defaultTipo?: ProjectType;
+  /** Se definido, esconde a escolha "página de vendas / loja completa" e trava neste tipo. */
+  lockedTipo?: ProjectType;
+  /** Se definido, pula a etapa de escolha de produtos e usa esses IDs. */
+  preselectedProductIds?: string[];
   onCreated: (projectId: string) => void;
 };
 
@@ -105,15 +111,21 @@ const ProjectCreationWizard = ({
   open,
   onClose,
   defaultTipo = "pagina_venda",
+  lockedTipo,
+  preselectedProductIds,
   onCreated,
 }: ProjectCreationWizardProps) => {
+  const initialTipo = lockedTipo ?? defaultTipo;
+  const skipProducts = !!(preselectedProductIds && preselectedProductIds.length > 0);
   const [step, setStep] = useState<Step>("info");
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [tipo, setTipo] = useState<ProjectType>(defaultTipo);
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [logoImage, setLogoImage] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [tipo, setTipo] = useState<ProjectType>(initialTipo);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>(preselectedProductIds ?? []);
   const [templateId, setTemplateId] = useState<string>(
-    defaultTipo === "loja_completa" ? "loja-1" : "produto-1",
+    initialTipo === "loja_completa" ? "loja-1" : "produto-1",
   );
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
@@ -123,20 +135,22 @@ const ProjectCreationWizard = ({
   const [loadingIndex, setLoadingIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const creatingRef = useRef(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setStep("info");
     setNome("");
     setDescricao("");
-    setTipo(defaultTipo);
-    setSelectedProducts([]);
-    setTemplateId(defaultTipo === "loja_completa" ? "loja-1" : "produto-1");
+    setLogoImage(null);
+    setTipo(initialTipo);
+    setSelectedProducts(preselectedProductIds ?? []);
+    setTemplateId(initialTipo === "loja_completa" ? "loja-1" : "produto-1");
     setSearch("");
     setLoadingIndex(0);
     setError(null);
     creatingRef.current = false;
-  }, [open, defaultTipo]);
+  }, [open, initialTipo, preselectedProductIds]);
 
   useEffect(() => {
     if (!open || step !== "produtos" || products.length > 0) return;
@@ -184,6 +198,38 @@ const ProjectCreationWizard = ({
 
   const canContinueInfo = nome.trim().length >= 2;
 
+  const handleLogoUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      veloToast.error("Envie um arquivo de imagem.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      veloToast.error("A imagem deve ter no máximo 5MB.");
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id ?? "anon";
+      const ext = file.name.split(".").pop() || "png";
+      const path = `store-logos/${uid}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("assets").upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("assets").getPublicUrl(path);
+      setLogoImage(data.publicUrl);
+    } catch (err) {
+      console.error(err);
+      veloToast.error("Falha ao enviar a imagem.");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+
   const runCreation = async () => {
     if (creatingRef.current) return;
     creatingRef.current = true;
@@ -198,6 +244,7 @@ const ProjectCreationWizard = ({
         tipo,
         productIds: selectedProducts,
         template: templateId,
+        logoImage,
       });
       const elapsed = Date.now() - started;
       const minDuration = LOADING_STEPS.length * 700;
@@ -252,7 +299,7 @@ const ProjectCreationWizard = ({
                 {step !== "info" && step !== "loading" ? (
                   <button
                     type="button"
-                    onClick={() => setStep(step === "produtos" ? "info" : "produtos")}
+                    onClick={() => setStep(step === "produtos" ? "info" : skipProducts ? "info" : "produtos")}
                     className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#5f6368] transition hover:bg-[#f3f3f1]"
                     aria-label="Voltar"
                   >
@@ -292,14 +339,19 @@ const ProjectCreationWizard = ({
 
             {step !== "loading" ? (
               <div className="flex items-center gap-1.5 px-6 pt-3">
-                {[0, 1, 2].map((index) => (
-                  <span
-                    key={index}
-                    className={`h-1 flex-1 rounded-full transition-colors ${
-                      index <= stepIndex ? "bg-black" : "bg-[#e6e6e2]"
-                    }`}
-                  />
-                ))}
+                {(skipProducts ? [0, 1] : [0, 1, 2]).map((index) => {
+                  const activeIndex = skipProducts
+                    ? (step === "info" ? 0 : step === "template" ? 1 : 1)
+                    : stepIndex;
+                  return (
+                    <span
+                      key={index}
+                      className={`h-1 flex-1 rounded-full transition-colors ${
+                        index <= activeIndex ? "bg-black" : "bg-[#e6e6e2]"
+                      }`}
+                    />
+                  );
+                })}
               </div>
             ) : null}
 
@@ -314,7 +366,7 @@ const ProjectCreationWizard = ({
                 <div className="space-y-5">
                   <div>
                     <label className="mb-1.5 block text-[12px] font-semibold text-[#33363b]">
-                      Nome do projeto
+                      Nome da loja
                     </label>
                     <input
                       value={nome}
@@ -324,6 +376,52 @@ const ProjectCreationWizard = ({
                       className="h-11 w-full rounded-[10px] border border-[#e0e0dc] px-3.5 text-[14px] font-medium outline-none transition focus:border-black focus:ring-4 focus:ring-black/5"
                     />
                   </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-[12px] font-semibold text-[#33363b]">
+                      Logo / Foto da loja
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={uploadingLogo}
+                        className="h-16 w-16 shrink-0 rounded-[10px] border border-dashed border-[#d8d8d3] bg-[#faf9f7] flex items-center justify-center overflow-hidden hover:border-black/40 transition"
+                      >
+                        {uploadingLogo ? (
+                          <Loader2 size={18} className="animate-spin text-[#9a9a96]" />
+                        ) : logoImage ? (
+                          <img src={logoImage} alt="logo" className="w-full h-full object-cover" />
+                        ) : (
+                          <Store size={20} className="text-[#9a9a96]" />
+                        )}
+                      </button>
+                      <div className="flex-1">
+                        <button
+                          type="button"
+                          onClick={() => logoInputRef.current?.click()}
+                          disabled={uploadingLogo}
+                          className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#e0e0dc] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#18191c] hover:bg-[#f5f5f3] transition"
+                        >
+                          <Upload size={12} />
+                          {logoImage ? "Trocar imagem" : "Enviar imagem"}
+                        </button>
+                        <p className="mt-1 text-[10.5px] text-[#9a9a96]">PNG ou JPG, até 5MB.</p>
+                      </div>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleLogoUpload(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="mb-1.5 block text-[12px] font-semibold text-[#33363b]">
                       Descrição
@@ -336,57 +434,60 @@ const ProjectCreationWizard = ({
                       className="w-full resize-none rounded-[10px] border border-[#e0e0dc] px-3.5 py-2.5 text-[14px] font-medium outline-none transition focus:border-black focus:ring-4 focus:ring-black/5"
                     />
                   </div>
-                  <div>
-                    <label className="mb-2 block text-[12px] font-semibold text-[#33363b]">
-                      O que você quer criar?
-                    </label>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTipo("pagina_venda");
-                          setTemplateId("produto-1");
-                        }}
-                        className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
-                          tipo === "pagina_venda"
-                            ? "border-black ring-1 ring-black"
-                            : "border-[#e0e0dc] hover:border-black/40"
-                        }`}
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
-                          <FileText size={17} />
-                        </span>
-                        <span className="text-[13.5px] font-semibold text-[#18191c]">
-                          Página de vendas
-                        </span>
-                        <span className="text-[11.5px] leading-4 text-[#6b7079]">
-                          Uma oferta focada em um único produto.
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTipo("loja_completa");
-                          setTemplateId("loja-1");
-                        }}
-                        className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
-                          tipo === "loja_completa"
-                            ? "border-black ring-1 ring-black"
-                            : "border-[#e0e0dc] hover:border-black/40"
-                        }`}
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
-                          <Store size={17} />
-                        </span>
-                        <span className="text-[13.5px] font-semibold text-[#18191c]">
-                          Loja completa
-                        </span>
-                        <span className="text-[11.5px] leading-4 text-[#6b7079]">
-                          Uma vitrine com vários produtos e coleções.
-                        </span>
-                      </button>
+
+                  {!lockedTipo ? (
+                    <div>
+                      <label className="mb-2 block text-[12px] font-semibold text-[#33363b]">
+                        O que você quer criar?
+                      </label>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipo("pagina_venda");
+                            setTemplateId("produto-1");
+                          }}
+                          className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
+                            tipo === "pagina_venda"
+                              ? "border-black ring-1 ring-black"
+                              : "border-[#e0e0dc] hover:border-black/40"
+                          }`}
+                        >
+                          <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
+                            <FileText size={17} />
+                          </span>
+                          <span className="text-[13.5px] font-semibold text-[#18191c]">
+                            Página de vendas
+                          </span>
+                          <span className="text-[11.5px] leading-4 text-[#6b7079]">
+                            Uma oferta focada em um único produto.
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipo("loja_completa");
+                            setTemplateId("loja-1");
+                          }}
+                          className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
+                            tipo === "loja_completa"
+                              ? "border-black ring-1 ring-black"
+                              : "border-[#e0e0dc] hover:border-black/40"
+                          }`}
+                        >
+                          <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
+                            <Store size={17} />
+                          </span>
+                          <span className="text-[13.5px] font-semibold text-[#18191c]">
+                            Loja completa
+                          </span>
+                          <span className="text-[11.5px] leading-4 text-[#6b7079]">
+                            Uma vitrine com vários produtos e coleções.
+                          </span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -574,13 +675,13 @@ const ProjectCreationWizard = ({
                 <span className="text-[12px] font-semibold text-[#8c908f]">
                   {step === "produtos"
                     ? `${selectedProducts.length} produto(s) selecionado(s)`
-                    : `Passo ${stepIndex + 1} de 3`}
+                    : `Passo ${skipProducts ? (step === "info" ? 1 : 2) : stepIndex + 1} de ${skipProducts ? 2 : 3}`}
                 </span>
                 {step === "info" ? (
                   <button
                     type="button"
                     disabled={!canContinueInfo}
-                    onClick={() => setStep("produtos")}
+                    onClick={() => setStep(skipProducts ? "template" : "produtos")}
                     className="flex h-10 items-center rounded-[9px] bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#d8dde8] disabled:text-[#8b94a6]"
                   >
                     Continuar
