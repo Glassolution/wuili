@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { VeloLoadingPill, VeloToaster } from "@/components/ui/velo-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -48,6 +48,7 @@ const ProductDetailPage = lazy(() => import("./pages/dashboard/ProductDetailPage
 const ProdutosMLPage = lazy(() => import("./pages/dashboard/ProdutosMLPage"));
 const ReportsPage = lazy(() => import("./pages/dashboard/ReportsPage"));
 const ResultsPage = lazy(() => import("./pages/dashboard/ResultsPage"));
+const ProductLandingEditorPage = lazy(() => import("./pages/ProductLandingEditorPage"));
 const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage"));
 const DashboardInfoPage = lazy(() => import("./pages/dashboard/DashboardInfoPage"));
 const SaldosPage = lazy(() => import("./pages/dashboard/SaldosPage"));
@@ -96,11 +97,8 @@ const DashboardShell = () => (
   </ProfileProvider>
 );
 
-const LegacyProductEditorRedirect = () => {
-  const location = useLocation();
 
-  return <Navigate to="/minha-loja/editor" replace state={location.state} />;
-};
+
 
 const MorePage = () => (
   <DashboardInfoPage
@@ -147,8 +145,9 @@ const App = () => (
               <Route path="/onboarding/preparando-loja" element={<ProtectedRoute allowedRoles={["admin"]} redirectTo="/dashboard/minha-loja"><StoreBuildProgressPage /></ProtectedRoute>} />
               <Route path="/minha-loja" element={<Navigate to="/dashboard/minha-loja" replace />} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
-              <Route path="/produto/editor" element={<ProtectedRoute><LegacyProductEditorRedirect /></ProtectedRoute>} />
-              <Route path="/velods/produto/editor" element={<ProtectedRoute><LegacyProductEditorRedirect /></ProtectedRoute>} />
+              <Route path="/produto/editor" element={<ProtectedRoute><ProductLandingEditorPage /></ProtectedRoute>} />
+              <Route path="/velods/produto/editor" element={<ProtectedRoute><ProductLandingEditorPage /></ProtectedRoute>} />
+
               <Route path="/catalogo" element={<StoreCatalogPage />} />
               <Route path="/cadastro" element={<Navigate to="/login" replace />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
