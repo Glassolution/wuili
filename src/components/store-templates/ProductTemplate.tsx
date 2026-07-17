@@ -13,7 +13,7 @@ import {
 
 import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
 import { StoreBundleOffers, StoreGuaranteeCards, StorePaymentRow } from "@/components/store-templates/storeSections";
-import { StoreBenefitsBar, StoreFeatureGrid, StoreImageCta, StoreThreeSteps } from "@/components/store-templates/storeContentSections";
+import { StoreBenefitsBar, StoreFaqAccordion, StoreFeatureGrid, StoreImageCta, StoreTestimonials, StoreThreeSteps, StoreUrgencyBanner, StoreUsageCarousel, StoreWhyWorthIt } from "@/components/store-templates/storeContentSections";
 import type { ProductVariantOption } from "@/lib/userProjects";
 
 export type ProductTemplateProps = {
