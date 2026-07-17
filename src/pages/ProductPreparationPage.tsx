@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, Loader2, PackageOpen } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Check, Loader2, PackageOpen } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Progress } from "@/components/ui/progress";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import { screenEnter } from "@/components/onboarding/flowMotion";
 
 const steps = [
   "Buscando dados dos produtos",
@@ -34,8 +35,21 @@ const getProgressAt = (elapsed: number) => {
   return 100;
 };
 
-const formatBRL = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+// Equalizer de progresso: barras de altura pseudo-aleatória (determinística por
+// índice, então não "pulam" a cada render) preenchidas da esquerda para a
+// direita conforme o progresso avança, com gradiente azul → verde → laranja.
+const BAR_COUNT = 40;
+const BAR_HEIGHTS = Array.from({ length: BAR_COUNT }, (_, i) => {
+  const seed = Math.sin(i * 127.1) * 43758.5453;
+  const frac = seed - Math.floor(seed);
+  return 34 + frac * 66; // 34%..100%
+});
+
+const litColor = (index: number, litCount: number) => {
+  const t = litCount <= 1 ? 0 : index / (litCount - 1);
+  const hue = 214 - t * (214 - 25); // azul (214°) → laranja (25°)
+  return `hsl(${hue}, 85%, 55%)`;
+};
 
 const ProductPreparationPage = () => {
   const location = useLocation();
@@ -90,167 +104,181 @@ const ProductPreparationPage = () => {
   const primaryProduct = products[0];
   const hasMultipleProducts = products.length > 1;
   const completedSteps = Math.min(steps.length, Math.floor(progress / (100 / steps.length)));
+  const activeStep = Math.min(steps.length - 1, completedSteps);
   const isReady = progress >= 100;
   const displayProgress = Math.round(progress);
-  const progressFactor = progress / 100;
-  const totalCost = products.reduce((sum, item) => sum + item.price, 0);
-  const visibleCost = totalCost * progressFactor;
-  const visibleProfit = totalCost * 0.72 * progressFactor;
-  const visibleRevenue = totalCost * 1.72 * progressFactor;
+  const litCount = Math.round((progress / 100) * BAR_COUNT);
 
   return (
-    <main className="min-h-screen bg-[#fbfbfc] text-[#101522]" style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
+    <main className="velo-flow min-h-screen">
       <style>
         {`
-          @keyframes veloProductCardWork {
-            0%, 100% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
-            28% { transform: translateY(-10px) rotateX(1.4deg) rotateY(-1.8deg); }
-            58% { transform: translateY(5px) rotateX(-1deg) rotateY(1.2deg); }
-            82% { transform: translateY(-4px) rotateX(.8deg) rotateY(.6deg); }
+          @keyframes veloEqPulse {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.62); }
           }
-
+          @keyframes veloAsideGlow {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.95); }
+            50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.08); }
+          }
           @keyframes veloProductImageSlide {
-            0% { opacity: 0; transform: translateX(42px) scale(.92) rotateZ(1.8deg); filter: blur(10px); }
-            58% { opacity: 1; transform: translateX(-4px) scale(1.03) rotateZ(-.4deg); filter: blur(0); }
-            100% { opacity: 1; transform: translateX(0) scale(1) rotateZ(0deg); filter: blur(0); }
+            0% { opacity: 0; transform: translateX(28px) scale(.94); filter: blur(8px); }
+            100% { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
           }
-
-          @keyframes veloScanningLine {
-            0% { transform: translateY(-115%); opacity: 0; }
-            18% { opacity: .72; }
-            80% { opacity: .42; }
-            100% { transform: translateY(115%); opacity: 0; }
-          }
-
-          @keyframes veloMetricPulse {
-            0%, 100% { opacity: .78; }
-            50% { opacity: 1; }
-          }
-
-          /* Brilho que percorre a parte preenchida da barra: sinaliza trabalho
-             em andamento mesmo quando o progresso desacelera. */
-          @keyframes veloProgressShimmer {
-            0% { transform: translateX(-110%); }
-            100% { transform: translateX(110%); }
-          }
-
-          @keyframes veloStepBreathe {
-            0%, 100% { background-color: rgba(17,24,39,0.028); }
-            50% { background-color: rgba(17,24,39,0.062); }
+          @media (prefers-reduced-motion: reduce) {
+            .velo-eq-bar, .velo-aside-glow { animation: none !important; }
           }
         `}
       </style>
       <div className="grid min-h-screen lg:grid-cols-[55%_45%]">
-        <section className="relative flex min-h-screen flex-col overflow-hidden px-7 py-7 sm:px-10 lg:px-16 lg:py-10 xl:px-24">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_38%_45%,rgba(0,0,0,0.035),transparent_38%)]" />
-          <header className="relative z-10 flex items-center justify-between">
-            <Link to="/onboarding/escolher-produto" className="inline-flex items-center gap-2 text-[12px] font-medium text-[#111827]/55 transition hover:text-[#111827]">
-              <ChevronLeft size={16} /> Voltar
-            </Link>
-            <div className="w-[42%] max-w-[310px]">
-              <div className="h-[4px] overflow-hidden rounded-full bg-[#e5e8ef]">
-                <div className="h-full rounded-full bg-black/70" style={{ width: `${18 + progress * 0.32}%` }} />
-              </div>
-            </div>
-          </header>
+        <section className="relative flex min-h-screen flex-col items-center overflow-hidden px-6 py-7 sm:px-9 lg:px-12">
+          <Link
+            to="/onboarding/escolher-produto"
+            className="vf-btn-ghost absolute left-6 top-7 inline-flex items-center sm:left-9 lg:left-12"
+            aria-label="Voltar"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div
+            className="absolute left-1/2 top-7 h-[5px] w-[210px] -translate-x-1/2 overflow-hidden rounded-[1px] bg-white/10"
+            aria-label="Progresso da criação"
+          >
+            <div className="h-full bg-white transition-all duration-300" style={{ width: "60%" }} />
+          </div>
 
-          <div className="relative z-10 my-auto w-full max-w-[620px] py-16">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#697083]">
-              {hasMultipleProducts ? "Produtos de exemplo" : "Produto de exemplo"}
-            </p>
-            <div className="mt-4 flex items-end justify-between gap-6">
-              <h1 className="text-[42px] font-normal leading-[1.04] tracking-[-0.055em] text-[#121827] sm:text-[54px]">
+          <motion.div {...screenEnter} className="mt-[76px] w-full max-w-[580px]">
+            <div className="flex items-end justify-between gap-6">
+              <h1 className="vf-headline text-[24px] font-medium leading-[30px] tracking-[-0.6px]">
                 Preparando {hasMultipleProducts ? "seus produtos" : "seu produto"}
               </h1>
-              <span className="shrink-0 text-[28px] font-light tabular-nums tracking-[-0.04em] text-[#111827]/60">{displayProgress}%</span>
-            </div>
-            <div className="relative mt-8">
-              <Progress value={progress} aria-label={hasMultipleProducts ? "Preparando seus produtos" : "Preparando seu produto"} className="h-[6px] bg-[#e7ebf2] [&>div]:bg-black [&>div]:duration-0" />
-              {!isReady ? (
-                <div className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden rounded-full" style={{ width: `${progress}%` }}>
-                  <div className="h-full w-full bg-gradient-to-r from-transparent via-white/70 to-transparent [animation:veloProgressShimmer_1.8s_ease-in-out_infinite]" />
-                </div>
-              ) : null}
+              <span className="shrink-0 text-[30px] font-medium tabular-nums leading-none text-[var(--vf-text-1)]">
+                {displayProgress}%
+              </span>
             </div>
 
-            <div className="mt-8 space-y-2">
+            {/* Equalizer de progresso */}
+            <div
+              className="mt-6 flex h-24 items-end gap-[3px] rounded-[14px] bg-black p-4 sm:gap-1.5"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={displayProgress}
+            >
+              {BAR_HEIGHTS.map((height, index) => {
+                const lit = index < litCount;
+                return (
+                  <span
+                    key={index}
+                    className={lit ? "velo-eq-bar flex-1 rounded-[4px]" : "flex-1 rounded-[4px]"}
+                    style={{
+                      height: `${height}%`,
+                      background: lit ? litColor(index, litCount) : "rgba(255,255,255,0.1)",
+                      transformOrigin: "bottom",
+                      transition: "background 220ms ease",
+                      ...(lit && !isReady
+                        ? { animation: `veloEqPulse ${900 + (index % 7) * 90}ms ease-in-out ${index * 35}ms infinite` }
+                        : {}),
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Checklist */}
+            <div className="mt-6 space-y-2">
               {steps.map((step, index) => {
                 const done = index < completedSteps;
                 const active = index === completedSteps && !isReady;
                 return (
-                  <div key={step} className={`flex min-h-[52px] items-center gap-3 rounded-[6px] px-4 transition duration-500 ${done ? "bg-[#f1f3f7]" : active ? "[animation:veloStepBreathe_2.2s_ease-in-out_infinite]" : "bg-transparent"}`}>
-                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${done ? "bg-black text-white" : active ? "bg-[#e4e8ef] text-[#697083]" : "bg-[#eef0f5] text-transparent"}`}>
-                      {done ? <Check size={14} strokeWidth={2.4} /> : active ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  <div
+                    key={step}
+                    className="flex min-h-[58px] items-center gap-3 rounded-[7px] bg-[var(--vf-panel)] px-4"
+                  >
+                    <span
+                      className={`h-3 w-3 shrink-0 rounded-full transition-colors duration-300 ${
+                        done || active ? "bg-[#22c55e]" : "bg-[var(--vf-text-3)]/40"
+                      }`}
+                    />
+                    <span
+                      className={`flex-1 text-[16px] font-medium transition ${
+                        done
+                          ? "text-[var(--vf-text-2)] line-through"
+                          : active
+                            ? "text-[var(--vf-text-1)]"
+                            : "text-[var(--vf-text-3)]"
+                      }`}
+                    >
+                      {step}
                     </span>
-                    <span className={`text-[13px] transition ${done ? "text-[#2b3140]" : active ? "text-[#4a5162]" : "text-[#a8aebc]"}`}>{step}</span>
+                    <span className="shrink-0">
+                      {done ? (
+                        <Check size={18} strokeWidth={2.6} className="text-[#22c55e]" />
+                      ) : active ? (
+                        <Loader2 size={16} className="vf-spin text-[var(--vf-text-2)]" />
+                      ) : null}
+                    </span>
                   </div>
                 );
               })}
             </div>
 
-            <button type="button" onClick={() => navigate("/onboarding/idioma", { state: { product: primaryProduct, products, projectId } })} disabled={!isReady} className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-[5px] bg-black text-[13px] font-semibold text-white transition hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#dfe3ea] disabled:text-[#9aa2b5]">
+            <button
+              type="button"
+              onClick={() => navigate("/onboarding/idioma", { state: { product: primaryProduct, products, projectId } })}
+              disabled={!isReady}
+              className="vf-btn mt-6 inline-flex h-12 w-full items-center justify-center text-[14px]"
+            >
               {isReady ? "Continuar" : "Preparando..."}
             </button>
-          </div>
+          </motion.div>
         </section>
 
-        <aside className="relative hidden min-h-screen items-center justify-center overflow-hidden border-l border-[#edf0f5] bg-[#f5f6f9] p-12 lg:flex">
-          <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(15,23,42,0.10)_1px,transparent_1.2px)] [background-position:2px_2px] [background-size:32px_32px]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(37,99,235,0.10),transparent_38%,rgba(255,255,255,0.55)_78%)]" />
-          <article className="relative z-10 w-full max-w-[360px] overflow-hidden rounded-[12px] border border-[#e4e8ef] bg-white p-3 shadow-[0_30px_90px_rgba(15,23,42,0.16)] [animation:veloProductCardWork_4.8s_ease-in-out_infinite]">
-            <div className="pointer-events-none absolute inset-x-5 top-5 h-24 rounded-full bg-emerald-400/12 blur-3xl" />
-            <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[7px] bg-[#f4f5f7]">
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-1/2 bg-gradient-to-b from-transparent via-emerald-500/20 to-transparent [animation:veloScanningLine_2.4s_ease-in-out_infinite]" />
-              {product.imageUrl ? (
-                <img
-                  key={product.id}
-                  src={product.imageUrl}
-                  alt={product.title}
-                  className="h-full w-full object-contain [animation:veloProductImageSlide_620ms_cubic-bezier(.16,1,.3,1)]"
-                />
-              ) : (
-                <PackageOpen size={48} className="text-black/20" />
-              )}
-            </div>
-            <div className="p-3 pb-2 pt-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className={`inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] ${isReady ? "text-emerald-600" : "text-[#697083]"}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${isReady ? "bg-emerald-500" : "animate-pulse bg-[#9aa2b5]"}`} />
-                  {isReady ? "Pronto" : "Analisando..."}
-                </span>
-                <span className="text-[13px] font-medium text-[#4a5162]">
-                  {products.length > 1 ? `${activeProductIndex + 1}/${products.length}` : formatBRL(product.price)}
-                </span>
-              </div>
-              <h2 className="mt-3 line-clamp-2 text-[15px] font-medium leading-snug tracking-[-0.025em] text-[#121827]">{product.title}</h2>
+        <aside className="relative hidden min-h-screen items-center justify-center overflow-hidden border-l border-[var(--vf-border)] bg-[var(--vf-panel-side)] p-12 lg:flex">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.15]"
+            style={{
+              backgroundImage: "radial-gradient(circle, rgb(255,255,255) 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
+            }}
+          />
+          {/* Brilho azul pulsante atrás do card */}
+          <div className="velo-aside-glow pointer-events-none absolute left-1/2 top-1/2 h-[380px] w-[380px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#2563EB]/25 blur-[90px] [animation:veloAsideGlow_4s_ease-in-out_infinite]" />
 
-              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[#e7ebf2] pt-4">
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#7c8497]">Custo</p>
-                  <p className="mt-1 text-[13px] font-bold tabular-nums text-emerald-600 [animation:veloMetricPulse_1.6s_ease-in-out_infinite]">{formatBRL(visibleCost)}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#7c8497]">Lucro</p>
-                  <p className="mt-1 text-[13px] font-bold tabular-nums text-emerald-600 [animation:veloMetricPulse_1.6s_ease-in-out_infinite]">{formatBRL(visibleProfit)}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#7c8497]">Venda</p>
-                  <p className="mt-1 text-[13px] font-bold tabular-nums text-emerald-600 [animation:veloMetricPulse_1.6s_ease-in-out_infinite]">{formatBRL(visibleRevenue)}</p>
-                </div>
+          <div className="relative z-10 flex w-full max-w-[380px] flex-col items-center">
+            <div className="w-full rounded-[20px] border border-[var(--vf-border)] bg-[var(--vf-nested)] p-3">
+              <div className="relative aspect-square overflow-hidden rounded-[10px] bg-[#333]">
+                {product.imageUrl ? (
+                  <img
+                    key={product.id}
+                    src={product.imageUrl}
+                    alt={product.title}
+                    className="h-full w-full object-cover [animation:veloProductImageSlide_600ms_cubic-bezier(.16,1,.3,1)]"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center">
+                    <PackageOpen size={48} className="text-white/20" />
+                  </span>
+                )}
               </div>
-
-              {products.length > 1 ? (
-                <div className="mt-4 flex items-center gap-1.5">
-                  {products.map((item, index) => (
-                    <span
-                      key={item.id}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${index === activeProductIndex ? "w-6 bg-emerald-500" : "w-1.5 bg-[#d8dde8]"}`}
-                    />
-                  ))}
-                </div>
-              ) : null}
             </div>
-          </article>
+
+            <p className="mt-6 text-[16px] font-medium tracking-[0.02em] text-[var(--vf-text-2)]">
+              {isReady ? "Análise concluída" : `${steps[activeStep]}...`}
+            </p>
+
+            {hasMultipleProducts ? (
+              <div className="mt-4 flex items-center gap-1.5">
+                {products.map((item, index) => (
+                  <span
+                    key={item.id}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      index === activeProductIndex ? "w-6 bg-white" : "w-1.5 bg-[var(--vf-border)]"
+                    }`}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
         </aside>
       </div>
     </main>

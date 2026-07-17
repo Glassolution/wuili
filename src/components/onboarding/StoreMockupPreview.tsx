@@ -69,7 +69,7 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
       <div className="pointer-events-none absolute left-1/2 top-[585px] h-[54px] w-[245px] -translate-x-1/2 rounded-full bg-black/24 blur-[20px]" />
       {/* Tooltip */}
       <div className="relative z-20 mb-3">
-        <div className="rounded-[10px] bg-[#1a1a1a] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_18px_34px_rgba(0,0,0,0.36),0_7px_18px_rgba(0,0,0,0.28)] ring-1 ring-white/[0.08]">
+        <div className="rounded-[10px] bg-[#232323] px-4 py-2 text-[16px] font-medium text-white shadow-[0_18px_34px_rgba(0,0,0,0.36),0_7px_18px_rgba(0,0,0,0.28)] ring-1 ring-white/10">
           {label}
         </div>
         <div
@@ -77,7 +77,7 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
           style={{
             borderLeft: "7px solid transparent",
             borderRight: "7px solid transparent",
-            borderTop: "7px solid #1a1a1a",
+            borderTop: "7px solid #232323",
           }}
         />
       </div>
@@ -89,9 +89,9 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
         <div className="pointer-events-none absolute left-[calc(50%+26px)] top-[10px] z-20 h-[6px] w-[6px] rounded-full bg-[#333]" />
 
         {/* Screen */}
-        <div className="relative h-full w-full overflow-hidden rounded-[30px] bg-white">
+        <div className="relative h-full w-full overflow-hidden rounded-[30px] bg-[#1c1c20]">
           {/* iOS-like status bar */}
-          <div className="flex items-center justify-between px-5 pt-2 pb-1 text-[9px] font-semibold text-black/80">
+          <div className="flex items-center justify-between px-5 pt-2 pb-1 text-[9px] font-semibold text-white/80">
             <span>9:41</span>
             <span />
             <span>●●●</span>
@@ -100,28 +100,28 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
           {/* Store header */}
           <div className="flex items-center justify-between px-4 pb-2 pt-3">
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-black text-[11px] font-black text-white">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[11px] font-black text-[#131316]">
                 {displayName.charAt(0).toUpperCase()}
               </div>
               <div className="flex flex-col">
-                <span className="text-[11px] font-bold leading-tight text-black">
+                <span className="text-[11px] font-bold leading-tight text-white">
                   {displayName.toLowerCase()}.store
                 </span>
-                <span className="text-[8.5px] text-black/45">
+                <span className="text-[8.5px] text-white/45">
                   {language ? `Idioma · ${language}` : "sua vitrine"}
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-black/60">
+            <div className="flex items-center gap-2 text-white/60">
               <Search size={12} />
               <ShoppingBag size={12} />
             </div>
           </div>
 
           {/* Search */}
-          <div className="mx-4 mb-3 flex items-center gap-1.5 rounded-lg bg-black/[0.04] px-2 py-1.5">
-            <Search size={10} className="text-black/40" />
-            <span className="text-[9.5px] text-black/40">Buscar produtos</span>
+          <div className="mx-4 mb-3 flex items-center gap-1.5 rounded-lg bg-white/[0.06] px-2 py-1.5">
+            <Search size={10} className="text-white/40" />
+            <span className="text-[9.5px] text-white/40">Buscar produtos</span>
           </div>
 
           {/* Hero / product spotlight */}
@@ -130,15 +130,15 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
             style={{
               minHeight: 96,
               background: hasProduct
-                ? "linear-gradient(135deg, #F3EFE8 0%, #111 140%)"
-                : "#EFEFEF",
+                ? "linear-gradient(135deg, #2a2a30 0%, #0c0c0e 140%)"
+                : "#232327",
             }}
           >
             {hasProduct ? (
               <>
                 <div className="flex flex-1 flex-col gap-1 p-3">
                   {angle && (
-                    <span className="w-fit rounded-full bg-white/85 px-1.5 py-[2px] text-[7.5px] font-bold uppercase tracking-wide text-black">
+                    <span className="w-fit rounded-full bg-white/90 px-1.5 py-[2px] text-[7.5px] font-bold uppercase tracking-wide text-[#131316]">
                       {angle.slice(0, 22)}
                     </span>
                   )}
@@ -155,7 +155,7 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
                 />
               </>
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-[10px] font-medium text-black/25">
+              <div className="flex h-full w-full items-center justify-center text-[10px] font-medium text-white/25">
                 aguardando produto
               </div>
             )}
@@ -163,7 +163,7 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
 
           {/* Persona chip */}
           {persona && (
-            <div className="mx-4 mb-3 flex items-center gap-1.5 rounded-lg bg-black/[0.04] px-2 py-1.5 text-[8.5px] font-medium text-black/70">
+            <div className="mx-4 mb-3 flex items-center gap-1.5 rounded-lg bg-white/[0.06] px-2 py-1.5 text-[8.5px] font-medium text-white/70">
               <span className="text-[10px]">🎯</span>
               <span className="truncate">Para {persona.toLowerCase()}</span>
             </div>
@@ -171,10 +171,10 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
 
           {/* Section */}
           <div className="mb-2 flex items-center justify-between px-4">
-            <span className="text-[10px] font-bold text-black">
+            <span className="text-[10px] font-bold text-white">
               {hasProduct ? "Mais vendidos" : "Produtos em breve"}
             </span>
-            <span className="text-[8.5px] font-semibold text-black/50">Ver todos</span>
+            <span className="text-[8.5px] font-semibold text-white/50">Ver todos</span>
           </div>
 
           {/* Grid */}
@@ -184,7 +184,7 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
               return (
                 <div
                   key={i}
-                  className="overflow-hidden rounded-lg bg-white ring-1 ring-black/[0.05] transition-all duration-500"
+                  className="overflow-hidden rounded-lg bg-[#232327] ring-1 ring-white/[0.06] transition-all duration-500"
                   style={{ opacity: active ? 1 : 0.4 }}
                 >
                   <div
@@ -193,18 +193,18 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
                       background:
                         active && product?.imageUrl
                           ? `url(${product.imageUrl}) center/cover`
-                          : "linear-gradient(135deg,#EFEFEF,#D4D4D4)",
+                          : "linear-gradient(135deg,#2a2a30,#17171a)",
                     }}
                   />
                   <div className="flex flex-col gap-[2px] px-1.5 py-1.5">
-                    <span className="truncate text-[9px] font-semibold text-black">
+                    <span className="truncate text-[9px] font-semibold text-white">
                       {active ? product?.title : "————"}
                     </span>
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-bold text-black">
+                      <span className="text-[9px] font-bold text-white">
                         {active ? priceLabel : "R$ —"}
                       </span>
-                      <div className="flex items-center gap-[1px] text-black/50">
+                      <div className="flex items-center gap-[1px] text-white/50">
                         <Star size={7} fill="currentColor" strokeWidth={0} />
                         <span className="text-[7.5px] font-medium">4.9</span>
                       </div>
@@ -217,7 +217,7 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
 
           {/* Home indicator */}
           <div className="absolute inset-x-0 bottom-1 flex justify-center">
-            <div className="h-[3px] w-16 rounded-full bg-black/25" />
+            <div className="h-[3px] w-16 rounded-full bg-white/25" />
           </div>
         </div>
       </div>
@@ -233,7 +233,7 @@ const StoreMockupPreview = ({ override, tooltipLabel, className }: Props) => {
           <div
             key={i}
             className="h-[3px] w-6 rounded-full transition-colors duration-300"
-            style={{ background: filled ? "#111827" : "#d8dde8" }}
+            style={{ background: filled ? "#f5f5f7" : "rgba(255,255,255,0.12)" }}
           />
         ))}
       </div>

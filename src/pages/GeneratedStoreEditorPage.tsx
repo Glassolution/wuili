@@ -1,14 +1,14 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, ExternalLink, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
 import { useProfile } from "@/lib/profileContext";
-import { claimProjectInvites, getProjectProductIds, parseVariantOptions, publishProject, saveProjectDraft, type ProductVariantOption, type UserProject } from "@/lib/userProjects";
+import { claimProjectInvites, createUserProject, getProjectProductIds, parseVariantOptions, publishProject, saveProjectDraft, type ProductVariantOption, type UserProject } from "@/lib/userProjects";
 import ProjectSettingsOverlay, { type SettingsSection } from "@/components/editor/ProjectSettingsOverlay";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 import { addProductToCollection, createCollection, ensureExampleCollectionProducts, getCollectionProductIds, listCollections } from "@/lib/collectionsApi";
@@ -1427,6 +1427,41 @@ const GeneratedStoreEditorPage = () => {
     return () => { active = false; };
   }, [projectId]);
 
+  // Onboarding "página de vendas": quando o editor abre SEM projectId mas com um
+  // fluxo genuíno vindo do onboarding, cria e persiste o projeto na hora. Assim
+  // ele já nasce com slug (createUserProject gera um), e as telas de Carrinho e
+  // Checkout aparecem no preview do editor já no onboarding — antes o projeto só
+  // era criado ao publicar, e sem slug essas telas ficavam ocultas.
+  const autoCreatedRef = useRef(false);
+  useEffect(() => {
+    if (projectId || autoCreatedRef.current || !user?.id) return;
+    if (sessionStorage.getItem("velo-onboarding-choice") !== "sales-page") return;
+    // Só um fluxo fresco do onboarding (não a reabertura de um projeto salvo).
+    if (!flow?.product || !sessionStorage.getItem("velo-example-product")) return;
+    autoCreatedRef.current = true;
+    void (async () => {
+      try {
+        const nome =
+          sessionStorage.getItem("velo-store-name")?.trim() ||
+          flow.product.title?.trim() ||
+          "Minha loja";
+        const project = await createUserProject({
+          nome,
+          descricao: flow.salesAngle ?? "",
+          tipo: "pagina_venda",
+          productIds: flow.product.id ? [flow.product.id] : [],
+          template: activeTemplate.id,
+        });
+        // Assume a rota com id: o efeito acima carrega o projeto (com slug) e as
+        // telas de Carrinho/Checkout passam a renderizar.
+        navigate(`/minha-loja/editor/${project.id}`, { replace: true, state: flow });
+      } catch (error) {
+        autoCreatedRef.current = false;
+        console.error("Falha ao criar o projeto no onboarding:", error);
+      }
+    })();
+  }, [projectId, user?.id, flow, activeTemplate.id, navigate]);
+
   // Carrega os produtos que o usuário escolheu para este projeto. Sem isso o
   // editor caía nas coleções do usuário (fetchEditorCollectionProducts), e o
   // produto em destaque acabava sendo o mais recente de qualquer coleção — não
@@ -2204,7 +2239,10 @@ const GeneratedStoreEditorPage = () => {
   const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     const target = event.target;
-    if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
+    // Toolbars flutuantes (data-editor-ignore) e a UI do canvas (data-canvas-ui)
+    // não fazem parte da área editável: um clique nelas não deve iniciar
+    // marquee/seleção nem, no clique, limpar a seleção e recolher a sidebar.
+    if (target instanceof Element && target.closest("[data-canvas-ui], [data-editor-ignore]")) return;
     suppressCanvasClickRef.current = false;
     suppressPreviewClickRef.current = false;
 
@@ -2305,7 +2343,7 @@ const GeneratedStoreEditorPage = () => {
   };
   const handleWorkspaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target;
-    if (!(target instanceof Element) || target.closest("[data-canvas-ui], .store-editor-preview")) return;
+    if (!(target instanceof Element) || target.closest("[data-canvas-ui], [data-editor-ignore], .store-editor-preview")) return;
     if (suppressCanvasClickRef.current) {
       suppressCanvasClickRef.current = false;
       return;
@@ -3009,12 +3047,13 @@ const GeneratedStoreEditorPage = () => {
                   Adicionar produtos
                 </button>
                 <div className="my-3 h-px bg-[#292d31]" />
-                {/* Abre o catálogo dentro do editor. Antes levava para /catalogo,
-                    uma tela antiga que tirava o usuário do editor. */}
-                <button type="button" onClick={openProductsDrawer} className="group flex h-8 w-full items-center gap-2 rounded-[9px] px-2 text-left text-[9px] font-medium text-white/66 outline-none transition hover:bg-white/[0.06] hover:text-white">
+                {/* "Adicionar produtos" (acima) abre o drawer de seleção dentro do
+                    editor. Este abre o catálogo completo do Velo numa nova aba,
+                    para navegação mais ampla sem tirar o usuário do editor. */}
+                <button type="button" onClick={() => window.open("/dashboard/catalogo", "_blank", "noopener,noreferrer")} className="group flex h-8 w-full items-center gap-2 rounded-[9px] px-2 text-left text-[9px] font-medium text-white/66 outline-none transition hover:bg-white/[0.06] hover:text-white">
                   <LayoutGrid size={13} strokeWidth={1.8} />
                   <span className="flex-1">Abrir catálogo completo</span>
-                  <ChevronRight size={12} className="transition group-hover:translate-x-0.5" />
+                  <ExternalLink size={12} className="transition group-hover:translate-x-0.5" />
                 </button>
               </>
             ) : (

@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import type { ProductTemplateProps } from "./ProductTemplate";
 import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
+import { StoreBundleOffers, StorePaymentRow } from "@/components/store-templates/storeSections";
+import { StoreBenefitsBar, StoreFeatureGrid, StoreImageCta, StoreThreeSteps } from "@/components/store-templates/storeContentSections";
 
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -137,6 +139,9 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
             {/* Variações reais do fornecedor (omitido quando não há) */}
             <ProductVariantPicker options={variants} accent={GREEN} />
 
+            {/* Compre mais e economize (bundles) */}
+            <StoreBundleOffers price={price} accent={GREEN} />
+
             {/* Quantidade + acoes */}
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <div className="flex h-12 items-center rounded-full border border-black/15 px-2">
@@ -148,6 +153,9 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
               <button type="button" className="h-12 rounded-full px-7 text-[14px] font-semibold text-white transition hover:brightness-110" style={{ backgroundColor: GOLD }}>Comprar agora</button>
               <button type="button" className="flex h-12 w-12 items-center justify-center rounded-full border border-black/15 text-black/60 transition hover:bg-black/[0.04]" aria-label="Favoritar"><Heart data-editor-icon="Heart" size={18} /></button>
             </div>
+
+            {/* Formas de pagamento */}
+            <StorePaymentRow />
 
             <div className="mt-6 space-y-2 text-[13px] text-black/60">
               <p data-editor-type="text"><span className="font-semibold text-[#1d1d1d]">SKU:</span> GRFR85648HGJ</p>
@@ -164,6 +172,15 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
           </div>
         </div>
       </section>
+
+      {/* Barra de benefícios */}
+      <StoreBenefitsBar accent={GREEN} />
+
+      {/* Como funciona em 3 passos */}
+      <StoreThreeSteps image={image} accent={GREEN} mobile={mobile} />
+
+      {/* Grade de recursos + imagem */}
+      <StoreFeatureGrid image={image} accent={GREEN} mobile={mobile} />
 
       {/* Abas */}
       <section className="px-6 pb-12 sm:px-10">
@@ -280,6 +297,9 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
           </div>
         </div>
       </section>
+
+      {/* Bloco imagem + CTA */}
+      <StoreImageCta image={image} accent={GREEN} title={title} mobile={mobile} />
     </div>
   );
 };

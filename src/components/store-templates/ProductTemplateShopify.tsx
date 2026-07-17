@@ -13,6 +13,8 @@ import {
   Truck,
 } from "lucide-react";
 import type { ProductTemplateProps } from "./ProductTemplate";
+import { StoreBundleOffers, StorePaymentRow } from "@/components/store-templates/storeSections";
+import { StoreBenefitsBar, StoreFeatureGrid, StoreImageCta, StoreThreeSteps } from "@/components/store-templates/storeContentSections";
 
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -104,15 +106,30 @@ const ProductTemplateShopify = ({ brand, title, description, price, originalPric
               ))}
             </div>
 
+            {/* Compre mais e economize (bundles) */}
+            <StoreBundleOffers price={price} accent={NAVY} />
+
             <button type="button" className="mt-7 h-14 w-full rounded-full text-[15px] font-black text-white shadow-[0_14px_34px_rgba(30,58,138,0.24)] transition hover:-translate-y-0.5" style={{ background: `linear-gradient(90deg, ${NAVY}, #2563eb)` }}>
               Adicionar ao carrinho
             </button>
             <button type="button" className="mt-3 h-14 w-full rounded-full bg-black text-[15px] font-black text-white transition hover:-translate-y-0.5">
               Comprar agora
             </button>
+
+            {/* Formas de pagamento */}
+            <StorePaymentRow />
           </div>
         </div>
       </section>
+
+      {/* Barra de benefícios */}
+      <StoreBenefitsBar accent={NAVY} />
+
+      {/* Como funciona em 3 passos */}
+      <StoreThreeSteps image={image} accent={NAVY} mobile={mobile} />
+
+      {/* Grade de recursos + imagem */}
+      <StoreFeatureGrid image={image} accent={NAVY} mobile={mobile} />
 
       {/* Avaliacoes */}
       <section className="bg-[#eeeeee] px-6 py-10 sm:px-10">
@@ -152,6 +169,9 @@ const ProductTemplateShopify = ({ brand, title, description, price, originalPric
           </div>
         </div>
       </section>
+
+      {/* Bloco imagem + CTA */}
+      <StoreImageCta image={image} accent={NAVY} title={title} mobile={mobile} />
 
       {/* Produtos relacionados */}
       <section className="bg-[#f7f7f5] px-6 py-10 sm:px-10">
