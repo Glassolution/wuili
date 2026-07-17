@@ -178,7 +178,7 @@ export default function AdminAliExpressPage() {
         </section>
 
         {/* Mapeamentos */}
-        <section className="rounded-xl border border-white/10 bg-[#0E0E10] p-5">
+        <section className="rounded-xl border border-white/10 bg-[#161617] p-5">
           <h2 className="text-lg font-bold text-white">Mapeamento de categorias</h2>
           <p className="mt-1 text-xs text-white/60">Vincule cada categoria da Velo a uma categoria da AliExpress.</p>
 
@@ -187,19 +187,19 @@ export default function AdminAliExpressPage() {
               placeholder="Categoria Velo (ex: eletronicos)"
               value={form.velo_category}
               onChange={(e) => setForm({ ...form, velo_category: e.target.value })}
-              className="rounded-lg border border-white/10 bg-[#17171A] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+              className="rounded-lg border border-white/10 bg-[#161617] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
             />
             <input
               placeholder="AliExpress category_id"
               value={form.aliexpress_category_id}
               onChange={(e) => setForm({ ...form, aliexpress_category_id: e.target.value })}
-              className="rounded-lg border border-white/10 bg-[#17171A] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+              className="rounded-lg border border-white/10 bg-[#161617] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
             />
             <input
               placeholder="Nome (opcional)"
               value={form.aliexpress_category_name}
               onChange={(e) => setForm({ ...form, aliexpress_category_name: e.target.value })}
-              className="rounded-lg border border-white/10 bg-[#17171A] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+              className="rounded-lg border border-white/10 bg-[#161617] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
             />
             <button
               onClick={addMapping}
@@ -244,7 +244,7 @@ export default function AdminAliExpressPage() {
                         <button
                           onClick={() => toggleActive(m)}
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            m.active ? "bg-green-500/20 text-green-300" : "bg-white/10 text-white/60"
+                            m.active ? "bg-green-500/15 text-green-300" : "bg-white/10 text-white/60"
                           }`}
                         >
                           {m.active ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
@@ -269,7 +269,7 @@ export default function AdminAliExpressPage() {
         </section>
 
         {/* Histórico */}
-        <section className="rounded-xl border border-white/10 bg-[#0E0E10] p-5">
+        <section className="rounded-xl border border-white/10 bg-[#161617] p-5">
           <h2 className="text-lg font-bold text-white">Últimas execuções</h2>
           <div className="mt-4 overflow-hidden rounded-lg border border-white/10">
             <table className="w-full text-left text-sm">
@@ -301,7 +301,7 @@ export default function AdminAliExpressPage() {
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                             l.status === "success"
-                              ? "bg-green-500/20 text-green-300"
+                              ? "bg-green-500/15 text-green-300"
                               : l.status === "failed"
                                 ? "bg-red-500/20 text-red-300"
                                 : "bg-white/10 text-white/60"
@@ -350,7 +350,7 @@ const StatusCard = ({
         ? "text-red-300"
         : "text-white";
   return (
-    <div className="rounded-xl border border-white/10 bg-[#0E0E10] p-4">
+    <div className="rounded-xl border border-white/10 bg-[#161617] p-4">
       <p className="text-xs uppercase tracking-wider text-white/50">{label}</p>
       <p className={`mt-2 text-lg font-bold ${toneCls}`}>{value}</p>
     </div>

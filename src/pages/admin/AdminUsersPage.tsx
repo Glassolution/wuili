@@ -222,7 +222,7 @@ const leadTemperature = (u: AdminUserRow): LeadTemp => {
 
 const tempLabel: Record<LeadTemp, string> = { hot: "Ativo", warm: "Engajado", cold: "Frio" };
 const tempStyle: Record<LeadTemp, string> = {
-  hot: "bg-[#22C55E]/15 text-[#4ADE80] border border-[#22C55E]/20",
+  hot: "bg-white/15 text-white border border-white/20",
   warm: "bg-[#F59E0B]/15 text-[#FBBF24] border border-[#F59E0B]/20",
   cold: "bg-[#38BDF8]/10 text-[#38BDF8] border border-[#38BDF8]/20",
 };
@@ -276,7 +276,7 @@ const AdminUsersPage = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#121214] text-white">
+      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B] text-white">
         <Loader2 className="h-7 w-7 animate-spin" />
       </div>
     );
@@ -303,10 +303,10 @@ const AdminUsersPage = () => {
                   setPage(1);
                 }}
                 placeholder="Buscar"
-                className="h-9 w-64 rounded-full border border-white/10 bg-[#0F0F0F] pl-9 pr-4 text-[13px] text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
+                className="h-9 w-64 rounded-full border border-white/10 bg-[#161617] pl-9 pr-4 text-[13px] text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
               />
             </div>
-            <button className="relative rounded-full border border-white/10 bg-[#0F0F0F] p-2 text-white/60 hover:text-white">
+            <button className="relative rounded-full border border-white/10 bg-[#161617] p-2 text-white/60 hover:text-white">
               <Bell size={16} />
               <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#EF4444]" />
             </button>
@@ -317,7 +317,7 @@ const AdminUsersPage = () => {
           <section className="border-0 bg-transparent">
             {/* Toolbar */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex rounded-lg border border-white/[0.08] bg-[#0F0F0F] p-0.5 text-[12px]">
+              <div className="flex rounded-lg border border-white/[0.08] bg-[#161617] p-0.5 text-[12px]">
                 {(["list", "grid"] as const).map((v) => (
                   <button
                     key={v}
@@ -334,7 +334,7 @@ const AdminUsersPage = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex rounded-lg border border-white/[0.08] bg-[#0F0F0F] p-0.5 text-[11px]">
+                <div className="flex rounded-lg border border-white/[0.08] bg-[#161617] p-0.5 text-[11px]">
                   {statusFilters.map((s) => (
                     <button
                       key={s.key}
@@ -351,15 +351,15 @@ const AdminUsersPage = () => {
                     </button>
                   ))}
                 </div>
-                <button className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#0F0F0F] px-4 py-2 text-[12px] text-[#8A8A8E] hover:text-white transition">
+                <button className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#161617] px-4 py-2 text-[12px] text-[#8A8A8E] hover:text-white transition">
                   <Filter size={13} strokeWidth={1.5} />
                   Filtrar
                 </button>
-                <button className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#0F0F0F] px-4 py-2 text-[12px] text-[#8A8A8E] hover:text-white transition">
+                <button className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#161617] px-4 py-2 text-[12px] text-[#8A8A8E] hover:text-white transition">
                   <Download size={13} strokeWidth={1.5} />
                   Exportar
                 </button>
-                <button className="flex items-center gap-2 rounded-lg bg-[#22C55E] px-4 py-2 text-[12px] font-medium text-black hover:bg-[#16A34A] transition">
+                <button className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-[12px] font-medium text-black hover:bg-[#E5E5E7] transition">
                   <Plus size={13} strokeWidth={2.5} />
                   Novo usuário
                 </button>
@@ -427,10 +427,10 @@ const AdminUsersPage = () => {
                       setPageSize(Number(e.target.value));
                       setPage(1);
                     }}
-                    className="appearance-none rounded-full border border-white/10 bg-[#0F0F0F] py-1.5 pl-3 pr-7 text-[12px] text-white focus:border-white/20 focus:outline-none"
+                    className="appearance-none rounded-full border border-white/10 bg-[#161617] py-1.5 pl-3 pr-7 text-[12px] text-white focus:border-white/20 focus:outline-none"
                   >
                     {PAGE_SIZE_OPTIONS.map((n) => (
-                      <option key={n} value={n} className="bg-[#0F0F0F]">
+                      <option key={n} value={n} className="bg-[#161617]">
                         {n}
                       </option>
                     ))}
@@ -473,10 +473,10 @@ const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }
       <td className="px-4 py-3.5 text-white/70">{user.email || "—"}</td>
       <td className="px-4 py-3.5 text-white/60">
         {online ? (
-          <span className="inline-flex items-center gap-1.5 text-[#4ADE80]">
+          <span className="inline-flex items-center gap-1.5 text-white">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22C55E] opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#22C55E]" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
             </span>
             Online agora
           </span>
@@ -489,7 +489,7 @@ const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }
       </td>
       <td className="px-4 py-3.5">
         {online ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#22C55E]/25 bg-[#22C55E]/10 px-2.5 py-1 text-[11px] font-medium text-[#4ADE80]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white">
             Online
           </span>
         ) : (
@@ -520,8 +520,8 @@ const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void 
       </div>
       <div className="mt-4 flex items-center justify-between">
         {online ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#22C55E]/25 bg-[#22C55E]/10 px-2.5 py-1 text-[11px] font-medium text-[#4ADE80]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" /> Online
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white">
+            <span className="h-1.5 w-1.5 rounded-full bg-white" /> Online
           </span>
         ) : (
           <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
@@ -546,7 +546,7 @@ const Avatar = ({ user, online }: { user: AdminUserRow; online?: boolean }) => (
       getInitials(user.name, user.email)
     )}
     {online ? (
-      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0B0B0B] bg-[#22C55E]" />
+      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0A0A0B] bg-white" />
     ) : null}
   </span>
 );
@@ -557,7 +557,7 @@ const SourceBadge = ({ user, compact }: { user: AdminUserRow; compact?: boolean 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#0F0F0F] px-2.5 py-1 text-[11px] text-white/70",
+        "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#161617] px-2.5 py-1 text-[11px] text-white/70",
         compact && "border-transparent bg-transparent px-0 py-0"
       )}
     >
@@ -592,7 +592,7 @@ const Pagination = ({
       <button
         onClick={() => onChange(Math.max(1, page - 1))}
         disabled={page === 1}
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#0F0F0F] text-white/60 transition hover:text-white disabled:opacity-30"
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#161617] text-white/60 transition hover:text-white disabled:opacity-30"
       >
         <ChevronLeft size={14} />
       </button>
@@ -609,7 +609,7 @@ const Pagination = ({
               "h-8 min-w-8 rounded-full px-2 text-[12px] transition",
               p === page
                 ? "bg-white text-black"
-                : "border border-white/10 bg-[#0F0F0F] text-white/70 hover:text-white"
+                : "border border-white/10 bg-[#161617] text-white/70 hover:text-white"
             )}
           >
             {p}
@@ -619,7 +619,7 @@ const Pagination = ({
       <button
         onClick={() => onChange(Math.min(totalPages, page + 1))}
         disabled={page === totalPages}
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#0F0F0F] text-white/60 transition hover:text-white disabled:opacity-30"
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#161617] text-white/60 transition hover:text-white disabled:opacity-30"
       >
         <ChevronRight size={14} />
       </button>

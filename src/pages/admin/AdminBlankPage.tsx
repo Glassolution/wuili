@@ -244,15 +244,37 @@ const AdminPainelPage = () => {
   }, [revenueDaily]);
 
   const revenueTotal = useMemo(() => revenueDaily.reduce((sum, point) => sum + point.value, 0), [revenueDaily]);
-  const revenueAxisMax = useMemo(() => {
-    const maxValue = Math.max(...revenueDaily.map((point) => Math.abs(point.value)), 0);
-    if (maxValue === 0) return 100;
-    return Math.ceil(maxValue / 4) * 4;
+  // Fração de 0 a 1 (topo→base do traço) onde o valor zero cruza, calculada sobre o intervalo REAL
+  // da série (o gradiente usa objectBoundingBox). Separa verde (lucro) de vermelho (prejuízo).
+  const splitOffset = (values: number[]) => {
+    if (values.length === 0) return 1;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    if (min >= 0) return 1; // nada abaixo de zero → tudo verde
+    if (max <= 0) return 0; // nada acima de zero → tudo vermelho
+    return max / (max - min);
+  };
+  const revenueAxis = useMemo(() => {
+    const values = revenueDaily.map((point) => point.value);
+    const currents = revenueDaily
+      .map((point) => point.currentValue)
+      .filter((value): value is number => value !== null);
+    const rawMax = Math.max(0, ...values);
+    const rawMin = Math.min(0, ...values);
+    const magnitude = Math.max(Math.abs(rawMax), Math.abs(rawMin), 1);
+    const step = Math.ceil(magnitude / 4);
+    const top = Math.max(Math.ceil(rawMax / step) * step, step);
+    const bottom = Math.floor(rawMin / step) * step;
+    const ticks: number[] = [];
+    for (let value = bottom; value <= top + 0.5; value += step) ticks.push(Math.round(value));
+    return {
+      top,
+      bottom,
+      ticks,
+      valueOffset: splitOffset(values),
+      currentOffset: splitOffset(currents),
+    };
   }, [revenueDaily]);
-  const revenueTicks = useMemo(
-    () => Array.from({ length: 5 }, (_, index) => Math.round((revenueAxisMax / 4) * index)),
-    [revenueAxisMax],
-  );
   const revenueHighlight = useMemo(() => {
     const highlightedPoints = revenueDaily.filter((point) => point.currentValue !== null);
     if (highlightedPoints.length === 0) return null;
@@ -304,35 +326,31 @@ const AdminPainelPage = () => {
 
   return (
     <AdminShell active="dashboard" userId={user?.id ?? "admin"} fullBleed>
-      <div className="min-h-full bg-[#101011] text-[#F4F4F5]">
+      <div className="min-h-full bg-[#0A0A0B] text-[#F5F5F5]">
         <AdminTopbar period={period} onPeriodChange={setPeriod} />
 
         <div className="p-4 sm:p-5">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               icon={ListChecks}
-              iconClass="bg-pink-500 text-white"
               label="Publicações"
               value={formatNumber(publicationsMetric.value)}
               delta={publicationsMetric.delta}
             />
             <MetricCard
               icon={Users}
-              iconClass="bg-violet-500 text-white"
               label="Usuários ativos"
               value={formatCompact(usersMetric.value)}
               delta={usersMetric.delta}
             />
             <MetricCard
               icon={Workflow}
-              iconClass="bg-blue-500 text-white"
               label="Pedidos processados"
               value={formatNumber(data.counts.orders)}
               delta={ordersMetric.delta}
             />
             <MetricCard
               icon={CircleDollarSign}
-              iconClass="bg-[#22C55E] text-white"
               label="Faturamento líquido"
               value={formatBRL(revenueMetric.value)}
               delta={revenueMetric.delta}
@@ -340,7 +358,7 @@ const AdminPainelPage = () => {
           </section>
 
           <section className="mt-4 grid items-stretch gap-4 xl:grid-cols-[minmax(0,2.08fr)_minmax(320px,0.92fr)]">
-            <article className="min-w-0 rounded-[18px] border border-white/[0.08] bg-[#0E0E10] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-6">
+            <article className="min-w-0 rounded-[18px] border border-[#242425] bg-[#161617] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-[13px] font-medium text-[#D4D4D8]">Receita</p>
@@ -357,28 +375,38 @@ const AdminPainelPage = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={revenueDaily} margin={{ top: 12, right: 8, left: -8, bottom: 0 }}>
                     <defs>
+                      <linearGradient id="adminRevenueStroke" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset={revenueAxis.currentOffset} stopColor="#22C55E" />
+                        <stop offset={revenueAxis.currentOffset} stopColor="#EF4444" />
+                      </linearGradient>
+                      <linearGradient id="adminRevenueStrokeDim" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset={revenueAxis.valueOffset} stopColor="#22C55E" stopOpacity={0.4} />
+                        <stop offset={revenueAxis.valueOffset} stopColor="#EF4444" stopOpacity={0.4} />
+                      </linearGradient>
                       <linearGradient id="adminRevenueFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22C55E" stopOpacity={0.22} />
-                        <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#22C55E" stopOpacity={0.28} />
+                        <stop offset={revenueAxis.currentOffset} stopColor="#22C55E" stopOpacity={0.04} />
+                        <stop offset={revenueAxis.currentOffset} stopColor="#EF4444" stopOpacity={0.04} />
+                        <stop offset="100%" stopColor="#EF4444" stopOpacity={0.28} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.035)" />
+                    <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
                     {revenueHighlight && (
                       <>
                         <ReferenceArea
                           x1={Math.max(revenueHighlight.startIndex - 6, 0)}
                           x2={revenueHighlight.endIndex}
-                          y1={0}
-                          y2={revenueAxisMax}
-                          fill="#22C55E"
-                          fillOpacity={0.035}
+                          y1={revenueAxis.bottom}
+                          y2={revenueAxis.top}
+                          fill="#FFFFFF"
+                          fillOpacity={0.04}
                           strokeOpacity={0}
                         />
                         <ReferenceArea
                           x1={Math.max(revenueHighlight.endIndex - 12, revenueHighlight.startIndex)}
                           x2={revenueHighlight.endIndex}
-                          y1={0}
-                          y2={revenueAxisMax}
+                          y1={revenueAxis.bottom}
+                          y2={revenueAxis.top}
                           fill="#FFFFFF"
                           fillOpacity={0.025}
                           strokeOpacity={0}
@@ -393,26 +421,27 @@ const AdminPainelPage = () => {
                       tickFormatter={(index) => revenueDaily[index as number]?.label ?? ""}
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: "#71717A", fontSize: 11 }}
+                      tick={{ fill: "#6A6A6F", fontSize: 11 }}
                       tickMargin={14}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
                       width={46}
-                      domain={[0, revenueAxisMax]}
-                      ticks={revenueTicks}
-                      tick={{ fill: "#71717A", fontSize: 11 }}
+                      domain={[revenueAxis.bottom, revenueAxis.top]}
+                      ticks={revenueAxis.ticks}
+                      tick={{ fill: "#6A6A6F", fontSize: 11 }}
                       tickFormatter={(value) => (Math.abs(value) >= 1000 ? `${Math.round(value / 1000)}K` : `${Math.round(value)}`)}
                     />
                     <Tooltip content={<RevenueTooltip />} cursor={{ stroke: "rgba(255,255,255,0.10)", strokeDasharray: "3 3" }} />
-                    <Area type="monotone" dataKey="value" stroke="#7D7D84" strokeWidth={1.35} fill="transparent" dot={false} activeDot={{ r: 3, fill: "#D4D4D8", stroke: "#171717", strokeWidth: 2 }} isAnimationActive={false} />
-                    <Area type="monotone" dataKey="currentValue" stroke="#22C55E" strokeWidth={1.9} fill="url(#adminRevenueFill)" dot={false} connectNulls={false} activeDot={{ r: 4, fill: "#22C55E", stroke: "#171717", strokeWidth: 2 }} isAnimationActive={false} />
+                    {revenueAxis.bottom < 0 && <ReferenceLine y={0} stroke="rgba(255,255,255,0.18)" strokeDasharray="4 4" />}
+                    <Area type="monotone" dataKey="value" baseValue={0} stroke="url(#adminRevenueStrokeDim)" strokeWidth={1.35} fill="transparent" dot={false} activeDot={{ r: 3, fill: "#D4D4D8", stroke: "#161617", strokeWidth: 2 }} isAnimationActive={false} />
+                    <Area type="monotone" dataKey="currentValue" baseValue={0} stroke="url(#adminRevenueStroke)" strokeWidth={1.9} fill="url(#adminRevenueFill)" dot={false} connectNulls={false} activeDot={{ r: 4, fill: "#FFFFFF", stroke: "#161617", strokeWidth: 2 }} isAnimationActive={false} />
                     {revenueHighlight && (
                       <>
-                        <ReferenceDot x={revenueHighlight.startIndex} y={revenueHighlight.startValue} r={3} fill="#22C55E" stroke="#0E0E10" strokeWidth={2} />
-                        <ReferenceDot x={revenueHighlight.peakIndex} y={revenueHighlight.peakValue} r={3.5} fill="#86EFAC" stroke="#0E0E10" strokeWidth={2} />
-                        <ReferenceDot x={revenueHighlight.endIndex} y={revenueHighlight.endValue} r={3} fill="#22C55E" stroke="#0E0E10" strokeWidth={2} />
+                        <ReferenceDot x={revenueHighlight.startIndex} y={revenueHighlight.startValue} r={3} fill="#F5F5F5" stroke="#161617" strokeWidth={2} />
+                        <ReferenceDot x={revenueHighlight.peakIndex} y={revenueHighlight.peakValue} r={3.5} fill="#FFFFFF" stroke="#161617" strokeWidth={2} />
+                        <ReferenceDot x={revenueHighlight.endIndex} y={revenueHighlight.endValue} r={3} fill="#F5F5F5" stroke="#161617" strokeWidth={2} />
                       </>
                     )}
                   </AreaChart>
@@ -431,26 +460,26 @@ const AdminPainelPage = () => {
                   <BarChart data={newUsersSeries} margin={{ top: 12, right: 4, left: 4, bottom: 8 }}>
                     <defs>
                       <pattern id="adminUserBarsHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(90)">
-                        <rect width="6" height="6" fill="rgba(34,197,94,0.18)" />
-                        <path d="M0 0H6" stroke="#86EFAC" strokeWidth="2" strokeLinecap="round" />
+                        <rect width="6" height="6" fill="rgba(255,255,255,0.14)" />
+                        <path d="M0 0H6" stroke="#E5E5E7" strokeWidth="2" strokeLinecap="round" />
                       </pattern>
                       <pattern id="adminUserMirrorHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(90)">
-                        <rect width="6" height="6" fill="rgba(134,239,172,0.12)" />
-                        <path d="M0 0H6" stroke="#A7F3D0" strokeWidth="2" strokeLinecap="round" />
+                        <rect width="6" height="6" fill="rgba(255,255,255,0.08)" />
+                        <path d="M0 0H6" stroke="#BDBDC2" strokeWidth="2" strokeLinecap="round" />
                       </pattern>
                     </defs>
                     <ReferenceLine y={0} stroke="rgba(255,255,255,0.16)" strokeDasharray="3 3" />
                     <Bar dataKey="value" stackId="users" radius={[3, 3, 0, 0]} barSize={10}>
                       {newUsersSeries.map((item) => (
-                        <Cell key={`users-${item.index}`} fill={item.index % 2 === 0 ? "#22C55E" : "url(#adminUserBarsHatch)"} />
+                        <Cell key={`users-${item.index}`} fill={item.index % 2 === 0 ? "#F5F5F5" : "url(#adminUserBarsHatch)"} />
                       ))}
                     </Bar>
                     <Bar dataKey="mirror" stackId="users" radius={[0, 0, 3, 3]} barSize={10}>
                       {newUsersSeries.map((item) => (
-                        <Cell key={`users-mirror-${item.index}`} fill={item.index % 2 === 0 ? "rgba(134,239,172,0.72)" : "url(#adminUserMirrorHatch)"} />
+                        <Cell key={`users-mirror-${item.index}`} fill={item.index % 2 === 0 ? "rgba(255,255,255,0.45)" : "url(#adminUserMirrorHatch)"} />
                       ))}
                     </Bar>
-                    <XAxis dataKey="index" type="number" domain={[0, 11]} axisLine={false} tickLine={false} tickMargin={8} ticks={[1, 5, 10]} interval={0} tick={{ fill: "#6E6E76", fontSize: 10 }} tickFormatter={(value) => ({ 1: "12d", 5: "6d", 10: "hoje" })[Number(value)] ?? ""} />
+                    <XAxis dataKey="index" type="number" domain={[0, 11]} axisLine={false} tickLine={false} tickMargin={8} ticks={[1, 5, 10]} interval={0} tick={{ fill: "#6A6A6F", fontSize: 10 }} tickFormatter={(value) => ({ 1: "12d", 5: "6d", 10: "hoje" })[Number(value)] ?? ""} />
                   </BarChart>
                 </ResponsiveContainer>
               </SideAnalytics>
@@ -465,12 +494,12 @@ const AdminPainelPage = () => {
                   <AreaChart data={ordersSeries} margin={{ top: 10, right: 4, left: 4, bottom: 8 }}>
                     <defs>
                       <linearGradient id="adminOrdersFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22C55E" stopOpacity={0.25} />
-                        <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.18} />
+                        <stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <Area type="monotone" dataKey="value" stroke="#22C55E" strokeWidth={1.8} fill="url(#adminOrdersFill)" dot={false} isAnimationActive={false} />
-                    <XAxis dataKey="index" type="number" domain={[0, 13]} axisLine={false} tickLine={false} tickMargin={8} ticks={[1, 6, 12]} interval={0} tick={{ fill: "#6E6E76", fontSize: 10 }} tickFormatter={(value) => ({ 1: "14d", 6: "7d", 12: "hoje" })[Number(value)] ?? ""} />
+                    <Area type="monotone" dataKey="value" stroke="#F5F5F5" strokeWidth={1.8} fill="url(#adminOrdersFill)" dot={false} isAnimationActive={false} />
+                    <XAxis dataKey="index" type="number" domain={[0, 13]} axisLine={false} tickLine={false} tickMargin={8} ticks={[1, 6, 12]} interval={0} tick={{ fill: "#6A6A6F", fontSize: 10 }} tickFormatter={(value) => ({ 1: "14d", 6: "7d", 12: "hoje" })[Number(value)] ?? ""} />
                   </AreaChart>
                 </ResponsiveContainer>
               </SideAnalytics>
@@ -478,7 +507,7 @@ const AdminPainelPage = () => {
           </section>
 
           <section className="mt-5">
-            <div className="flex flex-col gap-3 border-y border-white/[0.08] py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-y border-[#242425] py-4 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-[14px] font-semibold text-white">Visão geral dos relatórios</h2>
               <div className="flex items-center gap-2">
                 <ControlButton label={rangeLabel} chevron />
@@ -513,27 +542,27 @@ const AdminPainelPage = () => {
 };
 
 const AdminTopbar = ({ period, onPeriodChange }: { period: Period; onPeriodChange: (period: Period) => void }) => (
-  <header className="flex min-h-[72px] flex-col gap-3 border-b border-black/70 bg-[#111112] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025),inset_0_-1px_0_rgba(255,255,255,0.022),0_1px_0_rgba(0,0,0,0.86)] lg:flex-row lg:items-center lg:px-5 lg:py-0">
+  <header className="flex min-h-[72px] flex-col gap-3 border-b border-[#242425] bg-[#0F0F10] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025),0_1px_0_rgba(0,0,0,0.6)] lg:flex-row lg:items-center lg:px-5 lg:py-0">
     <label className="relative block w-full max-w-[260px]">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#66666D]" strokeWidth={1.5} />
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6A6A6F]" strokeWidth={1.5} />
       <input
         type="search"
         placeholder="Buscar..."
-        className="h-9 w-full rounded-full border border-white/[0.09] bg-[#1A1A1C] pl-9 pr-3 text-[12px] text-white outline-none placeholder:text-[#66666D] focus:border-white/[0.18]"
+        className="h-9 w-full rounded-full border border-[#242425] bg-[#161617] pl-9 pr-3 text-[12px] text-white outline-none placeholder:text-[#6A6A6F] focus:border-white/[0.22]"
       />
     </label>
 
     <div className="flex min-w-0 flex-wrap items-center gap-2 lg:ml-auto lg:flex-nowrap">
-      <div className="flex h-9 shrink-0 overflow-hidden rounded-full border border-white/[0.08] bg-[#171719] p-0.5 text-[12px]">
-        <button type="button" onClick={() => onPeriodChange("monthly")} className={cn("rounded-full px-3.5 transition", period === "monthly" ? "bg-[#E5E5E7] text-[#121214]" : "text-[#77777E] hover:text-white")}>
+      <div className="flex h-9 shrink-0 overflow-hidden rounded-full border border-[#242425] bg-[#161617] p-0.5 text-[12px]">
+        <button type="button" onClick={() => onPeriodChange("monthly")} className={cn("rounded-full px-3.5 transition", period === "monthly" ? "bg-white text-[#0A0A0B]" : "text-[#8A8A8E] hover:text-white")}>
           Mensal
         </button>
-        <button type="button" onClick={() => onPeriodChange("annually")} className={cn("rounded-full px-3.5 transition", period === "annually" ? "bg-[#E5E5E7] text-[#121214]" : "text-[#77777E] hover:text-white")}>
+        <button type="button" onClick={() => onPeriodChange("annually")} className={cn("rounded-full px-3.5 transition", period === "annually" ? "bg-white text-[#0A0A0B]" : "text-[#8A8A8E] hover:text-white")}>
           Anual
         </button>
       </div>
       <ControlButton label="Exportar dados" icon={Download} />
-      <button type="button" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-[#22C55E] px-4 text-[12px] font-semibold text-[#07150C] transition hover:bg-[#2DD46A]">
+      <button type="button" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-white px-4 text-[12px] font-semibold text-[#0A0A0B] transition hover:bg-[#E5E5E7]">
         <Plus className="h-3.5 w-3.5" strokeWidth={2} />
         Criar relatório
       </button>
@@ -545,23 +574,21 @@ const AdminTopbar = ({ period, onPeriodChange }: { period: Period; onPeriodChang
 
 const MetricCard = ({
   icon: Icon,
-  iconClass,
   label,
   value,
   delta,
 }: {
   icon: LucideIcon;
-  iconClass: string;
   label: string;
   value: string;
   delta: number;
 }) => (
-  <article className="relative min-w-0 overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#131314] px-5 py-5 shadow-[0_18px_45px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.035)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(255,255,255,0.022),transparent_42%,rgba(0,0,0,0.18))]">
+  <article className="relative min-w-0 overflow-hidden rounded-[18px] border border-[#242425] bg-[#161617] px-5 py-5 shadow-[0_18px_45px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.04)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(255,255,255,0.022),transparent_42%,rgba(0,0,0,0.18))]">
     <div className="flex items-center gap-2.5">
-      <span className={cn("relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]", iconClass)}>
-        <Icon className="h-3 w-3" strokeWidth={1.7} />
+      <span className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E5E5E7] text-[#161617] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]">
+        <Icon className="h-3 w-3" strokeWidth={1.9} />
       </span>
-      <span className="truncate text-[12px] font-medium text-[#8B8B91]">{label}</span>
+      <span className="truncate text-[12px] font-medium text-[#8A8A8E]">{label}</span>
     </div>
     <p className="mt-6 truncate text-[25px] font-semibold text-white">{value}</p>
     <DeltaLine delta={delta} compact />
@@ -569,8 +596,8 @@ const MetricCard = ({
 );
 
 const DeltaLine = ({ delta, compact = false }: { delta: number; compact?: boolean }) => (
-  <p className={cn("mt-2 text-[#77777E]", compact ? "text-[11px]" : "text-[12px]")}>
-    <span className={delta >= 0 ? "text-[#22C55E]" : "text-[#F05266]"}>{formatDelta(delta)}</span>{" "}
+  <p className={cn("mt-2 text-[#8A8A8E]", compact ? "text-[11px]" : "text-[12px]")}>
+    <span className={delta >= 0 ? "text-white" : "text-[#F05266]"}>{formatDelta(delta)}</span>{" "}
     vs período anterior
   </p>
 );
@@ -588,12 +615,12 @@ const SideAnalytics = ({
   delta: number;
   children: React.ReactNode;
 }) => (
-  <article className="flex min-h-[300px] flex-col rounded-[18px] border border-white/[0.08] bg-[#0E0E10] p-5 shadow-[0_20px_58px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.032)] sm:p-6">
+  <article className="flex min-h-[300px] flex-col rounded-[18px] border border-[#242425] bg-[#161617] p-5 shadow-[0_20px_58px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-6">
     <div className="flex items-start justify-between gap-3">
       <div>
-        <p className="flex items-center gap-2 text-[12px] font-medium text-[#8B8B91]">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#22C55E] text-white">
-            <Icon className="h-3 w-3" strokeWidth={1.6} />
+        <p className="flex items-center gap-2 text-[12px] font-medium text-[#8A8A8E]">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E5E5E7] text-[#161617]">
+            <Icon className="h-3 w-3" strokeWidth={1.8} />
           </span>
           {title}
         </p>
@@ -603,7 +630,7 @@ const SideAnalytics = ({
       <IconButton label="Mais opções" icon={MoreHorizontal} />
     </div>
     <div className="mt-4 min-h-[100px] flex-1">{children}</div>
-    <Link to="/admin/painel" className="mt-3 text-[12px] font-medium text-[#22C55E] hover:text-[#4ADE80]">
+    <Link to="/admin/painel" className="mt-3 text-[12px] font-medium text-[#A1A1A6] transition hover:text-white">
       Ver relatório
     </Link>
   </article>
@@ -618,7 +645,7 @@ const ControlButton = ({
   icon?: LucideIcon;
   chevron?: boolean;
 }) => (
-  <button type="button" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/[0.11] bg-transparent px-3 text-[11px] font-medium text-[#A1A1A7] transition hover:border-white/[0.20] hover:text-white">
+  <button type="button" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-[#242425] bg-transparent px-3 text-[11px] font-medium text-[#A1A1A6] transition hover:border-white/[0.22] hover:text-white">
     {Icon && <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />}
     {label}
     {chevron && <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />}
@@ -626,19 +653,19 @@ const ControlButton = ({
 );
 
 const IconButton = ({ label, icon: Icon }: { label: string; icon: LucideIcon }) => (
-  <button type="button" title={label} aria-label={label} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.11] bg-transparent text-[#77777E] transition hover:border-white/[0.20] hover:text-white">
+  <button type="button" title={label} aria-label={label} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#242425] bg-transparent text-[#8A8A8E] transition hover:border-white/[0.22] hover:text-white">
     <Icon className="h-4 w-4" strokeWidth={1.5} />
   </button>
 );
 
 const ReportSummary = ({ title, value, delta, description }: { title: string; value: string; delta: number; description: string }) => (
-  <article className="rounded-[18px] border border-white/[0.08] bg-[#0E0E10] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.03)] sm:p-6">
+  <article className="rounded-[18px] border border-[#242425] bg-[#161617] p-5 shadow-[0_18px_48px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.035)] sm:p-6">
     <div className="flex items-start justify-between gap-4">
       <div>
-        <p className="text-[12px] font-medium text-[#A1A1A7]">{title}</p>
+        <p className="text-[12px] font-medium text-[#A1A1A6]">{title}</p>
         <p className="mt-5 text-[26px] font-semibold text-white">{value}</p>
         <DeltaLine delta={delta} compact />
-        <p className="mt-5 max-w-md text-[11px] leading-5 text-[#66666D]">{description}</p>
+        <p className="mt-5 max-w-md text-[11px] leading-5 text-[#6A6A6F]">{description}</p>
       </div>
       <IconButton label="Mais opções" icon={MoreHorizontal} />
     </div>
@@ -647,10 +674,11 @@ const ReportSummary = ({ title, value, delta, description }: { title: string; va
 
 const RevenueTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value?: number }>; label?: number }) => {
   if (!active || !payload?.length) return null;
+  const amount = Number(payload[0]?.value ?? 0);
   return (
-    <div className="rounded-lg border border-white/[0.10] bg-[#101010] px-3 py-2 shadow-xl">
-      <p className="text-[10px] text-[#77777E]">{typeof label === "number" ? `Dia ${label + 1}` : "Receita"}</p>
-      <p className="mt-1 text-[12px] font-semibold text-white">{formatBRL(Number(payload[0]?.value ?? 0))}</p>
+    <div className="rounded-lg border border-[#242425] bg-[#0F0F10] px-3 py-2 shadow-xl">
+      <p className="text-[10px] text-[#8A8A8E]">{typeof label === "number" ? `Dia ${label + 1}` : "Receita"}</p>
+      <p className={cn("mt-1 text-[12px] font-semibold", amount < 0 ? "text-[#EF4444]" : "text-[#22C55E]")}>{formatBRL(amount)}</p>
     </div>
   );
 };

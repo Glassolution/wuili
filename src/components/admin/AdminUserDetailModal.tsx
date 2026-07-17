@@ -120,11 +120,11 @@ export const AdminUserDetailModal = ({ userId, onClose }: Props) => {
       <div
         onClick={(e) => e.stopPropagation()}
         ref={scrollRef}
-        className="h-full w-full max-w-[720px] overflow-y-auto border-l border-white/[0.06] bg-[#0A0A0A] text-white shadow-[0_0_60px_rgba(0,0,0,0.6)]"
+        className="h-full w-full max-w-[720px] overflow-y-auto border-l border-white/[0.06] bg-[#0A0A0B] text-white shadow-[0_0_60px_rgba(0,0,0,0.6)]"
         style={{ fontFamily: '"Inter", ui-sans-serif, system-ui' }}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-[#0A0A0A]/95 px-6 py-4 backdrop-blur">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-[#0A0A0B]/95 px-6 py-4 backdrop-blur">
           <button
             onClick={onClose}
             className="flex items-center gap-2 text-[12px] text-white/60 hover:text-white"
@@ -132,10 +132,10 @@ export const AdminUserDetailModal = ({ userId, onClose }: Props) => {
             <X size={14} /> Fechar
           </button>
           {data?.activity.is_online && (
-            <span className="flex items-center gap-2 rounded-full border border-[#22C55E]/25 bg-[#22C55E]/10 px-3 py-1 text-[11px] font-medium text-[#4ADE80]">
+            <span className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-medium text-white">
               <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22C55E] opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
               </span>
               Online agora
             </span>
@@ -193,7 +193,7 @@ export const AdminUserDetailModal = ({ userId, onClose }: Props) => {
               <Panel title="Mercado Livre" icon={Store}>
                 {data.integrations.find((i) => i.platform === "mercadolivre") ? (
                   <div className="space-y-2 text-[13px]">
-                    <Row label="Status" value={<span className="text-[#4ADE80]">Conectado</span>} />
+                    <Row label="Status" value={<span className="text-white">Conectado</span>} />
                     <Row label="ID ML" value={data.integrations.find((i) => i.platform === "mercadolivre")?.ml_user_id ?? "—"} />
                     <Row
                       label="Desde"
@@ -329,7 +329,7 @@ export const AdminUserDetailModal = ({ userId, onClose }: Props) => {
 };
 
 const StatCard = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
-  <div className="rounded-2xl border border-white/[0.06] bg-[#0F0F0F] p-4">
+  <div className="rounded-2xl border border-white/[0.06] bg-[#161617] p-4">
     <p className="text-[11px] uppercase tracking-[0.12em] text-white/40">{label}</p>
     <p className="mt-2 text-[22px] font-semibold tracking-[-0.02em]">{value}</p>
     {hint && <p className="mt-1 text-[11px] text-white/45">{hint}</p>}
@@ -345,7 +345,7 @@ const Panel = ({
   icon: any;
   children: React.ReactNode;
 }) => (
-  <section className="rounded-2xl border border-white/[0.06] bg-[#0B0B0B] p-5">
+  <section className="rounded-2xl border border-white/[0.06] bg-[#161617] p-5">
     <header className="mb-3 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-white/50">
       <Icon size={13} className="text-white/40" />
       {title}
@@ -355,7 +355,7 @@ const Panel = ({
 );
 
 const InfoChip = ({ icon: Icon, value }: { icon: any; value: string }) => (
-  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#0F0F0F] px-2.5 py-1 text-white/70">
+  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#161617] px-2.5 py-1 text-white/70">
     <Icon size={12} className="text-white/40" />
     {value}
   </span>

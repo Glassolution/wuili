@@ -186,7 +186,7 @@ const AdminRefundsPage = () => {
   const tabs: { key: TabKey; label: string; count: number; icon: typeof Clock; accent: string }[] = [
     { key: "pending", label: "Pedidos recentes", count: pending.length, icon: Clock, accent: "text-amber-500 bg-amber-500/10" },
     { key: "eligible", label: "Ativos elegíveis", count: eligible.length, icon: ShieldCheck, accent: "text-blue-500 bg-blue-500/10" },
-    { key: "approved", label: "Reembolsados", count: approved.length, icon: CheckCircle2, accent: "text-emerald-500 bg-emerald-500/10" },
+    { key: "approved", label: "Reembolsados", count: approved.length, icon: CheckCircle2, accent: "text-white bg-white/10" },
     { key: "rejected", label: "Recusados", count: rejected.length, icon: XCircle, accent: "text-red-500 bg-red-500/10" },
   ];
 
@@ -219,7 +219,7 @@ const AdminRefundsPage = () => {
                   className={`flex items-center justify-between rounded-lg border px-4 py-3 text-left transition ${
                     active
                       ? "border-white/[0.08] bg-white/[0.06] text-white shadow-sm"
-                      : "border-white/[0.08] bg-[#0F0F0F] text-[#8A8A8E] hover:border-white/20 hover:text-white"
+                      : "border-white/[0.08] bg-[#161617] text-[#8A8A8E] hover:border-white/20 hover:text-white"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -423,7 +423,7 @@ const RefundsTable = ({
                       className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                         pastRefundWindow
                           ? "bg-red-500/10 text-red-400"
-                          : "bg-emerald-500/10 text-emerald-400"
+                          : "bg-white/[0.06] text-white"
                       }`}
                       title={pastRefundWindow ? "Fora da janela de 7 dias — reembolso não obrigatório" : "Dentro da janela de 7 dias"}
                     >
@@ -459,7 +459,7 @@ const RefundsTable = ({
                       <button
                         disabled={busy}
                         onClick={() => onReject?.(r.id)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-[#0F0F0F] text-[#8A8A8E] px-3 py-1.5 text-[12px] font-semibold hover:text-white disabled:opacity-50 transition"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-[#161617] text-[#8A8A8E] px-3 py-1.5 text-[12px] font-semibold hover:text-white disabled:opacity-50 transition"
                       >
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} strokeWidth={1.5} />}
                         Recusar
@@ -471,7 +471,7 @@ const RefundsTable = ({
                     <span
                       className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
                         variant === "approved"
-                          ? "bg-emerald-500/10 border border-[#22C55E]/20 text-[#4ADE80]"
+                          ? "bg-white/[0.06] border border-white/15 text-white"
                           : "bg-red-500/10 border border-red-500/20 text-red-300"
                       }`}
                     >

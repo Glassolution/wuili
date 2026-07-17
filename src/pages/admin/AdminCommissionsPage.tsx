@@ -335,13 +335,13 @@ const AdminCommissionsPage = () => {
                       <Td className="text-right text-white">{row.reached_payment ?? 0}</Td>
                       <Td className="text-right text-white">{row.payers ?? 0}</Td>
                       <Td className="text-right font-semibold text-amber-300">{money(Number(row.commission_pending ?? 0))}</Td>
-                      <Td className="text-right font-semibold text-emerald-300">{money(Number(row.commission_paid ?? 0))}</Td>
+                      <Td className="text-right font-semibold text-white">{money(Number(row.commission_paid ?? 0))}</Td>
                       <Td className="text-[#8A8A8E]">{date(row.created_at)}</Td>
                       <Td>
                         <button
                           type="button"
                           onClick={() => setSelectedCode(row.code)}
-                          className="rounded-lg border border-white/[0.08] bg-[#0F0F0F] px-3 py-2 text-[12px] font-semibold text-[#8A8A8E] hover:text-white transition"
+                          className="rounded-lg border border-white/[0.08] bg-[#161617] px-3 py-2 text-[12px] font-semibold text-[#8A8A8E] hover:text-white transition"
                         >
                           Ver detalhes
                         </button>
@@ -355,7 +355,7 @@ const AdminCommissionsPage = () => {
         </section>
 
         <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
-          <SheetContent side="right" className="w-[min(540px,90vw)] border-white/[0.08] bg-[#0F0F0F] text-white">
+          <SheetContent side="right" className="w-[min(540px,90vw)] border-white/[0.08] bg-[#161617] text-white">
             <SheetHeader>
               <SheetTitle className="text-white text-[16px] font-semibold">Detalhes do afiliado</SheetTitle>
             </SheetHeader>
@@ -417,7 +417,7 @@ const AdminCommissionsPage = () => {
                                   className={cn(
                                     "inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-semibold",
                                     c.status === "paid"
-                                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                      ? "border-white/15 bg-white/[0.06] text-white"
                                       : c.status === "reached_payment"
                                         ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
                                         : "border-white/10 bg-white/[0.03] text-white/70",
@@ -433,7 +433,7 @@ const AdminCommissionsPage = () => {
                                   className={cn(
                                     "inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-semibold",
                                     String(c.payout_status) === "paid"
-                                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                                      ? "border-white/15 bg-white/[0.06] text-white"
                                       : "border-amber-500/30 bg-amber-500/10 text-amber-300",
                                   )}
                                 >
@@ -478,7 +478,7 @@ const MetricCard = ({
       className={cn(
         "mt-3 text-[26px] font-semibold tracking-[-0.02em] text-white leading-none",
         highlight === "amber" && "text-amber-300",
-        highlight === "emerald" && "text-emerald-300",
+        highlight === "emerald" && "text-white",
       )}
     >
       {value}

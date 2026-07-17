@@ -17,6 +17,7 @@ import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
 import ProductTemplate from "@/components/store-templates/ProductTemplate";
 import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateBeauty";
 import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
+import ProductTemplate4 from "@/components/store-templates/ProductTemplate4";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; variants?: ProductVariantOption[]; originalPrice?: number | null; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
@@ -1944,6 +1945,7 @@ const GeneratedStoreEditorPage = () => {
       { id: "produto-1", name: "Template 1", desc: "Página de produto Velora.", image: "/template-produto-preview.png" },
       { id: "produto-2", name: "Template 2", desc: "Página de produto Beauty.", image: "/template-produto-2-preview.png" },
       { id: "produto-3", name: "Template 3", desc: "Página de produto Shopify.", image: "/template-produto-3-preview.png" },
+      { id: "produto-4", name: "Template 4", desc: "Página de produto minimalista.", image: "/template-produto-3-preview.png" },
     ],
   };
   const selectedFontStack = fontOptions.find((option) => option.name === font)?.stack || fontOptions[0].stack;
@@ -3101,6 +3103,19 @@ const GeneratedStoreEditorPage = () => {
                   brand={brandName}
                   title={featuredProduct?.title || storeName}
                   description={(flow.salesAngle || "Fuja do ruido e aumente seu foco. Conforto duradouro com ANC avancado, chamadas nitidas e 30 horas de bateria.").slice(0, 240)}
+                  price={featuredPrice}
+                  originalPrice={featuredProduct?.originalPrice ?? null}
+                  variants={featuredProduct?.variants ?? []}
+                  image={featuredProduct?.imageUrl || heroImage}
+                  productId={featuredProduct?.id}
+                  accent={accent}
+                  mobile={mobilePreview}
+                />
+              ) : activeTemplate.id === "produto-4" ? (
+                <ProductTemplate4
+                  brand={brandName}
+                  title={featuredProduct?.title || storeName}
+                  description={(flow.salesAngle || "Design premium e alta performance para o seu dia a dia. Materiais duraveis, acabamento cuidadoso e praticidade em cada detalhe.").slice(0, 240)}
                   price={featuredPrice}
                   originalPrice={featuredProduct?.originalPrice ?? null}
                   variants={featuredProduct?.variants ?? []}

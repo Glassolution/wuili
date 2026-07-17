@@ -1,200 +1,390 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
+  ChevronUp,
   DollarSign,
-  FileText,
+  Headset,
   LayoutDashboard,
-  LifeBuoy,
-  PackageCheck,
   RefreshCcw,
-  Settings,
+  Search,
   ShoppingBag,
-  Sparkles,
-  User,
   Users as UsersIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import SearchPalette from "@/components/dashboard/SearchPalette";
 
-export type AdminSubKey = "overview" | "reports" | "activity" | "workflow";
-
-type Props = {
-  activeSub?: AdminSubKey;
+type NavItem = {
+  label: string;
+  icon: ElementType;
+  to: string;
+  dimmed?: boolean;
+  badge?: number;
 };
 
-const panelSubs: { key: AdminSubKey; label: string; to?: string }[] = [
-  { key: "overview", label: "Visão geral", to: "/admin/painel" },
-  { key: "reports", label: "Relatórios & análises" },
-  { key: "activity", label: "Atividade do time" },
-  { key: "workflow", label: "Workflow" },
+const navItems: NavItem[] = [
+  { label: "Dashboard", icon: LayoutDashboard, to: "/admin/painel" },
+  { label: "Suporte", icon: Headset, to: "/admin/suporte" },
+  { label: "Usuários & times", icon: UsersIcon, to: "/admin/usuarios" },
+  { label: "Comissões", icon: DollarSign, to: "/admin/comissoes" },
+  { label: "Reembolsos", icon: RefreshCcw, to: "/admin/reembolsos" },
+  { label: "AliExpress", icon: ShoppingBag, to: "/admin/aliexpress" },
 ];
 
-const VeloMark = () => (
-  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#22C55E] text-white shadow-[0_8px_24px_rgba(34,197,94,0.18)]">
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M3.5 5.5L7.75 10L3.5 14.5M9 5.5L13.25 10L9 14.5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </span>
+const getInitials = (name: string, email?: string | null) => {
+  const raw = (name || email || "Velo").trim();
+  const parts = raw.split(/[\s._@-]+/).filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+};
+
+const styles = {
+  sidebar: {
+    width: 248,
+    height: "100%",
+    minHeight: 0,
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "visible",
+    position: "relative",
+    boxSizing: "border-box",
+    padding: "18px 16px",
+    borderRadius: 0,
+    border: "1px solid #2A2926",
+    background: "#171714",
+    color: "#FFFFFF",
+    boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.05)",
+  } satisfies CSSProperties,
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  } satisfies CSSProperties,
+  brand: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
+    color: "#F2F1EC",
+    textDecoration: "none",
+  } satisfies CSSProperties,
+  brandText: {
+    fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontSize: 18,
+    lineHeight: "22px",
+    fontWeight: 700,
+    letterSpacing: "-0.065em",
+  } satisfies CSSProperties,
+  search: {
+    marginTop: 22,
+    height: 36,
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    boxSizing: "border-box",
+    border: 0,
+    borderRadius: 11,
+    padding: "0 10px",
+    background: "#070706",
+    color: "#FFFFFF",
+    textAlign: "left",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+    cursor: "pointer",
+  } satisfies CSSProperties,
+  searchText: {
+    minWidth: 0,
+    flex: 1,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    fontSize: 14,
+    lineHeight: "18px",
+    fontWeight: 600,
+    letterSpacing: "-0.03em",
+  } satisfies CSSProperties,
+  searchBadge: {
+    width: 24,
+    height: 24,
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    background: "#24231F",
+    color: "#FFFFFF",
+    fontSize: 15,
+    lineHeight: "15px",
+    fontWeight: 650,
+  } satisfies CSSProperties,
+  nav: {
+    marginTop: 22,
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  } satisfies CSSProperties,
+  navLinkBase: {
+    height: 32,
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    boxSizing: "border-box",
+    borderRadius: 10,
+    padding: "0 10px",
+    textDecoration: "none",
+    fontSize: 13,
+    lineHeight: "16px",
+    letterSpacing: "-0.02em",
+  } satisfies CSSProperties,
+  navBadge: {
+    marginLeft: "auto",
+    minWidth: 18,
+    height: 18,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxSizing: "border-box",
+    padding: "0 6px",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.12)",
+    color: "#FFFFFF",
+    fontSize: 10.5,
+    lineHeight: "10px",
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
+  } satisfies CSSProperties,
+  spacer: {
+    minHeight: 0,
+    flex: 1,
+  } satisfies CSSProperties,
+  backLink: {
+    height: 32,
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    boxSizing: "border-box",
+    borderRadius: 10,
+    padding: "0 10px",
+    marginBottom: 10,
+    border: 0,
+    width: "100%",
+    background: "transparent",
+    color: "rgba(255,255,255,0.62)",
+    fontSize: 12.5,
+    fontWeight: 500,
+    letterSpacing: "-0.02em",
+    cursor: "pointer",
+    textDecoration: "none",
+  } satisfies CSSProperties,
+  profileCard: {
+    width: "100%",
+    minWidth: 0,
+    minHeight: 52,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    boxSizing: "border-box",
+    border: 0,
+    borderRadius: 14,
+    padding: "8px 10px",
+    background: "#20201D",
+    color: "#FFFFFF",
+    textAlign: "left",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.22)",
+    cursor: "pointer",
+  } satisfies CSSProperties,
+  avatar: {
+    width: 32,
+    height: 32,
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    borderRadius: 999,
+    background: "#30302C",
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
+  } satisfies CSSProperties,
+  profileText: {
+    minWidth: 0,
+    flex: 1,
+  } satisfies CSSProperties,
+  profileName: {
+    display: "block",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    color: "#FFFFFF",
+    fontSize: 13,
+    lineHeight: "16px",
+    fontWeight: 650,
+    letterSpacing: "-0.025em",
+  } satisfies CSSProperties,
+  profileEmail: {
+    display: "block",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    marginTop: 2,
+    color: "rgba(255,255,255,0.62)",
+    fontSize: 11,
+    lineHeight: "14px",
+    fontWeight: 500,
+  } satisfies CSSProperties,
+  profileChevrons: {
+    width: 16,
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    color: "rgba(255,255,255,0.5)",
+  } satisfies CSSProperties,
+};
+
+const VeloIconOnly = () => (
+  <svg aria-hidden="true" width="30" height="30" viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }}>
+    <path d="M33 18 A11 11 0 1 0 33 30" stroke="#F2F1EC" strokeWidth="4" strokeLinecap="round" />
+    <path d="M30 26 L34 30 L38 26" stroke="#F2F1EC" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
 );
 
-export const AdminNewSidebar = ({ activeSub }: Props) => {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const isMobile = useIsMobile();
-  const [panelOpen, setPanelOpen] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
-  const isCollapsed = collapsed || isMobile;
-
-  const activeSection: "panel" | "users" | "commissions" | "support" | "refunds" | "aliexpress" | null = useMemo(() => {
-    if (pathname.startsWith("/admin/usuarios")) return "users";
-    if (pathname.startsWith("/admin/comissoes")) return "commissions";
-    if (pathname.startsWith("/admin/suporte")) return "support";
-    if (pathname.startsWith("/admin/reembolsos")) return "refunds";
-    if (pathname.startsWith("/admin/aliexpress")) return "aliexpress";
-    if (pathname.startsWith("/admin/painel")) return "panel";
-    return null;
-  }, [pathname]);
+const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) => {
+  const Icon = item.icon;
+  const linkStyle: CSSProperties = {
+    ...styles.navLinkBase,
+    color: active ? "#FFFFFF" : item.dimmed ? "rgba(255,255,255,0.62)" : "#FFFFFF",
+    background: active ? "#2A2925" : "transparent",
+    fontWeight: active ? 650 : 500,
+    boxShadow: active ? "0 10px 28px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08)" : "none",
+  };
 
   return (
-    <aside
-      className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r border-white/[0.075] bg-[#0F0F10] transition-[width] duration-200",
-        isCollapsed ? "w-[76px]" : "w-[260px]",
-      )}
-      style={{ fontFamily: '"Geist Sans", "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif' }}
-    >
-      <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/[0.075] px-4">
-        <Link to="/admin/painel" className="flex min-w-0 items-center gap-2.5 text-white no-underline">
-          <VeloMark />
-          {!isCollapsed && <span className="truncate text-[16px] font-semibold text-white">Velo</span>}
-        </Link>
-        <button
-          type="button"
-          onClick={() => setCollapsed((value) => !value)}
-          title={isCollapsed ? "Expandir menu" : "Recolher menu"}
-          className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.18] bg-transparent text-[#B7B7BD] transition hover:border-white/[0.28] hover:text-white md:flex"
-        >
-          {isCollapsed ? <ChevronRight className="h-4 w-4" strokeWidth={1.5} /> : <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />}
-        </button>
-      </div>
-
-      <div className="px-4 pb-5 pt-4">
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard/atlas")}
-          title="Sugestões da Aquas"
-          className={cn(
-            "flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/[0.17] bg-[#121214] text-[13px] font-medium text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition hover:border-white/[0.25] hover:bg-[#18181A]",
-            isCollapsed && "px-0",
-          )}
-        >
-          <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-          {!isCollapsed && "Sugestões da Aquas"}
-        </button>
-      </div>
-
-      <nav className="flex-1 space-y-1 overflow-y-auto px-4 text-[13px]">
-        <button
-          onClick={() => setPanelOpen((v) => !v)}
-          title="Dashboard"
-          className={cn(
-            "flex h-10 w-full items-center gap-3 rounded-lg px-3 transition",
-            activeSection === "panel" ? "text-white" : "text-[#8A8A8E] hover:bg-white/[0.04] hover:text-white",
-            isCollapsed && "justify-center px-0",
-          )}
-        >
-          <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-[#1A1A1A]", activeSection === "panel" && "text-white")}>
-            <LayoutDashboard className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </span>
-          {!isCollapsed && <span className="flex-1 text-left">Dashboard</span>}
-          {!isCollapsed && <ChevronDown className={cn("h-3.5 w-3.5 text-[#65656B] transition-transform", panelOpen ? "rotate-0" : "-rotate-90")} />}
-        </button>
-        {panelOpen && !isCollapsed && (
-          <div className="ml-[27px] space-y-0.5 border-l border-white/[0.08] py-1 pl-3">
-            {panelSubs.map((s) => {
-              const isActive = activeSub === s.key;
-              const inner = (
-                <div
-                  className={cn(
-                    "rounded-lg px-3 py-2 text-[12.5px] transition",
-                    isActive ? "bg-[#ECECEF] font-medium text-[#111113]" : "text-[#77777E] hover:bg-white/[0.04] hover:text-white",
-                  )}
-                >
-                  {s.label}
-                </div>
-              );
-              return s.to ? (
-                <Link key={s.key} to={s.to}>
-                  {inner}
-                </Link>
-              ) : (
-                <button key={s.key} className="w-full text-left">
-                  {inner}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        <SideItem icon={PackageCheck} label="Pedidos" to="/dashboard/pedidos" collapsed={isCollapsed} />
-        <SideItem icon={FileText} label="Publicações" to="/dashboard/publicacoes" collapsed={isCollapsed} />
-        <SideItem icon={Sparkles} label="Aquas" to="/dashboard/atlas" collapsed={isCollapsed} />
-        <SideItem icon={LifeBuoy} label="Suporte" to="/admin/suporte" active={activeSection === "support"} collapsed={isCollapsed} />
-        <SideItem icon={UsersIcon} label="Usuários & times" to="/admin/usuarios" active={activeSection === "users"} collapsed={isCollapsed} />
-        <SideItem icon={DollarSign} label="Comissões" to="/admin/comissoes" active={activeSection === "commissions"} collapsed={isCollapsed} />
-        <SideItem icon={RefreshCcw} label="Reembolsos" to="/admin/reembolsos" active={activeSection === "refunds"} collapsed={isCollapsed} />
-        <SideItem icon={ShoppingBag} label="AliExpress" to="/admin/aliexpress" active={activeSection === "aliexpress"} collapsed={isCollapsed} />
-      </nav>
-
-      <div className="space-y-1 border-t border-white/[0.08] px-4 py-4 text-[13px]">
-        <SideItem icon={Settings} label="Configurações" to="/dashboard/configuracoes" collapsed={isCollapsed} />
-        <SideItem icon={User} label="Perfil" to="/dashboard/configuracoes" collapsed={isCollapsed} />
-        <button
-          onClick={() => navigate("/dashboard")}
-          title="Voltar à Velo"
-          className={cn("mt-2 flex h-9 w-full items-center gap-3 rounded-lg px-3 text-[12px] text-[#6F6F75] transition hover:bg-white/[0.04] hover:text-white", isCollapsed && "justify-center px-0")}
-        >
-          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          {!isCollapsed && "Voltar à Velo"}
-        </button>
-      </div>
-    </aside>
+    <Link to={item.to} aria-current={active ? "page" : undefined} style={linkStyle}>
+      <Icon size={16} strokeWidth={1.65} aria-hidden="true" />
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+      {item.badge ? (
+        <span style={styles.navBadge} aria-label={`${item.badge} tickets abertos`}>
+          {item.badge > 99 ? "99+" : item.badge}
+        </span>
+      ) : null}
+    </Link>
   );
 };
 
-const SideItem = ({
-  icon: Icon,
-  label,
-  active,
-  to,
-  collapsed,
-}: {
-  icon: React.ElementType;
-  label: string;
-  active?: boolean;
-  to?: string;
-  collapsed?: boolean;
-}) => {
-  const inner = (
-    <div
-      title={label}
-      className={cn(
-        "flex h-10 items-center gap-3 rounded-lg px-3 transition",
-        active ? "bg-white/[0.08] text-white" : "text-[#7A7A80] hover:bg-white/[0.04] hover:text-white",
-        collapsed && "justify-center px-0",
-      )}
-    >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-[#1A1A1A]">
-        <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
-      </span>
-      {!collapsed && <span>{label}</span>}
-    </div>
+export const AdminNewSidebar = () => {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const { data: openTickets = 0 } = useQuery({
+    queryKey: ["admin-open-tickets-count"],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      // support_tickets ainda não está nos tipos gerados do Supabase, por isso o cast.
+      const { count, error } = await (supabase as any)
+        .from("support_tickets")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open");
+      if (error) throw error;
+      return (count as number) ?? 0;
+    },
+    refetchInterval: 60_000,
+  });
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel("admin-sidebar-tickets")
+      .on("postgres_changes", { event: "*", schema: "public", table: "support_tickets" }, () => {
+        void qc.invalidateQueries({ queryKey: ["admin-open-tickets-count"] });
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [qc, user?.id]);
+
+  const foto = (user?.user_metadata?.avatar_url as string | undefined) || (user?.user_metadata?.picture as string | undefined) || null;
+  const profileName =
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.email ? user.email.split("@")[0] : "Usuário");
+  const profileEmail = user?.email || "conta@velo.app";
+  const initials = getInitials(profileName, user?.email);
+
+  const isActive = (item: NavItem) => {
+    const target = item.to.replace(/\/$/, "");
+    return pathname === target || pathname.startsWith(`${target}/`);
+  };
+
+  return (
+    <aside className="velo-dashboard-sidebar" style={styles.sidebar}>
+      <header style={styles.header}>
+        <Link to="/admin/painel" style={styles.brand}>
+          <VeloIconOnly />
+          <span style={styles.brandText}>Velo</span>
+        </Link>
+      </header>
+
+      <button type="button" aria-label="Buscar" style={styles.search} onClick={() => setSearchOpen(true)}>
+        <Search size={15} strokeWidth={1.7} aria-hidden="true" />
+        <span style={styles.searchText}>Buscar</span>
+        <span style={styles.searchBadge}>/</span>
+      </button>
+
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin />
+
+      <nav aria-label="Navegação do admin" style={styles.nav}>
+        {navItems.map((item) => (
+          <SidebarNavLink
+            key={item.label}
+            item={item.to === "/admin/suporte" ? { ...item, badge: openTickets } : item}
+            active={isActive(item)}
+          />
+        ))}
+      </nav>
+
+      <div aria-hidden="true" style={styles.spacer} />
+
+      <Link to="/dashboard" style={styles.backLink}>
+        <ArrowLeft size={16} strokeWidth={1.65} aria-hidden="true" />
+        <span>Voltar à Velo</span>
+      </Link>
+
+      <button
+        type="button"
+        aria-label="Abrir perfil"
+        onClick={() => navigate("/dashboard/configuracoes")}
+        style={styles.profileCard}
+      >
+        <span style={styles.avatar}>
+          {foto ? <img src={foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
+        </span>
+        <span style={styles.profileText}>
+          <span style={styles.profileName}>{profileName}</span>
+          <span style={styles.profileEmail}>{profileEmail}</span>
+        </span>
+        <span aria-hidden="true" style={styles.profileChevrons}>
+          <ChevronUp size={14} strokeWidth={1.8} />
+          <ChevronDown size={14} strokeWidth={1.8} />
+        </span>
+      </button>
+    </aside>
   );
-  return to ? <Link to={to}>{inner}</Link> : <button className="w-full text-left">{inner}</button>;
 };
 
 export default AdminNewSidebar;

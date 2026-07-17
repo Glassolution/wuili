@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, User } from "lucide-react";
+import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, Trash2, User } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { isAdminEmail } from "@/lib/adminAccess";
 import { supabase } from "@/integrations/supabase/client";
 import PlanBadge from "@/components/PlanBadge";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
@@ -34,8 +35,6 @@ const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
   { id: "Suporte", icon: MessageCircle, separatorBefore: true },
 ];
 
-const MOBILE_NAV = NAV.filter((item) => item.id !== "Suporte");
-
 const SettingsPage = () => {
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabId) || "Perfil";
@@ -63,44 +62,6 @@ const SettingsPage = () => {
 
   return (
     <div className="mx-auto w-full max-w-[760px]" style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
-      {/* Sidebar 240px */}
-      <aside className="hidden w-[240px] shrink-0 flex-col bg-white border-r border-[#E5E5E5] dark:bg-[#0f0f0f] dark:border-white/10">
-        <div className="p-5 border-b border-[#F0F0F0] dark:border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-base font-semibold overflow-hidden">
-              {foto ? <img src={foto} alt="" className="w-full h-full object-cover" /> : iniciais}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white truncate">{nome || "Usuário"}</p>
-              <div className="mt-1"><PlanBadge size="sm" /></div>
-            </div>
-          </div>
-        </div>
-
-        <nav className="p-3 space-y-1">
-          {NAV.map((item) => {
-            const active = tab === item.id;
-            const Icon = item.icon;
-            return (
-              <div key={item.id}>
-                {item.separatorBefore && <div className="my-2 border-t border-[#F0F0F0] dark:border-white/10" />}
-                <button
-                  onClick={() => setTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-[14px] transition-colors ${
-                    active
-                      ? "bg-[#F0F0F0] text-[#0A0A0A] font-medium dark:bg-white/10 dark:text-white"
-                      : "text-[#737373] hover:bg-[#F5F5F5] dark:text-zinc-400 dark:hover:bg-white/5"
-                  }`}
-                >
-                  <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
-                  {item.id}
-                </button>
-              </div>
-            );
-          })}
-        </nav>
-      </aside>
-
       {/* Main */}
       <div className={isSupportTab ? "min-w-0 flex-1 overflow-x-hidden px-0 py-0 md:px-0 md:py-6" : "min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:px-0 md:py-6"}>
         <div className={`mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 ${isSupportTab ? "hidden md:block" : ""}`}>
@@ -115,29 +76,24 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        {/* Mobile tab pills */}
-        <div className={`-mx-3 mb-5 overflow-x-auto px-3 pb-2 pt-1 md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden ${isSupportTab ? "hidden md:block" : ""}`} style={{ scrollbarWidth: "none" }}>
-          <div className="flex w-max min-w-full items-center gap-2">
-            {MOBILE_NAV.map((item) => {
+        {/* Abas de configuração (estilo sublinhado) */}
+        <div className={`mb-6 border-b border-black/[0.14] dark:border-white/15 ${isSupportTab ? "hidden md:block" : ""}`}>
+          <div className="flex items-center justify-between gap-6 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+            {NAV.map((item) => {
               const active = tab === item.id;
-              const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   ref={(node) => { mobileTabRefs.current[item.id] = node; }}
                   onClick={() => setTab(item.id)}
-                  className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-[13px] font-semibold whitespace-nowrap transition-all ${
+                  className={`relative shrink-0 whitespace-nowrap pb-3 pt-1 text-[14px] transition-colors ${
                     active
-                      ? "border-[#0A0A0A] bg-[#0A0A0A] text-white shadow-[0_10px_24px_rgba(0,0,0,0.22)]"
-                      : "border-black/[0.07] bg-white text-[#525252] shadow-[0_6px_18px_rgba(15,23,42,0.06)] hover:border-black/[0.14] hover:text-[#0A0A0A]"
+                      ? "font-semibold text-[#0A0A0A] dark:text-white"
+                      : "font-medium text-[#737373] hover:text-[#0A0A0A] dark:text-zinc-400 dark:hover:text-white"
                   }`}
                 >
-                  <span className={`grid h-6 w-6 place-items-center rounded-full ${
-                    active ? "bg-white/12 text-white" : "bg-[#F5F5F5] text-[#0A0A0A]"
-                  }`}>
-                    <Icon size={13.5} />
-                  </span>
                   {item.id}
+                  {active && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#0A0A0A] dark:bg-white" />}
                 </button>
               );
             })}
@@ -159,14 +115,20 @@ const SettingsPage = () => {
 };
 
 /* ──── shared field styles ──── */
-const labelCls = "block text-[12px] font-normal text-[#737373] dark:text-zinc-400 uppercase tracking-[0.05em] mb-2";
-const inputCls =
-  "w-full h-11 px-3.5 rounded-[10px] border border-[#E5E5E5] bg-white text-[15px] text-[#0A0A0A] placeholder:text-[#A3A3A3] outline-none transition focus:border-black focus:shadow-[0_0_0_3px_rgba(0,0,0,0.06)] dark:border-white/10 dark:bg-[#0f0f0f] dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white dark:focus:shadow-[0_0_0_3px_rgba(255,255,255,0.14)]";
 const primaryBtn =
   "inline-flex items-center justify-center px-7 py-3 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 transition-opacity dark:bg-white dark:text-black";
 const secondaryBtn =
   "inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-black text-[14px] font-medium text-black bg-transparent hover:bg-black hover:text-white transition-colors dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black";
 const divider = "my-6 border-t border-[#F0F0F0] dark:border-white/10";
+
+/* ──── mockup profile: underline fields + solid/outline buttons ──── */
+const fieldLabel = "block text-[13px] font-bold text-[#111113] mb-2 dark:text-white";
+const underlineInput =
+  "w-full h-10 bg-transparent border-0 border-b border-[#E2E2E2] px-0 text-[15px] text-[#0A0A0A] placeholder:text-[#B3B3B3] outline-none transition focus:border-black dark:border-white/15 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white";
+const saveBtn =
+  "inline-flex items-center justify-center rounded-[10px] bg-black px-10 py-3 text-[14px] font-semibold text-white transition hover:opacity-85 dark:bg-white dark:text-black";
+const cancelBtn =
+  "inline-flex items-center justify-center rounded-[10px] border border-[#E0E0E0] bg-white px-10 py-3 text-[14px] font-semibold text-[#0A0A0A] transition hover:border-black dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:border-white";
 
 /* ══ Profile ════════════════════════════════════════════ */
 const ProfileTab = () => {
@@ -174,6 +136,8 @@ const ProfileTab = () => {
   const { user } = useAuth();
   const [nomeEditado, setNomeEditado] = useState(nome);
   const [telefone, setTelefone] = useState("");
+  const [telefoneOriginal, setTelefoneOriginal] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [fotoPreview, setFotoPreview] = useState<string | null>(foto);
   const [fotoFile, setFotoFile] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -206,9 +170,19 @@ const ProfileTab = () => {
       .eq("user_id", user.id)
       .single()
       .then(({ data }) => {
-        if (data?.whatsapp) setTelefone(data.whatsapp);
+        if (data?.whatsapp) {
+          setTelefone(data.whatsapp);
+          setTelefoneOriginal(data.whatsapp);
+        }
       });
   }, [user?.id]);
+
+  const handleCancelar = () => {
+    setNomeEditado(nome);
+    setTelefone(telefoneOriginal);
+    setFotoPreview(foto);
+    setFotoFile(null);
+  };
 
   const handleSalvar = async () => {
     const toastId = veloToast.loading("Salvando configurações...");
@@ -286,39 +260,53 @@ const ProfileTab = () => {
       <div className={divider} />
 
       {/* Form */}
-      <div className="space-y-5">
+      <div className="space-y-6">
         <div>
-          <label className={labelCls}>Nome</label>
-          <input className={inputCls} value={nomeEditado} onChange={(e) => setNomeEditado(e.target.value)} />
+          <label className={fieldLabel}>Nome</label>
+          <input
+            className={underlineInput}
+            placeholder="Seu nome"
+            value={nomeEditado}
+            onChange={(e) => setNomeEditado(e.target.value)}
+          />
         </div>
 
         <div>
-          <label className={labelCls}>Email</label>
+          <label className={fieldLabel}>Telefone</label>
+          <input
+            className={underlineInput}
+            placeholder="(00) 00000-0000"
+            value={telefone}
+            onChange={(e) => setTelefone(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className={fieldLabel}>CPF/CNPJ</label>
+          <input
+            className={underlineInput}
+            placeholder="000.000.000-00"
+            value={cpfCnpj}
+            onChange={(e) => setCpfCnpj(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className={fieldLabel}>Email</label>
           <div className="relative">
             <input
               readOnly
               value={user?.email ?? ""}
-              className={`${inputCls} pr-10 bg-[#FAFAFA] text-[#737373] cursor-not-allowed dark:bg-zinc-950 dark:text-zinc-400`}
+              className={`${underlineInput} pr-8 text-[#737373] cursor-not-allowed dark:text-zinc-400`}
             />
-            <Lock size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#A3A3A3]" />
+            <Lock size={14} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#B3B3B3]" />
           </div>
-        </div>
-
-        <div>
-          <label className={labelCls}>Telefone</label>
-          <input className={inputCls} value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-        </div>
-
-        <div>
-          <label className={labelCls}>CPF/CNPJ</label>
-          <input className={inputCls} defaultValue="" placeholder="000.000.000-00" />
         </div>
       </div>
 
-      <div className={divider} />
-
-      <div className="flex justify-end">
-        <button onClick={handleSalvar} className={primaryBtn}>Salvar alterações</button>
+      <div className="mt-8 flex items-center gap-3">
+        <button onClick={handleSalvar} className={saveBtn}>Salvar</button>
+        <button onClick={handleCancelar} className={cancelBtn}>Cancelar</button>
       </div>
     </div>
   );
@@ -407,7 +395,8 @@ const StoresTab = () => {
 type Integration = { platform: string; label: string; connected: boolean; loading?: boolean; comingSoon?: boolean };
 
 const IntegrationsTab = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin" || isAdminEmail(user?.email);
   const planLimits = usePlanLimits();
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([
@@ -498,10 +487,12 @@ const IntegrationsTab = () => {
         <MercadoPagoIntegrationCard />
       </div>
 
-      <div className="mb-4">
-        <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Loja</h3>
-        <ShopifyIntegrationCard />
-      </div>
+      {isAdmin && (
+        <div className="mb-4">
+          <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Loja</h3>
+          <ShopifyIntegrationCard />
+        </div>
+      )}
 
       <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Marketplaces</h3>
 
@@ -724,57 +715,64 @@ const NotificationsTab = () => {
 };
 
 /* ══ Security ════════════════════════════════════════════ */
-const SecurityTab = () => (
-  <div className="space-y-7">
-    <div>
-      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Alterar senha</h2>
-      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Use uma senha forte que você não usa em outros lugares.</p>
-      <div className="space-y-4">
-        {["Senha atual", "Nova senha", "Confirmar nova senha"].map((l) => (
-          <div key={l}>
-            <label className={labelCls}>{l}</label>
-            <input type="password" className={inputCls} />
-          </div>
-        ))}
-      </div>
-      <div className="mt-5">
-        <button className={primaryBtn}>Atualizar senha</button>
-      </div>
-    </div>
+const sectionTitle = "text-[16px] font-bold text-[#111113] dark:text-white";
 
-    <div className={divider} />
+const SecurityTab = () => {
+  const handleExcluirConta = () => {
+    if (!window.confirm("Tem certeza que deseja excluir sua conta? Esta acao e permanente e nao pode ser desfeita.")) return;
+    veloToast.success("Solicitacao de exclusao registrada. Nossa equipe processara em breve.");
+  };
 
-    <div>
-      <h3 className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white mb-3">Autenticação de dois fatores</h3>
-      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
-        <span className="text-[14px] text-[#0A0A0A] dark:text-white">2FA ativado</span>
-        <div className="w-11 h-6 rounded-full bg-[#E5E5E5] dark:bg-zinc-700 relative">
-          <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white" />
+  return (
+    <div className="space-y-8">
+      {/* Alterar senha */}
+      <div>
+        <h2 className={sectionTitle}>Alterar senha</h2>
+        <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">Use uma senha forte que voce nao usa em outros lugares.</p>
+        <div className="mt-6 space-y-6">
+          {["Senha atual", "Nova senha", "Confirmar nova senha"].map((l) => (
+            <div key={l}>
+              <label className={fieldLabel}>{l}</label>
+              <input type="password" placeholder="••••••••" className={underlineInput} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-7">
+          <button className={saveBtn}>Salvar</button>
         </div>
       </div>
-    </div>
 
-    <div className={divider} />
+      <div className={divider} />
 
-    <div>
-      <h3 className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white mb-3">Sessões ativas</h3>
-      <div className="space-y-2">
-        {[
-          { device: "Chrome — São Paulo", active: true },
-          { device: "Safari — iPhone",    active: false },
-        ].map((s) => (
-          <div key={s.device} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
-            <span className="text-[14px] text-[#0A0A0A] dark:text-white">{s.device}</span>
-            {s.active ? (
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Atual</span>
-            ) : (
-              <button className="text-[12px] text-[#0A0A0A] dark:text-white font-medium underline underline-offset-2 hover:opacity-70">Encerrar</button>
-            )}
+      {/* 2FA */}
+      <div>
+        <h3 className={sectionTitle}>Autenticacao de dois fatores</h3>
+        <div className="mt-4 flex items-center justify-between border-b border-black/[0.08] pb-4 dark:border-white/10">
+          <span className="text-[14px] text-[#171717] dark:text-white">2FA ativado</span>
+          <div className="relative h-6 w-11 rounded-full bg-[#E5E5E5] dark:bg-zinc-700">
+            <div className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white" />
           </div>
-        ))}
+        </div>
+      </div>
+
+      <div className={divider} />
+
+      {/* Excluir conta */}
+      <div>
+        <h3 className={sectionTitle}>Excluir conta</h3>
+        <p className="mt-1 max-w-[520px] text-[13px] leading-relaxed text-[#737373] dark:text-zinc-400">
+          Ao excluir sua conta, todos os seus dados serao removidos permanentemente. Esta acao nao pode ser desfeita.
+        </p>
+        <button
+          type="button"
+          onClick={handleExcluirConta}
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#ef4444]/55 bg-white px-7 py-3 text-[14px] font-semibold text-[#ef4444] transition hover:bg-[#ef4444] hover:text-white dark:bg-transparent"
+        >
+          <Trash2 size={16} /> Excluir conta
+        </button>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default SettingsPage;

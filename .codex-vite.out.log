@@ -1,0 +1,58 @@
+
+> vite_react_shadcn_ts@0.0.0 dev
+> vite --host 127.0.0.1 --port 8080
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m481[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m8080[22m/[39m
+[2m00:19:21[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2memail-previews/assinatura-confirmada-lucas.html[22m
+[2m00:19:21[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2memail-previews/index.html[22m
+[2m00:19:21[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2memail-previews/verificar-email-lucas.html[22m
+[2m00:19:21[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2memail-previews/assinatura-confirmada-lucas.html[22m
+[2m00:19:21[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2memail-previews/index.html[22m
+[2m00:19:21[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2memail-previews/verificar-email-lucas.html[22m
+[2m08:07:27[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m08:07:27[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/PlanBadge.tsx[22m
+[2m08:07:28[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/landing/PricingSection.tsx[22m
+[2m08:07:28[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/hooks/usePlan.ts[22m
+[2m08:07:28[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/integrations/supabase/types.ts[22m
+[2m08:07:28[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/dashboard/ProductCard.tsx[22m
+[2m08:07:28[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/lib/planLimits.ts[22m
+[2m21:03:23[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:03:27[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:05:33[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:05:51[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:06:04[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:06:12[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminShell.tsx[22m
+[2m21:06:15[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminShell.tsx[22m
+[2m21:08:19[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:09:14[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:09:20[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:11:17[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:11:24[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:11:31[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:11:43[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:11:48[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:12:58[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:13:04[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminNewSidebar.tsx[22m
+[2m21:17:17[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/store-templates/ProductTemplateBeauty.tsx[22m
+[2m21:17:18[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/store-templates/ProductTemplateShopify.tsx[22m
+[2m21:17:18[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/store-templates/ProductTemplate.tsx[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/VeloLogo.tsx[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/dashboard/DashboardSidebar.tsx[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/store-templates/ProductTemplate.tsx[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/storefront/StorefrontNavbar.tsx[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/integrations/supabase/types.ts[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/store-templates/ProductTemplateBeauty.tsx[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/store-templates/ProductTemplateShopify.tsx[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m21:17:29[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/lib/profileContext.tsx, /src/index.css[22m
+[2m22:17:31[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminShell.tsx[22m
+[2m22:20:23[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminUserDetailModal.tsx[22m
+[2m22:20:27[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminUserDetailModal.tsx[22m
+[2m22:20:34[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminUserDetailModal.tsx[22m
+[2m22:20:38[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminUserDetailModal.tsx[22m
+[2m22:20:41[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminUserDetailModal.tsx[22m
+[2m22:20:46[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/AdminUserDetailModal.tsx[22m

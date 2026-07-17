@@ -1,0 +1,6 @@
+
+[1m[33mwarn[39m[22m - The class `duration-[120ms]` is ambiguous and matches multiple utilities.
+[1m[33mwarn[39m[22m - If this is content and not a class, replace it with `duration-&lsqb;120ms&rsqb;` to silence this warning.
+
+[1m[33mwarn[39m[22m - The class `duration-[150ms]` is ambiguous and matches multiple utilities.
+[1m[33mwarn[39m[22m - If this is content and not a class, replace it with `duration-&lsqb;150ms&rsqb;` to silence this warning.

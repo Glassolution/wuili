@@ -23,6 +23,7 @@ import { renderStoreIcon } from "@/lib/storeIcons";
 import ProductTemplate from "@/components/store-templates/ProductTemplate";
 import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateBeauty";
 import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
+import ProductTemplate4 from "@/components/store-templates/ProductTemplate4";
 import StorefrontLojaTemplate from "@/components/store-templates/StorefrontLojaTemplate";
 import PreviewPage from "@/pages/PreviewPage";
 import SectionRenderer from "@/components/store-sections/SectionRenderer";
@@ -54,6 +55,11 @@ const PRODUCT_TEMPLATES = {
     Component: ProductTemplateShopify,
     descFallback:
       "Fuja do ruido e aumente seu foco. Conforto duradouro com ANC avancado, chamadas nitidas e 30 horas de bateria.",
+  },
+  "produto-4": {
+    Component: ProductTemplate4,
+    descFallback:
+      "Design premium e alta performance para o seu dia a dia. Materiais duraveis, acabamento cuidadoso e praticidade em cada detalhe.",
   },
   "produto-1": {
     Component: ProductTemplate,
