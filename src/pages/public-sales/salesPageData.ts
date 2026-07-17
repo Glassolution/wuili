@@ -1,6 +1,7 @@
 // Hook compartilhado pelas 3 telas do fluxo público de venda (produto → carrinho → checkout).
-// Resolve o slug tanto para generated_sales_pages (páginas legadas) quanto para
-// user_projects publicados, e devolve os dados essenciais para render + checkout.
+// Fase 1 da unificação: fonte de verdade é user_projects. Páginas legadas
+// (generated_sales_pages) foram migradas para user_projects com
+// source_kind='generated_sales_page' e não são mais consultadas aqui.
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -83,35 +84,10 @@ export function useSalesPageData(slug: string | undefined) {
       setLoading(true);
       setError(null);
       try {
-        // 1) Tenta generated_sales_pages
-        const { data: gsp } = await supabase
-          .from("generated_sales_pages")
-          .select("id,user_id,catalog_product_id,product_title,hero_image_url,price_brl,store_name,store_logo_url,store_description")
-          .eq("slug", slug)
-          .maybeSingle();
-
-        if (gsp) {
-          if (!active) return;
-          const g = gsp as typeof gsp & { store_name?: string | null; store_logo_url?: string | null; store_description?: string | null };
-          setData({
-            slug,
-            ownerUserId: gsp.user_id,
-            productId: gsp.catalog_product_id ?? undefined,
-            productTitle: gsp.product_title || "Produto",
-            productImage: gsp.hero_image_url ?? null,
-            price: Number(gsp.price_brl ?? 0),
-            accent: "#0A0A0A",
-            brand: g.store_name || gsp.product_title || "Loja",
-            storeLogoUrl: g.store_logo_url ?? null,
-            storeDescription: g.store_description ?? null,
-          });
-          return;
-        }
-
-        // 2) Tenta user_projects publicado
+        // 1) user_projects publicado (fonte de verdade unificada).
         let project: UserProject | null = await fetchPublicProject(slug);
 
-        // 3) Preview do editor: se o projeto ainda está em rascunho,
+        // 2) Preview do editor: se o projeto ainda está em rascunho,
         //    fetchPublicProject devolve null (RPC só expõe publicados). Como o
         //    dono está autenticado, buscamos direto em user_projects pelo slug
         //    no metadata — assim o carrinho/checkout preview reflete o produto

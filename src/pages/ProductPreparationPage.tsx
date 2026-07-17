@@ -40,6 +40,7 @@ const formatBRL = (value: number) =>
 const ProductPreparationPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const projectId = (location.state as { projectId?: string } | null)?.projectId;
   const products = useMemo(() => {
     const fromState = (location.state as { product?: ExampleProduct; products?: ExampleProduct[] } | null);
     if (fromState?.products?.length) return fromState.products;
@@ -187,7 +188,7 @@ const ProductPreparationPage = () => {
               })}
             </div>
 
-            <button type="button" onClick={() => navigate("/onboarding/idioma", { state: { product: primaryProduct, products } })} disabled={!isReady} className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-[5px] bg-black text-[13px] font-semibold text-white transition hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#dfe3ea] disabled:text-[#9aa2b5]">
+            <button type="button" onClick={() => navigate("/onboarding/idioma", { state: { product: primaryProduct, products, projectId } })} disabled={!isReady} className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-[5px] bg-black text-[13px] font-semibold text-white transition hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#dfe3ea] disabled:text-[#9aa2b5]">
               {isReady ? "Continuar" : "Preparando..."}
             </button>
           </div>

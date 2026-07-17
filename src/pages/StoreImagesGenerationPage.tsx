@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
+import { readOnboardingProjectId } from "@/lib/onboardingProject";
 import {
   markStoreOnboardingCompleted,
   readUserStores,
@@ -16,6 +17,7 @@ type FlowState = {
   language: string;
   persona: string;
   salesAngle: string;
+  projectId?: string | null;
 };
 
 const generationMessages = [
@@ -35,13 +37,14 @@ const StoreImagesGenerationPage = () => {
     let language = state?.language;
     let persona = state?.persona;
     let salesAngle = state?.salesAngle;
+    const projectId = state?.projectId ?? readOnboardingProjectId() ?? null;
     try {
       if (!product) { const value = sessionStorage.getItem("velo-example-product"); product = value ? JSON.parse(value) as ExampleProduct : undefined; }
       if (!language) language = sessionStorage.getItem("velo-store-language") || undefined;
       if (!persona) persona = sessionStorage.getItem("velo-customer-persona") || undefined;
       if (!salesAngle) salesAngle = sessionStorage.getItem("velo-sales-angle") || undefined;
     } catch { return null; }
-    return product && language && persona && salesAngle ? { product, language, persona, salesAngle } : null;
+    return product && language && persona && salesAngle ? { product, language, persona, salesAngle, projectId } : null;
   }, [location.state]);
   const [messageIndex, setMessageIndex] = useState(0);
   const [generationReady, setGenerationReady] = useState(false);
