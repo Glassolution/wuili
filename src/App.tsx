@@ -72,6 +72,7 @@ const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsPage"));
 const AdminAliExpressPage = lazy(() => import("./pages/admin/AdminAliExpressPage"));
 const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsPage"));
 const AdminBlankPage = lazy(() => import("./pages/admin/AdminBlankPage"));
+const ReferralAcceptPage = lazy(() => import("./pages/ReferralAcceptPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -151,6 +152,7 @@ const App = () => (
               <Route path="/catalogo" element={<StoreCatalogPage />} />
               <Route path="/cadastro" element={<Navigate to="/login" replace />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/convite/:token" element={<ReferralAcceptPage />} />
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/docs" element={<Docs />} />
               <Route path="/termos" element={<TermsPage />} />

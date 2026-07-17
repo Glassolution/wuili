@@ -1114,6 +1114,54 @@ export type Database = {
           },
         ]
       }
+      referrals: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          invite_token: string
+          invited_email: string
+          invited_rewarded: boolean
+          invited_user_id: string | null
+          inviter_id: string
+          inviter_rewarded: boolean
+          linked_at: string | null
+          status: string
+          subscribed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_token: string
+          invited_email: string
+          invited_rewarded?: boolean
+          invited_user_id?: string | null
+          inviter_id: string
+          inviter_rewarded?: boolean
+          linked_at?: string | null
+          status?: string
+          subscribed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_token?: string
+          invited_email?: string
+          invited_rewarded?: boolean
+          invited_user_id?: string | null
+          inviter_id?: string
+          inviter_rewarded?: boolean
+          linked_at?: string | null
+          status?: string
+          subscribed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       refund_requests: {
         Row: {
           created_at: string
@@ -1392,6 +1440,7 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
+          discount_percent: number | null
           id: string
           is_trial: boolean
           last_charge_attempt_at: string | null
@@ -1402,9 +1451,11 @@ export type Database = {
           mp_subscription_id: string | null
           next_charge_amount: number | null
           next_charge_at: string | null
+          original_amount: number | null
           payment_method: string | null
           plan: string
           post_trial_plan: string | null
+          referral_id: string | null
           status: string
           trial_ends_at: string | null
           updated_at: string
@@ -1416,6 +1467,7 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          discount_percent?: number | null
           id?: string
           is_trial?: boolean
           last_charge_attempt_at?: string | null
@@ -1426,9 +1478,11 @@ export type Database = {
           mp_subscription_id?: string | null
           next_charge_amount?: number | null
           next_charge_at?: string | null
+          original_amount?: number | null
           payment_method?: string | null
           plan?: string
           post_trial_plan?: string | null
+          referral_id?: string | null
           status?: string
           trial_ends_at?: string | null
           updated_at?: string
@@ -1440,6 +1494,7 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          discount_percent?: number | null
           id?: string
           is_trial?: boolean
           last_charge_attempt_at?: string | null
@@ -1450,15 +1505,25 @@ export type Database = {
           mp_subscription_id?: string | null
           next_charge_amount?: number | null
           next_charge_at?: string | null
+          original_amount?: number | null
           payment_method?: string | null
           plan?: string
           post_trial_plan?: string | null
+          referral_id?: string | null
           status?: string
           trial_ends_at?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "referrals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supplier_products: {
         Row: {

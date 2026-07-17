@@ -73,7 +73,47 @@ Deno.serve(async (req) => {
     const isTrial = false;
     const TRIAL_AMOUNT = 29.9;
     const TRIAL_DAYS = 5;
-    const selectedPlan = basePlan;
+    let selectedPlan: { amount: number; description: string } = { ...basePlan };
+
+    // === DESCONTO POR INDICAÇÃO (referral) ===
+    let appliedReferralId: string | null = null;
+    let discountPercent = 0;
+    const originalAmount = basePlan.amount;
+    let rewardInviter = false;
+    let inviterUserId: string | null = null;
+    {
+      const dbUrlR = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+      const dbKeyR = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminR = createClient(dbUrlR, dbKeyR);
+      const hadPaidBefore = async (uid: string) => {
+        const { data } = await adminR.from("subscriptions").select("status,plan").eq("user_id", uid);
+        return (data ?? []).some((s) => {
+          const p = String(s.plan ?? "").toLowerCase();
+          return p && p !== "gratis" && p !== "free" && s.status !== "pending";
+        });
+      };
+      const invitedHadPaid = await hadPaidBefore(userId);
+      if (!invitedHadPaid) {
+        const { data: refInvited } = await adminR
+          .from("referrals")
+          .select("id,inviter_id,status,expires_at,invited_rewarded")
+          .eq("invited_user_id", userId)
+          .eq("status", "linked")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (refInvited && !refInvited.invited_rewarded && new Date(refInvited.expires_at) > new Date()) {
+          appliedReferralId = refInvited.id;
+          discountPercent = 15;
+          inviterUserId = refInvited.inviter_id;
+          rewardInviter = !(await hadPaidBefore(refInvited.inviter_id));
+        }
+      }
+      if (discountPercent > 0) {
+        const discounted = Math.round(basePlan.amount * (1 - discountPercent / 100) * 100) / 100;
+        selectedPlan = { amount: discounted, description: `${basePlan.description} (indicação -15%)` };
+      }
+    }
 
     // === COOLDOWN ANTI-ABUSO (pós-reembolso) ===
     {
@@ -225,6 +265,9 @@ Deno.serve(async (req) => {
       mp_payment_id: String(mpData.id),
       payment_method: payment_method,
       amount: selectedPlan.amount,
+      original_amount: originalAmount,
+      discount_percent: discountPercent > 0 ? discountPercent : null,
+      referral_id: appliedReferralId,
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),
       is_trial: isTrial,
@@ -246,6 +289,17 @@ Deno.serve(async (req) => {
     // Update profile plan if approved
     if (mpData.status === "approved") {
       await adminClient.from("profiles").update({ plano: plan }).eq("user_id", userId);
+
+      // Marca o referral como 'subscribed' e credita reward do convidador (se aplicável)
+      if (appliedReferralId) {
+        await adminClient.from("referrals").update({
+          status: "subscribed",
+          subscribed_at: now.toISOString(),
+          invited_rewarded: true,
+          inviter_rewarded: rewardInviter,
+        }).eq("id", appliedReferralId);
+      }
+
       if (!isTrial && subscriptionRow) {
         const emailResult = await sendSubscriptionConfirmationEmailOnce({
           adminClient,
@@ -264,6 +318,10 @@ Deno.serve(async (req) => {
       status: mpData.status,
       payment_id: mpData.id,
       plan: plan,
+      amount: selectedPlan.amount,
+      original_amount: originalAmount,
+      discount_percent: discountPercent > 0 ? discountPercent : null,
+      referral_applied: !!appliedReferralId,
     };
 
     // PIX: return QR code data
