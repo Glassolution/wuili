@@ -792,19 +792,21 @@ const categories: Array<{
   { key: "outros", label: "Outros", shortLabel: "Outros" },
 ];
 
+// Valores alinhados exatamente ao que o sync grava em catalog_products.category
+// (minúsculo, com acentos onde o sync mantém; "eletronicos" sem acento é intencional).
 const categoryMap: Record<CategoryKey, string | null> = {
   todos: null,
-  casa: "Casa",
-  eletronicos: "Eletrônicos",
-  moda: "Moda",
-  bijuterias: "Bijuterias",
-  decoracao: "Decoração",
-  bebe: "Bebê e Infantil",
-  pet: "Pet",
-  beleza: "Beleza",
-  saude: "Saúde e Bem-estar",
-  esporte: "Esporte e Fitness",
-  outros: "Outros",
+  casa: "casa",
+  eletronicos: "eletronicos",
+  moda: "moda",
+  bijuterias: "bijuterias",
+  decoracao: "decoração",
+  bebe: "bebe e infantil",
+  pet: "pet",
+  beleza: "beleza",
+  saude: "saúde e bem-estar",
+  esporte: "esporte e fitness",
+  outros: "outros",
 };
 
 const PRICE_OPTIONS = ["Todos os preços", "Até R$ 50", "R$ 50-150", "Acima de R$ 150"];
