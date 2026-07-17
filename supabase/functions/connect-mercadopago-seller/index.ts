@@ -33,8 +33,24 @@ serve(async (req) => {
 
     const sellerId = userData.user.id;
     const body = await req.json().catch(() => ({}));
-    const { code } = body ?? {};
-    if (!code) return json({ error: "code é obrigatório" }, 400);
+    const { code, error: clientReportedError, error_description: clientReportedErrorDesc } = body ?? {};
+
+    if (clientReportedError || clientReportedErrorDesc) {
+      console.error("[connect-mp-seller] callback com erro reportado pelo cliente:", JSON.stringify({
+        seller_id: sellerId,
+        error: clientReportedError,
+        error_description: clientReportedErrorDesc,
+      }));
+    }
+
+    if (!code) {
+      console.error("[connect-mp-seller] code ausente para seller", sellerId);
+      return json({ error: "code é obrigatório" }, 400);
+    }
+
+    const maskedCode = typeof code === "string" && code.length > 10
+      ? `${code.slice(0, 6)}...${code.slice(-4)} (len=${code.length})`
+      : `(len=${String(code).length})`;
 
     const envRedirectUri = Deno.env.get("MP_MARKETPLACE_REDIRECT_URI");
     if (!envRedirectUri) {
@@ -43,12 +59,21 @@ serve(async (req) => {
     }
     const bodyRedirectUri: string | undefined = body?.redirect_uri;
     if (bodyRedirectUri && bodyRedirectUri !== envRedirectUri) {
-      console.error("[connect-mp-seller] redirect_uri mismatch", { fromBody: bodyRedirectUri, fromEnv: envRedirectUri });
+      console.error("[connect-mp-seller] redirect_uri mismatch", JSON.stringify({
+        seller_id: sellerId,
+        fromBody: bodyRedirectUri,
+        fromEnv: envRedirectUri,
+      }));
       return json({ error: "redirect_uri não corresponde ao configurado no servidor" }, 400);
     }
     const redirect_uri = envRedirectUri;
-    console.log("[connect-mp-seller] redirect_uri final:", redirect_uri);
-    console.log("[connect-mp-seller] trocando code por token para seller", sellerId);
+    console.log("[connect-mp-seller] iniciando troca code->token:", JSON.stringify({
+      timestamp: new Date().toISOString(),
+      seller_id: sellerId,
+      client_id: clientId,
+      redirect_uri,
+      code_masked: maskedCode,
+    }));
 
     const tokenRes = await fetch("https://api.mercadopago.com/oauth/token", {
       method: "POST",
@@ -62,12 +87,42 @@ serve(async (req) => {
       }),
     });
 
-    const tokenData = await tokenRes.json();
-    console.log("[connect-mp-seller] resposta MP:", { status: tokenRes.status, hasToken: !!tokenData.access_token });
+    const rawBody = await tokenRes.text();
+    let tokenData: any = {};
+    try {
+      tokenData = rawBody ? JSON.parse(rawBody) : {};
+    } catch (parseErr) {
+      console.error("[connect-mp-seller] resposta MP não-JSON:", JSON.stringify({
+        seller_id: sellerId,
+        status: tokenRes.status,
+        raw_body: rawBody,
+      }));
+    }
 
     if (!tokenRes.ok || !tokenData.access_token) {
+      // Log completo do erro retornado pelo Mercado Pago
+      console.error("[connect-mp-seller] erro do Mercado Pago ao trocar code:", JSON.stringify({
+        seller_id: sellerId,
+        status: tokenRes.status,
+        status_text: tokenRes.statusText,
+        mp_error: tokenData?.error ?? null,
+        mp_message: tokenData?.message ?? null,
+        mp_error_description: tokenData?.error_description ?? null,
+        mp_cause: tokenData?.cause ?? null,
+        full_body: tokenData,
+        raw_body: rawBody,
+      }));
       return json({ error: "Falha ao conectar com o Mercado Pago", details: tokenData }, 400);
     }
+
+    console.log("[connect-mp-seller] token obtido com sucesso:", JSON.stringify({
+      seller_id: sellerId,
+      status: tokenRes.status,
+      mp_user_id: tokenData.user_id,
+      scope: tokenData.scope,
+      expires_in: tokenData.expires_in,
+      live_mode: tokenData.live_mode,
+    }));
 
     const expiresIn = Number(tokenData.expires_in ?? 15552000);
     const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();

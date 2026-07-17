@@ -15,9 +15,40 @@ const MercadoPagoCallbackPage = () => {
 
     const code = searchParams.get("code");
     const error = searchParams.get("error");
+    const errorDescription = searchParams.get("error_description");
+    const state = searchParams.get("state");
+
+    // Dump completo dos parâmetros do callback para diagnóstico
+    const allParams: Record<string, string> = {};
+    searchParams.forEach((v, k) => { allParams[k] = v; });
+    console.log("[MP callback] parâmetros recebidos:", allParams);
+
+    if (error || errorDescription) {
+      console.error("[MP callback] Mercado Pago retornou erro:", {
+        error,
+        error_description: errorDescription,
+        state,
+        all_params: allParams,
+      });
+    }
 
     if (error || !code) {
-      navigate("/dashboard/integracoes?mp_error=1", { replace: true });
+      // Ainda assim, envia para a Edge Function registrar nos logs do Supabase
+      (async () => {
+        try {
+          await supabase.functions.invoke("connect-mercadopago-seller", {
+            body: {
+              code: null,
+              error,
+              error_description: errorDescription,
+              callback_params: allParams,
+            },
+          });
+        } catch (e) {
+          console.warn("[MP callback] falha ao registrar erro na Edge Function:", e);
+        }
+        navigate("/dashboard/integracoes?mp_error=1", { replace: true });
+      })();
       return;
     }
 
@@ -30,15 +61,22 @@ const MercadoPagoCallbackPage = () => {
         }
 
         const redirectUri = `${PUBLIC_APP_URL}/mercadopago/callback`;
-        const { error: fnErr } = await supabase.functions.invoke("connect-mercadopago-seller", {
+        console.log("[MP callback] enviando code para Edge Function", {
+          redirect_uri: redirectUri,
+          code_length: code.length,
+        });
+        const { data, error: fnErr } = await supabase.functions.invoke("connect-mercadopago-seller", {
           body: { code, redirect_uri: redirectUri },
         });
-        if (fnErr) throw fnErr;
+        if (fnErr) {
+          console.error("[MP callback] Edge Function retornou erro:", fnErr, "data:", data);
+          throw fnErr;
+        }
 
         setMessage("Conta conectada! Redirecionando...");
         navigate("/dashboard/integracoes?mp_success=1", { replace: true });
       } catch (err) {
-        console.error("[MP callback] erro:", err);
+        console.error("[MP callback] erro final:", err);
         navigate("/dashboard/integracoes?mp_error=1", { replace: true });
       }
     })();
