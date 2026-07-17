@@ -132,7 +132,7 @@ Retorne JSON com essa estrutura exata:
       slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
     }
 
-    const heroImage = product.image_url || (Array.isArray(product.images) ? product.images[0] : null);
+    const heroImage = Array.isArray(product.images) ? product.images[0] : null;
 
     const { data: inserted, error: insertErr } = await admin
       .from("generated_sales_pages")
@@ -146,8 +146,11 @@ Retorne JSON com essa estrutura exata:
         testimonials,
         cta_text,
         hero_image_url: heroImage,
-        price_brl: product.price,
+        price_brl: product.suggested_price,
         product_title: product.title,
+        store_name: store_name || null,
+        store_logo_url: store_logo_url || null,
+        store_description: store_description || null,
       })
       .select()
       .single();
