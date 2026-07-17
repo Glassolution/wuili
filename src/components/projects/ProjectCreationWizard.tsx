@@ -361,7 +361,7 @@ const ProjectCreationWizard = ({
                 <div className="space-y-5">
                   <div>
                     <label className="mb-1.5 block text-[12px] font-semibold text-[#33363b]">
-                      Nome do projeto
+                      Nome da loja
                     </label>
                     <input
                       value={nome}
@@ -371,6 +371,52 @@ const ProjectCreationWizard = ({
                       className="h-11 w-full rounded-[10px] border border-[#e0e0dc] px-3.5 text-[14px] font-medium outline-none transition focus:border-black focus:ring-4 focus:ring-black/5"
                     />
                   </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-[12px] font-semibold text-[#33363b]">
+                      Logo / Foto da loja
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={uploadingLogo}
+                        className="h-16 w-16 shrink-0 rounded-[10px] border border-dashed border-[#d8d8d3] bg-[#faf9f7] flex items-center justify-center overflow-hidden hover:border-black/40 transition"
+                      >
+                        {uploadingLogo ? (
+                          <Loader2 size={18} className="animate-spin text-[#9a9a96]" />
+                        ) : logoImage ? (
+                          <img src={logoImage} alt="logo" className="w-full h-full object-cover" />
+                        ) : (
+                          <Store size={20} className="text-[#9a9a96]" />
+                        )}
+                      </button>
+                      <div className="flex-1">
+                        <button
+                          type="button"
+                          onClick={() => logoInputRef.current?.click()}
+                          disabled={uploadingLogo}
+                          className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#e0e0dc] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#18191c] hover:bg-[#f5f5f3] transition"
+                        >
+                          <Upload size={12} />
+                          {logoImage ? "Trocar imagem" : "Enviar imagem"}
+                        </button>
+                        <p className="mt-1 text-[10.5px] text-[#9a9a96]">PNG ou JPG, até 5MB.</p>
+                      </div>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleLogoUpload(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="mb-1.5 block text-[12px] font-semibold text-[#33363b]">
                       Descrição
@@ -383,57 +429,60 @@ const ProjectCreationWizard = ({
                       className="w-full resize-none rounded-[10px] border border-[#e0e0dc] px-3.5 py-2.5 text-[14px] font-medium outline-none transition focus:border-black focus:ring-4 focus:ring-black/5"
                     />
                   </div>
-                  <div>
-                    <label className="mb-2 block text-[12px] font-semibold text-[#33363b]">
-                      O que você quer criar?
-                    </label>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTipo("pagina_venda");
-                          setTemplateId("produto-1");
-                        }}
-                        className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
-                          tipo === "pagina_venda"
-                            ? "border-black ring-1 ring-black"
-                            : "border-[#e0e0dc] hover:border-black/40"
-                        }`}
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
-                          <FileText size={17} />
-                        </span>
-                        <span className="text-[13.5px] font-semibold text-[#18191c]">
-                          Página de vendas
-                        </span>
-                        <span className="text-[11.5px] leading-4 text-[#6b7079]">
-                          Uma oferta focada em um único produto.
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTipo("loja_completa");
-                          setTemplateId("loja-1");
-                        }}
-                        className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
-                          tipo === "loja_completa"
-                            ? "border-black ring-1 ring-black"
-                            : "border-[#e0e0dc] hover:border-black/40"
-                        }`}
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
-                          <Store size={17} />
-                        </span>
-                        <span className="text-[13.5px] font-semibold text-[#18191c]">
-                          Loja completa
-                        </span>
-                        <span className="text-[11.5px] leading-4 text-[#6b7079]">
-                          Uma vitrine com vários produtos e coleções.
-                        </span>
-                      </button>
+
+                  {!lockedTipo ? (
+                    <div>
+                      <label className="mb-2 block text-[12px] font-semibold text-[#33363b]">
+                        O que você quer criar?
+                      </label>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipo("pagina_venda");
+                            setTemplateId("produto-1");
+                          }}
+                          className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
+                            tipo === "pagina_venda"
+                              ? "border-black ring-1 ring-black"
+                              : "border-[#e0e0dc] hover:border-black/40"
+                          }`}
+                        >
+                          <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
+                            <FileText size={17} />
+                          </span>
+                          <span className="text-[13.5px] font-semibold text-[#18191c]">
+                            Página de vendas
+                          </span>
+                          <span className="text-[11.5px] leading-4 text-[#6b7079]">
+                            Uma oferta focada em um único produto.
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipo("loja_completa");
+                            setTemplateId("loja-1");
+                          }}
+                          className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
+                            tipo === "loja_completa"
+                              ? "border-black ring-1 ring-black"
+                              : "border-[#e0e0dc] hover:border-black/40"
+                          }`}
+                        >
+                          <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
+                            <Store size={17} />
+                          </span>
+                          <span className="text-[13.5px] font-semibold text-[#18191c]">
+                            Loja completa
+                          </span>
+                          <span className="text-[11.5px] leading-4 text-[#6b7079]">
+                            Uma vitrine com vários produtos e coleções.
+                          </span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
               ) : null}
 
