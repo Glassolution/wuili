@@ -78,6 +78,7 @@ export function useSalesPageData(slug: string | undefined) {
       return;
     }
     let active = true;
+    let cleanupChannel: (() => void) | null = null;
     (async () => {
       setLoading(true);
       setError(null);
