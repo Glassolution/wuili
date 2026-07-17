@@ -700,7 +700,7 @@ CONHECIMENTO DA VELO:
 - Pedidos (/dashboard/pedidos): mostra vendas reais recebidas do ML com nome, endereço, telefone do comprador e link do fornecedor.
 - Saldos/Transações (/dashboard/saldos, /dashboard/transacoes): faturamento real baseado nos pedidos.
 - Suporte: /dashboard/configuracoes → aba Suporte, ou email contato@velo.com.br.
-- Planos: Grátis (modo teste, sem publicar), Pro R$99,90/mês (30 produtos, 2 marketplaces, 3 agentes IA), Business R$149,90/mês (ilimitado). Assinatura em /checkout.
+- Planos: Grátis (modo teste, sem publicar), Pro R$79,80/mês (30 produtos, 2 marketplaces, 3 agentes IA), Business R$159,60/mês (ilimitado). Assinatura em /checkout.
 - Reembolso: janela de 7 dias, solicitação via Suporte; admins gerenciam em /admin/reembolsos.
 - Fluxo recomendado para iniciante: 1) conectar Mercado Livre, 2) escolher produto no catálogo, 3) importar/publicar, 4) acompanhar pedidos em /dashboard/pedidos.
 

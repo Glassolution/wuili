@@ -28,7 +28,7 @@ type PlanData = {
 const PLANS_DATA: Record<string, PlanData> = {
   base: {
     name: "Base",
-    price: "R$ 97,00",
+    price: "R$ 39,90",
     description: "Pra quem quer começar a vender sem travar no operacional.",
     features: [
       "Importação automática de até 50 produtos por mês pro Mercado Livre",
@@ -40,7 +40,7 @@ const PLANS_DATA: Record<string, PlanData> = {
   },
   pro: {
     name: "Pro",
-    price: "R$ 149,90",
+    price: "R$ 79,80",
     description: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
     badge: "Mais escolhido",
     features: [
@@ -54,7 +54,7 @@ const PLANS_DATA: Record<string, PlanData> = {
   },
   business: {
     name: "Business",
-    price: "R$ 299,90",
+    price: "R$ 159,60",
     description: "Pra quem já vive disso e quer parar de contar produto.",
     badge: "Escala",
     features: [
@@ -68,15 +68,15 @@ const PLANS_DATA: Record<string, PlanData> = {
 };
 
 const PLAN_AMOUNTS: Record<string, number> = {
-  base: 97,
-  pro: 149.9,
-  business: 299.9,
+  base: 39.9,
+  pro: 79.8,
+  business: 159.6,
 };
 
 const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
-  base: 1047.6,   // 97 * 12 * 0.9
-  pro: 1618.92,   // 149.90 * 12 * 0.9
-  business: 3238.92, // 299.90 * 12 * 0.9
+  base: 430.92,   // 39.90 * 12 * 0.9
+  pro: 861.84,    // 79.80 * 12 * 0.9
+  business: 1723.68, // 159.60 * 12 * 0.9
 };
 
 const splitPlanPrice = (price: string) => {
@@ -153,7 +153,7 @@ const CheckoutPage = () => {
   const checkoutPrice = isTrial ? TRIAL_AMOUNT_BRL : recurringPrice;
   const checkoutPeriodLabel = isTrial ? `por ${TRIAL_DAYS} dias` : billingCycle === "annual" ? "por ano" : "por mês";
   const checkoutDescription = isTrial
-    ? `Trial de ${TRIAL_DAYS} dias do plano Pro. Depois, sua assinatura continua automaticamente no plano Pro (R$99,90/mês).`
+    ? `Trial de ${TRIAL_DAYS} dias do plano Pro. Depois, sua assinatura continua automaticamente no plano Pro (R$79,80/mês).`
     : `Assinatura ${recurringCycleLabel} do plano ${plan.name}`;
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("pix");

@@ -25,7 +25,7 @@ const PLANS = [
   {
     id: "pro",
     name: "Pro",
-    price: "R$ 99,90",
+    price: "R$ 79,80",
     period: "/mês",
     features: [
       "Até 30 produtos publicados",
@@ -44,7 +44,7 @@ const PLANS = [
   {
     id: "business",
     name: "Business",
-    price: "R$ 149,90",
+    price: "R$ 159,60",
     period: "/mês",
     features: [
       "Produtos ilimitados",

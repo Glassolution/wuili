@@ -42,7 +42,7 @@ const plans: Plan[] = [
   {
     id: "base",
     name: "Base",
-    price: "97",
+    price: "39,90",
     currency: "R$",
     period: "BRL / mês",
     desc: "Pra quem quer começar a vender sem travar no operacional.",
@@ -59,7 +59,7 @@ const plans: Plan[] = [
   {
     id: "pro",
     name: "Pro",
-    price: "149,90",
+    price: "79,80",
     currency: "R$",
     period: "BRL / mês",
     desc: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
@@ -79,7 +79,7 @@ const plans: Plan[] = [
   {
     id: "business",
     name: "Business",
-    price: "299,90",
+    price: "159,60",
     currency: "R$",
     period: "BRL / mês",
     desc: "Pra quem já vive disso e quer parar de contar produto.",
