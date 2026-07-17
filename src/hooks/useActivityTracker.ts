@@ -13,6 +13,7 @@ export function useActivityTracker(userId: string | null | undefined) {
     if (!userId) return;
     let cancelled = false;
     let heartbeat: ReturnType<typeof setInterval> | null = null;
+    let cleanupListeners: (() => void) | null = null;
 
     (async () => {
       const { data, error } = await (supabase as any)
@@ -43,7 +44,6 @@ export function useActivityTracker(userId: string | null | undefined) {
           const url = `${(supabase as any).supabaseUrl}/rest/v1/user_sessions?id=eq.${sessionIdRef.current}`;
           const body = JSON.stringify({ last_seen_at: new Date().toISOString() });
           const key = (supabase as any).supabaseKey;
-          // best-effort final beat
           navigator.sendBeacon?.(
             url + `&apikey=${encodeURIComponent(key)}`,
             new Blob([body], { type: "application/json" })
@@ -55,8 +55,7 @@ export function useActivityTracker(userId: string | null | undefined) {
       document.addEventListener("visibilitychange", onVisibility);
       window.addEventListener("beforeunload", onUnload);
 
-      // cleanup captured in outer effect return
-      (heartbeat as any)._cleanup = () => {
+      cleanupListeners = () => {
         document.removeEventListener("visibilitychange", onVisibility);
         window.removeEventListener("beforeunload", onUnload);
       };
@@ -64,12 +63,11 @@ export function useActivityTracker(userId: string | null | undefined) {
 
     return () => {
       cancelled = true;
-      if (heartbeat) {
-        (heartbeat as any)._cleanup?.();
-        clearInterval(heartbeat);
-      }
+      cleanupListeners?.();
+      if (heartbeat) clearInterval(heartbeat);
     };
   }, [userId]);
+
 
   // Page views
   useEffect(() => {
