@@ -3953,46 +3953,102 @@ const GeneratedStoreEditorPage = () => {
       </AnimatePresence>
       {upgradeModalOpen ? (
         <div
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
           onMouseDown={(event) => { if (event.target === event.currentTarget) setUpgradeModalOpen(false); }}
         >
-          <section className="w-full max-w-[460px] overflow-hidden rounded-[20px] bg-white text-[#18191c] shadow-[0_40px_120px_rgba(0,0,0,0.45)]">
-            <div className="flex items-start justify-between border-b border-[#ececea] px-6 py-5">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#3567e9] to-[#5f8dff] text-white">
-                  <LockKeyhole size={18} />
-                </span>
-                <div>
-                  <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Assine para publicar</h2>
-                  <p className="text-[12px] text-[#6b7079]">Disponível nos planos pagos</p>
+          <section className="relative w-full max-w-[960px] overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#0e0f11] text-white shadow-[0_60px_160px_rgba(0,0,0,0.6)]">
+            <button type="button" onClick={() => setUpgradeModalOpen(false)} className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white" aria-label="Fechar">
+              <X size={16} />
+            </button>
+            <div className="grid gap-8 p-8 md:grid-cols-2 md:gap-10 md:p-10">
+              {/* LEFT */}
+              <div className="flex flex-col">
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex -space-x-2">
+                    <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#f6c48b] to-[#c26a3a] ring-2 ring-[#0e0f11]" />
+                    <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#d6a5c9] to-[#7d4a70] ring-2 ring-[#0e0f11]" />
+                    <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#8bb7f6] to-[#3a5fc2] ring-2 ring-[#0e0f11]" />
+                  </div>
+                  <span className="text-[13px] text-white/60 underline decoration-white/30 underline-offset-2">Confiado por 1420+ clientes</span>
                 </div>
+                <h2 className="text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">
+                  Publique lojas ilimitadas,<br />agora!
+                </h2>
+
+                <p className="mt-8 text-[13px] text-white/50">Acesse o verdadeiro poder da Velo</p>
+                <ul className="mt-3 space-y-2">
+                  {[
+                    { icon: "🚀", text: "Publique sua loja sem limites" },
+                    { icon: "🤖", text: "Redator de IA ilimitado" },
+                    { icon: "🎨", text: "Desbloqueie 57+ seções focadas em conversão" },
+                    { icon: "✨", text: "+30 créditos por mês para editor de imagens IA" },
+                    { icon: "♾️", text: "Novas seções CRO comprovadas todos os meses" },
+                    { icon: "🛍️", text: "App de Bundles incluído — sem custo extra" },
+                    { icon: "🏍️", text: "Lance enquanto os concorrentes ainda estão projetando" },
+                  ].map((f) => (
+                    <li key={f.text} className="flex items-center gap-3 rounded-[12px] bg-white/[0.05] px-4 py-2.5 text-[13px] font-medium text-white/90">
+                      <span className="text-[15px]">{f.icon}</span>
+                      <span>{f.text}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <button type="button" onClick={() => setUpgradeModalOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#5f6368] transition hover:bg-[#f3f3f1]" aria-label="Fechar">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="space-y-4 px-6 py-6">
-              <p className="text-[14px] leading-relaxed text-[#33363b]">
-                Sua página está pronta! Para publicá-la e gerar o link público, assine um plano pago da Velo.
-              </p>
-              <ul className="space-y-2 text-[13px] text-[#33363b]">
-                <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#1f9d55]" /> Publicação ilimitada de páginas de vendas</li>
-                <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#1f9d55]" /> Link público personalizado</li>
-                <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#1f9d55]" /> Suporte prioritário e recursos avançados</li>
-              </ul>
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t border-[#ececea] px-6 py-4">
-              <button type="button" onClick={() => setUpgradeModalOpen(false)} className="h-10 rounded-[10px] px-4 text-[13px] font-semibold text-[#5f6368] transition hover:bg-[#f3f3f1]">
-                Agora não
-              </button>
-              <button
-                type="button"
-                onClick={() => { setUpgradeModalOpen(false); navigate("/dashboard/planos"); }}
-                className="flex h-10 items-center gap-2 rounded-[10px] bg-gradient-to-r from-[#3567e9] to-[#5f8dff] px-5 text-[13px] font-semibold text-white transition hover:brightness-110"
-              >
-                <Sparkles size={15} />
-                Ver planos
-              </button>
+
+              {/* RIGHT */}
+              <div className="flex flex-col">
+                <div className="rounded-[16px] border-2 border-[#3567e9] bg-white/[0.03] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#3567e9]">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#3567e9]" />
+                      </span>
+                      <span className="text-[18px] font-bold">Velo <span className="italic font-semibold">PRO</span></span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[15px] text-white/40 line-through">R$79</span>
+                      <div className="rounded-[10px] bg-white/[0.06] px-3 py-1.5">
+                        <span className="text-[24px] font-bold">R$43,45</span>
+                        <span className="ml-1 text-[12px] text-white/60">/mês</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2 rounded-[10px] bg-white/[0.04] px-3 py-2">
+                    <span className="text-[12px] text-white/80"><span className="mr-1">🎫</span><span className="font-bold text-white">-45%</span> com o código</span>
+                    <span className="rounded-[6px] bg-[#ff8a3d] px-2.5 py-1 text-[11px] font-extrabold tracking-wide text-white">BOMDIABRAZIL</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-[16px] border border-[#f5b40033] bg-gradient-to-br from-[#3a2a05] to-[#1a1204] p-4">
+                  <div className="flex items-start gap-2">
+                    <span className="text-[18px]">🎁</span>
+                    <div>
+                      <p className="text-[14px] font-bold">Domínio .store GRÁTIS com seu plano PRO!</p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-white/60">Lance sua marca hoje com um domínio .store GRÁTIS — incluído com Velo PRO!</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex-1 rounded-[16px] bg-white/[0.04] p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-0.5 text-[#ffb92b]">
+                      {"★★★★★".split("").map((s, i) => <span key={i}>{s}</span>)}
+                    </div>
+                    <span className="text-[11px] text-white/40">3 dias atrás</span>
+                  </div>
+                  <p className="mt-2 text-[13px] leading-relaxed text-white/80">
+                    "Honestamente, fiquei chocado. Colei o link de um produto no AliExpress e em minutos, construiu uma loja inteira. Todas as páginas, toda a cópia!"
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setUpgradeModalOpen(false); navigate("/dashboard/planos"); }}
+                  className="mt-4 flex h-14 items-center justify-center gap-2 rounded-[14px] bg-[#3567e9] text-[16px] font-bold text-white shadow-[0_16px_40px_rgba(53,103,233,0.45)] transition hover:bg-[#4272ee] active:scale-[0.99]"
+                >
+                  Continuar com Pro <ArrowRight size={18} />
+                </button>
+                <p className="mt-2 text-center text-[11px] text-white/40">Cancele a qualquer momento • Suporte 24/7</p>
+              </div>
             </div>
           </section>
         </div>
