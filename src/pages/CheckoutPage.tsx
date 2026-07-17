@@ -153,7 +153,7 @@ const CheckoutPage = () => {
   const checkoutPrice = isTrial ? TRIAL_AMOUNT_BRL : recurringPrice;
   const checkoutPeriodLabel = isTrial ? `por ${TRIAL_DAYS} dias` : billingCycle === "annual" ? "por ano" : "por mês";
   const checkoutDescription = isTrial
-    ? `Trial de ${TRIAL_DAYS} dias do plano Pro. Depois, sua assinatura continua automaticamente no plano Pro (R$99,90/mês).`
+    ? `Trial de ${TRIAL_DAYS} dias do plano Pro. Depois, sua assinatura continua automaticamente no plano Pro (R$79,80/mês).`
     : `Assinatura ${recurringCycleLabel} do plano ${plan.name}`;
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("pix");
