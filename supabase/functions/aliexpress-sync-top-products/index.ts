@@ -603,6 +603,24 @@ serve(async (req) => {
       `[aliexpress-sync-top-products] enriquecimento concluído: ${enrichedCount}/${enrichLimit}`,
     );
 
+    // Regra fixa: produto AliExpress só é publicável se tiver >= MIN_IMAGES_REQUIRED fotos.
+    // Produtos abaixo do mínimo entram no banco marcados como não-publicáveis (is_active=false),
+    // continuam visíveis no catálogo interno com badge "Fotos insuficientes", mas não vão para
+    // publicação em marketplaces nem para lojas públicas.
+    let insufficientPhotos = 0;
+    for (const item of detailed) {
+      const imgCount = Array.isArray(item.images) ? item.images.length : 0;
+      if (imgCount < MIN_IMAGES_REQUIRED) {
+        item.is_active = false;
+        insufficientPhotos++;
+      } else {
+        item.is_active = true;
+      }
+    }
+    console.log(
+      `[aliexpress-sync-top-products] regra ≥${MIN_IMAGES_REQUIRED} fotos: ${insufficientPhotos}/${detailed.length} produtos marcados como não-publicáveis (is_active=false)`,
+    );
+
 
     // PASSO 2 — Upsert em catalog_products
     if (detailed.length > 0) {
