@@ -46,6 +46,8 @@ export type SalesPageData = {
   price: number;
   accent: string;
   brand: string;
+  storeLogoUrl?: string | null;
+  storeDescription?: string | null;
 };
 
 export function useSalesPageData(slug: string | undefined) {
