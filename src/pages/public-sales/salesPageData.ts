@@ -117,13 +117,14 @@ export function useSalesPageData(slug: string | undefined) {
         const products = await fetchPublicStoreProducts(productIds);
         const first = products[0];
         if (!active) return;
+        const editedPrice = extractEditedPrice(project);
         setData({
           slug,
           ownerUserId: project.user_id,
           productId: first?.id,
           productTitle: first?.title || project.nome,
           productImage: first?.imageUrl ?? null,
-          price: first?.price ?? 149.9,
+          price: editedPrice ?? first?.price ?? 149.9,
           accent: getProjectAccent(project),
           brand: getProjectStoreName(project) || project.nome,
         });
