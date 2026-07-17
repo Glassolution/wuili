@@ -1101,11 +1101,12 @@ const TrendingProductsPage = () => {
                               <button
                                 type="button"
                                 onClick={() => handleCreateSalesPage(product)}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-white text-[#111827] transition hover:bg-[#F4F4F5]"
+                                disabled={creatingSalesPageId === product.id}
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-white text-[#111827] transition hover:bg-[#F4F4F5] disabled:opacity-60"
                                 aria-label="Criar página de vendas"
                                 title="Criar página de vendas"
                               >
-                                <FilePlus2 size={15} strokeWidth={1.8} />
+                                {creatingSalesPageId === product.id ? <Loader2 size={15} className="animate-spin" /> : <FilePlus2 size={15} strokeWidth={1.8} />}
                               </button>
                               {isAdmin ? (
                                 <button
