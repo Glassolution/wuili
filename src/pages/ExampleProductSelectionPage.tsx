@@ -205,10 +205,10 @@ const ExampleProductSelectionPage = () => {
               <button
                 type="button"
                 onClick={continueWithProducts}
-                disabled={selectedProducts.length === 0}
-                className="inline-flex h-12 items-center justify-center rounded-[12px] bg-black px-8 text-[14px] font-bold text-white shadow-[0_14px_30px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#c9ced8] disabled:shadow-none"
+                disabled={selectedProducts.length === 0 || creating}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-[12px] bg-black px-8 text-[14px] font-bold text-white shadow-[0_14px_30px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#c9ced8] disabled:shadow-none"
               >
-                Continuar
+                {creating ? <><Loader2 size={15} className="animate-spin" /> Criando projeto</> : "Continuar"}
               </button>
             </div>
           </>
