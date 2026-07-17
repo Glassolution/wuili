@@ -48,7 +48,6 @@ const ProductDetailPage = lazy(() => import("./pages/dashboard/ProductDetailPage
 const ProdutosMLPage = lazy(() => import("./pages/dashboard/ProdutosMLPage"));
 const ReportsPage = lazy(() => import("./pages/dashboard/ReportsPage"));
 const ResultsPage = lazy(() => import("./pages/dashboard/ResultsPage"));
-const ProductLandingEditorPage = lazy(() => import("./pages/ProductLandingEditorPage"));
 const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage"));
 const DashboardInfoPage = lazy(() => import("./pages/dashboard/DashboardInfoPage"));
 const SaldosPage = lazy(() => import("./pages/dashboard/SaldosPage"));
@@ -145,8 +144,8 @@ const App = () => (
               <Route path="/onboarding/preparando-loja" element={<ProtectedRoute><StoreBuildProgressPage /></ProtectedRoute>} />
               <Route path="/minha-loja" element={<Navigate to="/dashboard/minha-loja" replace />} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
-              <Route path="/produto/editor" element={<ProtectedRoute><ProductLandingEditorPage /></ProtectedRoute>} />
-              <Route path="/velods/produto/editor" element={<ProtectedRoute><ProductLandingEditorPage /></ProtectedRoute>} />
+              <Route path="/produto/editor" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/velods/produto/editor" element={<Navigate to="/dashboard" replace />} />
 
               <Route path="/catalogo" element={<StoreCatalogPage />} />
               <Route path="/cadastro" element={<Navigate to="/login" replace />} />
