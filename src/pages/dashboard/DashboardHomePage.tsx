@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import TutorialModal from "@/components/dashboard/TutorialModal";
+import { preloadVidalytics } from "@/lib/vidalyticsPreload";
 
 const TUTORIAL_SEEN_KEY = "velo_tutorial_seen";
 
