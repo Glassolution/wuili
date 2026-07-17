@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
     }
 
     const plans: Record<string, { amount: number; description: string }> = {
+      base: { amount: 97.00, description: "Velo Base" },
       pro: { amount: 99.90, description: "Velo Pro" },
       business: { amount: 149.90, description: "Velo Business" },
     };
