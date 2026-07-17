@@ -509,6 +509,13 @@ const CheckoutPage = () => {
               </button>
             </div>
 
+            {hasReferralDiscount && (
+              <div className="mx-auto mt-5 flex max-w-6xl items-center gap-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-800">
+                🎉 Você tem 15% de desconto por indicação — já aplicado nos preços abaixo.
+              </div>
+            )}
+
+
             {/* Três planos lado a lado. Antes era md:grid-cols-2 com 3 planos, o
                 que jogava o Business sozinho para uma segunda linha. */}
             <div className="mx-auto mt-7 grid max-w-6xl items-stretch gap-5 md:grid-cols-3">
