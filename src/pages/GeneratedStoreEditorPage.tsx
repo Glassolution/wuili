@@ -1679,6 +1679,11 @@ const GeneratedStoreEditorPage = () => {
 
   const handleConfirmPublish = async () => {
     if (!currentProject || publishing) return;
+    if (isFreePlan) {
+      setPublishOpen(false);
+      setUpgradeModalOpen(true);
+      return;
+    }
     setPublishing(true);
     try {
       const updated = await publishProject(currentProject);
