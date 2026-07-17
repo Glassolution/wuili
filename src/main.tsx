@@ -8,7 +8,7 @@ import { clearChunkReloadGuard, recoverFromChunkLoadError } from "./lib/chunkRec
 
 window.addEventListener("vite:preloadError", (event) => {
   event.preventDefault();
-  recoverFromChunkLoadError((event as CustomEvent<unknown>).payload);
+  recoverFromChunkLoadError(event.payload);
 });
 
 clearChunkReloadGuard();
