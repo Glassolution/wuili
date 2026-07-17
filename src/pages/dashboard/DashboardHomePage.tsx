@@ -250,41 +250,15 @@ const DashboardHomePage = () => {
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportTab, setSupportTab] = useState<SupportTab>("home");
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    // Trigger stagger animation on next frame; skip if reduced motion.
     const raf = requestAnimationFrame(() => setEntered(true));
     if (reduce) setEntered(true);
-
-    // Auto-open tutorial on first visit only, after entrance animation.
-    let timer: number | undefined;
-    try {
-      const seen = window.localStorage.getItem(TUTORIAL_SEEN_KEY);
-      if (!seen) {
-        timer = window.setTimeout(
-          () => {
-            setTutorialOpen(true);
-            try {
-              window.localStorage.setItem(TUTORIAL_SEEN_KEY, "true");
-            } catch {
-              /* ignore */
-            }
-          },
-          reduce ? 200 : 900,
-        );
-      }
-    } catch {
-      /* ignore storage errors */
-    }
-    return () => {
-      cancelAnimationFrame(raf);
-      if (timer) window.clearTimeout(timer);
-    };
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const cta = ctaSlides[activeCta];
