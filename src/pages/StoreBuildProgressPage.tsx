@@ -69,7 +69,7 @@ const StoreBuildProgressPage = () => {
 
         <h1 className="mt-14 text-[30px] font-semibold tracking-[-0.04em]">{ready ? "A sua loja está pronta!" : "Preparando sua loja IA"}</h1>
         <p className={`mt-3 text-[16px] font-medium ${ready ? "text-white/45" : "text-white/55"}`}>{ready ? "Tudo foi preparado para você." : steps[activeIndex]}</p>
-        {ready ? <button type="button" onClick={() => navigate("/minha-loja/editor", { state: flow })} className="mt-10 h-12 w-full rounded-[7px] bg-[#f3efe8] text-[14px] font-semibold text-black transition hover:bg-white">Ver minha loja</button> : null}
+        {ready ? <button type="button" onClick={() => { try { sessionStorage.setItem("velo-dashboard-store-tour", "1"); } catch {} navigate("/dashboard?tour=loja", { replace: true }); }} className="mt-10 h-12 w-full rounded-[7px] bg-[#f3efe8] text-[14px] font-semibold text-black transition hover:bg-white">Ver minha loja</button> : null}
 
         {!ready ? (
           <div className="mt-12 w-full space-y-4 text-left">

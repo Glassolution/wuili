@@ -324,10 +324,10 @@ const StartChoicePage = () => {
             <div className="grid gap-4 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => setSelectedPath("/onboarding/criar-loja")}
-                aria-pressed={selectedPath === "/onboarding/criar-loja"}
+                onClick={() => setSelectedPath("/onboarding/escolher-produto")}
+                aria-pressed={selectedPath === "/onboarding/escolher-produto"}
                 className={`group relative min-h-[178px] rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
-                  selectedPath === "/onboarding/criar-loja" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
+                  selectedPath === "/onboarding/escolher-produto" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
                 }`}
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">

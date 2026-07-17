@@ -135,7 +135,7 @@ const App = () => (
               <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/comecar" element={<ProtectedRoute><StartChoicePage /></ProtectedRoute>} />
-              <Route path="/onboarding/criar-loja" element={<ProtectedRoute><CreateStoreStubPage /></ProtectedRoute>} />
+              <Route path="/onboarding/criar-loja" element={<Navigate to="/onboarding/escolher-produto" replace />} />
               <Route path="/onboarding/preparando-produto" element={<ProtectedRoute><ProductPreparationPage /></ProtectedRoute>} />
               <Route path="/onboarding/escolher-produto" element={<ProtectedRoute><ExampleProductSelectionPage /></ProtectedRoute>} />
               <Route path="/onboarding/idioma" element={<ProtectedRoute><StoreLanguagePage /></ProtectedRoute>} />
