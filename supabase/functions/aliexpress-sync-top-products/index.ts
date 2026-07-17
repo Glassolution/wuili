@@ -416,6 +416,13 @@ serve(async (req) => {
 
     // PASSO 1 — Para cada keyword, chama aliexpress.ds.text.search paginando até PAGE_SIZE
     for (const keyword of keywords) {
+      const veloCategoryForKeyword = keywordToVeloCategory.get(keyword) ?? null;
+      const aliCategoryIdForKeyword = keywordToAliCategoryId.get(keyword) ?? null;
+      if (!veloCategoryForKeyword) {
+        console.warn(
+          `[aliexpress-sync-top-products] WARN keyword="${keyword}" sem velo_category no category_mapping — produtos serão inseridos com category=null`,
+        );
+      }
       let collectedForKeyword = 0;
       let pageIndex = 1;
       let apiPageSizeCap = PAGE_SIZE;
