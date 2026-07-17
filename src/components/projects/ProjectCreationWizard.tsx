@@ -670,7 +670,7 @@ const ProjectCreationWizard = ({
                 <span className="text-[12px] font-semibold text-[#8c908f]">
                   {step === "produtos"
                     ? `${selectedProducts.length} produto(s) selecionado(s)`
-                    : `Passo ${stepIndex + 1} de 3`}
+                    : `Passo ${skipProducts ? (step === "info" ? 1 : 2) : stepIndex + 1} de ${skipProducts ? 2 : 3}`}
                 </span>
                 {step === "info" ? (
                   <button
