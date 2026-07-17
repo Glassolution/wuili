@@ -100,6 +100,10 @@ type ProjectCreationWizardProps = {
   open: boolean;
   onClose: () => void;
   defaultTipo?: ProjectType;
+  /** Se definido, esconde a escolha "página de vendas / loja completa" e trava neste tipo. */
+  lockedTipo?: ProjectType;
+  /** Se definido, pula a etapa de escolha de produtos e usa esses IDs. */
+  preselectedProductIds?: string[];
   onCreated: (projectId: string) => void;
 };
 
@@ -107,15 +111,21 @@ const ProjectCreationWizard = ({
   open,
   onClose,
   defaultTipo = "pagina_venda",
+  lockedTipo,
+  preselectedProductIds,
   onCreated,
 }: ProjectCreationWizardProps) => {
+  const initialTipo = lockedTipo ?? defaultTipo;
+  const skipProducts = !!(preselectedProductIds && preselectedProductIds.length > 0);
   const [step, setStep] = useState<Step>("info");
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [tipo, setTipo] = useState<ProjectType>(defaultTipo);
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [logoImage, setLogoImage] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [tipo, setTipo] = useState<ProjectType>(initialTipo);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>(preselectedProductIds ?? []);
   const [templateId, setTemplateId] = useState<string>(
-    defaultTipo === "loja_completa" ? "loja-1" : "produto-1",
+    initialTipo === "loja_completa" ? "loja-1" : "produto-1",
   );
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
@@ -125,20 +135,22 @@ const ProjectCreationWizard = ({
   const [loadingIndex, setLoadingIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const creatingRef = useRef(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setStep("info");
     setNome("");
     setDescricao("");
-    setTipo(defaultTipo);
-    setSelectedProducts([]);
-    setTemplateId(defaultTipo === "loja_completa" ? "loja-1" : "produto-1");
+    setLogoImage(null);
+    setTipo(initialTipo);
+    setSelectedProducts(preselectedProductIds ?? []);
+    setTemplateId(initialTipo === "loja_completa" ? "loja-1" : "produto-1");
     setSearch("");
     setLoadingIndex(0);
     setError(null);
     creatingRef.current = false;
-  }, [open, defaultTipo]);
+  }, [open, initialTipo, preselectedProductIds]);
 
   useEffect(() => {
     if (!open || step !== "produtos" || products.length > 0) return;
