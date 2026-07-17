@@ -695,8 +695,17 @@ const CheckoutPage = () => {
             <div className="space-y-5 py-7 text-[14px]">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-white/66">Subtotal</span>
-                <span className="font-semibold text-white">{checkoutPrice}</span>
+                <span className="font-semibold text-white">{originalCheckoutPrice}</span>
               </div>
+
+              {hasReferralDiscount && (
+                <div className="flex items-center justify-between text-emerald-300">
+                  <span className="font-semibold">Desconto por indicação (15%)</span>
+                  <span className="font-semibold">
+                    − {formatBRL(parseBRL(originalCheckoutPrice) * 0.15)}
+                  </span>
+                </div>
+              )}
 
               <div>
                 <input
@@ -713,14 +722,15 @@ const CheckoutPage = () => {
                   <span className="font-semibold text-white/66">
                     {isTrial ? "Depois do trial" : billingCycle === "annual" ? "Total anual" : "Total mensal"}
                   </span>
-                  <span className="font-semibold text-white">{isTrial ? "R$ 99,90/mês" : checkoutPrice}</span>
+                  <span className="font-semibold text-white">{isTrial ? "R$ 99,90/mês" : finalCheckoutPrice}</span>
                 </div>
                 <div className="mt-7 flex items-center justify-between">
                   <span className="font-semibold text-white/66">Total devido hoje</span>
-                  <span className="font-semibold text-white">{checkoutPrice}</span>
+                  <span className="font-semibold text-white">{finalCheckoutPrice}</span>
                 </div>
               </div>
             </div>
+
           </div>
           </div>
         </aside>
