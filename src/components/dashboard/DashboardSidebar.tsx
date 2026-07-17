@@ -28,7 +28,6 @@ const baseNavItems: NavItem[] = [
 ];
 
 const affiliatesNavItem: NavItem = { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
-const editStoreBetaNavItem: NavItem = { label: "Editar minha loja (beta)", icon: Sparkles, to: "/comecar" };
 
 const normalizePath = (path: string) => path.split("?")[0].replace(/\/$/, "");
 

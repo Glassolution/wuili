@@ -1,22 +1,20 @@
 import { Component, useEffect, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { veloToast } from "@/components/ui/velo-toast";
-import TutorialOverlay from "@/components/tutorial/TutorialOverlay";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StartModeBanner from "@/components/dashboard/StartModeBanner";
 import StartModeModal from "@/components/dashboard/StartModeModal";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
-import FirstStoreOnboarding, {
-  MAX_STORES_PER_USER,
+import {
   hasCompletedStoreOnboarding,
   markStoreOnboardingCompleted,
   readUserStores,
   saveUserStores,
-  START_STORE_ONBOARDING_EVENT,
   STORES_CHANGED_EVENT,
   type VeloStore,
 } from "@/components/dashboard/FirstStoreOnboarding";
+import OnboardingModal from "@/components/onboarding/OnboardingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -434,7 +432,6 @@ const DashboardLayoutInner = () => {
   const isMobile = useIsMobile();
   const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
   const [storesHydrated, setStoresHydrated] = useState(false);
-  const [showStoreOnboarding, setShowStoreOnboarding] = useState(false);
   const [shouldAutoShowStoreOnboarding, setShouldAutoShowStoreOnboarding] = useState(false);
 
   useEffect(() => {
@@ -451,15 +448,12 @@ const DashboardLayoutInner = () => {
 
   useEffect(() => {
     const syncStores = () => setStores(readUserStores());
-    const startStoreOnboarding = () => setShowStoreOnboarding(true);
     syncStores();
     window.addEventListener(STORES_CHANGED_EVENT, syncStores);
     window.addEventListener("storage", syncStores);
-    window.addEventListener(START_STORE_ONBOARDING_EVENT, startStoreOnboarding);
     return () => {
       window.removeEventListener(STORES_CHANGED_EVENT, syncStores);
       window.removeEventListener("storage", syncStores);
-      window.removeEventListener(START_STORE_ONBOARDING_EVENT, startStoreOnboarding);
     };
   }, [user?.id]);
 
@@ -659,25 +653,15 @@ const DashboardLayoutInner = () => {
           <MobileDashboardChrome>
             <Outlet />
           </MobileDashboardChrome>
-          <TutorialOverlay />
-          {storesHydrated &&
-            ((stores.length === 0 && shouldAutoShowStoreOnboarding) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
-            <FirstStoreOnboarding
-              defaultName={user.user_metadata?.full_name ?? user.email}
-              existingStores={stores}
-              onComplete={(store) => {
-                void persistCompletedStore(store);
-                markStoreOnboardingCompleted(user.id);
-                setShouldAutoShowStoreOnboarding(false);
-                setStores(readUserStores());
-                setShowStoreOnboarding(false);
-                veloToast.success("Loja criada com sucesso.", {
-                  action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes?tab=Minhas%20Lojas") },
-                });
-              }}
-            />
-          )}
         </div>
+        {storesHydrated && shouldAutoShowStoreOnboarding && (
+          <OnboardingModal
+            onComplete={() => {
+              markStoreOnboardingCompleted(user.id);
+              setShouldAutoShowStoreOnboarding(false);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -726,21 +710,11 @@ const DashboardLayoutInner = () => {
           </main>
         </div>
       </div>
-      <TutorialOverlay />
-      {storesHydrated &&
-        ((stores.length === 0 && shouldAutoShowStoreOnboarding) || (showStoreOnboarding && stores.length < MAX_STORES_PER_USER)) && (
-        <FirstStoreOnboarding
-          defaultName={user.user_metadata?.full_name ?? user.email}
-          existingStores={stores}
-          onComplete={(store) => {
-            void persistCompletedStore(store);
+      {storesHydrated && shouldAutoShowStoreOnboarding && (
+        <OnboardingModal
+          onComplete={() => {
             markStoreOnboardingCompleted(user.id);
             setShouldAutoShowStoreOnboarding(false);
-            setStores(readUserStores());
-            setShowStoreOnboarding(false);
-            veloToast.success("Loja criada com sucesso.", {
-              action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes?tab=Minhas%20Lojas") },
-            });
           }}
         />
       )}

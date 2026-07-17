@@ -11,15 +11,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
-const StartChoicePage = lazy(() => import("./pages/StartChoicePage"));
-const CreateStoreStubPage = lazy(() => import("./pages/CreateStoreStubPage"));
-const ProductPreparationPage = lazy(() => import("./pages/ProductPreparationPage"));
-const ExampleProductSelectionPage = lazy(() => import("./pages/ExampleProductSelectionPage"));
-const StoreLanguagePage = lazy(() => import("./pages/StoreLanguagePage"));
-const CustomerPersonaPage = lazy(() => import("./pages/CustomerPersonaPage"));
-const SalesAnglePage = lazy(() => import("./pages/SalesAnglePage"));
-const StoreImagesGenerationPage = lazy(() => import("./pages/StoreImagesGenerationPage"));
-const StoreBuildProgressPage = lazy(() => import("./pages/StoreBuildProgressPage"));
+// Fluxo de cadastro/onboarding (StartChoicePage + telas /onboarding/*) removido.
 const StoreProjectsPage = lazy(() => import("./pages/StoreProjectsPage"));
 const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditorPage"));
 const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
@@ -135,15 +127,9 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/comecar" element={<ProtectedRoute><StartChoicePage /></ProtectedRoute>} />
-              <Route path="/onboarding/criar-loja" element={<Navigate to="/onboarding/escolher-produto" replace />} />
-              <Route path="/onboarding/preparando-produto" element={<ProtectedRoute><ProductPreparationPage /></ProtectedRoute>} />
-              <Route path="/onboarding/escolher-produto" element={<ProtectedRoute><ExampleProductSelectionPage /></ProtectedRoute>} />
-              <Route path="/onboarding/idioma" element={<ProtectedRoute><StoreLanguagePage /></ProtectedRoute>} />
-              <Route path="/onboarding/persona" element={<ProtectedRoute><CustomerPersonaPage /></ProtectedRoute>} />
-              <Route path="/onboarding/angulo-vendas" element={<ProtectedRoute><SalesAnglePage /></ProtectedRoute>} />
-              <Route path="/onboarding/gerando-imagens" element={<ProtectedRoute><StoreImagesGenerationPage /></ProtectedRoute>} />
-              <Route path="/onboarding/preparando-loja" element={<ProtectedRoute><StoreBuildProgressPage /></ProtectedRoute>} />
+              {/* Fluxo de cadastro/onboarding removido — rotas antigas redirecionam ao dashboard. */}
+              <Route path="/comecar" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/onboarding/*" element={<Navigate to="/dashboard" replace />} />
               <Route path="/minha-loja" element={<Navigate to="/dashboard/minha-loja" replace />} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
               <Route path="/minha-loja/editor/:projectId" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
@@ -159,9 +145,6 @@ const App = () => (
               <Route path="/docs" element={<Docs />} />
               <Route path="/termos" element={<TermsPage />} />
               <Route path="/privacidade" element={<PrivacyPage />} />
-              <Route path="/onboarding/nicho" element={<Navigate to="/comecar" replace />} />
-              <Route path="/onboarding/produto" element={<Navigate to="/comecar" replace />} />
-              <Route path="/onboarding/gerando" element={<Navigate to="/comecar" replace />} />
               <Route path="/preview/:slug" element={<PublicStorePage />} />
               <Route path="/loja/:slug" element={<PublicStorePage />} />
               <Route path="/loja/:slug/carrinho" element={<SalesCartPage />} />

@@ -31,7 +31,7 @@ import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
-import type { ExampleProduct } from "@/pages/StartChoicePage";
+import type { ExampleProduct } from "@/types/onboarding";
 import { isAdminEmail } from "@/lib/adminAccess";
 
 type Period = "today" | "week" | "month";

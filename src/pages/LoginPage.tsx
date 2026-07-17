@@ -97,7 +97,7 @@ const LoginPage = () => {
       const [result] = await Promise.all([
         supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: `${window.location.origin}/comecar`, skipBrowserRedirect: true },
+          options: { redirectTo: `${window.location.origin}/dashboard`, skipBrowserRedirect: true },
         }),
         veloToast.waitForMinimum(toastId),
       ]);
@@ -165,7 +165,7 @@ const LoginPage = () => {
       // Caso contrário (confirmação por e-mail pendente), volta o botão ao
       // estado normal e informa o usuário para conferir o e-mail.
       if (data.session) {
-        navigate("/comecar", { replace: true, state: { justSignedUp: true } });
+        navigate("/dashboard", { replace: true });
         return;
       }
       veloToast.info("Confirme seu e-mail para continuar.");

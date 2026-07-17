@@ -12,9 +12,7 @@ import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import {
-  MAX_STORES_PER_USER,
   readUserStores,
-  START_STORE_ONBOARDING_EVENT,
   STORES_CHANGED_EVENT,
   type VeloStore,
 } from "@/components/dashboard/FirstStoreOnboarding";
@@ -377,17 +375,9 @@ const StoresTab = () => {
         ))
       ) : (
         <div className="rounded-2xl border border-dashed border-[#D8DEE9] bg-[#F8FAFC] p-5 text-[14px] text-[#697386] dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-          Nenhuma loja criada ainda. Ao entrar pela primeira vez, o fluxo inicial vai coletar os dados para criar a primeira loja.
+          Nenhuma loja criada ainda.
         </div>
       )}
-
-      <button
-        className={stores.length >= MAX_STORES_PER_USER ? `${secondaryBtn} cursor-not-allowed opacity-45` : secondaryBtn}
-        disabled={stores.length >= MAX_STORES_PER_USER}
-        onClick={() => window.dispatchEvent(new Event(START_STORE_ONBOARDING_EVENT))}
-      >
-        {stores.length >= MAX_STORES_PER_USER ? "Limite de 2 lojas atingido" : "+ Nova loja"}
-      </button>
     </div>
   );
 };
