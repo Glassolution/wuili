@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronDown, Clock, Flame, Heart, Leaf, Quote, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
+import { Check, ChevronDown, Clock, Flame, Heart, Leaf, Quote, Settings2, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
 
 // Seções de conteúdo "abaixo da dobra" — barra de benefícios, passo a passo,
 // grade de recursos e bloco de imagem + CTA. Transformam a página de produto
@@ -18,7 +18,15 @@ const tint = (hex: string, alpha: number) => {
   return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
 };
 
-type ContentProps = { image: string; accent: string; title?: string; mobile?: boolean };
+type ContentProps = { image: string; accent: string; title?: string; mobile?: boolean; productImages?: string[] };
+
+/** Gera cor determinística a partir de string (para avatares de iniciais). */
+const stringToHue = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  return Math.abs(hash) % 360;
+};
+const initialsOf = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((p) => p[0] ?? "").join("").toUpperCase() || "?";
 
 /** Barra de benefícios em linha (ícone + label). */
 export const StoreBenefitsBar = ({ accent }: { accent: string }) => {
@@ -42,12 +50,12 @@ export const StoreBenefitsBar = ({ accent }: { accent: string }) => {
   );
 };
 
-/** "Como funciona em 3 passos" — imagem + número + título + descrição. */
-export const StoreThreeSteps = ({ image, accent, mobile = false }: ContentProps) => {
-  const steps = [
-    ["Receba em casa", "Seu pedido chega rápido e bem embalado, pronto para usar."],
-    ["Configure em minutos", "Simples e intuitivo: em poucos passos está tudo pronto."],
-    ["Aproveite todo dia", "Praticidade e qualidade que fazem diferença na sua rotina."],
+/** "Como funciona em 3 passos" — cards com ícone numerado (sem duplicar foto do produto). */
+export const StoreThreeSteps = ({ accent, mobile = false }: ContentProps) => {
+  const steps: Array<[typeof Truck, string, string, string]> = [
+    [Truck, "Truck", "Receba em casa", "Seu pedido chega rápido e bem embalado, pronto para usar."],
+    [Settings2, "Settings2", "Configure em minutos", "Simples e intuitivo: em poucos passos está tudo pronto."],
+    [Sparkles, "Sparkles", "Aproveite todo dia", "Praticidade e qualidade que fazem diferença na sua rotina."],
   ];
   return (
     <section className="bg-white px-6 py-14 sm:px-10">
@@ -56,18 +64,16 @@ export const StoreThreeSteps = ({ image, accent, mobile = false }: ContentProps)
           Como funciona em 3 passos
         </h2>
         <div className="mt-9 grid gap-6" style={{ gridTemplateColumns: mobile ? "1fr" : "repeat(3, minmax(0,1fr))" }}>
-          {steps.map(([title, text], index) => (
-            <div key={title} className="overflow-hidden rounded-[16px] border border-black/[0.07] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
-              <div className="relative aspect-[16/11] overflow-hidden bg-[#f1f1f0]">
-                {image ? <img data-editor-type="image" src={image} alt="" className="h-full w-full object-cover" /> : null}
-                <span className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[15px] font-black text-white" style={{ backgroundColor: accent }}>
+          {steps.map(([Icon, iconName, title, text], index) => (
+            <div key={title} className="relative overflow-hidden rounded-[16px] border border-black/[0.07] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full text-[15px] font-black text-white" style={{ backgroundColor: accent }}>
                   {index + 1}
                 </span>
+                <Icon data-editor-type="icon" data-editor-icon={iconName} size={26} style={{ color: accent }} />
               </div>
-              <div className="p-5">
-                <h3 data-editor-type="text" className="text-[17px] font-bold text-black">{title}</h3>
-                <p data-editor-type="text" className="mt-2 text-[14px] leading-relaxed text-black/60">{text}</p>
-              </div>
+              <h3 data-editor-type="text" className="mt-5 text-[18px] font-bold text-black">{title}</h3>
+              <p data-editor-type="text" className="mt-2 text-[14px] leading-relaxed text-black/60">{text}</p>
             </div>
           ))}
         </div>
@@ -133,14 +139,23 @@ export const StoreImageCta = ({ image, accent, title = "", mobile = false }: Con
 // seção editável do template. Nada de rota separada; render inline.
 // ---------------------------------------------------------------------------
 
-/** Carrossel de uso do produto — 4 fotos com legenda de contexto. */
-export const StoreUsageCarousel = ({ image, accent, mobile = false }: ContentProps) => {
-  const slides = [
+/** Carrossel de uso — adapta o nº de slots ao total de fotos reais do produto.
+ *  Enquanto não houver geração de imagem por IA, evita duplicar a mesma foto. */
+export const StoreUsageCarousel = ({ image, productImages, mobile = false }: ContentProps) => {
+  const gallery = (productImages && productImages.length > 0 ? productImages : image ? [image] : []).filter(Boolean);
+  if (gallery.length === 0) return null;
+  const slideDefs: Array<[string, string]> = [
     ["No dia a dia", "Praticidade que se encaixa em qualquer rotina."],
     ["Em qualquer ambiente", "Combina com a sua casa e o seu estilo."],
     ["Pronto pra usar", "Sem complicação, do primeiro momento."],
     ["Feito pra durar", "Qualidade que acompanha o tempo."],
   ];
+  // Limita legendas ao número de imagens reais (não repete a foto).
+  const slides = slideDefs.slice(0, gallery.length).map(([t, txt], i) => ({ title: t, text: txt, src: gallery[i] }));
+  const cols = Math.min(slides.length, mobile ? 2 : 4);
+  const layout = slides.length === 1
+    ? "1fr"
+    : `repeat(${cols}, minmax(0,1fr))`;
   return (
     <section className="bg-white px-6 py-14 sm:px-10">
       <div className="mx-auto max-w-[1180px]">
@@ -150,15 +165,15 @@ export const StoreUsageCarousel = ({ image, accent, mobile = false }: ContentPro
         <p data-editor-type="text" className="mx-auto mt-2 max-w-[540px] text-center text-[14px] text-black/55">
           Situações reais de quem já leva praticidade pra casa.
         </p>
-        <div className="mt-8 grid gap-4" style={{ gridTemplateColumns: mobile ? "repeat(2, minmax(0,1fr))" : "repeat(4, minmax(0,1fr))" }}>
-          {slides.map(([title, text]) => (
-            <div key={title} className="overflow-hidden rounded-[14px] bg-[#f5f4f2]">
-              <div className="relative aspect-[4/5] overflow-hidden bg-[#e9e7e2]">
-                {image ? <img data-editor-type="image" src={image} alt="" className="h-full w-full object-cover" /> : null}
+        <div className="mx-auto mt-8 grid gap-4" style={{ gridTemplateColumns: layout, maxWidth: slides.length === 1 ? 520 : undefined }}>
+          {slides.map((s) => (
+            <div key={s.title} className="overflow-hidden rounded-[14px] bg-[#f5f4f2]">
+              <div className="relative aspect-[4/5] overflow-hidden bg-[#e9e7e2] flex items-center justify-center p-4">
+                <img data-editor-type="image" src={s.src} alt="" className="h-full w-full object-contain" />
               </div>
               <div className="p-4">
-                <h3 data-editor-type="text" className="text-[14px] font-bold text-black">{title}</h3>
-                <p data-editor-type="text" className="mt-1 text-[12px] leading-relaxed text-black/55">{text}</p>
+                <h3 data-editor-type="text" className="text-[14px] font-bold text-black">{s.title}</h3>
+                <p data-editor-type="text" className="mt-1 text-[12px] leading-relaxed text-black/55">{s.text}</p>
               </div>
             </div>
           ))}
@@ -183,8 +198,8 @@ export const StoreUrgencyBanner = ({ accent }: { accent: string }) => (
   </section>
 );
 
-/** Depoimentos de clientes (3 cards com aspas + avatar circular). */
-export const StoreTestimonials = ({ image, accent, mobile = false }: ContentProps) => {
+/** Depoimentos — avatar de iniciais coloridas (nunca foto do produto). */
+export const StoreTestimonials = ({ accent, mobile = false }: ContentProps) => {
   const items = [
     ["Ana P.", "Superou minhas expectativas. Já indiquei pra amigas."],
     ["Rafael M.", "Chegou rápido e é exatamente como na descrição."],
@@ -197,23 +212,30 @@ export const StoreTestimonials = ({ image, accent, mobile = false }: ContentProp
           O que dizem quem já comprou
         </h2>
         <div className="mt-9 grid gap-6" style={{ gridTemplateColumns: mobile ? "1fr" : "repeat(3, minmax(0,1fr))" }}>
-          {items.map(([name, text]) => (
-            <div key={name} className="rounded-[16px] border border-black/[0.07] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
-              <Quote data-editor-type="icon" data-editor-icon="Quote" size={22} style={{ color: accent }} />
-              <p data-editor-type="text" className="mt-3 text-[15px] leading-[1.6] text-black/75">"{text}"</p>
-              <div className="mt-5 flex items-center gap-3">
-                <span className="h-10 w-10 overflow-hidden rounded-full bg-[#e9e7e2]">
-                  {image ? <img data-editor-type="image" src={image} alt="" className="h-full w-full object-cover" /> : null}
-                </span>
-                <div>
-                  <div data-editor-type="text" className="text-[13px] font-bold text-black">{name}</div>
-                  <div className="flex items-center gap-0.5 text-[#f5b800]">
-                    {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={12} className="fill-current" />)}
+          {items.map(([name, text]) => {
+            const hue = stringToHue(name);
+            return (
+              <div key={name} className="rounded-[16px] border border-black/[0.07] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
+                <Quote data-editor-type="icon" data-editor-icon="Quote" size={22} style={{ color: accent }} />
+                <p data-editor-type="text" className="mt-3 text-[15px] leading-[1.6] text-black/75">"{text}"</p>
+                <div className="mt-5 flex items-center gap-3">
+                  <span
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-bold text-white"
+                    style={{ backgroundColor: `hsl(${hue} 55% 45%)` }}
+                    aria-hidden="true"
+                  >
+                    {initialsOf(name)}
+                  </span>
+                  <div>
+                    <div data-editor-type="text" className="text-[13px] font-bold text-black">{name}</div>
+                    <div className="flex items-center gap-0.5 text-[#f5b800]">
+                      {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={12} className="fill-current" />)}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

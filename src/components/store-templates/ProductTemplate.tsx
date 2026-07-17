@@ -84,13 +84,13 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
           <div className="flex gap-4">
             <div className="flex flex-col gap-3">
               {thumbnails.map((thumb, index) => (
-                <span key={index} className={`h-[86px] w-[70px] overflow-hidden rounded-[10px] border ${index === 0 ? "border-black" : "border-black/10"}`}>
-                  <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={thumb} alt="" className="h-full w-full object-cover" />
+                <span key={index} className={`flex h-[86px] w-[70px] items-center justify-center overflow-hidden rounded-[10px] border bg-white p-1.5 ${index === 0 ? "border-black" : "border-black/10"}`}>
+                  <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={thumb} alt="" className="h-full w-full object-contain" />
                 </span>
               ))}
             </div>
-            <div className="relative aspect-[4/5] flex-1 overflow-hidden rounded-[14px] bg-[#f1f1f0]">
-              {image ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={image} alt={title} className="absolute inset-0 h-full w-full object-cover" /> : null}
+            <div className="relative aspect-[4/5] flex-1 overflow-hidden rounded-[14px] bg-[#f6f5f3] flex items-center justify-center p-6">
+              {image ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={image} alt={title} className="max-h-full max-w-full object-contain" /> : null}
               <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-black shadow"><Search size={16} /></span>
             </div>
           </div>
