@@ -1,4 +1,5 @@
-import { Clock, Heart, Leaf, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
+import { useState } from "react";
+import { Check, ChevronDown, Clock, Flame, Heart, Leaf, Quote, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
 
 // Seções de conteúdo "abaixo da dobra" — barra de benefícios, passo a passo,
 // grade de recursos e bloco de imagem + CTA. Transformam a página de produto
