@@ -29,6 +29,7 @@ const SalesCartPage = lazy(() => import("./pages/public-sales/SalesCartPage"));
 const SalesCheckoutPage = lazy(() => import("./pages/public-sales/SalesCheckoutPage"));
 const SalesThankYouPage = lazy(() => import("./pages/public-sales/SalesThankYouPage"));
 const SalesFlowEditorPage = lazy(() => import("./pages/SalesFlowEditorPage"));
+const SectionsEditorPage = lazy(() => import("./pages/SectionsEditorPage"));
 const BemVindoPage = lazy(() => import("./pages/BemVindoPage"));
 // AuthEntryPage removed — all auth flows consolidated in LoginPage
 // CadastroPage removed — progressive login flow handles both signup and login
@@ -146,6 +147,7 @@ const App = () => (
               <Route path="/minha-loja" element={<Navigate to="/dashboard/minha-loja" replace />} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
               <Route path="/minha-loja/editor/:projectId" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
+              <Route path="/minha-loja/blocos/:projectId" element={<ProtectedRoute><ProfileProvider><SectionsEditorPage /></ProfileProvider></ProtectedRoute>} />
               <Route path="/produto/editor" element={<Navigate to="/dashboard" replace />} />
               <Route path="/velods/produto/editor" element={<Navigate to="/dashboard" replace />} />
 
