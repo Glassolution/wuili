@@ -339,14 +339,19 @@ const ProjectCreationWizard = ({
 
             {step !== "loading" ? (
               <div className="flex items-center gap-1.5 px-6 pt-3">
-                {[0, 1, 2].map((index) => (
-                  <span
-                    key={index}
-                    className={`h-1 flex-1 rounded-full transition-colors ${
-                      index <= stepIndex ? "bg-black" : "bg-[#e6e6e2]"
-                    }`}
-                  />
-                ))}
+                {(skipProducts ? [0, 1] : [0, 1, 2]).map((index) => {
+                  const activeIndex = skipProducts
+                    ? (step === "info" ? 0 : step === "template" ? 1 : 1)
+                    : stepIndex;
+                  return (
+                    <span
+                      key={index}
+                      className={`h-1 flex-1 rounded-full transition-colors ${
+                        index <= activeIndex ? "bg-black" : "bg-[#e6e6e2]"
+                      }`}
+                    />
+                  );
+                })}
               </div>
             ) : null}
 
