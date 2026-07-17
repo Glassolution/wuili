@@ -302,6 +302,9 @@ const GeneratedStoreEditorPage = () => {
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishCopied, setPublishCopied] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const { plan: currentPlan } = usePlan();
+  const isFreePlan = currentPlan === "gratis" || currentPlan === "go";
   const [editorPanelTab, setEditorPanelTab] = useState<EditorPanelTab>("personalizar");
   const [openPanelSections, setOpenPanelSections] = useState<Record<EditorPanelSection, boolean>>({
     template: true,
