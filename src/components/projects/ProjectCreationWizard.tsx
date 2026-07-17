@@ -198,6 +198,38 @@ const ProjectCreationWizard = ({
 
   const canContinueInfo = nome.trim().length >= 2;
 
+  const handleLogoUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      veloToast.error("Envie um arquivo de imagem.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      veloToast.error("A imagem deve ter no máximo 5MB.");
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id ?? "anon";
+      const ext = file.name.split(".").pop() || "png";
+      const path = `store-logos/${uid}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("assets").upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+      });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("assets").getPublicUrl(path);
+      setLogoImage(data.publicUrl);
+    } catch (err) {
+      console.error(err);
+      veloToast.error("Falha ao enviar a imagem.");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+
   const runCreation = async () => {
     if (creatingRef.current) return;
     creatingRef.current = true;
