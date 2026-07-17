@@ -4035,10 +4035,10 @@ const GeneratedStoreEditorPage = () => {
 
                 <button
                   type="button"
-                  onClick={() => { setUpgradeModalOpen(false); navigate("/dashboard/planos"); }}
+                  onClick={() => { setUpgradeModalOpen(false); navigate("/checkout?plan=base"); }}
                   className="mt-4 flex h-14 items-center justify-center gap-2 rounded-[14px] bg-[#3567e9] text-[16px] font-bold text-white shadow-[0_16px_40px_rgba(53,103,233,0.45)] transition hover:bg-[#4272ee] active:scale-[0.99]"
                 >
-                  Continuar com Pro <ArrowRight size={18} />
+                  Continuar com Base <ArrowRight size={18} />
                 </button>
                 <p className="mt-2 text-center text-[11px] text-white/40">Cancele a qualquer momento • Suporte 24/7</p>
               </div>
