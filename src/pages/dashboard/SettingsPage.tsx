@@ -581,7 +581,7 @@ const PLAN_DATA = [
   {
     id: "pro",
     name: "Pro",
-    price: "R$99,90",
+    price: "R$79,80",
     period: "/mês",
     description: "Para validar produtos, publicar com segurança e operar com IA sem complexidade.",
     features: [
@@ -595,7 +595,7 @@ const PLAN_DATA = [
   {
     id: "business",
     name: "Business",
-    price: "R$149,90",
+    price: "R$159,60",
     period: "/mês",
     description: "Para quem quer escalar catálogo, automações e análise avançada sem limites.",
     features: [

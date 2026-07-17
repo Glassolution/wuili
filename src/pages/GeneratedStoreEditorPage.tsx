@@ -4040,7 +4040,7 @@ const GeneratedStoreEditorPage = () => {
                     </div>
                     <div className="flex items-baseline gap-2">
                       <div className="rounded-[10px] bg-white/[0.06] px-3 py-1.5">
-                        <span className="text-[24px] font-bold">R$97</span>
+                        <span className="text-[24px] font-bold">R$ 39,90</span>
                         <span className="ml-1 text-[12px] text-white/60">/mês</span>
                       </div>
                     </div>
