@@ -334,6 +334,8 @@ serve(async (req) => {
       })
       .eq("id", logId);
   };
+
+  try {
     const appKey = Deno.env.get("ALIEXPRESS_APP_KEY");
     const appSecret = Deno.env.get("ALIEXPRESS_APP_SECRET");
     if (!appKey || !appSecret) throw new Error("Credenciais AliExpress ausentes (ALIEXPRESS_APP_KEY/SECRET)");
