@@ -676,7 +676,7 @@ const ProjectCreationWizard = ({
                   <button
                     type="button"
                     disabled={!canContinueInfo}
-                    onClick={() => setStep("produtos")}
+                    onClick={() => setStep(skipProducts ? "template" : "produtos")}
                     className="flex h-10 items-center rounded-[9px] bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#d8dde8] disabled:text-[#8b94a6]"
                   >
                     Continuar
