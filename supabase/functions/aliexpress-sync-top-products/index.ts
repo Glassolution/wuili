@@ -359,6 +359,8 @@ serve(async (req) => {
 
     // Carrega keywords ativas (category_mapping) — cai em fallback quando vazio
     let keywords: string[] = [];
+    const keywordToVeloCategory = new Map<string, string>();
+    const keywordToAliCategoryId = new Map<string, string | null>();
     let testKeywordOverride: string | null = null;
     try {
       const bodyClone = await req.clone().json().catch(() => ({} as any));
