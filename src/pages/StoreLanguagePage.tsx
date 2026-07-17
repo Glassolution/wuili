@@ -6,6 +6,8 @@ import {
   NL, NO, PL, PT, RO, SA, SE, SK, TH, TR, UA, US, ZA,
 } from "country-flag-icons/react/3x2";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import { saveProjectDraft } from "@/lib/userProjects";
+import { readOnboardingProjectId } from "@/lib/onboardingProject";
 
 // Emoji de bandeira não renderiza no Windows (a fonte do sistema não tem os
 // indicadores regionais, e o Chrome cai para as letras "BR"/"PT"). Por isso as
@@ -49,6 +51,8 @@ const FLAG_CLASS = "h-[15px] w-[22px] shrink-0 rounded-[2px] object-cover ring-1
 const StoreLanguagePage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const projectId =
+    (location.state as { projectId?: string } | null)?.projectId ?? readOnboardingProjectId() ?? null;
   const product = useMemo(() => {
     const fromState = (location.state as { product?: ExampleProduct } | null)?.product;
     if (fromState) return fromState;
@@ -75,8 +79,15 @@ const StoreLanguagePage = () => {
   };
 
   const handleContinue = () => {
-    const flowState = { product, language: selectedLanguage };
+    const flowState = { product, language: selectedLanguage, projectId };
     sessionStorage.setItem("velo-store-language", selectedLanguage);
+    // Persistência real: escolha é gravada no user_projects criado no passo anterior.
+    // Falhas de rede não bloqueiam o wizard — sessionStorage é o cache de UI.
+    if (projectId) {
+      void saveProjectDraft(projectId, { language: selectedLanguage }).catch((err) => {
+        console.error("saveProjectDraft (language) failed:", err);
+      });
+    }
     navigate("/onboarding/persona", { state: flowState });
   };
 

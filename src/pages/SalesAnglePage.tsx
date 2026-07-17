@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { Brain, Check, ChevronLeft } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import { saveProjectDraft } from "@/lib/userProjects";
+import { readOnboardingProjectId } from "@/lib/onboardingProject";
 
-type FlowState = { product: ExampleProduct; language: string; persona: string };
+type FlowState = { product: ExampleProduct; language: string; persona: string; projectId?: string | null };
 
 const angles = [
   { icon: "✨", title: "Transforme sua Rotina", description: "Mostre como o produto torna o dia a dia mais simples, leve e eficiente." },
@@ -30,12 +32,13 @@ const SalesAnglePage = () => {
     let product = state?.product;
     let language = state?.language;
     let persona = state?.persona;
+    const projectId = state?.projectId ?? readOnboardingProjectId() ?? null;
     try {
       if (!product) { const value = sessionStorage.getItem("velo-example-product"); product = value ? JSON.parse(value) as ExampleProduct : undefined; }
       if (!language) language = sessionStorage.getItem("velo-store-language") || undefined;
       if (!persona) persona = sessionStorage.getItem("velo-customer-persona") || undefined;
     } catch { return null; }
-    return product && language && persona ? { product, language, persona } : null;
+    return product && language && persona ? { product, language, persona, projectId } : null;
   }, [location.state]);
   const [selectedAngle, setSelectedAngle] = useState("");
 
@@ -44,6 +47,11 @@ const SalesAnglePage = () => {
   const handleContinue = () => {
     if (!selectedAngle) return;
     sessionStorage.setItem("velo-sales-angle", selectedAngle);
+    if (flow.projectId) {
+      void saveProjectDraft(flow.projectId, { salesAngle: selectedAngle }).catch((err) => {
+        console.error("saveProjectDraft (salesAngle) failed:", err);
+      });
+    }
     navigate("/onboarding/gerando-imagens", { state: { ...flow, salesAngle: selectedAngle } });
   };
 

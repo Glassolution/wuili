@@ -16,6 +16,7 @@ type FlowState = {
   language: string;
   persona: string;
   salesAngle: string;
+  projectId?: string | null;
 };
 
 const generationMessages = [

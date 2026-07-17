@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { Check, ChevronLeft, Pencil, Smile, Sparkles } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import { saveProjectDraft } from "@/lib/userProjects";
+import { readOnboardingProjectId } from "@/lib/onboardingProject";
 
-type FlowState = { product: ExampleProduct; language: string };
+type FlowState = { product: ExampleProduct; language: string; projectId?: string | null };
 
 const personas = [
   { icon: "🙋", title: "Comprador Prático", description: "Busca soluções simples, úteis e fáceis de incluir na rotina." },
@@ -29,6 +31,7 @@ const CustomerPersonaPage = () => {
     const state = location.state as Partial<FlowState> | null;
     let product = state?.product;
     let language = state?.language;
+    const projectId = state?.projectId ?? readOnboardingProjectId() ?? null;
     try {
       if (!product) {
         const storedProduct = sessionStorage.getItem("velo-example-product");
@@ -38,7 +41,7 @@ const CustomerPersonaPage = () => {
     } catch {
       return null;
     }
-    return product && language ? { product, language } : null;
+    return product && language ? { product, language, projectId } : null;
   }, [location.state]);
   const [selectedPersona, setSelectedPersona] = useState("");
   const [customOpen, setCustomOpen] = useState(false);
@@ -51,6 +54,11 @@ const CustomerPersonaPage = () => {
   const handleContinue = () => {
     if (!effectivePersona) return;
     sessionStorage.setItem("velo-customer-persona", effectivePersona);
+    if (flow.projectId) {
+      void saveProjectDraft(flow.projectId, { persona: effectivePersona }).catch((err) => {
+        console.error("saveProjectDraft (persona) failed:", err);
+      });
+    }
     navigate("/onboarding/angulo-vendas", { state: { ...flow, persona: effectivePersona } });
   };
 
