@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
 import { veloToast as toast } from "@/components/ui/velo-toast";
-import { VeloLogo } from "@/components/VeloLogo";
+import { VeloLogo, VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
 
@@ -104,10 +104,17 @@ const getDisplayPrice = (planId: string, billingCycle: BillingCycle) => {
 };
 
 const getOriginalDisplayPrice = (planId: string, billingCycle: BillingCycle) => {
+  // No anual, o preço "de" é o mensal x 12 — o que o usuário realmente pagaria
+  // sem o desconto. É um valor praticado de verdade, não um número inflado para
+  // simular promoção.
+  if (billingCycle === "annual") {
+    const monthlyAmount = PLAN_AMOUNTS[planId] ?? 0;
+    const annualAmount = ANNUAL_PLAN_AMOUNTS[planId] ?? monthlyAmount * 12 * 0.9;
+    const fullYear = monthlyAmount * 12;
+    return fullYear > annualAmount ? formatBRL(fullYear) : null;
+  }
   const originalPrice = PLANS_DATA[planId]?.originalPrice;
-  if (!originalPrice) return null;
-  if (billingCycle === "annual") return formatBRL(parseBRL(originalPrice) * 12);
-  return originalPrice;
+  return originalPrice ?? null;
 };
 
 const getSavingsDisplay = (originalPrice: string | null, currentPrice: string) => {
@@ -359,51 +366,76 @@ const CheckoutPage = () => {
       <div className="min-h-screen overflow-hidden bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
         <div className="relative min-h-screen w-full">
           <section className="min-h-screen w-full bg-white px-4 py-6 sm:px-6 lg:px-10">
-            <div className="mb-8 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F3F2] text-black transition hover:bg-[#E9E9E7]"
-                aria-label="Voltar"
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <span className="h-10 w-10" aria-hidden="true" />
+            {/* Marca à esquerda e progresso do checkout ao centro. As três
+                etapas espelham o fluxo real: plano -> pagamento -> confirmação;
+                aqui estamos sempre na primeira. */}
+            <div className="mx-auto mb-10 grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-4">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F3F2] text-black transition hover:bg-[#E9E9E7]"
+                  aria-label="Voltar"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <VeloMark size={34} />
+              </div>
+
+              <div className="flex items-center gap-2" role="presentation">
+                {[0, 1, 2].map((step) => (
+                  <span
+                    key={step}
+                    // Largura menor no mobile: com 86px fixos as três barras não
+                    // cabem ao lado da marca e a última era cortada pelo
+                    // overflow-hidden do container.
+                    className={`h-[5px] w-[42px] rounded-full transition-colors sm:w-[86px] ${
+                      step === 0 ? "bg-[#0A0A0A]" : "bg-[#E9E9E7]"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <span aria-hidden="true" />
             </div>
 
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="mx-auto mb-3 w-fit rounded-full bg-[#F5F5F4] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#8B8B88]">
-                Planos Velo
-              </p>
-              <h1 className="text-[34px] font-semibold leading-none tracking-[-0.055em] text-black sm:text-[43px]">
-                Escolha o plano para crescer
-              </h1>
-              <p className="mx-auto mt-3 max-w-xl text-[14px] leading-6 text-[#8A8A86]">
-                Antes do pagamento, selecione o plano que combina com o seu momento. O checkout continua seguro via Mercado Pago.
-              </p>
+            {/* Cabeçalho: título à esquerda, alternador de cobrança à direita. */}
+            <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-[24px] font-bold tracking-[-0.015em] text-[#0A0A0A] sm:text-[27px]">
+                  Escolha o plano que combina com você
+                </h1>
+                <p className="mt-1.5 text-[13px] leading-5 text-[#8A8A86]">
+                  O checkout continua seguro via Mercado Pago.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setBillingCycle((current) => (current === "monthly" ? "annual" : "monthly"))}
-                className="mx-auto mt-5 flex w-fit items-center gap-2 p-1 text-[12px] font-semibold text-[#77746F] transition"
+                className="flex w-fit shrink-0 items-center gap-2.5 text-[13px] font-medium text-[#3D3D3A] transition"
                 aria-pressed={billingCycle === "annual"}
               >
-                <span className={`px-3 leading-8 transition ${billingCycle === "monthly" ? "text-black" : ""}`}>
-                  Mensal
-                </span>
-                <span className="relative h-6 w-11 rounded-full bg-[#DFDEDA] shadow-[inset_0_1px_3px_rgba(0,0,0,0.14)]">
+                <span
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
+                    billingCycle === "annual" ? "bg-[#0A0A0A]" : "bg-[#DFDEDA]"
+                  }`}
+                >
                   <span
-                    className={`absolute left-1 top-1/2 h-[18px] w-[18px] -translate-y-1/2 rounded-full bg-white shadow-[0_1px_5px_rgba(0,0,0,0.22)] transition-transform duration-200 ${
+                    className={`absolute left-1 top-1/2 h-[18px] w-[18px] -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.20)] transition-transform duration-200 ${
                       billingCycle === "annual" ? "translate-x-[18px]" : "translate-x-0"
                     }`}
                   />
                 </span>
-                <span className={`px-3 leading-8 transition ${billingCycle === "annual" ? "text-black" : ""}`}>
-                  Anual <span className="ml-1 text-[10px] font-bold text-emerald-600">-10%</span>
+                Cobrança anual
+                <span className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                  Economize 10%
                 </span>
               </button>
             </div>
 
-            <div className="mx-auto mt-6 grid max-w-4xl items-stretch gap-4 rounded-[36px] bg-[#FAFAF8] p-3 md:grid-cols-2">
+            {/* Três planos lado a lado. Antes era md:grid-cols-2 com 3 planos, o
+                que jogava o Business sozinho para uma segunda linha. */}
+            <div className="mx-auto mt-7 grid max-w-6xl items-stretch gap-5 md:grid-cols-3">
               {plans.map(([id, currentPlan]) => {
                 const isSelected = id === selectedPlanId;
                 const displayPrice = getDisplayPrice(id, billingCycle);
@@ -411,104 +443,103 @@ const CheckoutPage = () => {
                 const originalPrice = getOriginalDisplayPrice(id, billingCycle);
                 const savings = getSavingsDisplay(originalPrice, displayPrice);
 
+                // O plano em destaque ganha borda de cor e CTA sólido, como no
+                // card "Most Popular" de referência.
+                const isFeatured = id === "pro";
+
                 return (
                   <article
                     key={id}
                     onClick={() => setSelectedPlanId(id)}
-                    className={`relative flex min-h-[420px] cursor-pointer flex-col rounded-[30px] p-5 transition duration-200 ${
-                      isSelected
-                        ? "bg-white shadow-[0_18px_60px_rgba(0,0,0,0.10)]"
-                        : "bg-transparent hover:bg-white/60"
+                    className={`relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-6 transition duration-200 ${
+                      isFeatured
+                        ? "border-[#0A0A0A] shadow-[0_10px_36px_rgba(0,0,0,0.09)]"
+                        : isSelected
+                          ? "border-black/25"
+                          : "border-black/10 hover:border-black/25"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                        isSelected
-                          ? "bg-black text-white"
-                          : "border border-black/12 bg-white text-black"
-                      }`}>
-                        <span className={`h-3 w-3 rounded-full ${isSelected ? "bg-white" : "bg-[#D8D8D4]"}`} />
-                      </div>
+                      {/* Marca da Velo com tratamento tonal por plano: o plano em
+                          destaque vem sólido, os demais em cinza claro. */}
+                      <VeloMark size={44} tone={isFeatured ? "solid" : "soft"} />
                       {currentPlan.badge && (
-                        <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                          isSelected ? "bg-black text-white" : "bg-white/80 text-[#777]"
-                        }`}>
+                        <span
+                          className={`rounded-[6px] px-2 py-[3px] text-[11px] font-semibold leading-[16px] ${
+                            isFeatured ? "bg-[#F1F1EF] text-[#0A0A0A]" : "bg-[#F6F6F5] text-[#8A8A86]"
+                          }`}
+                        >
                           {currentPlan.badge}
                         </span>
                       )}
                     </div>
 
-                    <div className="mt-6">
-                      <h2 className="text-[24px] font-semibold tracking-[-0.035em] text-black">{currentPlan.name}</h2>
-                      <p className="mt-1 min-h-[42px] text-[13px] leading-5 text-[#777]">{currentPlan.description}</p>
-                    </div>
+                    <h2 className="mt-5 text-[19px] font-bold tracking-[-0.015em] text-[#0A0A0A]">{currentPlan.name}</h2>
+                    {/* Altura fixa: as descrições têm tamanhos diferentes e, sem
+                        isso, preço e CTA saem desalinhados entre os cards. */}
+                    <p className="mt-1.5 min-h-[60px] text-[13px] leading-5 text-[#777]">{currentPlan.description}</p>
 
                     <div className="mt-5">
                       {originalPrice && (
-                        <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white">
-                            Oferta aplicada
-                          </span>
-                          <span className="text-[14px] font-semibold text-[#7C7C76]">
-                            De <span className="text-[#8A8A84] line-through decoration-[#555] decoration-2">{originalPrice}</span>
-                          </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[15px] font-semibold text-[#A8A8A3] line-through">{originalPrice}</span>
                           {savings && (
-                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-100">
+                            <span className="whitespace-nowrap rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                               Economize {savings}
                             </span>
                           )}
                         </div>
                       )}
-                      <div className="flex items-end gap-1">
-                        <span className="text-[38px] font-semibold tracking-[-0.06em] text-black">
+                      <div className="mt-1 flex items-end gap-1">
+                        <span className="text-[32px] font-semibold tracking-[-0.045em] text-black">
                           {priceParts.main}
                           <span className="text-[#A8A8A3]">{priceParts.cents}</span>
                         </span>
-                        <span className="pb-1.5 text-[17px] font-medium text-[#7A7A77]">
+                        <span className="pb-1.5 text-[14px] font-medium text-[#7A7A77]">
                           {billingCycle === "annual" ? "/ano" : "/mês"}
                         </span>
                       </div>
-                      {billingCycle === "annual" && (
-                        <p className="mt-1 text-[12px] font-medium text-[#8A8A86]">10% de desconto no plano anual</p>
-                      )}
                     </div>
 
-                    <div className="my-4 h-px bg-black/10" />
+                    {/* CTA acima da lista de recursos. */}
+                    <button
+                      type="button"
+                      onClick={() => startCheckout(id)}
+                      className={`mt-5 h-11 w-full rounded-[10px] border px-5 text-[13px] font-semibold transition-colors duration-200 ${
+                        isFeatured
+                          ? "border-[#0A0A0A] bg-[#0A0A0A] text-white hover:bg-[#242424]"
+                          : // Vazado por padrão; preenche só com o mouse sobre o
+                            // próprio botão.
+                            "border-black/15 bg-white text-black hover:border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white"
+                      }`}
+                    >
+                      Assinar {currentPlan.name}
+                    </button>
 
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#8A8A86]">Inclui</p>
-                    <ul className="mb-5 space-y-1.5">
-                      {currentPlan.features.slice(0, 5).map((feature) => (
+                    <p className="mb-3 mt-6 text-[13px] font-semibold text-black">O que está incluído:</p>
+                    <ul className="space-y-2.5">
+                      {currentPlan.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-[#3D3D3A]">
-                          <Check size={14} className="mt-0.5 shrink-0 text-black" strokeWidth={2.4} />
+                          <Check size={14} className="mt-[3px] shrink-0 text-[#0A0A0A]" strokeWidth={2.6} />
                           {feature}
                         </li>
                       ))}
                     </ul>
-
-                    <button
-                      type="button"
-                      onClick={() => startCheckout(id)}
-                      className="relative isolate mt-auto h-11 w-full overflow-hidden rounded-full bg-black px-5 text-[13px] font-semibold text-white shadow-[0_13px_30px_rgba(0,0,0,0.24),0_0_30px_rgba(96,142,255,0.34),0_0_16px_rgba(244,114,182,0.16)] transition before:absolute before:inset-x-8 before:bottom-0 before:h-px before:bg-[linear-gradient(90deg,transparent,rgba(170,196,255,1),rgba(244,114,182,0.78),transparent)] before:content-[''] hover:bg-[#1A1A1A] hover:shadow-[0_15px_36px_rgba(0,0,0,0.28),0_0_36px_rgba(96,142,255,0.42),0_0_20px_rgba(244,114,182,0.22)]"
-                    >
-                      Assinar {currentPlan.name}
-                    </button>
                   </article>
                 );
               })}
             </div>
 
-            <div className="mx-auto mt-5 max-w-4xl overflow-hidden rounded-[24px] bg-[radial-gradient(circle_at_16%_22%,rgba(255,239,164,0.88),transparent_26%),radial-gradient(circle_at_48%_18%,rgba(255,184,229,0.76),transparent_30%),radial-gradient(circle_at_86%_48%,rgba(139,218,255,0.82),transparent_32%),linear-gradient(135deg,#F8F1CB,#F8DDF1_46%,#BDEEFF)] px-6 py-7 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.70),0_18px_50px_rgba(0,0,0,0.08)]">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-black shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
-                <HelpCircle size={24} strokeWidth={2.1} />
-              </div>
-              <p className="mt-4 text-[15px] font-semibold text-black">Não tem certeza de qual plano escolher?</p>
-              <p className="mx-auto mt-1 max-w-md text-[12px] font-medium leading-5 text-black/56">
-                Comece pelo Pro. Você pode ajustar o plano depois sem mudar o fluxo de checkout.
+            <div className="mx-auto mt-6 flex max-w-6xl flex-col items-center gap-3 rounded-[16px] border border-black/10 bg-[#FAFAFA] px-6 py-5 text-center sm:flex-row sm:justify-center sm:text-left">
+              <HelpCircle size={18} strokeWidth={2.1} className="shrink-0 text-[#8A8A86]" />
+              <p className="text-[13px] leading-5 text-[#5C5C58]">
+                Não tem certeza de qual plano escolher?{" "}
+                <span className="text-[#8A8A86]">Comece pelo Pro — dá para ajustar depois.</span>
               </p>
               <button
                 type="button"
                 onClick={() => startCheckout("pro")}
-                className="mx-auto mt-4 h-10 rounded-full bg-black px-7 text-[12px] font-semibold text-white shadow-[0_14px_30px_rgba(0,0,0,0.24),0_0_26px_rgba(96,142,255,0.30)] transition hover:bg-[#1A1A1A] hover:shadow-[0_16px_34px_rgba(0,0,0,0.28),0_0_34px_rgba(96,142,255,0.38)]"
+                className="h-9 shrink-0 rounded-[10px] border border-black/15 bg-white px-5 text-[12px] font-semibold text-black transition hover:border-black/40 hover:bg-black/[0.03] sm:ml-2"
               >
                 Continuar com Pro
               </button>

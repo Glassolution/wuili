@@ -131,6 +131,10 @@ export async function publishProject(project: UserProject): Promise<UserProject>
   return data as UserProject;
 }
 
+/** Variação real informada pelo fornecedor (ex.: { name: "Cor", options: ["Preto", "Branco"] }).
+ *  O formato espelha o que o scraper grava em catalog_products.variants. */
+export type ProductVariantOption = { name: string; options: string[] };
+
 export type PublicStoreProduct = {
   id: string;
   title: string;
@@ -138,6 +142,10 @@ export type PublicStoreProduct = {
   originalPrice: number | null;
   imageUrl: string | null;
   category: string | null;
+  /** [] quando o fornecedor não informa variação — a vitrine omite o seletor. */
+  variants: ProductVariantOption[];
+  /** HTML de especificações do fornecedor. Sanitizar antes de renderizar. */
+  description: string | null;
 };
 
 function firstImage(images: Json | null): string | null {
@@ -228,53 +236,62 @@ export function getProjectOverrides(project: UserProject | null): Record<string,
     : {};
 }
 
-/** Produtos de um projeto público (catalog_products é legível por anon). */
+/**
+ * Produtos de um projeto público. Vai via RPC SECURITY DEFINER porque o RLS de
+ * catalog_products só atende usuários autenticados — consultar a tabela direto
+ * falha com "permission denied" para o visitante da loja publicada.
+ */
 export async function fetchPublicStoreProducts(productIds: string[]): Promise<PublicStoreProduct[]> {
-  if (productIds.length === 0) {
-    const { data, error } = await supabase
-      .from("catalog_products")
-      .select("id,title,suggested_price,cost_price,original_price,images,category")
-      .eq("source", "c7drop")
-      .eq("is_active", true)
-      .eq("is_blocked", false)
-      .gt("stock_quantity", 0)
-      .order("orders_count", { ascending: false, nullsFirst: false })
-      .limit(12);
-    if (error) throw error;
-    return (data ?? []).map(mapPublicProduct);
-  }
-
-  const { data, error } = await supabase
-    .from("catalog_products")
-    .select("id,title,suggested_price,cost_price,original_price,images,category")
-    .in("id", productIds)
-    .eq("is_active", true)
-    .eq("is_blocked", false);
+  const { data, error } = await supabase.rpc("get_public_store_products", { p_ids: productIds });
   if (error) throw error;
 
+  const rows = (data ?? []) as PublicProductRow[];
+  const mapped = rows.map(mapPublicProduct);
+  if (productIds.length === 0) return mapped;
+
+  // Respeita a ordem em que o usuário escolheu os produtos: o primeiro é o destaque.
   const order = new Map(productIds.map((id, index) => [id, index]));
-  return (data ?? [])
-    .map(mapPublicProduct)
-    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  return mapped.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
-function mapPublicProduct(row: {
+type PublicProductRow = {
   id: string;
   title: string;
   suggested_price: number | null;
-  cost_price: number | null;
   original_price: number | null;
   images: Json | null;
   category: string | null;
-}): PublicStoreProduct {
+  variants: Json | null;
+  description: string | null;
+};
+
+function mapPublicProduct(row: PublicProductRow): PublicStoreProduct {
   return {
     id: row.id,
     title: row.title?.trim() || "Produto",
-    price: Number(row.suggested_price ?? (row.cost_price ?? 0) * 5),
+    price: Number(row.suggested_price ?? 0),
     originalPrice: row.original_price,
     imageUrl: firstImage(row.images),
     category: row.category,
+    variants: parseVariantOptions(row.variants),
+    description: row.description,
   };
+}
+
+/**
+ * Lê as variações reais gravadas pelo scraper ([{ name, values }]). Retorna []
+ * quando o fornecedor não informa variação — a vitrine então OMITE o seletor em
+ * vez de inventar cores/tamanhos.
+ */
+export function parseVariantOptions(value: Json | null): ProductVariantOption[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const { name, options } = entry as { name?: unknown; options?: unknown };
+    if (typeof name !== "string" || !name.trim() || !Array.isArray(options)) return [];
+    const parsed = options.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    return parsed.length > 0 ? [{ name: name.trim(), options: parsed }] : [];
+  });
 }
 
 export async function fetchUserProject(projectId: string): Promise<UserProject | null> {

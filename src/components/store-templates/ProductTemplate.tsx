@@ -1,7 +1,5 @@
-import { useState } from "react";
 import {
   ArrowRight,
-  Check,
   ChevronDown,
   Heart,
   Menu,
@@ -9,53 +7,39 @@ import {
   Search,
   ShieldCheck,
   ShoppingBag,
-  Star,
   Truck,
   UserCircle,
 } from "lucide-react";
+
+import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
+import type { ProductVariantOption } from "@/lib/userProjects";
 
 export type ProductTemplateProps = {
   brand: string;
   title: string;
   description: string;
   price: number;
-  originalPrice: number;
+  /** Preço "de" riscado. Só quando o fornecedor pratica desconto real; null omite. */
+  originalPrice: number | null;
   image: string;
   productId?: string;
   accent: string;
   mobile?: boolean;
+  /** Variações reais do fornecedor. [] = produto sem variação, seletor omitido. */
+  variants?: ProductVariantOption[];
 };
 
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const storeNav = ["Inicio", "Loja", "Novidades", "Colecoes", "Ofertas", "Blog"];
-const sizeOptions = ["PP", "P", "M", "G", "GG"];
-const colorSwatches = [
-  { name: "Grafite", value: "#4b4b4b" },
-  { name: "Cinza", value: "#b9b9b7" },
-  { name: "Areia", value: "#e6dcc8" },
-  { name: "Preto", value: "#161616" },
-];
-const productTabs = ["Detalhes", "Materiais", "Tamanho e caimento", "Envio e trocas"];
-const detailBullets = [
-  "Modelagem oversized",
-  "Tecido macio e encorpado",
-  "Capuz com cordao ajustavel",
-  "Punhos e barra canelados",
-  "Estilo unissex",
-];
 const trustBadges: Array<[typeof Truck, string, string]> = [
   [Truck, "Frete gratis", "Em pedidos acima de R$ 199"],
   [RefreshCcw, "Troca facil", "30 dias para devolucao"],
   [ShieldCheck, "Pagamento seguro", "100% protegido"],
 ];
 
-const ProductTemplate = ({ brand, title, description, price, originalPrice, image, productId, accent, mobile = false }: ProductTemplateProps) => {
-  const [selectedSize, setSelectedSize] = useState("M");
-  const [selectedColor, setSelectedColor] = useState(0);
-  const [activeTab, setActiveTab] = useState(0);
-
-  const discountPct = originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0;
+const ProductTemplate = ({ brand, title, description, price, originalPrice, image, productId, accent, mobile = false, variants = [] }: ProductTemplateProps) => {
+  const discountPct = originalPrice && originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0;
   const thumbnails = image ? [image, image, image, image] : [];
   const relatedProducts = Array.from({ length: 4 }, () => ({ name: title, price }));
 
@@ -113,61 +97,17 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
           <div className="flex flex-col">
             <span className="inline-flex w-fit items-center rounded-full bg-[#f0f0ef] px-3 py-1 text-[12px] font-semibold text-black/65">Novidade</span>
             <h1 className="mt-4 max-w-[520px] text-[30px] font-black leading-[1.08] text-black md:text-[38px]">{title}</h1>
-            <div className="mt-3 flex items-center gap-2 text-[14px] text-black/55">
-              <span className="flex text-black">{Array.from({ length: 5 }).map((_, index) => <Star key={index} size={16} fill="currentColor" strokeWidth={0} />)}</span>
-              <span>4.8 (128 avaliacoes)</span>
-            </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <span className="text-[30px] font-black leading-none text-black">{formatBRL(price)}</span>
-              {discountPct > 0 ? <span className="text-[17px] text-black/35 line-through">{formatBRL(originalPrice)}</span> : null}
+              {discountPct > 0 && originalPrice ? <span className="text-[17px] text-black/35 line-through">{formatBRL(originalPrice)}</span> : null}
               {discountPct > 0 ? <span className="rounded-[6px] px-2 py-1 text-[12px] font-bold text-white" style={{ backgroundColor: accent }}>{discountPct}% OFF</span> : null}
             </div>
             <p className="mt-5 max-w-[520px] text-[15px] leading-[1.6] text-black/65">{description}</p>
 
             <div className="mt-6 h-px w-full bg-black/10" />
 
-            {/* Cor */}
-            <div className="mt-6">
-              <p className="text-[14px] font-semibold text-black">Cor: <span className="font-medium text-black/55">{colorSwatches[selectedColor].name}</span></p>
-              <div className="mt-3 flex items-center gap-3">
-                {colorSwatches.map((color, index) => (
-                  <button
-                    key={color.name}
-                    type="button"
-                    onClick={() => setSelectedColor(index)}
-                    aria-label={color.name}
-                    className="flex h-9 w-9 items-center justify-center rounded-full"
-                    style={{ outline: selectedColor === index ? `2px solid ${accent}` : "none", outlineOffset: "2px" }}
-                  >
-                    <span className="h-8 w-8 rounded-full border border-black/10" style={{ backgroundColor: color.value }} />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tamanho */}
-            <div className="mt-6">
-              <div className="flex items-center justify-between">
-                <p className="text-[14px] font-semibold text-black">Tamanho: <span className="font-medium text-black/55">{selectedSize}</span></p>
-                <button type="button" className="text-[13px] font-medium text-black/55 underline underline-offset-4 transition hover:text-black">Guia de tamanhos</button>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2.5">
-                {sizeOptions.map((size) => {
-                  const isActive = selectedSize === size;
-                  return (
-                    <button
-                      key={size}
-                      type="button"
-                      onClick={() => setSelectedSize(size)}
-                      className={`h-11 min-w-[54px] rounded-[10px] border px-3 text-[14px] font-semibold transition ${isActive ? "border-transparent text-white" : "border-black/15 text-black hover:border-black/50"}`}
-                      style={isActive ? { backgroundColor: accent } : undefined}
-                    >
-                      {size}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {/* Variações reais do fornecedor (omitido quando não há) */}
+            <ProductVariantPicker options={variants} accent={accent} />
 
             {/* Acoes */}
             <div className="mt-7 flex gap-3">
@@ -195,31 +135,11 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
       <section className="border-t border-black/10 px-6 py-10 sm:px-10">
         <div className="mx-auto max-w-[1180px]">
           <div className="flex flex-wrap gap-7 border-b border-black/10">
-            {productTabs.map((tab, index) => {
-              const isActive = activeTab === index;
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(index)}
-                  className={`-mb-px border-b-2 pb-3 text-[15px] transition ${isActive ? "border-black font-semibold text-black" : "border-transparent text-black/45 hover:text-black/70"}`}
-                >
-                  {tab}
-                </button>
-              );
-            })}
+            <span className="-mb-px border-b-2 border-black pb-3 text-[15px] font-semibold text-black">Detalhes</span>
           </div>
           <div className="mt-8 grid gap-8 lg:gap-12" style={{ gridTemplateColumns: mobile ? "1fr" : "minmax(0,1fr) minmax(0,1fr)" }}>
             <div>
               <p className="text-[15px] leading-[1.7] text-black/70">{description}</p>
-              <ul className="mt-6 space-y-3">
-                {detailBullets.map((bullet) => (
-                  <li key={bullet} className="flex items-center gap-3 text-[14px] font-medium text-black/75">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: accent }}><Check size={12} className="text-white" /></span>
-                    {bullet}
-                  </li>
-                ))}
-              </ul>
             </div>
             <div className="aspect-[4/3] overflow-hidden rounded-[14px] bg-[#161616]">
               {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : null}
