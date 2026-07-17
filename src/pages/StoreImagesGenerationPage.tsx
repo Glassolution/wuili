@@ -87,7 +87,7 @@ const StoreImagesGenerationPage = () => {
       // A navegação não deve falhar por limitação de storage local.
     }
 
-    navigate("/dashboard?tour=loja", { replace: true });
+    navigate("/onboarding/preparando-loja", { state: flow });
   };
 
   return (
