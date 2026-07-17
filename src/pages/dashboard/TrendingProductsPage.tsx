@@ -548,32 +548,19 @@ const TrendingProductsPage = () => {
   };
 
   const [creatingSalesPageId, setCreatingSalesPageId] = useState<string | null>(null);
+  const [wizardProduct, setWizardProduct] = useState<TrendingProduct | null>(null);
 
   const handleCreateSalesPage = (product: TrendingProduct) => {
     if (creatingSalesPageId) return;
-    // Redireciona para o editor existente com o produto pré-selecionado.
-    // O editor cuida de nome, logo, descrição e customizações da página.
-    setCreatingSalesPageId(product.id);
-    try {
-      const flowProduct = toOnboardingProduct(product);
-      try {
-        sessionStorage.setItem("velo-example-product", JSON.stringify(flowProduct));
-        sessionStorage.setItem("velo-example-products", JSON.stringify([flowProduct]));
-        sessionStorage.setItem("velo-store-language", "Português (Brasil)");
-        sessionStorage.setItem("velo-customer-persona", "Comprador Prático");
-        sessionStorage.setItem("velo-sales-angle", "Uma Escolha Inteligente");
-      } catch { /* ignore storage errors */ }
-      navigate("/minha-loja/editor", {
-        state: {
-          product: flowProduct,
-          language: "Português (Brasil)",
-          persona: "Comprador Prático",
-          salesAngle: "Uma Escolha Inteligente",
-        },
-      });
-    } finally {
-      setCreatingSalesPageId(null);
-    }
+    // Abre o mesmo wizard usado em Minha Loja, travado em "página de vendas"
+    // e com o produto vindo de Produtos em Alta já pré-selecionado.
+    setWizardProduct(product);
+  };
+
+  const handleProjectCreated = (projectId: string) => {
+    setWizardProduct(null);
+    setCreatingSalesPageId(null);
+    navigate("/produto/editor", { state: { projectId } });
   };
 
   return (
