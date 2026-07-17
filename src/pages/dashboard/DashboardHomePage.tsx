@@ -771,6 +771,7 @@ const DashboardHomePage = () => {
           </span>
         </button>
       </div>
+      <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
     </main>
   );
 };
