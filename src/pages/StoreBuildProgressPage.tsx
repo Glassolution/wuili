@@ -98,7 +98,7 @@ const StoreBuildProgressPage = () => {
   };
 
   // Sombra leve em camadas, aplicada por card (não sob o grupo).
-  const cardShadow = "0 4px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06)";
+  const cardShadow = "0 8px 24px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.03)";
 
   const cards: FanCard[] = [
     {
@@ -193,7 +193,7 @@ const StoreBuildProgressPage = () => {
 
   return (
     <main
-      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#c7d2f5_0%,#e4e8fb_100%)] px-4 py-10 text-[#0a0a0a]"
+      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-4 py-10 text-[#0a0a0a]"
       style={{ fontFamily: FONT_STACK }}
     >
       <style>
@@ -224,13 +224,13 @@ const StoreBuildProgressPage = () => {
       ) : (
         /* ── Card branco flutuante com todo o conteúdo ────────────────── */
         <section
-          className="relative z-10 w-full max-w-[1000px] rounded-[32px] bg-white px-6 py-14 shadow-[0_24px_64px_rgba(0,0,0,0.10),0_2px_8px_rgba(0,0,0,0.04)] sm:px-12 sm:py-16"
+          className="relative z-10 w-full max-w-[1000px] rounded-[32px] bg-white px-6 py-14 shadow-[0_24px_64px_rgba(0,0,0,0.06),0_2px_8px_rgba(0,0,0,0.03)] sm:px-12 sm:py-16"
           style={leaving ? { animation: `veloScreenLeave ${LEAVE_DURATION_MS}ms cubic-bezier(.4,0,.6,1) forwards` } : undefined}
         >
           <div className="flex flex-col items-center text-center">
             {/* Badge — cinza neutro, não roxo */}
             <div className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#6b7280] shadow-[0_1px_2px_rgba(0,0,0,0.04)] [animation:veloUp_.5s_ease_both]">
-              <Sparkles size={16} strokeWidth={1.5} className="text-[#4b5563]" /> Criada com IA
+              <Sparkles size={16} strokeWidth={1.5} className="text-[#9ca3af]" /> Criada com IA
             </div>
 
             {/* Heading */}
@@ -256,7 +256,7 @@ const StoreBuildProgressPage = () => {
                   }}
                 >
                   <div
-                    className="flex h-[190px] w-[150px] flex-col rounded-[12px] border border-black/[0.06] bg-white px-3.5 py-3 text-left transition-transform duration-300 will-change-transform"
+                    className="flex h-[190px] w-[150px] flex-col rounded-[16px] border border-black/[0.06] bg-white px-3.5 py-3 text-left transition-transform duration-300 will-change-transform"
                     style={{
                       transform: `rotate(${card.rotate}deg) translateY(${card.lift}px)`,
                       boxShadow: cardShadow,
