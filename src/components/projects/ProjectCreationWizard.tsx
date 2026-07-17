@@ -212,6 +212,7 @@ const ProjectCreationWizard = ({
         tipo,
         productIds: selectedProducts,
         template: templateId,
+        logoImage,
       });
       const elapsed = Date.now() - started;
       const minDuration = LOADING_STEPS.length * 700;
