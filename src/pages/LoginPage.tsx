@@ -161,9 +161,18 @@ const LoginPage = () => {
     if (data.user) {
       await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
       veloToast.success("Conta criada com sucesso.");
-      navigate("/comecar", { replace: true, state: { justSignedUp: true } });
+      // Se a sessão foi criada (auto-confirm), segue para o onboarding.
+      // Caso contrário (confirmação por e-mail pendente), volta o botão ao
+      // estado normal e informa o usuário para conferir o e-mail.
+      if (data.session) {
+        navigate("/comecar", { replace: true, state: { justSignedUp: true } });
+        return;
+      }
+      veloToast.info("Confirme seu e-mail para continuar.");
     }
+    setLoading(false);
   };
+
 
   const handleReset = async (e: FormEvent) => {
     e.preventDefault();
