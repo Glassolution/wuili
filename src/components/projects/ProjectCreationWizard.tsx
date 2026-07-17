@@ -299,7 +299,7 @@ const ProjectCreationWizard = ({
                 {step !== "info" && step !== "loading" ? (
                   <button
                     type="button"
-                    onClick={() => setStep(step === "produtos" ? "info" : "produtos")}
+                    onClick={() => setStep(step === "produtos" ? "info" : skipProducts ? "info" : "produtos")}
                     className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#5f6368] transition hover:bg-[#f3f3f1]"
                     aria-label="Voltar"
                   >
