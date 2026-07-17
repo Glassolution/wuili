@@ -547,19 +547,26 @@ const TrendingProductsPage = () => {
     goToOnboardingWithProduct(product);
   };
 
-  const handleCreateSalesPage = (product: TrendingProduct) => {
-    if (!isAdmin) {
-      navigate("/produto/editor", { state: { product: toOnboardingProduct(product) } });
-      return;
-    }
+  const [creatingSalesPageId, setCreatingSalesPageId] = useState<string | null>(null);
 
-    const activeStore = getActiveStore();
-    if (activeStore) {
-      setSalesPageSoonProduct(product);
-      return;
+  const handleCreateSalesPage = async (product: TrendingProduct) => {
+    if (creatingSalesPageId) return;
+    setCreatingSalesPageId(product.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-sales-page", {
+        body: { catalog_product_id: product.id },
+      });
+      if (error) throw error;
+      const slug = (data as { page?: { slug?: string } } | null)?.page?.slug;
+      if (!slug) throw new Error("slug ausente na resposta");
+      veloToast.success("Página de vendas criada!");
+      navigate(`/loja/${slug}`);
+    } catch (err) {
+      console.error("create sales page failed:", err);
+      veloToast.error(err instanceof Error ? err.message : "Falha ao criar página de vendas.");
+    } finally {
+      setCreatingSalesPageId(null);
     }
-
-    goToOnboardingWithProduct(product);
   };
 
   return (
