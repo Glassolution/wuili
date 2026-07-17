@@ -78,7 +78,7 @@ export async function createUserProject(input: CreateProjectInput): Promise<User
       nome: input.nome.trim() || "Meu projeto",
       tipo_projeto: input.tipo,
       status: "rascunho",
-      metadata,
+      metadata: metadata as Json,
     })
     .select("*")
     .single();
