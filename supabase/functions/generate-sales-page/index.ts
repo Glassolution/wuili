@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
 
 Título: ${product.title}
 Descrição: ${(product.description || "").slice(0, 500)}
-Preço sugerido: R$ ${product.price ?? "—"}
+Preço sugerido: R$ ${product.suggested_price ?? "—"}
 
 Retorne JSON com essa estrutura exata:
 {
