@@ -1515,6 +1515,22 @@ const GeneratedStoreEditorPage = () => {
     return () => window.clearTimeout(timeout);
   }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides]);
 
+  // Broadcast em tempo real (sem esperar o autosave): assim que o dono edita
+  // preço, nome ou accent no editor, o carrinho/checkout abertos em outra aba
+  // ou preview refletem imediatamente via BroadcastChannel local.
+  useEffect(() => {
+    const metadata = currentProject?.metadata as Record<string, unknown> | null | undefined;
+    const slug = typeof metadata?.slug === "string" ? metadata.slug : null;
+    if (!slug || typeof BroadcastChannel === "undefined") return;
+    try {
+      const ch = new BroadcastChannel(`sales-page:${slug}`);
+      ch.postMessage({ type: "overrides", storeName, accent, elementOverrides });
+      ch.close();
+    } catch { /* ignora ambientes sem suporte */ }
+  }, [currentProject?.metadata, storeName, accent, elementOverrides]);
+
+
+
   const projectTitle = currentProject?.nome || storeName || "Velo";
 
   const closeProjectMenu = () => setProjectMenuOpen(false);
