@@ -1519,14 +1519,15 @@ const GeneratedStoreEditorPage = () => {
   // preço, nome ou accent no editor, o carrinho/checkout abertos em outra aba
   // ou preview refletem imediatamente via BroadcastChannel local.
   useEffect(() => {
-    const slug = projectSlugRef.current;
+    const metadata = currentProject?.metadata as Record<string, unknown> | null | undefined;
+    const slug = typeof metadata?.slug === "string" ? metadata.slug : null;
     if (!slug || typeof BroadcastChannel === "undefined") return;
     try {
       const ch = new BroadcastChannel(`sales-page:${slug}`);
       ch.postMessage({ type: "overrides", storeName, accent, elementOverrides });
       ch.close();
     } catch { /* ignora ambientes sem suporte */ }
-  }, [storeName, accent, elementOverrides]);
+  }, [currentProject?.metadata, storeName, accent, elementOverrides]);
 
 
 
