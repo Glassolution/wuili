@@ -47,6 +47,7 @@ export type CreateProjectInput = {
   tipo: ProjectType;
   productIds: string[];
   template: string;
+  logoImage?: string | null;
 };
 
 export async function createUserProject(input: CreateProjectInput): Promise<UserProject> {
@@ -60,13 +61,15 @@ export async function createUserProject(input: CreateProjectInput): Promise<User
   const baseSlug = slugify(input.nome) || "loja";
   const slug = `${baseSlug}-${randomSuffix()}`;
 
-  const metadata = {
+  const metadata: Record<string, unknown> = {
     descricao: input.descricao.trim(),
     productIds: input.productIds,
     template: input.template,
     slug,
     visibility: "publico",
-  } as Json;
+    storeName: input.nome.trim(),
+  };
+  if (input.logoImage) metadata.logoImage = input.logoImage;
 
   const { data, error } = await supabase
     .from("user_projects")
