@@ -3972,19 +3972,17 @@ const GeneratedStoreEditorPage = () => {
                   <span className="text-[13px] text-white/60 underline decoration-white/30 underline-offset-2">Confiado por 1420+ clientes</span>
                 </div>
                 <h2 className="text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">
-                  Publique lojas ilimitadas,<br />agora!
+                  Publique sua página<br />de vendas, agora!
                 </h2>
 
                 <p className="mt-8 text-[13px] text-white/50">Acesse o verdadeiro poder da Velo</p>
                 <ul className="mt-3 space-y-2">
                   {[
-                    { icon: "🚀", text: "Publique sua loja sem limites" },
-                    { icon: "🤖", text: "Redator de IA ilimitado" },
-                    { icon: "🎨", text: "Desbloqueie 57+ seções focadas em conversão" },
-                    { icon: "✨", text: "+30 créditos por mês para editor de imagens IA" },
-                    { icon: "♾️", text: "Novas seções CRO comprovadas todos os meses" },
-                    { icon: "🛍️", text: "App de Bundles incluído — sem custo extra" },
-                    { icon: "🏍️", text: "Lance enquanto os concorrentes ainda estão projetando" },
+                    { icon: "📦", text: "Importação automática de até 50 produtos por mês pro Mercado Livre" },
+                    { icon: "🤖", text: "1 página de vendas gerada por IA por mês" },
+                    { icon: "🛍️", text: "Acesso completo ao catálogo validado da Velo" },
+                    { icon: "🌐", text: "Subdomínio grátis (seunome.velo.store)" },
+                    { icon: "🚀", text: "Comece a vender sem travar no operacional" },
                   ].map((f) => (
                     <li key={f.text} className="flex items-center gap-3 rounded-[12px] bg-white/[0.05] px-4 py-2.5 text-[13px] font-medium text-white/90">
                       <span className="text-[15px]">{f.icon}</span>
@@ -4002,19 +4000,14 @@ const GeneratedStoreEditorPage = () => {
                       <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#3567e9]">
                         <span className="h-2.5 w-2.5 rounded-full bg-[#3567e9]" />
                       </span>
-                      <span className="text-[18px] font-bold">Velo <span className="italic font-semibold">PRO</span></span>
+                      <span className="text-[18px] font-bold">Velo <span className="italic font-semibold">Base</span></span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-[15px] text-white/40 line-through">R$79</span>
                       <div className="rounded-[10px] bg-white/[0.06] px-3 py-1.5">
-                        <span className="text-[24px] font-bold">R$43,45</span>
+                        <span className="text-[24px] font-bold">R$97</span>
                         <span className="ml-1 text-[12px] text-white/60">/mês</span>
                       </div>
                     </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between gap-2 rounded-[10px] bg-white/[0.04] px-3 py-2">
-                    <span className="text-[12px] text-white/80"><span className="mr-1">🎫</span><span className="font-bold text-white">-45%</span> com o código</span>
-                    <span className="rounded-[6px] bg-[#ff8a3d] px-2.5 py-1 text-[11px] font-extrabold tracking-wide text-white">BOMDIABRAZIL</span>
                   </div>
                 </div>
 
@@ -4022,8 +4015,8 @@ const GeneratedStoreEditorPage = () => {
                   <div className="flex items-start gap-2">
                     <span className="text-[18px]">🎁</span>
                     <div>
-                      <p className="text-[14px] font-bold">Domínio .store GRÁTIS com seu plano PRO!</p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-white/60">Lance sua marca hoje com um domínio .store GRÁTIS — incluído com Velo PRO!</p>
+                      <p className="text-[14px] font-bold">Subdomínio GRÁTIS com o plano Base!</p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-white/60">Lance sua marca hoje com um subdomínio seunome.velo.store — incluído com Velo Base!</p>
                     </div>
                   </div>
                 </div>
@@ -4042,10 +4035,10 @@ const GeneratedStoreEditorPage = () => {
 
                 <button
                   type="button"
-                  onClick={() => { setUpgradeModalOpen(false); navigate("/dashboard/planos"); }}
+                  onClick={() => { setUpgradeModalOpen(false); navigate("/checkout?plan=base"); }}
                   className="mt-4 flex h-14 items-center justify-center gap-2 rounded-[14px] bg-[#3567e9] text-[16px] font-bold text-white shadow-[0_16px_40px_rgba(53,103,233,0.45)] transition hover:bg-[#4272ee] active:scale-[0.99]"
                 >
-                  Continuar com Pro <ArrowRight size={18} />
+                  Continuar com Base <ArrowRight size={18} />
                 </button>
                 <p className="mt-2 text-center text-[11px] text-white/40">Cancele a qualquer momento • Suporte 24/7</p>
               </div>
