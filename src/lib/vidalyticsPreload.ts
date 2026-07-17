@@ -1,8 +1,8 @@
 // Pré-carrega os scripts do Vidalytics para o vídeo tutorial.
 // Injeta o loader assim que o dashboard monta, para que o player já esteja
 // disponível quando o modal (auto ou manual) abrir.
-const EMBED_ID = "vidalytics_embed_2YhLgNzzQFzg0MZP";
-const LOADER_BASE = "https://fast.vidalytics.com/embeds/kW4WSpDT/2YhLgNzzQFzg0MZP/";
+const EMBED_ID = "vidalytics_embed_KHut5Jsh4pYtycXf";
+const LOADER_BASE = "https://fast.vidalytics.com/embeds/kW4WSpDT/KHut5Jsh4pYtycXf/";
 
 let preloaded = false;
 
