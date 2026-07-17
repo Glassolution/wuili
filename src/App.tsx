@@ -97,11 +97,8 @@ const DashboardShell = () => (
   </ProfileProvider>
 );
 
-const LegacyProductEditorRedirect = () => {
-  const location = useLocation();
 
-  return <Navigate to="/minha-loja/editor" replace state={location.state} />;
-};
+
 
 const MorePage = () => (
   <DashboardInfoPage
