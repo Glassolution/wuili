@@ -3942,6 +3942,52 @@ const GeneratedStoreEditorPage = () => {
           </motion.div>
         ) : null}
       </AnimatePresence>
+      {upgradeModalOpen ? (
+        <div
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setUpgradeModalOpen(false); }}
+        >
+          <section className="w-full max-w-[460px] overflow-hidden rounded-[20px] bg-white text-[#18191c] shadow-[0_40px_120px_rgba(0,0,0,0.45)]">
+            <div className="flex items-start justify-between border-b border-[#ececea] px-6 py-5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#3567e9] to-[#5f8dff] text-white">
+                  <LockKeyhole size={18} />
+                </span>
+                <div>
+                  <h2 className="text-[16px] font-semibold tracking-[-0.02em]">Assine para publicar</h2>
+                  <p className="text-[12px] text-[#6b7079]">Disponível nos planos pagos</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setUpgradeModalOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#5f6368] transition hover:bg-[#f3f3f1]" aria-label="Fechar">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-4 px-6 py-6">
+              <p className="text-[14px] leading-relaxed text-[#33363b]">
+                Sua página está pronta! Para publicá-la e gerar o link público, assine um plano pago da Velo.
+              </p>
+              <ul className="space-y-2 text-[13px] text-[#33363b]">
+                <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#1f9d55]" /> Publicação ilimitada de páginas de vendas</li>
+                <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#1f9d55]" /> Link público personalizado</li>
+                <li className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#1f9d55]" /> Suporte prioritário e recursos avançados</li>
+              </ul>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-[#ececea] px-6 py-4">
+              <button type="button" onClick={() => setUpgradeModalOpen(false)} className="h-10 rounded-[10px] px-4 text-[13px] font-semibold text-[#5f6368] transition hover:bg-[#f3f3f1]">
+                Agora não
+              </button>
+              <button
+                type="button"
+                onClick={() => { setUpgradeModalOpen(false); navigate("/dashboard/planos"); }}
+                className="flex h-10 items-center gap-2 rounded-[10px] bg-gradient-to-r from-[#3567e9] to-[#5f8dff] px-5 text-[13px] font-semibold text-white transition hover:brightness-110"
+              >
+                <Sparkles size={15} />
+                Ver planos
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 };
