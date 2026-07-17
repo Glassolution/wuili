@@ -156,6 +156,53 @@ const STEPS: StepConfig[] = [
 
 type Answers = Record<string, string>;
 
+// Controle de exibição do onboarding — flag próprio, independente do estado de
+// loja/perfil no Supabase. Puramente frontend (localStorage), keyed por usuário.
+const onboardingDoneKey = (userId: string) => `velo-onboarding-done:${userId}`;
+
+export const hasSeenOnboarding = (userId: string): boolean => {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(onboardingDoneKey(userId)) === "1";
+};
+
+export const markOnboardingSeen = (userId: string): void => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(onboardingDoneKey(userId), "1");
+};
+
+// Sinal explícito de "acabou de se cadastrar", gravado no signup para garantir
+// que o modal apareça no primeiro acesso independentemente do metadata do Auth.
+const onboardingPendingKey = (userId: string) => `velo-onboarding-pending:${userId}`;
+
+export const markOnboardingPending = (userId: string): void => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(onboardingPendingKey(userId), "1");
+};
+
+export const hasPendingOnboarding = (userId: string): boolean => {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(onboardingPendingKey(userId)) === "1";
+};
+
+// Considera "cadastro recente" quando o metadata de onboarding pendente está
+// marcado (definido no signup) ou quando criação e último login ocorreram na
+// mesma janela de ~10 min. Não depende do perfil salvo no banco.
+export const isFreshSignup = (user: {
+  created_at?: string;
+  last_sign_in_at?: string | null;
+  user_metadata?: { velo_onboarding_pending?: boolean } | null;
+} | null): boolean => {
+  if (!user) return false;
+  if (user.user_metadata?.velo_onboarding_pending === true) return true;
+  const createdAt = new Date(user.created_at ?? "").getTime();
+  const lastSignInAt = new Date(user.last_sign_in_at ?? "").getTime();
+  return (
+    Number.isFinite(createdAt) &&
+    Number.isFinite(lastSignInAt) &&
+    Math.abs(lastSignInAt - createdAt) <= 10 * 60 * 1000
+  );
+};
+
 type OnboardingModalProps = {
   /** Chamado quando o usuário conclui a última etapa. */
   onComplete: (answers: Answers) => void;

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
+import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
 import { Eye, EyeOff } from "lucide-react";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
@@ -160,6 +161,9 @@ const LoginPage = () => {
     }
     if (data.user) {
       await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
+      // Marca o onboarding como pendente para este usuário: garante que o modal
+      // de cadastro apareça no primeiro acesso ao dashboard (frontend-only).
+      markOnboardingPending(data.user.id);
       veloToast.success("Conta criada com sucesso.");
       // Se a sessão foi criada (auto-confirm), segue para o onboarding.
       // Caso contrário (confirmação por e-mail pendente), volta o botão ao

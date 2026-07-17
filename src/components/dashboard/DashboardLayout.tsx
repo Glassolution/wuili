@@ -14,7 +14,7 @@ import {
   STORES_CHANGED_EVENT,
   type VeloStore,
 } from "@/components/dashboard/FirstStoreOnboarding";
-import OnboardingModal from "@/components/onboarding/OnboardingModal";
+import OnboardingModal, { hasPendingOnboarding, hasSeenOnboarding, isFreshSignup, markOnboardingSeen } from "@/components/onboarding/OnboardingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -433,6 +433,19 @@ const DashboardLayoutInner = () => {
   const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
   const [storesHydrated, setStoresHydrated] = useState(false);
   const [shouldAutoShowStoreOnboarding, setShouldAutoShowStoreOnboarding] = useState(false);
+  // Exibição do novo onboarding em modal — gating próprio, independente do
+  // estado de loja/perfil no Supabase. Abre no primeiro acesso após o cadastro
+  // e não reaparece depois de concluído (flag em localStorage por usuário).
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setShowOnboarding(false);
+      return;
+    }
+    const wantsOnboarding = hasPendingOnboarding(user.id) || isFreshSignup(user);
+    setShowOnboarding(wantsOnboarding && !hasSeenOnboarding(user.id));
+  }, [user]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -654,11 +667,11 @@ const DashboardLayoutInner = () => {
             <Outlet />
           </MobileDashboardChrome>
         </div>
-        {storesHydrated && shouldAutoShowStoreOnboarding && (
+        {showOnboarding && (
           <OnboardingModal
             onComplete={() => {
-              markStoreOnboardingCompleted(user.id);
-              setShouldAutoShowStoreOnboarding(false);
+              markOnboardingSeen(user.id);
+              setShowOnboarding(false);
             }}
           />
         )}
@@ -710,11 +723,11 @@ const DashboardLayoutInner = () => {
           </main>
         </div>
       </div>
-      {storesHydrated && shouldAutoShowStoreOnboarding && (
+      {showOnboarding && (
         <OnboardingModal
           onComplete={() => {
-            markStoreOnboardingCompleted(user.id);
-            setShouldAutoShowStoreOnboarding(false);
+            markOnboardingSeen(user.id);
+            setShowOnboarding(false);
           }}
         />
       )}
