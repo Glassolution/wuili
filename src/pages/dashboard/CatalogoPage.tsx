@@ -1053,6 +1053,7 @@ const CatalogoPage = () => {
             .eq("is_blocked", false)
             .gt("stock_quantity", 0)
             .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
             .range(start, end);
 
 

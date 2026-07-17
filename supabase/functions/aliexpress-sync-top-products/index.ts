@@ -359,6 +359,8 @@ serve(async (req) => {
 
     // Carrega keywords ativas (category_mapping) — cai em fallback quando vazio
     let keywords: string[] = [];
+    const keywordToVeloCategory = new Map<string, string>();
+    const keywordToAliCategoryId = new Map<string, string | null>();
     let testKeywordOverride: string | null = null;
     try {
       const bodyClone = await req.clone().json().catch(() => ({} as any));
@@ -375,16 +377,22 @@ serve(async (req) => {
         .from("category_mapping")
         .select("velo_category, aliexpress_category_name, aliexpress_category_id")
         .eq("active", true);
-      keywords = (mappings ?? [])
-        .map((m: any) =>
-          String(
-            m.aliexpress_category_name ??
-              m.aliexpress_category_id ??
-              m.velo_category ??
-              "",
-          ).trim(),
-        )
-        .filter((s) => s.length > 0);
+      for (const m of mappings ?? []) {
+        const kw = String(
+          (m as any).aliexpress_category_name ??
+            (m as any).aliexpress_category_id ??
+            (m as any).velo_category ??
+            "",
+        ).trim();
+        if (!kw) continue;
+        keywords.push(kw);
+        const velo = String((m as any).velo_category ?? "").trim();
+        const aliId = String((m as any).aliexpress_category_id ?? "").trim();
+        if (velo) {
+          keywordToVeloCategory.set(kw, velo);
+          keywordToAliCategoryId.set(kw, aliId || null);
+        }
+      }
       if (keywords.length === 0) {
         keywords = ["eletrônicos"];
         console.log(
@@ -408,6 +416,13 @@ serve(async (req) => {
 
     // PASSO 1 — Para cada keyword, chama aliexpress.ds.text.search paginando até PAGE_SIZE
     for (const keyword of keywords) {
+      const veloCategoryForKeyword = keywordToVeloCategory.get(keyword) ?? null;
+      const aliCategoryIdForKeyword = keywordToAliCategoryId.get(keyword) ?? null;
+      if (!veloCategoryForKeyword) {
+        console.warn(
+          `[aliexpress-sync-top-products] WARN keyword="${keyword}" sem velo_category no category_mapping — produtos serão inseridos com category=null`,
+        );
+      }
       let collectedForKeyword = 0;
       let pageIndex = 1;
       let apiPageSizeCap = PAGE_SIZE;
@@ -529,7 +544,8 @@ serve(async (req) => {
               p.itemUrl ??
               p.product_detail_url ??
               `https://www.aliexpress.com/item/${externalId}.html`,
-            aliexpress_category_id: null,
+            aliexpress_category_id: aliCategoryIdForKeyword,
+            category: veloCategoryForKeyword,
             brand: null,
             in_top_50: true,
             is_active: true,
