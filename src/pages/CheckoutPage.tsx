@@ -172,11 +172,86 @@ const CheckoutPage = () => {
   const [cardCvc, setCardCvc] = useState("");
   const [cardHolder, setCardHolder] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [referralDiscount, setReferralDiscount] = useState(0);
   const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (session?.user?.email && !email) setEmail(session.user.email);
   }, [session, email]);
+
+  // Detecta se o usuário tem desconto de indicação disponível (convidado ou convidador com reward).
+  useEffect(() => {
+    const userId = session?.user?.id;
+    const userEmail = session?.user?.email;
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      // Se já tem assinatura paga ativa, não aplica.
+      const { data: subs } = await supabase
+        .from("subscriptions")
+        .select("plan,status")
+        .eq("user_id", userId);
+      const hasPaid = (subs ?? []).some((s) => {
+        const p = String(s.plan ?? "").toLowerCase();
+        return p && p !== "gratis" && p !== "free" && s.status === "active";
+      });
+
+      // 1) Convidado com desconto disponível
+      if (!hasPaid) {
+        const nowIso = new Date().toISOString();
+        let { data: ref } = await supabase
+          .from("referrals")
+          .select("id,expires_at,invited_rewarded,status")
+          .eq("invited_user_id", userId)
+          .in("status", ["linked", "pending"])
+          .eq("invited_rewarded", false)
+          .gt("expires_at", nowIso)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!ref && userEmail) {
+          const { data: refByEmail } = await supabase
+            .from("referrals")
+            .select("id,expires_at,invited_rewarded,status")
+            .ilike("invited_email", userEmail)
+            .in("status", ["pending", "linked"])
+            .eq("invited_rewarded", false)
+            .gt("expires_at", nowIso)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (refByEmail) ref = refByEmail;
+        }
+        if (!cancelled && ref) {
+          setReferralDiscount(15);
+          return;
+        }
+      }
+
+      // 2) Convidador com recompensa disponível
+      const { data: rewardRef } = await supabase
+        .from("referrals")
+        .select("id")
+        .eq("inviter_id", userId)
+        .eq("status", "subscribed")
+        .eq("inviter_rewarded", true)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled && rewardRef) setReferralDiscount(15);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id, session?.user?.email]);
+
+  const applyReferral = (brl: string) => {
+    if (!referralDiscount) return brl;
+    const n = parseBRL(brl);
+    return formatBRL(n * (1 - referralDiscount / 100));
+  };
+  const hasReferralDiscount = referralDiscount > 0;
+  const originalCheckoutPrice = checkoutPrice;
+  const finalCheckoutPrice = hasReferralDiscount ? applyReferral(checkoutPrice) : checkoutPrice;
 
   useEffect(() => {
     if (!showPaymentStep || !session?.user?.id) return;
@@ -573,11 +648,20 @@ const CheckoutPage = () => {
           <div>
             <p className="mb-3 text-[13px] font-medium text-white/45">{isTrial ? "Iniciar trial Pro" : `Assinar plano ${plan.name}`}</p>
             <h1 className="text-[44px] font-semibold leading-none tracking-[-0.045em] text-white sm:text-[52px]">
-              {checkoutPrice} {checkoutPeriodLabel}
+              {hasReferralDiscount && (
+                <span className="mr-3 text-[24px] font-medium text-white/40 line-through sm:text-[28px]">{originalCheckoutPrice}</span>
+              )}
+              {finalCheckoutPrice} {checkoutPeriodLabel}
             </h1>
+            {hasReferralDiscount && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[12px] font-semibold text-emerald-300">
+                🎉 Você ganhou 15% de desconto por indicação
+              </div>
+            )}
             <p className="mt-4 max-w-[320px] text-[15px] font-medium leading-6 text-white/54">
               {checkoutDescription}
             </p>
+
 
             <div className="mt-12 border-y border-white/[0.08] py-6">
               <div className="flex items-start justify-between gap-6">
@@ -588,7 +672,12 @@ const CheckoutPage = () => {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[13px] font-semibold text-white">{checkoutPrice}</p>
+                  <p className="text-[13px] font-semibold text-white">
+                    {hasReferralDiscount && (
+                      <span className="mr-1.5 text-white/40 line-through">{originalCheckoutPrice}</span>
+                    )}
+                    {finalCheckoutPrice}
+                  </p>
                   <p className="mt-1 text-[12px] text-white/42">{isTrial ? `/ ${TRIAL_DAYS} dias` : recurringPeriodLabel}</p>
                 </div>
               </div>
@@ -606,8 +695,17 @@ const CheckoutPage = () => {
             <div className="space-y-5 py-7 text-[14px]">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-white/66">Subtotal</span>
-                <span className="font-semibold text-white">{checkoutPrice}</span>
+                <span className="font-semibold text-white">{originalCheckoutPrice}</span>
               </div>
+
+              {hasReferralDiscount && (
+                <div className="flex items-center justify-between text-emerald-300">
+                  <span className="font-semibold">Desconto por indicação (15%)</span>
+                  <span className="font-semibold">
+                    − {formatBRL(parseBRL(originalCheckoutPrice) * 0.15)}
+                  </span>
+                </div>
+              )}
 
               <div>
                 <input
@@ -624,14 +722,15 @@ const CheckoutPage = () => {
                   <span className="font-semibold text-white/66">
                     {isTrial ? "Depois do trial" : billingCycle === "annual" ? "Total anual" : "Total mensal"}
                   </span>
-                  <span className="font-semibold text-white">{isTrial ? "R$ 99,90/mês" : checkoutPrice}</span>
+                  <span className="font-semibold text-white">{isTrial ? "R$ 99,90/mês" : finalCheckoutPrice}</span>
                 </div>
                 <div className="mt-7 flex items-center justify-between">
                   <span className="font-semibold text-white/66">Total devido hoje</span>
-                  <span className="font-semibold text-white">{checkoutPrice}</span>
+                  <span className="font-semibold text-white">{finalCheckoutPrice}</span>
                 </div>
               </div>
             </div>
+
           </div>
           </div>
         </aside>
@@ -860,7 +959,7 @@ const CheckoutPage = () => {
                   {checkoutState === "loading" ? (
                     <><Loader2 size={16} className="animate-spin" /> Processando...</>
                   ) : (
-                    `Pagar ${checkoutPrice}`
+                    `Pagar ${finalCheckoutPrice}`
                   )}
                 </button>
               </>
