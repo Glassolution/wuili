@@ -1228,14 +1228,6 @@ const TrendingProductsPage = () => {
         <SalesPageSoonModal product={salesPageSoonProduct} onClose={() => setSalesPageSoonProduct(null)} />
       ) : null}
 
-      <CreateSalesPageModal
-        open={!!salesPageModalProduct}
-        productTitle={salesPageModalProduct?.title ?? ""}
-        onClose={() => {
-          if (!creatingSalesPageId) setSalesPageModalProduct(null);
-        }}
-        onConfirm={handleConfirmSalesPage}
-      />
     </div>
   );
 };
