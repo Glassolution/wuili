@@ -48,6 +48,7 @@ const ProductDetailPage = lazy(() => import("./pages/dashboard/ProductDetailPage
 const ProdutosMLPage = lazy(() => import("./pages/dashboard/ProdutosMLPage"));
 const ReportsPage = lazy(() => import("./pages/dashboard/ReportsPage"));
 const ResultsPage = lazy(() => import("./pages/dashboard/ResultsPage"));
+const ProductLandingEditorPage = lazy(() => import("./pages/ProductLandingEditorPage"));
 const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage"));
 const DashboardInfoPage = lazy(() => import("./pages/dashboard/DashboardInfoPage"));
 const SaldosPage = lazy(() => import("./pages/dashboard/SaldosPage"));
