@@ -4,6 +4,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import { createUserProject } from "@/lib/userProjects";
+import { saveOnboardingProjectId, readOnboardingProjectId } from "@/lib/onboardingProject";
 
 const getFirstImage = (images: unknown): string => {
   if (Array.isArray(images)) return images.find((image): image is string => typeof image === "string" && image.trim().length > 0) || "";
@@ -66,13 +68,44 @@ const ExampleProductSelectionPage = () => {
     });
   };
 
-  const continueWithProducts = () => {
+  const [creating, setCreating] = useState(false);
+  const continueWithProducts = async () => {
     const primaryProduct = selectedProducts[0];
-    if (!primaryProduct) return;
+    if (!primaryProduct || creating) return;
     if (onboardingChoice) sessionStorage.setItem("velo-onboarding-choice", onboardingChoice);
     sessionStorage.setItem("velo-example-product", JSON.stringify(primaryProduct));
     sessionStorage.setItem("velo-example-products", JSON.stringify(selectedProducts));
-    navigate("/onboarding/preparando-produto", { state: { product: primaryProduct, products: selectedProducts, onboardingChoice } });
+
+    // Fase 1: cria o user_projects logo no primeiro passo com dados de verdade
+    // (produto + template default). As etapas seguintes fazem saveProjectDraft
+    // incremental em cima desse mesmo id, então o editor recebe um projeto real
+    // — nunca mais projectId===null vindo do onboarding.
+    let projectId = readOnboardingProjectId();
+    if (!projectId && onboardingChoice === "sales-page") {
+      try {
+        setCreating(true);
+        const project = await createUserProject({
+          nome: primaryProduct.title || "Página de venda",
+          descricao: "",
+          tipo: "pagina_venda",
+          productIds: [primaryProduct.id],
+          template: "produto-1",
+        });
+        projectId = project.id;
+        saveOnboardingProjectId(projectId);
+      } catch (err) {
+        // Sem projectId a próxima tela continua funcionando (fallback do editor),
+        // mas o loop de persistência não fica fechado. Mostramos aviso e seguimos.
+        console.error("createUserProject failed:", err);
+        veloToast.error("Não foi possível salvar o projeto agora — você poderá salvar depois no editor.");
+      } finally {
+        setCreating(false);
+      }
+    }
+
+    navigate("/onboarding/preparando-produto", {
+      state: { product: primaryProduct, products: selectedProducts, onboardingChoice, projectId },
+    });
   };
 
   return (
