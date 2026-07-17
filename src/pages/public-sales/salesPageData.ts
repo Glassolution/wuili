@@ -103,7 +103,22 @@ export function useSalesPageData(slug: string | undefined) {
         }
 
         // 2) Tenta user_projects publicado
-        const project: UserProject | null = await fetchPublicProject(slug);
+        let project: UserProject | null = await fetchPublicProject(slug);
+
+        // 3) Preview do editor: se o projeto ainda está em rascunho,
+        //    fetchPublicProject devolve null (RPC só expõe publicados). Como o
+        //    dono está autenticado, buscamos direto em user_projects pelo slug
+        //    no metadata — assim o carrinho/checkout preview reflete o produto
+        //    real que ele selecionou, sem cair no demo hardcoded.
+        if (!project) {
+          const { data: draft } = await supabase
+            .from("user_projects")
+            .select("*")
+            .filter("metadata->>slug", "eq", slug)
+            .maybeSingle();
+          if (draft) project = draft as UserProject;
+        }
+
         if (!project) {
           if (!active) return;
           if (isPreview) {
