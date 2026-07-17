@@ -1088,21 +1088,21 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
               </div>
             )}
 
-            {/* STEP 3 — Trial */}
+            {/* STEP 3 — Assinatura */}
             {step === 3 && (
-              <div key="s3-trial" className="step-fade pb-6">
+              <div key="s3-plan" className="step-fade pb-6">
                 <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_24px_60px_-44px_rgba(0,0,0,0.45)]">
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0A0A0A] text-white">
                       <ShieldCheck size={22} strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Trial Velo</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Plano Velo Pro</p>
                       <h3 className="mt-1 text-[22px] font-semibold leading-tight text-[#0A0A0A]">
-                        Ative seu trial para publicar este produto
+                        Assine o Pro para publicar este produto
                       </h3>
                       <p className="mt-2 max-w-[520px] text-[13.5px] leading-relaxed text-gray-500">
-                        Seu anúncio já está pronto. Revise o produto abaixo e inicie o trial antes da publicação final.
+                        Seu anúncio já está pronto. Revise o produto abaixo e assine o plano Pro para publicar.
                       </p>
                     </div>
                   </div>
@@ -1131,13 +1131,13 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
                   <button
                     type="button"
-                    onClick={() => navigate(`/checkout?trial=1&plan=pro&product=${product.id}`)}
+                    onClick={() => navigate(`/checkout?plan=pro&product=${product.id}`)}
                     className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#0A0A0A] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A]"
                   >
-                    Iniciar trial — R$29,90 por 5 dias
+                    Assinar Pro — R$99,90/mês
                   </button>
                   <p className="mt-3 text-center text-[12.5px] leading-relaxed text-gray-500">
-                    Publique agora mesmo. Após 5 dias, sua assinatura continua automaticamente no plano Pro (R$99,90/mês). Cancele quando quiser.
+                    Assinatura mensal do plano Pro. Cancele quando quiser.
                   </p>
                   <button
                     type="button"

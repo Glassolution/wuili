@@ -130,7 +130,8 @@ const CheckoutPage = () => {
 
   const rawPlan = searchParams.get("plan") ?? "pro";
   const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
-  const isTrial = searchParams.get("trial") === "1" && initialPlanId === "pro";
+  // Trial de 5 dias descontinuado — todo checkout é assinatura mensal cheia.
+  const isTrial = false;
   const initialBillingCycleParam = (
     searchParams.get("billing_cycle") ??
     searchParams.get("billing") ??

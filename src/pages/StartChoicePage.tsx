@@ -6,6 +6,8 @@ import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { usePlan } from "@/hooks/usePlan";
+import { toast } from "sonner";
 
 export type ExampleProduct = {
   id: string;
@@ -143,8 +145,16 @@ const StartChoicePage = () => {
     };
   }, []);
 
+  const { plan: currentPlan } = usePlan();
+  const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
+
   const continueToSelection = () => {
     if (!selectedPath) return;
+    if (isFreePlan) {
+      toast.error("Assine um plano pago para criar sua loja ou página de vendas.");
+      navigate("/dashboard/planos");
+      return;
+    }
     sessionStorage.setItem("velo-onboarding-choice", selectedPath);
     navigate("/onboarding/escolher-produto", { state: { onboardingChoice: selectedPath } });
   };

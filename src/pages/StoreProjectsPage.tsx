@@ -18,6 +18,8 @@ import type { Json } from "@/integrations/supabase/types";
 import { fetchUserProjects, type ProjectType, type UserProject } from "@/lib/userProjects";
 import { isAdminEmail } from "@/lib/adminAccess";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
+import { usePlan } from "@/hooks/usePlan";
+import { toast } from "sonner";
 
 type ProjectCard = {
   id: string;
@@ -124,6 +126,7 @@ const ProjectScreenPreview = ({ project }: { project: ProjectCard }) => {
 const StoreProjectsPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
+  const { plan: currentPlan } = usePlan();
   const [projects, setProjects] = useState<ProjectCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -132,6 +135,15 @@ const StoreProjectsPage = () => {
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
+  const requestCreate = () => {
+    if (isFreePlan) {
+      toast.error("Assine um plano pago para criar lojas ou páginas de vendas.");
+      navigate("/dashboard/planos");
+      return;
+    }
+    setWizardOpen(true);
+  };
   const visibleProjects = useMemo(
     () => isAdmin ? projects : projects.filter((project) => project.tipo === "pagina_venda"),
     [isAdmin, projects],
@@ -218,7 +230,7 @@ const StoreProjectsPage = () => {
       <div className="flex h-[54px] shrink-0 items-center gap-3 border-b border-[#ececea] px-6">
         <button
           type="button"
-          onClick={() => setWizardOpen(true)}
+          onClick={requestCreate}
           className="flex h-9 items-center gap-2 rounded-[7px] bg-[#1d1d1f] px-4 text-[13px] font-semibold text-white shadow-[0_10px_18px_rgba(0,0,0,0.10)] transition hover:bg-black"
         >
           <Plus size={15} />
@@ -407,7 +419,7 @@ const StoreProjectsPage = () => {
               </p>
               <button
                 type="button"
-                onClick={() => setWizardOpen(true)}
+                onClick={requestCreate}
                 className="mt-6 h-10 rounded-[8px] bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-[#202020]"
               >
                 {isAdmin ? "Criar primeiro projeto" : "Criar página de venda"}
