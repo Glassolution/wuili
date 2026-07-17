@@ -25,6 +25,8 @@ import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateB
 import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
 import StorefrontLojaTemplate from "@/components/store-templates/StorefrontLojaTemplate";
 import PreviewPage from "@/pages/PreviewPage";
+import SectionRenderer from "@/components/store-sections/SectionRenderer";
+import { parseSections, parseTheme } from "@/lib/storeSections/types";
 
 const DEFAULT_HERO_IMAGE = "/hero-pasted-image-2.png";
 
