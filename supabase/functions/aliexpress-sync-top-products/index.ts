@@ -285,6 +285,31 @@ serve(async (req) => {
     if (body?.triggered_by === "manual") triggeredBy = "manual";
   } catch { /* ignore */ }
 
+  // Auto-recovery: marca como 'failed' qualquer execução anterior travada em 'running'
+  // há mais de STUCK_RUN_MINUTES (timeout de wall-time do runtime sem chegar em finalize()).
+  try {
+    const cutoff = new Date(Date.now() - STUCK_RUN_MINUTES * 60_000).toISOString();
+    const { data: stuck, error: stuckErr } = await supabase
+      .from("aliexpress_sync_log")
+      .update({
+        status: "failed",
+        finished_at: new Date().toISOString(),
+        error_message: `auto-recovery: run travado em 'running' por mais de ${STUCK_RUN_MINUTES} min sem finalize()`,
+      })
+      .eq("status", "running")
+      .lt("started_at", cutoff)
+      .select("id");
+    if (stuckErr) {
+      console.warn("[aliexpress-sync-top-products] falha ao limpar runs travados:", stuckErr.message);
+    } else if (stuck && stuck.length > 0) {
+      console.log(
+        `[aliexpress-sync-top-products] auto-recovery: ${stuck.length} run(s) travado(s) marcado(s) como failed`,
+      );
+    }
+  } catch (e) {
+    console.warn("[aliexpress-sync-top-products] auto-recovery falhou:", e instanceof Error ? e.message : e);
+  }
+
   // Cria log
   const { data: logRow } = await supabase
     .from("aliexpress_sync_log")
@@ -292,6 +317,11 @@ serve(async (req) => {
     .select()
     .single();
   const logId = logRow?.id as string | undefined;
+
+  const patchLog = async (patch: Record<string, unknown>) => {
+    if (!logId) return;
+    await supabase.from("aliexpress_sync_log").update(patch).eq("id", logId);
+  };
 
   const finalize = async (patch: Record<string, unknown>) => {
     if (!logId) return;
@@ -304,8 +334,6 @@ serve(async (req) => {
       })
       .eq("id", logId);
   };
-
-  try {
     const appKey = Deno.env.get("ALIEXPRESS_APP_KEY");
     const appSecret = Deno.env.get("ALIEXPRESS_APP_SECRET");
     if (!appKey || !appSecret) throw new Error("Credenciais AliExpress ausentes (ALIEXPRESS_APP_KEY/SECRET)");
