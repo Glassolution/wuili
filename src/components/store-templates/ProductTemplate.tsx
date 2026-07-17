@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 
 import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
+import { StoreBundleOffers, StoreGuaranteeCards, StorePaymentRow } from "@/components/store-templates/storeSections";
+import { StoreBenefitsBar, StoreFeatureGrid, StoreImageCta, StoreThreeSteps } from "@/components/store-templates/storeContentSections";
 import type { ProductVariantOption } from "@/lib/userProjects";
 
 export type ProductTemplateProps = {
@@ -109,6 +111,9 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
             {/* Variações reais do fornecedor (omitido quando não há) */}
             <ProductVariantPicker options={variants} accent={accent} />
 
+            {/* Compre mais e economize (bundles) */}
+            <StoreBundleOffers price={price} accent={accent} />
+
             {/* Acoes */}
             <div className="mt-7 flex gap-3">
               <button type="button" className="flex h-14 flex-1 items-center justify-center gap-2 rounded-[12px] text-[15px] font-bold text-white transition hover:brightness-110" style={{ backgroundColor: accent }}>
@@ -116,6 +121,9 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
               </button>
               <button type="button" className="flex h-14 w-14 items-center justify-center rounded-[12px] border border-black/15 text-black transition hover:bg-black/[0.04]" aria-label="Favoritar"><Heart size={20} /></button>
             </div>
+
+            {/* Formas de pagamento */}
+            <StorePaymentRow />
 
             {/* Selos de confianca */}
             <div className="mt-7 grid grid-cols-3 gap-4 border-t border-black/10 pt-6">
@@ -127,9 +135,21 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
                 </div>
               ))}
             </div>
+
+            {/* Cards de garantia */}
+            <StoreGuaranteeCards accent={accent} />
           </div>
         </div>
       </section>
+
+      {/* Barra de benefícios */}
+      <StoreBenefitsBar accent={accent} />
+
+      {/* Como funciona em 3 passos */}
+      <StoreThreeSteps image={image} accent={accent} mobile={mobile} />
+
+      {/* Grade de recursos + imagem */}
+      <StoreFeatureGrid image={image} accent={accent} mobile={mobile} />
 
       {/* Abas + detalhes */}
       <section className="border-t border-black/10 px-6 py-10 sm:px-10">
@@ -147,6 +167,9 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
           </div>
         </div>
       </section>
+
+      {/* Bloco imagem + CTA */}
+      <StoreImageCta image={image} accent={accent} title={title} mobile={mobile} />
 
       {/* Voce tambem pode gostar */}
       <section className="bg-[#faf9f8] px-6 py-12 sm:px-10">

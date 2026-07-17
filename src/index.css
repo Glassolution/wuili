@@ -961,3 +961,182 @@
   background: hsl(var(--muted));
   border-radius: 4px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Fluxo de criação de loja / página de vendas — design system escuro.
+   Fonte ÚNICA de verdade para as 8 telas do onboarding. Cada <main> do fluxo
+   recebe a classe `.velo-flow`; nenhuma tela deve hardcodar estas cores.
+   ────────────────────────────────────────────────────────────────────────── */
+.velo-flow {
+  /* Superfícies */
+  --vf-bg: #121212;            /* fundo da página */
+  --vf-panel: #1e1e1e;         /* card / painel elevado */
+  --vf-panel-side: #000000;    /* painel de preview lateral (profundidade) */
+  --vf-nested: #232323;        /* input, item de lista, pill inativo */
+
+  /* Bordas */
+  --vf-border: rgba(255, 255, 255, 0.1);
+  --vf-border-hover: rgba(255, 255, 255, 0.2);
+
+  /* Texto */
+  --vf-text-1: #ffffff;              /* primário */
+  --vf-text-2: rgba(255, 255, 255, 0.7);  /* secundário */
+  --vf-text-3: rgba(255, 255, 255, 0.4);  /* terciário / placeholder */
+
+  /* Seleção (inversão clara-sobre-escuro) */
+  --vf-sel-bg: #ffffff;
+  --vf-sel-text: #121212;
+
+  --vf-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  background: var(--vf-bg);
+  color: var(--vf-text-1);
+  font-family: "Geist", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+@layer components {
+  /* Tipografia do fluxo */
+  .velo-flow .vf-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--vf-text-3);
+  }
+  .velo-flow .vf-headline {
+    font-size: 32px;
+    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--vf-text-1);
+  }
+  .velo-flow .vf-subhead {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--vf-text-2);
+  }
+
+  /* Card de opção (produto, idioma, persona, ângulo) */
+  .velo-flow .vf-card {
+    border-radius: 16px;
+    background: var(--vf-panel);
+    border: 1px solid var(--vf-border);
+    transition:
+      border-color 200ms var(--vf-ease),
+      transform 200ms var(--vf-ease),
+      box-shadow 200ms var(--vf-ease);
+  }
+  .velo-flow .vf-card:hover {
+    border-color: var(--vf-border-hover);
+    transform: translateY(-2px);
+  }
+  .velo-flow .vf-card[data-selected="true"] {
+    border-width: 1.5px;
+    border-color: var(--vf-sel-bg);
+    transform: scale(1.01);
+  }
+  .velo-flow .vf-card[data-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* Elemento aninhado (input / item de lista) */
+  .velo-flow .vf-nested {
+    background: var(--vf-nested);
+    border: 1px solid var(--vf-border);
+    transition:
+      border-color 200ms var(--vf-ease),
+      background-color 200ms var(--vf-ease),
+      transform 200ms var(--vf-ease);
+  }
+  .velo-flow .vf-nested:hover {
+    border-color: var(--vf-border-hover);
+  }
+  .velo-flow .vf-nested[data-selected="true"] {
+    border-color: var(--vf-sel-bg);
+    border-width: 1.5px;
+  }
+
+  /* Botão primário: bloco branco com texto escuro (estilo da referência). */
+  .velo-flow .vf-btn {
+    background: var(--vf-sel-bg);
+    border: none;
+    color: var(--vf-sel-text);
+    border-radius: 10px;
+    font-weight: 600;
+    transition:
+      transform 200ms var(--vf-ease),
+      opacity 200ms var(--vf-ease),
+      box-shadow 200ms var(--vf-ease);
+  }
+  .velo-flow .vf-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  }
+  .velo-flow .vf-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Botão secundário / texto */
+  .velo-flow .vf-btn-ghost {
+    background: transparent;
+    border: none;
+    color: var(--vf-text-2);
+    transition: color 200ms var(--vf-ease);
+  }
+  .velo-flow .vf-btn-ghost:hover {
+    color: var(--vf-text-1);
+  }
+
+  /* Barra de progresso do topo */
+  .velo-flow .vf-progress {
+    height: 3px;
+    border-radius: 999px;
+    background: var(--vf-border);
+    overflow: hidden;
+  }
+  .velo-flow .vf-progress > i {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--vf-sel-bg);
+    transition: width 400ms var(--vf-ease);
+  }
+}
+
+/* Skeleton com shimmer (esquerda → direita) para a tela "Gerando..." */
+@keyframes vfShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.velo-flow .vf-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--vf-nested);
+}
+.velo-flow .vf-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+  transform: translateX(-100%);
+  animation: vfShimmer 1.6s ease-in-out infinite;
+}
+
+/* Spinner sutil dos itens de checklist / loading */
+@keyframes vfSpin { to { transform: rotate(360deg); } }
+.velo-flow .vf-spin { animation: vfSpin 1s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .velo-flow .vf-shimmer::after,
+  .velo-flow .vf-spin { animation: none; }
+  .velo-flow .vf-card:hover,
+  .velo-flow .vf-btn:hover:not(:disabled) { transform: none; }
+}

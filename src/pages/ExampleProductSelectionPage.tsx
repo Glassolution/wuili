@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { Check, ChevronLeft, Loader2, PackageOpen, Store } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Loader2, PackageOpen } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { ExampleProduct } from "@/pages/StartChoicePage";
+import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
+import { listItem, listStagger, screenEnter } from "@/components/onboarding/flowMotion";
 
 const getFirstImage = (images: unknown): string => {
   if (Array.isArray(images)) return images.find((image): image is string => typeof image === "string" && image.trim().length > 0) || "";
@@ -11,16 +14,12 @@ const getFirstImage = (images: unknown): string => {
   return "";
 };
 
-const formatPrice = (value: number) =>
-  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
 const PRODUCT_COUNT = 8;
 
 const ExampleProductSelectionPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [products, setProducts] = useState<ExampleProduct[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<ExampleProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +40,6 @@ const ExampleProductSelectionPage = () => {
       if (error || !data?.length) { veloToast.error("Não foi possível carregar os produtos de exemplo."); setLoading(false); return; }
       const mapped = data.map((product) => ({ id: product.id, title: product.title || "Produto do catálogo Velo", price: Number(product.cost_price) || 0, imageUrl: getFirstImage(product.images) }));
       setProducts(mapped);
-      setSelectedProducts([]);
       setLoading(false);
     };
     loadProducts();
@@ -54,133 +52,90 @@ const ExampleProductSelectionPage = () => {
     (location.state as { onboardingChoice?: string } | null)?.onboardingChoice ||
     sessionStorage.getItem("velo-onboarding-choice") ||
     "";
-  // Uma página de vendas é focada em um único produto.
-  const singleSelection = onboardingChoice === "sales-page";
 
-  const toggleProduct = (product: ExampleProduct) => {
-    setSelectedProducts((current) => {
-      const isSelected = current.some((item) => item.id === product.id);
-      if (isSelected) return current.filter((item) => item.id !== product.id);
-      if (singleSelection) return [product];
-      return [...current, product];
-    });
-  };
-
-  const continueWithProducts = () => {
-    const primaryProduct = selectedProducts[0];
-    if (!primaryProduct) return;
+  // Clicar em um produto já avança: cada página/loja parte de um único produto,
+  // que pode ser trocado depois no editor.
+  const selectProduct = (product: ExampleProduct) => {
     if (onboardingChoice) sessionStorage.setItem("velo-onboarding-choice", onboardingChoice);
-    sessionStorage.setItem("velo-example-product", JSON.stringify(primaryProduct));
-    sessionStorage.setItem("velo-example-products", JSON.stringify(selectedProducts));
-    navigate("/onboarding/preparando-produto", { state: { product: primaryProduct, products: selectedProducts, onboardingChoice } });
+    sessionStorage.setItem("velo-example-product", JSON.stringify(product));
+    sessionStorage.setItem("velo-example-products", JSON.stringify([product]));
+    navigate("/onboarding/preparando-produto", { state: { product, products: [product], onboardingChoice } });
   };
 
   return (
-    <main className="min-h-screen bg-[#fbfbfc] text-[#101522]" style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
-      <section className="mx-auto flex min-h-screen w-full max-w-[1180px] flex-col px-6 py-7 sm:px-10 lg:px-12">
-        <header className="flex items-center justify-between gap-5">
-          <Link to="/comecar" className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#111827]/55 transition hover:text-[#111827]">
-            <ChevronLeft size={17} /> Voltar
+    <main className="velo-flow min-h-screen">
+      <div className="grid min-h-screen lg:grid-cols-[55%_45%]">
+        <section className="relative flex min-h-screen flex-col items-center overflow-hidden px-6 py-7 sm:px-9 lg:px-12">
+          <Link
+            to="/comecar"
+            className="vf-btn-ghost absolute left-6 top-7 inline-flex items-center sm:left-9 lg:left-12"
+            aria-label="Voltar"
+          >
+            <ArrowLeft size={20} />
           </Link>
-          <div className="flex w-[30%] max-w-[260px] min-w-[160px] items-center gap-2" aria-label="Progresso da criação">
-            <div className="h-[4px] flex-1 rounded-full bg-black" />
-            <div className="h-[4px] flex-1 rounded-full bg-black" />
-            <div className="h-[4px] flex-1 rounded-full bg-[#e4e7ef]" />
+          <div
+            className="absolute left-1/2 top-7 h-[5px] w-[210px] -translate-x-1/2 overflow-hidden rounded-[1px] bg-white/10"
+            aria-label="Progresso da criação"
+          >
+            <div className="h-full bg-white transition-all duration-300" style={{ width: "40%" }} />
           </div>
-        </header>
 
-        <div className="mt-12 flex flex-col gap-4 lg:mt-14 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#697083]">Produto de exemplo</p>
-            <h1 className="mt-3 max-w-[560px] text-[30px] font-semibold leading-[1.06] tracking-[-0.045em] text-[#121827] sm:text-[38px]">
-              Escolha o produto que combina com sua loja
+          <motion.div {...screenEnter} className="mt-[76px] w-full max-w-[580px]">
+            <h1 className="vf-headline text-[24px] font-medium leading-[30px] tracking-[-0.6px]">
+              Escolha um produto de exemplo
             </h1>
-            <p className="mt-3 max-w-[560px] text-[13.5px] leading-[1.55] text-[#687086]">
-              {singleSelection
-                ? "Sua página de vendas é focada em um único produto. Escolha um item real do catálogo Velo — depois você pode trocar tudo no editor."
-                : "Selecione um item real do catálogo Velo para montar a primeira página. Depois você pode trocar tudo no editor."}
+            <p className="vf-subhead mt-2 text-[18px] font-normal leading-[28px]">
+              Selecione um destes produtos para ver como a Velo funciona.
             </p>
-          </div>
 
-          <div className="rounded-full bg-[#eef0f5] px-3.5 py-1.5 text-[12px] font-semibold text-[#2b3140]">
-            Passo 2 de 4
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex min-h-[430px] items-center justify-center">
-            <Loader2 className="animate-spin text-[#111827]/30" />
-          </div>
-        ) : (
-          <>
-            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {products.map((product) => {
-                const active = selectedProducts.some((item) => item.id === product.id);
-                return (
-                  <button
+            {loading ? (
+              <div className="flex min-h-[430px] items-center justify-center">
+                <Loader2 className="vf-spin text-[var(--vf-text-3)]" />
+              </div>
+            ) : (
+              <motion.div
+                variants={listStagger}
+                initial="initial"
+                animate="animate"
+                className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4"
+              >
+                {products.map((product) => (
+                  <motion.button
+                    variants={listItem}
                     key={product.id}
                     type="button"
-                    onClick={() => toggleProduct(product)}
-                    aria-pressed={active}
-                    className={`group relative flex min-h-[305px] flex-col overflow-hidden rounded-[18px] border bg-white p-3.5 text-left shadow-[0_16px_42px_rgba(15,23,42,0.055)] outline-none transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_20px_56px_rgba(15,23,42,0.09)] focus-visible:ring-4 focus-visible:ring-black/10 ${
-                      active ? "border-black shadow-[0_28px_90px_rgba(15,23,42,0.16)]" : "border-[#dfe4ef]"
-                    }`}
+                    onClick={() => selectProduct(product)}
+                    className="group relative aspect-square overflow-hidden rounded-[10px] bg-[var(--vf-panel)] outline-none transition-transform duration-200 hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-white/40"
                   >
-                    {active ? (
-                      <span className="absolute right-3.5 top-3.5 inline-flex items-center gap-1 rounded-full bg-black px-2.5 py-1 text-[10px] font-bold text-white">
-                        <Check size={11} strokeWidth={2.4} /> Selecionado
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center">
+                        <PackageOpen className="text-[var(--vf-text-3)]" size={32} />
                       </span>
-                    ) : null}
+                    )}
+                  </motion.button>
+                ))}
+              </motion.div>
+            )}
+          </motion.div>
+        </section>
 
-                    <span className={`flex h-9 w-9 items-center justify-center rounded-[11px] shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition ${active ? "bg-black text-white" : "bg-[#202638] text-white"}`}>
-                      <Store size={16} strokeWidth={1.8} />
-                    </span>
-
-                    <div className="mt-5 flex aspect-[1.18] items-center justify-center rounded-[14px] bg-[#f4f5f7] p-3.5">
-                      {product.imageUrl ? (
-                        <img src={product.imageUrl} alt={product.title} className="h-full w-full object-contain mix-blend-multiply transition duration-300 group-hover:scale-[1.025]" />
-                      ) : (
-                        <PackageOpen className="text-[#9aa2b5]" size={32} />
-                      )}
-                    </div>
-
-                    <div className="mt-4 flex flex-1 flex-col">
-                      <h2 className="line-clamp-2 text-[14px] font-semibold leading-[1.2] tracking-[-0.025em] text-[#121827]">
-                        {product.title}
-                      </h2>
-                      <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-[#737b90]">
-                        Produto pronto para testar a criação automática da primeira vitrine.
-                      </p>
-                      <div className="mt-auto pt-4">
-                        <p className="text-[10.5px] font-semibold text-[#7c8497]">Custo estimado</p>
-                        <p className="mt-0.5 text-[18px] font-bold tracking-[-0.04em] text-[#121827]">{formatPrice(product.price)}</p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="sticky bottom-0 mt-7 flex flex-col gap-3 border-t border-[#e7ebf2] bg-[#fbfbfc]/92 py-4 backdrop-blur md:flex-row md:items-center md:justify-between">
-              <p className="text-[12.5px] font-medium text-[#697083]">
-                {selectedProducts.length > 0
-                  ? `${selectedProducts.length} produto${selectedProducts.length > 1 ? "s" : ""} selecionado${selectedProducts.length > 1 ? "s" : ""}`
-                  : singleSelection
-                    ? "Escolha um produto para continuar"
-                    : "Escolha um ou mais produtos para continuar"}
-              </p>
-              <button
-                type="button"
-                onClick={continueWithProducts}
-                disabled={selectedProducts.length === 0}
-                className="inline-flex h-12 items-center justify-center rounded-[12px] bg-black px-8 text-[14px] font-bold text-white shadow-[0_14px_30px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#c9ced8] disabled:shadow-none"
-              >
-                Continuar
-              </button>
-            </div>
-          </>
-        )}
-      </section>
+        <aside className="relative hidden min-h-screen items-center justify-center overflow-hidden border-l border-[var(--vf-border)] bg-[var(--vf-panel-side)] lg:flex">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.15]"
+            style={{
+              backgroundImage: "radial-gradient(circle, rgb(255,255,255) 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
+            }}
+          />
+          <StoreMockupPreview className="relative z-10 scale-[0.84]" />
+        </aside>
+      </div>
     </main>
   );
 };

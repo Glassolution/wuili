@@ -1,6 +1,8 @@
 import { useMemo, useState, type ComponentType } from "react";
-import { Check, ChevronLeft, Globe2, Search, Store } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Check, Globe2, Search, Smile } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { listItem, listStagger, screenEnter } from "@/components/onboarding/flowMotion";
 import {
   BD, BG, BR, CN, DE, DK, ES, FI, FR, GR, HR, HU, ID, IL, IN, IT, JP, KR,
   NL, NO, PL, PT, RO, SA, SE, SK, TH, TR, UA, US, ZA,
@@ -43,8 +45,8 @@ const otherLanguages: LanguageOption[] = [
   { name: "Turco", Flag: TR }, { name: "Ucraniano", Flag: UA },
 ];
 
-// Bandeiras claras (Japão, Finlândia) somem no card branco sem o contorno.
-const FLAG_CLASS = "h-[15px] w-[22px] shrink-0 rounded-[2px] object-cover ring-1 ring-black/10";
+// Bandeiras claras (Japão, Finlândia) somem no card sem o contorno.
+const FLAG_CLASS = "h-4 w-6 shrink-0 rounded-[2px] object-cover ring-1 ring-white/15";
 
 const StoreLanguagePage = () => {
   const location = useLocation();
@@ -81,74 +83,90 @@ const StoreLanguagePage = () => {
   };
 
   return (
-    <main className="min-h-screen bg-white text-[#101522]" style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
+    <main className="velo-flow min-h-screen">
       <div className="grid min-h-screen lg:grid-cols-[55%_45%]">
-        <section className="relative flex min-h-screen flex-col overflow-hidden px-7 py-7 sm:px-10 lg:px-16 lg:py-10 xl:px-24">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_38%_45%,rgba(15,23,42,0.04),transparent_38%)]" />
-          <header className="relative z-10 flex items-center justify-between">
-            <Link to="/onboarding/preparando-produto" state={{ product }} className="inline-flex items-center gap-2 text-[12px] font-medium text-[#111827]/45 transition hover:text-[#111827]">
-              <ChevronLeft size={16} /> Voltar
-            </Link>
-            <div className="w-[42%] max-w-[310px]">
-              <div className="h-[4px] overflow-hidden rounded-full bg-[#e4e7ef]">
-                <div className="h-full w-[68%] rounded-full bg-black" />
-              </div>
-            </div>
-          </header>
+        <section className="relative flex min-h-screen flex-col items-center overflow-hidden px-6 py-7 sm:px-9 lg:px-12">
+          <Link
+            to="/onboarding/preparando-produto"
+            state={{ product }}
+            className="vf-btn-ghost absolute left-6 top-7 inline-flex items-center sm:left-9 lg:left-12"
+            aria-label="Voltar"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div
+            className="absolute left-1/2 top-7 h-[5px] w-[210px] -translate-x-1/2 overflow-hidden rounded-[1px] bg-white/10"
+            aria-label="Progresso da criação"
+          >
+            <div className="h-full bg-white transition-all duration-300" style={{ width: "72%" }} />
+          </div>
 
-          <div className="relative z-10 my-auto w-full max-w-[620px] py-14">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#697083]">Personalize sua loja</p>
-            <h1 className="mt-4 text-[40px] font-normal leading-[1.04] tracking-[-0.055em] text-[#101522] sm:text-[52px]">Que idioma falam seus clientes?</h1>
-            <p className="mt-4 text-[15px] leading-relaxed text-[#687086]">Isso define o idioma da loja que você vai vender.</p>
+          <motion.div {...screenEnter} className="mt-[76px] w-full max-w-[580px]">
+            <h1 className="vf-headline text-[24px] font-medium leading-[30px] tracking-[-0.6px]">Que idioma falam seus clientes?</h1>
+            <p className="vf-subhead mt-2 text-[18px] font-normal leading-[28px]">Isso define o idioma da loja que você vai vender.</p>
 
-            <div className="mt-8 grid gap-2 sm:grid-cols-2">
-              {featuredLanguages.map((language, index) => {
+            <motion.div variants={listStagger} initial="initial" animate="animate" className="mt-8 grid grid-cols-2 gap-2">
+              {featuredLanguages.map((language) => {
                 const selected = selectedLanguage === language.name;
                 return (
-                  <button key={language.name} type="button" onClick={() => chooseLanguage(language.name)} className={`flex h-[54px] items-center gap-3 rounded-[10px] border px-4 text-left outline-none transition hover:-translate-y-0.5 hover:border-black/30 hover:bg-white hover:shadow-[0_14px_34px_rgba(15,23,42,0.07)] focus-visible:ring-4 focus-visible:ring-black/10 ${selected ? "border-black bg-white shadow-[inset_3px_0_0_rgba(0,0,0,0.82),0_14px_34px_rgba(15,23,42,0.08)]" : "border-[#dfe4ef] bg-white"} ${index === featuredLanguages.length - 1 ? "sm:col-span-2" : ""}`}>
+                  <motion.button
+                    variants={listItem}
+                    key={language.name}
+                    type="button"
+                    onClick={() => chooseLanguage(language.name)}
+                    data-selected={selected}
+                    className="vf-nested flex h-[58px] items-center gap-3 rounded-[10px] px-4 text-left outline-none"
+                  >
                     <language.Flag className={FLAG_CLASS} title={language.name} />
-                    <span className={`flex-1 text-[13px] font-medium ${selected ? "text-[#101522]" : "text-[#697083]"}`}>{language.name}</span>
-                    {selected ? <Check size={15} className="text-[#101522]" /> : null}
-                  </button>
+                    <span className={`flex-1 text-[16px] font-medium ${selected ? "text-[var(--vf-text-1)]" : "text-[var(--vf-text-2)]"}`}>{language.name}</span>
+                    {selected ? <Check size={16} className="text-[var(--vf-text-1)]" /> : null}
+                  </motion.button>
                 );
               })}
-            </div>
+            </motion.div>
 
-            <div className="my-6 h-px bg-[#e7ebf2]" />
-            <button type="button" onClick={() => setShowOtherLanguages((current) => !current)} aria-expanded={showOtherLanguages} className={`flex w-full items-center gap-3 rounded-[10px] border p-4 text-left transition hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_14px_34px_rgba(15,23,42,0.07)] ${showOtherLanguages ? "border-black bg-white" : "border-[#dfe4ef] bg-white"}`}>
-              <Globe2 size={18} className="text-[#697083]" />
-              <span className="flex-1"><span className="block text-[13px] font-medium text-[#101522]">Outro idioma</span><span className="mt-1 block text-[11px] text-[#8b94a6]">Pesquisar entre mais idiomas</span></span>
-              {otherLanguages.some((language) => language.name === selectedLanguage) ? <Check size={15} /> : null}
+            <div className="my-4 h-px bg-[var(--vf-border)]" />
+            <button type="button" onClick={() => setShowOtherLanguages((current) => !current)} aria-expanded={showOtherLanguages} data-selected={showOtherLanguages} className="vf-nested flex w-full items-center gap-4 rounded-[10px] p-4 text-left">
+              <Globe2 size={20} className="text-[var(--vf-text-2)]" />
+              <span className="flex-1"><span className="block text-[16px] font-medium text-[var(--vf-text-1)]">Outro idioma</span><span className="mt-0.5 block text-[13px] text-[var(--vf-text-3)]">Pesquisar entre mais idiomas</span></span>
+              {otherLanguages.some((language) => language.name === selectedLanguage) ? <Check size={16} className="text-[var(--vf-text-1)]" /> : null}
             </button>
 
             {showOtherLanguages ? (
-              <div className="mt-2 rounded-[10px] border border-[#dfe4ef] bg-white p-3 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-                <label className="flex h-10 items-center gap-2 rounded-[8px] bg-[#f5f6f8] px-3 focus-within:bg-[#eef0f5]">
-                  <Search size={15} className="text-[#8b94a6]" />
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar idioma" className="min-w-0 flex-1 bg-transparent text-[12px] text-[#101522] outline-none placeholder:text-[#8b94a6]" autoFocus />
+              <div className="mt-2 rounded-[12px] border border-[var(--vf-border)] bg-[var(--vf-panel)] p-3 shadow-[0_24px_64px_rgba(0,0,0,0.4)]">
+                <label className="flex h-10 items-center gap-2 rounded-[8px] bg-[var(--vf-nested)] px-3 focus-within:ring-1 focus-within:ring-[var(--vf-border-hover)]">
+                  <Search size={15} className="text-[var(--vf-text-3)]" />
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar idioma" className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--vf-text-1)] outline-none placeholder:text-[var(--vf-text-3)]" autoFocus />
                 </label>
                 <div className="mt-2 max-h-[150px] overflow-y-auto">
                   {filteredLanguages.map((language) => (
-                    <button key={language.name} type="button" onClick={() => chooseLanguage(language.name)} className={`flex w-full items-center gap-3 rounded-[6px] px-3 py-2 text-left text-[12px] transition hover:bg-[#f5f6f8] ${selectedLanguage === language.name ? "bg-[#eef0f5] text-[#101522]" : "text-[#697083]"}`}>
-                      <language.Flag className={FLAG_CLASS} title={language.name} /><span className="flex-1">{language.name}</span>{selectedLanguage === language.name ? <Check size={13} /> : null}
+                    <button key={language.name} type="button" onClick={() => chooseLanguage(language.name)} className={`flex w-full items-center gap-3 rounded-[6px] px-3 py-2 text-left text-[13px] transition hover:bg-[var(--vf-nested)] ${selectedLanguage === language.name ? "bg-[var(--vf-nested)] text-[var(--vf-text-1)]" : "text-[var(--vf-text-2)]"}`}>
+                      <language.Flag className={FLAG_CLASS} title={language.name} /><span className="flex-1">{language.name}</span>{selectedLanguage === language.name ? <Check size={13} className="text-[var(--vf-text-1)]" /> : null}
                     </button>
                   ))}
-                  {filteredLanguages.length === 0 ? <p className="px-3 py-5 text-center text-[11px] text-[#8b94a6]">Nenhum idioma encontrado.</p> : null}
+                  {filteredLanguages.length === 0 ? <p className="px-3 py-5 text-center text-[11px] text-[var(--vf-text-3)]">Nenhum idioma encontrado.</p> : null}
                 </div>
               </div>
             ) : null}
 
-            <button type="button" onClick={handleContinue} disabled={!selectedLanguage} className="mt-7 inline-flex h-11 w-full items-center justify-center rounded-[10px] bg-black text-[13px] font-semibold text-white shadow-[0_16px_34px_rgba(0,0,0,0.14)] transition hover:-translate-y-0.5 hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#d8dde8] disabled:text-[#8b94a6] disabled:shadow-none">Continuar</button>
-          </div>
+            <button type="button" onClick={handleContinue} disabled={!selectedLanguage} className="vf-btn mt-6 inline-flex h-12 w-full items-center justify-center text-[14px]">Continuar</button>
+          </motion.div>
         </section>
 
-        <aside className="relative hidden min-h-screen items-center justify-center overflow-hidden border-l border-[#edf0f5] bg-white p-12 lg:flex">
-          <div className="absolute inset-0 opacity-80 [background-image:radial-gradient(circle,rgba(0,0,0,0.26)_1.8px,transparent_2px)] [background-position:2px_2px] [background-size:30px_30px]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.68),rgba(255,255,255,0.18)_42%,rgba(255,255,255,0.48)_78%)]" />
-          <div className="relative z-10 flex min-h-[330px] w-full max-w-[340px] flex-col items-center justify-center rounded-[18px] border border-[#dfe4ef] bg-white p-8 text-center shadow-[0_28px_80px_rgba(15,23,42,0.08)]">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f5f6f8] text-[#101522]"><Store size={24} strokeWidth={1.5} /></span>
-            <p className="mt-6 text-[16px] font-medium tracking-[-0.025em] text-[#101522]">Prévia da loja</p>
-            <p className="mt-2 max-w-[220px] text-[12px] leading-relaxed text-[#687086]">Sua loja ganhará forma nas próximas etapas.</p>
+        <aside className="relative hidden min-h-screen items-center justify-center overflow-hidden border-l border-[var(--vf-border)] bg-[var(--vf-panel-side)] p-12 lg:flex">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.15]"
+            style={{
+              backgroundImage: "radial-gradient(circle, rgb(255,255,255) 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
+            }}
+          />
+          <div className="relative z-10 flex w-full max-w-[420px] flex-col items-center rounded-[20px] border border-[var(--vf-border)] bg-[var(--vf-panel)] px-6 py-14 text-center">
+            <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/[0.06] text-white/20">
+              <Smile size={38} strokeWidth={1.6} />
+            </span>
+            <p className="mt-6 text-[24px] font-medium tracking-[-0.02em] text-white/20">Persona do cliente ideal</p>
+            <p className="mt-2 text-[16px] text-white/15">Seu ângulo de marketing único</p>
           </div>
         </aside>
       </div>

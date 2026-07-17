@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import type { User } from "@supabase/supabase-js";
-import { ArrowUpRight, FlaskConical, LayoutGrid, PackageOpen, Store } from "lucide-react";
+import { ArrowUpRight, FlaskConical, Rocket, ShoppingCart, Store } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { VeloLogo } from "@/components/VeloLogo";
 import StoreMockupPreview from "@/components/onboarding/StoreMockupPreview";
+import { listItem, listStagger, screenEnter } from "@/components/onboarding/flowMotion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -15,16 +18,6 @@ export type ExampleProduct = {
   price: number;
   imageUrl: string;
 };
-
-const VeloWordmark = () => (
-  <Link to="/" className="inline-flex items-center gap-2 text-[#111827]" aria-label="Velo">
-    <svg width="24" height="24" viewBox="0 0 48 48" fill="none" aria-hidden="true" className="shrink-0">
-      <path d="M33 18 A11 11 0 1 0 33 30" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
-      <path d="M30 26 L34 30 L38 26" stroke="currentColor" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-    <span className="text-[15px] font-bold tracking-[-0.04em]">Velo</span>
-  </Link>
-);
 
 const VeloIconLink = () => (
   <Link to="/" className="inline-flex items-center justify-center text-[#111827]" aria-label="Velo">
@@ -52,29 +45,6 @@ const isFreshSignup = (user: User | null): boolean => {
   );
 };
 
-const feedbackCards = [
-  {
-    name: "Marina Alves",
-    role: "Primeira loja no ar",
-    quote: "Montei minha vitrine em poucos minutos e entendi exatamente o próximo passo.",
-  },
-  {
-    name: "Rafael Costa",
-    role: "Produtos importados",
-    quote: "A escolha inicial ficou simples. Parece que a loja já nasce pronta para vender.",
-  },
-  {
-    name: "Bianca Moura",
-    role: "Catálogo Velo",
-    quote: "Gostei porque não precisei pensar em tudo do zero. O fluxo me guiou.",
-  },
-  {
-    name: "Lucas Mendes",
-    role: "Setup rápido",
-    quote: "Visual limpo, direto e com cara profissional desde o primeiro clique.",
-  },
-];
-
 const StartChoicePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,7 +54,6 @@ const StartChoicePage = () => {
   const [showWelcome, setShowWelcome] = useState<boolean | null>(null);
   const [welcomeReady, setWelcomeReady] = useState(false);
   const [displayName, setDisplayName] = useState("");
-  const [selectedPath, setSelectedPath] = useState<"store" | "sales-page" | "catalog" | "example" | null>(null);
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
@@ -148,24 +117,23 @@ const StartChoicePage = () => {
   const { plan: currentPlan } = usePlan();
   const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
 
-  const continueToSelection = () => {
-    if (!selectedPath) return;
+  const goToPath = (path: "store" | "sales-page" | "catalog" | "example") => {
     // Ir ao catálogo é apenas navegação: não cria loja nem página, então não
     // passa pelo bloqueio de plano nem pelo fluxo de escolha de produto.
-    if (selectedPath === "catalog") {
-      sessionStorage.setItem("velo-onboarding-choice", selectedPath);
+    if (path === "catalog") {
+      sessionStorage.setItem("velo-onboarding-choice", path);
       navigate("/dashboard/catalogo");
       return;
     }
     // Usuários gratuitos podem CRIAR páginas de vendas — a cobrança acontece
     // no momento de publicar. Apenas a criação de LOJA COMPLETA fica bloqueada.
-    if (isFreePlan && selectedPath !== "sales-page") {
+    if (isFreePlan && path !== "sales-page") {
       toast.error("Assine um plano pago para criar sua loja completa.");
       navigate("/dashboard/planos");
       return;
     }
-    sessionStorage.setItem("velo-onboarding-choice", selectedPath);
-    navigate("/onboarding/escolher-produto", { state: { onboardingChoice: selectedPath } });
+    sessionStorage.setItem("velo-onboarding-choice", path);
+    navigate("/onboarding/escolher-produto", { state: { onboardingChoice: path } });
   };
 
   // Enquanto o auth carrega ainda não sabemos se é cadastro recente; evitamos
@@ -212,11 +180,6 @@ const StartChoicePage = () => {
             @keyframes veloCooldownFill {
               0% { transform: scaleX(0); }
               100% { transform: scaleX(1); }
-            }
-
-            @keyframes veloFeedbackMarquee {
-              0% { transform: translateX(0); }
-              100% { transform: translateX(-50%); }
             }
 
             .velo-welcome-logo {
@@ -300,211 +263,120 @@ const StartChoicePage = () => {
   }
 
   return (
-  <main
-    className="min-h-screen bg-[#fbfbfc] text-[#111827]"
-    style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
-  >
-    <style>
-      {`
-        @keyframes veloFeedbackMarquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}
-    </style>
+  <main className="velo-flow min-h-screen">
     <div className="grid min-h-screen lg:grid-cols-[55%_45%]">
-      <section className="relative flex min-h-screen flex-col overflow-hidden px-6 py-6 sm:px-9 lg:px-14 lg:py-7 xl:px-20">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_34%_35%,rgba(0,0,0,0.035),transparent_34%)]" />
-        <header className="relative z-10 flex min-h-7 items-center">
-          <VeloWordmark />
-          <div
-            className="absolute right-0 hidden w-[38%] max-w-[250px] sm:block"
-            role="progressbar"
-            aria-label="Progresso da configuração"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={18}
-          >
-            <div className="h-[4px] overflow-hidden rounded-full bg-[#e5e8ef]">
-              <div className="h-full w-[18%] rounded-full bg-black" />
-            </div>
+      <section className="relative flex min-h-screen flex-col items-center overflow-hidden px-6 py-7 sm:px-9 lg:px-12">
+        <Link to="/" className="absolute left-6 top-7 sm:left-9 lg:left-12" aria-label="Velo">
+          <VeloLogo size="sm" variant="light" />
+        </Link>
+
+        <div
+          className="absolute left-1/2 top-7 w-[210px] -translate-x-1/2"
+          role="progressbar"
+          aria-label="Progresso da configuração"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={18}
+        >
+          <div className="h-[5px] w-[210px] overflow-hidden rounded-[1px] bg-white/10">
+            <div className="h-full bg-white transition-all duration-300" style={{ width: "18%" }} />
           </div>
-        </header>
+        </div>
 
-        <div className="relative z-10 mx-auto mt-12 w-full max-w-[700px] pb-40 sm:mt-14 lg:mt-9 xl:mt-10">
-          <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.18em] text-[#697083]">Seu primeiro passo</p>
-          <h1 className="max-w-[500px] text-[28px] font-semibold leading-[1.08] tracking-[-0.045em] text-[#121827] sm:text-[31px] lg:text-[33px]">
-            Como você quer começar?
-          </h1>
-          <p className="mt-3 max-w-[500px] text-[13px] font-normal leading-[1.55] text-[#687086] sm:text-[13.5px]">
-            Escolha o caminho que combina com o seu momento. Você pode montar sua loja completa ou criar uma página de vendas focada em um produto.
-          </p>
+        <motion.div {...screenEnter} className="mt-[76px] w-full max-w-[580px]">
+          <h1 className="vf-headline text-[24px] font-medium leading-[30px] tracking-[-0.6px]">Como você quer começar?</h1>
+          <p className="vf-subhead mt-2 text-[18px] font-normal leading-[28px]">Escolha o caminho que combina com o seu momento — nós cuidamos do resto.</p>
 
-          <div className="mt-8 w-full max-w-[650px]">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div
+          <motion.div variants={listStagger} initial="initial" animate="animate" className="mt-11">
+            <div className="grid grid-cols-3 gap-2">
+              <motion.div
+                variants={listItem}
                 aria-disabled="true"
-                className="relative min-h-[178px] cursor-not-allowed rounded-[20px] border border-[#e4e8ef] bg-[#f7f8fa] p-5 text-left"
+                data-disabled="true"
+                className="vf-card relative flex min-h-[218px] cursor-not-allowed flex-col items-center justify-center gap-2 rounded-[10px] px-[10px] py-12 text-center"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#c3c9d4] text-white">
-                  <Store size={19} strokeWidth={1.8} />
-                </span>
-                <span className="absolute right-5 top-5 rounded-full bg-[#e9ecf2] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#7c8497]">
+                <span className="absolute right-3 top-3 rounded-full bg-[var(--vf-nested)] px-2 py-[3px] text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--vf-text-3)]">
                   Em breve
                 </span>
-                <span className="mt-14 flex items-end justify-between gap-4">
-                  <span>
-                    <span className="block text-[15px] font-semibold tracking-[-0.035em] text-[#8b93a3]">Criar minha loja</span>
-                    <span className="mt-2 block max-w-[210px] text-[12.5px] leading-5 text-[#9aa2b5]">
-                      Monte sua loja com produtos selecionados do catálogo Velo.
-                    </span>
-                  </span>
+                <span className="flex h-12 w-12 items-center justify-center rounded-[7px] bg-[var(--vf-nested)] text-[var(--vf-text-3)]">
+                  <Store size={22} strokeWidth={1.8} />
                 </span>
-              </div>
+                <span className="text-[16px] font-medium leading-[20px] text-[var(--vf-text-2)]">
+                  Criar minha loja
+                </span>
+              </motion.div>
 
-              <button
+              <motion.button
+                variants={listItem}
                 type="button"
-                onClick={() => setSelectedPath("sales-page")}
-                aria-pressed={selectedPath === "sales-page"}
-                className={`group relative min-h-[178px] rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
-                  selectedPath === "sales-page" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
-                }`}
+                onClick={() => goToPath("sales-page")}
+                className="vf-card flex min-h-[218px] flex-col items-center justify-center gap-2 rounded-[10px] px-[10px] py-12 text-center outline-none focus-visible:border-[var(--vf-border-hover)]"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
-                  <PackageOpen size={19} strokeWidth={1.8} />
+                <span className="flex h-12 w-12 items-center justify-center rounded-[7px] bg-[#2563EB] text-white">
+                  <Rocket size={22} strokeWidth={1.8} />
                 </span>
-                <span className="mt-14 flex items-end justify-between gap-4">
-                  <span>
-                    <span className="block text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Criar página de vendas</span>
-                    <span className="mt-2 block max-w-[210px] text-[12.5px] leading-5 text-[#687086]">
-                      Personalize uma oferta focada em um produto e prepare sua página para vender.
-                    </span>
-                  </span>
-                  <ArrowUpRight size={18} className="shrink-0 text-[#9aa2b5] transition group-hover:text-black" />
+                <span className="text-[16px] font-medium leading-[20px] text-[var(--vf-text-1)]">
+                  Criar página de vendas
                 </span>
-              </button>
-            </div>
+              </motion.button>
 
-            <button
-              type="button"
-              onClick={() => setSelectedPath("catalog")}
-              aria-pressed={selectedPath === "catalog"}
-              className={`group mt-4 flex min-h-[88px] w-full items-center gap-5 rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
-                selectedPath === "catalog" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
-              }`}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
-                <LayoutGrid size={19} strokeWidth={1.8} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Ir direto para o catálogo</span>
-                <span className="mt-1 block text-[12.5px] leading-5 text-[#687086]">
-                  Veja os produtos do catálogo Velo e publique no Mercado Livre sem montar uma loja.
+              <motion.button
+                variants={listItem}
+                type="button"
+                onClick={() => goToPath("catalog")}
+                className="vf-card flex min-h-[218px] flex-col items-center justify-center gap-2 rounded-[10px] px-[10px] py-12 text-center outline-none focus-visible:border-[var(--vf-border-hover)]"
+              >
+                <span className="flex h-12 w-12 items-center justify-center rounded-[7px] bg-[#7C3AED] text-white">
+                  <ShoppingCart size={22} strokeWidth={1.8} />
                 </span>
-              </span>
-              <ArrowUpRight size={18} className="shrink-0 text-[#9aa2b5] transition group-hover:text-black" />
-            </button>
+                <span className="text-[16px] font-medium leading-[20px] text-[var(--vf-text-1)]">
+                  Ir direto para o catálogo
+                </span>
+              </motion.button>
+            </div>
 
             {isAdmin ? (
               <>
-                <div className="my-5 flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.16em] text-[#9aa2b5]">
-                  <span className="h-px flex-1 bg-[#e1e5ed]" />
-                  ou
-                  <span className="h-px flex-1 bg-[#e1e5ed]" />
+                <div className="my-2 flex items-center gap-4">
+                  <span className="h-px flex-1 bg-[var(--vf-border)]" />
+                  <span className="text-[14px] font-medium text-[var(--vf-text-3)]">ou</span>
+                  <span className="h-px flex-1 bg-[var(--vf-border)]" />
                 </div>
 
-                <button
+                <motion.button
+                  variants={listItem}
                   type="button"
-                  onClick={() => setSelectedPath("example")}
-                  aria-pressed={selectedPath === "example"}
-                  className={`group flex min-h-[88px] w-full items-center gap-5 rounded-[20px] border bg-white p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.07)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-black/30 hover:shadow-[0_22px_60px_rgba(15,23,42,0.1)] focus-visible:ring-4 focus-visible:ring-black/10 ${
-                    selectedPath === "example" ? "border-black ring-1 ring-black" : "border-[#dfe4ed]"
-                  }`}
+                  onClick={() => goToPath("example")}
+                  className="vf-card group flex min-h-[90px] w-full items-center gap-4 rounded-[10px] px-6 py-4 text-left outline-none focus-visible:border-[var(--vf-border-hover)]"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-black text-white shadow-[0_14px_34px_rgba(0,0,0,0.16)]">
-                    <FlaskConical size={19} strokeWidth={1.8} />
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[7px] bg-[#F59E0B] text-white">
+                    <FlaskConical size={22} strokeWidth={1.8} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-semibold tracking-[-0.035em] text-[#111827]">Testar com produto de exemplo</span>
-                    <span className="mt-1 block truncate text-[12.5px] leading-5 text-[#687086]">
-                      Veja como funciona antes de importar seus próprios produtos.
+                    <span className="block text-[16px] font-medium leading-[20px] text-[var(--vf-text-1)]">
+                      Testar um produto de exemplo
+                    </span>
+                    <span className="mt-1 block text-[12.5px] leading-5 text-[var(--vf-text-2)]">
+                      Descubra como a Velo funciona
                     </span>
                   </span>
-                  <ArrowUpRight size={18} className="shrink-0 text-[#9aa2b5] transition group-hover:text-black" />
-                </button>
+                  <ArrowUpRight size={18} className="shrink-0 text-[var(--vf-text-3)] transition group-hover:text-[var(--vf-text-1)]" />
+                </motion.button>
               </>
             ) : null}
-          </div>
-        </div>
-
-        <div className="absolute inset-x-6 bottom-8 z-20 sm:inset-x-9 lg:inset-x-14 xl:inset-x-20">
-          <div className="mx-auto w-full max-w-[700px]">
-            <div className="flex w-full max-w-[650px] justify-center">
-              <button
-                type="button"
-                onClick={continueToSelection}
-                disabled={!selectedPath}
-                className="flex h-12 w-full max-w-[520px] items-center justify-center rounded-[14px] bg-black text-[14px] font-semibold text-white shadow-[0_18px_45px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 hover:bg-[#202020] disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-[#d8dde8] disabled:text-[#8b94a6] disabled:shadow-none"
-              >
-                Continuar
-              </button>
-            </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </section>
 
-      <aside className="relative hidden min-h-screen items-center justify-center overflow-hidden border-l border-[#edf0f5] bg-white lg:flex">
-        <div className="pointer-events-none absolute left-0 right-0 top-0 z-[2] overflow-hidden bg-white py-6">
-          <div className="flex w-max gap-3 [animation:veloFeedbackMarquee_22s_linear_infinite]">
-            {[...feedbackCards, ...feedbackCards].map((feedback, index) => (
-              <div
-                key={`${feedback.name}-${index}`}
-                className="w-[230px] rounded-[18px] bg-[#1a1a1a] px-4 py-3 text-white shadow-none ring-1 ring-black/5"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-black text-black">
-                    {feedback.name
-                      .split(" ")
-                      .map((part) => part[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-[12px] font-semibold leading-tight">{feedback.name}</p>
-                    <p className="truncate text-[10px] text-white/55">{feedback.role}</p>
-                  </div>
-                </div>
-                <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-white/72">“{feedback.quote}”</p>
-              </div>
-            ))}
-          </div>
-        </div>
+      <aside className="relative hidden min-h-screen items-center justify-center overflow-hidden border-l border-[var(--vf-border)] bg-[var(--vf-panel-side)] lg:flex">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.15]"
+          style={{
+            backgroundImage: "radial-gradient(circle, rgb(255,255,255) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
         <StoreMockupPreview className="relative z-10 scale-[0.84]" />
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-[2] flex h-[168px] items-end overflow-hidden bg-white pb-7 pt-12">
-          <div className="flex w-max gap-3 [animation:veloFeedbackMarquee_24s_linear_infinite_reverse]">
-            {[...feedbackCards, ...feedbackCards].map((feedback, index) => (
-              <div
-                key={`bottom-${feedback.name}-${index}`}
-                className="w-[230px] rounded-[18px] bg-[#1a1a1a] px-4 py-3 text-white shadow-none ring-1 ring-black/5"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-black text-[#1a1a1a]">
-                    {feedback.name
-                      .split(" ")
-                      .map((part) => part[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-[12px] font-semibold leading-tight">{feedback.name}</p>
-                    <p className="truncate text-[10px] text-white/55">{feedback.role}</p>
-                  </div>
-                </div>
-                <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-white/72">“{feedback.quote}”</p>
-              </div>
-            ))}
-          </div>
-        </div>
       </aside>
     </div>
   </main>
