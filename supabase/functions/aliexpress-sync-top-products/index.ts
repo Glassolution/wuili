@@ -15,8 +15,10 @@ const PAGE_SIZE = 50; // alvo: 50 produtos por keyword
 const RATE_LIMIT_DELAY_MS = 400; // ~2.5 req/s
 const MAX_PAGES_PER_KEYWORD = 5; // fallback quando API limita pageSize < 50
 const MAX_DETAIL_FETCHES = 300; // enriquecer todos os produtos coletados para garantir galeria completa (≥3 fotos)
-const DETAIL_DELAY_MS = 350;
+const DETAIL_BATCH_SIZE = 6; // product.get em paralelo por lote (Promise.all)
+const DETAIL_BATCH_DELAY_MS = 400; // pausa entre lotes para respeitar rate-limit AliExpress
 const MIN_IMAGES_REQUIRED = 3; // regra fixa: produto AliExpress só é publicável com ≥ 3 fotos
+const STUCK_RUN_MINUTES = 15; // execuções "running" mais antigas que isso são marcadas como failed no boot
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
