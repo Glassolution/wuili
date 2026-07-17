@@ -37,13 +37,14 @@ const StoreImagesGenerationPage = () => {
     let language = state?.language;
     let persona = state?.persona;
     let salesAngle = state?.salesAngle;
+    const projectId = state?.projectId ?? readOnboardingProjectId() ?? null;
     try {
       if (!product) { const value = sessionStorage.getItem("velo-example-product"); product = value ? JSON.parse(value) as ExampleProduct : undefined; }
       if (!language) language = sessionStorage.getItem("velo-store-language") || undefined;
       if (!persona) persona = sessionStorage.getItem("velo-customer-persona") || undefined;
       if (!salesAngle) salesAngle = sessionStorage.getItem("velo-sales-angle") || undefined;
     } catch { return null; }
-    return product && language && persona && salesAngle ? { product, language, persona, salesAngle } : null;
+    return product && language && persona && salesAngle ? { product, language, persona, salesAngle, projectId } : null;
   }, [location.state]);
   const [messageIndex, setMessageIndex] = useState(0);
   const [generationReady, setGenerationReady] = useState(false);
