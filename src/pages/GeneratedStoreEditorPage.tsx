@@ -8,7 +8,7 @@ import type { ExampleProduct } from "@/pages/StartChoicePage";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
 import { useProfile } from "@/lib/profileContext";
-import { claimProjectInvites, getProjectProductIds, parseVariantOptions, publishProject, saveProjectDraft, type ProductVariantOption, type UserProject } from "@/lib/userProjects";
+import { claimProjectInvites, createUserProject, getProjectProductIds, parseVariantOptions, publishProject, saveProjectDraft, type ProductVariantOption, type UserProject } from "@/lib/userProjects";
 import ProjectSettingsOverlay, { type SettingsSection } from "@/components/editor/ProjectSettingsOverlay";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 import { addProductToCollection, createCollection, ensureExampleCollectionProducts, getCollectionProductIds, listCollections } from "@/lib/collectionsApi";
@@ -1426,6 +1426,41 @@ const GeneratedStoreEditorPage = () => {
     })();
     return () => { active = false; };
   }, [projectId]);
+
+  // Onboarding "página de vendas": quando o editor abre SEM projectId mas com um
+  // fluxo genuíno vindo do onboarding, cria e persiste o projeto na hora. Assim
+  // ele já nasce com slug (createUserProject gera um), e as telas de Carrinho e
+  // Checkout aparecem no preview do editor já no onboarding — antes o projeto só
+  // era criado ao publicar, e sem slug essas telas ficavam ocultas.
+  const autoCreatedRef = useRef(false);
+  useEffect(() => {
+    if (projectId || autoCreatedRef.current || !user?.id) return;
+    if (sessionStorage.getItem("velo-onboarding-choice") !== "sales-page") return;
+    // Só um fluxo fresco do onboarding (não a reabertura de um projeto salvo).
+    if (!flow?.product || !sessionStorage.getItem("velo-example-product")) return;
+    autoCreatedRef.current = true;
+    void (async () => {
+      try {
+        const nome =
+          sessionStorage.getItem("velo-store-name")?.trim() ||
+          flow.product.title?.trim() ||
+          "Minha loja";
+        const project = await createUserProject({
+          nome,
+          descricao: flow.salesAngle ?? "",
+          tipo: "pagina_venda",
+          productIds: flow.product.id ? [flow.product.id] : [],
+          template: activeTemplate.id,
+        });
+        // Assume a rota com id: o efeito acima carrega o projeto (com slug) e as
+        // telas de Carrinho/Checkout passam a renderizar.
+        navigate(`/minha-loja/editor/${project.id}`, { replace: true, state: flow });
+      } catch (error) {
+        autoCreatedRef.current = false;
+        console.error("Falha ao criar o projeto no onboarding:", error);
+      }
+    })();
+  }, [projectId, user?.id, flow, activeTemplate.id, navigate]);
 
   // Carrega os produtos que o usuário escolheu para este projeto. Sem isso o
   // editor caía nas coleções do usuário (fetchEditorCollectionProducts), e o
