@@ -251,6 +251,7 @@ const DashboardHomePage = () => {
   const [supportTab, setSupportTab] = useState<SupportTab>("home");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [entered, setEntered] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   useEffect(() => {
     const reduce =
@@ -259,6 +260,24 @@ const DashboardHomePage = () => {
     const raf = requestAnimationFrame(() => setEntered(true));
     if (reduce) setEntered(true);
     return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (window.localStorage.getItem(TUTORIAL_SEEN_KEY)) return;
+    } catch {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setTutorialOpen(true);
+      try {
+        window.localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+    }, 900);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const cta = ctaSlides[activeCta];
