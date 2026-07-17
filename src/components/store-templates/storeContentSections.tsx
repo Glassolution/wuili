@@ -198,8 +198,8 @@ export const StoreUrgencyBanner = ({ accent }: { accent: string }) => (
   </section>
 );
 
-/** Depoimentos de clientes (3 cards com aspas + avatar circular). */
-export const StoreTestimonials = ({ image, accent, mobile = false }: ContentProps) => {
+/** Depoimentos — avatar de iniciais coloridas (nunca foto do produto). */
+export const StoreTestimonials = ({ accent, mobile = false }: ContentProps) => {
   const items = [
     ["Ana P.", "Superou minhas expectativas. Já indiquei pra amigas."],
     ["Rafael M.", "Chegou rápido e é exatamente como na descrição."],
@@ -212,23 +212,30 @@ export const StoreTestimonials = ({ image, accent, mobile = false }: ContentProp
           O que dizem quem já comprou
         </h2>
         <div className="mt-9 grid gap-6" style={{ gridTemplateColumns: mobile ? "1fr" : "repeat(3, minmax(0,1fr))" }}>
-          {items.map(([name, text]) => (
-            <div key={name} className="rounded-[16px] border border-black/[0.07] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
-              <Quote data-editor-type="icon" data-editor-icon="Quote" size={22} style={{ color: accent }} />
-              <p data-editor-type="text" className="mt-3 text-[15px] leading-[1.6] text-black/75">"{text}"</p>
-              <div className="mt-5 flex items-center gap-3">
-                <span className="h-10 w-10 overflow-hidden rounded-full bg-[#e9e7e2]">
-                  {image ? <img data-editor-type="image" src={image} alt="" className="h-full w-full object-cover" /> : null}
-                </span>
-                <div>
-                  <div data-editor-type="text" className="text-[13px] font-bold text-black">{name}</div>
-                  <div className="flex items-center gap-0.5 text-[#f5b800]">
-                    {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={12} className="fill-current" />)}
+          {items.map(([name, text]) => {
+            const hue = stringToHue(name);
+            return (
+              <div key={name} className="rounded-[16px] border border-black/[0.07] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
+                <Quote data-editor-type="icon" data-editor-icon="Quote" size={22} style={{ color: accent }} />
+                <p data-editor-type="text" className="mt-3 text-[15px] leading-[1.6] text-black/75">"{text}"</p>
+                <div className="mt-5 flex items-center gap-3">
+                  <span
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-bold text-white"
+                    style={{ backgroundColor: `hsl(${hue} 55% 45%)` }}
+                    aria-hidden="true"
+                  >
+                    {initialsOf(name)}
+                  </span>
+                  <div>
+                    <div data-editor-type="text" className="text-[13px] font-bold text-black">{name}</div>
+                    <div className="flex items-center gap-0.5 text-[#f5b800]">
+                      {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={12} className="fill-current" />)}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
