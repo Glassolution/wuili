@@ -289,6 +289,17 @@ Deno.serve(async (req) => {
     // Update profile plan if approved
     if (mpData.status === "approved") {
       await adminClient.from("profiles").update({ plano: plan }).eq("user_id", userId);
+
+      // Marca o referral como 'subscribed' e credita reward do convidador (se aplicável)
+      if (appliedReferralId) {
+        await adminClient.from("referrals").update({
+          status: "subscribed",
+          subscribed_at: now.toISOString(),
+          invited_rewarded: true,
+          inviter_rewarded: rewardInviter,
+        }).eq("id", appliedReferralId);
+      }
+
       if (!isTrial && subscriptionRow) {
         const emailResult = await sendSubscriptionConfirmationEmailOnce({
           adminClient,
