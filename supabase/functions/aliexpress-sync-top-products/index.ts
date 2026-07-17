@@ -602,37 +602,62 @@ serve(async (req) => {
       console.log(
         `[aliexpress-sync-top-products] keyword="${keyword}" coletados=${collectedForKeyword}`,
       );
+
+      // Progresso incremental por keyword (facilita diagnóstico se travar depois).
+      await patchLog({
+        categories_processed: keywords.indexOf(keyword) + 1,
+        error_count: errorCount,
+        error_message: errors.slice(0, 5).join(" | ") || null,
+      });
     }
 
     console.log(
       `[aliexpress-sync-top-products] agregado: ${detailed.length} produtos únicos em ${keywords.length} keywords`,
     );
 
-    // PASSO 1.5 — Enriquecimento: puxa dados reais (galeria completa, descrição, vendas, avaliação, reviews)
+    // PASSO 1.5 — Enriquecimento em PARALELO (batches de DETAIL_BATCH_SIZE).
+    // A versão sequencial anterior estourava o wall-time do runtime com MAX_DETAIL_FETCHES=300.
     const enrichLimit = Math.min(detailed.length, MAX_DETAIL_FETCHES);
+    const enrichStart = Date.now();
     console.log(
-      `[aliexpress-sync-top-products] enriquecendo ${enrichLimit} produtos via aliexpress.ds.product.get`,
+      `[aliexpress-sync-top-products] enriquecendo ${enrichLimit} produtos via aliexpress.ds.product.get (batches de ${DETAIL_BATCH_SIZE})`,
     );
     let enrichedCount = 0;
-    for (let i = 0; i < enrichLimit; i++) {
-      const item = detailed[i];
-      const detail = await fetchProductDetail(item.external_id, {
-        appKey,
-        appSecret,
-        accessToken,
-      });
-      if (detail) {
-        if (detail.images.length > 0) item.images = detail.images;
-        // Descrição intencionalmente ignorada — não salvamos mais este campo.
-        if (detail.orders_count != null) item.orders_count = detail.orders_count;
-        if (detail.rating != null) item.rating = detail.rating;
-        if (detail.reviews_count != null) item.reviews_count = detail.reviews_count;
-        enrichedCount++;
+    let rateLimitHits = 0;
+    for (let i = 0; i < enrichLimit; i += DETAIL_BATCH_SIZE) {
+      const slice = detailed.slice(i, Math.min(i + DETAIL_BATCH_SIZE, enrichLimit));
+      const results = await Promise.all(
+        slice.map((item) =>
+          fetchProductDetail(item.external_id, { appKey, appSecret, accessToken })
+            .then((detail) => ({ item, detail, err: null as unknown }))
+            .catch((err) => ({ item, detail: null, err })),
+        ),
+      );
+      for (const { item, detail, err } of results) {
+        if (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (/rate.?limit|too many|frequency|qps/i.test(msg)) rateLimitHits++;
+          continue;
+        }
+        if (detail) {
+          if (detail.images.length > 0) item.images = detail.images;
+          if (detail.orders_count != null) item.orders_count = detail.orders_count;
+          if (detail.rating != null) item.rating = detail.rating;
+          if (detail.reviews_count != null) item.reviews_count = detail.reviews_count;
+          enrichedCount++;
+        }
       }
-      await sleep(DETAIL_DELAY_MS);
+      const done = Math.min(i + DETAIL_BATCH_SIZE, enrichLimit);
+      console.log(
+        `[aliexpress-sync-top-products] enrich progresso ${done}/${enrichLimit} (ok=${enrichedCount}, rateLimit=${rateLimitHits}, elapsed=${Date.now() - enrichStart}ms)`,
+      );
+      if (((i / DETAIL_BATCH_SIZE) | 0) % 5 === 0) {
+        await patchLog({ products_updated: enrichedCount });
+      }
+      if (i + DETAIL_BATCH_SIZE < enrichLimit) await sleep(DETAIL_BATCH_DELAY_MS);
     }
     console.log(
-      `[aliexpress-sync-top-products] enriquecimento concluído: ${enrichedCount}/${enrichLimit}`,
+      `[aliexpress-sync-top-products] enriquecimento concluído: ${enrichedCount}/${enrichLimit} em ${Date.now() - enrichStart}ms (rateLimit hits=${rateLimitHits})`,
     );
 
     // Regra fixa: produto AliExpress só é publicável se tiver >= MIN_IMAGES_REQUIRED fotos.
