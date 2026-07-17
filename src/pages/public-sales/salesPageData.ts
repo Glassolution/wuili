@@ -83,12 +83,13 @@ export function useSalesPageData(slug: string | undefined) {
         // 1) Tenta generated_sales_pages
         const { data: gsp } = await supabase
           .from("generated_sales_pages")
-          .select("id,user_id,catalog_product_id,product_title,hero_image_url,price_brl")
+          .select("id,user_id,catalog_product_id,product_title,hero_image_url,price_brl,store_name,store_logo_url,store_description")
           .eq("slug", slug)
           .maybeSingle();
 
         if (gsp) {
           if (!active) return;
+          const g = gsp as typeof gsp & { store_name?: string | null; store_logo_url?: string | null; store_description?: string | null };
           setData({
             slug,
             ownerUserId: gsp.user_id,
@@ -97,7 +98,9 @@ export function useSalesPageData(slug: string | undefined) {
             productImage: gsp.hero_image_url ?? null,
             price: Number(gsp.price_brl ?? 0),
             accent: "#0A0A0A",
-            brand: gsp.product_title || "Loja",
+            brand: g.store_name || gsp.product_title || "Loja",
+            storeLogoUrl: g.store_logo_url ?? null,
+            storeDescription: g.store_description ?? null,
           });
           return;
         }
