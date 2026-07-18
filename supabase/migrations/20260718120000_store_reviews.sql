@@ -34,16 +34,18 @@ CREATE POLICY "store_reviews_public_read"
   TO anon, authenticated
   USING (true);
 
--- Escrita pública, mas só para projeto que existe. Os CHECK da tabela cuidam
--- de nota e tamanho; aqui impedimos avaliação órfã/apontando para nada.
+-- Escrita pública: o visitante da vitrine não autentica. Não checamos aqui se o
+-- projeto existe porque a FK project_id -> user_projects(id) já garante isso, e a
+-- validação da FK roda como dono da tabela (ignora RLS). Um EXISTS sobre
+-- user_projects, ao contrário, roda sob a RLS do anon — que não enxerga projeto
+-- nenhum — e bloquearia toda avaliação anônima. Os CHECK da tabela cuidam de
+-- nota e tamanho.
 DROP POLICY IF EXISTS "store_reviews_public_insert" ON public.store_reviews;
 CREATE POLICY "store_reviews_public_insert"
   ON public.store_reviews
   FOR INSERT
   TO anon, authenticated
-  WITH CHECK (
-    EXISTS (SELECT 1 FROM public.user_projects p WHERE p.id = project_id)
-  );
+  WITH CHECK (true);
 
 -- Só o dono do projeto remove uma avaliação (spam/ofensa). Ninguém edita:
 -- alterar o texto de um cliente descaracterizaria a avaliação.
