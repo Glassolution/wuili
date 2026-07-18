@@ -181,7 +181,7 @@ const AdminPainelPage = () => {
     const sumSubscriptions = (start: Date, end: Date) =>
       data.subscriptions.reduce((sum, subscription) => {
         if (!PAID_STATUSES.has(String(subscription.status ?? "").toLowerCase())) return sum;
-        return inRange(subscription.updated_at ?? subscription.created_at, start, end)
+        return inRange(subscription.created_at, start, end)
           ? sum + Number(subscription.amount ?? 0)
           : sum;
       }, 0);
