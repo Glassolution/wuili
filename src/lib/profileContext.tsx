@@ -21,8 +21,10 @@ const getMetadataName = (user: ReturnType<typeof useAuth>["user"]) =>
   user?.user_metadata?.name ||
   (user?.email ? user.email.split("@")[0] : "Usuario");
 
-const getMetadataAvatar = (user: ReturnType<typeof useAuth>["user"]) =>
-  user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
+// Não usamos avatares do provedor OAuth (Google/etc) como fallback,
+// pois eles retornam imagens padrão genéricas que não são realmente
+// "foto do usuário". Só consideramos a foto explicitamente enviada em profiles.avatar_url.
+const getMetadataAvatar = (_user: ReturnType<typeof useAuth>["user"]): string | null => null;
 
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
