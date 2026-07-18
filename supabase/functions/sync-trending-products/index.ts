@@ -289,7 +289,17 @@ Deno.serve(async (req) => {
           const brand = extractBrand(prod);
           const soldMonthEstimate = estimateMonthlyFromRank(hi.position);
 
-          const match = pickBestAliMatch(prod.name, aliCandidates);
+          let match = pickBestAliMatch(prod.name, aliCandidates);
+
+          // Fallback: se match fraco, busca no AliExpress usando os tokens do próprio produto ML.
+          if (!match || match.score < SIM_THRESHOLD_ALTO) {
+            const tokens = normalize(prod.name).slice(0, 3).join(" ");
+            if (tokens.length >= 4) {
+              const perProduct = await searchAliexpress(tokens);
+              const alt = pickBestAliMatch(prod.name, perProduct);
+              if (alt && (!match || alt.score > match.score)) match = alt;
+            }
+          }
 
           if (!match || match.score < SIM_THRESHOLD_MEDIO) {
             await supabase.from("trending_products_staging").insert({
