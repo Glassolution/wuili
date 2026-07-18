@@ -4,6 +4,7 @@ import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
+import defaultAvatar from "@/assets/default-avatar.png.asset.json";
 import {
   Menu, Search, ChevronRight, X, type LucideIcon,
   LayoutGrid, ShoppingCart, BookOpen, Star, Users,
@@ -125,11 +126,7 @@ const DashboardTopbar = () => {
               onClick={() => setAvatarMenuOpen((v) => !v)}
               className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              {foto ? (
-                <img src={foto} alt="avatar" className="h-full w-full object-cover" />
-              ) : (
-                iniciais || "VL"
-              )}
+              <img src={foto || defaultAvatar.url} alt="avatar" className="h-full w-full object-cover" />
             </button>
 
             {avatarMenuOpen && (
@@ -141,7 +138,7 @@ const DashboardTopbar = () => {
                   className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted transition-colors"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white">
-                    {foto ? <img src={foto} alt="avatar" className="h-full w-full object-cover" /> : iniciais || "VL"}
+                    <img src={foto || defaultAvatar.url} alt="avatar" className="h-full w-full object-cover" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground">{nome || "Usuário"}</p>

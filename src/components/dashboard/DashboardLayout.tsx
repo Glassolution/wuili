@@ -24,6 +24,7 @@ import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { usePlan } from "@/hooks/usePlan";
 import { useProfile } from "@/lib/profileContext";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
+import defaultAvatar from "@/assets/default-avatar.png.asset.json";
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
 import { isChunkLoadError, recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 import {
@@ -219,7 +220,7 @@ const MobileAccountPage = ({
       </div>
       <Link to="/dashboard/configuracoes" className="flex min-w-0 items-center gap-4">
         <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/80 bg-white text-[18px] font-bold text-[#111111] shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-          {foto ? <img src={foto} alt="Avatar" className="h-full w-full object-cover" /> : initials || "VL"}
+          <img src={foto || defaultAvatar.url} alt="Avatar" className="h-full w-full object-cover" />
         </span>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">

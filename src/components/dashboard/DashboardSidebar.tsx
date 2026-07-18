@@ -6,6 +6,7 @@ import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import SearchPalette from "@/components/dashboard/SearchPalette";
+import defaultAvatar from "@/assets/default-avatar.png.asset.json";
 
 type NavItem = {
   label: string;
@@ -735,7 +736,7 @@ const DashboardSidebar = () => {
           style={styles.profileCard}
         >
           <span style={styles.avatar}>
-            {foto ? <img src={foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
+            <img src={foto || defaultAvatar.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </span>
           <span style={styles.profileText}>
             <span style={styles.profileName}>{profileName}</span>

@@ -20,6 +20,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
 import ShopifyIntegrationCard from "@/components/dashboard/ShopifyIntegrationCard";
+import defaultAvatar from "@/assets/default-avatar.png.asset.json";
 
 type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
 
@@ -65,7 +66,7 @@ const SettingsPage = () => {
         <div className={`mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 ${isSupportTab ? "hidden md:block" : ""}`}>
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-base font-semibold text-white dark:bg-white dark:text-black">
-              {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : iniciais}
+              <img src={foto || defaultAvatar.url} alt="" className="h-full w-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[16px] font-semibold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
@@ -232,7 +233,7 @@ const ProfileTab = () => {
             className="w-[72px] h-[72px] rounded-full bg-black text-white flex items-center justify-center text-[24px] font-semibold overflow-hidden transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
             aria-label="Trocar foto de perfil"
           >
-            {avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" /> : iniciais}
+            <img src={avatarSrc || defaultAvatar.url} alt="Foto de perfil" className="w-full h-full object-cover" />
           </button>
           <button
             onClick={() => inputRef.current?.click()}
