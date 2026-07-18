@@ -126,11 +126,7 @@ const DashboardTopbar = () => {
               onClick={() => setAvatarMenuOpen((v) => !v)}
               className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              {foto ? (
-                <img src={foto} alt="avatar" className="h-full w-full object-cover" />
-              ) : (
-                iniciais || "VL"
-              )}
+              <img src={foto || defaultAvatar.url} alt="avatar" className="h-full w-full object-cover" />
             </button>
 
             {avatarMenuOpen && (
