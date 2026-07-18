@@ -693,7 +693,10 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
   return createPortal(
     <div
       className="fixed left-0 right-0 bottom-0 z-[60] flex justify-end"
-      style={{ top: startModeOffset, height: `calc(100vh - ${startModeOffset}px)` }}
+      // 100dvh (não 100vh): no iOS Safari o 100vh usa o viewport "grande" (com as
+      // barras recolhidas), maior que a área visível, e empurrava o rodapé com o
+      // botão de publicar para baixo da tela. O dvh acompanha a altura real visível.
+      style={{ top: startModeOffset, height: `calc(100dvh - ${startModeOffset}px)` }}
     >
       {/* Overlay */}
       <div
