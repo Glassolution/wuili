@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  FileText,
   ImageIcon,
   Link2,
   Loader2,
@@ -132,11 +131,16 @@ const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
   },
 };
 
+// Por enquanto só é possível criar página de vendas. A criação de loja completa
+// está desativada, então o tipo é fixo e a escolha some do formulário.
+const FIXED_TIPO: ProjectType = "pagina_venda";
+
 type ProjectCreationWizardProps = {
   open: boolean;
   onClose: () => void;
+  /** Ignorado enquanto a criação de loja completa está desativada. */
   defaultTipo?: ProjectType;
-  /** Se definido, esconde a escolha "página de vendas / loja completa" e trava neste tipo. */
+  /** Ignorado enquanto a criação de loja completa está desativada. */
   lockedTipo?: ProjectType;
   /** Se definido, pula a etapa de escolha de produtos e usa esses IDs. */
   preselectedProductIds?: string[];
@@ -146,12 +150,9 @@ type ProjectCreationWizardProps = {
 const ProjectCreationWizard = ({
   open,
   onClose,
-  defaultTipo = "pagina_venda",
-  lockedTipo,
   preselectedProductIds,
   onCreated,
 }: ProjectCreationWizardProps) => {
-  const initialTipo = lockedTipo ?? defaultTipo;
   const skipProducts = !!(preselectedProductIds && preselectedProductIds.length > 0);
   const [step, setStep] = useState<Step>("info");
   const [direction, setDirection] = useState(0);
@@ -162,11 +163,8 @@ const ProjectCreationWizard = ({
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [draggingLogo, setDraggingLogo] = useState(false);
   const [logoUrlInput, setLogoUrlInput] = useState("");
-  const [tipo, setTipo] = useState<ProjectType>(initialTipo);
   const [selectedProducts, setSelectedProducts] = useState<string[]>(preselectedProductIds ?? []);
-  const [templateId, setTemplateId] = useState<string>(
-    initialTipo === "loja_completa" ? "loja-1" : "produto-1",
-  );
+  const [templateId, setTemplateId] = useState<string>("produto-1");
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -188,14 +186,13 @@ const ProjectCreationWizard = ({
     setLogoName(null);
     setDraggingLogo(false);
     setLogoUrlInput("");
-    setTipo(initialTipo);
     setSelectedProducts(preselectedProductIds ?? []);
-    setTemplateId(initialTipo === "loja_completa" ? "loja-1" : "produto-1");
+    setTemplateId("produto-1");
     setSearch("");
     setLoadingIndex(0);
     setError(null);
     creatingRef.current = false;
-  }, [open, initialTipo, preselectedProductIds]);
+  }, [open, preselectedProductIds]);
 
   useEffect(() => {
     if (!open || step !== "produtos" || products.length > 0) return;
@@ -225,8 +222,8 @@ const ProjectCreationWizard = ({
   }, [open, step, products.length]);
 
   const availableTemplates = useMemo(
-    () => TEMPLATES.filter((template) => template.tipo === tipo),
-    [tipo],
+    () => TEMPLATES.filter((template) => template.tipo === FIXED_TIPO),
+    [],
   );
 
   const filteredProducts = useMemo(() => {
@@ -317,7 +314,7 @@ const ProjectCreationWizard = ({
       const project = await createUserProject({
         nome,
         descricao,
-        tipo,
+        tipo: FIXED_TIPO,
         productIds: selectedProducts,
         template: templateId,
         logoImage,
@@ -665,69 +662,6 @@ const ProjectCreationWizard = ({
                           className="w-full resize-none rounded-[12px] border border-[#E4E7EC] bg-white px-4 py-3 text-[14.5px] font-medium leading-6 text-[#101828] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#101828] focus:shadow-[0_0_0_4px_rgba(16,24,40,0.06)]"
                         />
                       </motion.div>
-
-                      {!lockedTipo ? (
-                        <motion.div variants={groupVariants}>
-                          <label className="mb-2.5 block text-[13px] font-semibold text-[#344054]">
-                            O que você quer criar?
-                          </label>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {[
-                              {
-                                value: "pagina_venda" as ProjectType,
-                                template: "produto-1",
-                                icon: FileText,
-                                label: "Página de vendas",
-                                description: "Uma oferta focada em um único produto.",
-                              },
-                              {
-                                value: "loja_completa" as ProjectType,
-                                template: "loja-1",
-                                icon: Store,
-                                label: "Loja completa",
-                                description: "Uma vitrine com vários produtos e coleções.",
-                              },
-                            ].map((option) => {
-                              const selected = tipo === option.value;
-                              const Icon = option.icon;
-                              return (
-                                <motion.button
-                                  key={option.value}
-                                  type="button"
-                                  onClick={() => {
-                                    setTipo(option.value);
-                                    setTemplateId(option.template);
-                                  }}
-                                  aria-pressed={selected}
-                                  whileTap={reduce ? undefined : { scale: 0.98 }}
-                                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                  className={`flex flex-col gap-2.5 rounded-[16px] p-4 text-left transition-[border-color,box-shadow,transform] duration-200 ${
-                                    selected
-                                      ? "border-[1.5px] border-[#101828] bg-white shadow-[0_4px_14px_rgba(16,24,40,0.08)]"
-                                      : "border border-[#E4E7EC] bg-white hover:-translate-y-0.5 hover:border-[#D0D5DD] hover:shadow-[0_6px_16px_-6px_rgba(16,24,40,0.12)]"
-                                  }`}
-                                >
-                                  <span
-                                    className={`grid h-10 w-10 place-items-center rounded-[11px] transition-colors duration-200 ${
-                                      selected
-                                        ? "bg-[#101828] text-white"
-                                        : "border border-[#EAECF0] bg-[#F9FAFB] text-[#475467]"
-                                    }`}
-                                  >
-                                    <Icon size={18} strokeWidth={1.8} />
-                                  </span>
-                                  <span className="text-[14px] font-semibold text-[#101828]">
-                                    {option.label}
-                                  </span>
-                                  <span className="text-[12.5px] leading-[18px] text-[#667085]">
-                                    {option.description}
-                                  </span>
-                                </motion.button>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-                      ) : null}
                     </div>
                   ) : null}
 
