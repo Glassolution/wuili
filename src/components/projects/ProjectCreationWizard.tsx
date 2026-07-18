@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { AnimatePresence, motion, useReducedMotion, type Variants } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   FileText,
   Loader2,
@@ -96,6 +97,37 @@ function getFirstImage(images: Json | null): string | null {
 
 type Step = "info" | "produtos" | "template" | "loading";
 
+// Easing "ease-out expo" — mesma sensação premium usada no modal de onboarding.
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+// Botão primário "glossy": mesmo token de design do botão do modal de onboarding
+// (fundo #1D1F23 com brilho no topo, stroke preto, sombra dupla e text-shadow).
+const primaryButtonStyle: CSSProperties = {
+  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #1D1F23",
+  borderTop: "1.5px solid rgba(255,255,255,0.15)",
+  boxShadow: "0px 4px 7px rgba(0,0,0,0.2), 0px 0px 0px 1.5px #000000",
+  textShadow: "0px 4px 4px rgba(0,0,0,0.4)",
+};
+
+const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
+  info: {
+    title: "Vamos começar",
+    subtitle: "Dê um nome e uma identidade ao seu projeto.",
+  },
+  produtos: {
+    title: "Escolha os produtos",
+    subtitle: "Selecione o que vai fazer parte deste projeto.",
+  },
+  template: {
+    title: "Escolha o template",
+    subtitle: "Selecione o layout que combina com a sua marca.",
+  },
+  loading: {
+    title: "Gerando seu projeto",
+    subtitle: "Isso leva só alguns segundos. Não feche esta janela.",
+  },
+};
+
 type ProjectCreationWizardProps = {
   open: boolean;
   onClose: () => void;
@@ -118,6 +150,7 @@ const ProjectCreationWizard = ({
   const initialTipo = lockedTipo ?? defaultTipo;
   const skipProducts = !!(preselectedProductIds && preselectedProductIds.length > 0);
   const [step, setStep] = useState<Step>("info");
+  const [direction, setDirection] = useState(0);
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [logoImage, setLogoImage] = useState<string | null>(null);
@@ -136,10 +169,12 @@ const ProjectCreationWizard = ({
   const [error, setError] = useState<string | null>(null);
   const creatingRef = useRef(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     if (!open) return;
     setStep("info");
+    setDirection(0);
     setNome("");
     setDescricao("");
     setLogoImage(null);
@@ -198,6 +233,12 @@ const ProjectCreationWizard = ({
 
   const canContinueInfo = nome.trim().length >= 2;
 
+  // Navegação entre etapas guardando a direção, para o slide sair no sentido certo.
+  const goTo = (next: Step, dir: 1 | -1) => {
+    setDirection(dir);
+    setStep(next);
+  };
+
   const handleLogoUpload = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       veloToast.error("Envie um arquivo de imagem.");
@@ -229,12 +270,11 @@ const ProjectCreationWizard = ({
     }
   };
 
-
   const runCreation = async () => {
     if (creatingRef.current) return;
     creatingRef.current = true;
     setError(null);
-    setStep("loading");
+    goTo("loading", 1);
 
     const started = Date.now();
     try {
@@ -258,7 +298,7 @@ const ProjectCreationWizard = ({
         (createError as { message?: string })?.message ??
           "Não foi possível criar o projeto. Tente novamente.",
       );
-      setStep("template");
+      goTo("template", -1);
     }
   };
 
@@ -272,6 +312,36 @@ const ProjectCreationWizard = ({
   }, [step]);
 
   const stepIndex = step === "info" ? 0 : step === "produtos" ? 1 : step === "template" ? 2 : 3;
+  const totalSteps = skipProducts ? 2 : 3;
+  const currentStepNumber = skipProducts ? (step === "info" ? 1 : 2) : stepIndex + 1;
+
+  // Slide + fade direcional do conteúdo da etapa, com stagger dos grupos ao entrar.
+  const contentVariants: Variants = {
+    initial: (dir: number) => ({ opacity: 0, x: reduce ? 0 : dir >= 0 ? 24 : -24 }),
+    animate: {
+      opacity: 1,
+      x: 0,
+      transition: {
+        duration: reduce ? 0.001 : 0.3,
+        ease: EASE,
+        staggerChildren: reduce ? 0 : 0.05,
+        delayChildren: reduce ? 0 : 0.04,
+      },
+    },
+    exit: (dir: number) => ({
+      opacity: 0,
+      x: reduce ? 0 : dir >= 0 ? -24 : 24,
+      transition: { duration: reduce ? 0.001 : 0.2, ease: EASE },
+    }),
+  };
+
+  const groupVariants: Variants = {
+    initial: { opacity: 0, y: reduce ? 0 : 10 },
+    animate: { opacity: 1, y: 0, transition: { duration: reduce ? 0.001 : 0.28, ease: EASE } },
+  };
+
+  const copy = STEP_COPY[step];
+  const showBack = step !== "info" && step !== "loading";
 
   return (
     <AnimatePresence>
@@ -281,430 +351,513 @@ const ProjectCreationWizard = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+          transition={{ duration: 0.2, ease: EASE }}
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-[#0C111D]/50 p-4 backdrop-blur-[3px]"
           onClick={step === "loading" ? undefined : onClose}
         >
           <motion.div
             key="wizard-panel"
-            initial={{ opacity: 0, scale: 0.96, y: 16 }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 18 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 10 }}
-            transition={{ type: "spring", stiffness: 320, damping: 30 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 10 }}
+            transition={{ type: "spring", stiffness: 340, damping: 32, mass: 0.9 }}
             onClick={(event) => event.stopPropagation()}
-            className="flex max-h-[88vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_40px_120px_rgba(0,0,0,0.35)]"
+            className="flex max-h-[88vh] w-full max-w-[720px] flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_32px_80px_rgba(16,24,40,0.20),0_0_0_1px_rgba(16,24,40,0.04)]"
           >
-            <div className="flex items-center justify-between border-b border-[#ececea] px-6 py-4">
-              <div className="flex items-center gap-3">
-                {step !== "info" && step !== "loading" ? (
-                  <button
-                    type="button"
-                    onClick={() => setStep(step === "produtos" ? "info" : skipProducts ? "info" : "produtos")}
-                    className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#5f6368] transition hover:bg-[#f3f3f1]"
-                    aria-label="Voltar"
+            {/* Cabeçalho: ícone em caixa clara + título/subtítulo + fechar. */}
+            <div className="flex items-start gap-3.5 px-6 pt-6 pb-5">
+              {showBack ? (
+                <motion.button
+                  type="button"
+                  onClick={() => goTo(step === "produtos" ? "info" : skipProducts ? "info" : "produtos", -1)}
+                  whileTap={reduce ? undefined : { scale: 0.94 }}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border border-[#EAECF0] bg-white text-[#344054] shadow-[0_1px_2px_rgba(16,24,40,0.06)] transition-colors hover:bg-[#F9FAFB]"
+                  aria-label="Voltar"
+                >
+                  <ArrowLeft size={19} strokeWidth={1.9} />
+                </motion.button>
+              ) : (
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border border-[#EAECF0] bg-white text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
+                  <Sparkles size={20} strokeWidth={1.8} />
+                </span>
+              )}
+
+              <div className="min-w-0 flex-1 pt-0.5">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={step}
+                    initial={reduce ? false : { opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                    transition={{ duration: reduce ? 0.001 : 0.24, ease: EASE }}
                   >
-                    <ArrowLeft size={17} />
-                  </button>
-                ) : (
-                  <span className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-black text-white">
-                    <Sparkles size={16} />
-                  </span>
-                )}
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9a9a96]">
-                    Novo projeto
-                  </p>
-                  <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-[#18191c]">
-                    {step === "info"
-                      ? "Vamos começar"
-                      : step === "produtos"
-                        ? "Escolha os produtos"
-                        : step === "template"
-                          ? "Escolha o template"
-                          : "Gerando seu projeto"}
-                  </h2>
-                </div>
+                    <h2 className="truncate text-[19px] font-semibold tracking-[-0.02em] text-[#101828]">
+                      {copy.title}
+                    </h2>
+                    <p className="mt-0.5 text-[13.5px] leading-5 text-[#667085]">{copy.subtitle}</p>
+                  </motion.div>
+                </AnimatePresence>
               </div>
+
               {step !== "loading" ? (
-                <button
+                <motion.button
                   type="button"
                   onClick={onClose}
-                  className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#5f6368] transition hover:bg-[#f3f3f1]"
+                  whileTap={reduce ? undefined : { scale: 0.9 }}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[#98A2B3] transition-colors hover:bg-[#F2F4F7] hover:text-[#344054]"
                   aria-label="Fechar"
                 >
-                  <X size={17} />
-                </button>
+                  <X size={19} strokeWidth={1.9} />
+                </motion.button>
               ) : null}
             </div>
 
+            <div className="h-px w-full bg-[#EEF0F3]" />
+
+            {/* Progresso segmentado com preenchimento animado. */}
             {step !== "loading" ? (
-              <div className="flex items-center gap-1.5 px-6 pt-3">
+              <div className="flex items-center gap-2 px-6 pt-5">
                 {(skipProducts ? [0, 1] : [0, 1, 2]).map((index) => {
-                  const activeIndex = skipProducts
-                    ? (step === "info" ? 0 : step === "template" ? 1 : 1)
-                    : stepIndex;
+                  const activeIndex = skipProducts ? (step === "info" ? 0 : 1) : stepIndex;
                   return (
-                    <span
-                      key={index}
-                      className={`h-1 flex-1 rounded-full transition-colors ${
-                        index <= activeIndex ? "bg-black" : "bg-[#e6e6e2]"
-                      }`}
-                    />
+                    <span key={index} className="h-[5px] flex-1 overflow-hidden rounded-full bg-[#EAECF0]">
+                      <motion.span
+                        className="block h-full w-full rounded-full bg-[#101828]"
+                        style={{ originX: 0 }}
+                        initial={false}
+                        animate={{ scaleX: index <= activeIndex ? 1 : 0 }}
+                        transition={{ duration: reduce ? 0.001 : 0.42, ease: [0.16, 1, 0.3, 1] }}
+                      />
+                    </span>
                   );
                 })}
               </div>
             ) : null}
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
               {error ? (
-                <div className="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-4 py-2.5 text-[12px] font-semibold text-red-700">
+                <motion.div
+                  initial={reduce ? false : { opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-5 rounded-[12px] border border-[#FECDCA] bg-[#FEF3F2] px-4 py-3 text-[13px] font-medium text-[#B42318]"
+                >
                   {error}
-                </div>
+                </motion.div>
               ) : null}
 
-              {step === "info" ? (
-                <div className="space-y-5">
-                  <div>
-                    <label className="mb-1.5 block text-[12px] font-semibold text-[#33363b]">
-                      Nome da loja
-                    </label>
-                    <input
-                      value={nome}
-                      onChange={(event) => setNome(event.target.value)}
-                      placeholder="Ex.: Minha loja de acessórios"
-                      autoFocus
-                      className="h-11 w-full rounded-[10px] border border-[#e0e0dc] px-3.5 text-[14px] font-medium outline-none transition focus:border-black focus:ring-4 focus:ring-black/5"
-                    />
-                  </div>
+              <AnimatePresence mode="wait" custom={direction}>
+                <motion.div
+                  key={step}
+                  custom={direction}
+                  variants={contentVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  {step === "info" ? (
+                    <div className="space-y-5">
+                      <motion.div variants={groupVariants}>
+                        <label className="mb-2 block text-[13px] font-semibold text-[#344054]">
+                          Nome da loja
+                        </label>
+                        <input
+                          value={nome}
+                          onChange={(event) => setNome(event.target.value)}
+                          placeholder="Ex.: Minha loja de acessórios"
+                          autoFocus
+                          className="h-12 w-full rounded-[12px] border border-[#E4E7EC] bg-white px-4 text-[14.5px] font-medium text-[#101828] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#101828] focus:shadow-[0_0_0_4px_rgba(16,24,40,0.06)]"
+                        />
+                      </motion.div>
 
-                  <div>
-                    <label className="mb-1.5 block text-[12px] font-semibold text-[#33363b]">
-                      Logo / Foto da loja
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => logoInputRef.current?.click()}
-                        disabled={uploadingLogo}
-                        className="h-16 w-16 shrink-0 rounded-[10px] border border-dashed border-[#d8d8d3] bg-[#faf9f7] flex items-center justify-center overflow-hidden hover:border-black/40 transition"
-                      >
-                        {uploadingLogo ? (
-                          <Loader2 size={18} className="animate-spin text-[#9a9a96]" />
-                        ) : logoImage ? (
-                          <img src={logoImage} alt="logo" className="w-full h-full object-cover" />
-                        ) : (
-                          <Store size={20} className="text-[#9a9a96]" />
-                        )}
-                      </button>
-                      <div className="flex-1">
-                        <button
-                          type="button"
-                          onClick={() => logoInputRef.current?.click()}
-                          disabled={uploadingLogo}
-                          className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#e0e0dc] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#18191c] hover:bg-[#f5f5f3] transition"
-                        >
-                          <Upload size={12} />
-                          {logoImage ? "Trocar imagem" : "Enviar imagem"}
-                        </button>
-                        <p className="mt-1 text-[10.5px] text-[#9a9a96]">PNG ou JPG, até 5MB.</p>
-                      </div>
-                      <input
-                        ref={logoInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) handleLogoUpload(f);
-                          e.target.value = "";
-                        }}
-                      />
-                    </div>
-                  </div>
+                      <motion.div variants={groupVariants}>
+                        <label className="mb-2 block text-[13px] font-semibold text-[#344054]">
+                          Logo / Foto da loja
+                        </label>
+                        <div className="flex items-center gap-4 rounded-[14px] border border-dashed border-[#D0D5DD] bg-[#F9FAFB] p-4 transition-colors hover:border-[#98A2B3]">
+                          <motion.button
+                            type="button"
+                            onClick={() => logoInputRef.current?.click()}
+                            disabled={uploadingLogo}
+                            whileTap={reduce ? undefined : { scale: 0.96 }}
+                            className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-[12px] border border-[#EAECF0] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.06)] transition-colors hover:border-[#98A2B3]"
+                          >
+                            {uploadingLogo ? (
+                              <Loader2 size={19} className="animate-spin text-[#98A2B3]" />
+                            ) : logoImage ? (
+                              <img src={logoImage} alt="logo" className="h-full w-full object-cover" />
+                            ) : (
+                              <Store size={20} strokeWidth={1.7} className="text-[#98A2B3]" />
+                            )}
+                          </motion.button>
+                          <div className="min-w-0 flex-1">
+                            <motion.button
+                              type="button"
+                              onClick={() => logoInputRef.current?.click()}
+                              disabled={uploadingLogo}
+                              whileTap={reduce ? undefined : { scale: 0.97 }}
+                              className="inline-flex items-center gap-2 rounded-[10px] border border-[#D0D5DD] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#344054] shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-colors hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Upload size={14} strokeWidth={2} />
+                              {logoImage ? "Trocar imagem" : "Enviar imagem"}
+                            </motion.button>
+                            <p className="mt-1.5 text-[12px] text-[#667085]">PNG ou JPG, até 5MB.</p>
+                          </div>
+                          <input
+                            ref={logoInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) handleLogoUpload(f);
+                              e.target.value = "";
+                            }}
+                          />
+                        </div>
+                      </motion.div>
 
-                  <div>
-                    <label className="mb-1.5 block text-[12px] font-semibold text-[#33363b]">
-                      Descrição
-                    </label>
-                    <textarea
-                      value={descricao}
-                      onChange={(event) => setDescricao(event.target.value)}
-                      placeholder="Conte em poucas palavras o que você vende e para quem."
-                      rows={3}
-                      className="w-full resize-none rounded-[10px] border border-[#e0e0dc] px-3.5 py-2.5 text-[14px] font-medium outline-none transition focus:border-black focus:ring-4 focus:ring-black/5"
-                    />
-                  </div>
+                      <motion.div variants={groupVariants}>
+                        <label className="mb-2 block text-[13px] font-semibold text-[#344054]">
+                          Descrição
+                        </label>
+                        <textarea
+                          value={descricao}
+                          onChange={(event) => setDescricao(event.target.value)}
+                          placeholder="Conte em poucas palavras o que você vende e para quem."
+                          rows={3}
+                          className="w-full resize-none rounded-[12px] border border-[#E4E7EC] bg-white px-4 py-3 text-[14.5px] font-medium leading-6 text-[#101828] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#101828] focus:shadow-[0_0_0_4px_rgba(16,24,40,0.06)]"
+                        />
+                      </motion.div>
 
-                  {!lockedTipo ? (
-                    <div>
-                      <label className="mb-2 block text-[12px] font-semibold text-[#33363b]">
-                        O que você quer criar?
-                      </label>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTipo("pagina_venda");
-                            setTemplateId("produto-1");
-                          }}
-                          className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
-                            tipo === "pagina_venda"
-                              ? "border-black ring-1 ring-black"
-                              : "border-[#e0e0dc] hover:border-black/40"
-                          }`}
-                        >
-                          <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
-                            <FileText size={17} />
-                          </span>
-                          <span className="text-[13.5px] font-semibold text-[#18191c]">
-                            Página de vendas
-                          </span>
-                          <span className="text-[11.5px] leading-4 text-[#6b7079]">
-                            Uma oferta focada em um único produto.
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTipo("loja_completa");
-                            setTemplateId("loja-1");
-                          }}
-                          className={`flex flex-col gap-2 rounded-[14px] border p-4 text-left transition ${
-                            tipo === "loja_completa"
-                              ? "border-black ring-1 ring-black"
-                              : "border-[#e0e0dc] hover:border-black/40"
-                          }`}
-                        >
-                          <span className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-black text-white">
-                            <Store size={17} />
-                          </span>
-                          <span className="text-[13.5px] font-semibold text-[#18191c]">
-                            Loja completa
-                          </span>
-                          <span className="text-[11.5px] leading-4 text-[#6b7079]">
-                            Uma vitrine com vários produtos e coleções.
-                          </span>
-                        </button>
-                      </div>
+                      {!lockedTipo ? (
+                        <motion.div variants={groupVariants}>
+                          <label className="mb-2.5 block text-[13px] font-semibold text-[#344054]">
+                            O que você quer criar?
+                          </label>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {[
+                              {
+                                value: "pagina_venda" as ProjectType,
+                                template: "produto-1",
+                                icon: FileText,
+                                label: "Página de vendas",
+                                description: "Uma oferta focada em um único produto.",
+                              },
+                              {
+                                value: "loja_completa" as ProjectType,
+                                template: "loja-1",
+                                icon: Store,
+                                label: "Loja completa",
+                                description: "Uma vitrine com vários produtos e coleções.",
+                              },
+                            ].map((option) => {
+                              const selected = tipo === option.value;
+                              const Icon = option.icon;
+                              return (
+                                <motion.button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => {
+                                    setTipo(option.value);
+                                    setTemplateId(option.template);
+                                  }}
+                                  aria-pressed={selected}
+                                  whileTap={reduce ? undefined : { scale: 0.98 }}
+                                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                  className={`flex flex-col gap-2.5 rounded-[16px] p-4 text-left transition-[border-color,box-shadow,transform] duration-200 ${
+                                    selected
+                                      ? "border-[1.5px] border-[#101828] bg-white shadow-[0_4px_14px_rgba(16,24,40,0.08)]"
+                                      : "border border-[#E4E7EC] bg-white hover:-translate-y-0.5 hover:border-[#D0D5DD] hover:shadow-[0_6px_16px_-6px_rgba(16,24,40,0.12)]"
+                                  }`}
+                                >
+                                  <span
+                                    className={`grid h-10 w-10 place-items-center rounded-[11px] transition-colors duration-200 ${
+                                      selected
+                                        ? "bg-[#101828] text-white"
+                                        : "border border-[#EAECF0] bg-[#F9FAFB] text-[#475467]"
+                                    }`}
+                                  >
+                                    <Icon size={18} strokeWidth={1.8} />
+                                  </span>
+                                  <span className="text-[14px] font-semibold text-[#101828]">
+                                    {option.label}
+                                  </span>
+                                  <span className="text-[12.5px] leading-[18px] text-[#667085]">
+                                    {option.description}
+                                  </span>
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      ) : null}
                     </div>
                   ) : null}
-                </div>
-              ) : null}
 
-              {step === "produtos" ? (
-                <div>
-                  <div className="relative mb-4">
-                    <Search
-                      size={16}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9a96]"
-                    />
-                    <input
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Buscar produtos do catálogo Velo"
-                      className="h-10 w-full rounded-[10px] border border-[#e0e0dc] pl-9 pr-3 text-[13px] font-medium outline-none transition focus:border-black focus:ring-4 focus:ring-black/5"
-                    />
-                  </div>
-                  {loadingProducts ? (
-                    <div className="flex h-48 items-center justify-center gap-2 text-[13px] font-semibold text-[#747982]">
-                      <Loader2 size={17} className="animate-spin" />
-                      Carregando catálogo...
+                  {step === "produtos" ? (
+                    <div>
+                      <motion.div variants={groupVariants} className="relative mb-4">
+                        <Search
+                          size={17}
+                          strokeWidth={1.9}
+                          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
+                        />
+                        <input
+                          value={search}
+                          onChange={(event) => setSearch(event.target.value)}
+                          placeholder="Buscar produtos do catálogo Velo"
+                          className="h-11 w-full rounded-[12px] border border-[#E4E7EC] bg-white pl-11 pr-4 text-[14px] font-medium text-[#101828] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#101828] focus:shadow-[0_0_0_4px_rgba(16,24,40,0.06)]"
+                        />
+                      </motion.div>
+
+                      {loadingProducts ? (
+                        <div className="flex h-52 items-center justify-center gap-2.5 text-[13.5px] font-medium text-[#667085]">
+                          <Loader2 size={18} className="animate-spin" />
+                          Carregando catálogo...
+                        </div>
+                      ) : filteredProducts.length === 0 ? (
+                        <div className="flex h-52 items-center justify-center text-[13.5px] font-medium text-[#667085]">
+                          Nenhum produto encontrado.
+                        </div>
+                      ) : (
+                        <motion.div variants={groupVariants} className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {filteredProducts.map((product) => {
+                            const selected = selectedProducts.includes(product.id);
+                            const image = getFirstImage(product.images);
+                            return (
+                              <motion.button
+                                key={product.id}
+                                type="button"
+                                onClick={() => toggleProduct(product.id)}
+                                aria-pressed={selected}
+                                whileTap={reduce ? undefined : { scale: 0.98 }}
+                                className={`group relative overflow-hidden rounded-[14px] text-left transition-[border-color,box-shadow] duration-200 ${
+                                  selected
+                                    ? "border-[1.5px] border-[#101828] shadow-[0_4px_14px_rgba(16,24,40,0.10)]"
+                                    : "border border-[#E4E7EC] hover:border-[#D0D5DD] hover:shadow-[0_6px_16px_-6px_rgba(16,24,40,0.12)]"
+                                }`}
+                              >
+                                <div className="aspect-square w-full overflow-hidden bg-[#F2F4F7]">
+                                  {image ? (
+                                    <img
+                                      src={image}
+                                      alt=""
+                                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.06]"
+                                    />
+                                  ) : (
+                                    <div className="grid h-full w-full place-items-center text-[#C6CBD4]">
+                                      <Store size={22} strokeWidth={1.7} />
+                                    </div>
+                                  )}
+                                </div>
+                                <AnimatePresence>
+                                  {selected ? (
+                                    <motion.span
+                                      initial={reduce ? false : { scale: 0, opacity: 0 }}
+                                      animate={{ scale: 1, opacity: 1 }}
+                                      exit={reduce ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+                                      transition={{ type: "spring", stiffness: 520, damping: 26 }}
+                                      className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-[#101828] text-white shadow-[0_2px_6px_rgba(16,24,40,0.3)]"
+                                    >
+                                      <Check size={13} strokeWidth={2.6} />
+                                    </motion.span>
+                                  ) : null}
+                                </AnimatePresence>
+                                <div className="bg-white p-3">
+                                  <p className="line-clamp-2 text-[12px] font-semibold leading-[17px] text-[#101828]">
+                                    {product.title}
+                                  </p>
+                                  <p className="mt-1 text-[12px] font-semibold text-[#667085]">
+                                    R$ {(product.cost_price * 5).toFixed(2)}
+                                  </p>
+                                </div>
+                              </motion.button>
+                            );
+                          })}
+                        </motion.div>
+                      )}
                     </div>
-                  ) : filteredProducts.length === 0 ? (
-                    <div className="flex h-48 items-center justify-center text-[13px] font-semibold text-[#747982]">
-                      Nenhum produto encontrado.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      {filteredProducts.map((product) => {
-                        const selected = selectedProducts.includes(product.id);
-                        const image = getFirstImage(product.images);
+                  ) : null}
+
+                  {step === "template" ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {availableTemplates.map((template) => {
+                        const selected = templateId === template.id;
                         return (
-                          <button
-                            key={product.id}
+                          <motion.button
+                            key={template.id}
                             type="button"
-                            onClick={() => toggleProduct(product.id)}
-                            className={`group relative overflow-hidden rounded-[12px] border text-left transition ${
+                            variants={groupVariants}
+                            onClick={() => setTemplateId(template.id)}
+                            aria-pressed={selected}
+                            whileTap={reduce ? undefined : { scale: 0.98 }}
+                            className={`overflow-hidden rounded-[16px] text-left transition-[border-color,box-shadow,transform] duration-200 ${
                               selected
-                                ? "border-black ring-1 ring-black"
-                                : "border-[#e8e8e4] hover:border-black/30"
+                                ? "border-[1.5px] border-[#101828] shadow-[0_4px_14px_rgba(16,24,40,0.10)]"
+                                : "border border-[#E4E7EC] hover:-translate-y-0.5 hover:border-[#D0D5DD] hover:shadow-[0_8px_20px_-8px_rgba(16,24,40,0.16)]"
                             }`}
                           >
-                            <div className="aspect-square w-full overflow-hidden bg-[#f4f4f2]">
-                              {image ? (
-                                <img
-                                  src={image}
-                                  alt=""
-                                  className="h-full w-full object-cover transition group-hover:scale-105"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-[#c4c4bf]">
-                                  <Store size={22} />
-                                </div>
-                              )}
+                            <div className="aspect-[4/3] w-full overflow-hidden bg-[#F2F4F7]">
+                              <img src={template.preview} alt="" className="h-full w-full object-cover" />
                             </div>
-                            {selected ? (
-                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-black text-white">
-                                <Check size={13} />
-                              </span>
-                            ) : null}
-                            <div className="p-2.5">
-                              <p className="line-clamp-2 text-[11.5px] font-semibold leading-4 text-[#232428]">
-                                {product.title}
-                              </p>
-                              <p className="mt-1 text-[11px] font-semibold text-[#6b7079]">
-                                R$ {(product.cost_price * 5).toFixed(2)}
-                              </p>
+                            <div className="flex items-start justify-between gap-2.5 bg-white p-4">
+                              <div className="min-w-0">
+                                <p className="text-[13.5px] font-semibold text-[#101828]">
+                                  {template.label}
+                                </p>
+                                <p className="mt-1 text-[12.5px] leading-[18px] text-[#667085]">
+                                  {template.description}
+                                </p>
+                              </div>
+                              <AnimatePresence>
+                                {selected ? (
+                                  <motion.span
+                                    initial={reduce ? false : { scale: 0, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={reduce ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+                                    transition={{ type: "spring", stiffness: 520, damping: 26 }}
+                                    className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#101828] text-white"
+                                  >
+                                    <Check size={13} strokeWidth={2.6} />
+                                  </motion.span>
+                                ) : null}
+                              </AnimatePresence>
                             </div>
-                          </button>
+                          </motion.button>
                         );
                       })}
                     </div>
-                  )}
-                </div>
-              ) : null}
+                  ) : null}
 
-              {step === "template" ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {availableTemplates.map((template) => {
-                    const selected = templateId === template.id;
-                    return (
-                      <button
-                        key={template.id}
-                        type="button"
-                        onClick={() => setTemplateId(template.id)}
-                        className={`overflow-hidden rounded-[14px] border text-left transition ${
-                          selected
-                            ? "border-black ring-1 ring-black"
-                            : "border-[#e8e8e4] hover:border-black/30"
-                        }`}
-                      >
-                        <div className="aspect-[4/3] w-full overflow-hidden bg-[#f4f4f2]">
-                          <img src={template.preview} alt="" className="h-full w-full object-cover" />
-                        </div>
-                        <div className="flex items-start justify-between gap-2 p-3.5">
-                          <div>
-                            <p className="text-[13px] font-semibold text-[#18191c]">
-                              {template.label}
-                            </p>
-                            <p className="mt-1 text-[11.5px] leading-4 text-[#6b7079]">
-                              {template.description}
-                            </p>
-                          </div>
-                          {selected ? (
-                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black text-white">
-                              <Check size={13} />
-                            </span>
-                          ) : null}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-
-              {step === "loading" ? (
-                <div className="py-4">
-                  <div className="mb-6 flex flex-col items-center text-center">
-                    <span className="relative flex h-14 w-14 items-center justify-center">
-                      <span className="absolute inset-0 animate-ping rounded-full bg-black/10" />
-                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black text-white">
-                        <Sparkles size={24} />
-                      </span>
-                    </span>
-                    <h3 className="mt-4 text-[16px] font-semibold tracking-[-0.02em] text-[#18191c]">
-                      A IA está montando seu projeto
-                    </h3>
-                    <p className="mt-1 text-[12.5px] text-[#6b7079]">
-                      Isso leva só alguns segundos. Não feche esta janela.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    {LOADING_STEPS.map((label, index) => {
-                      const done = index < loadingIndex;
-                      const active = index === loadingIndex;
-                      return (
-                        <div
-                          key={label}
-                          className={`flex items-center gap-3 rounded-[10px] px-3 py-2 text-[12.5px] font-medium transition ${
-                            active ? "bg-[#f5f5f3] text-[#18191c]" : "text-[#7c8189]"
-                          }`}
-                        >
-                          <span
-                            className={`flex h-5 w-5 items-center justify-center rounded-full ${
-                              done
-                                ? "bg-black text-white"
-                                : active
-                                  ? "bg-black/10 text-black"
-                                  : "bg-[#eeeeea] text-[#b7b7b1]"
-                            }`}
-                          >
-                            {done ? (
-                              <Check size={12} />
-                            ) : active ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                            )}
+                  {step === "loading" ? (
+                    <div className="py-2">
+                      <div className="mb-6 flex flex-col items-center text-center">
+                        <span className="relative grid h-16 w-16 place-items-center">
+                          <motion.span
+                            className="absolute inset-0 rounded-full bg-[#101828]/10"
+                            animate={reduce ? undefined : { scale: [1, 1.35, 1], opacity: [0.6, 0, 0.6] }}
+                            transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
+                          />
+                          <span className="grid h-16 w-16 place-items-center rounded-full bg-[#101828] text-white shadow-[0_8px_24px_rgba(16,24,40,0.28)]">
+                            <Sparkles size={26} strokeWidth={1.8} />
                           </span>
-                          {label}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-5 overflow-hidden rounded-[12px] bg-[#0e0f11] p-4 font-mono text-[11px] leading-5 text-[#8ce39b]">
-                    {LOADING_FILES.slice(0, Math.max(1, loadingIndex + 1)).map((file) => (
-                      <div key={file} className="flex items-center gap-2">
-                        <span className="text-[#5f6b73]">+</span>
-                        <span className="text-[#c8cdd2]">criando</span>
-                        <span>{file}</span>
+                        </span>
+                        <h3 className="mt-4 text-[17px] font-semibold tracking-[-0.02em] text-[#101828]">
+                          A IA está montando seu projeto
+                        </h3>
+                        <p className="mt-1 text-[13px] text-[#667085]">
+                          Isso leva só alguns segundos. Não feche esta janela.
+                        </p>
                       </div>
-                    ))}
-                    <div className="flex items-center gap-2 text-[#5f6b73]">
-                      <span className="inline-block h-3 w-1.5 animate-pulse bg-[#8ce39b]" />
+
+                      <div className="space-y-1.5">
+                        {LOADING_STEPS.map((label, index) => {
+                          const done = index < loadingIndex;
+                          const active = index === loadingIndex;
+                          return (
+                            <motion.div
+                              key={label}
+                              initial={false}
+                              animate={{ opacity: done || active ? 1 : 0.55 }}
+                              className={`flex items-center gap-3 rounded-[12px] px-3.5 py-2.5 text-[13px] font-medium transition-colors duration-300 ${
+                                active ? "bg-[#F9FAFB] text-[#101828]" : "text-[#667085]"
+                              }`}
+                            >
+                              <span
+                                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full transition-colors duration-300 ${
+                                  done
+                                    ? "bg-[#101828] text-white"
+                                    : active
+                                      ? "bg-[#101828]/10 text-[#101828]"
+                                      : "bg-[#EAECF0] text-[#B6BCC7]"
+                                }`}
+                              >
+                                {done ? (
+                                  <Check size={12} strokeWidth={2.8} />
+                                ) : active ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                )}
+                              </span>
+                              {label}
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-5 overflow-hidden rounded-[14px] bg-[#0C111D] p-4 font-mono text-[11.5px] leading-5 text-[#7FE3A0]">
+                        {LOADING_FILES.slice(0, Math.max(1, loadingIndex + 1)).map((file) => (
+                          <motion.div
+                            key={file}
+                            initial={reduce ? false : { opacity: 0, x: -6 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.24, ease: EASE }}
+                            className="flex items-center gap-2"
+                          >
+                            <span className="text-[#5F6B73]">+</span>
+                            <span className="text-[#C8CDD2]">criando</span>
+                            <span>{file}</span>
+                          </motion.div>
+                        ))}
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block h-3 w-1.5 animate-pulse bg-[#7FE3A0]" />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ) : null}
+                  ) : null}
+                </motion.div>
+              </AnimatePresence>
             </div>
 
+            {/* Rodapé: contador de etapa + botão primário glossy. */}
             {step !== "loading" ? (
-              <div className="flex items-center justify-between gap-3 border-t border-[#ececea] px-6 py-4">
-                <span className="text-[12px] font-semibold text-[#8c908f]">
-                  {step === "produtos"
-                    ? `${selectedProducts.length} produto(s) selecionado(s)`
-                    : `Passo ${skipProducts ? (step === "info" ? 1 : 2) : stepIndex + 1} de ${skipProducts ? 2 : 3}`}
-                </span>
-                {step === "info" ? (
-                  <button
-                    type="button"
-                    disabled={!canContinueInfo}
-                    onClick={() => setStep(skipProducts ? "template" : "produtos")}
-                    className="flex h-10 items-center rounded-[9px] bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-[#202020] disabled:cursor-not-allowed disabled:bg-[#d8dde8] disabled:text-[#8b94a6]"
-                  >
-                    Continuar
-                  </button>
-                ) : step === "produtos" ? (
-                  <button
-                    type="button"
-                    onClick={() => setStep("template")}
-                    className="flex h-10 items-center rounded-[9px] bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-[#202020]"
-                  >
-                    Continuar
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={runCreation}
-                    className="flex h-10 items-center gap-2 rounded-[9px] bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-[#202020]"
-                  >
-                    <Sparkles size={15} />
-                    Gerar projeto
-                  </button>
-                )}
-              </div>
+              <>
+                <div className="h-px w-full bg-[#EEF0F3]" />
+                <div className="flex items-center justify-between gap-3 px-6 py-4">
+                  <span className="text-[13px] font-medium text-[#667085]">
+                    {step === "produtos"
+                      ? `${selectedProducts.length} produto(s) selecionado(s)`
+                      : `Passo ${currentStepNumber} de ${totalSteps}`}
+                  </span>
+
+                  {step === "info" ? (
+                    <motion.button
+                      type="button"
+                      disabled={!canContinueInfo}
+                      onClick={() => goTo(skipProducts ? "template" : "produtos", 1)}
+                      style={primaryButtonStyle}
+                      whileTap={reduce || !canContinueInfo ? undefined : { scale: 0.97 }}
+                      className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[15px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Continuar
+                      <ArrowRight size={16} strokeWidth={2} />
+                    </motion.button>
+                  ) : step === "produtos" ? (
+                    <motion.button
+                      type="button"
+                      onClick={() => goTo("template", 1)}
+                      style={primaryButtonStyle}
+                      whileTap={reduce ? undefined : { scale: 0.97 }}
+                      className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[15px] font-medium text-white transition-opacity"
+                    >
+                      Continuar
+                      <ArrowRight size={16} strokeWidth={2} />
+                    </motion.button>
+                  ) : (
+                    <motion.button
+                      type="button"
+                      onClick={runCreation}
+                      style={primaryButtonStyle}
+                      whileTap={reduce ? undefined : { scale: 0.97 }}
+                      className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[15px] font-medium text-white transition-opacity"
+                    >
+                      <Sparkles size={16} strokeWidth={2} />
+                      Gerar projeto
+                    </motion.button>
+                  )}
+                </div>
+              </>
             ) : null}
           </motion.div>
         </motion.div>
