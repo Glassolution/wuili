@@ -24,25 +24,6 @@ const getMetadataName = (user: ReturnType<typeof useAuth>["user"]) =>
 const getMetadataAvatar = (user: ReturnType<typeof useAuth>["user"]) =>
   user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
 
-const getEmailAvatar = async (email?: string | null) => {
-  const normalizedEmail = email?.trim().toLowerCase();
-  if (!normalizedEmail || !globalThis.crypto?.subtle) return null;
-
-  try {
-    const digest = await globalThis.crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(normalizedEmail),
-    );
-    const hash = Array.from(new Uint8Array(digest))
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("");
-
-    return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=160`;
-  } catch {
-    return null;
-  }
-};
-
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const [nome, setNome] = useState("Usuario");
@@ -63,7 +44,6 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     setFoto(metadataAvatar);
 
     const loadProfile = async () => {
-      const emailAvatarPromise = getEmailAvatar(user.email);
       const profileResult = isSupabaseEnabled
         ? await supabase
             .from("profiles")
@@ -71,7 +51,6 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
             .eq("user_id", user.id)
             .maybeSingle()
         : { data: null, error: null };
-      const emailAvatar = await emailAvatarPromise;
 
       if (cancelled) return;
 
@@ -79,11 +58,11 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
         ? metadataName
         : profileResult.data?.display_name || metadataName;
       const avatar = profileResult.error
-        ? metadataAvatar || emailAvatar
-        : profileResult.data?.avatar_url || metadataAvatar || emailAvatar;
+        ? metadataAvatar
+        : profileResult.data?.avatar_url || metadataAvatar;
 
       setNome(displayName);
-      setFoto(avatar);
+      setFoto(avatar ?? null);
     };
 
     void loadProfile();
