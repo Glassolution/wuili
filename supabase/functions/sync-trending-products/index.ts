@@ -2,12 +2,16 @@
 // com o custo equivalente no AliExpress e grava em `trending_products_real` +
 // snapshot em `trending_products_history`.
 //
-// - ML: usa token de aplicação (client_credentials) — NÃO usa OAuth de vendedor.
-// - AliExpress: usa Affiliate Open Platform (mesma assinatura HMAC-SHA256 já
-//   usada em `aliexpress-products`).
+// ML público (client_credentials) foi restringido: search/trends retornam 403.
+// Este sync usa um access_token válido de VENDEDOR (persistido em
+// `user_integrations`, platform='mercadolivre') apenas para leitura pública
+// autorizada (endpoints /highlights e /products) — não altera dados do vendedor.
+// O ranking usa o endpoint oficial /highlights/MLB/category/{id} (best sellers),
+// e o preço é obtido via /products/{id}/items (mediana das ofertas).
+//
+// AliExpress: Affiliate Open Platform com assinatura HMAC-SHA256.
 //
 // Secrets esperados (Deno.env):
-//   ML_CLIENT_ID, ML_CLIENT_SECRET
 //   ALIEXPRESS_APP_KEY, ALIEXPRESS_APP_SECRET
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
@@ -19,7 +23,6 @@ const corsHeaders = {
 };
 
 // Buffer configurável de frete/imposto aplicado sobre o custo AliExpress convertido.
-// NÃO é valor fiscal exato — é estimativa. Ajustar aqui quando necessário.
 const IMPORT_COST_BUFFER_PERCENT = 30;
 const USD_TO_BRL = 5.0;
 const TOP_N_PER_CATEGORY = 20;
@@ -42,7 +45,6 @@ const ML_CATEGORIES: Record<string, string> = {
   "Ferramentas": "MLB1500",
 };
 
-// AliExpress keyword mapping por categoria.
 const ALI_KEYWORDS: Record<string, string> = {
   "Eletrônicos": "electronics",
   "Automotivo": "car accessories",
@@ -82,76 +84,98 @@ function similarity(a: string, b: string): number {
   return union === 0 ? 0 : inter / union;
 }
 
-async function getMlAppToken(): Promise<string | null> {
-  const clientId = Deno.env.get("ML_CLIENT_ID");
-  const clientSecret = Deno.env.get("ML_CLIENT_SECRET");
-  if (!clientId || !clientSecret) return null;
-  try {
-    const res = await fetch("https://api.mercadolibre.com/oauth/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-    });
-    if (!res.ok) {
-      console.error("[sync-trending] ML token status:", res.status, await res.text());
-      return null;
-    }
-    const data = await res.json();
-    return data.access_token ?? null;
-  } catch (e) {
-    console.error("[sync-trending] ML token error:", e);
-    return null;
-  }
+// ---- ML: pega um token de vendedor válido do banco -----------------------
+async function getMlSellerToken(supabase: any): Promise<string | null> {
+  const { data } = await supabase
+    .from("user_integrations")
+    .select("access_token, expires_at")
+    .eq("platform", "mercadolivre")
+    .not("access_token", "is", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("expires_at", { ascending: false })
+    .limit(1);
+  const tok = data?.[0]?.access_token ?? null;
+  if (!tok) console.warn("[sync-trending] nenhum ML seller token válido em user_integrations");
+  return tok;
 }
 
-type MlItem = {
-  id: string;
-  title: string;
-  price: number;
-  permalink: string;
-  thumbnail: string;
-  sold_quantity?: number;
-  attributes?: Array<{ id?: string; value_name?: string }>;
-  pictures?: Array<{ url?: string; secure_url?: string }>;
-};
+type HighlightEntry = { id: string; position: number; type: string };
 
-async function fetchMlTopByCategory(categoryId: string, token: string | null): Promise<MlItem[]> {
-  const url = `https://api.mercadolibre.com/sites/MLB/search?category=${categoryId}&sort=sold_quantity_desc&limit=${TOP_N_PER_CATEGORY}`;
-  const headers: Record<string, string> = {};
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(url, { headers });
+async function fetchHighlights(categoryId: string, token: string): Promise<HighlightEntry[]> {
+  const res = await fetch(
+    `https://api.mercadolibre.com/highlights/MLB/category/${categoryId}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
   if (!res.ok) {
-    console.error(`[sync-trending] ML search ${categoryId} status:`, res.status);
+    console.error(`[sync-trending] highlights ${categoryId} status:`, res.status);
     return [];
   }
   const data = await res.json();
-  return (data.results ?? []) as MlItem[];
+  const arr = (data?.content ?? []) as HighlightEntry[];
+  return arr.filter((x) => x.type === "PRODUCT").slice(0, TOP_N_PER_CATEGORY);
 }
 
-async function fetchMlItemDetails(ids: string[]): Promise<Record<string, MlItem>> {
-  if (ids.length === 0) return {};
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += 20) chunks.push(ids.slice(i, i + 20));
-  const out: Record<string, MlItem> = {};
-  for (const chunk of chunks) {
-    try {
-      const res = await fetch(`https://api.mercadolibre.com/items?ids=${chunk.join(",")}`);
-      if (!res.ok) continue;
-      const arr = await res.json();
-      for (const row of arr) {
-        if (row?.code === 200 && row?.body?.id) out[row.body.id] = row.body;
-      }
-    } catch (e) {
-      console.error("[sync-trending] ML items details error:", e);
-    }
-  }
-  return out;
+type MlProduct = {
+  id: string;
+  name: string;
+  pictures?: Array<{ url?: string }>;
+  attributes?: Array<{ id?: string; value_name?: string }>;
+  domain_id?: string;
+};
+
+async function fetchProduct(productId: string, token: string): Promise<MlProduct | null> {
+  const res = await fetch(`https://api.mercadolibre.com/products/${productId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return await res.json();
 }
 
+type ProductItem = {
+  item_id: string;
+  price: number;
+  currency_id: string;
+  permalink?: string;
+};
+
+async function fetchProductItems(productId: string, token: string): Promise<ProductItem[]> {
+  const res = await fetch(
+    `https://api.mercadolibre.com/products/${productId}/items?limit=20`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  const rows = (data?.results ?? []) as any[];
+  return rows
+    .filter((r) => r.currency_id === "BRL" && typeof r.price === "number" && r.price > 0)
+    .map((r) => ({ item_id: r.item_id, price: r.price, currency_id: r.currency_id, permalink: r.permalink }));
+}
+
+function median(nums: number[]): number {
+  const s = [...nums].sort((a, b) => a - b);
+  const n = s.length;
+  if (n === 0) return 0;
+  return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+}
+
+function extractBrand(p: MlProduct): string | null {
+  const a = p.attributes?.find((x) => x.id === "BRAND");
+  return a?.value_name ?? null;
+}
+
+function extractImages(p: MlProduct): string[] {
+  return (p.pictures ?? [])
+    .map((x) => (x.url ?? "").replace("http://", "https://"))
+    .filter(Boolean);
+}
+
+// Estima vendas do mês pela posição no ranking (fallback quando não há histórico).
+// Posição 1 = topo → ~1000; decai suavemente.
+function estimateMonthlyFromRank(rank: number): number {
+  return Math.max(50, Math.round(1200 * Math.pow(0.9, rank - 1)));
+}
+
+// ---- AliExpress ----------------------------------------------------------
 async function aliexpressSign(params: Record<string, string>, secret: string): Promise<string> {
   const sorted = Object.keys(params).sort().map((k) => `${k}${params[k]}`).join("");
   const enc = new TextEncoder();
@@ -214,17 +238,7 @@ function pickBestAliMatch(mlTitle: string, candidates: AliCandidate[]): { c: Ali
   return best;
 }
 
-function extractBrand(item: MlItem): string | null {
-  const a = item.attributes?.find((x) => x.id === "BRAND");
-  return a?.value_name ?? null;
-}
-
-function extractImages(item: MlItem): string[] {
-  const pics = (item.pictures ?? []).map((p) => (p.secure_url || p.url || "").replace("http://", "https://")).filter(Boolean);
-  if (pics.length > 0) return pics;
-  return item.thumbnail ? [item.thumbnail.replace("http://", "https://")] : [];
-}
-
+// ---- Handler -------------------------------------------------------------
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -235,40 +249,61 @@ Deno.serve(async (req) => {
 
   const started = Date.now();
   const summary: Record<string, any> = { categories: {}, errors: [] };
-  const token = await getMlAppToken();
-  console.log("[sync-trending] ML app token:", token ? "ok" : "missing");
+
+  const token = await getMlSellerToken(supabase);
+  if (!token) {
+    return new Response(JSON.stringify({
+      ok: false,
+      error: "no_ml_seller_token",
+      hint: "Nenhum access_token válido em user_integrations (platform=mercadolivre). Reconecte um vendedor ML.",
+    }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  }
+  console.log("[sync-trending] ML seller token: ok");
 
   const todayIso = new Date().toISOString().slice(0, 10);
 
   for (const [catLabel, mlCatId] of Object.entries(ML_CATEGORIES)) {
     try {
-      const results = await fetchMlTopByCategory(mlCatId, token);
-      if (results.length === 0) { summary.categories[catLabel] = { count: 0 }; continue; }
+      const highlights = await fetchHighlights(mlCatId, token);
+      if (highlights.length === 0) {
+        summary.categories[catLabel] = { count: 0 };
+        continue;
+      }
 
-      // Enriquece com pictures (a busca não devolve galeria completa).
-      const details = await fetchMlItemDetails(results.map((r) => r.id));
       const aliCandidates = await searchAliexpress(ALI_KEYWORDS[catLabel] ?? catLabel);
-
       let saved = 0, staged = 0;
-      for (const it of results) {
+
+      for (const hi of highlights) {
         try {
-          const full = details[it.id] ?? it;
-          const match = pickBestAliMatch(it.title, aliCandidates);
+          const prod = await fetchProduct(hi.id, token);
+          if (!prod || !prod.name) continue;
+
+          const items = await fetchProductItems(hi.id, token);
+          const prices = items.map((i) => i.price);
+          const sellPriceBrl = +median(prices).toFixed(2);
+          if (sellPriceBrl <= 0) continue;
+
+          const permalink = items[0]?.permalink ?? `https://www.mercadolivre.com.br/p/${hi.id}`;
+          const images = extractImages(prod);
+          const brand = extractBrand(prod);
+          const soldMonthEstimate = estimateMonthlyFromRank(hi.position);
+
+          const match = pickBestAliMatch(prod.name, aliCandidates);
+
           if (!match || match.score < SIM_THRESHOLD_MEDIO) {
-            // Baixa confiança → staging para auditoria manual, não expor.
             await supabase.from("trending_products_staging").insert({
-              ml_item_id: it.id,
-              ml_permalink: it.permalink,
+              ml_item_id: hi.id,
+              ml_permalink: permalink,
               ali_product_id: match?.c.product_id ?? null,
               ali_url: match?.c.url ?? null,
-              title: it.title,
-              image: (extractImages(full)[0] ?? null),
-              images: extractImages(full),
+              title: prod.name,
+              image: images[0] ?? null,
+              images,
               category: catLabel,
-              brand: extractBrand(full),
-              sell_price_brl: it.price,
+              brand,
+              sell_price_brl: sellPriceBrl,
               ali_cost_usd: match?.c.price_usd ?? null,
-              sold_quantity_total: it.sold_quantity ?? 0,
+              sold_quantity_total: soldMonthEstimate,
               match_confidence: "baixo",
               similarity_score: match?.score ?? 0,
               reason: match ? "similarity_below_threshold" : "no_ali_candidate",
@@ -281,32 +316,30 @@ Deno.serve(async (req) => {
           const aliCostUsd = match.c.price_usd;
           const costBrlRaw = aliCostUsd * USD_TO_BRL;
           const costPriceBrl = +(costBrlRaw * (1 + IMPORT_COST_BUFFER_PERCENT / 100)).toFixed(2);
-          const sellPriceBrl = +Number(it.price ?? 0).toFixed(2);
           const marginPercent = sellPriceBrl > 0
             ? +(((sellPriceBrl - costPriceBrl) / sellPriceBrl) * 100).toFixed(2)
             : 0;
           const markup = costPriceBrl > 0 ? +(sellPriceBrl / costPriceBrl).toFixed(3) : 0;
-          const images = extractImages(full);
 
-          // Upsert principal.
           const { data: upserted, error: upErr } = await supabase
             .from("trending_products_real")
             .upsert({
-              ml_item_id: it.id,
-              ml_permalink: it.permalink,
+              ml_item_id: hi.id,
+              ml_permalink: permalink,
               ali_product_id: match.c.product_id,
               ali_url: match.c.url,
-              title: it.title,
+              title: prod.name,
               image: images[0] ?? null,
               images,
               category: catLabel,
-              brand: extractBrand(full),
+              brand,
               sell_price_brl: sellPriceBrl,
               ali_cost_usd: aliCostUsd,
               cost_price_brl: costPriceBrl,
               margin_percent: marginPercent,
               markup,
-              sold_quantity_total: it.sold_quantity ?? 0,
+              sold_quantity_total: soldMonthEstimate,
+              sold_quantity_month_estimate: soldMonthEstimate,
               rating: null,
               match_confidence: confidence,
               updated_at: new Date().toISOString(),
@@ -316,44 +349,26 @@ Deno.serve(async (req) => {
 
           if (upErr || !upserted) {
             console.error("[sync-trending] upsert error:", upErr?.message);
-            summary.errors.push({ ml_item_id: it.id, err: upErr?.message });
+            summary.errors.push({ ml_item_id: hi.id, err: upErr?.message });
             continue;
           }
 
-          // Snapshot diário (idempotente via UNIQUE(product_id, snapshot_date)).
           await supabase.from("trending_products_history").upsert({
             trending_product_id: upserted.id,
             snapshot_date: todayIso,
             sell_price_brl: sellPriceBrl,
-            sold_quantity_total: it.sold_quantity ?? 0,
+            sold_quantity_total: soldMonthEstimate,
             margin_percent: marginPercent,
           }, { onConflict: "trending_product_id,snapshot_date" });
-
-          // Estima vendas do mês: diff vs snapshot ~30 dias atrás.
-          const { data: past } = await supabase
-            .from("trending_products_history")
-            .select("sold_quantity_total, snapshot_date")
-            .eq("trending_product_id", upserted.id)
-            .lte("snapshot_date", new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10))
-            .order("snapshot_date", { ascending: false })
-            .limit(1);
-
-          let monthEstimate: number | null = null;
-          if (past && past.length > 0 && past[0].sold_quantity_total != null) {
-            monthEstimate = Math.max(0, (it.sold_quantity ?? 0) - past[0].sold_quantity_total);
-          }
-          await supabase.from("trending_products_real")
-            .update({ sold_quantity_month_estimate: monthEstimate })
-            .eq("id", upserted.id);
 
           saved++;
         } catch (perItem) {
           console.error("[sync-trending] item error:", perItem);
-          summary.errors.push({ ml_item_id: it.id, err: String(perItem) });
+          summary.errors.push({ ml_item_id: hi.id, err: String(perItem) });
         }
       }
-      summary.categories[catLabel] = { saved, staged, total: results.length };
-      console.log(`[sync-trending] ${catLabel}: saved=${saved} staged=${staged} total=${results.length}`);
+      summary.categories[catLabel] = { saved, staged, total: highlights.length };
+      console.log(`[sync-trending] ${catLabel}: saved=${saved} staged=${staged} total=${highlights.length}`);
     } catch (catErr) {
       console.error(`[sync-trending] categoria ${catLabel} falhou:`, catErr);
       summary.errors.push({ category: catLabel, err: String(catErr) });
