@@ -126,7 +126,8 @@ const DashboardTopbar = () => {
               onClick={() => setAvatarMenuOpen((v) => !v)}
               className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              <img src={foto || defaultAvatar.url} alt="avatar" className="h-full w-full object-cover" />
+              <img src={foto || defaultAvatar.url} alt="avatar" onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatar.url; }} className="h-full w-full object-cover" />
+
             </button>
 
             {avatarMenuOpen && (
@@ -138,7 +139,7 @@ const DashboardTopbar = () => {
                   className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted transition-colors"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white">
-                    <img src={foto || defaultAvatar.url} alt="avatar" className="h-full w-full object-cover" />
+                    <img src={foto || defaultAvatar.url} alt="avatar" onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatar.url; }} className="h-full w-full object-cover" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground">{nome || "Usuário"}</p>
