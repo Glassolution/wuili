@@ -393,10 +393,6 @@ const CatalogoProductDetailPage = () => {
               </p>
             </div>
 
-            <p className="mt-5 text-[13px] leading-6 text-[#3F3F46]">
-              {product.description || "O fornecedor ainda não disponibilizou uma descrição detalhada para este produto."}
-            </p>
-
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
