@@ -20,6 +20,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
 import ShopifyIntegrationCard from "@/components/dashboard/ShopifyIntegrationCard";
+import defaultAvatar from "@/assets/default-avatar.png.asset.json";
 
 type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
 
