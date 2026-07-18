@@ -12,6 +12,7 @@ import { useProfile } from "@/lib/profileContext";
 import { claimProjectInvites, createUserProject, getProjectProductIds, parseVariantOptions, publishProject, saveProjectDraft, type ProductVariantOption, type UserProject } from "@/lib/userProjects";
 import ProjectSettingsOverlay, { type SettingsSection } from "@/components/editor/ProjectSettingsOverlay";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
+import { normalizePriceText } from "@/lib/priceFormat";
 import { addProductToCollection, createCollection, ensureExampleCollectionProducts, getCollectionProductIds, listCollections } from "@/lib/collectionsApi";
 import { formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
@@ -359,6 +360,10 @@ const GeneratedStoreEditorPage = () => {
   const [canvasToolbarMode, setCanvasToolbarMode] = useState<CanvasToolbarMode>("select");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [elementOverrides, setElementOverrides] = useState<Record<string, ElementOverride>>({});
+  // Preço editado no canvas. Vai para metadata.price e é o valor que carrinho e
+  // checkout consomem — sem depender de reler o texto do override.
+  const [editedPrice, setEditedPrice] = useState<number | null>(null);
+  const [rewritingText, setRewritingText] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedEditorElement | null>(null);
   const [contextControls, setContextControls] = useState<ContextControls>(defaultContextControls);
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
@@ -908,8 +913,18 @@ const GeneratedStoreEditorPage = () => {
 
     const cleanup = () => {
       let editedText = editingTarget.innerText.trim();
-      if (isPrice && editedText && !/^R\$/i.test(editedText)) {
-        editedText = PRICE_PREFIX + editedText.replace(/^R?\$?\s*/i, "");
+      let priceValue: number | null = null;
+      if (isPrice && editedText) {
+        if (!/^R\$/i.test(editedText)) {
+          editedText = PRICE_PREFIX + editedText.replace(/^R?\$?\s*/i, "");
+        }
+        // Centavos são obrigatórios: "R$ 30" vira "R$ 30,00" no canvas e o valor
+        // numérico segue para metadata.price (carrinho/checkout).
+        const normalized = normalizePriceText(editedText);
+        if (normalized) {
+          editedText = normalized.text;
+          priceValue = normalized.value;
+        }
         editingTarget.textContent = editedText;
       }
       editingTarget.removeAttribute("contenteditable");
@@ -920,6 +935,7 @@ const GeneratedStoreEditorPage = () => {
       editingTarget.removeEventListener("beforeinput", handleBeforeInput);
       editingTarget.removeEventListener("input", handleInput);
       if (!editedText) return;
+      if (priceValue !== null) setEditedPrice(priceValue);
       setElementOverrides((previous) => ({
         ...previous,
         [path]: {
@@ -1159,7 +1175,49 @@ const GeneratedStoreEditorPage = () => {
   };
 
   const handleAiPlaceholder = (label: string) => {
-    setContextNotice(`${label} depende de uma Edge Function/Lovable dedicada para IA. UI pronta; integração real fica para um prompt separado.`);
+    setContextNotice(`${label} ainda não está disponível.`);
+  };
+
+  // Reescreve o texto selecionado com a Edge Function `chat` (Gemini via gateway).
+  // Passa mode "product_description" para o prompt do fluxo de onboarding não
+  // entrar na conversa — aqui queremos só o texto reescrito de volta.
+  const handleRewriteText = async () => {
+    const path = selectedElement?.path;
+    if (!path || rewritingText) return;
+    const element = getElementByPath(path);
+    const original = element instanceof HTMLElement ? element.innerText.trim() : "";
+    if (!original) {
+      setContextNotice("Selecione um texto para reescrever.");
+      return;
+    }
+
+    setRewritingText(true);
+    setContextNotice("Reescrevendo com IA...");
+    try {
+      const { data, error } = await supabase.functions.invoke("chat", {
+        body: {
+          mode: "product_description",
+          messages: [{
+            role: "user",
+            content: `Você é copywriter de e-commerce brasileiro. Reescreva o texto abaixo em português do Brasil, mais persuasivo e claro, mantendo o mesmo assunto e um comprimento parecido. Não invente características, garantias, prazos nem números que não estejam no original — preserve preços e valores exatamente como estão. Responda APENAS com o texto reescrito, sem aspas, sem markdown e sem comentários.\n\nTexto original:\n${original}`,
+          }],
+        },
+      });
+
+      if (error) throw error;
+      const raw = data?.response || data?.choices?.[0]?.message?.content || "";
+      // O modelo às vezes devolve o texto entre aspas mesmo sendo instruído.
+      const rewritten = typeof raw === "string" ? raw.trim().replace(/^["“”']|["“”']$/g, "").trim() : "";
+      if (!rewritten) throw new Error("resposta vazia");
+
+      updateSelectedOverride({ textContent: rewritten });
+      setContextNotice("Texto reescrito com IA.");
+    } catch (error) {
+      console.error("Erro ao reescrever texto com IA:", error);
+      setContextNotice("Não foi possível reescrever o texto agora.");
+    } finally {
+      setRewritingText(false);
+    }
   };
 
   const duplicateSelectedElement = () => {
@@ -1552,6 +1610,7 @@ const GeneratedStoreEditorPage = () => {
     if (typeof meta.logoImage === "string") setLogoImage(meta.logoImage);
     if (typeof meta.heroCtaUrl === "string") setHeroCtaUrl(meta.heroCtaUrl);
     if (typeof meta.copyVariant === "number") setCopyVariant(meta.copyVariant);
+    if (typeof meta.price === "number" && meta.price > 0) setEditedPrice(meta.price);
     if (meta.elementOverrides && typeof meta.elementOverrides === "object" && !Array.isArray(meta.elementOverrides)) {
       setElementOverrides(meta.elementOverrides as Record<string, ElementOverride>);
     }
@@ -1584,10 +1643,11 @@ const GeneratedStoreEditorPage = () => {
         heroCtaUrl,
         copyVariant,
         elementOverrides,
+        ...(editedPrice !== null ? { price: editedPrice } : {}),
       }).catch(() => { /* autosave silencioso */ });
     }, 900);
     return () => window.clearTimeout(timeout);
-  }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides]);
+  }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides, editedPrice]);
 
   // Broadcast em tempo real (sem esperar o autosave): assim que o dono edita
   // preço, nome ou accent no editor, o carrinho/checkout abertos em outra aba
@@ -1598,10 +1658,10 @@ const GeneratedStoreEditorPage = () => {
     if (!slug || typeof BroadcastChannel === "undefined") return;
     try {
       const ch = new BroadcastChannel(`sales-page:${slug}`);
-      ch.postMessage({ type: "overrides", storeName, accent, elementOverrides });
+      ch.postMessage({ type: "overrides", storeName, accent, elementOverrides, price: editedPrice });
       ch.close();
     } catch { /* ignora ambientes sem suporte */ }
-  }, [currentProject?.metadata, storeName, accent, elementOverrides]);
+  }, [currentProject?.metadata, storeName, accent, elementOverrides, editedPrice]);
 
 
 
@@ -1889,7 +1949,10 @@ const GeneratedStoreEditorPage = () => {
       : [{ ...flow.product, category: "Outros" }];
   const displayedProducts = baseProducts;
   const featuredProduct = displayedProducts[0];
-  const featuredPrice = featuredProduct?.price || 149.9;
+  // O preço editado no canvas manda na página toda: os bundles ("2 unidades"),
+  // o desconto e a barra de compra derivam deste valor. Sem isso, editar o preço
+  // trocava só o número do topo e as unidades seguiam no preço do catálogo.
+  const featuredPrice = editedPrice ?? featuredProduct?.price ?? 149.9;
   const categories = Array.from(new Set(displayedProducts.map((product) => product.category).filter(Boolean))).slice(0, 8);
   const browseCategories = catalogTaxonomy.map((category, index) => ({
     category,
@@ -1964,7 +2027,7 @@ const GeneratedStoreEditorPage = () => {
       { id: "produto-1", name: "Template 1", desc: "Página de produto Velora.", image: "/template-produto-preview.png" },
       { id: "produto-2", name: "Template 2", desc: "Página de produto Beauty.", image: "/template-produto-2-preview.png" },
       { id: "produto-3", name: "Template 3", desc: "Página de produto Shopify.", image: "/template-produto-3-preview.png" },
-      { id: "produto-4", name: "Template 4", desc: "Página de produto minimalista.", image: "/template-produto-3-preview.png" },
+      { id: "produto-4", name: "Template 4", desc: "Página de produto minimalista.", image: "/template-produto-4-preview.png" },
     ],
   };
   const selectedFontStack = fontOptions.find((option) => option.name === font)?.stack || fontOptions[0].stack;
@@ -2588,7 +2651,9 @@ const GeneratedStoreEditorPage = () => {
               🎁 Domínio grátis
             </span>
           </div>
-          <button type="button" className="hidden h-9 items-center justify-center rounded-[10px] bg-[#f1f2f4] px-5 text-[10px] font-semibold text-[#525660] shadow-[0_10px_28px_rgba(0,0,0,0.20)] transition duration-200 hover:bg-white hover:text-[#272a30] active:scale-[0.98] md:flex">
+          {/* Abre as configurações do projeto já na aba Equipe, onde fica o
+              convite por e-mail. Mesmo destino do "Compartilhar" do menu. */}
+          <button type="button" onClick={handleShareProject} className="hidden h-9 items-center justify-center rounded-[10px] bg-[#f1f2f4] px-5 text-[10px] font-semibold text-[#525660] shadow-[0_10px_28px_rgba(0,0,0,0.20)] transition duration-200 hover:bg-white hover:text-[#272a30] active:scale-[0.98] md:flex">
             Convidar
           </button>
           <button type="button" className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#d8b287] text-[#4c2414] ring-1 ring-white/15" aria-label={`Perfil de ${profileName || user?.email || "usuário"}`}>
@@ -3565,9 +3630,9 @@ const GeneratedStoreEditorPage = () => {
               className="fixed z-50 flex min-h-[62px] items-center gap-3 rounded-[18px] bg-[#101010] px-4 py-2.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
               style={selectedToolbarStyle}
             >
-              <button type="button" onClick={()=>handleAiPlaceholder("Reescrever texto com IA")} className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-[18px] font-semibold transition hover:bg-white/16">
-                <Sparkles size={22} />
-                Reescrever
+              <button type="button" onClick={() => void handleRewriteText()} disabled={rewritingText} className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-[18px] font-semibold transition hover:bg-white/16 disabled:opacity-60">
+                {rewritingText ? <Loader2 size={22} className="animate-spin" /> : <Sparkles size={22} />}
+                {rewritingText ? "Reescrevendo" : "Reescrever"}
               </button>
               <span className="h-8 w-px bg-white/12" />
               <div className="flex items-center gap-1">

@@ -13,7 +13,6 @@ import {
   Search,
   Share2,
   ShoppingBag,
-  Star,
   Twitter,
   UserRound,
   Youtube,
@@ -23,26 +22,14 @@ import ProductVariantPicker from "@/components/store-templates/ProductVariantPic
 import { StoreBundleOffers, StorePaymentRow } from "@/components/store-templates/storeSections";
 import { StoreBenefitsBar, StoreFeatureGrid, StoreImageCta, StoreThreeSteps } from "@/components/store-templates/storeContentSections";
 import { galleryImageAt, useProductGallery } from "@/components/store-templates/productGallery";
-
-const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
+import StoreReviews from "@/components/store-templates/StoreReviews";
 
 const GREEN = "#1f5132";
 const GOLD = "#c6963f";
 
 const storeNav = ["Inicio", "Loja", "Skin Care", "Maquiagem", "Cabelo", "Sobre", "Blog"];
 const tabs = ["Descricao", "Informacoes adicionais", "Avaliacoes"];
-const ratingBars = [
-  { label: "5", pct: 90 },
-  { label: "4", pct: 62 },
-  { label: "3", pct: 28 },
-  { label: "2", pct: 12 },
-  { label: "1", pct: 6 },
-];
-const reviews = [
-  { name: "Camila Souza", time: "1 mes atras", title: "Amei o produto!", text: "Pele muito mais macia e hidratada logo na primeira semana. Absorve rapido e nao deixa oleoso.", rating: 5, withPhotos: true },
-  { name: "Rafael Almeida", time: "2 meses atras", title: "Perfeito para a minha rotina", text: "Uso de manha e a noite. Textura leve e o cheiro e suave. Recomendo para quem esta comecando nos cuidados com a pele.", rating: 5, withPhotos: false },
-  { name: "Beatriz Lima", time: "2 meses atras", title: "Valeu muito a pena", text: "Chegou bem embalado e antes do prazo. O frasco rende bastante e o resultado apareceu rapido.", rating: 4, withPhotos: false },
-];
 const additionalSpecs: Array<[string, string]> = [
   ["Volume", "30 ml"],
   ["Tipo de pele", "Todos os tipos"],
@@ -51,7 +38,7 @@ const additionalSpecs: Array<[string, string]> = [
 ];
 const detailBullets = ["Hidratacao profunda", "Absorcao rapida", "Livre de parabenos", "Testado dermatologicamente"];
 
-const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice, image, images, productId, mobile = false, variants = [] }: ProductTemplateProps) => {
+const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice, image, images, productId, projectId, mobile = false, variants = [] }: ProductTemplateProps) => {
   const [quantity, setQuantity] = useState(4);
   const [activeTab, setActiveTab] = useState(2);
 
@@ -137,10 +124,6 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
             <div className="mt-1 flex flex-wrap items-center gap-3">
               <h2 data-editor-type="text" className="text-[28px] font-bold text-[#1d1d1d]">{title}</h2>
               <span data-editor-type="text" className="rounded-full border px-3 py-0.5 text-[11px] font-semibold" style={{ borderColor: GREEN, color: GREEN, backgroundColor: "#eaf3ec" }}>Em estoque</span>
-            </div>
-            <div className="mt-3 flex items-center gap-2 text-[13px] text-black/60">
-              <span className="flex" style={{ color: "#f5b301" }}>{Array.from({ length: 5 }).map((_, index) => <Star key={index} data-editor-type="icon" data-editor-icon="Star" size={15} fill="currentColor" strokeWidth={0} />)}</span>
-              <span data-editor-type="text">4.8 (245 avaliacoes)</span>
             </div>
             <div className="mt-4 flex items-center gap-3">
               <span data-editor-type="text" className="text-[26px] font-bold" style={{ color: GREEN }}>{formatBRL(price)}</span>
@@ -240,71 +223,12 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
               </div>
             ) : null}
 
+            {/* Avaliações reais dos clientes (store_reviews) + formulário.
+                Antes esta aba trazia nota 4.8, "245 avaliacoes", barras de
+                distribuição e 3 depoimentos fixos no código — nada disso vinha
+                de cliente algum. */}
             {activeTab === 2 ? (
-              <div>
-                {/* Resumo */}
-                <div className="grid gap-8 border-b border-black/10 pb-8" style={{ gridTemplateColumns: mobile ? "1fr" : "220px minmax(0,1fr)" }}>
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="flex items-end gap-1"><span data-editor-type="text" className="text-[46px] font-bold leading-none text-[#1d1d1d]">4.8</span><span data-editor-type="text" className="mb-1 text-[13px] text-black/45">de 5</span></div>
-                    <span className="mt-2 flex" style={{ color: "#f5b301" }}>{Array.from({ length: 5 }).map((_, index) => <Star key={index} data-editor-type="icon" data-editor-icon="Star" size={16} fill="currentColor" strokeWidth={0} />)}</span>
-                    <span data-editor-type="text" className="mt-1 text-[12px] text-black/45">(245 avaliacoes)</span>
-                  </div>
-                  <div className="flex flex-col justify-center gap-2">
-                    {ratingBars.map((bar) => (
-                      <div key={bar.label} className="flex items-center gap-3 text-[12px] text-black/55">
-                        <span data-editor-type="text" className="w-12 shrink-0">{bar.label} Estrelas</span>
-                        <span data-editor-type="other" data-editor-label={`Barra de ${bar.label} estrelas`} className="h-2 flex-1 overflow-hidden rounded-full bg-black/[0.08]">
-                          <span className="block h-full rounded-full" style={{ width: `${bar.pct}%`, backgroundColor: "#f5b301" }} />
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Lista */}
-                <div className="mt-8 flex items-center justify-between">
-                  <div>
-                    <h3 data-editor-type="text" className="text-[18px] font-bold text-[#1d1d1d]">Lista de avaliacoes</h3>
-                    <p data-editor-type="text" className="mt-1 text-[13px] text-black/45">Mostrando 1-3 de 24 resultados</p>
-                  </div>
-                  <div data-editor-type="text" className="flex items-center gap-2 text-[13px] text-black/60">
-                    Ordenar por:
-                    <span className="flex items-center gap-1 rounded-[8px] border border-black/15 px-3 py-1.5 font-medium text-[#1d1d1d]">Mais recentes <ChevronRight size={13} className="rotate-90" /></span>
-                  </div>
-                </div>
-
-                <div className="mt-6 divide-y divide-black/10">
-                  {reviews.map((review) => (
-                    <article key={review.name} data-editor-type="other" data-editor-label={`Avaliação de ${review.name}`} className="py-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <span data-editor-type="text" className="flex h-11 w-11 items-center justify-center rounded-full text-[14px] font-bold text-white" style={{ backgroundColor: GREEN }}>{review.name.slice(0, 1)}</span>
-                          <div>
-                            <p data-editor-type="text" className="text-[14px] font-semibold text-[#1d1d1d]">{review.name}</p>
-                            <p data-editor-type="text" className="text-[12px]" style={{ color: GREEN }}>(Verificado)</p>
-                          </div>
-                        </div>
-                        <span data-editor-type="text" className="text-[12px] text-black/40">{review.time}</span>
-                      </div>
-                      <h4 data-editor-type="text" className="mt-4 text-[15px] font-semibold text-[#1d1d1d]">{review.title}</h4>
-                      <p data-editor-type="text" className="mt-2 max-w-[720px] text-[14px] leading-[1.6] text-black/60">{review.text}</p>
-                      <span className="mt-3 flex items-center gap-1 text-[13px] font-semibold text-[#1d1d1d]">
-                        <span className="flex" style={{ color: "#f5b301" }}>{Array.from({ length: review.rating }).map((_, index) => <Star key={index} data-editor-type="icon" data-editor-icon="Star" size={14} fill="currentColor" strokeWidth={0} />)}</span>
-                        <span data-editor-type="text">{review.rating.toFixed(1)}</span>
-                      </span>
-                      {review.withPhotos && image ? (
-                        <div className="mt-4 flex gap-3">
-                          {[0, 1, 2].map((index) => (
-                            <span key={index} className="h-20 w-24 overflow-hidden rounded-[10px] bg-[#efeae0]">
-                              <img data-editor-type="image" data-editor-label={`Foto da avaliação ${index + 1}`} src={galleryImageAt(gallery, index + 1)} alt="" className="h-full w-full object-cover" />
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </article>
-                  ))}
-                </div>
-              </div>
+              <StoreReviews projectId={projectId} productId={productId} accent={GREEN} mobile={mobile} background="transparent" />
             ) : null}
           </div>
         </div>

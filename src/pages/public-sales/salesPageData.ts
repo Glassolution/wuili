@@ -8,34 +8,23 @@ import {
   fetchPublicProject,
   fetchPublicStoreProducts,
   getProjectAccent,
-  getProjectOverrides,
   getProjectProductIds,
   getProjectStoreName,
+  resolveProjectPrice,
   type UserProject,
 } from "@/lib/userProjects";
+import { formatPriceBRL, parsePriceBRL } from "@/lib/priceFormat";
 
 /**
- * Extrai o preço editado pelo dono no editor visual. O editor guarda a edição
- * do preço como um textContent override em `metadata.elementOverrides` (path
- * estrutural → { textContent: "R$ 30,00" }). Aqui varremos todos os overrides
- * e pegamos o menor valor em BRL — normalmente é o preço promocional exibido
- * na página; o riscado (original) sempre é maior. Se nenhum override de preço
- * for encontrado, retorna null e o fallback é o preço vindo do catálogo.
+ * Preço definido pelo dono no editor, ou null para usar o do catálogo.
+ * A resolução (metadata.price, com fallback na varredura de overrides dos
+ * projetos antigos) mora em resolveProjectPrice — a mesma que a página de
+ * produto usa, para carrinho e vitrine nunca divergirem.
  */
 function extractEditedPrice(project: UserProject): number | null {
-  const overrides = getProjectOverrides(project);
-  const priceRe = /R\$\s*([\d.]+(?:,\d{1,2})?)/i;
-  const found: number[] = [];
-  for (const override of Object.values(overrides)) {
-    const text = override?.textContent;
-    if (typeof text !== "string") continue;
-    const match = text.match(priceRe);
-    if (!match) continue;
-    const parsed = Number(match[1].replace(/\./g, "").replace(",", "."));
-    if (Number.isFinite(parsed) && parsed > 0) found.push(parsed);
-  }
-  if (found.length === 0) return null;
-  return Math.min(...found);
+  const SENTINEL = -1;
+  const resolved = resolveProjectPrice(project, SENTINEL);
+  return resolved === SENTINEL ? null : resolved;
 }
 
 export type SalesPageData = {
@@ -161,19 +150,22 @@ export function useSalesPageData(slug: string | undefined) {
             bc = new BroadcastChannel(`sales-page:${slug}`);
             bc.onmessage = (ev) => {
               if (!active) return;
-              const msg = ev.data as { type?: string; storeName?: string; accent?: string; elementOverrides?: Record<string, { textContent?: string }> } | null;
+              const msg = ev.data as { type?: string; storeName?: string; accent?: string; price?: number | null; elementOverrides?: Record<string, { textContent?: string }> } | null;
               if (!msg || msg.type !== "overrides") return;
-              const priceRe = /R\$\s*([\d.]+(?:,\d{1,2})?)/i;
-              const found: number[] = [];
-              for (const ov of Object.values(msg.elementOverrides ?? {})) {
-                const t = ov?.textContent;
-                if (typeof t !== "string") continue;
-                const m = t.match(priceRe);
-                if (!m) continue;
-                const n = Number(m[1].replace(/\./g, "").replace(",", "."));
-                if (Number.isFinite(n) && n > 0) found.push(n);
+              // Preço numérico enviado pelo editor; só cai na varredura de texto
+              // para projetos antigos, sem metadata.price.
+              let newEdited: number | null =
+                typeof msg.price === "number" && Number.isFinite(msg.price) && msg.price > 0 ? msg.price : null;
+              if (newEdited === null) {
+                const found: number[] = [];
+                for (const ov of Object.values(msg.elementOverrides ?? {})) {
+                  const t = ov?.textContent;
+                  if (typeof t !== "string" || !/R\$/i.test(t)) continue;
+                  const n = parsePriceBRL(t);
+                  if (n !== null) found.push(n);
+                }
+                newEdited = found.length ? Math.min(...found) : null;
               }
-              const newEdited = found.length ? Math.min(...found) : null;
               setData((prev) =>
                 prev
                   ? {
@@ -213,5 +205,5 @@ export function useSalesPageData(slug: string | undefined) {
   return { data, loading, error };
 }
 
-export const formatBRL = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
+// Centavos sempre visíveis (R$ 30,00), igual ao canvas do editor.
+export const formatBRL = (value: number) => formatPriceBRL(Number(value ?? 0));

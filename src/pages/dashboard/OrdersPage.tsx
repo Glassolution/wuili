@@ -421,20 +421,22 @@ const OrdersPage = () => {
             </div>
           </div>
 
-          <div className="inline-flex w-fit gap-1 rounded-xl border border-black/[0.08] bg-white p-1">
+          <div className="flex w-full items-center border-b border-black/[0.14]">
             <button
               type="button"
               onClick={() => setTab("ml")}
-              className={`rounded-lg px-4 py-1.5 text-[13px] font-semibold transition ${tab === "ml" ? "bg-[#0A0A0A] text-white" : "text-[#525252] hover:bg-[#F5F5F5]"}`}
+              className={`relative flex-1 whitespace-nowrap pb-3 pt-1 text-center text-[14px] transition-colors ${tab === "ml" ? "font-semibold text-[#0A0A0A]" : "font-medium text-[#737373] hover:text-[#0A0A0A]"}`}
             >
               Mercado Livre
+              {tab === "ml" && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#0A0A0A]" />}
             </button>
             <button
               type="button"
               onClick={() => setTab("loja")}
-              className={`rounded-lg px-4 py-1.5 text-[13px] font-semibold transition ${tab === "loja" ? "bg-[#0A0A0A] text-white" : "text-[#525252] hover:bg-[#F5F5F5]"}`}
+              className={`relative flex-1 whitespace-nowrap pb-3 pt-1 text-center text-[14px] transition-colors ${tab === "loja" ? "font-semibold text-[#0A0A0A]" : "font-medium text-[#737373] hover:text-[#0A0A0A]"}`}
             >
               Minha Loja
+              {tab === "loja" && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#0A0A0A]" />}
             </button>
           </div>
         </div>

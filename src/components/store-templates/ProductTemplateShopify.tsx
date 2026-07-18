@@ -9,25 +9,18 @@ import {
   ShieldCheck,
   ShoppingBag,
   ShoppingCart,
-  Star,
   Truck,
 } from "lucide-react";
 import type { ProductTemplateProps } from "./ProductTemplate";
 import { StoreBundleOffers, StorePaymentRow } from "@/components/store-templates/storeSections";
 import { StoreBenefitsBar, StoreFeatureGrid, StoreImageCta, StoreThreeSteps } from "@/components/store-templates/storeContentSections";
 import { galleryImageAt, useProductGallery } from "@/components/store-templates/productGallery";
-
-const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
+import StoreReviews from "@/components/store-templates/StoreReviews";
 
 const NAVY = "#1e3a8a";
 
 const storeNav = ["Inicio", "Produtos", "Marcas", "Precos", "Contato"];
-const reviews = [
-  { name: "Lucas", text: "Qualidade de som incrivel e o cancelamento de ruido funciona muito bem!" },
-  { name: "Marina", text: "O fone mais confortavel que ja tive. Uso o dia todo sem incomodo." },
-  { name: "Eduardo", text: "Bateria dura muito e a conexao e estavel. Recomendo demais." },
-  { name: "Bianca", text: "Chegou antes do prazo e superou minhas expectativas. Vale cada centavo." },
-];
 const faqItems = ["Envio e devolucoes", "Especificacoes do produto", "Informacoes de garantia"];
 const trustBadges: Array<[typeof LockKeyhole, string, string]> = [
   [LockKeyhole, "Checkout seguro", "Pagamento protegido"],
@@ -35,7 +28,7 @@ const trustBadges: Array<[typeof LockKeyhole, string, string]> = [
   [ShieldCheck, "Garantia de 30 dias", "Devolucao do dinheiro"],
 ];
 
-const ProductTemplateShopify = ({ brand, title, description, price, originalPrice, image, images, productId, mobile = false }: ProductTemplateProps) => {
+const ProductTemplateShopify = ({ brand, title, description, price, originalPrice, image, images, productId, projectId, mobile = false }: ProductTemplateProps) => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const discountPct = originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0;
   const savings = Math.max(0, Math.round(originalPrice - price));
@@ -97,11 +90,6 @@ const ProductTemplateShopify = ({ brand, title, description, price, originalPric
           {/* Informacoes */}
           <div className="flex flex-col">
             <h1 className="text-[30px] font-black leading-[1.08] text-black md:text-[38px]">{title}</h1>
-            <div className="mt-4 flex items-center gap-2 text-[14px] font-semibold text-black">
-              <span className="flex" style={{ color: "#f5b301" }}>{Array.from({ length: 5 }).map((_, index) => <Star key={index} size={17} fill="currentColor" strokeWidth={0} />)}</span>
-              <span className="font-bold">4.9</span>
-              <span className="font-medium text-black/55">baseado em <span className="underline">1.250 avaliacoes</span></span>
-            </div>
             <div className="mt-4 flex flex-wrap items-end gap-3">
               {discountPct > 0 ? <span className="text-[17px] text-black/35 line-through">{formatBRL(originalPrice)}</span> : null}
               <span className="text-[36px] font-black leading-none text-black">{formatBRL(price)}</span>
@@ -143,23 +131,8 @@ const ProductTemplateShopify = ({ brand, title, description, price, originalPric
       {/* Grade de recursos + imagem (foto diferente da do topo) */}
       <StoreFeatureGrid image={galleryImageAt(gallery, 1)} accent={NAVY} mobile={mobile} />
 
-      {/* Avaliacoes */}
-      <section className="bg-[#eeeeee] px-6 py-10 sm:px-10">
-        <div className="mx-auto max-w-[1080px]">
-          <h2 className="text-[28px] font-black text-black">Avaliacoes de clientes</h2>
-          <div className="mt-5 flex gap-5 overflow-x-auto pb-2">
-            {reviews.map((review) => (
-              <article key={review.name} className="w-[280px] shrink-0 rounded-[12px] bg-white p-5 shadow-[0_16px_34px_rgba(0,0,0,0.08)]">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-[13px] font-black text-white">{review.name.slice(0, 1)}</span>
-                  <span className="flex" style={{ color: "#f5b301" }}>{Array.from({ length: 5 }).map((_, index) => <Star key={index} size={14} fill="currentColor" strokeWidth={0} />)}</span>
-                </div>
-                <p className="mt-4 text-[14px] leading-snug text-black/80">{review.text}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Avaliações reais dos clientes + formulário */}
+      <StoreReviews projectId={projectId} productId={productId} accent={NAVY} mobile={mobile} background="#eeeeee" />
 
       {/* FAQ */}
       <section className="bg-[#eeeeee] px-6 pb-12 sm:px-10">

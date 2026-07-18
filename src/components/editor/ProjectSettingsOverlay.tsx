@@ -160,14 +160,24 @@ const ProjectSettingsOverlay = ({ open, onClose, project, initialSection = "gera
     setInviting(true);
     try {
       await inviteProjectMember(project.id, email, inviteRole);
-      // Envia o email de convite (best-effort — não bloqueia se o provedor falhar).
+      // O convite em si já fica registrado. O email é best-effort: enquanto a
+      // Edge Function send-project-invite-email não estiver publicada, a chamada
+      // falha e o aviso não menciona envio de e-mail — em vez de afirmar um
+      // envio que não aconteceu.
+      let emailSent = true;
       try {
         await sendProjectInviteEmail(project.id, email, inviteRole);
       } catch (emailError) {
+        emailSent = false;
         console.error("[ProjectSettingsOverlay] falha ao enviar email de convite:", emailError);
       }
       setInviteEmail("");
-      setNotice({ tone: "ok", text: "Convite enviado por e-mail. O acesso é liberado quando o convidado tiver um plano pago ativo." });
+      setNotice({
+        tone: "ok",
+        text: emailSent
+          ? "Convite enviado por e-mail. O acesso é liberado quando o convidado tiver um plano pago ativo."
+          : "Convite registrado. O acesso é liberado quando o convidado tiver um plano pago ativo.",
+      });
       await loadMembers();
     } catch (error) {
       const code = parseInviteError(error);

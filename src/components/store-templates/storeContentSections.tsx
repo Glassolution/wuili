@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Flame, Heart, Leaf, Quote, Settings2, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Flame, Heart, Leaf, Settings2, ShieldCheck, Sparkles, Star, Truck, Zap } from "lucide-react";
 import inspirationImg1 from "@/assets/store-inspiration-1.jpg";
 import inspirationImg2 from "@/assets/store-inspiration-2.jpg";
 import inspirationImg3 from "@/assets/store-inspiration-3.jpg";
 import inspirationImg4 from "@/assets/store-inspiration-4.jpg";
+import StoreReviews from "@/components/store-templates/StoreReviews";
 
 // Seções de conteúdo "abaixo da dobra" — barra de benefícios, passo a passo,
 // grade de recursos e bloco de imagem + CTA. Transformam a página de produto
@@ -22,15 +23,16 @@ const tint = (hex: string, alpha: number) => {
   return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
 };
 
-type ContentProps = { image: string; accent: string; title?: string; mobile?: boolean; productImages?: string[] };
-
-/** Gera cor determinística a partir de string (para avatares de iniciais). */
-const stringToHue = (str: string) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(hash) % 360;
+type ContentProps = {
+  image: string;
+  accent: string;
+  title?: string;
+  mobile?: boolean;
+  productImages?: string[];
+  /** Só as seções de avaliação usam — identifica de qual loja são os comentários. */
+  projectId?: string;
+  productId?: string;
 };
-const initialsOf = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((p) => p[0] ?? "").join("").toUpperCase() || "?";
 
 /** Barra de benefícios em linha (ícone + label). */
 export const StoreBenefitsBar = ({ accent }: { accent: string }) => {
@@ -246,49 +248,15 @@ export const StoreUrgencyBanner = ({ accent }: { accent: string }) => (
   </section>
 );
 
-/** Depoimentos — avatar de iniciais coloridas (nunca foto do produto). */
-export const StoreTestimonials = ({ accent, mobile = false }: ContentProps) => {
-  const items = [
-    ["Ana P.", "Superou minhas expectativas. Já indiquei pra amigas."],
-    ["Rafael M.", "Chegou rápido e é exatamente como na descrição."],
-    ["Camila S.", "Uso todo dia. Melhor compra dos últimos meses."],
-  ];
-  return (
-    <section className="bg-[#faf9f7] px-6 py-14 sm:px-10">
-      <div className="mx-auto max-w-[1180px]">
-        <h2 data-editor-type="text" className="text-center text-[28px] font-black tracking-[-0.02em] text-black md:text-[34px]">
-          O que dizem quem já comprou
-        </h2>
-        <div className="mt-9 grid gap-6" style={{ gridTemplateColumns: mobile ? "1fr" : "repeat(3, minmax(0,1fr))" }}>
-          {items.map(([name, text]) => {
-            const hue = stringToHue(name);
-            return (
-              <div key={name} className="rounded-[16px] border border-black/[0.07] bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
-                <Quote data-editor-type="icon" data-editor-icon="Quote" size={22} style={{ color: accent }} />
-                <p data-editor-type="text" className="mt-3 text-[15px] leading-[1.6] text-black/75">"{text}"</p>
-                <div className="mt-5 flex items-center gap-3">
-                  <span
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-bold text-white"
-                    style={{ backgroundColor: `hsl(${hue} 55% 45%)` }}
-                    aria-hidden="true"
-                  >
-                    {initialsOf(name)}
-                  </span>
-                  <div>
-                    <div data-editor-type="text" className="text-[13px] font-bold text-black">{name}</div>
-                    <div className="flex items-center gap-0.5 text-[#f5b800]">
-                      {[0, 1, 2, 3, 4].map((i) => <Star key={i} size={12} className="fill-current" />)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-};
+/**
+ * Depoimentos reais dos clientes. Antes esta seção trazia três nomes e frases
+ * fixos no código ("Ana P. — Superou minhas expectativas", etc.), exibidos em
+ * toda loja como se fossem clientes daquele lojista. Agora delega para
+ * StoreReviews, que lê a tabela store_reviews e oferece o formulário.
+ */
+export const StoreTestimonials = ({ accent, mobile = false, projectId, productId }: ContentProps) => (
+  <StoreReviews projectId={projectId} productId={productId} accent={accent} mobile={mobile} background="#faf9f7" />
+);
 
 /** Checklist "por que vale a pena" — 5 bullets com check em accent. */
 export const StoreWhyWorthIt = ({ image, accent, mobile = false }: ContentProps) => {

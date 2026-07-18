@@ -25,6 +25,7 @@ import TutorialModal from "@/components/dashboard/TutorialModal";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
 import type { ProjectType } from "@/lib/userProjects";
 import { preloadVidalytics } from "@/lib/vidalyticsPreload";
+import MobileHome from "@/components/dashboard/MobileHome";
 import {
   ONBOARDING_COMPLETED_EVENT,
   isFreshSignup,
@@ -252,8 +253,6 @@ const CtaVisual = ({ visual }: { visual: CtaVisualKind }) => {
   return null;
 };
 
-export const MobileResultsOverview = () => <DashboardHomePage />;
-
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
@@ -423,8 +422,13 @@ const DashboardHomePage = () => {
   ];
 
   return (
+    <>
+      {/* Home mobile (busca, categorias, banner, atalhos e grade de produtos).
+          Ela se esconde sozinha no desktop; o <main> abaixo é só desktop. */}
+      <MobileHome />
+
     <main
-      className="-m-5 min-h-[calc(100%+2.5rem)] bg-white pb-[clamp(110px,12vw,220px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      className="hidden md:block -m-5 min-h-[calc(100%+2.5rem)] bg-white pb-[clamp(110px,12vw,220px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
       style={{
         opacity: entered ? 1 : 0,
         transform: entered ? "translateY(0) scale(1)" : "translateY(24px) scale(0.992)",
@@ -915,6 +919,7 @@ const DashboardHomePage = () => {
         onCreated={handleProjectCreated}
       />
     </main>
+    </>
   );
 };
 

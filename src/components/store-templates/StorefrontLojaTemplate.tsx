@@ -31,7 +31,8 @@ import {
   Truck,
 } from "lucide-react";
 import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
-import { formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
+import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
+import StoreReviews from "@/components/store-templates/StoreReviews";
 
 export type LojaTemplateProduct = {
   id: string;
@@ -56,9 +57,10 @@ export type StorefrontLojaTemplateProps = {
   copyVariant?: number;
   products: LojaTemplateProduct[];
   mobile?: boolean;
+  /** Projeto dono da loja. Alimenta as avaliações reais (store_reviews).
+   *  Ausente = preview do editor: o bloco aparece, mas não grava avaliação. */
+  projectId?: string;
 };
-
-const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const catalogTaxonomy = [
   "Casa",
@@ -133,6 +135,7 @@ const StorefrontLojaTemplate = ({
   copyVariant = 0,
   products,
   mobile = false,
+  projectId,
 }: StorefrontLojaTemplateProps) => {
   const displayedProducts = products.length
     ? products
@@ -250,10 +253,15 @@ const StorefrontLojaTemplate = ({
         </div>
         <div id="produtos" className={`grid gap-x-4 gap-y-6 ${mobile ? "grid-cols-2" : "grid-cols-2 md:grid-cols-6"}`}>
           {displayedProducts.slice(0, 6).map((product) => {
+            // Só a nota real informada pelo fornecedor. O fallback anterior
+            // (getProductCatalogMetrics) gerava nota entre 4.0 e 5.0 e uma
+            // contagem de 50 a 2000 a partir do hash do id — número inventado
+            // exibido ao cliente final como se fosse avaliação de verdade.
             const explicitRating = product.rating ?? product.averageRating;
             const explicitCount = product.ratingCount ?? product.reviewCount ?? product.reviewsCount;
-            const mockMetrics = getProductCatalogMetrics({ id: product.id, rating: explicitRating ?? null, ordersCount: null });
-            const ratingLabel = typeof explicitRating === "number" ? `${explicitRating.toFixed(1)}${explicitCount ? ` (${explicitCount})` : ""}` : `${mockMetrics.rating.toFixed(1)} (${formatReviewCount(mockMetrics.ordersCount)})`;
+            const ratingLabel = typeof explicitRating === "number"
+              ? `${explicitRating.toFixed(1)}${explicitCount ? ` (${explicitCount})` : ""}`
+              : null;
             return (
               <article key={product.id} className="group min-w-0">
                 <div className="relative aspect-[1/1.04] overflow-hidden rounded-[16px] bg-white">
@@ -331,6 +339,9 @@ const StorefrontLojaTemplate = ({
           ))}
         </div>
       </section>
+
+      {/* Avaliações reais dos clientes + formulário */}
+      <StoreReviews projectId={projectId} accent={accent} mobile={mobile} background="#ffffff" />
 
       <footer className="border-t border-black/10 bg-[#f5f4f2] px-8 py-7 text-center text-[10px] tracking-[0.12em] text-black/45">© {new Date().getFullYear()} {brandName} · Todos os direitos reservados</footer>
     </>

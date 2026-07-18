@@ -17,6 +17,7 @@ import { galleryImageAt, useProductGallery } from "@/components/store-templates/
 import { StoreBundleOffers, StoreGuaranteeCards, StorePaymentRow } from "@/components/store-templates/storeSections";
 import { StoreBenefitsBar, StoreFaqAccordion, StoreFeatureGrid, StoreImageCta, StoreTestimonials, StoreThreeSteps, StoreUrgencyBanner, StoreUsageCarousel, StoreWhyWorthIt } from "@/components/store-templates/storeContentSections";
 import type { ProductVariantOption } from "@/lib/userProjects";
+import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 
 export type ProductTemplateProps = {
   brand: string;
@@ -30,13 +31,15 @@ export type ProductTemplateProps = {
    *  repetir a mesma foto em todas as seções. */
   images?: string[];
   productId?: string;
+  /** Projeto dono da vitrine. Alimenta as avaliações reais (store_reviews).
+   *  Ausente = preview do editor: o bloco aparece, mas não grava avaliação. */
+  projectId?: string;
   accent: string;
   mobile?: boolean;
   /** Variações reais do fornecedor. [] = produto sem variação, seletor omitido. */
   variants?: ProductVariantOption[];
 };
 
-const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const storeNav = ["Inicio", "Loja", "Novidades", "Colecoes", "Ofertas", "Blog"];
 const trustBadges: Array<[typeof Truck, string, string]> = [
@@ -45,7 +48,7 @@ const trustBadges: Array<[typeof Truck, string, string]> = [
   [ShieldCheck, "Pagamento seguro", "100% protegido"],
 ];
 
-const ProductTemplate = ({ brand, title, description, price, originalPrice, image, images, productId, accent, mobile = false, variants = [] }: ProductTemplateProps) => {
+const ProductTemplate = ({ brand, title, description, price, originalPrice, image, images, productId, projectId, accent, mobile = false, variants = [] }: ProductTemplateProps) => {
   const discountPct = originalPrice && originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0;
   const { gallery, active, current, setActive, prev, next, hasMany } = useProductGallery(images, image);
 
@@ -178,8 +181,8 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
       {/* Grade de recursos + imagem */}
       <StoreFeatureGrid image={galleryImageAt(gallery, 2)} accent={accent} mobile={mobile} />
 
-      {/* Depoimentos (novo) */}
-      <StoreTestimonials image={image} accent={accent} mobile={mobile} />
+      {/* Avaliações reais dos clientes + formulário */}
+      <StoreTestimonials image={image} accent={accent} mobile={mobile} projectId={projectId} productId={productId} />
 
       {/* Abas + detalhes */}
       <section className="border-t border-black/10 px-6 py-10 sm:px-10">

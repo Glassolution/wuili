@@ -191,8 +191,12 @@ const OrderDetailPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // Chave própria: a lista de pedidos (OrdersPage) também consulta a ml_orders_view,
+  // mas com uma queryFn diferente (sem injetar o pedido de demonstração). Se as duas
+  // compartilharem a mesma queryKey, o React Query reaproveita o cache da lista e o
+  // select abaixo não encontra o pedido mock — resultando em "Pedido não encontrado".
   const { data: order, isLoading, error } = useQuery({
-    queryKey: ["ml-orders-view", user?.id],
+    queryKey: ["ml-order-detail", user?.id],
     enabled: Boolean(user && id),
     queryFn: async () => {
       const { data, error: queryError } = await supabase.from("ml_orders_view").select("*");

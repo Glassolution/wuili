@@ -20,8 +20,11 @@ import {
 } from "lucide-react";
 import type { ProductTemplateProps } from "./ProductTemplate";
 import { galleryImageAt, useProductGallery } from "@/components/store-templates/productGallery";
+import { StoreBundleOffers } from "@/components/store-templates/storeSections";
+import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
+import StoreReviews from "@/components/store-templates/StoreReviews";
 
-const formatUSD = (value: number) => `R$ ${value.toFixed(2).replace(".", ",")}`;
+const formatUSD = formatBRL;
 
 const DARK = "#252525";
 
@@ -57,11 +60,6 @@ const gridFeatures: Array<[typeof Zap, string, string]> = [
 ];
 
 const compareRows = ["Facil de usar", "Durabilidade", "Eco-friendly", "Sem incomodo", "Custo-beneficio"];
-const stats = [
-  { pct: "90%", text: "sentiram uma diferenca clara logo nas primeiras semanas de uso." },
-  { pct: "95%", text: "mantiveram o resultado usando o produto de forma consistente." },
-  { pct: "98%", text: "ganharam mais confianca no dia a dia apos o habito criado." },
-];
 const faqItems = [
   "Para quem e este produto?",
   "Como ele comeca a fazer efeito?",
@@ -76,7 +74,7 @@ const DarkButton = ({ label }: { label: string }) => (
   </button>
 );
 
-const ProductTemplate4 = ({ title, description, price, originalPrice, image, images, productId, accent, mobile = false, variants = [] }: ProductTemplateProps) => {
+const ProductTemplate4 = ({ title, description, price, originalPrice, image, images, productId, projectId, accent, mobile = false, variants = [] }: ProductTemplateProps) => {
   const discountPct = originalPrice && originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0;
   const { gallery, active, current, setActive, prev, next, hasMany } = useProductGallery(images, image);
   const twoCol = mobile ? "1fr" : "1fr 1fr";
@@ -125,11 +123,6 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, ima
 
           {/* Informacoes */}
           <div className="flex flex-col">
-            <div className="flex items-center gap-2 text-[13px] text-black/70">
-              <span className="flex" style={{ color: "#f5a623" }}>{Array.from({ length: 5 }).map((_, i) => <Star key={i} size={15} fill="currentColor" strokeWidth={0} />)}</span>
-              <span><span className="font-bold text-black">Avaliado 4.9/5</span> por 888+ pessoas</span>
-            </div>
-
             <h1 data-editor-type="text" className="mt-3 text-[30px] font-black uppercase leading-[1.05] tracking-[-0.01em] text-[#171717] md:text-[38px]">{title}</h1>
 
             <p data-editor-type="text" className="mt-3 text-[15px] leading-[1.5] text-black/65">{description}</p>
@@ -176,8 +169,11 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, ima
               </div>
             ))}
 
+            {/* Compre mais e economize (bundles) */}
+            <StoreBundleOffers price={price} accent={accent} />
+
             {/* CTA */}
-            <button type="button" className="flex h-14 w-full items-center justify-center gap-2.5 rounded-[10px] text-[15px] font-bold uppercase tracking-[0.04em] text-white transition hover:opacity-90" style={{ backgroundColor: DARK }}>
+            <button type="button" className="mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-[10px] text-[15px] font-bold uppercase tracking-[0.04em] text-white transition hover:opacity-90" style={{ backgroundColor: DARK }}>
               <ShoppingCart size={19} /> Adicionar ao carrinho
             </button>
 
@@ -189,16 +185,6 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, ima
                   <span>{label}</span>
                 </div>
               ))}
-            </div>
-
-            {/* Review inline */}
-            <div className="mt-5 flex items-start gap-3 border-t border-black/10 pt-5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white" style={{ background: `linear-gradient(135deg, ${accent}, #a855f7)` }}><Star size={16} fill="currentColor" strokeWidth={0} /></span>
-              <div className="min-w-0">
-                <span className="flex" style={{ color: "#f5a623" }}>{Array.from({ length: 5 }).map((_, i) => <Star key={i} size={13} fill="currentColor" strokeWidth={0} />)}</span>
-                <p className="mt-1 text-[13px] leading-snug text-black/70">"Mudou a forma como eu trabalho. Facil de usar e os resultados apareceram rapido. Recomendo demais para qualquer pessoa!"</p>
-                <p className="mt-1.5 flex items-center gap-1 text-[12px] font-semibold text-black"><BadgeCheck size={13} className="text-[#3b82f6]" /> Joao Silva</p>
-              </div>
             </div>
 
             {/* Accordions */}
@@ -285,25 +271,12 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, ima
         </div>
       </section>
 
-      {/* ===== STATS DA COMUNIDADE ===== */}
-      <section className="border-t border-black/[0.07] bg-white px-5 py-12 sm:px-8">
-        <div className="mx-auto grid max-w-[1120px] items-center gap-8 lg:gap-14" style={{ gridTemplateColumns: twoCol }}>
-          <span className="flex aspect-square items-center justify-center overflow-hidden rounded-[10px] bg-[#ececec]">{galleryImageAt(gallery, 3) ? <img src={galleryImageAt(gallery, 3)} alt="" className="h-full w-full object-cover" /> : null}</span>
-          <div>
-            <h2 className="text-[24px] font-black leading-[1.15] text-[#171717]">O que nossos clientes notaram</h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-black/55">Como milhares de pessoas mudaram a rotina com mais conforto e praticidade.</p>
-            <div className="mt-6 space-y-5">
-              {stats.map((stat) => (
-                <div key={stat.pct} className="flex items-center gap-4 border-b border-black/[0.06] pb-5">
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 text-[13px] font-black text-[#171717]" style={{ borderColor: "#171717" }}>{stat.pct}</span>
-                  <p className="text-[13px] leading-snug text-black/65">{stat.text}</p>
-                </div>
-              ))}
-            </div>
-            <DarkButton label="Quero o meu agora" />
-          </div>
-        </div>
-      </section>
+      {/* ===== O QUE OS CLIENTES DIZEM =====
+           Antes esta seção trazia "90% sentiram uma diferenca clara",
+           "95% mantiveram o resultado" e "98% ganharam mais confianca" — números
+           inventados sobre pesquisa de cliente que nunca existiu. Agora o espaço
+           mostra as avaliações reais. */}
+      <StoreReviews projectId={projectId} productId={productId} accent={accent} mobile={mobile} background="#ffffff" />
 
       {/* ===== TEXTO + IMAGEM ===== */}
       <section className="border-t border-black/[0.07] bg-white px-5 py-12 sm:px-8">

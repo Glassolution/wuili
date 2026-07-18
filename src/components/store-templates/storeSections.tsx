@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { RefreshCcw, ShieldCheck, Truck } from "lucide-react";
+import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 
 // Seções de conversão compartilhadas pelos templates de produto (bundles,
 // pagamento e garantias). São HTML/CSS puro — sem estado React — para que:
@@ -9,8 +10,6 @@ import { RefreshCcw, ShieldCheck, Truck } from "lucide-react";
 //
 // Números são placeholders editáveis: os preços dos bundles derivam do preço
 // real do produto; nenhuma avaliação/contagem específica é fabricada.
-
-const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 type BundleTier = {
   qty: string;

@@ -15,6 +15,7 @@ import {
   getProjectProductIds,
   getProjectStoreName,
   getProjectTemplate,
+  resolveProjectPrice,
   type PublicStoreProduct,
   type UserProject,
 } from "@/lib/userProjects";
@@ -100,7 +101,10 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
 
   const { Component, descFallback } = resolveProductTemplate(getProjectTemplate(project));
   const brand = getProjectStoreName(project) || project.nome;
-  const price = product?.price || 149.9;
+  // O preço editado no canvas vale para a página inteira — bundles e "economize"
+  // derivam daqui. Antes só o catálogo alimentava isso, e o override de texto
+  // trocava apenas o número do topo.
+  const price = resolveProjectPrice(project, product?.price || 149.9);
   const accent = getProjectAccent(project);
   const overrides = getProjectOverrides(project);
   const fontStack = fontStackFor(getProjectFont(project));
@@ -147,6 +151,7 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
         image={product?.imageUrl || ""}
         images={product?.imageUrls}
         productId={product?.id}
+        projectId={project.id}
         accent={accent}
         mobile={false}
         variants={product?.variants ?? []}
@@ -228,6 +233,7 @@ const PublishedLojaPage = ({ project }: { project: UserProject }) => {
           category: product.category,
         }))}
         mobile={false}
+        projectId={project.id}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StartModeBanner from "@/components/dashboard/StartModeBanner";
 import FreePlanBanner from "@/components/dashboard/FreePlanBanner";
 import StartModeModal from "@/components/dashboard/StartModeModal";
+import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import {
   hasCompletedStoreOnboarding,
@@ -48,6 +49,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   TrendingUp,
+  UserPlus,
   UserRound,
   Video,
   type LucideIcon,
@@ -199,6 +201,27 @@ const MobileDrawerLink = ({
   </Link>
 );
 
+const MobileDrawerButton = ({
+  label,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  icon: LucideIcon;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex min-h-14 w-full items-center gap-4 border-b border-black/[0.06] px-1 text-left text-[15px] font-semibold text-[#111111] transition active:bg-black/[0.03]"
+  >
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center text-[#111111]">
+      <Icon size={22} strokeWidth={1.7} />
+    </span>
+    <span className="min-w-0 flex-1 truncate">{label}</span>
+  </button>
+);
+
 const MobileAccountPage = ({
   displayName,
   foto,
@@ -213,7 +236,10 @@ const MobileAccountPage = ({
   planLabel: string;
   planLoading: boolean;
   isAdmin: boolean;
-}) => (
+}) => {
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  return (
   <section className="-mx-4 -mt-4 min-h-screen bg-white pb-8">
     <div className="bg-[#111111] px-5 pb-6 pt-6 text-white">
       <div className="mb-6">
@@ -250,6 +276,7 @@ const MobileAccountPage = ({
         <MobileDrawerLink to="/dashboard/publicacoes" label="Publicações" icon={Archive} />
         <MobileDrawerLink to="/colecoes" label="Coleções" icon={Copy} />
         <MobileDrawerLink to="/dashboard/relatorios" label="Relatórios" icon={ClipboardList} />
+        <MobileDrawerButton label="Convidar amigo" icon={UserPlus} onClick={() => setInviteOpen(true)} />
         <MobileDrawerLink to="/docs" label="Ajuda & Central" icon={HelpCircle} />
         {isAdmin && (
           <MobileDrawerLink to="/admin/painel" label="Painel Admin" icon={ShieldCheck} badge="Admin" />
@@ -260,8 +287,11 @@ const MobileAccountPage = ({
         <MobileDrawerLink to="/dashboard/configuracoes" label="Configurações" icon={Settings} />
       </div>
     </div>
+
+    <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
   </section>
-);
+  );
+};
 
 const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const location = useLocation();

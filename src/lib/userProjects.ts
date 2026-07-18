@@ -1,6 +1,7 @@
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import type { Json, Tables } from "@/integrations/supabase/types";
 import type { ElementOverride } from "@/lib/storeOverrides";
+import { parsePriceBRL } from "@/lib/priceFormat";
 
 export type ProjectType = "loja_completa" | "pagina_venda";
 export type ProjectStatus = "rascunho" | "publicado";
@@ -195,6 +196,37 @@ export function getProjectStoreName(project: UserProject | null): string {
   const value = readMetadata(project).storeName;
   if (typeof value === "string" && value.trim()) return value.trim();
   return project?.nome?.trim() || "";
+}
+
+/** Preço editado no canvas (metadata.price). null = usar o preço do catálogo. */
+export function getProjectPrice(project: UserProject | null): number | null {
+  const value = readMetadata(project).price;
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/**
+ * Preço efetivo da vitrine. É o que TODO o template deve usar — não só o número
+ * grande do topo, mas também os bundles ("2 unidades"), o "economize X%" e a
+ * barra fixa de compra, que derivam dele.
+ *
+ * Prioridade: o preço editado no canvas (metadata.price) vence o preço do
+ * catálogo. Projetos salvos antes de metadata.price existir guardavam o preço
+ * só como texto no override do elemento; para esses, varremos os overrides e
+ * pegamos o menor valor em BRL (o promocional; o riscado é sempre maior).
+ */
+export function resolveProjectPrice(project: UserProject | null, fallback: number): number {
+  const explicit = getProjectPrice(project);
+  if (explicit !== null) return explicit;
+
+  const overrides = getProjectOverrides(project);
+  const found: number[] = [];
+  for (const override of Object.values(overrides)) {
+    const text = override?.textContent;
+    if (typeof text !== "string" || !/R\$/i.test(text)) continue;
+    const parsed = parsePriceBRL(text);
+    if (parsed !== null) found.push(parsed);
+  }
+  return found.length ? Math.min(...found) : fallback;
 }
 
 export function getProjectTemplate(project: UserProject | null): string {
