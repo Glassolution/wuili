@@ -26,8 +26,9 @@ const corsHeaders = {
 const IMPORT_COST_BUFFER_PERCENT = 30;
 const USD_TO_BRL = 5.0;
 const TOP_N_PER_CATEGORY = 20;
-const SIM_THRESHOLD_MEDIO = 0.35;
-const SIM_THRESHOLD_ALTO = 0.55;
+// Thresholds baixos porque títulos ML (pt-BR) x AliExpress (en) têm pouca sobreposição léxica.
+const SIM_THRESHOLD_MEDIO = 0.08;
+const SIM_THRESHOLD_ALTO = 0.20;
 
 // Mapeamento categoria (label frontend) -> ML category id.
 const ML_CATEGORIES: Record<string, string> = {
