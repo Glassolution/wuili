@@ -4,12 +4,16 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  CheckCircle2,
   FileText,
+  ImageIcon,
+  Link2,
   Loader2,
   Search,
   Sparkles,
   Store,
-  Upload,
+  Trash2,
+  UploadCloud,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -154,7 +158,10 @@ const ProjectCreationWizard = ({
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [logoImage, setLogoImage] = useState<string | null>(null);
+  const [logoName, setLogoName] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [draggingLogo, setDraggingLogo] = useState(false);
+  const [logoUrlInput, setLogoUrlInput] = useState("");
   const [tipo, setTipo] = useState<ProjectType>(initialTipo);
   const [selectedProducts, setSelectedProducts] = useState<string[]>(preselectedProductIds ?? []);
   const [templateId, setTemplateId] = useState<string>(
@@ -178,6 +185,9 @@ const ProjectCreationWizard = ({
     setNome("");
     setDescricao("");
     setLogoImage(null);
+    setLogoName(null);
+    setDraggingLogo(false);
+    setLogoUrlInput("");
     setTipo(initialTipo);
     setSelectedProducts(preselectedProductIds ?? []);
     setTemplateId(initialTipo === "loja_completa" ? "loja-1" : "produto-1");
@@ -262,12 +272,38 @@ const ProjectCreationWizard = ({
       if (upErr) throw upErr;
       const { data } = supabase.storage.from("assets").getPublicUrl(path);
       setLogoImage(data.publicUrl);
+      setLogoName(file.name);
     } catch (err) {
       console.error(err);
       veloToast.error("Falha ao enviar a imagem.");
     } finally {
       setUploadingLogo(false);
     }
+  };
+
+  const handleLogoDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDraggingLogo(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) void handleLogoUpload(file);
+  };
+
+  // Importa a logo a partir de uma URL pública, sem passar pelo Storage.
+  const applyLogoUrl = () => {
+    const url = logoUrlInput.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) {
+      veloToast.error("Informe uma URL válida começando com http:// ou https://");
+      return;
+    }
+    setLogoImage(url);
+    setLogoName(url.split("/").pop()?.split("?")[0] || "imagem-da-url");
+    setLogoUrlInput("");
+  };
+
+  const removeLogo = () => {
+    setLogoImage(null);
+    setLogoName(null);
   };
 
   const runCreation = async () => {
@@ -362,27 +398,27 @@ const ProjectCreationWizard = ({
             exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 10 }}
             transition={{ type: "spring", stiffness: 340, damping: 32, mass: 0.9 }}
             onClick={(event) => event.stopPropagation()}
-            className="flex max-h-[88vh] w-full max-w-[720px] flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_32px_80px_rgba(16,24,40,0.20),0_0_0_1px_rgba(16,24,40,0.04)]"
+            className="flex max-h-[88vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_24px_64px_rgba(16,24,40,0.18),0_0_0_1px_rgba(16,24,40,0.04)]"
           >
-            {/* Cabeçalho: ícone em caixa clara + título/subtítulo + fechar. */}
-            <div className="flex items-start gap-3.5 px-6 pt-6 pb-5">
+            {/* Cabeçalho compacto: ícone circular + título/subtítulo + fechar. */}
+            <div className="flex items-start gap-3 px-5 py-4">
               {showBack ? (
                 <motion.button
                   type="button"
                   onClick={() => goTo(step === "produtos" ? "info" : skipProducts ? "info" : "produtos", -1)}
                   whileTap={reduce ? undefined : { scale: 0.94 }}
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border border-[#EAECF0] bg-white text-[#344054] shadow-[0_1px_2px_rgba(16,24,40,0.06)] transition-colors hover:bg-[#F9FAFB]"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#EAECF0] bg-white text-[#344054] transition-colors hover:bg-[#F9FAFB]"
                   aria-label="Voltar"
                 >
-                  <ArrowLeft size={19} strokeWidth={1.9} />
+                  <ArrowLeft size={18} strokeWidth={1.9} />
                 </motion.button>
               ) : (
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border border-[#EAECF0] bg-white text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
-                  <Sparkles size={20} strokeWidth={1.8} />
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#EAECF0] bg-white text-[#101828]">
+                  <Sparkles size={18} strokeWidth={1.8} />
                 </span>
               )}
 
-              <div className="min-w-0 flex-1 pt-0.5">
+              <div className="min-w-0 flex-1">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={step}
@@ -391,10 +427,10 @@ const ProjectCreationWizard = ({
                     exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
                     transition={{ duration: reduce ? 0.001 : 0.24, ease: EASE }}
                   >
-                    <h2 className="truncate text-[19px] font-semibold tracking-[-0.02em] text-[#101828]">
+                    <h2 className="truncate text-[16px] font-semibold tracking-[-0.01em] text-[#101828]">
                       {copy.title}
                     </h2>
-                    <p className="mt-0.5 text-[13.5px] leading-5 text-[#667085]">{copy.subtitle}</p>
+                    <p className="mt-0.5 text-[13px] leading-[18px] text-[#667085]">{copy.subtitle}</p>
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -404,10 +440,10 @@ const ProjectCreationWizard = ({
                   type="button"
                   onClick={onClose}
                   whileTap={reduce ? undefined : { scale: 0.9 }}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[#98A2B3] transition-colors hover:bg-[#F2F4F7] hover:text-[#344054]"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#98A2B3] transition-colors hover:bg-[#F2F4F7] hover:text-[#344054]"
                   aria-label="Fechar"
                 >
-                  <X size={19} strokeWidth={1.9} />
+                  <X size={18} strokeWidth={1.9} />
                 </motion.button>
               ) : null}
             </div>
@@ -416,7 +452,7 @@ const ProjectCreationWizard = ({
 
             {/* Progresso segmentado com preenchimento animado. */}
             {step !== "loading" ? (
-              <div className="flex items-center gap-2 px-6 pt-5">
+              <div className="flex items-center gap-2 px-5 pt-5">
                 {(skipProducts ? [0, 1] : [0, 1, 2]).map((index) => {
                   const activeIndex = skipProducts ? (step === "info" ? 0 : 1) : stepIndex;
                   return (
@@ -434,7 +470,7 @@ const ProjectCreationWizard = ({
               </div>
             ) : null}
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
               {error ? (
                 <motion.div
                   initial={reduce ? false : { opacity: 0, y: -6 }}
@@ -473,35 +509,43 @@ const ProjectCreationWizard = ({
                         <label className="mb-2 block text-[13px] font-semibold text-[#344054]">
                           Logo / Foto da loja
                         </label>
-                        <div className="flex items-center gap-4 rounded-[14px] border border-dashed border-[#D0D5DD] bg-[#F9FAFB] p-4 transition-colors hover:border-[#98A2B3]">
+
+                        {/* Zona de drop centralizada: ícone, chamada, formatos e botão. */}
+                        <div
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDraggingLogo(true);
+                          }}
+                          onDragLeave={() => setDraggingLogo(false)}
+                          onDrop={handleLogoDrop}
+                          className={`flex flex-col items-center rounded-[12px] border border-dashed px-6 py-7 text-center transition-colors duration-200 ${
+                            draggingLogo
+                              ? "border-[#101828] bg-[#F9FAFB]"
+                              : "border-[#D0D5DD] bg-white hover:border-[#98A2B3]"
+                          }`}
+                        >
+                          <motion.span
+                            animate={draggingLogo && !reduce ? { y: -3 } : { y: 0 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                            className="grid h-10 w-10 place-items-center rounded-full text-[#475467]"
+                          >
+                            <UploadCloud size={24} strokeWidth={1.7} />
+                          </motion.span>
+                          <p className="mt-2 text-[14px] font-semibold text-[#101828]">
+                            Escolha uma imagem ou arraste e solte aqui.
+                          </p>
+                          <p className="mt-1 text-[12.5px] text-[#667085]">
+                            Formatos PNG ou JPG, até 5 MB.
+                          </p>
                           <motion.button
                             type="button"
                             onClick={() => logoInputRef.current?.click()}
                             disabled={uploadingLogo}
-                            whileTap={reduce ? undefined : { scale: 0.96 }}
-                            className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-[12px] border border-[#EAECF0] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.06)] transition-colors hover:border-[#98A2B3]"
+                            whileTap={reduce ? undefined : { scale: 0.97 }}
+                            className="mt-4 inline-flex items-center rounded-[8px] border border-[#D0D5DD] bg-white px-4 py-2 text-[13px] font-semibold text-[#344054] shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-colors hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {uploadingLogo ? (
-                              <Loader2 size={19} className="animate-spin text-[#98A2B3]" />
-                            ) : logoImage ? (
-                              <img src={logoImage} alt="logo" className="h-full w-full object-cover" />
-                            ) : (
-                              <Store size={20} strokeWidth={1.7} className="text-[#98A2B3]" />
-                            )}
+                            Selecionar arquivo
                           </motion.button>
-                          <div className="min-w-0 flex-1">
-                            <motion.button
-                              type="button"
-                              onClick={() => logoInputRef.current?.click()}
-                              disabled={uploadingLogo}
-                              whileTap={reduce ? undefined : { scale: 0.97 }}
-                              className="inline-flex items-center gap-2 rounded-[10px] border border-[#D0D5DD] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#344054] shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-colors hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <Upload size={14} strokeWidth={2} />
-                              {logoImage ? "Trocar imagem" : "Enviar imagem"}
-                            </motion.button>
-                            <p className="mt-1.5 text-[12px] text-[#667085]">PNG ou JPG, até 5MB.</p>
-                          </div>
                           <input
                             ref={logoInputRef}
                             type="file"
@@ -512,6 +556,99 @@ const ProjectCreationWizard = ({
                               if (f) handleLogoUpload(f);
                               e.target.value = "";
                             }}
+                          />
+                        </div>
+
+                        {/* Card do arquivo: miniatura, nome, status e remover. */}
+                        <AnimatePresence>
+                          {uploadingLogo || logoImage ? (
+                            <motion.div
+                              initial={reduce ? false : { opacity: 0, y: -6, height: 0 }}
+                              animate={{ opacity: 1, y: 0, height: "auto" }}
+                              exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6, height: 0 }}
+                              transition={{ duration: 0.24, ease: EASE }}
+                              className="overflow-hidden"
+                            >
+                              <div className="mt-3 flex items-center gap-3 rounded-[12px] border border-[#E4E7EC] bg-white p-3">
+                                <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-[8px] border border-[#EAECF0] bg-[#F9FAFB]">
+                                  {logoImage ? (
+                                    <img src={logoImage} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    <ImageIcon size={17} strokeWidth={1.8} className="text-[#98A2B3]" />
+                                  )}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-[13.5px] font-semibold text-[#101828]">
+                                    {logoName ?? "Imagem da loja"}
+                                  </p>
+                                  <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[#667085]">
+                                    {uploadingLogo ? (
+                                      <>
+                                        <Loader2 size={12} className="animate-spin text-[#475467]" />
+                                        Enviando...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle2 size={13} className="text-[#12B76A]" />
+                                        Concluído
+                                      </>
+                                    )}
+                                  </p>
+                                </div>
+                                {!uploadingLogo ? (
+                                  <motion.button
+                                    type="button"
+                                    onClick={removeLogo}
+                                    whileTap={reduce ? undefined : { scale: 0.9 }}
+                                    className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#98A2B3] transition-colors hover:bg-[#FEF3F2] hover:text-[#B42318]"
+                                    aria-label="Remover imagem"
+                                  >
+                                    <Trash2 size={16} strokeWidth={1.9} />
+                                  </motion.button>
+                                ) : null}
+                              </div>
+                              {uploadingLogo ? (
+                                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#EAECF0]">
+                                  <motion.span
+                                    className="block h-full rounded-full bg-[#101828]"
+                                    initial={{ width: "10%" }}
+                                    animate={{ width: "90%" }}
+                                    transition={{ duration: 1.6, ease: "easeOut" }}
+                                  />
+                                </div>
+                              ) : null}
+                            </motion.div>
+                          ) : null}
+                        </AnimatePresence>
+
+                        {/* Divisor "OU" + importação por URL. */}
+                        <div className="my-4 flex items-center gap-3">
+                          <span className="h-px flex-1 bg-[#EAECF0]" />
+                          <span className="text-[12px] font-medium text-[#98A2B3]">OU</span>
+                          <span className="h-px flex-1 bg-[#EAECF0]" />
+                        </div>
+
+                        <label className="mb-2 block text-[13px] font-semibold text-[#344054]">
+                          Importar de uma URL
+                        </label>
+                        <div className="relative">
+                          <Link2
+                            size={16}
+                            strokeWidth={1.9}
+                            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
+                          />
+                          <input
+                            value={logoUrlInput}
+                            onChange={(event) => setLogoUrlInput(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                applyLogoUrl();
+                              }
+                            }}
+                            onBlur={applyLogoUrl}
+                            placeholder="Cole o link da imagem"
+                            className="h-11 w-full rounded-[10px] border border-[#E4E7EC] bg-white pl-10 pr-4 text-[13.5px] font-medium text-[#101828] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#101828] focus:shadow-[0_0_0_4px_rgba(16,24,40,0.06)]"
                           />
                         </div>
                       </motion.div>
@@ -814,7 +951,7 @@ const ProjectCreationWizard = ({
             {step !== "loading" ? (
               <>
                 <div className="h-px w-full bg-[#EEF0F3]" />
-                <div className="flex items-center justify-between gap-3 px-6 py-4">
+                <div className="flex items-center justify-between gap-3 px-5 py-4">
                   <span className="text-[13px] font-medium text-[#667085]">
                     {step === "produtos"
                       ? `${selectedProducts.length} produto(s) selecionado(s)`
