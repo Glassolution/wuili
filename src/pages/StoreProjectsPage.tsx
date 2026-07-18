@@ -7,8 +7,8 @@ import {
   Inbox,
   Loader2,
   Mail,
+  Menu,
   Plus,
-  SlidersHorizontal,
   Sparkles,
   Store,
 } from "lucide-react";
@@ -18,6 +18,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { fetchUserProjects, type ProjectType, type UserProject } from "@/lib/userProjects";
 import { isAdminEmail } from "@/lib/adminAccess";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
+import ProjectSettingsOverlay from "@/components/editor/ProjectSettingsOverlay";
 import { usePlan } from "@/hooks/usePlan";
 import { toast } from "sonner";
 
@@ -116,6 +117,11 @@ const loadLegacyProjects = async (userId: string): Promise<ProjectCard[]> => {
   return projects.sort((a, b) => new Date(b.lastEditedAt).getTime() - new Date(a.lastEditedAt).getTime());
 };
 
+const filterTabCls = (active: boolean) =>
+  `flex h-9 shrink-0 items-center gap-2 rounded-[7px] px-3 text-[13px] font-semibold transition ${
+    active ? "bg-[#f2f2f0] text-black" : "text-[#777b82] hover:bg-[#f7f7f5]"
+  }`;
+
 const ProjectScreenPreview = ({ project }: { project: ProjectCard }) => {
   const fallbackPreview =
     project.tipo === "loja_completa" ? "/template-01-loja-preview.png" : "/template-produto-preview.png";
@@ -128,9 +134,12 @@ const StoreProjectsPage = () => {
   const { user, role } = useAuth();
   const { plan: currentPlan } = usePlan();
   const [projects, setProjects] = useState<ProjectCard[]>([]);
+  const [rawProjects, setRawProjects] = useState<UserProject[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [filter, setFilter] = useState<"all" | "loja_completa" | "pagina_venda">("all");
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
@@ -146,6 +155,10 @@ const StoreProjectsPage = () => {
     () => isAdmin ? projects : projects.filter((project) => project.tipo === "pagina_venda"),
     [isAdmin, projects],
   );
+  const displayedProjects = useMemo(
+    () => (filter === "all" ? visibleProjects : visibleProjects.filter((project) => project.tipo === filter)),
+    [filter, visibleProjects],
+  );
 
   useEffect(() => {
     if (!user?.id) return;
@@ -158,11 +171,13 @@ const StoreProjectsPage = () => {
       try {
         const userProjects = await fetchUserProjects();
         if (!active) return;
+        setRawProjects(userProjects);
         setProjects(userProjects.map(mapUserProject));
       } catch (error) {
         console.warn("[StoreProjectsPage] usando fallback legado para projetos.", error);
         const legacyProjects = await loadLegacyProjects(user.id);
         if (!active) return;
+        setRawProjects([]);
         setProjects(legacyProjects);
       } finally {
         if (active) setLoading(false);
@@ -183,16 +198,22 @@ const StoreProjectsPage = () => {
   }, [visibleProjects]);
 
   useEffect(() => {
-    if (visibleProjects.length === 0) {
+    if (displayedProjects.length === 0) {
       setSelectedProjectId(null);
       return;
     }
 
-    setSelectedProjectId((current) => (current && visibleProjects.some((project) => project.id === current) ? current : visibleProjects[0].id));
-  }, [visibleProjects]);
+    setSelectedProjectId((current) => (current && displayedProjects.some((project) => project.id === current) ? current : displayedProjects[0].id));
+  }, [displayedProjects]);
 
-  const selectedProject = visibleProjects.find((project) => project.id === selectedProjectId) ?? visibleProjects[0] ?? null;
+  const selectedProject = displayedProjects.find((project) => project.id === selectedProjectId) ?? displayedProjects[0] ?? null;
+  const selectedRawProject = selectedProject ? rawProjects.find((project) => project.id === selectedProject.id) ?? null : null;
   const lastUpdateLabel = selectedProject ? `Última edição ${formatLastEdited(selectedProject.lastEditedAt)}` : "Nenhum projeto ainda";
+
+  const handleProjectChange = (updated: UserProject) => {
+    setRawProjects((prev) => prev.map((project) => (project.id === updated.id ? updated : project)));
+    setProjects((prev) => prev.map((project) => (project.id === updated.id ? mapUserProject(updated) : project)));
+  };
 
   const openProject = (project: ProjectCard) => {
     navigate(`/minha-loja/editor/${project.id}`, {
@@ -204,6 +225,7 @@ const StoreProjectsPage = () => {
     setWizardOpen(false);
     try {
       const userProjects = await fetchUserProjects();
+      setRawProjects(userProjects);
       setProjects(userProjects.map(mapUserProject));
       navigate(`/minha-loja/editor/${projectId}`, { state: { projectId } });
     } catch {
@@ -236,12 +258,20 @@ const StoreProjectsPage = () => {
         </button>
 
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          <button type="button" className="flex h-9 items-center gap-2 rounded-[7px] bg-[#f2f2f0] px-3 text-[13px] font-semibold text-black">
+          <button
+            type="button"
+            onClick={() => setFilter("all")}
+            className={filterTabCls(filter === "all")}
+          >
             <Inbox size={15} strokeWidth={1.8} />
             Todos {visibleProjects.length}
           </button>
           {isAdmin ? (
-            <button type="button" className="flex h-9 items-center gap-2 rounded-[7px] px-3 text-[13px] font-semibold text-[#777b82] transition hover:bg-[#f7f7f5]">
+            <button
+              type="button"
+              onClick={() => setFilter("loja_completa")}
+              className={filterTabCls(filter === "loja_completa")}
+            >
               <Store size={15} strokeWidth={1.8} />
               Lojas {projectCounts.stores}
             </button>
@@ -251,12 +281,20 @@ const StoreProjectsPage = () => {
               Loja completa · Em fase de testes
             </span>
           )}
-          <button type="button" className="flex h-9 items-center gap-2 rounded-[7px] px-3 text-[13px] font-semibold text-[#777b82] transition hover:bg-[#f7f7f5]">
+          <button
+            type="button"
+            onClick={() => setFilter("pagina_venda")}
+            className={filterTabCls(filter === "pagina_venda")}
+          >
             <FileText size={15} strokeWidth={1.8} />
             Páginas {projectCounts.pages}
           </button>
           <span className="mx-2 h-6 w-px bg-[#e2e2df]" />
-          <button type="button" className="flex h-9 items-center gap-2 rounded-[7px] px-3 text-[13px] font-semibold text-[#777b82] transition hover:bg-[#f7f7f5]">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/produtos-em-alta")}
+            className="flex h-9 items-center gap-2 rounded-[7px] px-3 text-[13px] font-semibold text-[#777b82] transition hover:bg-[#f7f7f5]"
+          >
             <Sparkles size={15} strokeWidth={1.8} />
             Produtos em alta
           </button>
@@ -267,16 +305,16 @@ const StoreProjectsPage = () => {
         <aside className="min-h-0 border-r border-[#ececea] bg-white">
           <div className="overflow-hidden bg-white">
             <div className="flex h-11 items-center justify-between border-b border-[#ececea] px-5">
-              <div className="flex items-center gap-2.5">
-                <span className="h-3.5 w-3.5 rounded-[4px] border border-[#deded9] bg-white" />
-                <span className="text-[13px] font-semibold text-[#1f2024]">Projetos</span>
-              </div>
+              <span className="text-[13px] font-semibold text-[#1f2024]">Projetos</span>
               <button
                 type="button"
-                className="flex h-7 w-7 items-center justify-center rounded-[7px] text-[#4f5358] transition hover:bg-[#f3f3f1] hover:text-black"
-                aria-label="Filtrar projetos"
+                onClick={() => setSettingsOpen(true)}
+                disabled={!selectedRawProject}
+                className="flex h-7 w-7 items-center justify-center rounded-[7px] text-[#4f5358] transition hover:bg-[#f3f3f1] hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Configurações do projeto"
+                title="Configurações do projeto"
               >
-                <SlidersHorizontal size={16} strokeWidth={1.9} />
+                <Menu size={16} strokeWidth={1.9} />
               </button>
             </div>
 
@@ -286,8 +324,8 @@ const StoreProjectsPage = () => {
                 <Loader2 size={17} className="animate-spin" />
                 Carregando projetos...
               </div>
-            ) : visibleProjects.length > 0 ? (
-              visibleProjects.map((project) => {
+            ) : displayedProjects.length > 0 ? (
+              displayedProjects.map((project) => {
                 const active = selectedProject?.id === project.id;
                 return (
                   <button
@@ -432,6 +470,13 @@ const StoreProjectsPage = () => {
         onClose={() => setWizardOpen(false)}
         defaultTipo={wizardDefaultTipo}
         onCreated={handleProjectCreated}
+      />
+
+      <ProjectSettingsOverlay
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        project={selectedRawProject}
+        onProjectChange={handleProjectChange}
       />
     </div>
   );

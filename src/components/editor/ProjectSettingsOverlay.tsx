@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, Crown, Globe, Loader2, Lock, Mail, Settings, Trash2, Users, X } from "lucide-react";
+import { Check, ChevronLeft, Crown, Globe, Loader2, Lock, Mail, Pencil, Settings, Trash2, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
 import {
@@ -11,6 +11,7 @@ import {
   inviteProjectMember,
   parseInviteError,
   removeProjectMember,
+  sendProjectInviteEmail,
   updateProjectMetadata,
   updateProjectName,
   type ProjectMember,
@@ -159,8 +160,14 @@ const ProjectSettingsOverlay = ({ open, onClose, project, initialSection = "gera
     setInviting(true);
     try {
       await inviteProjectMember(project.id, email, inviteRole);
+      // Envia o email de convite (best-effort — não bloqueia se o provedor falhar).
+      try {
+        await sendProjectInviteEmail(project.id, email, inviteRole);
+      } catch (emailError) {
+        console.error("[ProjectSettingsOverlay] falha ao enviar email de convite:", emailError);
+      }
       setInviteEmail("");
-      setNotice({ tone: "ok", text: "Convite enviado. O acesso é liberado quando o convidado tiver um plano pago ativo." });
+      setNotice({ tone: "ok", text: "Convite enviado por e-mail. O acesso é liberado quando o convidado tiver um plano pago ativo." });
       await loadMembers();
     } catch (error) {
       const code = parseInviteError(error);
@@ -280,13 +287,33 @@ const ProjectSettingsOverlay = ({ open, onClose, project, initialSection = "gera
                     <div className="mt-4 divide-y divide-white/[0.06] rounded-[16px] border border-white/[0.07] bg-white/[0.02]">
                       <div className="flex items-center gap-3 px-5 py-4">
                         <span className="w-40 shrink-0 text-[14px] text-white/70">Nome do projeto</span>
-                        <input
-                          value={nameDraft}
-                          onChange={(event) => setNameDraft(event.target.value)}
-                          onBlur={handleSaveName}
-                          disabled={!isOwner || saving}
-                          className="flex-1 rounded-[10px] bg-transparent px-3 py-2 text-right text-[14px] text-white outline-none transition focus:bg-black/25 disabled:opacity-60"
-                        />
+                        <div className="flex flex-1 items-center justify-end gap-2">
+                          <div className="flex min-w-0 items-center gap-2 rounded-[10px] border border-white/[0.14] bg-white/[0.04] px-3 py-2 transition focus-within:border-white/35 focus-within:bg-black/25">
+                            <Pencil size={13} className="shrink-0 text-white/40" />
+                            <input
+                              value={nameDraft}
+                              onChange={(event) => setNameDraft(event.target.value)}
+                              onBlur={handleSaveName}
+                              onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+                              disabled={!isOwner || saving}
+                              placeholder="Nome do projeto"
+                              aria-label="Nome do projeto"
+                              className="w-48 min-w-0 bg-transparent text-right text-[14px] text-white outline-none placeholder:text-white/30 disabled:opacity-60"
+                            />
+                          </div>
+                          {isOwner && nameDraft.trim() && nameDraft.trim() !== project.nome ? (
+                            <button
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={handleSaveName}
+                              disabled={saving}
+                              aria-label="Salvar nome"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white text-black transition hover:opacity-90 disabled:opacity-60"
+                            >
+                              {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={16} strokeWidth={2.4} />}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="flex items-center gap-3 px-5 py-4">
                         <span className="w-40 shrink-0 text-[14px] text-white/70">Subdomínio</span>
