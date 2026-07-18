@@ -337,6 +337,23 @@ const CatalogoProductDetailPage = () => {
                     onClick={() => setActiveImg((current) => (current + 1) % gallery.length)}
                     className="absolute inset-y-14 right-0 z-[1] w-1/2"
                   />
+
+                  <button
+                    type="button"
+                    aria-label="Imagem anterior"
+                    onClick={() => setActiveImg((current) => (current - 1 + gallery.length) % gallery.length)}
+                    className="absolute left-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-[#111111] ring-1 ring-black/[0.06] backdrop-blur-sm transition-transform active:scale-95"
+                  >
+                    <ChevronLeft size={20} strokeWidth={2} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Próxima imagem"
+                    onClick={() => setActiveImg((current) => (current + 1) % gallery.length)}
+                    className="absolute right-3 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-[#111111] ring-1 ring-black/[0.06] backdrop-blur-sm transition-transform active:scale-95"
+                  >
+                    <ChevronRight size={20} strokeWidth={2} />
+                  </button>
                 </>
               )}
 
