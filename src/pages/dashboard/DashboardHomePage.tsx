@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -246,6 +247,17 @@ const DashboardHomePage = () => {
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportTab, setSupportTab] = useState<SupportTab>("home");
   const [inviteOpen, setInviteOpen] = useState(false);
+  const reduce = useReducedMotion();
+  // Animação de entrada: cada bloco sobe (fade + translateY) em sequência,
+  // de cima para baixo, num ritmo mais lento para ficar perceptível.
+  const rise = (delay: number) =>
+    reduce
+      ? {}
+      : {
+          initial: { opacity: 0, y: 24 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const, delay },
+        };
   const cta = ctaSlides[activeCta];
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
@@ -333,7 +345,7 @@ const DashboardHomePage = () => {
         <div className="pointer-events-none absolute inset-0 font-sans">
           <div className="absolute inset-x-0 top-0 h-[35.2%] bg-white" />
 
-          <div className="absolute left-[0.7%] top-[1.5%] h-[9.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
+          <motion.div {...rise(0.1)} className="absolute left-[0.7%] top-[1.5%] h-[9.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
             <span className="absolute left-[1.9%] top-1/2 flex h-[clamp(22px,2.2vw,42px)] w-[clamp(22px,2.2vw,42px)] -translate-y-1/2 items-center justify-center rounded-[0.45vw] bg-black text-white shadow-[0_0.45vw_0.95vw_rgba(0,0,0,0.16)]">
               <Home className="h-[55%] w-[55%]" fill="currentColor" strokeWidth={2} />
             </span>
@@ -343,17 +355,17 @@ const DashboardHomePage = () => {
                 {loadingStats ? "Carregando dados da sua conta" : `Ola, ${statsData?.displayName ?? "Velo"}. Visao geral da sua conta`}
               </span>
             </div>
-          </div>
+          </motion.div>
 
           <div className="absolute left-[0.7%] top-[10.5%] h-[17.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
             <span className="absolute left-[25.2%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
             <span className="absolute left-[49.0%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
             <span className="absolute left-[72.8%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
-            {metricCards.map((card) => {
+            {metricCards.map((card, index) => {
               const Icon = card.icon;
 
               return (
-                <div key={card.title} className="absolute top-[20%] w-[19.0%]" style={{ left: card.left }}>
+                <motion.div key={card.title} {...rise(0.28 + index * 0.1)} className="absolute top-[20%] w-[19.0%]" style={{ left: card.left }}>
                   <div className="flex items-center gap-[0.45vw] text-[clamp(8px,0.78vw,15px)] font-semibold leading-none text-[#8f95a3]">
                     <Icon className="h-[clamp(11px,1.05vw,20px)] w-[clamp(11px,1.05vw,20px)] text-[#c3c8d4]" strokeWidth={1.9} />
                     <span>{card.title}</span>
@@ -362,7 +374,7 @@ const DashboardHomePage = () => {
                     ? <div className="mt-[0.75vw] h-[clamp(16px,1.65vw,32px)] w-[46%] animate-pulse rounded-full bg-black/[0.08]" />
                     : <p className="mt-[0.75vw] text-[clamp(16px,1.65vw,32px)] font-semibold leading-none text-black">{formatCount(statsData?.[card.key] ?? 0)}</p>}
                   <p className="mt-[0.9vw] text-[clamp(8px,0.82vw,16px)] font-medium leading-[1.36] text-[#6f7582]">{card.description}</p>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -370,9 +382,9 @@ const DashboardHomePage = () => {
           <div className="absolute inset-x-0 top-[27.5%] h-[44.9%] bg-white" />
           <div className="absolute left-[4.8%] top-[29.2%] h-[42.0%] w-[33.4%] bg-white" />
           <div className="absolute left-[36.9%] top-[27.6%] h-[5.5%] w-[20.4%] bg-white" />
-          <div className="absolute left-[6.55%] top-[30.9%] h-[27.2%] w-[30.6%] overflow-hidden rounded-[1.05vw] border border-black/[0.06] bg-white shadow-[0_0.65vw_1.5vw_rgba(15,23,42,0.045)]">
+          <motion.div {...rise(0.6)} className="absolute left-[6.55%] top-[30.9%] h-[27.2%] w-[30.6%] overflow-hidden rounded-[1.05vw] border border-black/[0.06] bg-white shadow-[0_0.65vw_1.5vw_rgba(15,23,42,0.045)]">
             <CtaVisual visual={cta.visual} />
-          </div>
+          </motion.div>
 
           <div className="absolute left-[38.6%] top-[31.8%] h-[22.2%] w-[53.0%] bg-white" />
           <div className="absolute left-[0.0%] top-[35.2%] z-20 h-[22.0%] w-[5.8%] bg-white" />
@@ -402,13 +414,13 @@ const DashboardHomePage = () => {
             <span className="text-[clamp(7px,0.66vw,13px)] font-semibold text-[#606876]">{cta.meta}</span>
           </div>
 
-          <h1 className="absolute left-[39.1%] top-[37.0%] max-w-[51.5%] text-[clamp(16px,1.52vw,30px)] font-semibold leading-[1.16] tracking-[-0.022em] text-[#272b34]">
+          <motion.h1 {...rise(0.68)} className="absolute left-[39.1%] top-[37.0%] max-w-[51.5%] text-[clamp(16px,1.52vw,30px)] font-semibold leading-[1.16] tracking-[-0.022em] text-[#272b34]">
             {cta.title}
-          </h1>
+          </motion.h1>
 
-          <p className="absolute left-[39.1%] top-[44.2%] max-w-[44.5%] text-[clamp(8px,0.82vw,16px)] font-medium leading-[1.42] text-[#666d7a]">
+          <motion.p {...rise(0.74)} className="absolute left-[39.1%] top-[44.2%] max-w-[44.5%] text-[clamp(8px,0.82vw,16px)] font-medium leading-[1.42] text-[#666d7a]">
             {cta.description}
-          </p>
+          </motion.p>
 
           {cta.visual === "referral" ? (
             <button
@@ -446,10 +458,10 @@ const DashboardHomePage = () => {
           <div className="absolute inset-x-0 top-[72.4%] h-[41.6%] bg-white" />
           <div className="absolute left-[2.9%] right-[2.9%] top-[72.4%] h-px bg-black/[0.06]" />
 
-          <div className="absolute left-[2.65%] top-[76.6%] bg-white pr-[1.5vw]">
+          <motion.div {...rise(0.86)} className="absolute left-[2.65%] top-[76.6%] bg-white pr-[1.5vw]">
             <h2 className="text-[clamp(12px,1.08vw,21px)] font-semibold tracking-[-0.02em] text-[#262b35]">Explore nossas ferramentas</h2>
             <p className="mt-[0.45vw] text-[clamp(8px,0.82vw,16px)] font-medium text-[#606876]">Um guia pratico para usar as solucoes da plataforma</p>
-          </div>
+          </motion.div>
 
           <button
             type="button"
@@ -459,34 +471,39 @@ const DashboardHomePage = () => {
             <ChevronLeft className="h-[45%] w-[45%]" strokeWidth={2.4} />
           </button>
 
-          {toolCards.map((card) => {
+          {toolCards.map((card, index) => {
             const Icon = card.icon;
             const storeCreationInTesting = card.title === "Loja completa" && !isAdmin;
 
             return (
-              <a
-                href={storeCreationInTesting ? "/dashboard/minha-loja" : card.href}
+              <motion.div
                 key={card.title}
-                className={`pointer-events-auto absolute top-[83.8%] h-[19.2%] w-[15.6%] rounded-[0.82vw] border border-black/[0.07] bg-white p-[1.25vw] text-left no-underline shadow-[0_0.6vw_1.3vw_rgba(15,23,42,0.035)] transition duration-150 hover:-translate-y-[2px] hover:border-black/[0.14] hover:shadow-[0_0.75vw_1.6vw_rgba(15,23,42,0.075)] ${
-                  storeCreationInTesting ? "opacity-75" : ""
-                }`}
+                {...rise(0.98 + index * 0.1)}
+                className="pointer-events-none absolute top-[83.8%] h-[19.2%] w-[15.6%]"
                 style={{ left: card.left }}
               >
-                <span className="flex h-[clamp(24px,2.6vw,50px)] w-[clamp(24px,2.6vw,50px)] items-center justify-center rounded-[0.56vw] bg-black text-white shadow-[0_0.45vw_0.9vw_rgba(0,0,0,0.14)]">
-                  <Icon className="h-[52%] w-[52%]" strokeWidth={1.9} />
-                </span>
-
-                {card.badge || storeCreationInTesting ? (
-                  <span className="absolute right-[1vw] top-[1vw] rounded-[0.32vw] bg-[#f1f2f4] px-[0.45vw] py-[0.17vw] text-[clamp(6px,0.58vw,11px)] font-bold text-black">
-                    {storeCreationInTesting ? "EM TESTES" : card.badge}
+                <a
+                  href={storeCreationInTesting ? "/dashboard/minha-loja" : card.href}
+                  className={`pointer-events-auto relative block h-full w-full rounded-[0.82vw] border border-black/[0.07] bg-white p-[1.25vw] text-left no-underline shadow-[0_0.6vw_1.3vw_rgba(15,23,42,0.035)] transition duration-150 hover:-translate-y-[2px] hover:border-black/[0.14] hover:shadow-[0_0.75vw_1.6vw_rgba(15,23,42,0.075)] ${
+                    storeCreationInTesting ? "opacity-75" : ""
+                  }`}
+                >
+                  <span className="flex h-[clamp(24px,2.6vw,50px)] w-[clamp(24px,2.6vw,50px)] items-center justify-center rounded-[0.56vw] bg-black text-white shadow-[0_0.45vw_0.9vw_rgba(0,0,0,0.14)]">
+                    <Icon className="h-[52%] w-[52%]" strokeWidth={1.9} />
                   </span>
-                ) : null}
 
-                <h3 className="mt-[1vw] text-[clamp(9px,1.02vw,20px)] font-semibold leading-[1.08] tracking-[-0.018em] text-[#242832]">{card.title}</h3>
-                <p className="mt-[0.65vw] text-[clamp(7px,0.72vw,14px)] font-medium leading-[1.36] text-[#68707d]">
-                  {storeCreationInTesting ? "Recurso temporariamente disponível apenas para testes internos." : card.description}
-                </p>
-              </a>
+                  {card.badge || storeCreationInTesting ? (
+                    <span className="absolute right-[1vw] top-[1vw] rounded-[0.32vw] bg-[#f1f2f4] px-[0.45vw] py-[0.17vw] text-[clamp(6px,0.58vw,11px)] font-bold text-black">
+                      {storeCreationInTesting ? "EM TESTES" : card.badge}
+                    </span>
+                  ) : null}
+
+                  <h3 className="mt-[1vw] text-[clamp(9px,1.02vw,20px)] font-semibold leading-[1.08] tracking-[-0.018em] text-[#242832]">{card.title}</h3>
+                  <p className="mt-[0.65vw] text-[clamp(7px,0.72vw,14px)] font-medium leading-[1.36] text-[#68707d]">
+                    {storeCreationInTesting ? "Recurso temporariamente disponível apenas para testes internos." : card.description}
+                  </p>
+                </a>
+              </motion.div>
             );
           })}
 
