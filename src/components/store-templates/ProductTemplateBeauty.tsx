@@ -22,6 +22,7 @@ import type { ProductTemplateProps } from "./ProductTemplate";
 import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
 import { StoreBundleOffers, StorePaymentRow } from "@/components/store-templates/storeSections";
 import { StoreBenefitsBar, StoreFeatureGrid, StoreImageCta, StoreThreeSteps } from "@/components/store-templates/storeContentSections";
+import { galleryImageAt, useProductGallery } from "@/components/store-templates/productGallery";
 
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -50,11 +51,11 @@ const additionalSpecs: Array<[string, string]> = [
 ];
 const detailBullets = ["Hidratacao profunda", "Absorcao rapida", "Livre de parabenos", "Testado dermatologicamente"];
 
-const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice, image, productId, mobile = false, variants = [] }: ProductTemplateProps) => {
+const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice, image, images, productId, mobile = false, variants = [] }: ProductTemplateProps) => {
   const [quantity, setQuantity] = useState(4);
   const [activeTab, setActiveTab] = useState(2);
 
-  const thumbnails = image ? [image, image, image, image] : [];
+  const { gallery, active, current, setActive, prev, next, hasMany } = useProductGallery(images, image);
 
   return (
     <div className="bg-white text-[#1d1d1d]">
@@ -106,15 +107,26 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
           {/* Galeria */}
           <div>
             <div className="relative aspect-square overflow-hidden rounded-[14px] bg-[#efeae0]">
-              {image ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} data-editor-label="Imagem principal do produto" src={image} alt={title} className="absolute inset-0 h-full w-full object-cover" /> : null}
-              <button type="button" className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#1d1d1d] shadow-md" aria-label="Anterior"><ChevronLeft data-editor-icon="ChevronLeft" size={18} /></button>
-              <button type="button" className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-white shadow-md" style={{ backgroundColor: GREEN }} aria-label="Proximo"><ChevronRight data-editor-icon="ChevronRight" size={18} /></button>
+              {current ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} data-editor-label="Imagem principal do produto" src={current} alt={title} className="absolute inset-0 h-full w-full object-cover" /> : null}
+              {hasMany ? (
+                <>
+                  <button type="button" onClick={prev} className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#1d1d1d] shadow-md" aria-label="Anterior"><ChevronLeft data-editor-icon="ChevronLeft" size={18} /></button>
+                  <button type="button" onClick={next} className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-white shadow-md" style={{ backgroundColor: GREEN }} aria-label="Proximo"><ChevronRight data-editor-icon="ChevronRight" size={18} /></button>
+                </>
+              ) : null}
             </div>
             <div className="mt-4 grid grid-cols-4 gap-3">
-              {thumbnails.map((thumb, index) => (
-                <span key={index} className={`aspect-square overflow-hidden rounded-[10px] bg-[#efeae0] ${index === 0 ? "ring-2 ring-offset-2" : ""}`} style={index === 0 ? { "--tw-ring-color": GREEN } as React.CSSProperties : undefined}>
+              {gallery.slice(0, 8).map((thumb, index) => (
+                <button
+                  type="button"
+                  key={thumb}
+                  onClick={() => setActive(index)}
+                  aria-label={`Miniatura ${index + 1}`}
+                  className={`aspect-square overflow-hidden rounded-[10px] bg-[#efeae0] ${index === active ? "ring-2 ring-offset-2" : ""}`}
+                  style={index === active ? { "--tw-ring-color": GREEN } as React.CSSProperties : undefined}
+                >
                   <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} data-editor-label={`Miniatura ${index + 1}`} src={thumb} alt="" className="h-full w-full object-cover" />
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -179,8 +191,8 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
       {/* Como funciona em 3 passos */}
       <StoreThreeSteps image={image} accent={GREEN} mobile={mobile} />
 
-      {/* Grade de recursos + imagem */}
-      <StoreFeatureGrid image={image} accent={GREEN} mobile={mobile} />
+      {/* Grade de recursos + imagem (foto diferente da do topo) */}
+      <StoreFeatureGrid image={galleryImageAt(gallery, 1)} accent={GREEN} mobile={mobile} />
 
       {/* Abas */}
       <section className="px-6 pb-12 sm:px-10">
@@ -284,7 +296,7 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
                         <div className="mt-4 flex gap-3">
                           {[0, 1, 2].map((index) => (
                             <span key={index} className="h-20 w-24 overflow-hidden rounded-[10px] bg-[#efeae0]">
-                              <img data-editor-type="image" data-editor-label={`Foto da avaliação ${index + 1}`} src={image} alt="" className="h-full w-full object-cover" />
+                              <img data-editor-type="image" data-editor-label={`Foto da avaliação ${index + 1}`} src={galleryImageAt(gallery, index + 1)} alt="" className="h-full w-full object-cover" />
                             </span>
                           ))}
                         </div>
@@ -299,7 +311,7 @@ const ProductTemplateBeauty = ({ brand, title, description, price, originalPrice
       </section>
 
       {/* Bloco imagem + CTA */}
-      <StoreImageCta image={image} accent={GREEN} title={title} mobile={mobile} />
+      <StoreImageCta image={galleryImageAt(gallery, 2)} accent={GREEN} title={title} mobile={mobile} />
     </div>
   );
 };

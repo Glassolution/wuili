@@ -15,6 +15,7 @@ import {
 import type { ProductTemplateProps } from "./ProductTemplate";
 import { StoreBundleOffers, StorePaymentRow } from "@/components/store-templates/storeSections";
 import { StoreBenefitsBar, StoreFeatureGrid, StoreImageCta, StoreThreeSteps } from "@/components/store-templates/storeContentSections";
+import { galleryImageAt, useProductGallery } from "@/components/store-templates/productGallery";
 
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -34,12 +35,11 @@ const trustBadges: Array<[typeof LockKeyhole, string, string]> = [
   [ShieldCheck, "Garantia de 30 dias", "Devolucao do dinheiro"],
 ];
 
-const ProductTemplateShopify = ({ brand, title, description, price, originalPrice, image, productId, mobile = false }: ProductTemplateProps) => {
+const ProductTemplateShopify = ({ brand, title, description, price, originalPrice, image, images, productId, mobile = false }: ProductTemplateProps) => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const discountPct = originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0;
   const savings = Math.max(0, Math.round(originalPrice - price));
-  const thumbnails = image ? [image, image, image, image] : [];
-  const relatedProducts = Array.from({ length: 5 }, () => ({ name: title, price }));
+  const { gallery, active, current, setActive, prev, next, hasMany } = useProductGallery(images, image);
 
   return (
     <div className="bg-white text-[#111]">
@@ -71,13 +71,25 @@ const ProductTemplateShopify = ({ brand, title, description, price, originalPric
           {/* Galeria */}
           <div>
             <div className="relative aspect-square overflow-hidden rounded-[14px] bg-[#eaeaea]">
-              {image ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={image} alt={title} className="absolute inset-0 h-full w-full object-cover" /> : null}
+              {current ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={current} alt={title} className="absolute inset-0 h-full w-full object-cover" /> : null}
+              {hasMany ? (
+                <>
+                  <button type="button" onClick={prev} aria-label="Foto anterior" className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black shadow-md transition hover:bg-white"><ChevronLeft size={18} /></button>
+                  <button type="button" onClick={next} aria-label="Proxima foto" className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black shadow-md transition hover:bg-white"><ChevronRight size={18} /></button>
+                </>
+              ) : null}
             </div>
             <div className="mt-4 grid grid-cols-4 gap-3">
-              {thumbnails.map((thumb, index) => (
-                <span key={index} className={`aspect-square overflow-hidden rounded-[10px] bg-[#eaeaea] ${index === 0 ? "ring-2 ring-black ring-offset-2" : ""}`}>
+              {gallery.slice(0, 8).map((thumb, index) => (
+                <button
+                  type="button"
+                  key={thumb}
+                  onClick={() => setActive(index)}
+                  aria-label={`Foto ${index + 1}`}
+                  className={`aspect-square overflow-hidden rounded-[10px] bg-[#eaeaea] ${index === active ? "ring-2 ring-black ring-offset-2" : ""}`}
+                >
                   <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={thumb} alt="" className="h-full w-full object-cover" />
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -128,8 +140,8 @@ const ProductTemplateShopify = ({ brand, title, description, price, originalPric
       {/* Como funciona em 3 passos */}
       <StoreThreeSteps image={image} accent={NAVY} mobile={mobile} />
 
-      {/* Grade de recursos + imagem */}
-      <StoreFeatureGrid image={image} accent={NAVY} mobile={mobile} />
+      {/* Grade de recursos + imagem (foto diferente da do topo) */}
+      <StoreFeatureGrid image={galleryImageAt(gallery, 1)} accent={NAVY} mobile={mobile} />
 
       {/* Avaliacoes */}
       <section className="bg-[#eeeeee] px-6 py-10 sm:px-10">
@@ -171,29 +183,7 @@ const ProductTemplateShopify = ({ brand, title, description, price, originalPric
       </section>
 
       {/* Bloco imagem + CTA */}
-      <StoreImageCta image={image} accent={NAVY} title={title} mobile={mobile} />
-
-      {/* Produtos relacionados */}
-      <section className="bg-[#f7f7f5] px-6 py-10 sm:px-10">
-        <div className="mx-auto max-w-[1080px]">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[28px] font-black text-black">Produtos relacionados</h2>
-            <div className="flex gap-2">
-              <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ededeb] text-black" aria-label="Anterior"><ChevronLeft size={16} /></button>
-              <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ededeb] text-black" aria-label="Proximo"><ChevronRight size={16} /></button>
-            </div>
-          </div>
-          <div className="mt-5 flex gap-6 overflow-x-auto pb-2">
-            {relatedProducts.map((item, index) => (
-              <article key={index} className="w-[180px] shrink-0">
-                <div className="aspect-square overflow-hidden rounded-[12px] bg-[#eaeaea] p-4">{image ? <img src={image} alt="" className="h-full w-full object-contain" /> : null}</div>
-                <h3 className="mt-3 line-clamp-2 text-[14px] font-black leading-tight text-black">{item.name}</h3>
-                <p className="mt-1 text-[14px] font-semibold text-black">{formatBRL(item.price)}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+      <StoreImageCta image={galleryImageAt(gallery, 2)} accent={NAVY} title={title} mobile={mobile} />
 
       {/* Barra fixa de compra */}
       <div className="flex items-center justify-between gap-4 border-t border-black/10 bg-white px-6 py-3 sm:px-10">

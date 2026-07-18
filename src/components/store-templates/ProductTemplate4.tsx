@@ -19,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { ProductTemplateProps } from "./ProductTemplate";
+import { galleryImageAt, useProductGallery } from "@/components/store-templates/productGallery";
 
 const formatUSD = (value: number) => `R$ ${value.toFixed(2).replace(".", ",")}`;
 
@@ -75,10 +76,9 @@ const DarkButton = ({ label }: { label: string }) => (
   </button>
 );
 
-const ProductTemplate4 = ({ title, description, price, originalPrice, image, productId, accent, mobile = false, variants = [] }: ProductTemplateProps) => {
+const ProductTemplate4 = ({ title, description, price, originalPrice, image, images, productId, accent, mobile = false, variants = [] }: ProductTemplateProps) => {
   const discountPct = originalPrice && originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0;
-  const thumbnails = image ? [image, image, image, image, image] : [];
-  const recommended = Array.from({ length: 5 }, () => ({ name: title, price, original: originalPrice ?? price * 1.25 }));
+  const { gallery, active, current, setActive, prev, next, hasMany } = useProductGallery(images, image);
   const twoCol = mobile ? "1fr" : "1fr 1fr";
 
   return (
@@ -99,15 +99,26 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, pro
           {/* Galeria */}
           <div>
             <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[10px] bg-[#eaeaea]">
-              {image ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={image} alt={title} className="h-full w-full object-cover" /> : null}
-              <button type="button" aria-label="Anterior" className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-[8px] bg-black/[0.06] text-black/50 transition hover:bg-black/10"><ChevronLeft size={18} /></button>
-              <button type="button" aria-label="Proximo" className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-[8px] bg-black/[0.06] text-black/50 transition hover:bg-black/10"><ChevronRight size={18} /></button>
+              {current ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={current} alt={title} className="h-full w-full object-cover" /> : null}
+              {hasMany ? (
+                <>
+                  <button type="button" onClick={prev} aria-label="Anterior" className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-[8px] bg-black/[0.06] text-black/50 transition hover:bg-black/10"><ChevronLeft size={18} /></button>
+                  <button type="button" onClick={next} aria-label="Proximo" className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-[8px] bg-black/[0.06] text-black/50 transition hover:bg-black/10"><ChevronRight size={18} /></button>
+                </>
+              ) : null}
             </div>
-            <div className="mt-3 grid grid-cols-5 gap-2.5">
-              {thumbnails.map((thumb, index) => (
-                <span key={index} className="flex aspect-square items-center justify-center overflow-hidden rounded-[8px] bg-[#eaeaea]" style={{ border: index === 0 ? "1.5px solid rgba(0,0,0,0.35)" : "1.5px solid transparent" }}>
+            <div className="mt-3 grid gap-2.5" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(gallery.length, 1), 5)}, minmax(0,1fr))` }}>
+              {gallery.slice(0, 10).map((thumb, index) => (
+                <button
+                  type="button"
+                  key={thumb}
+                  onClick={() => setActive(index)}
+                  aria-label={`Foto ${index + 1}`}
+                  className="flex aspect-square items-center justify-center overflow-hidden rounded-[8px] bg-[#eaeaea]"
+                  style={{ border: index === active ? "1.5px solid rgba(0,0,0,0.35)" : "1.5px solid transparent" }}
+                >
                   <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={thumb} alt="" className="h-full w-full object-cover" />
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -209,7 +220,9 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, pro
       {/* ===== SECAO IMAGEM + TEXTO ===== */}
       <section className="border-t border-black/[0.07] bg-white px-5 py-12 sm:px-8">
         <div className="mx-auto grid max-w-[1120px] items-center gap-8 lg:gap-14" style={{ gridTemplateColumns: twoCol }}>
-          <span className="flex aspect-square items-center justify-center overflow-hidden rounded-[10px] bg-[#ececec]">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : null}</span>
+          {/* Cada bloco abaixo puxa uma foto diferente da galeria (galleryImageAt
+              cicla quando o fornecedor manda menos fotos que blocos). */}
+          <span className="flex aspect-square items-center justify-center overflow-hidden rounded-[10px] bg-[#ececec]">{galleryImageAt(gallery, 1) ? <img src={galleryImageAt(gallery, 1)} alt="" className="h-full w-full object-cover" /> : null}</span>
           <div>
             <h2 className="text-[26px] font-black leading-[1.15] text-[#171717]">Feito para o seu dia a dia</h2>
             <p className="mt-3 text-[14px] leading-[1.6] text-black/60">Leve e discreto, se adapta a sua rotina sem esforco. Cada detalhe foi pensado para entregar conforto e resultado desde o primeiro uso, do jeito que voce precisa.</p>
@@ -233,7 +246,7 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, pro
                 </div>
               ))}
             </div>
-            <span className="mx-auto flex h-[190px] w-[190px] items-center justify-center overflow-hidden rounded-full bg-[#ececec]">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : null}</span>
+            <span className="mx-auto flex h-[190px] w-[190px] items-center justify-center overflow-hidden rounded-full bg-[#ececec]">{galleryImageAt(gallery, 2) ? <img src={galleryImageAt(gallery, 2)} alt="" className="h-full w-full object-cover" /> : null}</span>
             <div className="space-y-8">
               {gridFeatures.slice(2).map(([Icon, t, d]) => (
                 <div key={t}>
@@ -275,7 +288,7 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, pro
       {/* ===== STATS DA COMUNIDADE ===== */}
       <section className="border-t border-black/[0.07] bg-white px-5 py-12 sm:px-8">
         <div className="mx-auto grid max-w-[1120px] items-center gap-8 lg:gap-14" style={{ gridTemplateColumns: twoCol }}>
-          <span className="flex aspect-square items-center justify-center overflow-hidden rounded-[10px] bg-[#ececec]">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : null}</span>
+          <span className="flex aspect-square items-center justify-center overflow-hidden rounded-[10px] bg-[#ececec]">{galleryImageAt(gallery, 3) ? <img src={galleryImageAt(gallery, 3)} alt="" className="h-full w-full object-cover" /> : null}</span>
           <div>
             <h2 className="text-[24px] font-black leading-[1.15] text-[#171717]">O que nossos clientes notaram</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-black/55">Como milhares de pessoas mudaram a rotina com mais conforto e praticidade.</p>
@@ -300,7 +313,7 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, pro
             <p className="mt-3 text-[14px] leading-[1.6] text-black/60">Discreto e leve, ele fica ali pronto para o momento em que voce precisar. Simples de usar, sem complicacao e sem peso na sua rotina.</p>
             <DarkButton label="Comprar agora" />
           </div>
-          <span className="flex aspect-square items-center justify-center overflow-hidden rounded-[10px] bg-[#ececec]">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : null}</span>
+          <span className="flex aspect-square items-center justify-center overflow-hidden rounded-[10px] bg-[#ececec]">{galleryImageAt(gallery, 4) ? <img src={galleryImageAt(gallery, 4)} alt="" className="h-full w-full object-cover" /> : null}</span>
         </div>
       </section>
 
@@ -322,27 +335,6 @@ const ProductTemplate4 = ({ title, description, price, originalPrice, image, pro
         </div>
       </section>
 
-      {/* ===== PRODUTOS RECOMENDADOS ===== */}
-      <section className="border-t border-black/[0.07] bg-white px-5 py-12 sm:px-8">
-        <div className="mx-auto max-w-[1120px]">
-          <h2 className="text-center text-[24px] font-black text-[#171717]">Produtos recomendados</h2>
-          <div className="relative mt-7">
-            <div className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {recommended.map((item, index) => (
-                <article key={index} className="w-[190px] shrink-0">
-                  <div className="flex aspect-square items-center justify-center overflow-hidden rounded-[10px] bg-[#ececec] p-4">{image ? <img src={image} alt="" className="h-full w-full object-contain" /> : null}</div>
-                  <h3 className="mt-3 line-clamp-1 text-[13px] font-semibold text-[#171717]">{item.name}</h3>
-                  <div className="mt-1 flex items-center gap-2 text-[13px]">
-                    <span className="font-bold text-[#171717]">{formatUSD(item.price)}</span>
-                    <span className="text-black/40 line-through">{formatUSD(item.original)}</span>
-                    <span className="rounded-full bg-[#f0f0f0] px-1.5 py-0.5 text-[10px] font-bold text-black/60">20% OFF</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 };

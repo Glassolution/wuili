@@ -1,6 +1,7 @@
 import {
-  ArrowRight,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Heart,
   Menu,
   RefreshCcw,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 
 import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
+import { galleryImageAt, useProductGallery } from "@/components/store-templates/productGallery";
 import { StoreBundleOffers, StoreGuaranteeCards, StorePaymentRow } from "@/components/store-templates/storeSections";
 import { StoreBenefitsBar, StoreFaqAccordion, StoreFeatureGrid, StoreImageCta, StoreTestimonials, StoreThreeSteps, StoreUrgencyBanner, StoreUsageCarousel, StoreWhyWorthIt } from "@/components/store-templates/storeContentSections";
 import type { ProductVariantOption } from "@/lib/userProjects";
@@ -24,6 +26,9 @@ export type ProductTemplateProps = {
   /** Preço "de" riscado. Só quando o fornecedor pratica desconto real; null omite. */
   originalPrice: number | null;
   image: string;
+  /** Todas as fotos do produto (a primeira é `image`). Alimenta a galeria e evita
+   *  repetir a mesma foto em todas as seções. */
+  images?: string[];
   productId?: string;
   accent: string;
   mobile?: boolean;
@@ -40,10 +45,9 @@ const trustBadges: Array<[typeof Truck, string, string]> = [
   [ShieldCheck, "Pagamento seguro", "100% protegido"],
 ];
 
-const ProductTemplate = ({ brand, title, description, price, originalPrice, image, productId, accent, mobile = false, variants = [] }: ProductTemplateProps) => {
+const ProductTemplate = ({ brand, title, description, price, originalPrice, image, images, productId, accent, mobile = false, variants = [] }: ProductTemplateProps) => {
   const discountPct = originalPrice && originalPrice > price ? Math.round((1 - price / originalPrice) * 100) : 0;
-  const thumbnails = image ? [image, image, image, image] : [];
-  const relatedProducts = Array.from({ length: 4 }, () => ({ name: title, price }));
+  const { gallery, active, current, setActive, prev, next, hasMany } = useProductGallery(images, image);
 
   return (
     <div className="bg-white text-[#111]">
@@ -83,14 +87,26 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
           {/* Galeria */}
           <div className="flex gap-4">
             <div className="flex flex-col gap-3">
-              {thumbnails.map((thumb, index) => (
-                <span key={index} className={`flex h-[86px] w-[70px] items-center justify-center overflow-hidden rounded-[10px] border bg-white p-1.5 ${index === 0 ? "border-black" : "border-black/10"}`}>
+              {gallery.map((thumb, index) => (
+                <button
+                  type="button"
+                  key={thumb}
+                  onClick={() => setActive(index)}
+                  aria-label={`Foto ${index + 1}`}
+                  className={`flex h-[86px] w-[70px] items-center justify-center overflow-hidden rounded-[10px] border bg-white p-1.5 transition ${index === active ? "border-black" : "border-black/10 hover:border-black/30"}`}
+                >
                   <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={thumb} alt="" className="h-full w-full object-contain" />
-                </span>
+                </button>
               ))}
             </div>
             <div className="relative aspect-[4/5] flex-1 overflow-hidden rounded-[14px] bg-[#f6f5f3] flex items-center justify-center p-6">
-              {image ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={image} alt={title} className="max-h-full max-w-full object-contain" /> : null}
+              {current ? <img data-editor-type="image" data-editor-product="true" data-editor-product-id={productId} src={current} alt={title} className="max-h-full max-w-full object-contain" /> : null}
+              {hasMany ? (
+                <>
+                  <button type="button" onClick={prev} aria-label="Foto anterior" className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black shadow transition hover:bg-white"><ChevronLeft size={17} /></button>
+                  <button type="button" onClick={next} aria-label="Proxima foto" className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-black shadow transition hover:bg-white"><ChevronRight size={17} /></button>
+                </>
+              ) : null}
               <span className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-black shadow"><Search size={16} /></span>
             </div>
           </div>
@@ -152,13 +168,15 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
       <StoreThreeSteps image={image} accent={accent} mobile={mobile} />
 
       {/* Carrossel de uso (novo) */}
-      <StoreUsageCarousel image={image} accent={accent} mobile={mobile} />
+      <StoreUsageCarousel image={image} productImages={gallery} accent={accent} mobile={mobile} />
 
-      {/* Por que vale a pena — checklist (novo) */}
-      <StoreWhyWorthIt image={image} accent={accent} mobile={mobile} />
+      {/* Por que vale a pena — checklist (novo).
+          A partir daqui cada bloco pega uma foto diferente da galeria (galleryImageAt
+          cicla), para a página não repetir a mesma imagem de cima a baixo. */}
+      <StoreWhyWorthIt image={galleryImageAt(gallery, 1)} accent={accent} mobile={mobile} />
 
       {/* Grade de recursos + imagem */}
-      <StoreFeatureGrid image={image} accent={accent} mobile={mobile} />
+      <StoreFeatureGrid image={galleryImageAt(gallery, 2)} accent={accent} mobile={mobile} />
 
       {/* Depoimentos (novo) */}
       <StoreTestimonials image={image} accent={accent} mobile={mobile} />
@@ -174,7 +192,7 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
               <p className="text-[15px] leading-[1.7] text-black/70">{description}</p>
             </div>
             <div className="aspect-[4/3] overflow-hidden rounded-[14px] bg-[#161616]">
-              {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : null}
+              {galleryImageAt(gallery, 3) ? <img src={galleryImageAt(gallery, 3)} alt="" className="h-full w-full object-cover" /> : null}
             </div>
           </div>
         </div>
@@ -184,30 +202,7 @@ const ProductTemplate = ({ brand, title, description, price, originalPrice, imag
       <StoreFaqAccordion accent={accent} />
 
       {/* Bloco imagem + CTA */}
-      <StoreImageCta image={image} accent={accent} title={title} mobile={mobile} />
-
-
-      {/* Voce tambem pode gostar */}
-      <section className="bg-[#faf9f8] px-6 py-12 sm:px-10">
-        <div className="mx-auto max-w-[1180px]">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[24px] font-black text-black">Voce tambem pode gostar</h2>
-            <button type="button" className="flex items-center gap-1.5 text-[14px] font-semibold text-black/70 transition hover:text-black">Ver todos <ArrowRight size={16} /></button>
-          </div>
-          <div className="mt-7 grid gap-5" style={{ gridTemplateColumns: mobile ? "repeat(2, minmax(0,1fr))" : "repeat(4, minmax(0,1fr))" }}>
-            {relatedProducts.map((item, index) => (
-              <article key={index} className="group">
-                <div className="relative aspect-square overflow-hidden rounded-[14px] bg-[#f1f1f0]">
-                  {image ? <img src={image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : null}
-                  <button type="button" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-black shadow transition hover:bg-white" aria-label="Favoritar"><Heart size={15} /></button>
-                </div>
-                <h3 className="mt-3 line-clamp-1 text-[14px] font-semibold text-black">{item.name}</h3>
-                <p className="mt-0.5 text-[14px] text-black/60">{formatBRL(item.price)}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+      <StoreImageCta image={galleryImageAt(gallery, 4)} accent={accent} title={title} mobile={mobile} />
     </div>
   );
 };

@@ -145,6 +145,7 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
         // referência falso é publicidade enganosa (CDC art. 37).
         originalPrice={product?.originalPrice && product.originalPrice > price ? product.originalPrice : null}
         image={product?.imageUrl || ""}
+        images={product?.imageUrls}
         productId={product?.id}
         accent={accent}
         mobile={false}

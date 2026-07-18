@@ -144,6 +144,8 @@ export type PublicStoreProduct = {
   price: number;
   originalPrice: number | null;
   imageUrl: string | null;
+  /** Galeria completa (imageUrl é a primeira). Alimenta miniaturas e setas. */
+  imageUrls: string[];
   category: string | null;
   /** [] quando o fornecedor não informa variação — a vitrine omite o seletor. */
   variants: ProductVariantOption[];
@@ -151,16 +153,21 @@ export type PublicStoreProduct = {
   description: string | null;
 };
 
-function firstImage(images: Json | null): string | null {
-  if (Array.isArray(images) && images.length > 0) {
-    const first = images[0];
-    if (typeof first === "string") return first;
-    if (first && typeof first === "object" && "url" in first) {
-      const url = (first as { url?: unknown }).url;
-      return typeof url === "string" ? url : null;
+/** Todas as fotos do produto. O scraper grava ["url", ...] ou [{ url }, ...]. */
+function allImages(images: Json | null): string[] {
+  if (!Array.isArray(images)) return [];
+  return images.flatMap((entry) => {
+    if (typeof entry === "string" && entry.trim()) return [entry.trim()];
+    if (entry && typeof entry === "object" && !Array.isArray(entry) && "url" in entry) {
+      const url = (entry as { url?: unknown }).url;
+      return typeof url === "string" && url.trim() ? [url.trim()] : [];
     }
-  }
-  return null;
+    return [];
+  });
+}
+
+function firstImage(images: Json | null): string | null {
+  return allImages(images)[0] ?? null;
 }
 
 /** Carrega um projeto publicado por slug (visível sem login via RPC SECURITY DEFINER). */
@@ -275,6 +282,7 @@ function mapPublicProduct(row: PublicProductRow): PublicStoreProduct {
     price: Number(row.suggested_price ?? 0),
     originalPrice: row.original_price,
     imageUrl: firstImage(row.images),
+    imageUrls: allImages(row.images),
     category: row.category,
     variants: parseVariantOptions(row.variants),
     description: row.description,
@@ -361,6 +369,19 @@ export async function inviteProjectMember(
 
 export async function removeProjectMember(memberId: string): Promise<void> {
   const { error } = await supabase.from("project_members").delete().eq("id", memberId);
+  if (error) throw error;
+}
+
+/** Dispara o email de convite (template Velo) para o colaborador. Best-effort:
+ *  o convite já foi registrado no banco; falha de email não deve bloquear o fluxo. */
+export async function sendProjectInviteEmail(
+  projectId: string,
+  email: string,
+  role: Exclude<ProjectRole, "owner">,
+): Promise<void> {
+  const { error } = await supabase.functions.invoke("send-project-invite-email", {
+    body: { projectId, email: email.trim().toLowerCase(), role },
+  });
   if (error) throw error;
 }
 

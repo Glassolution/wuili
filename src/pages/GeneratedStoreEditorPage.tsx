@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, ExternalLink, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import type { ExampleProduct } from "@/types/onboarding";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
@@ -20,7 +21,7 @@ import ProductTemplateShopify from "@/components/store-templates/ProductTemplate
 import ProductTemplate4 from "@/components/store-templates/ProductTemplate4";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
-type CatalogItem = ExampleProduct & { category: string; variants?: ProductVariantOption[]; originalPrice?: number | null; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
+type CatalogItem = ExampleProduct & { category: string; imageUrls?: string[]; variants?: ProductVariantOption[]; originalPrice?: number | null; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
 type EditorPanelTab = "detalhes" | "personalizar";
 type EditorPanelSection = "template" | "produtos" | "imagem" | "aparencia";
 type ContextDrawerMode = "template" | "products";
@@ -41,11 +42,24 @@ const getInitialTemplate = (): TemplateRef => {
   }
 };
 
-const getFirstImage = (images: unknown) => {
-  if (Array.isArray(images)) return images.find((image): image is string => typeof image === "string" && image.trim().length > 0) || "";
-  if (typeof images === "string") { try { return getFirstImage(JSON.parse(images)); } catch { return images; } }
-  return "";
+// O scraper grava tanto ["url", ...] quanto [{ url }, ...]; normaliza os dois.
+const getAllImages = (images: unknown): string[] => {
+  if (Array.isArray(images)) {
+    return images.flatMap((entry) => {
+      if (typeof entry === "string" && entry.trim()) return [entry.trim()];
+      if (entry && typeof entry === "object" && "url" in entry) {
+        const url = (entry as { url?: unknown }).url;
+        return typeof url === "string" && url.trim() ? [url.trim()] : [];
+      }
+      return [];
+    });
+  }
+  if (typeof images === "string") {
+    try { return getAllImages(JSON.parse(images)); } catch { return images.trim() ? [images.trim()] : []; }
+  }
+  return [];
 };
+const getFirstImage = (images: unknown) => getAllImages(images)[0] || "";
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 // Usa a origem atual (ex: wuili.lovable.app ou velods.com.br) para que o link
@@ -1493,6 +1507,8 @@ const GeneratedStoreEditorPage = () => {
           originalPrice: Number(item.original_price) || null,
           variants: parseVariantOptions(item.variants),
           imageUrl: getFirstImage(item.images),
+          // Galeria completa do fornecedor: o template mostra todas nas miniaturas.
+          imageUrls: getAllImages(item.images),
           category: item.category?.trim() || "Outros",
         }))
         .filter((item) => item.imageUrl)
@@ -1820,19 +1836,22 @@ const GeneratedStoreEditorPage = () => {
           title: item.title,
           price: Number(item.cost_price) || 0,
           imageUrl: getFirstImage(item.images),
+          imageUrls: getAllImages(item.images),
           category: item.category?.trim() || "Outros",
         }];
       }).filter((item) => item.imageUrl);
       setProducts(mapped);
 
       const suggestions = (catalogSuggestionsResult.data ?? []).flatMap((item) => {
-        const imageUrl = getFirstImage(item.images);
+        const imageUrls = getAllImages(item.images);
+        const imageUrl = imageUrls[0] || "";
         if (!imageUrl) return [];
         return [{
           id: item.id,
           title: item.title,
           price: Number(item.cost_price) || 0,
           imageUrl,
+          imageUrls,
           category: item.category?.trim() || "Outros",
         }];
       });
@@ -2020,6 +2039,30 @@ const GeneratedStoreEditorPage = () => {
       setSidebarImportingId(null);
     }
   };
+  // metadata.productIds é a fonte da verdade do produto em destaque: o efeito que
+  // carrega projectProducts reage a currentProject e tem prioridade sobre as
+  // coleções (`products`). Sem atualizar aqui, adicionar ou substituir um produto
+  // no editor mexia só em `products` e o template continuava no produto antigo.
+  const persistProjectProductIds = async (nextIdsFrom: (current: string[]) => string[]) => {
+    if (!currentProject?.id) return;
+    const currentIds = getProjectProductIds(currentProject);
+    const nextIds = nextIdsFrom(currentIds);
+    if (nextIds.length === currentIds.length && nextIds.every((id, index) => id === currentIds[index])) return;
+
+    const baseMetadata =
+      currentProject.metadata && typeof currentProject.metadata === "object" && !Array.isArray(currentProject.metadata)
+        ? (currentProject.metadata as Record<string, unknown>)
+        : {};
+    // Atualiza o estado local para o preview trocar na hora; o autosave abaixo
+    // só persiste no banco.
+    setCurrentProject({ ...currentProject, metadata: { ...baseMetadata, productIds: nextIds } as Json });
+
+    try {
+      await saveProjectDraft(currentProject.id, { productIds: nextIds });
+    } catch (error) {
+      console.error("Falha ao salvar os produtos do projeto:", error);
+    }
+  };
   const applyProductDraft = async () => {
     const selectedProducts = drawerProducts.filter((product) => draftProductIds.includes(product.id));
     if (!selectedProducts.length) return;
@@ -2033,6 +2076,12 @@ const GeneratedStoreEditorPage = () => {
           current.length
             ? current.map((product) => product.id === currentProductId ? replacement : product)
             : [replacement],
+        );
+        // Troca na mesma posição para não mudar qual produto está em destaque.
+        await persistProjectProductIds((current) =>
+          current.includes(currentProductId)
+            ? current.map((id) => (id === currentProductId ? replacement.id : id))
+            : current,
         );
       } else {
         const nextOverride = {
@@ -2053,6 +2102,13 @@ const GeneratedStoreEditorPage = () => {
       return;
     }
     await importStoreProducts(selectedProducts);
+    // Produto recém-adicionado vira o destaque (primeiro da lista), que é o que
+    // o template de produto renderiza.
+    const addedIds = selectedProducts.map((product) => product.id);
+    await persistProjectProductIds((current) => [
+      ...addedIds,
+      ...current.filter((id) => !addedIds.includes(id)),
+    ]);
     setDraftProductIds([]);
     setContextDrawer(null);
   };
@@ -3094,6 +3150,7 @@ const GeneratedStoreEditorPage = () => {
                   originalPrice={featuredProduct?.originalPrice ?? null}
                   variants={featuredProduct?.variants ?? []}
                   image={featuredProduct?.imageUrl || heroImage}
+                  images={featuredProduct?.imageUrls}
                   productId={featuredProduct?.id}
                   accent={accent}
                   mobile={mobilePreview}
@@ -3107,6 +3164,7 @@ const GeneratedStoreEditorPage = () => {
                   originalPrice={featuredProduct?.originalPrice ?? null}
                   variants={featuredProduct?.variants ?? []}
                   image={featuredProduct?.imageUrl || heroImage}
+                  images={featuredProduct?.imageUrls}
                   productId={featuredProduct?.id}
                   accent={accent}
                   mobile={mobilePreview}
@@ -3120,6 +3178,7 @@ const GeneratedStoreEditorPage = () => {
                   originalPrice={featuredProduct?.originalPrice ?? null}
                   variants={featuredProduct?.variants ?? []}
                   image={featuredProduct?.imageUrl || heroImage}
+                  images={featuredProduct?.imageUrls}
                   productId={featuredProduct?.id}
                   accent={accent}
                   mobile={mobilePreview}
@@ -3133,6 +3192,7 @@ const GeneratedStoreEditorPage = () => {
                   originalPrice={featuredProduct?.originalPrice ?? null}
                   variants={featuredProduct?.variants ?? []}
                   image={featuredProduct?.imageUrl || heroImage}
+                  images={featuredProduct?.imageUrls}
                   productId={featuredProduct?.id}
                   accent={accent}
                   mobile={mobilePreview}
