@@ -4,6 +4,7 @@ import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
+import defaultAvatar from "@/assets/default-avatar.png.asset.json";
 import {
   Menu, Search, ChevronRight, X, type LucideIcon,
   LayoutGrid, ShoppingCart, BookOpen, Star, Users,
