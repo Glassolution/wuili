@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -21,7 +22,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import TutorialModal from "@/components/dashboard/TutorialModal";
+import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
+import type { ProjectType } from "@/lib/userProjects";
 import { preloadVidalytics } from "@/lib/vidalyticsPreload";
+import {
+  ONBOARDING_COMPLETED_EVENT,
+  isFreshSignup,
+  hasPendingOnboarding,
+  shouldShowOnboarding,
+} from "@/components/onboarding/OnboardingModal";
 
 const TUTORIAL_SEEN_KEY = "velo_tutorial_seen";
 
@@ -246,6 +255,7 @@ const CtaVisual = ({ visual }: { visual: CtaVisualKind }) => {
 export const MobileResultsOverview = () => <DashboardHomePage />;
 
 const DashboardHomePage = () => {
+  const navigate = useNavigate();
   const { user, role } = useAuth();
   const [activeCta, setActiveCta] = useState(0);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -253,6 +263,7 @@ const DashboardHomePage = () => {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [entered, setEntered] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const tutorialSeenKey = user?.id
     ? `${TUTORIAL_SEEN_KEY}:${user.id}`
@@ -279,17 +290,46 @@ const DashboardHomePage = () => {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !tutorialSeenKey) return;
+    if (typeof window === "undefined" || !user?.id || !tutorialSeenKey) return;
+
+    // O tutorial em vídeo só deve aparecer para quem acabou de se cadastrar
+    // (primeira vez na plataforma), nunca para usuários antigos.
+    const isNewUser = hasPendingOnboarding(user.id) || isFreshSignup(user);
+    if (!isNewUser) return;
+
+    // Nunca reabrir se o usuário já viu o tutorial.
     try {
       if (window.localStorage.getItem(tutorialSeenKey)) return;
     } catch {
       // Mesmo sem localStorage, a primeira entrada deve exibir o tutorial.
     }
-    const timer = window.setTimeout(() => {
-      setTutorialOpen(true);
-    }, 1100);
-    return () => window.clearTimeout(timer);
-  }, [tutorialSeenKey]);
+
+    let openTimer: number | undefined;
+    const scheduleOpen = () => {
+      openTimer = window.setTimeout(() => setTutorialOpen(true), 600);
+    };
+
+    // Se o onboarding ainda está na tela, esperamos ele ser concluído antes de
+    // abrir o vídeo — caso contrário o player tocaria no fundo, por trás do
+    // modal de cadastro.
+    if (shouldShowOnboarding(user)) {
+      const handleCompleted = () => {
+        window.removeEventListener(ONBOARDING_COMPLETED_EVENT, handleCompleted);
+        scheduleOpen();
+      };
+      window.addEventListener(ONBOARDING_COMPLETED_EVENT, handleCompleted);
+      return () => {
+        window.removeEventListener(ONBOARDING_COMPLETED_EVENT, handleCompleted);
+        if (openTimer) window.clearTimeout(openTimer);
+      };
+    }
+
+    // Onboarding já concluído nesta sessão: abre o tutorial na primeira visita.
+    scheduleOpen();
+    return () => {
+      if (openTimer) window.clearTimeout(openTimer);
+    };
+  }, [tutorialSeenKey, user]);
 
   const handleTutorialOpenChange = (open: boolean) => {
     setTutorialOpen(open);
@@ -307,6 +347,12 @@ const DashboardHomePage = () => {
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  const wizardDefaultTipo: ProjectType = isAdmin ? "loja_completa" : "pagina_venda";
+
+  const handleProjectCreated = (projectId: string) => {
+    setWizardOpen(false);
+    navigate(`/minha-loja/editor/${projectId}`, { state: { projectId } });
+  };
 
   const { data: statsData, isLoading: loadingStats } = useQuery({
     queryKey: ["dashboard-stats", user?.id],
@@ -408,14 +454,30 @@ const DashboardHomePage = () => {
                 {loadingStats ? "Carregando dados da sua conta" : `Ola, ${statsData?.displayName ?? "Velo"}. Visao geral da sua conta`}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setTutorialOpen(true)}
-              className="pointer-events-auto absolute right-[1.9%] top-1/2 flex -translate-y-1/2 items-center gap-[0.4vw] rounded-full border border-black/[0.12] bg-white px-[0.9vw] py-[0.4vw] text-[clamp(9px,0.82vw,16px)] font-semibold text-[#252936] shadow-[0_0.35vw_0.9vw_rgba(15,23,42,0.06)] transition hover:bg-black hover:text-white"
-            >
-              <PlayCircle className="h-[clamp(11px,1.05vw,20px)] w-[clamp(11px,1.05vw,20px)]" strokeWidth={2} />
-              Assistir Tutorial
-            </button>
+            <div className="pointer-events-auto absolute right-[1.9%] top-1/2 flex -translate-y-1/2 items-center gap-[0.55vw]">
+              <button
+                type="button"
+                onClick={() => setTutorialOpen(true)}
+                className="flex items-center gap-[0.45vw] rounded-full border border-black/[0.12] bg-white px-[1.1vw] py-[0.55vw] text-[clamp(10px,0.9vw,17px)] font-semibold text-[#252936] shadow-[0_0.4vw_1vw_rgba(15,23,42,0.08)] transition hover:bg-black hover:text-white"
+              >
+                <PlayCircle className="h-[clamp(12px,1.15vw,22px)] w-[clamp(12px,1.15vw,22px)]" strokeWidth={2} />
+                Assistir Tutorial
+              </button>
+              <button
+                type="button"
+                onClick={() => setWizardOpen(true)}
+                style={{
+                  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #1D1F23",
+                  borderTop: "1.5px solid rgba(255,255,255,0.15)",
+                  boxShadow: "0px 4px 7px rgba(0,0,0,0.2), 0px 0px 0px 1.5px #000000",
+                  textShadow: "0px 4px 4px rgba(0,0,0,0.4)",
+                }}
+                className="flex items-center gap-[0.45vw] rounded-[0.55vw] px-[1.1vw] py-[0.55vw] text-[clamp(10px,0.9vw,17px)] font-medium text-white transition-opacity hover:opacity-90"
+              >
+                <Sparkles className="h-[clamp(12px,1.15vw,22px)] w-[clamp(12px,1.15vw,22px)]" strokeWidth={2} />
+                Criar Página com IA
+              </button>
+            </div>
           </div>
 
           <div className="absolute left-[0.7%] top-[10.5%] h-[17.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
@@ -846,7 +908,12 @@ const DashboardHomePage = () => {
       </div>
       <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
       <TutorialModal open={tutorialOpen} onOpenChange={handleTutorialOpenChange} />
-      
+      <ProjectCreationWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        defaultTipo={wizardDefaultTipo}
+        onCreated={handleProjectCreated}
+      />
     </main>
   );
 };

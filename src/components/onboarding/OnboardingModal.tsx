@@ -161,6 +161,11 @@ type Answers = Record<string, string>;
 // loja/perfil no Supabase. Puramente frontend (localStorage), keyed por usuário.
 const onboardingDoneKey = (userId: string) => `velo-onboarding-done:${userId}`;
 
+// Evento disparado no momento em que o usuário conclui o onboarding. Serve para
+// que outras telas (ex.: o tutorial em vídeo do dashboard) só reajam DEPOIS que
+// o cadastro terminou, em vez de abrir por cima do modal de onboarding.
+export const ONBOARDING_COMPLETED_EVENT = "velo-onboarding-completed";
+
 export const hasSeenOnboarding = (userId: string): boolean => {
   if (typeof window === "undefined") return false;
   return window.localStorage.getItem(onboardingDoneKey(userId)) === "1";
@@ -169,6 +174,7 @@ export const hasSeenOnboarding = (userId: string): boolean => {
 export const markOnboardingSeen = (userId: string): void => {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(onboardingDoneKey(userId), "1");
+  window.dispatchEvent(new CustomEvent(ONBOARDING_COMPLETED_EVENT, { detail: { userId } }));
 };
 
 // Sinal explícito de "acabou de se cadastrar", gravado no signup para garantir
@@ -202,6 +208,22 @@ export const isFreshSignup = (user: {
     Number.isFinite(lastSignInAt) &&
     Math.abs(lastSignInAt - createdAt) <= 10 * 60 * 1000
   );
+};
+
+type OnboardingUser = {
+  id?: string;
+  created_at?: string;
+  last_sign_in_at?: string | null;
+  user_metadata?: { velo_onboarding_pending?: boolean } | null;
+} | null;
+
+// Verdadeiro quando o usuário é um cadastro recente que ainda NÃO concluiu o
+// onboarding — ou seja, quando o modal de onboarding está (ou deveria estar) na
+// tela. Fonte única de verdade usada pelo layout e pelo tutorial em vídeo.
+export const shouldShowOnboarding = (user: OnboardingUser): boolean => {
+  if (!user?.id) return false;
+  const wants = hasPendingOnboarding(user.id) || isFreshSignup(user);
+  return wants && !hasSeenOnboarding(user.id);
 };
 
 type OnboardingModalProps = {
@@ -284,7 +306,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[120] flex flex-col items-center overflow-y-auto bg-[#F4F4F5] px-4 py-10 sm:px-6"
+      className="fixed inset-0 z-[120] flex flex-col items-center overflow-y-auto bg-[#F4F4F5] px-4 py-6 sm:px-6"
       role="dialog"
       aria-modal="true"
       aria-label="Onboarding da Velo"
@@ -292,8 +314,16 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
       animate={{ opacity: 1 }}
       transition={{ duration: reduce ? 0.001 : 0.2 }}
     >
-      {/* Cabeçalho da página: marca + título + subtítulo, centralizados. */}
-      <div className="flex flex-col items-center text-center">
+      {/* Escala uniforme do conteúdo: reduz o modal proporcionalmente (como um
+          "zoom out"), mantendo a proporção original do card. Usamos `zoom` (e
+          não `transform: scale`) porque o zoom encolhe também a caixa de layout,
+          então o conteúdo passa a caber na tela sem forçar rolagem na etapa 3. */}
+      <div
+        className="flex w-full flex-col items-center"
+        style={{ zoom: 0.82 } as CSSProperties}
+      >
+        {/* Cabeçalho da página: marca + título + subtítulo, centralizados. */}
+        <div className="flex flex-col items-center text-center">
         <VeloLogo size="md" variant="dark" />
         <AnimatePresence mode="wait">
           <motion.div
@@ -427,6 +457,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           </motion.button>
         </div>
       </motion.div>
+      </div>
     </motion.div>
   );
 };

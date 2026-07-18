@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ChevronDown, ChevronUp, ClipboardList, Copy, CreditCard, Home, Info, LogOut, MessagesSquare, Plus, Search, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, Users, X } from "lucide-react";
+import { Archive, BadgeCheck, ChevronDown, ChevronUp, ClipboardList, Copy, CreditCard, Home, Info, LogOut, MessagesSquare, Plus, Search, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, UserRound, Users, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import SearchPalette from "@/components/dashboard/SearchPalette";
-import defaultAvatar from "@/assets/default-avatar.png.asset.json";
 
 type NavItem = {
   label: string;
@@ -491,6 +490,10 @@ const DashboardSidebar = () => {
   const { user, signOut, role } = useAuth();
   const { nome, foto } = useProfile();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  // Evita ícone quebrado/circulo vazio quando a foto do perfil não existe ou
+  // falha ao carregar (ex.: URL de storage inválida). Nesses casos cai para o
+  // ícone genérico de usuário em vez de depender de um asset externo.
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const [plan, setPlan] = useState("gratis");
   const [subscription, setSubscription] = useState<SidebarSubscription | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -736,7 +739,16 @@ const DashboardSidebar = () => {
           style={styles.profileCard}
         >
           <span style={styles.avatar}>
-            <img src={foto || defaultAvatar.url} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatar.url; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            {foto && !avatarFailed ? (
+              <img
+                src={foto}
+                alt=""
+                onError={() => setAvatarFailed(true)}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <UserRound size={17} strokeWidth={1.9} color="rgba(255,255,255,0.6)" />
+            )}
           </span>
           <span style={styles.profileText}>
             <span style={styles.profileName}>{profileName}</span>

@@ -4,6 +4,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StartModeBanner from "@/components/dashboard/StartModeBanner";
+import FreePlanBanner from "@/components/dashboard/FreePlanBanner";
 import StartModeModal from "@/components/dashboard/StartModeModal";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import {
@@ -14,7 +15,7 @@ import {
   STORES_CHANGED_EVENT,
   type VeloStore,
 } from "@/components/dashboard/FirstStoreOnboarding";
-import OnboardingModal, { hasPendingOnboarding, hasSeenOnboarding, isFreshSignup, markOnboardingSeen } from "@/components/onboarding/OnboardingModal";
+import OnboardingModal, { markOnboardingSeen, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -444,8 +445,7 @@ const DashboardLayoutInner = () => {
       setShowOnboarding(false);
       return;
     }
-    const wantsOnboarding = hasPendingOnboarding(user.id) || isFreshSignup(user);
-    setShowOnboarding(wantsOnboarding && !hasSeenOnboarding(user.id));
+    setShowOnboarding(shouldShowOnboarding(user));
   }, [user]);
 
   useEffect(() => {
@@ -458,6 +458,8 @@ const DashboardLayoutInner = () => {
   useActivityTracker(user?.id ?? null);
 
   const isStartMode = false;
+  const { plan: currentPlan, loading: planLoading } = usePlan();
+  const showFreePlanBanner = !planLoading && currentPlan === "gratis";
   const hideDesktopHeader = location.pathname === "/dashboard/minha-loja";
 
   useEffect(() => {
@@ -651,6 +653,7 @@ const DashboardLayoutInner = () => {
         }}
       >
         <StartModeBanner isStartMode={isStartMode} />
+        <FreePlanBanner isVisible={showFreePlanBanner} />
         <div
           className="flex min-h-0 w-full flex-1 overflow-hidden"
           style={{
@@ -691,9 +694,9 @@ const DashboardLayoutInner = () => {
     >
       {/* Start Mode Banner */}
       <StartModeBanner isStartMode={isStartMode} />
-      
+
       {/* Main Dashboard Layout - Shell cinza com cantos arredondados */}
-      <div 
+      <div
         className="flex h-full min-h-0 w-full max-w-full overflow-x-hidden flex-1"
         style={{
           marginTop: isStartMode ? "48px" : "0",
@@ -711,9 +714,12 @@ const DashboardLayoutInner = () => {
         <div className="hidden h-full min-h-0 shrink-0 md:block">
           <DashboardSidebar />
         </div>
-        
+
         {/* Área principal com header e conteúdo */}
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          {/* Aviso de plano gratuito — só acima da coluna de conteúdo, à direita
+              da sidebar (a sidebar continua ocupando a altura total). */}
+          <FreePlanBanner isVisible={showFreePlanBanner} />
           {/* Header - no shell cinza */}
           {!hideDesktopHeader && <DashboardHeader />}
           {/* Main content area - sem moldura externa */}

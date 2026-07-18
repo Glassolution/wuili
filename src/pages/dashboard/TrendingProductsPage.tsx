@@ -16,6 +16,7 @@ import {
   Info,
   List,
   Loader2,
+  Lock,
   PackageOpen,
   Search,
   SlidersHorizontal,
@@ -29,6 +30,7 @@ import type { LucideIcon } from "lucide-react";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlan } from "@/hooks/usePlan";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { ExampleProduct } from "@/types/onboarding";
@@ -144,6 +146,45 @@ const formatNumber = (value: number | null | undefined) =>
 
 const formatPercent = (value: number | null | undefined) =>
   `${Number(value ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+
+// Gera uma sequência pseudo-aleatória determinística (mesmo seed = mesmo resultado,
+// sem re-sortear a cada render). Usado só como decoração visual do card bloqueado —
+// não existe série histórica real vinda do Supabase para este gráfico.
+const seededSparklineValues = (seed: string, points = 14): number[] => {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const next = () => {
+    h = (h * 1103515245 + 12345) >>> 0;
+    return (h % 1000) / 1000;
+  };
+
+  let value = 34 + next() * 18;
+  const values: number[] = [];
+  for (let i = 0; i < points; i++) {
+    value += (next() - 0.4) * 13;
+    value = Math.max(8, Math.min(92, value));
+    values.push(value);
+  }
+  values[values.length - 1] = Math.min(96, values[values.length - 1] + 14);
+  return values;
+};
+
+const ProductSparkline = ({ seed }: { seed: string }) => {
+  const values = useMemo(() => seededSparklineValues(seed), [seed]);
+  const width = 108;
+  const height = 34;
+  const step = width / (values.length - 1);
+  const points = values.map((v, i) => `${i * step},${height - (v / 100) * height}`).join(" ");
+  const lastX = (values.length - 1) * step;
+  const lastY = height - (values[values.length - 1] / 100) * height;
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="shrink-0" fill="none" aria-hidden="true">
+      <polyline points={points} stroke="#111111" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="3" fill="#111111" />
+    </svg>
+  );
+};
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "Sem data";
@@ -365,6 +406,10 @@ const TrendingProductsPage = () => {
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  const { plan: currentPlan } = usePlan();
+  // Mesma regra de "plano gratuito" usada em StoreProjectsPage: gratis/go ficam
+  // bloqueados, admin nunca é bloqueado.
+  const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
 
   const normalizedSearchQuery = appliedSearchQuery.trim().toLocaleLowerCase("pt-BR");
   const visibleProducts = useMemo(() => {
@@ -616,6 +661,22 @@ const TrendingProductsPage = () => {
               Produtos em alta usam sinais de demanda, margem e atividade recente para ajudar você a encontrar oportunidades com mais rapidez.
             </p>
           </div>
+
+          {isFreePlan ? (
+            <div className="flex items-center gap-3 border-b border-black/[0.06] bg-[#FFF7ED] px-7 py-3 text-[12px] font-medium text-[#9A5B13]">
+              <Lock size={16} strokeWidth={1.8} className="shrink-0 text-[#C77923]" />
+              <p>
+                Nome, imagens e link de origem dos produtos ficam ocultos no plano gratuito.{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/dashboard/planos")}
+                  className="font-semibold underline underline-offset-2 hover:text-[#7A4610]"
+                >
+                  Escolha um plano para desbloquear todos os recursos
+                </button>
+              </p>
+            </div>
+          ) : null}
 
           <div className="flex min-h-[62px] flex-col gap-3 border-b border-black/[0.06] px-7 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-1">
@@ -980,6 +1041,76 @@ const TrendingProductsPage = () => {
                 Tente trocar o termo, nicho, período ou ordenação para encontrar novas oportunidades.
               </p>
             </div>
+          ) : isFreePlan ? (
+            <div className="space-y-3 px-7 py-5">
+              {visibleProducts.map((product, index) => {
+                const price = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
+                const cost = Number(product.cost_price ?? 0);
+                const profit = price - cost;
+                const marginPercent = getMarginPercent(product);
+                const markup = cost > 0 ? price / cost : null;
+                const rank = index + 1;
+                const badgeClass =
+                  rank === 1
+                    ? "bg-[#F5A623] text-white"
+                    : rank === 2
+                      ? "bg-[#9AA6B2] text-white"
+                      : rank === 3
+                        ? "bg-[#F97316] text-white"
+                        : "bg-[#EEF0F3] text-[#4B5563]";
+
+                return (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-4 rounded-2xl border border-black/[0.08] bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]"
+                  >
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-full text-[14px] font-bold leading-none tabular-nums ${badgeClass}`}
+                    >
+                      {rank}
+                    </span>
+
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#F1F2F4]">
+                      <Lock size={18} strokeWidth={1.9} className="text-[#9AA0AC]" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="select-none truncate text-[14px] font-semibold text-[#111827] blur-[6px]">{product.title}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-medium text-[#6B7280]">
+                        <span>
+                          Custo: <span className="font-semibold text-[#111827]">{formatBRL(cost)}</span>
+                        </span>
+                        <span>
+                          Venda: <span className="font-semibold text-[#111827]">{formatBRL(price)}</span>
+                        </span>
+                        {markup ? (
+                          <span className="rounded-full bg-[#F1F2F4] px-2 py-0.5 text-[11px] font-semibold text-[#111827]">
+                            {markup.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x markup
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="hidden shrink-0 text-right sm:block">
+                      <p className="flex items-center justify-end gap-1 text-[11px] font-semibold text-[#8A93A3]">
+                        <ChartNoAxesColumnIncreasing size={12} strokeWidth={2} />
+                        LUCRO
+                      </p>
+                      <p className="text-[15px] font-bold text-[#111827]">{formatBRL(profit)}</p>
+                    </div>
+
+                    <div className="hidden shrink-0 text-right md:block">
+                      <p className="text-[11px] font-semibold text-[#8A93A3]">% MARGEM</p>
+                      <p className="text-[15px] font-bold text-[#111827]">{formatPercent(marginPercent)}</p>
+                    </div>
+
+                    <ProductSparkline seed={product.id} />
+
+                    <ChevronDown size={16} strokeWidth={2} className="hidden shrink-0 text-[#9AA0AC] sm:block" />
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <div className="overflow-hidden">
               <table className="w-full table-fixed border-collapse">
@@ -1046,7 +1177,16 @@ const TrendingProductsPage = () => {
                                 <ChevronRight size={16} strokeWidth={2.1} className={`transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
                               </button>
                               <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[4px] border border-black/[0.04] bg-white">
-                                <img src={getProductImage(product)} alt="" className="h-full w-full object-contain p-1" />
+                                <img
+                                  src={getProductImage(product)}
+                                  alt=""
+                                  className={`h-full w-full object-contain p-1 ${isFreePlan ? "scale-125 blur-[6px]" : ""}`}
+                                />
+                                {isFreePlan ? (
+                                  <span className="absolute inset-0 flex items-center justify-center bg-white/45">
+                                    <Lock size={14} strokeWidth={2.1} className="text-[#111827]" />
+                                  </span>
+                                ) : null}
                               </div>
                               <button
                                 type="button"
@@ -1054,7 +1194,11 @@ const TrendingProductsPage = () => {
                                 className="min-w-0 flex-1 text-left"
                               >
                                 <div className="flex min-w-0 items-center gap-2">
-                                  <span className="min-w-0 truncate text-[13px] font-semibold leading-5 text-[#111827]">
+                                  <span
+                                    className={`min-w-0 truncate text-[13px] font-semibold leading-5 text-[#111827] ${
+                                      isFreePlan ? "select-none blur-[5px]" : ""
+                                    }`}
+                                  >
                                     {product.title}
                                   </span>
                                   <ChartNoAxesColumnIncreasing size={14} strokeWidth={1.8} className="shrink-0 text-[#111827]" />
@@ -1095,13 +1239,19 @@ const TrendingProductsPage = () => {
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => handleCreateSalesPage(product)}
+                                onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateSalesPage(product))}
                                 disabled={creatingSalesPageId === product.id}
                                 className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-white text-[#111827] transition hover:bg-[#F4F4F5] disabled:opacity-60"
-                                aria-label="Criar página de vendas"
-                                title="Criar página de vendas"
+                                aria-label={isFreePlan ? "Disponível apenas com um plano ativo" : "Criar página de vendas"}
+                                title={isFreePlan ? "Disponível apenas com um plano ativo" : "Criar página de vendas"}
                               >
-                                {creatingSalesPageId === product.id ? <Loader2 size={15} className="animate-spin" /> : <FilePlus2 size={15} strokeWidth={1.8} />}
+                                {creatingSalesPageId === product.id ? (
+                                  <Loader2 size={15} className="animate-spin" />
+                                ) : isFreePlan ? (
+                                  <Lock size={14} strokeWidth={1.9} />
+                                ) : (
+                                  <FilePlus2 size={15} strokeWidth={1.8} />
+                                )}
                               </button>
                               {isAdmin ? (
                                 <button
@@ -1123,11 +1273,26 @@ const TrendingProductsPage = () => {
                               <div className="py-5 [animation:veloProductDetail_220ms_ease-out]">
                                 <div className="grid gap-5 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.45fr)_minmax(260px,0.8fr)]">
                                   <div className="flex gap-4">
-                                    <div className="h-[118px] w-[118px] shrink-0 overflow-hidden rounded-[8px] border border-black/[0.06] bg-white">
-                                      <img src={getProductImage(product)} alt="" className="h-full w-full object-contain p-3" />
+                                    <div className="relative h-[118px] w-[118px] shrink-0 overflow-hidden rounded-[8px] border border-black/[0.06] bg-white">
+                                      <img
+                                        src={getProductImage(product)}
+                                        alt=""
+                                        className={`h-full w-full object-contain p-3 ${isFreePlan ? "scale-125 blur-[10px]" : ""}`}
+                                      />
+                                      {isFreePlan ? (
+                                        <span className="absolute inset-0 flex items-center justify-center bg-white/45">
+                                          <Lock size={22} strokeWidth={1.9} className="text-[#111827]" />
+                                        </span>
+                                      ) : null}
                                     </div>
                                     <div className="min-w-0">
-                                      <p className="line-clamp-3 text-[15px] font-semibold leading-6 text-[#111827]">{product.title}</p>
+                                      <p
+                                        className={`line-clamp-3 text-[15px] font-semibold leading-6 text-[#111827] ${
+                                          isFreePlan ? "select-none blur-[6px]" : ""
+                                        }`}
+                                      >
+                                        {product.title}
+                                      </p>
                                       <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[#4B5563]">
                                         {product.category ? <span className="rounded-full bg-white px-2.5 py-1">{product.category}</span> : null}
                                         {product.brand ? <span className="rounded-full bg-white px-2.5 py-1">{product.brand}</span> : null}
@@ -1179,19 +1344,19 @@ const TrendingProductsPage = () => {
                                     <div className="mt-5 grid gap-2 sm:grid-cols-2">
                                       <button
                                         type="button"
-                                        onClick={() => handleCreateSalesPage(product)}
+                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateSalesPage(product))}
                                         className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border border-black/[0.08] bg-white px-3 text-[12px] font-semibold text-[#111827] transition hover:bg-[#F4F4F5]"
                                       >
-                                        <FilePlus2 size={14} strokeWidth={1.8} />
-                                        Criar página
+                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <FilePlus2 size={14} strokeWidth={1.8} />}
+                                        {isFreePlan ? "Disponível no plano pago" : "Criar página"}
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => handleCreateStore(product)}
+                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateStore(product))}
                                         className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-black px-3 text-[12px] font-semibold text-white transition hover:bg-[#222222]"
                                       >
-                                        <Store size={14} strokeWidth={1.8} />
-                                        Importar para loja
+                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <Store size={14} strokeWidth={1.8} />}
+                                        {isFreePlan ? "Disponível no plano pago" : "Importar para loja"}
                                       </button>
                                     </div>
                                   </div>
