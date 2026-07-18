@@ -736,7 +736,7 @@ const DashboardSidebar = () => {
           style={styles.profileCard}
         >
           <span style={styles.avatar}>
-            <img src={foto || defaultAvatar.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={foto || defaultAvatar.url} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatar.url; }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </span>
           <span style={styles.profileText}>
             <span style={styles.profileName}>{profileName}</span>
