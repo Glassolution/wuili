@@ -1689,6 +1689,194 @@ export type Database = {
         }
         Relationships: []
       }
+      trending_products_history: {
+        Row: {
+          created_at: string
+          id: string
+          margin_percent: number | null
+          sell_price_brl: number | null
+          snapshot_date: string
+          sold_quantity_total: number | null
+          trending_product_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          margin_percent?: number | null
+          sell_price_brl?: number | null
+          snapshot_date?: string
+          sold_quantity_total?: number | null
+          trending_product_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          margin_percent?: number | null
+          sell_price_brl?: number | null
+          snapshot_date?: string
+          sold_quantity_total?: number | null
+          trending_product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trending_products_history_trending_product_id_fkey"
+            columns: ["trending_product_id"]
+            isOneToOne: false
+            referencedRelation: "trending_products_real"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trending_products_real: {
+        Row: {
+          ali_cost_usd: number | null
+          ali_product_id: string | null
+          ali_url: string | null
+          brand: string | null
+          category: string | null
+          collected_at: string
+          cost_price_brl: number | null
+          created_at: string
+          id: string
+          image: string | null
+          images: Json
+          margin_percent: number | null
+          markup: number | null
+          match_confidence: string | null
+          ml_item_id: string
+          ml_permalink: string | null
+          rating: number | null
+          sell_price_brl: number | null
+          sold_quantity_month_estimate: number | null
+          sold_quantity_total: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ali_cost_usd?: number | null
+          ali_product_id?: string | null
+          ali_url?: string | null
+          brand?: string | null
+          category?: string | null
+          collected_at?: string
+          cost_price_brl?: number | null
+          created_at?: string
+          id?: string
+          image?: string | null
+          images?: Json
+          margin_percent?: number | null
+          markup?: number | null
+          match_confidence?: string | null
+          ml_item_id: string
+          ml_permalink?: string | null
+          rating?: number | null
+          sell_price_brl?: number | null
+          sold_quantity_month_estimate?: number | null
+          sold_quantity_total?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ali_cost_usd?: number | null
+          ali_product_id?: string | null
+          ali_url?: string | null
+          brand?: string | null
+          category?: string | null
+          collected_at?: string
+          cost_price_brl?: number | null
+          created_at?: string
+          id?: string
+          image?: string | null
+          images?: Json
+          margin_percent?: number | null
+          markup?: number | null
+          match_confidence?: string | null
+          ml_item_id?: string
+          ml_permalink?: string | null
+          rating?: number | null
+          sell_price_brl?: number | null
+          sold_quantity_month_estimate?: number | null
+          sold_quantity_total?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trending_products_staging: {
+        Row: {
+          ali_cost_usd: number | null
+          ali_product_id: string | null
+          ali_url: string | null
+          brand: string | null
+          category: string | null
+          collected_at: string
+          cost_price_brl: number | null
+          created_at: string
+          id: string
+          image: string | null
+          images: Json
+          margin_percent: number | null
+          markup: number | null
+          match_confidence: string | null
+          ml_item_id: string
+          ml_permalink: string | null
+          rating: number | null
+          reason: string | null
+          sell_price_brl: number | null
+          similarity_score: number | null
+          sold_quantity_total: number | null
+          title: string
+        }
+        Insert: {
+          ali_cost_usd?: number | null
+          ali_product_id?: string | null
+          ali_url?: string | null
+          brand?: string | null
+          category?: string | null
+          collected_at?: string
+          cost_price_brl?: number | null
+          created_at?: string
+          id?: string
+          image?: string | null
+          images?: Json
+          margin_percent?: number | null
+          markup?: number | null
+          match_confidence?: string | null
+          ml_item_id: string
+          ml_permalink?: string | null
+          rating?: number | null
+          reason?: string | null
+          sell_price_brl?: number | null
+          similarity_score?: number | null
+          sold_quantity_total?: number | null
+          title: string
+        }
+        Update: {
+          ali_cost_usd?: number | null
+          ali_product_id?: string | null
+          ali_url?: string | null
+          brand?: string | null
+          category?: string | null
+          collected_at?: string
+          cost_price_brl?: number | null
+          created_at?: string
+          id?: string
+          image?: string | null
+          images?: Json
+          margin_percent?: number | null
+          markup?: number | null
+          match_confidence?: string | null
+          ml_item_id?: string
+          ml_permalink?: string | null
+          rating?: number | null
+          reason?: string | null
+          sell_price_brl?: number | null
+          similarity_score?: number | null
+          sold_quantity_total?: number | null
+          title?: string
+        }
+        Relationships: []
+      }
       user_integrations: {
         Row: {
           access_token: string | null
@@ -2013,6 +2201,15 @@ export type Database = {
           suggested_price: number
           title: string
           variants: Json
+        }[]
+      }
+      get_trending_product_history: {
+        Args: { days?: number; product_id: string }
+        Returns: {
+          margin_percent: number
+          sell_price_brl: number
+          snapshot_date: string
+          sold_quantity_total: number
         }[]
       }
       get_trending_products: {
