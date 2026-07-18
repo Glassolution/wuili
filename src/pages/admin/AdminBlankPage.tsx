@@ -181,7 +181,7 @@ const AdminPainelPage = () => {
     const sumSubscriptions = (start: Date, end: Date) =>
       data.subscriptions.reduce((sum, subscription) => {
         if (!PAID_STATUSES.has(String(subscription.status ?? "").toLowerCase())) return sum;
-        return inRange(subscription.updated_at ?? subscription.created_at, start, end)
+        return inRange(subscription.created_at, start, end)
           ? sum + Number(subscription.amount ?? 0)
           : sum;
       }, 0);
@@ -218,7 +218,7 @@ const AdminPainelPage = () => {
 
     data.subscriptions.forEach((subscription) => {
       if (!PAID_STATUSES.has(String(subscription.status ?? "").toLowerCase())) return;
-      const date = (subscription.updated_at ?? subscription.created_at ?? "").slice(0, 10);
+      const date = (subscription.created_at ?? "").slice(0, 10);
       const point = byDate.get(date);
       if (point) point.value += Number(subscription.amount ?? 0);
     });
