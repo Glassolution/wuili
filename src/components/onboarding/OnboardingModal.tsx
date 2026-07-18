@@ -284,7 +284,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[120] flex flex-col items-center overflow-y-auto bg-[#F4F4F5] px-4 py-10 sm:px-6"
+      className="fixed inset-0 z-[120] flex flex-col items-center overflow-y-auto bg-[#F4F4F5] px-4 py-8 sm:px-6"
       role="dialog"
       aria-modal="true"
       aria-label="Onboarding da Velo"
@@ -303,17 +303,17 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
             transition={{ duration: reduce ? 0.001 : 0.28, ease: EASE }}
           >
-            <h1 className="mt-7 text-[28px] font-bold tracking-[-0.02em] text-[#0A0A0A] sm:text-[30px]">
+            <h1 className="mt-5 text-[22px] font-bold tracking-[-0.02em] text-[#0A0A0A] sm:text-[24px]">
               {current.title}
             </h1>
-            <p className="mt-2 max-w-[520px] text-[14px] text-[#6B7280] sm:text-[15px]">{current.subtitle}</p>
+            <p className="mt-1.5 max-w-[460px] text-[13px] text-[#6B7280] sm:text-[14px]">{current.subtitle}</p>
           </motion.div>
         </AnimatePresence>
       </div>
 
       {/* Card central com as perguntas da etapa. */}
       <motion.div
-        className="mt-6 w-full max-w-[880px] rounded-[24px] bg-white p-6 shadow-[0_24px_60px_rgba(10,10,10,0.10)] sm:p-10"
+        className="mt-5 w-full max-w-[680px] rounded-[20px] bg-white p-5 shadow-[0_24px_60px_rgba(10,10,10,0.10)] sm:p-7"
         initial={reduce ? false : { opacity: 0, y: 14, scale: 0.985 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: reduce ? 0.001 : 0.34, ease: EASE }}
@@ -338,7 +338,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
-            className="mt-8 space-y-8"
+            className="mt-6 space-y-6"
             custom={direction}
             variants={contentVariants}
             initial="initial"
@@ -347,11 +347,11 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           >
             {current.questions.map((question) => (
               <motion.fieldset key={question.id} variants={groupVariants}>
-                <legend className="mb-3 text-[15px] font-semibold text-[#111827] sm:text-[16px]">
+                <legend className="mb-2.5 text-[14px] font-semibold text-[#111827] sm:text-[15px]">
                   {question.label}
-                  {question.optional ? <span className="ml-2 text-[13px] font-normal text-[#9CA3AF]">(opcional)</span> : null}
+                  {question.optional ? <span className="ml-2 text-[12px] font-normal text-[#9CA3AF]">(opcional)</span> : null}
                 </legend>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {question.options.map((option) => {
                     const selected = answers[question.id] === option.value;
                     const Icon = option.icon;
@@ -363,26 +363,26 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                         aria-pressed={selected}
                         whileTap={reduce ? undefined : { scale: 0.98 }}
                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        className={`flex min-h-[64px] items-center gap-3 rounded-[12px] p-3.5 text-left transition-[color,background-color,border-color,box-shadow,transform] duration-200 ${
+                        className={`flex min-h-[52px] items-center gap-2.5 rounded-[10px] p-3 text-left transition-[color,background-color,border-color,box-shadow,transform] duration-200 ${
                           selected
                             ? "border-[1.5px] border-[#0A0A0A] bg-[#FAFAFA]"
                             : "border border-[#E5E7EB] bg-white hover:-translate-y-0.5 hover:border-[#D1D5DB] hover:shadow-[0_6px_16px_-6px_rgba(10,10,10,0.12)]"
                         }`}
                       >
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] bg-[#F3F4F6] text-[#111827]">
-                          <Icon size={18} strokeWidth={1.5} />
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[7px] bg-[#F3F4F6] text-[#111827]">
+                          <Icon size={16} strokeWidth={1.5} />
                         </span>
-                        <span className="flex-1 text-[14px] font-medium leading-tight text-[#111827] sm:text-[15px]">
+                        <span className="flex-1 text-[13px] font-medium leading-tight text-[#111827] sm:text-[14px]">
                           {option.label}
                         </span>
                         <span
-                          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors duration-200 ${
+                          className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-2 transition-colors duration-200 ${
                             selected ? "border-[#0A0A0A]" : "border-[#D1D5DB]"
                           }`}
                         >
                           {selected ? (
                             <motion.span
-                              className="h-2.5 w-2.5 rounded-full bg-[#0A0A0A]"
+                              className="h-2 w-2 rounded-full bg-[#0A0A0A]"
                               initial={reduce ? false : { scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: "spring", stiffness: 520, damping: 26 }}
@@ -399,7 +399,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
         </AnimatePresence>
 
         {/* Rodapé de navegação. */}
-        <div className="mt-9 flex items-center justify-between">
+        <div className="mt-7 flex items-center justify-between">
           {step > 0 ? (
             <motion.button
               type="button"
@@ -420,7 +420,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
             disabled={!canContinue}
             style={primaryButtonStyle}
             whileTap={reduce || !canContinue ? undefined : { scale: 0.97 }}
-            className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[15px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-10 items-center gap-2 rounded-[10px] px-4 text-[14px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isLastStep ? "Concluir" : "Avançar"}
             {isLastStep ? <Check size={16} strokeWidth={2} /> : <ArrowRight size={16} strokeWidth={2} />}
