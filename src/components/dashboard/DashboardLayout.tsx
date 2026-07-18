@@ -24,6 +24,7 @@ import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { usePlan } from "@/hooks/usePlan";
 import { useProfile } from "@/lib/profileContext";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
+import defaultAvatar from "@/assets/default-avatar.png.asset.json";
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
 import { isChunkLoadError, recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 import {
