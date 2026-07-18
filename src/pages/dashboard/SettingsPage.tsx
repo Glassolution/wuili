@@ -233,7 +233,7 @@ const ProfileTab = () => {
             className="w-[72px] h-[72px] rounded-full bg-black text-white flex items-center justify-center text-[24px] font-semibold overflow-hidden transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
             aria-label="Trocar foto de perfil"
           >
-            {avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" /> : iniciais}
+            <img src={avatarSrc || defaultAvatar.url} alt="Foto de perfil" className="w-full h-full object-cover" />
           </button>
           <button
             onClick={() => inputRef.current?.click()}
