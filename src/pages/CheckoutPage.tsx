@@ -70,13 +70,13 @@ const PLANS_DATA: Record<string, PlanData> = {
 };
 
 const PLAN_AMOUNTS: Record<string, number> = {
-  base: 39.9,
+  base: 29.9,
   pro: 79.8,
   business: 159.6,
 };
 
 const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
-  base: 430.92,   // 39.90 * 12 * 0.9
+  base: 322.92,   // 29.90 * 12 * 0.9
   pro: 861.84,    // 79.80 * 12 * 0.9
   business: 1723.68, // 159.60 * 12 * 0.9
 };
