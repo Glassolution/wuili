@@ -643,7 +643,10 @@ const CheckoutPage = () => {
           <div className="relative w-full max-w-[440px]">
           <div className="mb-12 flex items-center gap-3">
             <button
-              onClick={() => setShowPaymentStep(false)}
+              // Volta pro dashboard, não pra etapa de seleção interna: quem
+              // escolhe plano hoje é o modal (PlansUpgradeModal), então cair
+              // naquela tela era voltar pra um fluxo antigo e duplicado.
+              onClick={() => navigate("/dashboard")}
               className="flex h-8 w-8 items-center justify-center rounded-full text-white/42 transition-colors hover:bg-white/[0.06] hover:text-white"
               aria-label="Voltar"
             >
