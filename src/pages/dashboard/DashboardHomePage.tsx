@@ -26,14 +26,6 @@ import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
 import type { ProjectType } from "@/lib/userProjects";
 import { preloadVidalytics } from "@/lib/vidalyticsPreload";
 import MobileHome from "@/components/dashboard/MobileHome";
-import {
-  ONBOARDING_COMPLETED_EVENT,
-  isFreshSignup,
-  hasPendingOnboarding,
-  shouldShowOnboarding,
-} from "@/components/onboarding/OnboardingModal";
-
-const TUTORIAL_SEEN_KEY = "velo_tutorial_seen";
 
 const DASHBOARD_IMAGE_SRC = "/assets/dashboard-inicio-colado.png";
 const WHATSAPP_SUPPORT_URL =
@@ -264,13 +256,10 @@ const DashboardHomePage = () => {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
 
-  const tutorialSeenKey = user?.id
-    ? `${TUTORIAL_SEEN_KEY}:${user.id}`
-    : null;
-
   useEffect(() => {
-    // Pré-carrega os scripts do Vidalytics no mount do dashboard para
-    // que o modal (auto ou manual) abra com o player já pronto.
+    // Pré-carrega os scripts do Vidalytics no mount do dashboard para que o
+    // modal abra com o player já pronto quando o usuário clicar em "Assistir
+    // Tutorial" (o vídeo nunca abre sozinho).
     preloadVidalytics();
   }, []);
 
@@ -287,59 +276,6 @@ const DashboardHomePage = () => {
     const t = window.setTimeout(() => setEntered(true), 120);
     return () => window.clearTimeout(t);
   }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !user?.id || !tutorialSeenKey) return;
-
-    // O tutorial em vídeo só deve aparecer para quem acabou de se cadastrar
-    // (primeira vez na plataforma), nunca para usuários antigos.
-    const isNewUser = hasPendingOnboarding(user.id) || isFreshSignup(user);
-    if (!isNewUser) return;
-
-    // Nunca reabrir se o usuário já viu o tutorial.
-    try {
-      if (window.localStorage.getItem(tutorialSeenKey)) return;
-    } catch {
-      // Mesmo sem localStorage, a primeira entrada deve exibir o tutorial.
-    }
-
-    let openTimer: number | undefined;
-    const scheduleOpen = () => {
-      openTimer = window.setTimeout(() => setTutorialOpen(true), 600);
-    };
-
-    // Se o onboarding ainda está na tela, esperamos ele ser concluído antes de
-    // abrir o vídeo — caso contrário o player tocaria no fundo, por trás do
-    // modal de cadastro.
-    if (shouldShowOnboarding(user)) {
-      const handleCompleted = () => {
-        window.removeEventListener(ONBOARDING_COMPLETED_EVENT, handleCompleted);
-        scheduleOpen();
-      };
-      window.addEventListener(ONBOARDING_COMPLETED_EVENT, handleCompleted);
-      return () => {
-        window.removeEventListener(ONBOARDING_COMPLETED_EVENT, handleCompleted);
-        if (openTimer) window.clearTimeout(openTimer);
-      };
-    }
-
-    // Onboarding já concluído nesta sessão: abre o tutorial na primeira visita.
-    scheduleOpen();
-    return () => {
-      if (openTimer) window.clearTimeout(openTimer);
-    };
-  }, [tutorialSeenKey, user]);
-
-  const handleTutorialOpenChange = (open: boolean) => {
-    setTutorialOpen(open);
-    if (!open && tutorialSeenKey) {
-      try {
-        window.localStorage.setItem(tutorialSeenKey, "1");
-      } catch {
-        /* ignore */
-      }
-    }
-  };
 
   const cta = ctaSlides[activeCta];
   const metadataRole =
@@ -462,9 +398,9 @@ const DashboardHomePage = () => {
               <button
                 type="button"
                 onClick={() => setTutorialOpen(true)}
-                className="flex items-center gap-[0.45vw] rounded-full border border-black/[0.12] bg-white px-[1.1vw] py-[0.55vw] text-[clamp(10px,0.9vw,17px)] font-semibold text-[#252936] shadow-[0_0.4vw_1vw_rgba(15,23,42,0.08)] transition hover:bg-black hover:text-white"
+                className="flex items-center gap-[0.35vw] rounded-full border border-black/[0.12] bg-white px-[0.8vw] py-[0.36vw] text-[clamp(8px,0.74vw,14px)] font-semibold text-[#252936] shadow-[0_0.3vw_0.8vw_rgba(15,23,42,0.07)] transition hover:bg-black hover:text-white"
               >
-                <PlayCircle className="h-[clamp(12px,1.15vw,22px)] w-[clamp(12px,1.15vw,22px)]" strokeWidth={2} />
+                <PlayCircle className="h-[clamp(10px,0.9vw,17px)] w-[clamp(10px,0.9vw,17px)]" strokeWidth={2} />
                 Assistir Tutorial
               </button>
               <button
@@ -476,9 +412,9 @@ const DashboardHomePage = () => {
                   boxShadow: "0px 4px 7px rgba(0,0,0,0.2), 0px 0px 0px 1.5px #000000",
                   textShadow: "0px 4px 4px rgba(0,0,0,0.4)",
                 }}
-                className="flex items-center gap-[0.45vw] rounded-[0.55vw] px-[1.1vw] py-[0.55vw] text-[clamp(10px,0.9vw,17px)] font-medium text-white transition-opacity hover:opacity-90"
+                className="flex items-center gap-[0.35vw] rounded-[0.45vw] px-[0.8vw] py-[0.36vw] text-[clamp(8px,0.74vw,14px)] font-medium text-white transition-opacity hover:opacity-90"
               >
-                <Sparkles className="h-[clamp(12px,1.15vw,22px)] w-[clamp(12px,1.15vw,22px)]" strokeWidth={2} />
+                <Sparkles className="h-[clamp(10px,0.9vw,17px)] w-[clamp(10px,0.9vw,17px)]" strokeWidth={2} />
                 Criar Página com IA
               </button>
             </div>
@@ -911,7 +847,7 @@ const DashboardHomePage = () => {
         </button>
       </div>
       <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
-      <TutorialModal open={tutorialOpen} onOpenChange={handleTutorialOpenChange} />
+      <TutorialModal open={tutorialOpen} onOpenChange={setTutorialOpen} />
       <ProjectCreationWizard
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}

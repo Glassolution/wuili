@@ -234,14 +234,42 @@ type OnboardingModalProps = {
 // Easing "ease-out expo" — sensação suave/premium usada nas transições de etapa.
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-// Estilo do botão primário "glossy" (token de design exato): fundo #1D1F23 com
-// brilho branco sutil no topo, stroke branco só no topo, sombra dupla e
-// text-shadow no rótulo.
+// ── Mesma paleta de superfícies do wizard de criação de projeto (referência) ──
+// Fundo chapado, card um degrau acima e blocos internos um degrau abaixo do
+// card, todos separados por uma borda fina de 1px em branco translúcido.
 const primaryButtonStyle: CSSProperties = {
-  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #1D1F23",
-  borderTop: "1.5px solid rgba(255,255,255,0.15)",
-  boxShadow: "0px 4px 7px rgba(0,0,0,0.2), 0px 0px 0px 1.5px #000000",
-  textShadow: "0px 4px 4px rgba(0,0,0,0.4)",
+  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #2A2A2A",
+  border: "1px solid rgba(255,255,255,0.14)",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10)",
+  textShadow: "0 1px 2px rgba(0,0,0,0.40)",
+};
+
+const overlayStyle: CSSProperties = {
+  background: "#1A1A1A",
+};
+
+const cardStyle: CSSProperties = {
+  background: "#1E1E1E",
+  border: "1px solid rgba(255,255,255,0.08)",
+  boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
+};
+
+// Cards de opção: mesmo tom dos campos do wizard. O selecionado sobe um degrau
+// e clareia a borda, sem glow forte — a referência é sóbria.
+const optionCardStyle = (selected: boolean): CSSProperties =>
+  selected
+    ? {
+        background: "#2A2A2A",
+        border: "1px solid rgba(255,255,255,0.40)",
+      }
+    : {
+        background: "#242424",
+        border: "1px solid rgba(255,255,255,0.08)",
+      };
+
+const iconChipStyle: CSSProperties = {
+  background: "rgba(255,255,255,0.07)",
+  border: "1px solid rgba(255,255,255,0.08)",
 };
 
 const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
@@ -306,7 +334,8 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[120] flex flex-col items-center overflow-y-auto bg-[#F4F4F5] px-4 py-6 sm:px-6"
+      className="fixed inset-0 z-[120] flex flex-col items-center overflow-y-auto px-4 py-6 sm:px-6"
+      style={overlayStyle}
       role="dialog"
       aria-modal="true"
       aria-label="Onboarding da Velo"
@@ -324,37 +353,38 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
       >
         {/* Cabeçalho da página: marca + título + subtítulo, centralizados. */}
         <div className="flex flex-col items-center text-center">
-        <VeloLogo size="md" variant="dark" />
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
-            transition={{ duration: reduce ? 0.001 : 0.28, ease: EASE }}
-          >
-            <h1 className="mt-7 text-[28px] font-bold tracking-[-0.02em] text-[#0A0A0A] sm:text-[30px]">
-              {current.title}
-            </h1>
-            <p className="mt-2 max-w-[520px] text-[14px] text-[#6B7280] sm:text-[15px]">{current.subtitle}</p>
-          </motion.div>
-        </AnimatePresence>
-      </div>
+          <VeloLogo size="md" variant="light" />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={reduce ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
+              transition={{ duration: reduce ? 0.001 : 0.28, ease: EASE }}
+            >
+              <h1 className="mt-7 text-[28px] font-bold tracking-[-0.02em] text-white sm:text-[30px]">
+                {current.title}
+              </h1>
+              <p className="mt-2 max-w-[520px] text-[14px] text-[#8A8A8A] sm:text-[15px]">{current.subtitle}</p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
       {/* Card central com as perguntas da etapa. */}
       <motion.div
-        className="mt-6 w-full max-w-[880px] rounded-[24px] bg-white p-6 shadow-[0_24px_60px_rgba(10,10,10,0.10)] sm:p-10"
+        className="mt-6 w-full max-w-[880px] rounded-[16px] p-6 sm:p-10"
+        style={cardStyle}
         initial={reduce ? false : { opacity: 0, y: 14, scale: 0.985 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: reduce ? 0.001 : 0.34, ease: EASE }}
       >
         {/* Passo + barra de progresso segmentada em 3 partes (fill animado). */}
-        <p className="text-[13px] font-medium text-[#6B7280]">Etapa {step + 1} de {STEPS.length}</p>
+        <p className="text-[13px] font-medium text-white/50">Etapa {step + 1} de {STEPS.length}</p>
         <div className="mt-2 flex gap-2" role="progressbar" aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={step + 1}>
           {STEPS.map((_, index) => (
-            <span key={index} className="h-[6px] flex-1 overflow-hidden rounded-full bg-[#E5E7EB]">
+            <span key={index} className="h-[6px] flex-1 overflow-hidden rounded-full bg-white/10">
               <motion.span
-                className="block h-full w-full rounded-full bg-[#0A0A0A]"
+                className="block h-full w-full rounded-full bg-white"
                 style={{ originX: 0 }}
                 initial={false}
                 animate={{ scaleX: index <= step ? 1 : 0 }}
@@ -377,9 +407,9 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           >
             {current.questions.map((question) => (
               <motion.fieldset key={question.id} variants={groupVariants}>
-                <legend className="mb-3 text-[15px] font-semibold text-[#111827] sm:text-[16px]">
+                <legend className="mb-3 text-[15px] font-semibold text-white sm:text-[16px]">
                   {question.label}
-                  {question.optional ? <span className="ml-2 text-[13px] font-normal text-[#9CA3AF]">(opcional)</span> : null}
+                  {question.optional ? <span className="ml-2 text-[13px] font-normal text-white/40">(opcional)</span> : null}
                 </legend>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {question.options.map((option) => {
@@ -393,26 +423,25 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                         aria-pressed={selected}
                         whileTap={reduce ? undefined : { scale: 0.98 }}
                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        className={`flex min-h-[64px] items-center gap-3 rounded-[12px] p-3.5 text-left transition-[color,background-color,border-color,box-shadow,transform] duration-200 ${
-                          selected
-                            ? "border-[1.5px] border-[#0A0A0A] bg-[#FAFAFA]"
-                            : "border border-[#E5E7EB] bg-white hover:-translate-y-0.5 hover:border-[#D1D5DB] hover:shadow-[0_6px_16px_-6px_rgba(10,10,10,0.12)]"
-                        }`}
+                        style={optionCardStyle(selected)}
+                        className={`flex min-h-[64px] items-center gap-3 rounded-[10px] p-3.5 text-left transition-[background-color,border-color,transform] duration-200 ${
+                          selected ? "" : "hover:-translate-y-0.5"
+                          }`}
                       >
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] bg-[#F3F4F6] text-[#111827]">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] text-white" style={iconChipStyle}>
                           <Icon size={18} strokeWidth={1.5} />
                         </span>
-                        <span className="flex-1 text-[14px] font-medium leading-tight text-[#111827] sm:text-[15px]">
+                        <span className="flex-1 text-[14px] font-medium leading-tight text-white sm:text-[15px]">
                           {option.label}
                         </span>
                         <span
                           className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors duration-200 ${
-                            selected ? "border-[#0A0A0A]" : "border-[#D1D5DB]"
+                            selected ? "border-white" : "border-white/30"
                           }`}
                         >
                           {selected ? (
                             <motion.span
-                              className="h-2.5 w-2.5 rounded-full bg-[#0A0A0A]"
+                              className="h-2.5 w-2.5 rounded-full bg-white"
                               initial={reduce ? false : { scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: "spring", stiffness: 520, damping: 26 }}
@@ -435,7 +464,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
               type="button"
               onClick={handleBack}
               whileTap={reduce ? undefined : { scale: 0.97 }}
-              className="inline-flex items-center gap-2 text-[14px] font-medium text-[#6B7280] transition-colors hover:text-[#111827]"
+              className="inline-flex items-center gap-2 text-[14px] font-medium text-white/60 transition-colors hover:text-white"
             >
               <ArrowLeft size={16} strokeWidth={1.8} />
               Voltar

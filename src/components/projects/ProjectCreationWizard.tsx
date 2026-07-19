@@ -103,13 +103,14 @@ type Step = "info" | "produtos" | "template" | "loading";
 // Easing "ease-out expo" — mesma sensação premium usada no modal de onboarding.
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-// Botão primário "glossy": mesmo token de design do botão do modal de onboarding
-// (fundo #1D1F23 com brilho no topo, stroke preto, sombra dupla e text-shadow).
+// Tema escuro de formulário (referência): card #1E1E1E sobre o fundo, campos e
+// blocos internos um degrau mais escuros (#242424), separados por borda fina.
+// Botão primário "glossy": mesmo token de design do botão do modal de onboarding.
 const primaryButtonStyle: CSSProperties = {
-  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #1D1F23",
-  borderTop: "1.5px solid rgba(255,255,255,0.15)",
-  boxShadow: "0px 4px 7px rgba(0,0,0,0.2), 0px 0px 0px 1.5px #000000",
-  textShadow: "0px 4px 4px rgba(0,0,0,0.4)",
+  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #2A2A2A",
+  border: "1px solid rgba(255,255,255,0.14)",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10)",
+  textShadow: "0 1px 2px rgba(0,0,0,0.40)",
 };
 
 const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
@@ -395,7 +396,7 @@ const ProjectCreationWizard = ({
             exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 10 }}
             transition={{ type: "spring", stiffness: 340, damping: 32, mass: 0.9 }}
             onClick={(event) => event.stopPropagation()}
-            className="flex max-h-[88vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_24px_64px_rgba(16,24,40,0.18),0_0_0_1px_rgba(16,24,40,0.04)]"
+            className="flex max-h-[88vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[16px] border border-white/[0.08] bg-[#1E1E1E] shadow-[0_24px_64px_rgba(0,0,0,0.55)]"
           >
             {/* Cabeçalho compacto: ícone circular + título/subtítulo + fechar. */}
             <div className="flex items-start gap-3 px-5 py-4">
@@ -404,13 +405,13 @@ const ProjectCreationWizard = ({
                   type="button"
                   onClick={() => goTo(step === "produtos" ? "info" : skipProducts ? "info" : "produtos", -1)}
                   whileTap={reduce ? undefined : { scale: 0.94 }}
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#EAECF0] bg-white text-[#344054] transition-colors hover:bg-[#F9FAFB]"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/[0.08] bg-[#242424] text-white transition-colors hover:bg-[#242424]"
                   aria-label="Voltar"
                 >
                   <ArrowLeft size={18} strokeWidth={1.9} />
                 </motion.button>
               ) : (
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#EAECF0] bg-white text-[#101828]">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/[0.08] bg-[#242424] text-white">
                   <Sparkles size={18} strokeWidth={1.8} />
                 </span>
               )}
@@ -424,10 +425,10 @@ const ProjectCreationWizard = ({
                     exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
                     transition={{ duration: reduce ? 0.001 : 0.24, ease: EASE }}
                   >
-                    <h2 className="truncate text-[16px] font-semibold tracking-[-0.01em] text-[#101828]">
+                    <h2 className="truncate text-[16px] font-semibold tracking-[-0.01em] text-white">
                       {copy.title}
                     </h2>
-                    <p className="mt-0.5 text-[13px] leading-[18px] text-[#667085]">{copy.subtitle}</p>
+                    <p className="mt-0.5 text-[13px] leading-[18px] text-[#8A8A8A]">{copy.subtitle}</p>
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -437,7 +438,7 @@ const ProjectCreationWizard = ({
                   type="button"
                   onClick={onClose}
                   whileTap={reduce ? undefined : { scale: 0.9 }}
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#98A2B3] transition-colors hover:bg-[#F2F4F7] hover:text-[#344054]"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#6B6B6B] transition-colors hover:bg-[#242424] hover:text-white"
                   aria-label="Fechar"
                 >
                   <X size={18} strokeWidth={1.9} />
@@ -445,7 +446,7 @@ const ProjectCreationWizard = ({
               ) : null}
             </div>
 
-            <div className="h-px w-full bg-[#EEF0F3]" />
+            <div className="h-px w-full bg-white/[0.08]" />
 
             {/* Progresso segmentado com preenchimento animado. */}
             {step !== "loading" ? (
@@ -453,9 +454,9 @@ const ProjectCreationWizard = ({
                 {(skipProducts ? [0, 1] : [0, 1, 2]).map((index) => {
                   const activeIndex = skipProducts ? (step === "info" ? 0 : 1) : stepIndex;
                   return (
-                    <span key={index} className="h-[5px] flex-1 overflow-hidden rounded-full bg-[#EAECF0]">
+                    <span key={index} className="h-[5px] flex-1 overflow-hidden rounded-full bg-white/10">
                       <motion.span
-                        className="block h-full w-full rounded-full bg-[#101828]"
+                        className="block h-full w-full rounded-full bg-white"
                         style={{ originX: 0 }}
                         initial={false}
                         animate={{ scaleX: index <= activeIndex ? 1 : 0 }}
@@ -490,7 +491,7 @@ const ProjectCreationWizard = ({
                   {step === "info" ? (
                     <div className="space-y-5">
                       <motion.div variants={groupVariants}>
-                        <label className="mb-2 block text-[13px] font-semibold text-[#344054]">
+                        <label className="mb-2 block text-[14px] font-medium text-white">
                           Nome da loja
                         </label>
                         <input
@@ -498,12 +499,12 @@ const ProjectCreationWizard = ({
                           onChange={(event) => setNome(event.target.value)}
                           placeholder="Ex.: Minha loja de acessórios"
                           autoFocus
-                          className="h-12 w-full rounded-[12px] border border-[#E4E7EC] bg-white px-4 text-[14.5px] font-medium text-[#101828] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#101828] focus:shadow-[0_0_0_4px_rgba(16,24,40,0.06)]"
+                          className="h-12 w-full rounded-[12px] border border-white/[0.08] bg-[#242424] px-4 text-[14.5px] font-medium text-white outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#6B6B6B] focus:border-white/60 focus:shadow-[0_0_0_3px_rgba(255,255,255,0.06)]"
                         />
                       </motion.div>
 
                       <motion.div variants={groupVariants}>
-                        <label className="mb-2 block text-[13px] font-semibold text-[#344054]">
+                        <label className="mb-2 block text-[14px] font-medium text-white">
                           Logo / Foto da loja
                         </label>
 
@@ -515,23 +516,23 @@ const ProjectCreationWizard = ({
                           }}
                           onDragLeave={() => setDraggingLogo(false)}
                           onDrop={handleLogoDrop}
-                          className={`flex flex-col items-center rounded-[12px] border border-dashed px-6 py-7 text-center transition-colors duration-200 ${
+                          className={`flex flex-col items-center rounded-[12px] border px-6 py-7 text-center transition-colors duration-200 ${
                             draggingLogo
-                              ? "border-[#101828] bg-[#F9FAFB]"
-                              : "border-[#D0D5DD] bg-white hover:border-[#98A2B3]"
+                              ? "border-white/40 bg-[#2A2A2A]"
+                              : "border-white/[0.08] bg-[#242424] hover:border-white/20"
                           }`}
                         >
                           <motion.span
                             animate={draggingLogo && !reduce ? { y: -3 } : { y: 0 }}
                             transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                            className="grid h-10 w-10 place-items-center rounded-full text-[#475467]"
+                            className="grid h-10 w-10 place-items-center rounded-full text-[#8A8A8A]"
                           >
                             <UploadCloud size={24} strokeWidth={1.7} />
                           </motion.span>
-                          <p className="mt-2 text-[14px] font-semibold text-[#101828]">
+                          <p className="mt-2 text-[14px] font-semibold text-white">
                             Escolha uma imagem ou arraste e solte aqui.
                           </p>
-                          <p className="mt-1 text-[12.5px] text-[#667085]">
+                          <p className="mt-1 text-[12.5px] text-[#8A8A8A]">
                             Formatos PNG ou JPG, até 5 MB.
                           </p>
                           <motion.button
@@ -539,7 +540,7 @@ const ProjectCreationWizard = ({
                             onClick={() => logoInputRef.current?.click()}
                             disabled={uploadingLogo}
                             whileTap={reduce ? undefined : { scale: 0.97 }}
-                            className="mt-4 inline-flex items-center rounded-[8px] border border-[#D0D5DD] bg-white px-4 py-2 text-[13px] font-semibold text-[#344054] shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-colors hover:bg-[#F9FAFB] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="mt-4 inline-flex items-center rounded-[8px] border border-white/[0.12] bg-[#242424] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-colors hover:bg-[#242424] disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Selecionar arquivo
                           </motion.button>
@@ -566,27 +567,27 @@ const ProjectCreationWizard = ({
                               transition={{ duration: 0.24, ease: EASE }}
                               className="overflow-hidden"
                             >
-                              <div className="mt-3 flex items-center gap-3 rounded-[12px] border border-[#E4E7EC] bg-white p-3">
-                                <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-[8px] border border-[#EAECF0] bg-[#F9FAFB]">
+                              <div className="mt-3 flex items-center gap-3 rounded-[12px] border border-white/[0.08] bg-[#242424] p-3">
+                                <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-[8px] border border-white/[0.08] bg-[#242424]">
                                   {logoImage ? (
                                     <img src={logoImage} alt="" className="h-full w-full object-cover" />
                                   ) : (
-                                    <ImageIcon size={17} strokeWidth={1.8} className="text-[#98A2B3]" />
+                                    <ImageIcon size={17} strokeWidth={1.8} className="text-[#6B6B6B]" />
                                   )}
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-[13.5px] font-semibold text-[#101828]">
+                                  <p className="truncate text-[13.5px] font-semibold text-white">
                                     {logoName ?? "Imagem da loja"}
                                   </p>
-                                  <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[#667085]">
+                                  <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[#8A8A8A]">
                                     {uploadingLogo ? (
                                       <>
-                                        <Loader2 size={12} className="animate-spin text-[#475467]" />
+                                        <Loader2 size={12} className="animate-spin text-[#8A8A8A]" />
                                         Enviando...
                                       </>
                                     ) : (
                                       <>
-                                        <CheckCircle2 size={13} className="text-[#12B76A]" />
+                                        <CheckCircle2 size={13} className="text-[#32D583]" />
                                         Concluído
                                       </>
                                     )}
@@ -597,7 +598,7 @@ const ProjectCreationWizard = ({
                                     type="button"
                                     onClick={removeLogo}
                                     whileTap={reduce ? undefined : { scale: 0.9 }}
-                                    className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#98A2B3] transition-colors hover:bg-[#FEF3F2] hover:text-[#B42318]"
+                                    className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#6B6B6B] transition-colors hover:bg-red-500/15 hover:text-red-300"
                                     aria-label="Remover imagem"
                                   >
                                     <Trash2 size={16} strokeWidth={1.9} />
@@ -605,9 +606,9 @@ const ProjectCreationWizard = ({
                                 ) : null}
                               </div>
                               {uploadingLogo ? (
-                                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#EAECF0]">
+                                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                                   <motion.span
-                                    className="block h-full rounded-full bg-[#101828]"
+                                    className="block h-full rounded-full bg-white"
                                     initial={{ width: "10%" }}
                                     animate={{ width: "90%" }}
                                     transition={{ duration: 1.6, ease: "easeOut" }}
@@ -620,19 +621,19 @@ const ProjectCreationWizard = ({
 
                         {/* Divisor "OU" + importação por URL. */}
                         <div className="my-4 flex items-center gap-3">
-                          <span className="h-px flex-1 bg-[#EAECF0]" />
-                          <span className="text-[12px] font-medium text-[#98A2B3]">OU</span>
-                          <span className="h-px flex-1 bg-[#EAECF0]" />
+                          <span className="h-px flex-1 bg-white/10" />
+                          <span className="text-[12px] font-medium text-[#6B6B6B]">OU</span>
+                          <span className="h-px flex-1 bg-white/10" />
                         </div>
 
-                        <label className="mb-2 block text-[13px] font-semibold text-[#344054]">
+                        <label className="mb-2 block text-[14px] font-medium text-white">
                           Importar de uma URL
                         </label>
                         <div className="relative">
                           <Link2
                             size={16}
                             strokeWidth={1.9}
-                            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
+                            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6B6B]"
                           />
                           <input
                             value={logoUrlInput}
@@ -645,13 +646,13 @@ const ProjectCreationWizard = ({
                             }}
                             onBlur={applyLogoUrl}
                             placeholder="Cole o link da imagem"
-                            className="h-11 w-full rounded-[10px] border border-[#E4E7EC] bg-white pl-10 pr-4 text-[13.5px] font-medium text-[#101828] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#101828] focus:shadow-[0_0_0_4px_rgba(16,24,40,0.06)]"
+                            className="h-11 w-full rounded-[10px] border border-white/[0.08] bg-[#242424] pl-10 pr-4 text-[13.5px] font-medium text-white outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#6B6B6B] focus:border-white/60 focus:shadow-[0_0_0_3px_rgba(255,255,255,0.06)]"
                           />
                         </div>
                       </motion.div>
 
                       <motion.div variants={groupVariants}>
-                        <label className="mb-2 block text-[13px] font-semibold text-[#344054]">
+                        <label className="mb-2 block text-[14px] font-medium text-white">
                           Descrição
                         </label>
                         <textarea
@@ -659,7 +660,7 @@ const ProjectCreationWizard = ({
                           onChange={(event) => setDescricao(event.target.value)}
                           placeholder="Conte em poucas palavras o que você vende e para quem."
                           rows={3}
-                          className="w-full resize-none rounded-[12px] border border-[#E4E7EC] bg-white px-4 py-3 text-[14.5px] font-medium leading-6 text-[#101828] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#101828] focus:shadow-[0_0_0_4px_rgba(16,24,40,0.06)]"
+                          className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-[#242424] px-4 py-3 text-[14.5px] font-medium leading-6 text-white outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#6B6B6B] focus:border-white/60 focus:shadow-[0_0_0_3px_rgba(255,255,255,0.06)]"
                         />
                       </motion.div>
                     </div>
@@ -671,23 +672,23 @@ const ProjectCreationWizard = ({
                         <Search
                           size={17}
                           strokeWidth={1.9}
-                          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
+                          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B6B6B]"
                         />
                         <input
                           value={search}
                           onChange={(event) => setSearch(event.target.value)}
                           placeholder="Buscar produtos do catálogo Velo"
-                          className="h-11 w-full rounded-[12px] border border-[#E4E7EC] bg-white pl-11 pr-4 text-[14px] font-medium text-[#101828] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#101828] focus:shadow-[0_0_0_4px_rgba(16,24,40,0.06)]"
+                          className="h-11 w-full rounded-[12px] border border-white/[0.08] bg-[#242424] pl-11 pr-4 text-[14px] font-medium text-white outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#6B6B6B] focus:border-white/60 focus:shadow-[0_0_0_3px_rgba(255,255,255,0.06)]"
                         />
                       </motion.div>
 
                       {loadingProducts ? (
-                        <div className="flex h-52 items-center justify-center gap-2.5 text-[13.5px] font-medium text-[#667085]">
+                        <div className="flex h-52 items-center justify-center gap-2.5 text-[13.5px] font-medium text-[#8A8A8A]">
                           <Loader2 size={18} className="animate-spin" />
                           Carregando catálogo...
                         </div>
                       ) : filteredProducts.length === 0 ? (
-                        <div className="flex h-52 items-center justify-center text-[13.5px] font-medium text-[#667085]">
+                        <div className="flex h-52 items-center justify-center text-[13.5px] font-medium text-[#8A8A8A]">
                           Nenhum produto encontrado.
                         </div>
                       ) : (
@@ -704,11 +705,11 @@ const ProjectCreationWizard = ({
                                 whileTap={reduce ? undefined : { scale: 0.98 }}
                                 className={`group relative overflow-hidden rounded-[14px] text-left transition-[border-color,box-shadow] duration-200 ${
                                   selected
-                                    ? "border-[1.5px] border-[#101828] shadow-[0_4px_14px_rgba(16,24,40,0.10)]"
-                                    : "border border-[#E4E7EC] hover:border-[#D0D5DD] hover:shadow-[0_6px_16px_-6px_rgba(16,24,40,0.12)]"
+                                    ? "border-[1.5px] border-white/60 shadow-[0_4px_14px_rgba(0,0,0,0.10)]"
+                                    : "border border-white/[0.08] hover:border-white/[0.12] hover:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.12)]"
                                 }`}
                               >
-                                <div className="aspect-square w-full overflow-hidden bg-[#F2F4F7]">
+                                <div className="aspect-square w-full overflow-hidden bg-[#242424]">
                                   {image ? (
                                     <img
                                       src={image}
@@ -716,7 +717,7 @@ const ProjectCreationWizard = ({
                                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.06]"
                                     />
                                   ) : (
-                                    <div className="grid h-full w-full place-items-center text-[#C6CBD4]">
+                                    <div className="grid h-full w-full place-items-center text-[#5A5A5A]">
                                       <Store size={22} strokeWidth={1.7} />
                                     </div>
                                   )}
@@ -728,17 +729,17 @@ const ProjectCreationWizard = ({
                                       animate={{ scale: 1, opacity: 1 }}
                                       exit={reduce ? { opacity: 0 } : { scale: 0, opacity: 0 }}
                                       transition={{ type: "spring", stiffness: 520, damping: 26 }}
-                                      className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-[#101828] text-white shadow-[0_2px_6px_rgba(16,24,40,0.3)]"
+                                      className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-[#242424] text-white shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
                                     >
                                       <Check size={13} strokeWidth={2.6} />
                                     </motion.span>
                                   ) : null}
                                 </AnimatePresence>
-                                <div className="bg-white p-3">
-                                  <p className="line-clamp-2 text-[12px] font-semibold leading-[17px] text-[#101828]">
+                                <div className="bg-[#242424] p-3">
+                                  <p className="line-clamp-2 text-[12px] font-semibold leading-[17px] text-white">
                                     {product.title}
                                   </p>
-                                  <p className="mt-1 text-[12px] font-semibold text-[#667085]">
+                                  <p className="mt-1 text-[12px] font-semibold text-[#8A8A8A]">
                                     R$ {(product.cost_price * 5).toFixed(2)}
                                   </p>
                                 </div>
@@ -764,19 +765,19 @@ const ProjectCreationWizard = ({
                             whileTap={reduce ? undefined : { scale: 0.98 }}
                             className={`overflow-hidden rounded-[16px] text-left transition-[border-color,box-shadow,transform] duration-200 ${
                               selected
-                                ? "border-[1.5px] border-[#101828] shadow-[0_4px_14px_rgba(16,24,40,0.10)]"
-                                : "border border-[#E4E7EC] hover:-translate-y-0.5 hover:border-[#D0D5DD] hover:shadow-[0_8px_20px_-8px_rgba(16,24,40,0.16)]"
+                                ? "border-[1.5px] border-white/60 shadow-[0_4px_14px_rgba(0,0,0,0.10)]"
+                                : "border border-white/[0.08] hover:-translate-y-0.5 hover:border-white/[0.12] hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.16)]"
                             }`}
                           >
-                            <div className="aspect-[4/3] w-full overflow-hidden bg-[#F2F4F7]">
+                            <div className="aspect-[4/3] w-full overflow-hidden bg-[#242424]">
                               <img src={template.preview} alt="" className="h-full w-full object-cover" />
                             </div>
-                            <div className="flex items-start justify-between gap-2.5 bg-white p-4">
+                            <div className="flex items-start justify-between gap-2.5 bg-[#242424] p-4">
                               <div className="min-w-0">
-                                <p className="text-[13.5px] font-semibold text-[#101828]">
+                                <p className="text-[13.5px] font-semibold text-white">
                                   {template.label}
                                 </p>
-                                <p className="mt-1 text-[12.5px] leading-[18px] text-[#667085]">
+                                <p className="mt-1 text-[12.5px] leading-[18px] text-[#8A8A8A]">
                                   {template.description}
                                 </p>
                               </div>
@@ -787,7 +788,7 @@ const ProjectCreationWizard = ({
                                     animate={{ scale: 1, opacity: 1 }}
                                     exit={reduce ? { opacity: 0 } : { scale: 0, opacity: 0 }}
                                     transition={{ type: "spring", stiffness: 520, damping: 26 }}
-                                    className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#101828] text-white"
+                                    className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#242424] text-white"
                                   >
                                     <Check size={13} strokeWidth={2.6} />
                                   </motion.span>
@@ -805,18 +806,18 @@ const ProjectCreationWizard = ({
                       <div className="mb-6 flex flex-col items-center text-center">
                         <span className="relative grid h-16 w-16 place-items-center">
                           <motion.span
-                            className="absolute inset-0 rounded-full bg-[#101828]/10"
+                            className="absolute inset-0 rounded-full bg-white/10"
                             animate={reduce ? undefined : { scale: [1, 1.35, 1], opacity: [0.6, 0, 0.6] }}
                             transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
                           />
-                          <span className="grid h-16 w-16 place-items-center rounded-full bg-[#101828] text-white shadow-[0_8px_24px_rgba(16,24,40,0.28)]">
+                          <span className="grid h-16 w-16 place-items-center rounded-full bg-white text-[#1E1E1E] shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
                             <Sparkles size={26} strokeWidth={1.8} />
                           </span>
                         </span>
-                        <h3 className="mt-4 text-[17px] font-semibold tracking-[-0.02em] text-[#101828]">
+                        <h3 className="mt-4 text-[17px] font-semibold tracking-[-0.02em] text-white">
                           A IA está montando seu projeto
                         </h3>
-                        <p className="mt-1 text-[13px] text-[#667085]">
+                        <p className="mt-1 text-[13px] text-[#8A8A8A]">
                           Isso leva só alguns segundos. Não feche esta janela.
                         </p>
                       </div>
@@ -831,16 +832,16 @@ const ProjectCreationWizard = ({
                               initial={false}
                               animate={{ opacity: done || active ? 1 : 0.55 }}
                               className={`flex items-center gap-3 rounded-[12px] px-3.5 py-2.5 text-[13px] font-medium transition-colors duration-300 ${
-                                active ? "bg-[#F9FAFB] text-[#101828]" : "text-[#667085]"
+                                active ? "bg-[#242424] text-white" : "text-[#8A8A8A]"
                               }`}
                             >
                               <span
                                 className={`grid h-5 w-5 shrink-0 place-items-center rounded-full transition-colors duration-300 ${
                                   done
-                                    ? "bg-[#101828] text-white"
+                                    ? "bg-white text-[#1E1E1E]"
                                     : active
-                                      ? "bg-[#101828]/10 text-[#101828]"
-                                      : "bg-[#EAECF0] text-[#B6BCC7]"
+                                      ? "bg-white/10 text-white"
+                                      : "bg-white/10 text-[#5A5A5A]"
                                 }`}
                               >
                                 {done ? (
@@ -884,9 +885,9 @@ const ProjectCreationWizard = ({
             {/* Rodapé: contador de etapa + botão primário glossy. */}
             {step !== "loading" ? (
               <>
-                <div className="h-px w-full bg-[#EEF0F3]" />
+                <div className="h-px w-full bg-white/[0.08]" />
                 <div className="flex items-center justify-between gap-3 px-5 py-4">
-                  <span className="text-[13px] font-medium text-[#667085]">
+                  <span className="text-[13px] font-medium text-[#8A8A8A]">
                     {step === "produtos"
                       ? `${selectedProducts.length} produto(s) selecionado(s)`
                       : `Passo ${currentStepNumber} de ${totalSteps}`}

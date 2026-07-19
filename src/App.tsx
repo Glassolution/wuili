@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import TourLab from "@/pages/__TourLab";
 import { VeloLoadingPill, VeloToaster } from "@/components/ui/velo-toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -127,6 +128,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/__tour-lab" element={<TourLab />} />
               {/* Fluxo de cadastro/onboarding removido — rotas antigas redirecionam ao dashboard. */}
               <Route path="/comecar" element={<Navigate to="/dashboard" replace />} />
               <Route path="/onboarding/*" element={<Navigate to="/dashboard" replace />} />
