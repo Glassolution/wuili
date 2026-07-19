@@ -183,10 +183,17 @@ Deno.serve(async (req) => {
         ? affiliate_ref.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32)
         : null;
 
+    // URL do webhook para o Mercado Pago notificar a aprovação (essencial para Pix:
+    // sem isso, a ativação depende só do polling da aba de checkout aberta).
+    const mpWebhookUrl =
+      Deno.env.get("MP_WEBHOOK_URL") ??
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook`;
+
     const mpPayload: Record<string, unknown> = {
       transaction_amount: selectedPlan.amount,
       description: selectedPlan.description,
       payment_method_id: payment_method === "pix" ? "pix" : undefined,
+      notification_url: mpWebhookUrl,
       payer: {
         email: userEmail,
       },
