@@ -1133,7 +1133,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
                   <button
                     type="button"
-                    onClick={() => navigate(`/checkout?plan=pro&product=${product.id}`)}
+                    onClick={() => upgradeModal.open({ defaultPlan: "pro" })}
                     className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#0A0A0A] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A]"
                   >
                     Assinar Pro — R$99,90/mês
