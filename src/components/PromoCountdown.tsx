@@ -64,18 +64,24 @@ export const PromoCountdown = ({
     <div
       className={`flex flex-col items-center justify-between border sm:flex-row ${wrapPad} ${wrapCls} ${className}`}
     >
-      <div className="flex items-center gap-2.5 text-center sm:text-left">
+      <div className="flex min-w-0 items-center gap-2.5 text-center sm:text-left">
         <Flame size={isClean ? 16 : 18} className="shrink-0 text-[#EF4444]" strokeWidth={2.4} />
-        <div>
+        <div className="min-w-0">
           <p className={`font-bold leading-tight ${isClean ? "text-[12.5px]" : "text-[13px] sm:text-[14px]"}`}>
-            Promoção relâmpago — Plano Base por R$ 29,90
+            {/* No mobile o título longo quebrava em duas linhas e empurrava o
+                contador pra baixo, deixando o banner com 4 linhas de altura. */}
+            <span className="sm:hidden">Plano Base por R$ 29,90</span>
+            <span className="hidden sm:inline">Promoção relâmpago — Plano Base por R$ 29,90</span>
           </p>
           <p className={`opacity-70 ${isClean ? "text-[11px]" : "text-[11px] sm:text-[12px]"}`}>
-            Oferta válida por apenas 19 horas. Depois volta pra R$ 39,90.
+            <span className="sm:hidden">Só por 19h. Depois volta pra R$ 39,90.</span>
+            <span className="hidden sm:inline">
+              Oferta válida por apenas 19 horas. Depois volta pra R$ 39,90.
+            </span>
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="mt-2 flex shrink-0 items-center gap-1.5 sm:mt-0">
         <Clock size={isClean ? 13 : 14} className="opacity-60" />
         {[
           { label: "h", value: hours },

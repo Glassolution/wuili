@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FreePlanBannerProps {
   isVisible: boolean;
@@ -7,6 +8,7 @@ interface FreePlanBannerProps {
 
 const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   return (
     <div
@@ -21,8 +23,10 @@ const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: "14px",
-        padding: "0 32px",
+        gap: isMobile ? "10px" : "14px",
+        // No mobile o padding de 32px + texto longo estouravam a largura, e o
+        // conteúdo saía cortado nas duas pontas.
+        padding: isMobile ? "0 12px" : "0 32px",
         boxSizing: "border-box",
         fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         WebkitFontSmoothing: "antialiased",
@@ -35,14 +39,19 @@ const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
     >
       <span
         style={{
-          fontSize: "14px",
+          fontSize: isMobile ? "12.5px" : "14px",
           fontWeight: 600,
           letterSpacing: "-0.01em",
           textAlign: "center",
-          whiteSpace: "nowrap",
+          // `nowrap` só no desktop: no mobile ele impedia o texto de encolher e
+          // era a causa do corte. Aqui a frase é curta e cabe numa linha.
+          whiteSpace: isMobile ? "normal" : "nowrap",
+          minWidth: 0,
         }}
       >
-        Você está no Plano Gratuito. Faça upgrade agora para desbloquear todos os recursos
+        {isMobile
+          ? "Você está no Plano Gratuito"
+          : "Você está no Plano Gratuito. Faça upgrade agora para desbloquear todos os recursos"}
       </span>
 
       <button
@@ -52,17 +61,18 @@ const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
           display: "inline-flex",
           alignItems: "center",
           gap: "6px",
-          height: "32px",
-          padding: "0 16px",
+          height: isMobile ? "28px" : "32px",
+          padding: isMobile ? "0 12px" : "0 16px",
           borderRadius: "999px",
           border: "1px solid rgba(255,255,255,0.85)",
           background: "transparent",
           color: "#FFFFFF",
-          fontSize: "13px",
+          fontSize: isMobile ? "12px" : "13px",
           fontWeight: 600,
           cursor: "pointer",
           transition: "all 0.15s ease",
           whiteSpace: "nowrap",
+          flexShrink: 0,
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.18)";

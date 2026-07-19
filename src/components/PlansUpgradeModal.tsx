@@ -5,6 +5,7 @@ import { Check, X } from "lucide-react";
 import PromoCountdown from "@/components/PromoCountdown";
 import { VeloMark } from "@/components/VeloLogo";
 import { PRIMARY_BUTTON_STYLE } from "@/lib/buttonStyles";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   PLAN_ANNUAL_AMOUNTS,
   PLAN_MONTHLY_AMOUNTS,
@@ -175,6 +176,7 @@ type ModalProps = {
 const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
   const navigate = useNavigate();
   const reduce = useReducedMotion();
+  const isMobile = useIsMobile();
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlan ?? "pro");
 
@@ -364,23 +366,42 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
                   key={id}
                   variants={cardItem}
                   onClick={() => setSelectedPlanId(id)}
-                  className={`relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-5 transition duration-200 ${
+                  className={`relative flex cursor-pointer flex-col border bg-white transition duration-200 ${
+                    isMobile ? "rounded-[22px] p-5" : "rounded-[16px] p-5"
+                  } ${
                     isSelected ? "border-black/20" : "border-[#EAEAE8] hover:border-black/20"
                   }`}
                 >
-                  {/* Ícone + nome + badge na mesma linha (como na referência),
-                      sem parágrafo de descrição, para os benefícios subirem. */}
+                  {/* No mobile o ícone sai: a coluna é estreita e o layout da
+                      referência põe nome e selo nas pontas da mesma linha. */}
                   <div className="flex items-center gap-3">
-                    <VeloMark size={38} tone={isFeatured ? "solid" : "soft"} />
-                    <h3 className="text-[17px] font-bold tracking-[-0.02em] text-[#0A0A0A]">{currentPlan.name}</h3>
-                    {currentPlan.badge && (
-                      <span
-                        className={`ml-auto whitespace-nowrap rounded-full px-2.5 py-1 text-[11.5px] font-semibold leading-none ${
-                          isFeatured ? "bg-indigo-100 text-indigo-700" : "bg-[#F4F4F3] text-[#9A9A96]"
-                        }`}
-                      >
-                        {currentPlan.badge}
+                    {!isMobile && <VeloMark size={38} tone={isFeatured ? "solid" : "soft"} />}
+                    <h3
+                      className={
+                        isMobile
+                          ? "text-[14px] font-medium text-[#6B7280]"
+                          : "text-[17px] font-bold tracking-[-0.02em] text-[#0A0A0A]"
+                      }
+                    >
+                      {currentPlan.name}
+                    </h3>
+                    {/* No mobile o selo do topo vira o desconto (como o "Save 25%"
+                        da referência), que é a informação mais forte. Sem promoção
+                        no plano, cai de volta pro selo normal. */}
+                    {isMobile && percentOff > 0 ? (
+                      <span className="ml-auto whitespace-nowrap rounded-full bg-emerald-100 px-3 py-1.5 text-[12px] font-bold leading-none text-emerald-700">
+                        {percentOff}% OFF
                       </span>
+                    ) : (
+                      currentPlan.badge && (
+                        <span
+                          className={`ml-auto whitespace-nowrap rounded-full leading-none ${
+                            isMobile ? "px-3 py-1.5 text-[12px] font-bold" : "px-2.5 py-1 text-[11.5px] font-semibold"
+                          } ${isFeatured ? "bg-indigo-100 text-indigo-700" : "bg-[#F4F4F3] text-[#9A9A96]"}`}
+                        >
+                          {currentPlan.badge}
+                        </span>
+                      )
                     )}
                   </div>
 
@@ -393,35 +414,60 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
                   {/* Preço numa linha só, na proporção da referência: o riscado
                       fica ~0.8x do preço cheio, ambos na MESMA cor sólida (os
                       centavos não são acinzentados — era o que mais destoava). */}
-                  <div className="mt-4 flex min-h-[36px] flex-nowrap items-center gap-x-1.5 whitespace-nowrap">
+                  <div
+                    className={`flex min-h-[36px] items-center whitespace-nowrap ${
+                      isMobile ? "mt-2 flex-nowrap gap-x-1.5" : "mt-4 flex-nowrap gap-x-1.5"
+                    }`}
+                  >
                     {originalPrice && (
-                      <span className="text-[16px] font-medium text-[#9CA3AF] line-through">{originalPrice}</span>
+                      <span
+                        className={`font-medium text-[#9CA3AF] line-through ${isMobile ? "text-[16px]" : "text-[16px]"}`}
+                      >
+                        {originalPrice}
+                      </span>
                     )}
-                    <span className="text-[21px] font-extrabold leading-none tracking-[-0.03em] text-[#0A0A0A]">
+                    <span
+                      className={`font-extrabold leading-none tracking-[-0.03em] text-[#0A0A0A] ${
+                        isMobile ? "text-[27px]" : "text-[21px]"
+                      }`}
+                    >
                       {priceParts.main}
                       {priceParts.cents}
                     </span>
-                    {percentOff > 0 && (
+                    <span
+                      className={`font-medium text-[#9CA3AF] ${isMobile ? "text-[13px]" : "text-[12.5px]"}`}
+                    >
+                      {billingCycle === "annual" ? "/ano" : "/mês"}
+                    </span>
+                    {/* No mobile esse selo já subiu pro topo do card. */}
+                    {!isMobile && percentOff > 0 && (
                       <span className="whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2 py-[3px] text-[11px] font-semibold leading-none text-emerald-600">
                         {percentOff}% OFF
                       </span>
                     )}
-                    <span className="text-[12.5px] font-medium text-[#9CA3AF]">
-                      {billingCycle === "annual" ? "/ano" : "/mês"}
-                    </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleChoose(id);
-                    }}
-                    style={PRIMARY_BUTTON_STYLE}
-                    className="mt-4 h-[46px] w-full rounded-[10px] px-4 text-[14px] font-semibold text-white transition-opacity duration-200 hover:opacity-90"
-                  >
-                    Assinar {currentPlan.name}
-                  </button>
+                  {/* Linha de contexto do plano — só no mobile, onde há espaço
+                      vertical de sobra e ela substitui o ícone que saiu. */}
+                  {isMobile && (
+                    <p className="mt-1.5 text-[13.5px] leading-snug text-[#6B7280]">{currentPlan.description}</p>
+                  )}
+
+                  {/* No desktop o botão fica logo abaixo do preço; no mobile ele
+                      vai pro fim do card, depois dos benefícios. */}
+                  {!isMobile && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleChoose(id);
+                      }}
+                      style={PRIMARY_BUTTON_STYLE}
+                      className="mt-4 h-[46px] w-full rounded-[10px] px-4 text-[14px] font-semibold text-white transition-opacity duration-200 hover:opacity-90"
+                    >
+                      Assinar {currentPlan.name}
+                    </button>
+                  )}
 
                   <ul className="mt-4 space-y-2.5 border-t border-black/[0.06] pt-4">
                     {currentPlan.features.map((feature) => (
@@ -433,6 +479,20 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
                       </li>
                     ))}
                   </ul>
+
+                  {isMobile && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleChoose(id);
+                      }}
+                      style={PRIMARY_BUTTON_STYLE}
+                      className="mt-5 h-[50px] w-full rounded-[12px] px-4 text-[15px] font-semibold text-white transition-opacity duration-200 hover:opacity-90"
+                    >
+                      Assinar {currentPlan.name}
+                    </button>
+                  )}
                 </motion.article>
               );
             })}
