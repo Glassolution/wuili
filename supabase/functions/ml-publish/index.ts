@@ -372,9 +372,13 @@ Deno.serve(async (req) => {
       } catch { return [] }
     })()
 
+    const MIN_REQUIRED_IMAGES = 3
     const publicImages = rawImages.filter(isPublicUrl).slice(0, 6)
-    if (publicImages.length === 0) {
-      return json({ error: 'Pelo menos uma imagem pública é necessária. Imagens locais não são aceitas pelo Mercado Livre.' }, 400)
+    if (publicImages.length < MIN_REQUIRED_IMAGES) {
+      return json({
+        error: `O Mercado Livre exige no mínimo ${MIN_REQUIRED_IMAGES} fotos para publicar. Este produto tem apenas ${publicImages.length} foto(s) pública(s). Adicione mais imagens antes de publicar (imagens locais não são aceitas).`,
+        code: 'INSUFFICIENT_IMAGES',
+      }, 400)
     }
 
     console.log('user_id:', user_id)
@@ -543,15 +547,41 @@ Deno.serve(async (req) => {
 
 
     // === CATEGORY (leaf only) ===
-    const categoryId = await predictCategory(title)
-    console.log('Categoria final (leaf):', categoryId)    // === ATTRIBUTES ===
+    let categoryId = await predictCategory(title)
+    console.log('Categoria final (leaf):', categoryId)
+
+    // === ATTRIBUTES ===
     // Buscamos a ficha de atributos da categoria para saber quais sao
     // obrigatorios e quais tem lista fechada de valores permitidos.
-    let categoryAttrs: Record<string, unknown>[] = []
-    try {
-      const attrRes = await fetch(`https://api.mercadolibre.com/categories/${categoryId}/attributes`)
-      if (attrRes.ok) categoryAttrs = await attrRes.json()
-    } catch (_e) { /* ignore */ }
+    const fetchCategoryAttrs = async (catId: string): Promise<Record<string, unknown>[]> => {
+      try {
+        const attrRes = await fetch(`https://api.mercadolibre.com/categories/${catId}/attributes`)
+        if (attrRes.ok) return await attrRes.json()
+      } catch (_e) { /* ignore */ }
+      return []
+    }
+    let categoryAttrs = await fetchCategoryAttrs(categoryId)
+
+    // fashion_grid: categorias de moda (roupas/calçados) exigem SIZE_GRID_ID, que
+    // referencia uma grade de medidas (guia de tamanhos) criada pelo vendedor —
+    // NÃO tem lista fechada de valores. O catálogo de dropshipping não tem como
+    // preencher, então o ML rejeita com "missing.fashion_grid.grid_id.values" e a
+    // publicação trava. Como não dá para fabricar uma grade confiável,
+    // reencaminhamos para uma categoria genérica publicável (sem grade).
+    const sizeGridDef = categoryAttrs.find((a) => cleanText(a.id) === 'SIZE_GRID_ID')
+    const sizeGridRequired = !!(sizeGridDef && (sizeGridDef.tags as Record<string, unknown> | undefined)?.required)
+    const sizeGridHasValues = (((sizeGridDef?.values as unknown[]) ?? []).length) > 0
+    if (sizeGridRequired && !sizeGridHasValues) {
+      const FALLBACK_CATEGORY = 'MLB1051' // "Outros" — leaf genérico sem grade de medidas
+      console.warn(`[ml-publish] Categoria ${categoryId} exige SIZE_GRID_ID (grade de medidas) sem lista de valores — reencaminhando para ${FALLBACK_CATEGORY}.`)
+      categoryId = FALLBACK_CATEGORY
+      categoryAttrs = await fetchCategoryAttrs(categoryId)
+    }
+
+    // IDs de atributos que ESTA categoria de fato aceita. Usado para não enviar
+    // atributos que o ML descarta como inválidos ("was dropped because does not
+    // exists"), como SELLER_PACKAGE_DIMENSIONS em categorias que não os suportam.
+    const categoryAttrIds = new Set(categoryAttrs.map((a) => cleanText(a.id)))
 
     const productRecord = product as Record<string, unknown>
 
@@ -713,10 +743,12 @@ Deno.serve(async (req) => {
     const weightGrams = Math.max(50, Math.round(rawWeight * 1000))
     const weightValName = `${weightGrams} g`
 
-    mergeAttribute(allAttrs, {
-      id: 'SELLER_PACKAGE_WEIGHT',
-      value_name: weightValName,
-    })
+    if (categoryAttrIds.has('SELLER_PACKAGE_WEIGHT')) {
+      mergeAttribute(allAttrs, {
+        id: 'SELLER_PACKAGE_WEIGHT',
+        value_name: weightValName,
+      })
+    }
 
     // 3.6) Dimensões da embalagem — CRÍTICO para o cálculo do frete.
     // Sem dimensões válidas, o Mercado Livre aplica uma tabela padrão de "pacote
@@ -733,10 +765,12 @@ Deno.serve(async (req) => {
     // enviávamos "AxBxC cm" com espaço, o que era descartado pela API — daí
     // vinham os fretes gigantescos mesmo com peso correto.
     const dimsValName = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},cm`
-    mergeAttribute(allAttrs, {
-      id: 'SELLER_PACKAGE_DIMENSIONS',
-      value_name: dimsValName,
-    })
+    if (categoryAttrIds.has('SELLER_PACKAGE_DIMENSIONS')) {
+      mergeAttribute(allAttrs, {
+        id: 'SELLER_PACKAGE_DIMENSIONS',
+        value_name: dimsValName,
+      })
+    }
     // Exposto no objeto para reaproveitar no payload de shipping abaixo.
     const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
     console.log(`[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg)`)
@@ -761,6 +795,12 @@ Deno.serve(async (req) => {
       const tags = (attrDef.tags as Record<string, unknown>) ?? {}
       if (!tags.required) continue
       if (allAttrs.find(a => a.id === id)) continue
+
+      // SIZE_GRID_ID (grade de medidas): nunca fabricar um valor. Sem grade real
+      // o ML rejeita qualquer chute ("missing.fashion_grid.grid_id.values"). Se a
+      // categoria chegou aqui exigindo grade, o reencaminhamento acima já tratou;
+      // este continue é a salvaguarda para não mandar "N/D" e travar o anúncio.
+      if (id === 'SIZE_GRID_ID') continue
 
       if (id === 'BRAND') {
         const def = attrDef as Record<string, unknown>
