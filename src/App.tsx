@@ -123,6 +123,7 @@ const App = () => (
       <TooltipProvider>
         <VeloToaster />
         <BrowserRouter>
+          <UpgradeModalProvider>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Index />} />
