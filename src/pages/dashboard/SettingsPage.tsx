@@ -661,7 +661,7 @@ const PlanTab = () => {
               <button
                 disabled={!isSelectable}
                 onClick={() => {
-                  if (p.id !== "gratis") navigate(`/checkout?plan=${p.id === "business" ? "business" : "pro"}`);
+                  if (p.id !== "gratis") upgradeModal.open({ defaultPlan: p.id === "business" ? "business" : "pro" });
                 }}
                 className={`mt-4 w-full py-2 rounded-full text-[12px] font-medium ${
                   !isSelectable
