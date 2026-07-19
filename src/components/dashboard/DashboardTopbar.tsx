@@ -52,6 +52,7 @@ const DashboardTopbar = () => {
   const { nome, foto } = useProfile();
   const { signOut, user } = useAuth();
   const pageTitle = pageTitles[location.pathname] || "Dashboard";
+  const upgradeModal = useUpgradeModal();
 
   const iniciais = nome
     .split(/[\s._\-]+/)
