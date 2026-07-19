@@ -599,14 +599,7 @@ const CheckoutPage = () => {
                     <button
                       type="button"
                       onClick={() => startCheckout(id)}
-                      className={`mt-5 h-11 w-full rounded-[10px] border px-5 text-[13px] font-semibold transition-colors duration-200 ${
-
-                        isFeatured
-                          ? "border-[#0A0A0A] bg-[#0A0A0A] text-white hover:bg-[#242424]"
-                          : // Vazado por padrão; preenche só com o mouse sobre o
-                            // próprio botão.
-                            "border-black/15 bg-white text-black hover:border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white"
-                      }`}
+                      className="mt-5 h-11 w-full rounded-[10px] border border-[#0A0A0A] bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[#242424]"
                     >
                       Assinar {currentPlan.name}
                     </button>
