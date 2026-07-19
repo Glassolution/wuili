@@ -30,8 +30,9 @@ const PLANS: PlanEntry[] = [
     iconBg: "bg-slate-100",
     iconColor: "text-slate-600",
     tagline: "Pra quem quer começar a vender sem travar no operacional.",
-    monthly: 39.9,
-    annual: 430.92,
+    monthly: 29.9,
+    originalMonthly: 39.9,
+    annual: 322.92,
     features: [
       "Importação automática de até 50 produtos por mês pro Mercado Livre",
       "1 página de vendas gerada por IA por mês",
