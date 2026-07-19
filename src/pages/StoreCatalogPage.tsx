@@ -266,7 +266,7 @@ const CatalogEditorShell = ({ storeName, children }: CatalogEditorShellProps) =>
           </button>
           <button
             type="button"
-            onClick={() => navigate("/checkout")}
+            onClick={() => upgradeModal.open()}
             className="h-10 rounded-[12px] bg-[#2f6df6] px-5 text-[14px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_22px_rgba(47,109,246,0.24)] transition hover:brightness-110"
           >
             Publicar
