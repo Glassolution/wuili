@@ -28,8 +28,10 @@ type PlanData = {
 const PLANS_DATA: Record<string, PlanData> = {
   base: {
     name: "Base",
-    price: "R$ 39,90",
+    price: "R$ 29,90",
+    originalPrice: "R$ 39,90",
     description: "Pra quem quer começar a vender sem travar no operacional.",
+    badge: "Promo 19h",
     features: [
       "Importação automática de até 50 produtos por mês pro Mercado Livre",
       "1 página de vendas gerada por IA por mês",
