@@ -259,6 +259,7 @@ const buttonSizePresets: Array<{ value: ButtonSizePreset; label: string }> = [
 const GeneratedStoreEditorPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const { projectId: routeProjectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
   const { nome: profileName, foto: profilePhoto } = useProfile();
