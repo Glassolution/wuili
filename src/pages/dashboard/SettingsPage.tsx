@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import PlanBadge from "@/components/PlanBadge";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { usePlan } from "@/hooks/usePlan";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
