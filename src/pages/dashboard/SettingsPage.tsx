@@ -593,6 +593,7 @@ const PLAN_DATA = [
 
 const PlanTab = () => {
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const { plan } = usePlan();
   const current = PLAN_DATA.find((p) => p.id === plan) ?? PLAN_DATA[0];
 
