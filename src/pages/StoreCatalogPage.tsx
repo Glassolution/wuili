@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { ChevronDown, ChevronLeft, ChevronRight, Code2, ExternalLink, Filter, Globe2, Heart, History, LayoutTemplate, Monitor, MoreHorizontal, Package, Palette, Play, RefreshCw, Search, Settings, ShoppingCart, SlidersHorizontal, Smartphone, Trash2, Type, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -206,6 +207,7 @@ const FilterGroup = ({
 
 const CatalogEditorShell = ({ storeName, children }: CatalogEditorShellProps) => {
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const [mobilePreview, setMobilePreview] = useState(false);
 
   return (
@@ -264,7 +266,7 @@ const CatalogEditorShell = ({ storeName, children }: CatalogEditorShellProps) =>
           </button>
           <button
             type="button"
-            onClick={() => navigate("/checkout")}
+            onClick={() => upgradeModal.open()}
             className="h-10 rounded-[12px] bg-[#2f6df6] px-5 text-[14px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_22px_rgba(47,109,246,0.24)] transition hover:brightness-110"
           >
             Publicar

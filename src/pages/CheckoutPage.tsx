@@ -143,7 +143,8 @@ const CheckoutPage = () => {
     ? "annual"
     : "monthly";
   const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
-  const [showPaymentStep, setShowPaymentStep] = useState(isTrial);
+  const skipSelect = searchParams.get("skipSelect") === "1";
+  const [showPaymentStep, setShowPaymentStep] = useState(isTrial || skipSelect);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(initialBillingCycle);
   const planId = selectedPlanId;
   const plan = PLANS_DATA[planId];

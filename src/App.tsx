@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "@/lib/profileContext";
 import AdminRoute from "@/components/AdminRoute";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { UpgradeModalProvider } from "@/components/PlansUpgradeModal";
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -123,6 +124,7 @@ const App = () => (
       <TooltipProvider>
         <VeloToaster />
         <BrowserRouter>
+          <UpgradeModalProvider>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Index />} />
@@ -207,6 +209,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          </UpgradeModalProvider>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

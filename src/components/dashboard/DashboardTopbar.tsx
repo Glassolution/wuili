@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import defaultAvatar from "@/assets/default-avatar.png.asset.json";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import {
   Menu, Search, ChevronRight, X, type LucideIcon,
   LayoutGrid, ShoppingCart, BookOpen, Star, Users,
@@ -51,6 +52,7 @@ const DashboardTopbar = () => {
   const { nome, foto } = useProfile();
   const { signOut, user } = useAuth();
   const pageTitle = pageTitles[location.pathname] || "Dashboard";
+  const upgradeModal = useUpgradeModal();
 
   const iniciais = nome
     .split(/[\s._\-]+/)
@@ -152,14 +154,14 @@ const DashboardTopbar = () => {
 
                 {/* Upgrade */}
                 {plano === "gratis" && (
-                  <Link
-                    to="/checkout"
-                    onClick={() => setAvatarMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => { setAvatarMenuOpen(false); upgradeModal.open(); }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted transition-colors"
                   >
                     <Sparkles size={15} className="shrink-0 text-yellow-500" />
                     Upgrade de plano
-                  </Link>
+                  </button>
                 )}
 
                 <Link

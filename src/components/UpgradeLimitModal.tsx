@@ -1,5 +1,5 @@
 import { ArrowUpRight, CheckCircle2, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 
 type UpgradeLimitModalProps = {
   open: boolean;
@@ -24,13 +24,13 @@ const UpgradeLimitModal = ({
   benefitsLabel,
   onClose,
 }: UpgradeLimitModalProps) => {
-  const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
 
   if (!open) return null;
 
   const goToPlans = () => {
     onClose();
-    navigate(targetPlan ? `/checkout?plan=${targetPlan}` : "/dashboard/planos");
+    upgradeModal.open({ defaultPlan: targetPlan });
   };
 
   return (

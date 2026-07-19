@@ -6,6 +6,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -239,6 +240,7 @@ const inferStickerAlbumName = (product: CatalogProduct | null, title: string) =>
 const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification }: Props) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const planLimits = usePlanLimits();
   const isStartMode = false;
 
@@ -1134,7 +1136,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
                   <button
                     type="button"
-                    onClick={() => navigate(`/checkout?plan=pro&product=${product.id}`)}
+                    onClick={() => upgradeModal.open({ defaultPlan: "pro" })}
                     className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#0A0A0A] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A]"
                   >
                     Assinar Pro — R$99,90/mês
@@ -1144,7 +1146,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                   </p>
                   <button
                     type="button"
-                    onClick={() => navigate("/checkout?plan=business&businessCard=1")}
+                    onClick={() => upgradeModal.open({ defaultPlan: "business" })}
                     className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#0A0A0A]"
                   >
                     Prefere começar direto no Business (R$149,90/mês, promoção) com automações ilimitadas?

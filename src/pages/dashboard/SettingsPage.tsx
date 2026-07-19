@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import PlanBadge from "@/components/PlanBadge";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { usePlan } from "@/hooks/usePlan";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -592,6 +593,7 @@ const PLAN_DATA = [
 
 const PlanTab = () => {
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const { plan } = usePlan();
   const current = PLAN_DATA.find((p) => p.id === plan) ?? PLAN_DATA[0];
 
@@ -659,7 +661,7 @@ const PlanTab = () => {
               <button
                 disabled={!isSelectable}
                 onClick={() => {
-                  if (p.id !== "gratis") navigate(`/checkout?plan=${p.id === "business" ? "business" : "pro"}`);
+                  if (p.id !== "gratis") upgradeModal.open({ defaultPlan: p.id === "business" ? "business" : "pro" });
                 }}
                 className={`mt-4 w-full py-2 rounded-full text-[12px] font-medium ${
                   !isSelectable
