@@ -12,7 +12,7 @@ function json(body: Record<string, unknown>, status = 200) {
   })
 }
 
-type PlanName = 'gratis' | 'go' | 'pro' | 'business'
+type PlanName = 'gratis' | 'go' | 'base' | 'pro' | 'business'
 type MLAttribute = {
   id: string
   value_id?: string
@@ -24,10 +24,14 @@ type SellerStatusBlock = {
   details: Record<string, unknown>
 }
 
+// Limites de produtos publicados por plano, alinhados ao que é vendido no
+// checkout/landing: base = 50, pro = 200, business = ilimitado. 'go' é um plano
+// legado (não vendido mais) — tratado como base para não bloquear quem o tenha.
 const PRODUCT_LIMITS: Record<PlanName, number | null> = {
   gratis: 0,
-  go: 0,
-  pro: 30,
+  go: 50,
+  base: 50,
+  pro: 200,
   business: null,
 }
 
@@ -35,7 +39,7 @@ function normalizePlanName(plan: unknown): PlanName {
   const value = String(plan ?? 'gratis').toLowerCase()
   if (value === 'free') return 'gratis'
   if (value === 'plus') return 'pro'
-  if (value === 'go' || value === 'pro' || value === 'business') return value
+  if (value === 'go' || value === 'base' || value === 'pro' || value === 'business') return value
   return 'gratis'
 }
 
@@ -442,7 +446,7 @@ Deno.serve(async (req) => {
       }
 
       if (publishedProducts >= productLimit) {
-        return json({ error: 'Você atingiu o limite de 30 produtos do plano Pro.' }, 403)
+        return json({ error: `Você atingiu o limite de ${productLimit} produtos do seu plano. Faça upgrade para publicar mais.` }, 403)
       }
     }
 
