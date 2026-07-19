@@ -154,14 +154,14 @@ const DashboardTopbar = () => {
 
                 {/* Upgrade */}
                 {plano === "gratis" && (
-                  <Link
-                    to="/checkout"
-                    onClick={() => setAvatarMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => { setAvatarMenuOpen(false); upgradeModal.open(); }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted transition-colors"
                   >
                     <Sparkles size={15} className="shrink-0 text-yellow-500" />
                     Upgrade de plano
-                  </Link>
+                  </button>
                 )}
 
                 <Link
