@@ -11,6 +11,7 @@ import { veloToast as toast } from "@/components/ui/velo-toast";
 import { VeloLogo, VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
+import PromoCountdown from "@/components/PromoCountdown";
 
 type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
@@ -28,8 +29,10 @@ type PlanData = {
 const PLANS_DATA: Record<string, PlanData> = {
   base: {
     name: "Base",
-    price: "R$ 39,90",
+    price: "R$ 29,90",
+    originalPrice: "R$ 39,90",
     description: "Pra quem quer começar a vender sem travar no operacional.",
+    badge: "Promo 19h",
     features: [
       "Importação automática de até 50 produtos por mês pro Mercado Livre",
       "1 página de vendas gerada por IA por mês",
@@ -68,13 +71,13 @@ const PLANS_DATA: Record<string, PlanData> = {
 };
 
 const PLAN_AMOUNTS: Record<string, number> = {
-  base: 39.9,
+  base: 29.9,
   pro: 79.8,
   business: 159.6,
 };
 
 const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
-  base: 430.92,   // 39.90 * 12 * 0.9
+  base: 322.92,   // 29.90 * 12 * 0.9
   pro: 861.84,    // 79.80 * 12 * 0.9
   business: 1723.68, // 159.60 * 12 * 0.9
 };
@@ -510,8 +513,12 @@ const CheckoutPage = () => {
               </button>
             </div>
 
+            <div className="mx-auto mt-5 max-w-6xl">
+              <PromoCountdown />
+            </div>
+
             {hasReferralDiscount && (
-              <div className="mx-auto mt-5 flex max-w-6xl items-center gap-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-800">
+              <div className="mx-auto mt-4 flex max-w-6xl items-center gap-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-800">
                 🎉 Você tem 15% de desconto por indicação — já aplicado nos preços abaixo.
               </div>
             )}
@@ -596,14 +603,7 @@ const CheckoutPage = () => {
                     <button
                       type="button"
                       onClick={() => startCheckout(id)}
-                      className={`mt-5 h-11 w-full rounded-[10px] border px-5 text-[13px] font-semibold transition-colors duration-200 ${
-
-                        isFeatured
-                          ? "border-[#0A0A0A] bg-[#0A0A0A] text-white hover:bg-[#242424]"
-                          : // Vazado por padrão; preenche só com o mouse sobre o
-                            // próprio botão.
-                            "border-black/15 bg-white text-black hover:border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white"
-                      }`}
+                      className="mt-5 h-11 w-full rounded-[10px] border border-[#0A0A0A] bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[#242424]"
                     >
                       Assinar {currentPlan.name}
                     </button>

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, X, Rocket, Sparkles, Crown } from "lucide-react";
+import PromoCountdown from "@/components/PromoCountdown";
 
 type BillingCycle = "monthly" | "annual";
 
@@ -15,6 +16,7 @@ type PlanEntry = {
   tagline: string;
   monthly: number;
   annual: number;
+  originalMonthly?: number;
   ribbon?: string;
   highlighted?: boolean;
   features: string[];
@@ -28,8 +30,9 @@ const PLANS: PlanEntry[] = [
     iconBg: "bg-slate-100",
     iconColor: "text-slate-600",
     tagline: "Pra quem quer começar a vender sem travar no operacional.",
-    monthly: 39.9,
-    annual: 430.92,
+    monthly: 29.9,
+    originalMonthly: 39.9,
+    annual: 322.92,
     features: [
       "Importação automática de até 50 produtos por mês pro Mercado Livre",
       "1 página de vendas gerada por IA por mês",
@@ -192,11 +195,17 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
+        <div className="mt-6">
+          <PromoCountdown />
+        </div>
+
+        <div className="mt-6 grid gap-5 md:grid-cols-3">
           {PLANS.map((plan) => {
             const Icon = plan.icon;
             const price = cycle === "monthly" ? plan.monthly : plan.annual / 12;
-            const originalMonthly = cycle === "annual" ? plan.monthly : null;
+            const originalMonthly = cycle === "annual"
+              ? (plan.originalMonthly ?? plan.monthly)
+              : plan.originalMonthly ?? null;
             const isHighlighted = plan.highlighted || plan.id === defaultPlan;
 
             return (
