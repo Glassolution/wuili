@@ -16,6 +16,7 @@ type PlanEntry = {
   tagline: string;
   monthly: number;
   annual: number;
+  originalMonthly?: number;
   ribbon?: string;
   highlighted?: boolean;
   features: string[];
