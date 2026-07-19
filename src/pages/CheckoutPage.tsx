@@ -11,6 +11,7 @@ import { veloToast as toast } from "@/components/ui/velo-toast";
 import { VeloLogo, VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
+import PromoCountdown from "@/components/PromoCountdown";
 
 type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
