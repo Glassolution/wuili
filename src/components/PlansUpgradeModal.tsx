@@ -195,11 +195,17 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
+        <div className="mt-6">
+          <PromoCountdown />
+        </div>
+
+        <div className="mt-6 grid gap-5 md:grid-cols-3">
           {PLANS.map((plan) => {
             const Icon = plan.icon;
             const price = cycle === "monthly" ? plan.monthly : plan.annual / 12;
-            const originalMonthly = cycle === "annual" ? plan.monthly : null;
+            const originalMonthly = cycle === "annual"
+              ? (plan.originalMonthly ?? plan.monthly)
+              : plan.originalMonthly ?? null;
             const isHighlighted = plan.highlighted || plan.id === defaultPlan;
 
             return (
