@@ -1143,7 +1143,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                   </p>
                   <button
                     type="button"
-                    onClick={() => navigate("/checkout?plan=business&businessCard=1")}
+                    onClick={() => upgradeModal.open({ defaultPlan: "business" })}
                     className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#0A0A0A]"
                   >
                     Prefere começar direto no Business (R$149,90/mês, promoção) com automações ilimitadas?
