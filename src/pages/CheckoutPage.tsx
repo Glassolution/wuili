@@ -12,6 +12,7 @@ import { VeloLogo, VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
 import PromoCountdown from "@/components/PromoCountdown";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   PLAN_ANNUAL_AMOUNTS,
   PLAN_MONTHLY_AMOUNTS,
@@ -121,6 +122,7 @@ const CheckoutPage = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
   const [searchParams] = useSearchParams();
+  const isMobile = useIsMobile();
 
   const rawPlan = searchParams.get("plan") ?? "pro";
   const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
@@ -629,6 +631,339 @@ const CheckoutPage = () => {
             </div>
           </section>
         </div>
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MOBILE — layout próprio, em cartões claros e com CTA fixo no rodapé.
+  // É SÓ APRESENTAÇÃO: reaproveita exatamente os mesmos estados, inputs e
+  // handlers do desktop (handleCheckout, selectedMethod, copyPix, etc.), então
+  // a lógica de pagamento é a mesma nos dois layouts.
+  // ─────────────────────────────────────────────────────────────────────────
+  if (isMobile) {
+    const fieldCls =
+      "h-12 w-full rounded-xl border border-[#E5E5E7] bg-white px-3.5 text-[15px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#111827]";
+    const labelCls = "mb-1.5 block text-[13px] font-semibold text-[#374151]";
+    const cardCls = "rounded-2xl border border-[#EBEBED] bg-white p-4";
+
+    return (
+      <div className="min-h-screen bg-[#F4F4F6] pb-32 font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111827]">
+        {/* Cabeçalho fixo: voltar + título centralizado. */}
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[#E9E9EC] bg-white/95 px-4 py-3 backdrop-blur">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            aria-label="Voltar"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#374151] transition hover:bg-[#F3F4F6]"
+          >
+            <ArrowLeft size={19} />
+          </button>
+          <h1 className="flex-1 text-center text-[16px] font-semibold tracking-[-0.01em]">Pagamento</h1>
+          <div className="h-9 w-9" aria-hidden />
+        </header>
+
+        <div className="space-y-3 p-4">
+          {/* Resumo do plano */}
+          <section className={cardCls}>
+            <p className="text-[12.5px] font-medium text-[#6B7280]">
+              {isTrial ? "Iniciar trial Pro" : `Assinar plano ${plan.name}`}
+            </p>
+            <p className="mt-1 text-[26px] font-extrabold leading-none tracking-[-0.03em]">
+              {hasReferralDiscount && (
+                <span className="mr-2 text-[17px] font-medium text-[#9CA3AF] line-through">{originalCheckoutPrice}</span>
+              )}
+              {finalCheckoutPrice}
+              <span className="ml-1 text-[14px] font-medium text-[#6B7280]">{checkoutPeriodLabel}</span>
+            </p>
+            {hasReferralDiscount && (
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-700">
+                🎉 15% de desconto por indicação
+              </div>
+            )}
+            <ul className="mt-4 space-y-2 border-t border-[#F0F0F2] pt-3.5">
+              {plan.features.slice(0, 5).map((feature) => (
+                <li key={feature} className="flex items-start gap-2 text-[13px] leading-[1.45] text-[#4B5563]">
+                  <Check size={13} className="mt-[3px] shrink-0 text-[#111827]" strokeWidth={2.8} />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Atalho Pix */}
+          {checkoutState !== "pix_pending" && (
+            <>
+              <button
+                type="button"
+                onClick={() => setSelectedMethod("pix")}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00C853] px-4 text-[15px] font-semibold text-white transition active:brightness-95"
+              >
+                Pagar com Pix
+                <QrCode size={17} />
+              </button>
+              <div className="flex items-center gap-3 py-1">
+                <div className="h-px flex-1 bg-[#E5E5E7]" />
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">ou</span>
+                <div className="h-px flex-1 bg-[#E5E5E7]" />
+              </div>
+            </>
+          )}
+
+          {/* Dados de pagamento */}
+          {checkoutState !== "pix_pending" && (
+            <section className={cardCls}>
+              <h2 className="mb-4 text-[15px] font-semibold tracking-[-0.01em]">Dados de pagamento</h2>
+
+              <label className="block">
+                <span className={labelCls}>E-mail</span>
+                <input
+                  type="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="voce@email.com"
+                  className={fieldCls}
+                />
+              </label>
+
+              <p className="mb-2 mt-4 text-[13px] font-semibold text-[#374151]">Método de pagamento</p>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedMethod("pix")}
+                  className={`flex h-12 items-center justify-center gap-2 rounded-xl border text-[14px] font-semibold transition ${
+                    selectedMethod === "pix"
+                      ? "border-[#111827] bg-[#111827] text-white"
+                      : "border-[#E5E5E7] bg-white text-[#374151]"
+                  }`}
+                >
+                  <QrCode size={16} className={selectedMethod === "pix" ? "text-white" : "text-green-600"} />
+                  Pix
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMethod("credit_card")}
+                  className={`flex h-12 items-center justify-center gap-2 rounded-xl border text-[14px] font-semibold transition ${
+                    selectedMethod === "credit_card"
+                      ? "border-[#111827] bg-[#111827] text-white"
+                      : "border-[#E5E5E7] bg-white text-[#374151]"
+                  }`}
+                >
+                  <CreditCard size={16} className={selectedMethod === "credit_card" ? "text-white" : "text-blue-600"} />
+                  Cartão
+                </button>
+              </div>
+
+              {selectedMethod === "credit_card" && (
+                <div className="mt-4 space-y-3">
+                  <label className="block">
+                    <span className={labelCls}>Número do cartão</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="1234 1234 1234 1234"
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value)}
+                      maxLength={19}
+                      className={fieldCls}
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className={labelCls}>Validade</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="MM / AA"
+                        value={cardExpiry}
+                        onChange={(e) => setCardExpiry(e.target.value)}
+                        maxLength={5}
+                        className={fieldCls}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className={labelCls}>CVC</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="CVC"
+                        value={cardCvc}
+                        onChange={(e) => setCardCvc(e.target.value)}
+                        maxLength={4}
+                        className={fieldCls}
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <label className="mt-4 block">
+                <span className={labelCls}>Nome completo</span>
+                <input
+                  type="text"
+                  value={cardHolder}
+                  onChange={(e) => setCardHolder(e.target.value)}
+                  placeholder="Seu nome completo"
+                  className={fieldCls}
+                />
+              </label>
+
+              <label className="mt-4 block">
+                <span className={labelCls}>País ou região</span>
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className={fieldCls}
+                >
+                  <option>Brasil</option>
+                </select>
+              </label>
+
+              <label className="mt-4 block">
+                <span className={labelCls}>Endereço</span>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Rua, número, complemento"
+                  className={fieldCls}
+                />
+              </label>
+            </section>
+          )}
+
+          {/* Resumo de valores */}
+          {checkoutState !== "pix_pending" && (
+            <section className={cardCls}>
+              <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em]">Resumo</h2>
+              <div className="space-y-2.5 text-[14px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#6B7280]">Subtotal</span>
+                  <span className="font-semibold">{originalCheckoutPrice}</span>
+                </div>
+                {hasReferralDiscount && (
+                  <div className="flex items-center justify-between text-emerald-600">
+                    <span>Desconto por indicação (15%)</span>
+                    <span className="font-semibold">− {formatBRL(parseBRL(originalCheckoutPrice) * 0.15)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-[#6B7280]">
+                    {isTrial ? "Depois do trial" : billingCycle === "annual" ? "Total anual" : "Total mensal"}
+                  </span>
+                  <span className="font-semibold">
+                    {isTrial ? `${formatBRL(PLAN_MONTHLY_AMOUNTS.pro)}/mês` : finalCheckoutPrice}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-[#F0F0F2] pt-3">
+                  <span className="font-semibold">Total devido hoje</span>
+                  <span className="text-[17px] font-extrabold">{finalCheckoutPrice}</span>
+                </div>
+              </div>
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                placeholder="Adicionar código promocional"
+                className={`mt-4 ${fieldCls}`}
+              />
+            </section>
+          )}
+
+          {/* Pix gerado — QR + copia e cola */}
+          {checkoutState === "pix_pending" && pixData && (
+            <section className={`${cardCls} text-center`}>
+              <h3 className="text-[15px] font-semibold">Escaneie o QR Code para pagar</h3>
+              <p className="mt-1 text-[13px] text-[#6B7280]">Abra o app do seu banco e escaneie o código.</p>
+              {pixData.qr_code_base64 && (
+                <div className="mt-4 flex justify-center">
+                  <img
+                    src={`data:image/png;base64,${pixData.qr_code_base64}`}
+                    alt="QR Code Pix"
+                    className="h-48 w-48 rounded-xl border border-[#F0F0F2]"
+                  />
+                </div>
+              )}
+              <div className="mt-4 space-y-2.5">
+                <button
+                  onClick={copyPix}
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#E5E5E7] text-[14px] font-semibold text-[#374151] transition active:bg-[#F9FAFB]"
+                >
+                  {copied ? <CheckCircle2 size={16} className="text-green-500" /> : <Copy size={16} />}
+                  {copied ? "Copiado!" : "Copiar código Pix"}
+                </button>
+                <button
+                  onClick={handleManualVerify}
+                  disabled={verifying}
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#111827] text-[14px] font-semibold text-white transition disabled:opacity-60"
+                >
+                  {verifying ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  Já paguei
+                </button>
+              </div>
+              <p className="mt-3 text-[12px] text-[#9CA3AF]">Verificamos seu pagamento automaticamente a cada 5 segundos.</p>
+            </section>
+          )}
+
+          {/* Termos */}
+          {checkoutState !== "pix_pending" && (
+            <div className="space-y-2.5 px-1 pt-1 text-[12.5px] leading-[1.55] text-[#4B5563]">
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-[3px] h-4 w-4 shrink-0 cursor-pointer accent-[#111827]"
+                />
+                <span>
+                  Li e aceito os{" "}
+                  <Link to="/termos" target="_blank" className="font-semibold text-[#111827] underline underline-offset-2">
+                    Termos de Uso
+                  </Link>
+                  .
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={acceptPrivacy}
+                  onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                  className="mt-[3px] h-4 w-4 shrink-0 cursor-pointer accent-[#111827]"
+                />
+                <span>
+                  Li e aceito a{" "}
+                  <Link to="/privacidade" target="_blank" className="font-semibold text-[#111827] underline underline-offset-2">
+                    Política de Privacidade
+                  </Link>
+                  .
+                </span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* CTA fixo no rodapé — sempre alcançável sem rolar até o fim. */}
+        {checkoutState !== "pix_pending" && (
+          <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[#E9E9EC] bg-white/95 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+            <button
+              onClick={handleCheckout}
+              disabled={checkoutState === "loading" || !acceptTerms || !acceptPrivacy}
+              className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#111827] px-4 text-[16px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {checkoutState === "loading" ? (
+                <><Loader2 size={17} className="animate-spin" /> Processando...</>
+              ) : (
+                `Pagar ${finalCheckoutPrice}`
+              )}
+            </button>
+            {(!acceptTerms || !acceptPrivacy) && (
+              <p className="mt-2 text-center text-[11.5px] text-[#9CA3AF]">
+                Aceite os termos acima para continuar
+              </p>
+            )}
+          </div>
+        )}
       </div>
     );
   }
