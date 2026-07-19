@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, X, Rocket, Sparkles, Crown } from "lucide-react";
+import PromoCountdown from "@/components/PromoCountdown";
 
 type BillingCycle = "monthly" | "annual";
 
