@@ -31,16 +31,21 @@ const MARK_TONES: Record<
     // Borda interna clara: pega a "luz" na quina superior e separa o ícone do
     // fundo branco sem precisar de contorno duro.
     rim: "rgba(255,255,255,0.22)",
-    // Filtro CSS pronto: drop-shadow aceita uma sombra por função, então as
-    // duas camadas (difusa + contato) são encadeadas.
-    shadow: "drop-shadow(0 6px 12px rgba(10,10,10,0.30)) drop-shadow(0 1px 2px rgba(10,10,10,0.18))",
+    // Duas camadas: elevação curta + contato. Blur baixo de propósito — sombra
+    // muito difusa vira um halo cinza em volta do chip em vez de leitura de
+    // profundidade.
+    shadow: "drop-shadow(0 4px 8px rgba(10,10,10,0.22)) drop-shadow(0 1px 2px rgba(10,10,10,0.16))",
   },
   soft: {
     from: "#FFFFFF",
-    to: "#E7E7E4",
+    // Fim do gradiente mais escuro que antes: com #E7E7E4 o chip lia como
+    // chapado sobre o card branco. O contraste maior é o que cria o relevo.
+    to: "#D9D9D6",
     stroke: "#0A0A0A",
-    rim: "rgba(10,10,10,0.10)",
-    shadow: "drop-shadow(0 4px 10px rgba(10,10,10,0.12)) drop-shadow(0 1px 2px rgba(10,10,10,0.07))",
+    rim: "rgba(10,10,10,0.08)",
+    // Mesma lógica do solid, com opacidade menor: no chip claro o halo aparecia
+    // ainda mais, porque o cinza da sombra contrasta com o card branco.
+    shadow: "drop-shadow(0 3px 6px rgba(10,10,10,0.10)) drop-shadow(0 1px 2px rgba(10,10,10,0.07))",
   },
 };
 

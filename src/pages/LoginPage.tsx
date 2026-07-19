@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Eye, EyeOff } from "lucide-react";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
@@ -74,6 +75,7 @@ const getPanelCopy = (step: "initial" | "login" | "signup", resetMode: boolean) 
 const LoginPage = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const [step, setStep]                   = useState<"initial" | "login" | "signup">("initial");
   const [email, setEmail]                 = useState("");
@@ -212,6 +214,221 @@ const LoginPage = () => {
     "h-[44px] w-full rounded-[4px] border border-white/[0.06] bg-white/[0.06] px-3 text-[13px] font-[400] text-white/92 outline-none transition placeholder:text-white/22 focus:border-white/[0.14] focus:bg-white/[0.08]";
   const subtleBtnCls =
     "inline-flex h-[36px] min-w-[116px] items-center justify-center rounded-[4px] bg-[#f3efe8] px-5 text-[12px] font-[500] text-black transition hover:bg-white disabled:opacity-50";
+
+  /* ─── Mobile (layout próprio, não afeta o desktop) ──────────────────────── */
+  if (isMobile) {
+    const mInput =
+      "h-[56px] w-full rounded-[14px] border border-white/[0.16] bg-transparent px-4 text-[15px] font-[400] text-white outline-none transition placeholder:text-white/35 focus:border-white/45";
+
+    const primaryLabel = resetMode
+      ? loading
+        ? "Enviando..."
+        : "Enviar link"
+      : step === "initial"
+        ? checkingEmail
+          ? "Verificando..."
+          : "Continuar"
+        : step === "login"
+          ? loading
+            ? "Entrando..."
+            : "Entrar"
+          : loading
+            ? "Criando..."
+            : "Criar conta";
+
+    const primaryDisabled =
+      loading || checkingEmail || (!resetMode && step === "signup" && (!acceptTerms || !acceptPrivacy));
+
+    const onMobileSubmit = (e: FormEvent) => {
+      if (resetMode) return void handleReset(e);
+      if (step === "initial") {
+        e.preventDefault();
+        return void handleEmailContinue();
+      }
+      if (step === "login") return void handleSignIn(e);
+      return void handleSignUp(e);
+    };
+
+    return (
+      <main
+        className="relative flex min-h-screen flex-col bg-black px-6 pb-10 pt-5 text-white"
+        style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
+      >
+        <div className="flex justify-end">
+          <Link to="/" className="text-[15px] font-[400] text-white/55 transition hover:text-white">
+            Fechar
+          </Link>
+        </div>
+
+        <div className="flex flex-1 flex-col justify-center pb-4">
+          {/* Marca centralizada */}
+          <div className="flex flex-col items-center">
+            <svg width="36" height="36" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+              <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" />
+              <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="mt-2 text-[21px] font-[700] tracking-[-0.045em]">Velo</span>
+          </div>
+
+          <h1 className="mt-7 text-center text-[26px] font-[700] leading-[1.15] tracking-[-0.035em]">
+            {copy.title}
+          </h1>
+          <p className="mx-auto mt-2.5 max-w-[300px] text-center text-[14px] leading-[1.5] text-white/55">
+            {copy.description}
+          </p>
+
+          <form onSubmit={onMobileSubmit} className="mt-8 space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Seu e-mail"
+              required
+              readOnly={!resetMode && step !== "initial"}
+              className={`${mInput} ${!resetMode && step !== "initial" ? "cursor-default text-white/45" : ""}`}
+            />
+
+            {!resetMode && step === "signup" && (
+              <input
+                ref={nomeRef}
+                type="text"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                placeholder="Seu nome"
+                required
+                className={mInput}
+              />
+            )}
+
+            {!resetMode && (step === "login" || step === "signup") && (
+              <div className="relative">
+                <input
+                  ref={step === "login" ? passwordRef : undefined}
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={step === "signup" ? "Crie uma senha (mín. 8)" : "Sua senha"}
+                  required
+                  className={`${mInput} pr-12`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((c) => !c)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 transition hover:text-white/80"
+                  aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            )}
+
+            {!resetMode && step === "login" && (
+              <button
+                type="button"
+                onClick={() => setResetMode(true)}
+                className="block w-full pt-1 text-center text-[14px] font-[400] text-white/55 transition hover:text-white"
+              >
+                Esqueci a senha
+              </button>
+            )}
+
+            {!resetMode && step === "signup" && (
+              <div className="space-y-2.5 pt-1">
+                <LegalCheckbox
+                  checked={acceptTerms}
+                  onChange={setAcceptTerms}
+                  label={
+                    <>
+                      Li e aceito os{" "}
+                      <Link to="/termos" target="_blank" className="text-white/85 underline decoration-white/25 underline-offset-2">
+                        Termos de Uso
+                      </Link>
+                    </>
+                  }
+                />
+                <LegalCheckbox
+                  checked={acceptPrivacy}
+                  onChange={setAcceptPrivacy}
+                  label={
+                    <>
+                      Li e aceito a{" "}
+                      <Link to="/privacidade" target="_blank" className="text-white/85 underline decoration-white/25 underline-offset-2">
+                        Política de Privacidade
+                      </Link>
+                    </>
+                  }
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={primaryDisabled}
+              className="mt-2 flex h-[56px] w-full items-center justify-center rounded-full bg-white text-[16px] font-[600] text-black transition active:bg-white/90 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {primaryLabel}
+            </button>
+          </form>
+
+          {!resetMode && step === "initial" && (
+            <>
+              <div className="my-5 flex items-center gap-4">
+                <span className="h-px flex-1 bg-white/[0.14]" />
+                <span className="text-[13px] font-[400] text-white/45">ou</span>
+                <span className="h-px flex-1 bg-white/[0.14]" />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className="flex h-[54px] w-full items-center justify-center gap-3 rounded-full bg-white/[0.08] text-[15px] font-[500] text-white transition active:bg-white/[0.14] disabled:opacity-45"
+              >
+                <GoogleIcon />
+                {googleLoading ? "Conectando..." : "Continuar com Google"}
+              </button>
+            </>
+          )}
+
+          {!resetMode && (step === "login" || step === "signup") && (
+            <button
+              type="button"
+              onClick={() => {
+                setStep("initial");
+                setPassword("");
+                setNome("");
+              }}
+              className="mt-6 text-center text-[14px] font-[400] text-white/55 transition hover:text-white"
+            >
+              Trocar e-mail
+            </button>
+          )}
+
+          {resetMode && (
+            <button
+              type="button"
+              onClick={() => setResetMode(false)}
+              className="mt-6 text-center text-[14px] font-[400] text-white/55 transition hover:text-white"
+            >
+              Voltar
+            </button>
+          )}
+
+          <p className="mt-7 text-center text-[11.5px] font-[400] leading-[1.55] text-white/38">
+            Ao continuar, você concorda com a{" "}
+            <Link to="/privacidade" className="text-white/60 underline decoration-white/20 underline-offset-2">
+              Política de Privacidade
+            </Link>{" "}
+            e com os{" "}
+            <Link to="/termos" className="text-white/60 underline decoration-white/20 underline-offset-2">
+              Termos de Uso
+            </Link>
+            .
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main

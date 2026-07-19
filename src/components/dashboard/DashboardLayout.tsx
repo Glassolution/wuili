@@ -1,4 +1,5 @@
 import { Component, useEffect, useState, type ReactNode } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { veloToast } from "@/components/ui/velo-toast";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
@@ -51,6 +52,7 @@ import {
   HelpCircle,
   Home,
   Landmark,
+  LogOut,
   MessageSquare,
   Settings,
   Search,
@@ -246,6 +248,13 @@ const MobileAccountPage = ({
   isAdmin: boolean;
 }) => {
   const [inviteOpen, setInviteOpen] = useState(false);
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   return (
   <section className="-mx-4 -mt-4 min-h-screen bg-white pb-8">
@@ -294,6 +303,15 @@ const MobileAccountPage = ({
       <div className="pt-0">
         <MobileDrawerLink to="/dashboard/configuracoes" label="Configurações" icon={Settings} />
       </div>
+
+      <button
+        type="button"
+        onClick={handleSignOut}
+        className="mt-6 flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-2xl border border-black/[0.08] bg-white px-4 text-[15px] font-semibold text-[#B42318] shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition active:bg-[#FEF3F2]"
+      >
+        <LogOut size={19} strokeWidth={2} />
+        Sair da conta
+      </button>
     </div>
 
     <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
@@ -525,7 +543,12 @@ const DashboardLayoutInner = () => {
     if (!user?.id) return;
     markOnboardingSeen(user.id);
     setShowOnboarding(false);
-    if (!isMobile && !hasSeenTour(user.id)) setTourPromptOpen(true);
+    // O convite do tour espera o modal terminar de sair (~340ms de exit). Sem
+    // essa folga os dois aparecem sobrepostos no mesmo frame e o usuário não
+    // chega a ver o dashboard entre um e outro.
+    if (!isMobile && !hasSeenTour(user.id)) {
+      window.setTimeout(() => setTourPromptOpen(true), 380);
+    }
   };
 
   useEffect(() => {
@@ -751,7 +774,11 @@ const DashboardLayoutInner = () => {
             <Outlet />
           </MobileDashboardChrome>
         </div>
-        {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
+        {/* AnimatePresence mantém o modal montado durante o `exit`, senão ele
+            sumiria de um frame pro outro ao concluir o onboarding. */}
+        <AnimatePresence>
+          {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
+        </AnimatePresence>
       </div>
     );
   }
@@ -803,7 +830,9 @@ const DashboardLayoutInner = () => {
           </main>
         </div>
       </div>
-      {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
+      <AnimatePresence>
+        {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
+      </AnimatePresence>
 
       <TourWelcomeModal
         open={tourPromptOpen}

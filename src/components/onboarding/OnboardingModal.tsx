@@ -34,7 +34,8 @@ import {
   Youtube,
   type LucideIcon,
 } from "lucide-react";
-import { VeloLogo } from "@/components/VeloLogo";
+import { VeloMark } from "@/components/VeloLogo";
+import { PRIMARY_BUTTON_STYLE } from "@/lib/buttonStyles";
 
 // Novo onboarding da Velo em modal de 3 etapas (substitui o antigo fluxo de
 // cadastro). Puramente frontend: as respostas ficam em estado local e NÃO são
@@ -44,6 +45,7 @@ import { VeloLogo } from "@/components/VeloLogo";
 type Option = {
   value: string;
   label: string;
+  description?: string;
   icon: LucideIcon;
 };
 
@@ -234,43 +236,40 @@ type OnboardingModalProps = {
 // Easing "ease-out expo" — sensação suave/premium usada nas transições de etapa.
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-// ── Mesma paleta de superfícies do wizard de criação de projeto (referência) ──
-// Fundo chapado, card um degrau acima e blocos internos um degrau abaixo do
-// card, todos separados por uma borda fina de 1px em branco translúcido.
-const primaryButtonStyle: CSSProperties = {
-  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #2A2A2A",
-  border: "1px solid rgba(255,255,255,0.14)",
-  boxShadow: "0 4px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10)",
-  textShadow: "0 1px 2px rgba(0,0,0,0.40)",
-};
-
+// ── Tema claro (modelo de referência): fundo cinza-claro, card branco central,
+// cards de opção claros e o selecionado em preto sólido com texto branco. ──
 const overlayStyle: CSSProperties = {
-  background: "#1A1A1A",
+  background: "#F1F1F0",
 };
 
 const cardStyle: CSSProperties = {
-  background: "#1E1E1E",
-  border: "1px solid rgba(255,255,255,0.08)",
-  boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
+  background: "#FFFFFF",
+  border: "1px solid rgba(0,0,0,0.06)",
+  boxShadow: "0 24px 70px rgba(0,0,0,0.12)",
 };
 
-// Cards de opção: mesmo tom dos campos do wizard. O selecionado sobe um degrau
-// e clareia a borda, sem glow forte — a referência é sóbria.
+// Cards de opção: claros com borda sutil; o selecionado vira preto sólido.
 const optionCardStyle = (selected: boolean): CSSProperties =>
   selected
     ? {
-        background: "#2A2A2A",
-        border: "1px solid rgba(255,255,255,0.40)",
+        background: "#0A0A0A",
+        border: "1px solid #0A0A0A",
       }
     : {
-        background: "#242424",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: "#FBFBFA",
+        border: "1px solid #EAEAE8",
       };
 
-const iconChipStyle: CSSProperties = {
-  background: "rgba(255,255,255,0.07)",
-  border: "1px solid rgba(255,255,255,0.08)",
-};
+const iconChipStyle = (selected: boolean): CSSProperties =>
+  selected
+    ? {
+        background: "rgba(255,255,255,0.12)",
+        border: "1px solid rgba(255,255,255,0.14)",
+      }
+    : {
+        background: "#F3F3F1",
+        border: "1px solid #EAEAE8",
+      };
 
 const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
   const [step, setStep] = useState(0);
@@ -334,57 +333,46 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[120] flex flex-col items-center overflow-y-auto px-4 py-6 sm:px-6"
+      className="fixed inset-0 z-[120] flex flex-col items-center justify-center overflow-y-auto px-4 py-8 sm:px-6 font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif]"
       style={overlayStyle}
       role="dialog"
       aria-modal="true"
       aria-label="Onboarding da Velo"
       initial={reduce ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
+      // O fundo demora um pouco mais que o card pra sumir, então o card sobe e
+      // desaparece "por cima" do overlay em vez dos dois piscarem juntos.
+      exit={{ opacity: 0, transition: { duration: reduce ? 0.001 : 0.3, ease: EASE, delay: reduce ? 0 : 0.06 } }}
       transition={{ duration: reduce ? 0.001 : 0.2 }}
     >
-      {/* Escala uniforme do conteúdo: reduz o modal proporcionalmente (como um
-          "zoom out"), mantendo a proporção original do card. Usamos `zoom` (e
-          não `transform: scale`) porque o zoom encolhe também a caixa de layout,
-          então o conteúdo passa a caber na tela sem forçar rolagem na etapa 3. */}
-      <div
-        className="flex w-full flex-col items-center"
-        style={{ zoom: 0.82 } as CSSProperties}
+      {/* Card central branco com todo o conteúdo (título, perguntas e rodapé). */}
+      <motion.div
+        className="my-auto w-full max-w-[520px] rounded-[20px] p-5 sm:p-6"
+        style={cardStyle}
+        initial={reduce ? false : { opacity: 0, y: 14, scale: 0.99 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        // Sai subindo e encolhendo de leve — dá a sensação de "concluído" e
+        // entrega a tela pro dashboard, em vez de sumir seco.
+        exit={reduce ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.97, transition: { duration: 0.28, ease: EASE } }}
+        transition={{ duration: reduce ? 0.001 : 0.32, ease: EASE }}
       >
-        {/* Cabeçalho da página: marca + título + subtítulo, centralizados. */}
-        <div className="flex flex-col items-center text-center">
-          <VeloLogo size="md" variant="light" />
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={reduce ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
-              transition={{ duration: reduce ? 0.001 : 0.28, ease: EASE }}
-            >
-              <h1 className="mt-7 text-[28px] font-bold tracking-[-0.02em] text-white sm:text-[30px]">
-                {current.title}
-              </h1>
-              <p className="mt-2 max-w-[520px] text-[14px] text-[#8A8A8A] sm:text-[15px]">{current.subtitle}</p>
-            </motion.div>
-          </AnimatePresence>
+        {/* Marca da Velo no topo do card, acima do progresso. */}
+        <div className="mb-4 flex justify-center">
+          <VeloMark size={32} tone="solid" />
         </div>
 
-      {/* Card central com as perguntas da etapa. */}
-      <motion.div
-        className="mt-6 w-full max-w-[880px] rounded-[16px] p-6 sm:p-10"
-        style={cardStyle}
-        initial={reduce ? false : { opacity: 0, y: 14, scale: 0.985 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: reduce ? 0.001 : 0.34, ease: EASE }}
-      >
-        {/* Passo + barra de progresso segmentada em 3 partes (fill animado). */}
-        <p className="text-[13px] font-medium text-white/50">Etapa {step + 1} de {STEPS.length}</p>
-        <div className="mt-2 flex gap-2" role="progressbar" aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={step + 1}>
+        {/* Barra de progresso segmentada (fina, clara). */}
+        <div
+          className="mb-5 flex gap-1.5"
+          role="progressbar"
+          aria-valuemin={1}
+          aria-valuemax={STEPS.length}
+          aria-valuenow={step + 1}
+        >
           {STEPS.map((_, index) => (
-            <span key={index} className="h-[6px] flex-1 overflow-hidden rounded-full bg-white/10">
+            <span key={index} className="h-[5px] flex-1 overflow-hidden rounded-full bg-[#EAEAE8]">
               <motion.span
-                className="block h-full w-full rounded-full bg-white"
+                className="block h-full w-full rounded-full bg-[#0A0A0A]"
                 style={{ originX: 0 }}
                 initial={false}
                 animate={{ scaleX: index <= step ? 1 : 0 }}
@@ -394,11 +382,27 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           ))}
         </div>
 
+        {/* Cabeçalho: título e subtítulo alinhados à esquerda. */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={reduce ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
+            transition={{ duration: reduce ? 0.001 : 0.26, ease: EASE }}
+          >
+            <h1 className="text-[19px] font-bold tracking-[-0.02em] text-[#0A0A0A] sm:text-[20px]">
+              {current.title}
+            </h1>
+            <p className="mt-1 text-[13px] leading-[18px] text-[#6B7280]">{current.subtitle}</p>
+          </motion.div>
+        </AnimatePresence>
+
         {/* Perguntas (slide/fade direcional por etapa). */}
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
-            className="mt-8 space-y-8"
+            className="mt-5 space-y-5"
             custom={direction}
             variants={contentVariants}
             initial="initial"
@@ -407,11 +411,11 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           >
             {current.questions.map((question) => (
               <motion.fieldset key={question.id} variants={groupVariants}>
-                <legend className="mb-3 text-[15px] font-semibold text-white sm:text-[16px]">
+                <legend className="mb-2.5 text-[13px] font-semibold text-[#0A0A0A]">
                   {question.label}
-                  {question.optional ? <span className="ml-2 text-[13px] font-normal text-white/40">(opcional)</span> : null}
+                  {question.optional ? <span className="ml-2 text-[12.5px] font-normal text-[#9A9A96]">(opcional)</span> : null}
                 </legend>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {question.options.map((option) => {
                     const selected = answers[question.id] === option.value;
                     const Icon = option.icon;
@@ -421,31 +425,42 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                         type="button"
                         onClick={() => select(question.id, option.value)}
                         aria-pressed={selected}
-                        whileTap={reduce ? undefined : { scale: 0.98 }}
+                        whileTap={reduce ? undefined : { scale: 0.985 }}
                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
                         style={optionCardStyle(selected)}
-                        className={`flex min-h-[64px] items-center gap-3 rounded-[10px] p-3.5 text-left transition-[background-color,border-color,transform] duration-200 ${
-                          selected ? "" : "hover:-translate-y-0.5"
-                          }`}
+                        className={`flex min-h-[52px] items-center gap-2.5 rounded-[11px] p-2.5 text-left transition-[background-color,border-color,transform] duration-200 ${
+                          selected ? "" : "hover:border-black/20"
+                        }`}
                       >
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] text-white" style={iconChipStyle}>
-                          <Icon size={18} strokeWidth={1.5} />
+                        <span
+                          className={`grid h-8 w-8 shrink-0 place-items-center rounded-[8px] ${selected ? "text-white" : "text-[#0A0A0A]"}`}
+                          style={iconChipStyle(selected)}
+                        >
+                          <Icon size={16} strokeWidth={1.7} />
                         </span>
-                        <span className="flex-1 text-[14px] font-medium leading-tight text-white sm:text-[15px]">
-                          {option.label}
+                        <span className="min-w-0 flex-1">
+                          <span className={`block text-[13px] font-semibold leading-tight ${selected ? "text-white" : "text-[#0A0A0A]"}`}>
+                            {option.label}
+                          </span>
+                          {option.description ? (
+                            <span className={`mt-0.5 block text-[12.5px] leading-snug ${selected ? "text-white/60" : "text-[#8A8A86]"}`}>
+                              {option.description}
+                            </span>
+                          ) : null}
                         </span>
                         <span
-                          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors duration-200 ${
-                            selected ? "border-white" : "border-white/30"
+                          className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[5px] border transition-colors duration-200 ${
+                            selected ? "border-white bg-white" : "border-[#D0D0CE] bg-transparent"
                           }`}
                         >
                           {selected ? (
                             <motion.span
-                              className="h-2.5 w-2.5 rounded-full bg-white"
                               initial={reduce ? false : { scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: "spring", stiffness: 520, damping: 26 }}
-                            />
+                            >
+                              <Check size={13} strokeWidth={3} className="text-[#0A0A0A]" />
+                            </motion.span>
                           ) : null}
                         </span>
                       </motion.button>
@@ -458,15 +473,15 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
         </AnimatePresence>
 
         {/* Rodapé de navegação. */}
-        <div className="mt-9 flex items-center justify-between">
+        <div className="mt-6 flex items-center justify-between">
           {step > 0 ? (
             <motion.button
               type="button"
               onClick={handleBack}
               whileTap={reduce ? undefined : { scale: 0.97 }}
-              className="inline-flex items-center gap-2 text-[14px] font-medium text-white/60 transition-colors hover:text-white"
+              className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#6B7280] transition-colors hover:text-[#0A0A0A]"
             >
-              <ArrowLeft size={16} strokeWidth={1.8} />
+              <ArrowLeft size={16} strokeWidth={1.9} />
               Voltar
             </motion.button>
           ) : (
@@ -477,16 +492,15 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
             type="button"
             onClick={handleNext}
             disabled={!canContinue}
-            style={primaryButtonStyle}
             whileTap={reduce || !canContinue ? undefined : { scale: 0.97 }}
-            className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[15px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+            style={PRIMARY_BUTTON_STYLE}
+            className="inline-flex h-[42px] items-center gap-2 rounded-full px-5 text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isLastStep ? "Concluir" : "Avançar"}
-            {isLastStep ? <Check size={16} strokeWidth={2} /> : <ArrowRight size={16} strokeWidth={2} />}
+            {isLastStep ? "Concluir" : "Começar"}
+            {isLastStep ? <Check size={16} strokeWidth={2.2} /> : <ArrowRight size={16} strokeWidth={2.2} />}
           </motion.button>
         </div>
       </motion.div>
-      </div>
     </motion.div>
   );
 };

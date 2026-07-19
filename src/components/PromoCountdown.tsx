@@ -16,7 +16,7 @@ const getDeadline = () => {
 
 const pad = (n: number) => n.toString().padStart(2, "0");
 
-type Variant = "light" | "dark";
+type Variant = "light" | "dark" | "clean";
 
 export const PromoCountdown = ({
   variant = "light",
@@ -38,33 +38,45 @@ export const PromoCountdown = ({
   const minutes = Math.floor((remaining % 3_600_000) / 60_000);
   const seconds = Math.floor((remaining % 60_000) / 1000);
 
+  const isClean = variant === "clean";
+
   const wrapCls =
     variant === "dark"
       ? "border-white/10 bg-gradient-to-r from-[#1a0f0f] via-[#2a1414] to-[#1a0f0f] text-white"
-      : "border-red-200 bg-gradient-to-r from-red-50 via-orange-50 to-red-50 text-red-900";
+      : isClean
+        ? "border-[#F2D9CF] bg-[#FFF7F3] text-[#9A3412]"
+        : "border-red-200 bg-gradient-to-r from-red-50 via-orange-50 to-red-50 text-red-900";
 
   const chipCls =
     variant === "dark"
       ? "bg-white/10 text-white"
-      : "bg-white text-red-700 shadow-sm ring-1 ring-red-200";
+      : isClean
+        ? "bg-white text-[#9A3412] ring-1 ring-[#F2DDD4]"
+        : "bg-white text-red-700 shadow-sm ring-1 ring-red-200";
+
+  // A variante "clean" acompanha o modal compacto: paddings/tipografia menores,
+  // paleta mais suave e chips do contador mais discretos.
+  const wrapPad = isClean ? "gap-2.5 rounded-[12px] px-3.5 py-2.5" : "gap-3 rounded-[14px] px-4 py-3";
+  const chipMin = isClean ? "min-w-[40px] px-1.5 py-0.5" : "min-w-[46px] px-2 py-1";
+  const numSize = isClean ? "text-[13px]" : "text-[15px]";
 
   return (
     <div
-      className={`flex flex-col items-center justify-between gap-3 rounded-[14px] border px-4 py-3 sm:flex-row ${wrapCls} ${className}`}
+      className={`flex flex-col items-center justify-between border sm:flex-row ${wrapPad} ${wrapCls} ${className}`}
     >
       <div className="flex items-center gap-2.5 text-center sm:text-left">
-        <Flame size={18} className="shrink-0 text-red-500" strokeWidth={2.4} />
+        <Flame size={isClean ? 16 : 18} className="shrink-0 text-[#EF4444]" strokeWidth={2.4} />
         <div>
-          <p className="text-[13px] font-bold leading-tight sm:text-[14px]">
+          <p className={`font-bold leading-tight ${isClean ? "text-[12.5px]" : "text-[13px] sm:text-[14px]"}`}>
             Promoção relâmpago — Plano Base por R$ 29,90
           </p>
-          <p className="text-[11px] opacity-70 sm:text-[12px]">
+          <p className={`opacity-70 ${isClean ? "text-[11px]" : "text-[11px] sm:text-[12px]"}`}>
             Oferta válida por apenas 19 horas. Depois volta pra R$ 39,90.
           </p>
         </div>
       </div>
       <div className="flex items-center gap-1.5">
-        <Clock size={14} className="opacity-70" />
+        <Clock size={isClean ? 13 : 14} className="opacity-60" />
         {[
           { label: "h", value: hours },
           { label: "m", value: minutes },
@@ -72,12 +84,12 @@ export const PromoCountdown = ({
         ].map((item) => (
           <div
             key={item.label}
-            className={`flex min-w-[46px] flex-col items-center rounded-md px-2 py-1 ${chipCls}`}
+            className={`flex flex-col items-center rounded-md ${chipMin} ${chipCls}`}
           >
-            <span className="font-mono text-[15px] font-bold leading-none tabular-nums">
+            <span className={`font-mono font-bold leading-none tabular-nums ${numSize}`}>
               {pad(item.value)}
             </span>
-            <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider opacity-70">
+            <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider opacity-60">
               {item.label === "h" ? "horas" : item.label === "m" ? "min" : "seg"}
             </span>
           </div>

@@ -80,14 +80,14 @@ const toolCards = [
     href: "/dashboard/catalogo",
   },
   {
-    left: "43.8%",
+    left: "31.7%",
     icon: Home,
     title: "Loja completa",
     description: "Monte sua loja com produto, copy, visual e estrutura.",
     href: "/onboarding/criar-loja",
   },
   {
-    left: "62.2%",
+    left: "55.4%",
     icon: BookOpen,
     title: "Produtos em alta",
     description: "Analise demanda, margem e oportunidades de dropshipping.",
@@ -798,7 +798,7 @@ const DashboardHomePage = () => {
           <span className="flex h-6 w-6 items-center justify-center text-white">
             <Lightbulb size={19} fill="currentColor" strokeWidth={2.1} />
           </span>
-          <span className="whitespace-nowrap">Getting Started</span>
+          <span className="whitespace-nowrap">Primeiros passos</span>
           <span className="ml-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-[19px] font-medium leading-none text-white/80 transition group-hover:bg-[#2b2b2b] group-hover:text-white">
             ×
           </span>

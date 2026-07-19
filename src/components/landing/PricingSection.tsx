@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { playSatisfyingClick } from "@/lib/uiFeedback";
@@ -98,23 +97,18 @@ const plans: Plan[] = [
 const PricingSection = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handlePlanClick = (planId: string) => {
-    if (loadingPlan) return;
-
     playSatisfyingClick();
-    setLoadingPlan(planId);
 
-    setTimeout(() => {
-      if (planId === "gratis") {
-        navigate(user ? "/checkout?plan=pro" : "/login");
-      } else if (user) {
-        navigate(`/checkout?plan=${planId}`);
-      } else {
-        navigate("/login");
-      }
-    }, 3000);
+    // Clique em assinar leva para a página completa de checkout.
+    if (planId === "gratis") {
+      navigate(user ? "/checkout?plan=pro" : "/login");
+    } else if (user) {
+      navigate(`/checkout?plan=${planId}`);
+    } else {
+      navigate("/login");
+    }
   };
 
   return (
@@ -191,10 +185,7 @@ const PricingSection = () => {
               {/* CTA */}
               <button
                 onClick={() => handlePlanClick(plan.id)}
-                disabled={loadingPlan !== null}
-                className={`group relative mb-8 flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full py-[13px] font-['Manrope'] text-[0.875rem] font-semibold transition-all duration-500 disabled:cursor-wait disabled:opacity-100 ${
-                  loadingPlan === plan.id ? "animate-pricing-cta-breathe" : ""
-                } ${
+                className={`group relative mb-8 flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full py-[13px] font-['Manrope'] text-[0.875rem] font-semibold transition-all duration-500 ${
                   highlighted
                     ? "border-none bg-black text-white hover:bg-black/85"
                     : plan.ctaStyle === "filled"
@@ -202,31 +193,7 @@ const PricingSection = () => {
                     : "border border-white/[0.15] bg-transparent text-white/70 hover:border-white/30 hover:text-white"
                 }`}
               >
-                {loadingPlan === plan.id && (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_15%,rgba(255,255,255,0.12)_35%,rgba(255,255,255,0.48)_50%,rgba(255,255,255,0.12)_65%,transparent_85%)] opacity-90 animate-pricing-cta-sheen"
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-[1px] rounded-full bg-white/8 blur-md"
-                    />
-                  </>
-                )}
-
-                {loadingPlan === plan.id ? (
-                  <span className={`relative z-[1] flex items-center gap-3 ${highlighted ? "text-white" : plan.ctaStyle === "filled" ? "text-black" : "text-white"}`}>
-                    <span aria-hidden="true" className={`pricing-cta-loader ${highlighted ? "text-white" : plan.ctaStyle === "filled" ? "text-black" : "text-white"}`}>
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                    <span className="tracking-[-0.01em]">Abrindo checkout</span>
-                  </span>
-                ) : (
-                  <span className="relative z-[1]">{plan.cta}</span>
-                )}
+                <span className="relative z-[1]">{plan.cta}</span>
               </button>
 
               {/* Features prefix */}

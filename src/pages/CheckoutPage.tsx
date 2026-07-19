@@ -12,6 +12,11 @@ import { VeloLogo, VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
 import PromoCountdown from "@/components/PromoCountdown";
+import {
+  PLAN_ANNUAL_AMOUNTS,
+  PLAN_MONTHLY_AMOUNTS,
+  PLAN_ORIGINAL_MONTHLY_AMOUNTS,
+} from "@/lib/plans";
 
 type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
@@ -19,8 +24,6 @@ type BillingCycle = "monthly" | "annual";
 
 type PlanData = {
   name: string;
-  price: string;
-  originalPrice?: string;
   description: string;
   badge?: string;
   features: string[];
@@ -29,8 +32,6 @@ type PlanData = {
 const PLANS_DATA: Record<string, PlanData> = {
   base: {
     name: "Base",
-    price: "R$ 29,90",
-    originalPrice: "R$ 39,90",
     description: "Pra quem quer começar a vender sem travar no operacional.",
     badge: "Promo 19h",
     features: [
@@ -43,7 +44,6 @@ const PLANS_DATA: Record<string, PlanData> = {
   },
   pro: {
     name: "Pro",
-    price: "R$ 79,80",
     description: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
     badge: "Mais escolhido",
     features: [
@@ -57,7 +57,6 @@ const PLANS_DATA: Record<string, PlanData> = {
   },
   business: {
     name: "Business",
-    price: "R$ 159,60",
     description: "Pra quem já vive disso e quer parar de contar produto.",
     badge: "Escala",
     features: [
@@ -70,17 +69,9 @@ const PLANS_DATA: Record<string, PlanData> = {
   },
 };
 
-const PLAN_AMOUNTS: Record<string, number> = {
-  base: 29.9,
-  pro: 79.8,
-  business: 159.6,
-};
+const PLAN_AMOUNTS: Record<string, number> = PLAN_MONTHLY_AMOUNTS;
 
-const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
-  base: 322.92,   // 29.90 * 12 * 0.9
-  pro: 861.84,    // 79.80 * 12 * 0.9
-  business: 1723.68, // 159.60 * 12 * 0.9
-};
+const ANNUAL_PLAN_AMOUNTS: Record<string, number> = PLAN_ANNUAL_AMOUNTS;
 
 const splitPlanPrice = (price: string) => {
   const [main, cents = ""] = price.split(",");
@@ -103,7 +94,7 @@ const parseBRL = (price: string) => Number(price.replace(/[^\d,]/g, "").replace(
 const getDisplayPrice = (planId: string, billingCycle: BillingCycle) => {
   const monthlyAmount = PLAN_AMOUNTS[planId] ?? 0;
   if (billingCycle === "annual") return formatBRL(ANNUAL_PLAN_AMOUNTS[planId] ?? monthlyAmount * 12 * 0.9);
-  return PLANS_DATA[planId]?.price ?? formatBRL(monthlyAmount);
+  return formatBRL(monthlyAmount);
 };
 
 const getOriginalDisplayPrice = (planId: string, billingCycle: BillingCycle) => {
@@ -116,8 +107,8 @@ const getOriginalDisplayPrice = (planId: string, billingCycle: BillingCycle) => 
     const fullYear = monthlyAmount * 12;
     return fullYear > annualAmount ? formatBRL(fullYear) : null;
   }
-  const originalPrice = PLANS_DATA[planId]?.originalPrice;
-  return originalPrice ?? null;
+  const original = PLAN_ORIGINAL_MONTHLY_AMOUNTS[planId as keyof typeof PLAN_ORIGINAL_MONTHLY_AMOUNTS];
+  return original ? formatBRL(original) : null;
 };
 
 const getSavingsDisplay = (originalPrice: string | null, currentPrice: string) => {
@@ -738,7 +729,9 @@ const CheckoutPage = () => {
                   <span className="font-semibold text-white/66">
                     {isTrial ? "Depois do trial" : billingCycle === "annual" ? "Total anual" : "Total mensal"}
                   </span>
-                  <span className="font-semibold text-white">{isTrial ? "R$ 99,90/mês" : finalCheckoutPrice}</span>
+                  <span className="font-semibold text-white">
+                    {isTrial ? `${formatBRL(PLAN_MONTHLY_AMOUNTS.pro)}/mês` : finalCheckoutPrice}
+                  </span>
                 </div>
                 <div className="mt-7 flex items-center justify-between">
                   <span className="font-semibold text-white/66">Total devido hoje</span>

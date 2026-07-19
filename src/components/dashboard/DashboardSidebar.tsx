@@ -110,10 +110,13 @@ const styles = {
     boxSizing: "border-box",
     padding: "18px 16px",
     borderRadius: 0,
-    border: "1px solid #2A2926",
+    // Só a borda direita (separa a sidebar da área de conteúdo). A borda de topo
+    // foi removida para não criar linha divisória entre a sidebar e a barra de
+    // upgrade (ambas na mesma cor #171714).
+    borderRight: "1px solid #2A2926",
     background: "#171714",
     color: "#FFFFFF",
-    boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.05)",
+    boxShadow: "inset 1px 0 0 rgba(255,255,255,0.05)",
   } satisfies CSSProperties,
   header: {
     display: "flex",

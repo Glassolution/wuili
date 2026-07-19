@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store, ShieldCheck } from "lucide-react";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
+import { getPlanMonthlyLabel } from "@/lib/plans";
 import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -281,6 +282,20 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   // São pré-preenchidos com o que veio do scraper (quando existir) e podem
   // ser editados pelo usuário na etapa de Revisão. Sem marca, o backend usa
   // "Genérica" como fallback; sem modelo, cai para uma versão curta do título.
+  // Ao chegar na etapa de assinatura, abre o modal de planos automaticamente.
+  // O ref garante que abra uma vez por entrada na etapa (se o usuário fechar,
+  // não reabre sozinho enquanto ele continuar nela).
+  const planModalAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (step !== 3) {
+      planModalAutoOpenedRef.current = false;
+      return;
+    }
+    if (planModalAutoOpenedRef.current) return;
+    planModalAutoOpenedRef.current = true;
+    upgradeModal.open({ defaultPlan: "pro" });
+  }, [step, upgradeModal]);
+
   // Check ML connection
   useEffect(() => {
     if (!user || !open) return;
@@ -1139,7 +1154,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                     onClick={() => upgradeModal.open({ defaultPlan: "pro" })}
                     className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#0A0A0A] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A]"
                   >
-                    Assinar Pro — R$99,90/mês
+                    Assinar Pro — {getPlanMonthlyLabel("pro")}/mês
                   </button>
                   <p className="mt-3 text-center text-[12.5px] leading-relaxed text-gray-500">
                     Assinatura mensal do plano Pro. Cancele quando quiser.
@@ -1149,7 +1164,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                     onClick={() => upgradeModal.open({ defaultPlan: "business" })}
                     className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#0A0A0A]"
                   >
-                    Prefere começar direto no Business (R$149,90/mês, promoção) com automações ilimitadas?
+                    Prefere começar direto no Business ({getPlanMonthlyLabel("business")}/mês) com automações ilimitadas?
                   </button>
                 </div>
               </div>

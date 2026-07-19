@@ -171,17 +171,52 @@ const seededSparklineValues = (seed: string, points = 14): number[] => {
 
 const ProductSparkline = ({ seed }: { seed: string }) => {
   const values = useMemo(() => seededSparklineValues(seed), [seed]);
-  const width = 108;
-  const height = 34;
+  const width = 120;
+  const height = 40;
+  const padY = 5; // respiro vertical para a linha não encostar nas bordas
   const step = width / (values.length - 1);
-  const points = values.map((v, i) => `${i * step},${height - (v / 100) * height}`).join(" ");
-  const lastX = (values.length - 1) * step;
-  const lastY = height - (values[values.length - 1] / 100) * height;
+
+  const coords = values.map((v, i) => ({
+    x: i * step,
+    y: padY + (1 - v / 100) * (height - padY * 2),
+  }));
+
+  // Curva suavizada (Catmull-Rom → Bézier cúbica) para dar o traço fluido da
+  // referência, em vez do zig-zag anguloso.
+  const linePath = coords.reduce((acc, p, i) => {
+    if (i === 0) return `M ${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+    const p0 = coords[i - 1] ?? p;
+    const p1 = coords[i - 2] ?? p0;
+    const p2 = coords[i + 1] ?? p;
+    const cp1x = p0.x + (p.x - p1.x) / 6;
+    const cp1y = p0.y + (p.y - p1.y) / 6;
+    const cp2x = p.x - (p2.x - p0.x) / 6;
+    const cp2y = p.y - (p2.y - p0.y) / 6;
+    return `${acc} C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+  }, "");
+
+  const areaPath = `${linePath} L ${width},${height} L 0,${height} Z`;
+  const last = coords[coords.length - 1];
+  const gradientId = `spark-${seed}`;
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="shrink-0" fill="none" aria-hidden="true">
-      <polyline points={points} stroke="#111111" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="3" fill="#111111" />
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="shrink-0"
+      fill="none"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#111111" stopOpacity="0.12" />
+          <stop offset="100%" stopColor="#111111" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradientId})`} />
+      <path d={linePath} stroke="#111111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={last.x} cy={last.y} r="3.2" fill="#111111" stroke="#FFFFFF" strokeWidth="1.5" />
     </svg>
   );
 };
@@ -1041,7 +1076,7 @@ const TrendingProductsPage = () => {
                 Tente trocar o termo, nicho, período ou ordenação para encontrar novas oportunidades.
               </p>
             </div>
-          ) : isFreePlan ? (
+          ) : (
             <div className="space-y-3 px-7 py-5">
               {visibleProducts.map((product, index) => {
                 const price = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
@@ -1050,6 +1085,7 @@ const TrendingProductsPage = () => {
                 const marginPercent = getMarginPercent(product);
                 const markup = cost > 0 ? price / cost : null;
                 const rank = index + 1;
+                const locked = isFreePlan;
                 const badgeClass =
                   rank === 1
                     ? "bg-[#F5A623] text-white"
@@ -1070,12 +1106,18 @@ const TrendingProductsPage = () => {
                       {rank}
                     </span>
 
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#F1F2F4]">
-                      <Lock size={18} strokeWidth={1.9} className="text-[#9AA0AC]" />
-                    </div>
+                    {locked ? (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#F1F2F4]">
+                        <Lock size={18} strokeWidth={1.9} className="text-[#9AA0AC]" />
+                      </div>
+                    ) : (
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[14px] border border-black/[0.06] bg-white">
+                        <img src={getProductImage(product)} alt="" className="h-full w-full object-contain p-1.5" />
+                      </div>
+                    )}
 
                     <div className="min-w-0 flex-1">
-                      <p className="select-none truncate text-[14px] font-semibold text-[#111827] blur-[6px]">{product.title}</p>
+                      <p className={`truncate text-[14px] font-semibold text-[#111827] ${locked ? "select-none blur-[6px]" : ""}`}>{product.title}</p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-medium text-[#6B7280]">
                         <span>
                           Custo: <span className="font-semibold text-[#111827]">{formatBRL(cost)}</span>
@@ -1106,270 +1148,35 @@ const TrendingProductsPage = () => {
 
                     <ProductSparkline seed={product.id} />
 
-                    <ChevronDown size={16} strokeWidth={2} className="hidden shrink-0 text-[#9AA0AC] sm:block" />
+                    {locked ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate("/dashboard/planos")}
+                        title="Disponível apenas com um plano ativo"
+                        className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3.5 text-[12.5px] font-semibold text-[#111827] transition hover:bg-[#F4F4F5]"
+                      >
+                        <Lock size={14} strokeWidth={1.9} />
+                        Desbloquear
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCreateSalesPage(product)}
+                        disabled={creatingSalesPageId === product.id}
+                        title="Criar página de vendas"
+                        className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-black px-4 text-[12.5px] font-semibold text-white transition hover:bg-[#222222] disabled:opacity-60"
+                      >
+                        {creatingSalesPageId === product.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <FilePlus2 size={14} strokeWidth={1.9} />
+                        )}
+                        Criar página de vendas
+                      </button>
+                    )}
                   </div>
                 );
               })}
-            </div>
-          ) : (
-            <div className="overflow-hidden">
-              <table className="w-full table-fixed border-collapse">
-                <colgroup>
-                  <col className="w-[36%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[8%]" />
-                </colgroup>
-                <thead>
-                  <tr className="h-12 border-b border-black/[0.06] bg-white text-left text-[12px] font-semibold text-[#596174]">
-                    <th className="px-5 py-3">Produto</th>
-                    <th className="px-3 py-3 text-center">
-                      <span className="inline-flex items-center justify-center gap-1">Preço <ChevronDown size={13} strokeWidth={1.8} /></span>
-                    </th>
-                    <th className="px-3 py-3 text-center">
-                      <span className="inline-flex items-center justify-center gap-1">Vendas mensais <ChevronDown size={13} strokeWidth={1.8} /></span>
-                    </th>
-                    <th className="px-3 py-3 text-center">
-                      <span className="inline-flex items-center justify-center gap-1">Fornecedor <Info size={13} strokeWidth={1.8} className="text-[#B5BDCB]" /></span>
-                    </th>
-                    <th className="px-3 py-3 text-center">
-                      <span className="inline-flex items-center justify-center gap-1">Avaliação <ChevronDown size={13} strokeWidth={1.8} /></span>
-                    </th>
-                    <th className="px-3 py-3 text-center">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleProducts.map((product) => {
-                    const demand = Number(product.orders_count ?? product.demand_score ?? 0);
-                    const rating = Number(product.rating ?? 0);
-                    const price = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
-                    const cost = Number(product.cost_price ?? 0);
-                    const profit = price - cost;
-                    const marginPercent = getMarginPercent(product);
-                    const monthlyRevenue = price * demand;
-                    const imageCount = getImageCount(product);
-                    const supplierLabel = product.brand || product.category || "Fornecedor Velo";
-                    const supplierMeta = product.brand && product.category ? product.category : "Produtos selecionados";
-                    const stock = product.stock_quantity;
-                    const verdict = getDropshippingVerdict(marginPercent, demand, rating, stock);
-                    const isExpanded = expandedProductId === product.id;
-                    const signalRows = [
-                      { label: "Demanda", value: Number(product.demand_score ?? demand), hint: `${formatNumber(demand)} vendas` },
-                      { label: "Margem", value: Number(product.margin_score ?? marginPercent), hint: formatPercent(marginPercent) },
-                      { label: "Facilidade", value: Number(product.ease_score ?? 0), hint: "Operação" },
-                      { label: "Viral", value: Number(product.viral_score ?? 0), hint: "Criativo" },
-                    ];
-
-                    return (
-                      <Fragment key={product.id}>
-                        <tr className="h-[92px] border-b border-black/[0.06] bg-white transition hover:bg-[#FBFCFE]">
-                          <td className="px-5 py-4">
-                            <div className="flex min-w-0 items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => toggleProductDetails(product.id)}
-                                aria-expanded={isExpanded}
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#6B7280] transition hover:bg-[#F4F4F5] hover:text-[#111827]"
-                                aria-label={isExpanded ? "Fechar detalhes do produto" : "Ver detalhes do produto"}
-                              >
-                                <ChevronRight size={16} strokeWidth={2.1} className={`transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
-                              </button>
-                              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[4px] border border-black/[0.04] bg-white">
-                                <img
-                                  src={getProductImage(product)}
-                                  alt=""
-                                  className={`h-full w-full object-contain p-1 ${isFreePlan ? "scale-125 blur-[6px]" : ""}`}
-                                />
-                                {isFreePlan ? (
-                                  <span className="absolute inset-0 flex items-center justify-center bg-white/45">
-                                    <Lock size={14} strokeWidth={2.1} className="text-[#111827]" />
-                                  </span>
-                                ) : null}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => toggleProductDetails(product.id)}
-                                className="min-w-0 flex-1 text-left"
-                              >
-                                <div className="flex min-w-0 items-center gap-2">
-                                  <span
-                                    className={`min-w-0 truncate text-[13px] font-semibold leading-5 text-[#111827] ${
-                                      isFreePlan ? "select-none blur-[5px]" : ""
-                                    }`}
-                                  >
-                                    {product.title}
-                                  </span>
-                                  <ChartNoAxesColumnIncreasing size={14} strokeWidth={1.8} className="shrink-0 text-[#111827]" />
-                                </div>
-                                <div className="mt-1 flex min-w-0 items-center gap-4 text-[12px] font-medium text-[#111827]">
-                                  <span>{imageCount || 1} {imageCount === 1 ? "imagem" : "imagens"}</span>
-                                  <span>1 variante</span>
-                                </div>
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-3 py-4 text-center align-middle">
-                            <p className="whitespace-nowrap text-[14px] font-semibold text-[#111827]">{formatBRL(price)}</p>
-                          </td>
-                          <td className="px-3 py-4 text-center align-middle">
-                            <p className="whitespace-nowrap text-[14px] font-semibold text-[#2B2F3A]">{formatBRL(monthlyRevenue)}</p>
-                            <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#111827]">{formatNumber(demand)} vendas</p>
-                          </td>
-                          <td className="px-3 py-4 align-middle">
-                            <div className="mx-auto flex w-full max-w-[245px] min-w-0 items-center justify-start gap-3">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#F1F2F4] text-[10px] font-bold uppercase text-[#111827]">
-                                {supplierLabel.slice(0, 2)}
-                              </div>
-                              <div className="min-w-0 text-left">
-                                <p className="truncate text-[13px] font-semibold leading-5 text-[#111827]">{supplierLabel}</p>
-                                <p className="truncate text-[12px] font-medium text-[#111827]">{supplierMeta}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-3 py-4 text-center align-middle">
-                            <span className="inline-flex max-w-full items-center justify-center gap-1.5 whitespace-nowrap text-[13px] font-semibold text-[#2B2F3A]">
-                              {rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "—"}
-                              <Star size={14} fill="#111827" stroke="none" />
-                              <span className="truncate font-medium text-[#7E8798]">({formatNumber(Number(product.score ?? 0))})</span>
-                            </span>
-                          </td>
-                          <td className="px-3 py-4 align-middle">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateSalesPage(product))}
-                                disabled={creatingSalesPageId === product.id}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-white text-[#111827] transition hover:bg-[#F4F4F5] disabled:opacity-60"
-                                aria-label={isFreePlan ? "Disponível apenas com um plano ativo" : "Criar página de vendas"}
-                                title={isFreePlan ? "Disponível apenas com um plano ativo" : "Criar página de vendas"}
-                              >
-                                {creatingSalesPageId === product.id ? (
-                                  <Loader2 size={15} className="animate-spin" />
-                                ) : isFreePlan ? (
-                                  <Lock size={14} strokeWidth={1.9} />
-                                ) : (
-                                  <FilePlus2 size={15} strokeWidth={1.8} />
-                                )}
-                              </button>
-                              {isAdmin ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCreateStore(product)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white transition hover:bg-[#222222]"
-                                  aria-label="Criar loja com este produto"
-                                  title="Criar loja com este produto"
-                                >
-                                  <Store size={15} strokeWidth={1.8} />
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                        {isExpanded ? (
-                          <tr className="border-b border-black/[0.06] bg-[#FAFAFA]">
-                            <td colSpan={6} className="px-5 py-0">
-                              <div className="py-5 [animation:veloProductDetail_220ms_ease-out]">
-                                <div className="grid gap-5 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.45fr)_minmax(260px,0.8fr)]">
-                                  <div className="flex gap-4">
-                                    <div className="relative h-[118px] w-[118px] shrink-0 overflow-hidden rounded-[8px] border border-black/[0.06] bg-white">
-                                      <img
-                                        src={getProductImage(product)}
-                                        alt=""
-                                        className={`h-full w-full object-contain p-3 ${isFreePlan ? "scale-125 blur-[10px]" : ""}`}
-                                      />
-                                      {isFreePlan ? (
-                                        <span className="absolute inset-0 flex items-center justify-center bg-white/45">
-                                          <Lock size={22} strokeWidth={1.9} className="text-[#111827]" />
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p
-                                        className={`line-clamp-3 text-[15px] font-semibold leading-6 text-[#111827] ${
-                                          isFreePlan ? "select-none blur-[6px]" : ""
-                                        }`}
-                                      >
-                                        {product.title}
-                                      </p>
-                                      <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[#4B5563]">
-                                        {product.category ? <span className="rounded-full bg-white px-2.5 py-1">{product.category}</span> : null}
-                                        {product.brand ? <span className="rounded-full bg-white px-2.5 py-1">{product.brand}</span> : null}
-                                        <span className="rounded-full bg-white px-2.5 py-1">{imageCount || 1} imagens</span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                    {[
-                                      { label: "Preço sugerido", value: formatBRL(price), hint: "valor de venda" },
-                                      { label: "Custo estimado", value: formatBRL(cost), hint: "base do fornecedor" },
-                                      { label: "Lucro bruto", value: formatBRL(profit), hint: "antes de taxas e tráfego" },
-                                      { label: "Margem", value: formatPercent(marginPercent), hint: "saúde da oferta" },
-                                      { label: "Receita mensal", value: formatBRL(monthlyRevenue), hint: "preço x vendas" },
-                                      { label: "Estoque", value: stock === null ? "Sem dado" : formatNumber(stock), hint: "risco de ruptura" },
-                                      { label: "Avaliação", value: rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "Sem nota", hint: "prova de satisfação" },
-                                      { label: "Coletado em", value: formatDateTime(product.scraped_at), hint: "recência do dado" },
-                                    ].map((metric) => (
-                                      <div key={metric.label} className="rounded-[8px] border border-black/[0.06] bg-white p-3">
-                                        <p className="text-[11px] font-semibold text-[#7E8798]">{metric.label}</p>
-                                        <p className="mt-1 truncate text-[14px] font-semibold text-[#111827]">{metric.value}</p>
-                                        <p className="mt-1 truncate text-[11px] font-medium text-[#8A93A3]">{metric.hint}</p>
-                                      </div>
-                                    ))}
-                                  </div>
-
-                                  <div className="rounded-[8px] border border-black/[0.06] bg-white p-4">
-                                    <p className="text-[12px] font-semibold text-[#7E8798]">Diagnóstico dropshipping</p>
-                                    <h3 className="mt-1 text-[18px] font-semibold text-[#111827]">{verdict.title}</h3>
-                                    <p className="mt-2 text-[12px] leading-5 text-[#667085]">{verdict.description}</p>
-                                    <div className="mt-4 space-y-2.5">
-                                      {signalRows.map((signal) => {
-                                        const signalValue = Math.max(0, Math.min(100, signal.value));
-
-                                        return (
-                                          <div key={signal.label}>
-                                            <div className="flex items-center justify-between text-[11px] font-semibold text-[#4B5563]">
-                                              <span>{signal.label}</span>
-                                              <span>{signal.hint}</span>
-                                            </div>
-                                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#ECEEF2]">
-                                              <div className="h-full rounded-full bg-black" style={{ width: `${signalValue}%` }} />
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                    <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateSalesPage(product))}
-                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border border-black/[0.08] bg-white px-3 text-[12px] font-semibold text-[#111827] transition hover:bg-[#F4F4F5]"
-                                      >
-                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <FilePlus2 size={14} strokeWidth={1.8} />}
-                                        {isFreePlan ? "Disponível no plano pago" : "Criar página"}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateStore(product))}
-                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-black px-3 text-[12px] font-semibold text-white transition hover:bg-[#222222]"
-                                      >
-                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <Store size={14} strokeWidth={1.8} />}
-                                        {isFreePlan ? "Disponível no plano pago" : "Importar para loja"}
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : null}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
             </div>
           )}
 

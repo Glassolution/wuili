@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, ExternalLink, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
+import { PLAN_MONTHLY_AMOUNTS, formatBRL as formatPlanBRL } from "@/lib/plans";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -3900,7 +3901,7 @@ const GeneratedStoreEditorPage = () => {
 
               <div className="flex flex-col">
                 <div className="overflow-hidden rounded-[17px] border-[3px] border-[#1597f4] bg-[#303030] shadow-[0_5px_0_#1597f4]">
-                  <div className="flex flex-wrap items-center gap-3 p-5"><span className="h-4 w-4 rounded-full bg-[#1597f4] ring-4 ring-[#1597f4]/15"/><strong className="text-[18px]">Velo <em>PRO</em></strong><del className="ml-auto text-[20px] text-white/25">R$ 99,90</del><span className="rounded-[9px] bg-white/[0.08] px-3 py-2 text-[26px] font-semibold tracking-[-0.04em]">R$ 64,94 <small className="text-[11px] font-normal text-white/45">{"/m\u00eas"}</small></span></div>
+                  <div className="flex flex-wrap items-center gap-3 p-5"><span className="h-4 w-4 rounded-full bg-[#1597f4] ring-4 ring-[#1597f4]/15"/><strong className="text-[18px]">Velo <em>PRO</em></strong><span className="ml-auto rounded-[9px] bg-white/[0.08] px-3 py-2 text-[26px] font-semibold tracking-[-0.04em]">{formatPlanBRL(PLAN_MONTHLY_AMOUNTS.pro)} <small className="text-[11px] font-normal text-white/45">{"/m\u00eas"}</small></span></div>
                   <div className="flex items-center justify-between border-t border-white/15 bg-white/[0.05] px-5 py-3"><span className="text-[13px]"><strong className="text-orange-400">-35%</strong> com o {"c\u00f3digo"}</span><strong className="rounded-[6px] bg-[#f97316] px-4 py-2 text-[15px]">COPA</strong></div>
                 </div>
                 <div className="mt-5 flex items-start gap-3 rounded-[15px] bg-[#332e16] p-5"><Gift className="shrink-0 text-[#facc15]" size={22}/><div><strong className="text-[14px] text-[#f7d978]">{"Dom\u00ednio gr\u00e1tis com seu plano PRO!"}</strong><p className="mt-1 text-[11px] leading-relaxed text-white/45">{"Lance sua marca com um dom\u00ednio inclu\u00eddo no plano Velo Pro."}</p></div></div>
