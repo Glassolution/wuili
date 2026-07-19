@@ -4127,7 +4127,7 @@ const GeneratedStoreEditorPage = () => {
 
                 <button
                   type="button"
-                  onClick={() => { setUpgradeModalOpen(false); navigate("/checkout?plan=base"); }}
+                  onClick={() => { setUpgradeModalOpen(false); upgradeModal.open({ defaultPlan: "base" }); }}
                   className="mt-4 flex h-14 items-center justify-center gap-2 rounded-[14px] bg-[#3567e9] text-[16px] font-bold text-white shadow-[0_16px_40px_rgba(53,103,233,0.45)] transition hover:bg-[#4272ee] active:scale-[0.99]"
                 >
                   Continuar com Base <ArrowRight size={18} />
