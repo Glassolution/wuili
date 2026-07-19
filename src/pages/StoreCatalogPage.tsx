@@ -206,6 +206,7 @@ const FilterGroup = ({
 
 const CatalogEditorShell = ({ storeName, children }: CatalogEditorShellProps) => {
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const [mobilePreview, setMobilePreview] = useState(false);
 
   return (
