@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { ChevronDown, ChevronLeft, ChevronRight, Code2, ExternalLink, Filter, Globe2, Heart, History, LayoutTemplate, Monitor, MoreHorizontal, Package, Palette, Play, RefreshCw, Search, Settings, ShoppingCart, SlidersHorizontal, Smartphone, Trash2, Type, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
