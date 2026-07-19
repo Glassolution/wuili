@@ -240,6 +240,7 @@ const inferStickerAlbumName = (product: CatalogProduct | null, title: string) =>
 const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification }: Props) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const planLimits = usePlanLimits();
   const isStartMode = false;
 
