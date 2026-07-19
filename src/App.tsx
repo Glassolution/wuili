@@ -207,6 +207,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          </UpgradeModalProvider>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
