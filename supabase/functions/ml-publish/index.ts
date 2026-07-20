@@ -826,7 +826,15 @@ Deno.serve(async (req) => {
         mergeAttribute(allAttrs, { id, value_name: 'Não especificado' })
         continue
       }
-      if (OPEN_IDENTIFYING_ATTRS.has(id)) {
+      // Detecta atributos numéricos (com ou sem unidade). O ML rejeita "N/D"
+      // com item.attribute.number_invalid_format nesses casos — precisamos
+      // enviar um número real seguido de uma unidade permitida.
+      const valueType = cleanText((attrDef as Record<string, unknown>).value_type).toLowerCase()
+      const isNumberUnit = valueType === 'number_unit' || valueType === 'numeric_unit'
+      const isNumber = valueType === 'number' || valueType === 'numeric'
+      const allowedUnits = ((attrDef as Record<string, unknown>).allowed_units as Array<{ id?: string; name?: string }> | undefined) ?? []
+
+      if (OPEN_IDENTIFYING_ATTRS.has(id) && !isNumber && !isNumberUnit) {
         // Não chutar valor específico. Manda "N/D" para satisfazer a
         // obrigatoriedade sem inventar dado errado.
         mergeAttribute(allAttrs, { id, value_name: 'N/D' })
@@ -844,9 +852,17 @@ Deno.serve(async (req) => {
             ...(valueName ? { value_name: valueName } : {}),
           })
         }
+      } else if (isNumberUnit) {
+        // Atributo numérico com unidade (ex.: VOLUME_CAPACITY, WEIGHT,
+        // CAPACITY). "N/D" quebra com number_invalid_format. Enviamos "1 <un>"
+        // com a primeira unidade permitida pela categoria para satisfazer
+        // formato — o usuário pode ajustar depois no modal de revisão.
+        const unit = cleanText(allowedUnits[0]?.id) || cleanText(allowedUnits[0]?.name) || 'un'
+        mergeAttribute(allAttrs, { id, value_name: `1 ${unit}` })
+      } else if (isNumber) {
+        mergeAttribute(allAttrs, { id, value_name: '1' })
       } else {
-        // Atributo obrigatório de texto livre (ex.: VOLUME_CAPACITY,
-        // CAPACIDADE em L/ml, medidas). Sem valor confiável do catálogo →
+        // Atributo obrigatório de texto livre. Sem valor confiável →
         // preenche "N/D" para o ML não travar o anúncio.
         mergeAttribute(allAttrs, { id, value_name: 'N/D' })
       }
