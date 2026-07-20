@@ -640,7 +640,12 @@ Deno.serve(async (req) => {
     const allAttrs: MLAttribute[] = []
 
     // 2) Aplica cada atributo do usuário resolvido contra a lista da categoria.
+    //    Ignora valores "N/D"/vazios do usuário — assim o fallback abaixo
+    //    consegue preencher com número real p/ atributos numéricos (VOLUME_CAPACITY etc.)
     for (const [id, val] of userAttrsMap.entries()) {
+      const rawName = cleanText((val as { value_name?: unknown })?.value_name).toUpperCase()
+      const rawId = cleanText((val as { value_id?: unknown })?.value_id)
+      if (!rawId && (rawName === '' || rawName === 'N/D' || rawName === 'N/A')) continue
       const def = categoryAttrs.find(a => a.id === id) as Record<string, unknown> | undefined
       const resolved = resolveAgainstList(def, val)
       mergeAttribute(allAttrs, { id, ...resolved })
