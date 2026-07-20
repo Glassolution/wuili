@@ -207,7 +207,8 @@ Deno.serve(async (req) => {
       subscriptionForEmail = (updatedSubscription ?? null) as SubscriptionEmailInput | null;
     } else {
       const now = new Date();
-      const periodEnd = new Date(now);
+      const periodStart = payment.date_approved ? new Date(payment.date_approved) : now;
+      const periodEnd = new Date(periodStart);
       periodEnd.setMonth(periodEnd.getMonth() + 1);
 
       const { data: insertedSubscription } = await adminClient.from("subscriptions").insert({
@@ -217,8 +218,9 @@ Deno.serve(async (req) => {
         mp_payment_id: String(paymentId),
         payment_method: payment.payment_method_id || "unknown",
         amount: payment.transaction_amount || 0,
-        current_period_start: now.toISOString(),
+        current_period_start: periodStart.toISOString(),
         current_period_end: periodEnd.toISOString(),
+        updated_at: now.toISOString(),
       }).select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
         .maybeSingle();
       subscriptionForEmail = (insertedSubscription ?? null) as SubscriptionEmailInput | null;
