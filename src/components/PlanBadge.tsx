@@ -17,7 +17,7 @@ const PlanBadge = ({ size = "sm", className = "" }: Props) => {
   const { plan, loading } = usePlan();
   if (loading) return null;
 
-  const isPaid = plan === "pro" || plan === "business" || plan === "go";
+  const isPaid = plan === "base" || plan === "pro" || plan === "business" || plan === "go";
   const colors = isPaid
     ? "bg-emerald-500/12 text-emerald-700 border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-400/25"
     : "bg-black/[0.05] text-black/60 border-black/10 dark:bg-white/10 dark:text-zinc-200 dark:border-white/15";

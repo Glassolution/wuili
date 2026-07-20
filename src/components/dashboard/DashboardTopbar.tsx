@@ -64,12 +64,29 @@ const DashboardTopbar = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("profiles")
-      .select("plano")
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => { if (data?.plano) setPlano(data.plano); });
+    let active = true;
+    Promise.all([
+      supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle(),
+      supabase
+        .from("subscriptions")
+        .select("plan,status")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]).then(([profileResult, subResult]) => {
+      if (!active) return;
+      const sub = subResult.data as { plan?: string | null; status?: string | null } | null;
+      // Prefer active subscription plan over profiles.plano (which pode ficar
+      // desatualizado quando o webhook do MP falha em sincronizar o perfil).
+      if (sub?.plan && sub.status === "active") {
+        const p = sub.plan === "plus" ? "pro" : sub.plan;
+        setPlano(String(p));
+        return;
+      }
+      if (profileResult.data?.plano) setPlano(String(profileResult.data.plano));
+    });
+    return () => { active = false; };
   }, [user]);
 
   useEffect(() => {
@@ -90,6 +107,7 @@ const DashboardTopbar = () => {
   const planLabel: Record<string, string> = {
     gratis: "Grátis",
     go: "Go",
+    base: "Base",
     pro: "Pro",
     business: "Business",
   };

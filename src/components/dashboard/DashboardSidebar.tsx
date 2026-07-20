@@ -654,10 +654,10 @@ const DashboardSidebar = () => {
     };
   }, [profileMenuOpen]);
 
-  const planLabel = plan === "business" ? "BUSINESS" : plan === "pro" ? "PRO" : plan === "go" ? "GO" : "GRATIS";
+  const planLabel = plan === "business" ? "BUSINESS" : plan === "pro" || plan === "plus" ? "PRO" : plan === "base" ? "BASE" : plan === "go" ? "GO" : "GRATIS";
   const normalizedPlan = plan === "plus" ? "pro" : plan;
   const trialTimeLeft = formatTrialTimeLeft(getTrialEndsAt(subscription), now);
-  const showUpgradeCard = Boolean(trialTimeLeft) || !["pro", "business"].includes(normalizedPlan);
+  const showUpgradeCard = Boolean(trialTimeLeft) || !["base", "pro", "business"].includes(normalizedPlan);
 
   const handlePanelNavigate = (to: string) => {
     setProfileMenuOpen(false);
