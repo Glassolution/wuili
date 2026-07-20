@@ -181,6 +181,8 @@ Deno.serve(async (req) => {
       payment.metadata?.internal_order_id ??
       payment.external_reference;
 
+    const normalizedPlan = plan === "plus" ? "pro" : (plan || "base");
+
     let subStatus = "pending";
     if (payment.status === "approved") subStatus = "active";
     else if (payment.status === "rejected" || payment.status === "cancelled") subStatus = "cancelled";
@@ -210,7 +212,7 @@ Deno.serve(async (req) => {
 
       const { data: insertedSubscription } = await adminClient.from("subscriptions").insert({
         user_id: userId,
-        plan: plan || "plus",
+        plan: normalizedPlan,
         status: subStatus,
         mp_payment_id: String(paymentId),
         payment_method: payment.payment_method_id || "unknown",
@@ -224,7 +226,13 @@ Deno.serve(async (req) => {
 
     // Update profile plan
     if (subStatus === "active") {
-      await adminClient.from("profiles").update({ plano: plan || "plus" }).eq("user_id", userId);
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update({ plano: normalizedPlan })
+        .eq("user_id", userId);
+      if (profileError) {
+        console.error("Active subscription profile sync failed:", JSON.stringify({ user_id: userId, plan: normalizedPlan, error: profileError }));
+      }
       if (subscriptionForEmail) {
         const emailResult = await sendSubscriptionConfirmationEmailOnce({
           adminClient,
@@ -237,7 +245,19 @@ Deno.serve(async (req) => {
         }
       }
     } else if (subStatus === "cancelled") {
-      await adminClient.from("profiles").update({ plano: "gratis" }).eq("user_id", userId);
+      const { data: anotherActive } = await adminClient
+        .from("subscriptions")
+        .select("plan")
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .neq("mp_payment_id", String(paymentId))
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      await adminClient
+        .from("profiles")
+        .update({ plano: anotherActive?.plan || "gratis" })
+        .eq("user_id", userId);
     }
 
     return new Response(JSON.stringify({ ok: true }), {
