@@ -87,14 +87,31 @@ const PlansPage = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("profiles")
-      .select("plano")
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data?.plano) setCurrentPlan(data.plano === "plus" ? "pro" : data.plano);
-      });
+    let active = true;
+    Promise.all([
+      supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle(),
+      supabase
+        .from("subscriptions")
+        .select("plan,status")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]).then(([profileResult, subResult]) => {
+      if (!active) return;
+      const sub = subResult.data as { plan?: string | null; status?: string | null } | null;
+      // Prefer active subscription plan over profiles.plano (fica desatualizado
+      // se o webhook do MP não sincronizar o perfil).
+      if (sub?.plan && sub.status === "active") {
+        const p = sub.plan === "plus" ? "pro" : sub.plan;
+        setCurrentPlan(String(p));
+        return;
+      }
+      if (profileResult.data?.plano) {
+        setCurrentPlan(profileResult.data.plano === "plus" ? "pro" : profileResult.data.plano);
+      }
+    });
+    return () => { active = false; };
   }, [user]);
 
   // When arriving from landing CTA, show toast and clear param
