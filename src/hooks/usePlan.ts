@@ -44,13 +44,14 @@ export const usePlan = (): PlanState => {
         .from("subscriptions")
         .select("plan, status")
         .eq("user_id", user.id)
+        .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (cancelled) return;
 
-      if (sub && sub.status === "active") {
+      if (sub) {
         setState({
           plan: NORMALIZE[sub.plan] ?? "gratis",
           status: "active",

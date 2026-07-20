@@ -94,6 +94,7 @@ const PlansPage = () => {
         .from("subscriptions")
         .select("plan,status")
         .eq("user_id", user.id)
+        .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -102,7 +103,7 @@ const PlansPage = () => {
       const sub = subResult.data as { plan?: string | null; status?: string | null } | null;
       // Prefer active subscription plan over profiles.plano (fica desatualizado
       // se o webhook do MP não sincronizar o perfil).
-      if (sub?.plan && sub.status === "active") {
+      if (sub?.plan) {
         const p = sub.plan === "plus" ? "pro" : sub.plan;
         setCurrentPlan(String(p));
         return;

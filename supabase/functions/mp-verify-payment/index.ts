@@ -59,6 +59,13 @@ Deno.serve(async (req) => {
 
     // Já ativa? Retorna direto
     if (sub.status === "active") {
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update({ plano: sub.plan })
+        .eq("user_id", userId);
+      if (profileError) {
+        console.error("Active subscription profile sync failed:", JSON.stringify({ user_id: userId, plan: sub.plan, error: profileError }));
+      }
       const emailResult = await sendSubscriptionConfirmationEmailOnce({
         adminClient,
         subscription: sub as SubscriptionEmailInput,
@@ -99,7 +106,13 @@ Deno.serve(async (req) => {
         .eq("id", sub.id)
         .select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
         .maybeSingle();
-      await adminClient.from("profiles").update({ plano: sub.plan }).eq("user_id", userId);
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update({ plano: sub.plan })
+        .eq("user_id", userId);
+      if (profileError) {
+        console.error("Approved payment profile sync failed:", JSON.stringify({ user_id: userId, plan: sub.plan, error: profileError }));
+      }
       const emailResult = await sendSubscriptionConfirmationEmailOnce({
         adminClient,
         subscription: (updatedSubscription ?? sub) as SubscriptionEmailInput,

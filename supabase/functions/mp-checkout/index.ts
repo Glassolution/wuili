@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: subscriptionRow } = await adminClient.from("subscriptions").upsert({
+    const { data: subscriptionRow, error: subscriptionError } = await adminClient.from("subscriptions").insert({
       user_id: userId,
       plan: plan,
       status: subStatus,
@@ -332,13 +332,30 @@ Deno.serve(async (req) => {
       last_dunning_email_at: null,
       confirmation_email_sent_at: null,
       updated_at: now.toISOString(),
-    }, { onConflict: "user_id" })
+    })
       .select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
       .maybeSingle();
 
+    if (subscriptionError || !subscriptionRow) {
+      console.error("CRITICAL: payment created but subscription persistence failed", JSON.stringify({
+        user_id: userId,
+        payment_id: mpData.id,
+        payment_status: mpData.status,
+        plan,
+        error: subscriptionError,
+      }));
+      throw new Error("Pagamento criado, mas não foi possível registrar a assinatura");
+    }
+
     // Update profile plan if approved
     if (mpData.status === "approved") {
-      await adminClient.from("profiles").update({ plano: plan }).eq("user_id", userId);
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update({ plano: plan })
+        .eq("user_id", userId);
+      if (profileError) {
+        console.error("Subscription active but profile sync failed", JSON.stringify({ user_id: userId, plan, error: profileError }));
+      }
 
       // Marca o referral como 'subscribed' e credita reward do convidador (se aplicável)
       if (appliedReferralId) {
