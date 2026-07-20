@@ -1,0 +1,1 @@
+UPDATE catalog_products SET is_active = false WHERE source = 'aliexpress' AND COALESCE(jsonb_array_length(CASE WHEN jsonb_typeof(to_jsonb(images))='array' THEN to_jsonb(images) ELSE '[]'::jsonb END), 0) < 3;
