@@ -555,6 +555,7 @@ const DashboardSidebar = () => {
         .from("subscriptions")
         .select("plan,status,is_trial,trial_ends_at,current_period_end,next_charge_at,updated_at,created_at")
         .eq("user_id", user.id)
+         .in("status", Array.from(activeSubscriptionStatuses))
         .order("updated_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(1)

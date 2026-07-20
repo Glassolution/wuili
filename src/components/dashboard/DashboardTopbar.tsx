@@ -71,6 +71,7 @@ const DashboardTopbar = () => {
         .from("subscriptions")
         .select("plan,status")
         .eq("user_id", user.id)
+        .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -79,7 +80,7 @@ const DashboardTopbar = () => {
       const sub = subResult.data as { plan?: string | null; status?: string | null } | null;
       // Prefer active subscription plan over profiles.plano (which pode ficar
       // desatualizado quando o webhook do MP falha em sincronizar o perfil).
-      if (sub?.plan && sub.status === "active") {
+      if (sub?.plan) {
         const p = sub.plan === "plus" ? "pro" : sub.plan;
         setPlano(String(p));
         return;
