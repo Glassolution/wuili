@@ -1437,6 +1437,7 @@ export type Database = {
         Row: {
           amount: number
           charge_attempts: number
+          confirmation_email_sent_at: string | null
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
@@ -1464,6 +1465,7 @@ export type Database = {
         Insert: {
           amount?: number
           charge_attempts?: number
+          confirmation_email_sent_at?: string | null
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
@@ -1491,6 +1493,7 @@ export type Database = {
         Update: {
           amount?: number
           charge_attempts?: number
+          confirmation_email_sent_at?: string | null
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
