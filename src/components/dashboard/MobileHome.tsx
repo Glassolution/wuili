@@ -10,7 +10,7 @@
 // conta própria — para não acoplar de novo o mobile ao estado do desktop.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, Camera, Check, ChevronDown, Folder, Plus, Search, Star, Truck } from "lucide-react";
+import { ArrowUpRight, Camera, Check, ChevronDown, Folder, Package, Plus, Search, Star, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -183,6 +183,71 @@ const MobileHomeFilterDropdown = ({
     )}
   </div>
 );
+
+const MobileProductCard = ({
+  product,
+  isFavorite,
+  onToggleFavorite,
+}: {
+  product: ProductPreview;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+}) => {
+  const navigate = useNavigate();
+  const { rating, ordersCount, hasMetrics } = getProductCatalogMetrics(product);
+  const [imgFailed, setImgFailed] = useState(false);
+
+  return (
+    <article className="relative min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <button
+        type="button"
+        onClick={() => navigate(`/dashboard/catalogo/${product.id}`)}
+        className="block w-full text-left"
+      >
+        <div className="aspect-square overflow-hidden bg-[#F3F3F3] flex items-center justify-center">
+          {!imgFailed && product.image ? (
+            <img
+              src={product.image}
+              alt={product.title}
+              className="h-full w-full object-cover"
+              referrerPolicy="no-referrer"
+              loading="eager"
+              onError={() => setImgFailed(true)}
+            />
+          ) : (
+            <Package size={32} strokeWidth={1.4} className="text-black/20" />
+          )}
+        </div>
+        <div className="p-2.5">
+          <div className="mb-1.5 flex flex-wrap gap-1">
+            <span className="max-w-full truncate rounded-[4px] bg-[#F1F1F1] px-1.5 py-0.5 text-[9px] font-bold text-black/55">
+              {product.category}
+            </span>
+          </div>
+          <p className="line-clamp-2 min-h-[36px] text-[12px] font-bold leading-[1.45] text-[#222222]">{product.title}</p>
+          {hasMetrics && (
+            <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-black/45">
+              {rating !== null && (
+                <>
+                  <Star className="h-3 w-3 fill-[#111111] text-[#111111]" strokeWidth={1.8} />
+                  <span className="text-[#111111]">{rating.toFixed(1)}</span>
+                </>
+              )}
+              {rating !== null && ordersCount !== null && <span>·</span>}
+              {ordersCount !== null && <span>{formatReviewCount(ordersCount)} vendidos</span>}
+            </div>
+          )}
+          <p className="mt-2 text-[16px] font-semibold tracking-[-0.04em] text-[#111111]">{formatCurrency(product.price)}</p>
+        </div>
+      </button>
+      <ProductFavoriteButton
+        isFavorited={isFavorite}
+        onToggleFavorite={onToggleFavorite}
+        className="z-10"
+      />
+    </article>
+  );
+};
 
 const MobileAliVeloHome = ({
   products,
@@ -425,6 +490,7 @@ const MobileAliVeloHome = ({
                   src={firstProduct.image}
                   alt=""
                   className="absolute right-8 top-1 h-[82px] w-[82px] rotate-6 rounded-[18px] object-cover shadow-[0_18px_42px_rgba(0,0,0,0.6)]"
+                  referrerPolicy="no-referrer"
                 />
               )}
               {secondProduct && (
@@ -432,6 +498,7 @@ const MobileAliVeloHome = ({
                   src={secondProduct.image}
                   alt=""
                   className="absolute bottom-1 left-5 h-[58px] w-[86px] -rotate-6 rounded-[15px] object-cover shadow-[0_16px_34px_rgba(0,0,0,0.55)]"
+                  referrerPolicy="no-referrer"
                 />
               )}
             </div>
@@ -560,51 +627,14 @@ const MobileAliVeloHome = ({
 
             {featuredProducts.length > 0 ? (
               <div className="grid grid-cols-2 gap-3 pb-2">
-                {featuredProducts.map((product) => {
-                const { rating, ordersCount, hasMetrics } = getProductCatalogMetrics(product);
-                const isFavorite = favoriteProductIds.includes(product.id);
-
-                return (
-                <article
-                  key={`home-feature-${product.id}`}
-                  className="relative min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/dashboard/catalogo/${product.id}`)}
-                    className="block w-full text-left"
-                  >
-                    <div className="aspect-square overflow-hidden bg-[#F3F3F3]">
-                      <img src={product.image} alt={product.title} className="h-full w-full object-cover" />
-                    </div>
-                    <div className="p-2.5">
-                      <div className="mb-1.5 flex flex-wrap gap-1">
-                        <span className="max-w-full truncate rounded-[4px] bg-[#F1F1F1] px-1.5 py-0.5 text-[9px] font-bold text-black/55">{product.category}</span>
-                      </div>
-                      <p className="line-clamp-2 min-h-[36px] text-[12px] font-bold leading-[1.45] text-[#222222]">{product.title}</p>
-                      {hasMetrics && (
-                        <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-black/45">
-                          {rating !== null && (
-                            <>
-                              <Star className="h-3 w-3 fill-[#111111] text-[#111111]" strokeWidth={1.8} />
-                              <span className="text-[#111111]">{rating.toFixed(1)}</span>
-                            </>
-                          )}
-                          {rating !== null && ordersCount !== null && <span>·</span>}
-                          {ordersCount !== null && <span>{formatReviewCount(ordersCount)} vendidos</span>}
-                        </div>
-                      )}
-                      <p className="mt-2 text-[16px] font-semibold tracking-[-0.04em] text-[#111111]">{formatCurrency(product.price)}</p>
-                    </div>
-                  </button>
-                  <ProductFavoriteButton
-                    isFavorited={isFavorite}
+                {featuredProducts.map((product) => (
+                  <MobileProductCard
+                    key={`home-feature-${product.id}`}
+                    product={product}
+                    isFavorite={favoriteProductIds.includes(product.id)}
                     onToggleFavorite={() => onToggleFavoriteProduct(product.id)}
-                    className="z-10"
                   />
-                </article>
-                );
-              })}
+                ))}
               </div>
             ) : (
               <div className="rounded-[16px] border border-black/[0.08] bg-[#F7F7F8] px-4 py-8 text-center">
@@ -649,10 +679,11 @@ const MobileHome = () => {
 
     const fetchProducts = async () => {
       const columns = "id,title,category,images,cost_price,rating,is_active,is_blocked,stock_quantity,orders_count";
-      const primaryResult = await supabase
+
+      // Busca produtos de todas as fontes disponíveis (c7drop, aliexpress, etc.)
+      const result = await supabase
         .from("catalog_products")
         .select(columns)
-        .eq("source", "c7drop")
         .eq("is_active", true)
         .eq("is_blocked", false)
         .gt("stock_quantity", 0)
@@ -661,16 +692,15 @@ const MobileHome = () => {
 
       if (!isMounted) return;
 
-      let rows = primaryResult.data;
-      // Sem produtos do scraping principal, cai para o catálogo inteiro em vez
-      // de deixar a home vazia.
-      if (primaryResult.error || !rows?.length) {
+      let rows = result.data;
+
+      // Fallback: se não veio nada, tenta sem filtro de estoque
+      if (result.error || !rows?.length) {
         const fallbackResult = await supabase
           .from("catalog_products")
           .select(columns)
           .eq("is_active", true)
           .eq("is_blocked", false)
-          .gt("stock_quantity", 0)
           .order("orders_count", { ascending: false, nullsFirst: false })
           .range(0, HOME_PRODUCTS_LIMIT - 1);
 

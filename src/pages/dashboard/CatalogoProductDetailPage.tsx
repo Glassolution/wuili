@@ -321,6 +321,7 @@ const CatalogoProductDetailPage = () => {
                 src={gallery[activeImg] || gallery[0] || FALLBACK_IMG}
                 alt={product.title}
                 className="absolute inset-0 h-full w-full object-cover"
+                referrerPolicy="no-referrer"
               />
 
               {gallery.length > 1 && (
@@ -471,6 +472,7 @@ const CatalogoProductDetailPage = () => {
                 src={gallery[activeImg] || gallery[0] || FALLBACK_IMG}
                 alt={product.title}
                 className="h-full w-full object-contain transition-opacity duration-300"
+                referrerPolicy="no-referrer"
               />
             </div>
             {gallery.length > 1 && (
@@ -485,7 +487,7 @@ const CatalogoProductDetailPage = () => {
                         activeImg === i ? "border-[#111] shadow-[0_0_0_1px_#111]" : "border-black/[0.07] hover:border-black/25"
                       }`}
                     >
-                      <img src={src} alt="" className="h-full w-full object-cover" />
+                      <img src={src} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     </button>
                   ))}
                 </div>
@@ -560,9 +562,16 @@ const CatalogoProductDetailPage = () => {
             </div>
 
             {/* Descrição real do fornecedor */}
-            <p className="mb-6 text-[14px] leading-6 text-[#3F3F46]">
-              {product.description || "O fornecedor ainda não disponibilizou uma descrição detalhada para este produto."}
-            </p>
+            {product.description ? (
+              <div
+                className="mb-6 text-[14px] leading-6 text-[#3F3F46] prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-black/10 [&_td]:px-3 [&_td]:py-2 [&_td]:text-[13px] [&_th]:border [&_th]:border-black/10 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[13px] [&_th]:font-semibold [&_h3]:text-[14px] [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_img]:hidden"
+                dangerouslySetInnerHTML={{ __html: product.description }}
+              />
+            ) : (
+              <p className="mb-6 text-[14px] leading-6 text-[#3F3F46]">
+                O fornecedor ainda não disponibilizou uma descrição detalhada para este produto.
+              </p>
+            )}
 
             {/* CTAs principais */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -681,6 +690,7 @@ const CatalogoProductDetailPage = () => {
                         src={p.images[0]}
                         alt={p.title}
                         className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.035]"
+                        referrerPolicy="no-referrer"
                       />
                     </div>
                     <div className="mt-3">

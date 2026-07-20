@@ -142,8 +142,9 @@ const ProductCard = ({ product, index, onImport, onCompare, formatPrice }: Produ
             src={image}
             alt={product.title}
             className="catalog-product-image"
-            loading="lazy"
+            loading={index < 4 ? "eager" : "lazy"}
             decoding="async"
+            referrerPolicy="no-referrer"
             onError={() => setImageFailed(true)}
           />
         ) : (
@@ -1292,13 +1293,14 @@ const CatalogPage = () => {
 
         .catalog-product-media {
           position: relative;
-          min-height: 214px;
+          aspect-ratio: 1 / 1;
+          min-height: 0;
           border-radius: 18px;
           background: #f2f2f3;
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 30px;
+          padding: 0;
           overflow: hidden;
           transition: transform 180ms ease, box-shadow 180ms ease;
         }
@@ -1349,11 +1351,12 @@ const CatalogPage = () => {
         }
 
         .catalog-product-image {
-          max-width: 92%;
-          max-height: 164px;
-          width: auto;
-          height: auto;
+          width: 100%;
+          height: 100%;
           object-fit: contain;
+          position: absolute;
+          inset: 0;
+          padding: 24px;
           filter: drop-shadow(0 20px 24px rgba(15, 23, 42, 0.12));
           transition: transform 220ms ease;
         }
@@ -1717,10 +1720,6 @@ const CatalogPage = () => {
           .catalog-products-grid,
           .catalog-recommendation-row {
             grid-template-columns: 1fr;
-          }
-
-          .catalog-product-media {
-            min-height: 230px;
           }
 
           .catalog-hero-stats {

@@ -147,6 +147,7 @@ export const ProductCard = ({
             alt={product.nome}
             className="h-full w-full object-cover cursor-pointer"
             loading="lazy"
+            referrerPolicy="no-referrer"
           />
         </Link>
 
