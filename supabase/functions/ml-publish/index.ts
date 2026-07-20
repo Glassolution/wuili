@@ -835,7 +835,14 @@ Deno.serve(async (req) => {
       // com item.attribute.number_invalid_format nesses casos — precisamos
       // enviar um número real seguido de uma unidade permitida.
       const valueType = cleanText((attrDef as Record<string, unknown>).value_type).toLowerCase()
-      const isNumberUnit = valueType === 'number_unit' || valueType === 'numeric_unit'
+      // Safety-net: mesmo que a categoria não declare value_type,
+      // esses IDs são sempre numéricos com unidade no ML e "N/D" quebra o anúncio.
+      const KNOWN_NUMBER_UNIT = new Set([
+        'VOLUME_CAPACITY', 'WEIGHT', 'NET_WEIGHT', 'GROSS_WEIGHT',
+        'CAPACITY', 'LENGTH', 'HEIGHT', 'WIDTH', 'DEPTH', 'DIAMETER',
+        'PACKAGE_LENGTH', 'PACKAGE_HEIGHT', 'PACKAGE_WIDTH',
+      ])
+      const isNumberUnit = valueType === 'number_unit' || valueType === 'numeric_unit' || KNOWN_NUMBER_UNIT.has(id)
       const isNumber = valueType === 'number' || valueType === 'numeric'
       const allowedUnits = ((attrDef as Record<string, unknown>).allowed_units as Array<{ id?: string; name?: string }> | undefined) ?? []
 
