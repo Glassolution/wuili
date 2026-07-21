@@ -753,10 +753,12 @@ export type Database = {
           final_category: string | null
           final_status: string | null
           id: string
+          low_confidence: boolean
           predicted_normalized: string | null
           predicted_raw: string | null
           product_id: string | null
           requires_size_grid: boolean | null
+          source: string | null
           title_normalized: string | null
           title_raw: string | null
           user_id: string | null
@@ -766,10 +768,12 @@ export type Database = {
           final_category?: string | null
           final_status?: string | null
           id?: string
+          low_confidence?: boolean
           predicted_normalized?: string | null
           predicted_raw?: string | null
           product_id?: string | null
           requires_size_grid?: boolean | null
+          source?: string | null
           title_normalized?: string | null
           title_raw?: string | null
           user_id?: string | null
@@ -779,10 +783,12 @@ export type Database = {
           final_category?: string | null
           final_status?: string | null
           id?: string
+          low_confidence?: boolean
           predicted_normalized?: string | null
           predicted_raw?: string | null
           product_id?: string | null
           requires_size_grid?: boolean | null
+          source?: string | null
           title_normalized?: string | null
           title_raw?: string | null
           user_id?: string | null
