@@ -295,7 +295,7 @@ const DashboardHomePage = () => {
     ? "loja_completa"
     : "pagina_venda";
   const wizardAllowChoice = true;
-  const { openUpgrade } = useUpgradeModal();
+  const { open: openUpgrade } = useUpgradeModal();
 
   const handleProjectCreated = (projectId: string) => {
     setWizardOpen(false);
