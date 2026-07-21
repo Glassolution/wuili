@@ -74,99 +74,99 @@ const SalesCartPage = () => {
   return (
     <div className="min-h-screen" style={{ backgroundColor: t.bg, color: t.text, fontFamily: t.bodyFont }}>
       {/* Topbar */}
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#1a1a1a]/8 px-6 py-5 md:px-10">
+      <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-5 md:px-10" style={{ borderBottom: `1px solid ${t.border}` }}>
         <div className="flex items-center gap-3">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3d4a2a] text-[11px] font-semibold text-[#f5f2ea]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-semibold" style={{ backgroundColor: t.accent, color: t.accentText }}>
             {(data.brand || "L").slice(0, 1).toUpperCase()}
           </span>
-          <Link to={`/loja/${slug}`} className="text-[15px] font-semibold tracking-tight text-[#1a1a1a]">
+          <Link to={`/loja/${slug}`} className="text-[15px] font-semibold tracking-tight" style={{ color: t.text }}>
             {(data.brand || "loja").toLowerCase()}
           </Link>
         </div>
-        <nav className="hidden items-center gap-8 text-[13px] font-medium text-[#1a1a1a]/75 md:flex">
-          <Link to={`/loja/${slug}`} className="hover:text-[#3d4a2a]">Loja</Link>
-          <Link to={`/loja/${slug}/catalogo`} className="hover:text-[#3d4a2a]">Catálogo</Link>
-          <a href="#" className="hover:text-[#3d4a2a]">Sobre</a>
-          <a href="#" className="hover:text-[#3d4a2a]">Contato</a>
+        <nav className="hidden items-center gap-8 text-[13px] font-medium md:flex" style={{ color: t.muted }}>
+          <Link to={`/loja/${slug}`}>Loja</Link>
+          <Link to={`/loja/${slug}/catalogo`}>Catálogo</Link>
+          <a href="#">Sobre</a>
+          <a href="#">Contato</a>
         </nav>
-        <div className="flex items-center gap-3 text-[#1a1a1a]/75">
-          <button aria-label="Buscar" className="hover:text-[#3d4a2a]"><Search size={18} /></button>
-          <span className="inline-flex items-center gap-2 rounded-full bg-[#3d4a2a] px-4 py-2 text-[12px] font-semibold text-[#f5f2ea]">
+        <div className="flex items-center gap-3" style={{ color: t.muted }}>
+          <button aria-label="Buscar"><Search size={18} /></button>
+          <span className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-semibold" style={{ backgroundColor: t.accent, color: t.accentText }}>
             <ShoppingBag size={14} strokeWidth={2} />
             Carrinho
-            <span className="ml-0.5 rounded-full bg-[#c8a24a] px-1.5 text-[10px] font-bold text-[#3d4a2a]">{qty}</span>
+            <span className="ml-0.5 rounded-full px-1.5 text-[10px] font-bold" style={{ backgroundColor: t.gold, color: t.accent }}>{qty}</span>
           </span>
-          <button aria-label="Menu" className="hover:text-[#3d4a2a] md:hidden"><Menu size={20} /></button>
+          <button aria-label="Menu" className="md:hidden"><Menu size={20} /></button>
         </div>
       </header>
 
       <main className="mx-auto max-w-[1240px] px-6 py-10 md:px-10 md:py-14">
         {/* Breadcrumb */}
-        <nav className="text-[12px] text-[#1a1a1a]/55">
-          <Link to={`/loja/${slug}`} className="hover:text-[#3d4a2a]">Início</Link>
+        <nav className="text-[12px]" style={{ color: t.muted }}>
+          <Link to={`/loja/${slug}`}>Início</Link>
           <span className="mx-2">›</span>
-          <span className="text-[#1a1a1a]/80">Loja</span>
+          <span>Loja</span>
         </nav>
 
         {/* Stepper */}
         <div className="mt-6 flex items-center justify-center gap-6 text-center">
           <Step label="Carrinho" active />
-          <span className="h-px w-16 bg-[#1a1a1a]/15" />
+          <span className="h-px w-16" style={{ backgroundColor: t.border }} />
           <Step label="Entrega" />
-          <span className="h-px w-16 bg-[#1a1a1a]/15" />
+          <span className="h-px w-16" style={{ backgroundColor: t.border }} />
           <Step label="Pagamento" />
         </div>
 
-        <h1 className="mt-10 text-[36px] font-bold tracking-tight text-[#1a1a1a] sm:text-[44px]" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>
+        <h1 className="mt-10 text-[36px] font-bold tracking-tight sm:text-[44px]" style={{ color: t.text, fontFamily: t.displayFont }}>
           Meu carrinho
         </h1>
-        <div className="mt-3 h-px bg-[#1a1a1a]/10" />
+        <div className="mt-3 h-px" style={{ backgroundColor: t.border }} />
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
           {/* Itens */}
-          <section className="rounded-2xl border border-[#1a1a1a]/8 bg-white/80 p-6 shadow-[0_20px_60px_-40px_rgba(26,60,42,0.25)] sm:p-8">
-            <div className="flex items-baseline justify-between border-b border-[#1a1a1a]/10 pb-4">
-              <h2 className="text-[18px] font-semibold text-[#1a1a1a]" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>
+          <section className="rounded-2xl p-6 sm:p-8" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: isStore ? "0 20px 60px -40px rgba(26,60,42,0.25)" : "0 1px 2px rgba(15,23,42,0.04)" }}>
+            <div className="flex items-baseline justify-between pb-4" style={{ borderBottom: `1px solid ${t.border}` }}>
+              <h2 className="text-[18px] font-semibold" style={{ color: t.text, fontFamily: t.displayFont }}>
                 Meu carrinho ({qty})
               </h2>
-              <Link to={`/loja/${slug}/catalogo`} className="hidden items-center gap-1 text-[12px] font-semibold text-[#3d4a2a] hover:text-[#1a3c2a] sm:inline-flex">
+              <Link to={`/loja/${slug}/catalogo`} className="hidden items-center gap-1 text-[12px] font-semibold sm:inline-flex" style={{ color: t.accent }}>
                 <ChevronLeft size={14} /> Continuar comprando
               </Link>
             </div>
 
-            <div className="grid grid-cols-[96px_1fr_auto] items-center gap-5 border-b border-[#1a1a1a]/8 py-6">
-              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#e8ecd6]">
+            <div className="grid grid-cols-[96px_1fr_auto] items-center gap-5 py-6" style={{ borderBottom: `1px solid ${t.border}` }}>
+              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl" style={{ backgroundColor: t.thumbBg }}>
                 {data.productImage ? (
                   <img src={data.productImage} alt={data.productTitle} className="h-full w-full object-cover" />
                 ) : null}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold text-[#1a1a1a]">{data.productTitle}</p>
-                <p className="mt-0.5 text-[12px] text-[#1a1a1a]/55">{data.brand || "Marca"}</p>
-                <p className="mt-1 text-[12px] text-[#1a1a1a]/55">
-                  Cor: <span className="font-medium text-[#1a1a1a]/80">Padrão</span>
-                  <span className="mx-2 text-[#1a1a1a]/25">|</span>
-                  Tamanho: <span className="font-medium text-[#1a1a1a]/80">Único</span>
+                <p className="truncate text-[15px] font-semibold" style={{ color: t.text }}>{data.productTitle}</p>
+                <p className="mt-0.5 text-[12px]" style={{ color: t.muted }}>{data.brand || "Marca"}</p>
+                <p className="mt-1 text-[12px]" style={{ color: t.muted }}>
+                  Cor: <span className="font-medium">Padrão</span>
+                  <span className="mx-2 opacity-40">|</span>
+                  Tamanho: <span className="font-medium">Único</span>
                 </p>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-[12px] text-[#1a1a1a]/40 line-through">{formatBRL(oldPrice)}</span>
-                  <span className="text-[16px] font-bold text-[#1a1a1a]" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>{formatBRL(unitPrice)}</span>
-                  <span className="text-[11px] font-bold text-[#c8442a]">20% OFF</span>
+                  <span className="text-[12px] line-through" style={{ color: t.muted }}>{formatBRL(oldPrice)}</span>
+                  <span className="text-[16px] font-bold" style={{ color: t.text, fontFamily: t.displayFont }}>{formatBRL(unitPrice)}</span>
+                  <span className="text-[11px] font-bold" style={{ color: isStore ? "#c8442a" : "#dc2626" }}>20% OFF</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-3">
-                <div className="flex items-center gap-1 rounded-md border border-[#1a1a1a]/15 bg-white text-[#1a1a1a]/80">
-                  <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="grid h-8 w-8 place-items-center bg-[#1a3c2a] text-[#f5f2ea] hover:bg-[#0f2b1c] rounded-l-md" aria-label="Diminuir">−</button>
-                  <span className="w-8 text-center text-[13px] font-semibold text-[#1a1a1a]">{qty}</span>
-                  <button type="button" onClick={() => setQty((q) => Math.min(10, q + 1))} className="grid h-8 w-8 place-items-center bg-[#1a3c2a] text-[#f5f2ea] hover:bg-[#0f2b1c] rounded-r-md" aria-label="Aumentar">+</button>
+                <div className="flex items-center gap-1 overflow-hidden rounded-md" style={{ border: `1px solid ${t.border}` }}>
+                  <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="grid h-8 w-8 place-items-center" style={{ backgroundColor: t.accentDark, color: t.accentText }} aria-label="Diminuir">−</button>
+                  <span className="w-8 text-center text-[13px] font-semibold" style={{ color: t.text }}>{qty}</span>
+                  <button type="button" onClick={() => setQty((q) => Math.min(10, q + 1))} className="grid h-8 w-8 place-items-center" style={{ backgroundColor: t.accentDark, color: t.accentText }} aria-label="Aumentar">+</button>
                 </div>
-                <button type="button" onClick={() => navigate(`/loja/${slug}/catalogo`)} className="inline-flex items-center gap-1 text-[12px] text-[#1a1a1a]/55 hover:text-[#c8442a]">
+                <button type="button" onClick={() => navigate(`/loja/${slug}/catalogo`)} className="inline-flex items-center gap-1 text-[12px]" style={{ color: t.muted }}>
                   <X size={13} /> Remover
                 </button>
               </div>
             </div>
 
-            <Link to={`/loja/${slug}/catalogo`} className="mt-6 inline-flex items-center gap-1 text-[12px] font-semibold text-[#3d4a2a] hover:text-[#1a3c2a] sm:hidden">
+            <Link to={`/loja/${slug}/catalogo`} className="mt-6 inline-flex items-center gap-1 text-[12px] font-semibold sm:hidden" style={{ color: t.accent }}>
               <ChevronLeft size={14} /> Continuar comprando
             </Link>
           </section>
@@ -174,92 +174,99 @@ const SalesCartPage = () => {
           {/* Sidebar */}
           <div className="space-y-5">
             {/* Cupons */}
-            <section className="rounded-2xl border border-[#1a1a1a]/8 bg-white/80 p-6 shadow-[0_20px_60px_-40px_rgba(26,60,42,0.25)]">
-              <h3 className="text-[15px] font-semibold text-[#1a1a1a]" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>Cupons</h3>
-              <div className="mt-4 flex overflow-hidden rounded-md border border-[#1a1a1a]/15 bg-white">
+            <section className="rounded-2xl p-6" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: isStore ? "0 20px 60px -40px rgba(26,60,42,0.25)" : "0 1px 2px rgba(15,23,42,0.04)" }}>
+              <h3 className="text-[15px] font-semibold" style={{ color: t.text, fontFamily: t.displayFont }}>Cupons</h3>
+              <div className="mt-4 flex overflow-hidden rounded-md" style={{ border: `1px solid ${t.border}`, backgroundColor: "#fff" }}>
                 <input
                   value={coupon}
                   onChange={(e) => setCoupon(e.target.value)}
                   placeholder="Código do cupom"
-                  className="flex-1 bg-transparent px-3 py-2 text-[13px] outline-none placeholder:text-[#1a1a1a]/35"
+                  className="flex-1 bg-transparent px-3 py-2 text-[13px] outline-none"
+                  style={{ color: t.text }}
                 />
-                <button type="button" className="bg-[#1a3c2a] px-4 text-[11px] font-bold uppercase tracking-wider text-[#f5f2ea] hover:bg-[#0f2b1c]">
+                <button type="button" className="px-4 text-[11px] font-bold uppercase tracking-wider" style={{ backgroundColor: t.accentDark, color: t.accentText }}>
                   Aplicar
                 </button>
               </div>
             </section>
 
             {/* Seu Pedido */}
-            <section className="rounded-2xl border border-[#1a1a1a]/8 bg-white/80 p-6 shadow-[0_20px_60px_-40px_rgba(26,60,42,0.25)]">
-              <h3 className="text-[15px] font-semibold text-[#1a1a1a]" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>Seu pedido</h3>
+            <section className="rounded-2xl p-6" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: isStore ? "0 20px 60px -40px rgba(26,60,42,0.25)" : "0 1px 2px rgba(15,23,42,0.04)" }}>
+              <h3 className="text-[15px] font-semibold" style={{ color: t.text, fontFamily: t.displayFont }}>Seu pedido</h3>
 
               <div className="mt-4 flex justify-between text-[13px]">
-                <span className="text-[#1a1a1a]/60">Subtotal ({qty} {qty === 1 ? "item" : "itens"})</span>
-                <span className="font-semibold text-[#1a1a1a]">{formatBRL(subtotal)}</span>
+                <span style={{ color: t.muted }}>Subtotal ({qty} {qty === 1 ? "item" : "itens"})</span>
+                <span className="font-semibold" style={{ color: t.text }}>{formatBRL(subtotal)}</span>
               </div>
 
-              <div className="my-4 border-t border-dashed border-[#1a1a1a]/15" />
+              <div className="my-4 border-t border-dashed" style={{ borderColor: t.border }} />
 
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1a1a1a]/55">Entrega</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: t.muted }}>Entrega</p>
               <div className="mt-2 space-y-2 text-[13px]">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={delivery === "delivery"} onChange={() => setDelivery("delivery")} className="h-4 w-4 accent-[#c8a24a]" />
+                  <input type="checkbox" checked={delivery === "delivery"} onChange={() => setDelivery("delivery")} className="h-4 w-4" style={{ accentColor: t.gold }} />
                   <span>Entrega: <span className="font-semibold">{formatBRL(9.9)}</span></span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={delivery === "pickup"} onChange={() => setDelivery("pickup")} className="h-4 w-4 accent-[#c8a24a]" />
+                  <input type="checkbox" checked={delivery === "pickup"} onChange={() => setDelivery("pickup")} className="h-4 w-4" style={{ accentColor: t.gold }} />
                   <span>Retirar na loja</span>
                 </label>
               </div>
 
-              <div className="my-4 border-t border-dashed border-[#1a1a1a]/15" />
+              <div className="my-4 border-t border-dashed" style={{ borderColor: t.border }} />
 
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1a1a1a]/55">Gorjeta</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: t.muted }}>Gorjeta</p>
               <div className="mt-2 flex gap-2 text-[12px]">
                 {[2, 4, 7].map((v) => (
                   <button
                     key={v}
                     type="button"
                     onClick={() => setTip(v)}
-                    className={`flex-1 rounded-md border px-2 py-2 font-semibold transition ${tip === v ? "border-[#c8a24a] bg-[#c8a24a]/15 text-[#1a3c2a]" : "border-[#1a1a1a]/15 bg-white text-[#1a1a1a]/70 hover:border-[#1a1a1a]/30"}`}
+                    className="flex-1 rounded-md px-2 py-2 font-semibold transition"
+                    style={tip === v
+                      ? { border: `1px solid ${t.gold}`, backgroundColor: isStore ? "rgba(200,162,74,0.15)" : "rgba(15,23,42,0.06)", color: t.accentDark }
+                      : { border: `1px solid ${t.border}`, backgroundColor: "#fff", color: t.muted }}
                   >
                     {formatBRL(v)}
                   </button>
                 ))}
               </div>
 
-              <div className="my-4 border-t border-dashed border-[#1a1a1a]/15" />
+              <div className="my-4 border-t border-dashed" style={{ borderColor: t.border }} />
 
               <div className="flex justify-between text-[13px]">
-                <span className="text-[#1a1a1a]/60">Taxa de serviço</span>
-                <span className="font-semibold text-[#1a1a1a]">{formatBRL(serviceFee)}</span>
+                <span style={{ color: t.muted }}>Taxa de serviço</span>
+                <span className="font-semibold" style={{ color: t.text }}>{formatBRL(serviceFee)}</span>
               </div>
               <div className="mt-2 flex justify-between text-[13px]">
-                <span className="text-[#1a1a1a]/60">Impostos</span>
-                <span className="font-semibold text-[#1a1a1a]">{formatBRL(tax)}</span>
+                <span style={{ color: t.muted }}>Impostos</span>
+                <span className="font-semibold" style={{ color: t.text }}>{formatBRL(tax)}</span>
               </div>
 
               <label className="mt-3 flex items-center justify-between gap-2 text-[13px] cursor-pointer">
                 <span className="flex items-center gap-2">
-                  <input type="checkbox" checked={useCredits} onChange={(e) => setUseCredits(e.target.checked)} className="h-4 w-4 accent-[#c8a24a]" />
+                  <input type="checkbox" checked={useCredits} onChange={(e) => setUseCredits(e.target.checked)} className="h-4 w-4" style={{ accentColor: t.gold }} />
                   Usar créditos Velo
                 </span>
-                <span className="font-semibold text-[#1a3c2a]">{formatBRL(5)}</span>
+                <span className="font-semibold" style={{ color: t.accentDark }}>{formatBRL(5)}</span>
               </label>
 
-              <div className="mt-5 flex items-baseline justify-between border-t border-[#1a1a1a]/15 pt-4">
-                <span className="text-[14px] font-semibold text-[#1a1a1a]">Total a pagar</span>
-                <span className="text-[22px] font-bold text-[#1a3c2a]" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>{formatBRL(total)}</span>
+              <div className="mt-5 flex items-baseline justify-between pt-4" style={{ borderTop: `1px solid ${t.border}` }}>
+                <span className="text-[14px] font-semibold" style={{ color: t.text }}>Total a pagar</span>
+                <span className="text-[22px] font-bold" style={{ color: t.accentDark, fontFamily: t.displayFont }}>{formatBRL(total)}</span>
               </div>
 
               <button
                 type="button"
                 onClick={() => navigate(`/loja/${slug}/checkout?qty=${qty}`)}
-                className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-md bg-[#c8442a] text-[12px] font-bold uppercase tracking-[0.18em] text-white transition hover:bg-[#a83820]"
+                className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-md text-[12px] font-bold uppercase tracking-[0.18em] text-white transition"
+                style={{ backgroundColor: t.cta }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = t.ctaHover; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = t.cta; }}
               >
                 Ir para o checkout
               </button>
-              <p className="mt-3 text-center text-[11px] text-[#1a1a1a]/45">
+              <p className="mt-3 text-center text-[11px]" style={{ color: t.muted }}>
                 Pagamento 100% seguro · Entrega em todo o Brasil
               </p>
             </section>
