@@ -638,27 +638,9 @@ const HeroCarousel = ({
           {s.badge}
         </span>
 
-        <div className={`relative grid items-end ${mobile ? "grid-cols-1" : "md:grid-cols-[46%_54%]"} min-h-[380px] md:min-h-[460px]`}>
-          {/* IMAGEM lifestyle — pessoa (waist-up), transparente (PNG), ancorada à esquerda */}
-          <div className="relative order-1 h-[300px] self-end md:order-none md:h-[480px] md:min-h-[480px]">
-            {/* Halo/spotlight atrás da pessoa para dar profundidade */}
-            <div
-              className="pointer-events-none absolute left-[38%] top-1/2 h-[85%] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl"
-              style={{ background: s.accent }}
-            />
-            {slides.map((sl, i) => (
-              <img
-                key={sl.image}
-                src={sl.image}
-                alt=""
-                loading={i === 0 ? "eager" : "lazy"}
-                className={`absolute bottom-0 left-0 h-[112%] w-auto max-w-none object-contain object-bottom drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)] transition-opacity duration-700 md:left-[-4%] ${i === idx ? "opacity-100" : "opacity-0"}`}
-              />
-            ))}
-          </div>
-
-          {/* TEXTO — deslocado para a direita/centro */}
-          <div className="relative z-20 order-2 px-6 pt-6 pb-6 md:order-none md:py-14 md:pl-4 md:pr-14">
+        <div className={`relative grid items-end ${mobile ? "grid-cols-1" : "md:grid-cols-[54%_46%]"} min-h-[380px] md:min-h-[460px]`}>
+          {/* TEXTO — à esquerda */}
+          <div className="relative z-20 order-2 px-6 pt-6 pb-6 md:order-none md:py-14 md:pl-12 md:pr-6">
             <span
               className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] shadow-sm"
               style={{ color: s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#0F172A" }}
@@ -696,7 +678,34 @@ const HeroCarousel = ({
               <span className="inline-flex items-center gap-1.5"><Package size={13} strokeWidth={2.6} /> Troca em 30 dias</span>
             </div>
           </div>
+
+          {/* IMAGEM lifestyle — pessoa (waist-up), transparente (PNG), à direita */}
+          <div className="relative order-1 h-[300px] self-end md:order-none md:h-[480px] md:min-h-[480px]">
+            {/* Halo de luz ambiente atrás da pessoa (integra ao fundo) */}
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[90%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-55 blur-3xl mix-blend-screen"
+              style={{ background: s.accent }}
+            />
+            {/* Luz rebatida da cor do banner sobre a pessoa (light wrap) */}
+            <div
+              className="pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay"
+              style={{ background: `linear-gradient(180deg, transparent 45%, ${s.accent} 100%)` }}
+            />
+            {slides.map((sl, i) => (
+              <img
+                key={sl.image}
+                src={sl.image}
+                alt=""
+                loading={i === 0 ? "eager" : "lazy"}
+                style={{ filter: "drop-shadow(0 25px 25px rgba(0,0,0,0.35)) saturate(1.05) contrast(1.02)" }}
+                className={`absolute bottom-0 right-0 h-[112%] w-auto max-w-none object-contain object-bottom transition-opacity duration-700 md:right-[-2%] ${i === idx ? "opacity-100" : "opacity-0"}`}
+              />
+            ))}
+            {/* Sombra de contato no chão para "aterrar" a pessoa no banner */}
+            <div className="pointer-events-none absolute bottom-2 left-1/2 h-4 w-[55%] -translate-x-1/2 rounded-[50%] bg-black/40 blur-xl" />
+          </div>
         </div>
+
 
 
         {/* Setas */}
