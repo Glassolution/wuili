@@ -252,43 +252,186 @@ async function isLeafCategory(categoryId: string): Promise<boolean> {
   } catch { return false }
 }
 
-// Predict category from title, ensuring it's a leaf
-async function predictCategory(title: string): Promise<string> {
-  const fallback = 'MLB1051' // Generic "Outros" leaf category
+// === Category prediction (v2) ===
+// `category_predictor/predict` foi descontinuado (retorna 404 mesmo com Bearer
+// válido). Usamos apenas `domain_discovery/search` com estratégia de duas
+// consultas: título cru (60 chars) e título normalizado (sem números/faixas de
+// tamanho/stopwords de marketing). Se a categoria prevista exigir SIZE_GRID_ID
+// (fashion_grid) sem que o payload traga a grade, o caller devolve 409 e o
+// usuário escolhe a categoria manualmente pelo modal — nunca redirecionamos
+// silenciosamente para MLB1051.
 
+const STOPWORDS_PT = new Set([
+  'nova','novo','moda','grande','premium','luxo','luxuoso','vintage','sexy',
+  'elegante','casual','chic','requintado','estilo','estiloso','bonito','bonita',
+  'lindo','linda','fofo','fofa','simples','pequeno','pequena','mini','maxi',
+  'super','mega','ultra','melhor','melhores','incrivel','perfeito','perfeita',
+  'diy','artesanal','handmade','novidade','tendencia','oferta','promocao','kit','set',
+  'verao','inverno','primavera','outono',
+  '2020','2021','2022','2023','2024','2025','2026','2027',
+  'para','com','sem','de','do','da','dos','das','em','no','na','nos','nas','e','ou',
+  'feminino','feminina','masculino','masculina','meninas','meninos','mulher','mulheres',
+  'homem','homens','menina','menino','unissex','adulto','adulta','infantil',
+  'o','a','os','as','um','uma','uns','umas',
+])
+const UNIT_RE = /\b\d+(?:[.,]\d+)?\s*(?:mm|cm|m|ml|l|g|kg|mah|w|v|hz|khz|mhz|ghz|gb|mb|tb|pcs|peças|pcs|pçs|un)\b/gi
+const RANGE_RE = /\b\d+\s*[-–—\/]\s*\d+\b/g
+const BARE_NUM_RE = /\b\d+(?:[.,]\d+)?\b/g
+const PUNCT_RE = /[,;:!?()\[\]{}"'`]/g
+
+function normalizeTitleForPrediction(t: string): string {
+  const stripped = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const s = stripped
+    .replace(UNIT_RE, ' ')
+    .replace(RANGE_RE, ' ')
+    .replace(BARE_NUM_RE, ' ')
+    .replace(PUNCT_RE, ' ')
+  const toks = s.split(/\s+/).filter((w) => w.length > 1 && !STOPWORDS_PT.has(w))
+  return toks.slice(0, 6).join(' ')
+}
+
+// In-memory cache de atributos por categoria (TTL 6h). Usado tanto para
+// decidir requiresSizeGrid quanto para reaproveitar a lista completa de
+// atributos ao montar o payload.
+type AttrCacheEntry = {
+  attrs: Record<string, unknown>[]
+  isLeaf: boolean
+  requiresGrid: boolean
+  ts: number
+}
+const attrCache = new Map<string, AttrCacheEntry>()
+const ATTR_TTL_MS = 6 * 60 * 60 * 1000
+
+async function fetchCategoryAttrsCached(catId: string): Promise<AttrCacheEntry> {
+  const cached = attrCache.get(catId)
+  if (cached && Date.now() - cached.ts < ATTR_TTL_MS) return cached
+  let attrs: Record<string, unknown>[] = []
+  let requiresGrid = false
   try {
-    // Try category predictor first (returns leaf categories)
-    const predRes = await fetch(
-      `https://api.mercadolibre.com/sites/MLB/category_predictor/predict?title=${encodeURIComponent(title)}`
-    )
-    if (predRes.ok) {
-      const predData = await predRes.json()
-      if (predData?.id) {
-        console.log('Category predictor returned:', predData.id, predData.name)
-        if (await isLeafCategory(predData.id)) return predData.id
-        const leaf = await resolveLeafCategory(predData.id)
-        if (leaf) return leaf
+    const r = await fetch(`https://api.mercadolibre.com/categories/${catId}/attributes`)
+    if (r.ok) {
+      attrs = (await r.json()) as Record<string, unknown>[]
+      const sg = attrs.find((a) => cleanText(a.id) === 'SIZE_GRID_ID')
+      if (sg) {
+        const tags = (sg.tags as Record<string, unknown> | undefined) ?? {}
+        const values = (sg.values as unknown[] | undefined) ?? []
+        // fashion_grid: existe atributo SIZE_GRID_ID sem lista fechada de
+        // valores (o vendedor precisa criar a grade), OU está marcado como
+        // required/fixed. Em qualquer desses casos exigimos que o payload
+        // traga um size_grid_id explícito.
+        requiresGrid = values.length === 0 || Boolean(tags.required || tags.fixed)
       }
     }
   } catch (_e) { /* ignore */ }
 
+  let isLeaf = false
   try {
-    // Fallback: domain_discovery + resolve to leaf
-    const catRes = await fetch(
-      `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?q=${encodeURIComponent(title)}`
-    )
-    if (catRes.ok) {
-      const catData = await catRes.json()
-      if (Array.isArray(catData) && catData[0]?.category_id) {
-        const leafId = await resolveLeafCategory(catData[0].category_id)
-        console.log('domain_discovery resolved to leaf:', leafId)
-        return leafId
-      }
+    const r = await fetch(`https://api.mercadolibre.com/categories/${catId}`)
+    if (r.ok) {
+      const c = (await r.json()) as Record<string, unknown>
+      const ch = Array.isArray(c.children_categories) ? (c.children_categories as unknown[]) : []
+      isLeaf = ch.length === 0
     }
   } catch (_e) { /* ignore */ }
 
-  console.log('Using fallback category:', fallback)
-  return fallback
+  const entry: AttrCacheEntry = { attrs, isLeaf, requiresGrid, ts: Date.now() }
+  attrCache.set(catId, entry)
+  return entry
+}
+
+async function domainDiscoveryLookup(q: string): Promise<{ id: string; name: string } | null> {
+  if (!q || !q.trim()) return null
+  try {
+    const r = await fetch(
+      `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?limit=1&q=${encodeURIComponent(q)}`,
+    )
+    if (!r.ok) return null
+    const data = (await r.json()) as Array<Record<string, unknown>>
+    if (!Array.isArray(data) || !data[0]?.category_id) return null
+    return { id: String(data[0].category_id), name: String(data[0].category_name ?? '') }
+  } catch { return null }
+}
+
+type PredictionResult = {
+  categoryId: string
+  categoryName: string
+  rawPrediction: string | null
+  normalizedPrediction: string | null
+  normalizedTitle: string
+  requiresSizeGrid: boolean
+  source: 'raw' | 'normalized' | 'fallback'
+}
+
+async function predictCategory(title: string): Promise<PredictionResult> {
+  const FALLBACK = 'MLB1051'
+  const normalized = normalizeTitleForPrediction(title)
+
+  const rawHit = await domainDiscoveryLookup(title.slice(0, 60))
+  const rawInfo = rawHit ? await fetchCategoryAttrsCached(rawHit.id) : null
+
+  // Preferência 1: título cru retornou categoria-folha que NÃO exige grade.
+  if (rawHit && rawInfo?.isLeaf && !rawInfo.requiresGrid) {
+    return {
+      categoryId: rawHit.id,
+      categoryName: rawHit.name,
+      rawPrediction: rawHit.id,
+      normalizedPrediction: null,
+      normalizedTitle: normalized,
+      requiresSizeGrid: false,
+      source: 'raw',
+    }
+  }
+
+  // Preferência 2: título normalizado retorna algo publicável.
+  const normHit = normalized ? await domainDiscoveryLookup(normalized) : null
+  const normInfo = normHit ? await fetchCategoryAttrsCached(normHit.id) : null
+
+  if (normHit && normInfo?.isLeaf && !normInfo.requiresGrid) {
+    return {
+      categoryId: normHit.id,
+      categoryName: normHit.name,
+      rawPrediction: rawHit?.id ?? null,
+      normalizedPrediction: normHit.id,
+      normalizedTitle: normalized,
+      requiresSizeGrid: false,
+      source: 'normalized',
+    }
+  }
+
+  // Preferência 3: retornar a melhor previsão disponível, mesmo que seja
+  // fashion (o caller vai bloquear com 409 se faltar size_grid_id).
+  if (rawHit) {
+    return {
+      categoryId: rawHit.id,
+      categoryName: rawHit.name,
+      rawPrediction: rawHit.id,
+      normalizedPrediction: normHit?.id ?? null,
+      normalizedTitle: normalized,
+      requiresSizeGrid: Boolean(rawInfo?.requiresGrid),
+      source: 'raw',
+    }
+  }
+  if (normHit) {
+    return {
+      categoryId: normHit.id,
+      categoryName: normHit.name,
+      rawPrediction: null,
+      normalizedPrediction: normHit.id,
+      normalizedTitle: normalized,
+      requiresSizeGrid: Boolean(normInfo?.requiresGrid),
+      source: 'normalized',
+    }
+  }
+
+  return {
+    categoryId: FALLBACK,
+    categoryName: 'Outros',
+    rawPrediction: null,
+    normalizedPrediction: null,
+    normalizedTitle: normalized,
+    requiresSizeGrid: false,
+    source: 'fallback',
+  }
 }
 
 // Map ML API errors to user-friendly messages
