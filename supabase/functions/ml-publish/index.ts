@@ -573,11 +573,16 @@ Deno.serve(async (req) => {
     // publicação trava. Como não dá para fabricar uma grade confiável,
     // reencaminhamos para uma categoria genérica publicável (sem grade).
     const sizeGridDef = categoryAttrs.find((a) => cleanText(a.id) === 'SIZE_GRID_ID')
-    const sizeGridRequired = !!(sizeGridDef && (sizeGridDef.tags as Record<string, unknown> | undefined)?.required)
     const sizeGridHasValues = (((sizeGridDef?.values as unknown[]) ?? []).length) > 0
-    if (sizeGridRequired && !sizeGridHasValues) {
+    // Qualquer categoria que declara SIZE_GRID_ID sem lista fechada de valores
+    // é impublicável via dropshipping (não temos grade de medidas do vendedor).
+    // Antes só reencaminhávamos quando `tags.required` estava marcado, mas o ML
+    // rejeita "missing.fashion_grid.grid_id.values" mesmo em categorias onde
+    // esse flag não vem populado — então reencaminhamos sempre que o atributo
+    // existir sem valores.
+    if (sizeGridDef && !sizeGridHasValues) {
       const FALLBACK_CATEGORY = 'MLB1051' // "Outros" — leaf genérico sem grade de medidas
-      console.warn(`[ml-publish] Categoria ${categoryId} exige SIZE_GRID_ID (grade de medidas) sem lista de valores — reencaminhando para ${FALLBACK_CATEGORY}.`)
+      console.warn(`[ml-publish] Categoria ${categoryId} declara SIZE_GRID_ID sem valores publicáveis — reencaminhando para ${FALLBACK_CATEGORY}.`)
       categoryId = FALLBACK_CATEGORY
       categoryAttrs = await fetchCategoryAttrs(categoryId)
     }
@@ -994,6 +999,34 @@ Deno.serve(async (req) => {
       })
       itemData = await itemResponse.json()
       console.log('Item criado (retry sem family_name):', JSON.stringify(itemData).substring(0, 800))
+    }
+
+    // Última rede de segurança: se o ML ainda rejeitar por grade de medidas
+    // (fashion_grid/SIZE_GRID_ID) mesmo depois do reencaminhamento inicial,
+    // reenviamos o item para a categoria genérica "Outros" (MLB1051) e
+    // limpamos atributos exclusivos de moda para permitir a publicação.
+    if (!itemResponse.ok) {
+      const msg = causeMessages(itemData)
+      if (msg.includes('size_grid_id') || msg.includes('fashion_grid') || msg.includes('grid_id')) {
+        console.warn('[ml-publish] ML rejeitou por SIZE_GRID_ID mesmo após reencaminhamento — reenviando em MLB1051.')
+        const fallbackPayload = {
+          ...mlPayload,
+          category_id: 'MLB1051',
+          attributes: (mlPayload.attributes as MLAttribute[]).filter((a) =>
+            !['SIZE_GRID_ID', 'SIZE_GRID_ROW_ID', 'SIZE'].includes(String(a.id))
+          ),
+        }
+        itemResponse = await fetch('https://api.mercadolibre.com/items', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(fallbackPayload),
+        })
+        itemData = await itemResponse.json()
+        console.log('Item criado (retry MLB1051):', JSON.stringify(itemData).substring(0, 800))
+      }
     }
 
     if (!itemResponse.ok || !itemData?.id) {
