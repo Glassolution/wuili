@@ -39,12 +39,18 @@ export const usePlan = (): PlanState => {
     let cancelled = false;
 
     const fetchPlan = async () => {
-      // 1. Check active subscription first
+      // 1. Check active subscription first.
+      // O Mercado Pago grava a assinatura com status "active", mas também
+      // "paid"/"approved" (pagamento confirmado) e "trialing" (em teste). Se
+      // filtrássemos só por "active", um cliente que pagou (ex.: plano Base) mas
+      // cuja linha ficou em "paid"/"approved"/"trialing" cairia no fallback e
+      // seria tratado como "gratis" — perdendo o direito de publicar a loja.
+      // Mesmo conjunto usado em DashboardSidebar/PreviewPage/Admin.
       const { data: sub } = await supabase
         .from("subscriptions")
         .select("plan, status")
         .eq("user_id", user.id)
-        .eq("status", "active")
+        .in("status", ["active", "paid", "approved", "trialing"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();

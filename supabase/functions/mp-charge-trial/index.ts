@@ -32,16 +32,17 @@ function sameUtcDay(a: Date, b: Date) {
   );
 }
 
-async function sendDunningEmail(to: string, appUrl: string) {
+async function sendDunningEmail(to: string, appUrl: string, amount: number) {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
     console.warn("RESEND_API_KEY ausente — pulando envio de e-mail de falha.");
     return { skipped: true };
   }
+  const amountLabel = amount.toFixed(2).replace(".", ",");
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;color:#0F172A">
       <h2 style="color:#00C2A8">Não conseguimos cobrar seu cartão 😕</h2>
-      <p>Seu período de teste da Velo terminou e a cobrança da sua assinatura Pro (R$ 99,90) não foi autorizada.</p>
+      <p>Seu período de teste da Velo terminou e a cobrança da sua assinatura (R$ ${amountLabel}) não foi autorizada.</p>
       <p>Sua conta foi <strong>suspensa temporariamente</strong>. Para reativar, atualize sua forma de pagamento:</p>
       <p style="margin:24px 0">
         <a href="${appUrl}/dashboard/planos"
@@ -167,8 +168,10 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const amount = Number(sub.next_charge_amount ?? 99.9);
       const targetPlan = (sub.post_trial_plan as string) || (sub.plan as string) || "pro";
+      // Preços por plano — mesma fonte de verdade do mp-checkout (base/pro/business).
+      const PLAN_PRICES: Record<string, number> = { base: 29.90, pro: 79.80, business: 159.60 };
+      const amount = Number(sub.next_charge_amount ?? PLAN_PRICES[targetPlan] ?? PLAN_PRICES.pro);
       const customerId = sub.mp_customer_id as string | null;
       const cardId = sub.mp_card_id as string | null;
 
@@ -196,7 +199,7 @@ Deno.serve(async (req) => {
             const lastEmail = sub.last_dunning_email_at ? new Date(sub.last_dunning_email_at) : null;
             const canSend = !lastEmail || now.getTime() - lastEmail.getTime() > 3 * 24 * 3600 * 1000;
             if (canSend) {
-              await sendDunningEmail(email, appUrl);
+              await sendDunningEmail(email, appUrl, amount);
               await admin
                 .from("subscriptions")
                 .update({ last_dunning_email_at: nowIso })
@@ -306,7 +309,7 @@ Deno.serve(async (req) => {
           const lastEmail = sub.last_dunning_email_at ? new Date(sub.last_dunning_email_at) : null;
           const canSend = !lastEmail || now.getTime() - lastEmail.getTime() > 3 * 24 * 3600 * 1000;
           if (canSend) {
-            await sendDunningEmail(payerEmail, appUrl);
+            await sendDunningEmail(payerEmail, appUrl, amount);
             await admin
               .from("subscriptions")
               .update({ last_dunning_email_at: new Date().toISOString() })

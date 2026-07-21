@@ -51,6 +51,7 @@ import {
   HelpCircle,
   Home,
   Landmark,
+  LogOut,
   MessageSquare,
   Settings,
   Search,
@@ -246,6 +247,13 @@ const MobileAccountPage = ({
   isAdmin: boolean;
 }) => {
   const [inviteOpen, setInviteOpen] = useState(false);
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   return (
   <section className="-mx-4 -mt-4 min-h-screen bg-white pb-8">
@@ -293,6 +301,19 @@ const MobileAccountPage = ({
 
       <div className="pt-0">
         <MobileDrawerLink to="/dashboard/configuracoes" label="Configurações" icon={Settings} />
+      </div>
+
+      <div className="pt-0">
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="flex min-h-14 w-full items-center gap-4 border-b border-black/[0.06] px-1 text-left text-[15px] font-semibold text-[#DC2626] transition active:bg-[#DC2626]/[0.06]"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center text-[#DC2626]">
+            <LogOut size={22} strokeWidth={1.7} />
+          </span>
+          <span className="min-w-0 flex-1 truncate">Sair</span>
+        </button>
       </div>
     </div>
 

@@ -474,6 +474,30 @@ const CatalogoProductDetailPage = () => {
                 className="h-full w-full object-contain transition-opacity duration-300"
                 referrerPolicy="no-referrer"
               />
+
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Imagem anterior"
+                    onClick={() => setActiveImg((current) => (current - 1 + gallery.length) % gallery.length)}
+                    className="absolute left-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/95 text-[#111111] shadow-[0_8px_18px_rgba(17,24,39,0.14)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <ChevronLeft size={20} strokeWidth={2} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Próxima imagem"
+                    onClick={() => setActiveImg((current) => (current + 1) % gallery.length)}
+                    className="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/95 text-[#111111] shadow-[0_8px_18px_rgba(17,24,39,0.14)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
+                  >
+                    <ChevronRight size={20} strokeWidth={2} />
+                  </button>
+                  <span className="absolute bottom-3 right-3 z-10 rounded-full bg-black/55 px-2.5 py-1 text-[12px] font-bold text-white">
+                    {activeImg + 1}/{gallery.length}
+                  </span>
+                </>
+              )}
             </div>
             {gallery.length > 1 && (
               <>

@@ -10,7 +10,7 @@
 // conta própria — para não acoplar de novo o mobile ao estado do desktop.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, Camera, Check, ChevronDown, Folder, Package, Plus, Search, Star, Truck } from "lucide-react";
+import { ArrowUpRight, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, Package, Plus, Search, Star, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,9 +32,25 @@ type ProductPreview = {
   price: number;
   ordersCount: number;
   rating: number | null;
+  source: string | null;
+};
+
+// Rótulo amigável da loja/fornecedor de origem (mesmo padrão do catálogo desktop).
+const SOURCE_LABELS: Record<string, string> = {
+  c7drop: "C7Drop",
+  aliexpress: "AliExpress",
+  amazon: "Amazon",
+  shopee: "Shopee",
+  mercadolivre: "Mercado Livre",
+};
+
+const getSourceLabel = (source: string | null): string => {
+  if (!source) return SOURCE_LABELS.c7drop;
+  return SOURCE_LABELS[source.toLowerCase()] ?? source;
 };
 
 const HOME_PRODUCTS_LIMIT = 1000;
+const HOME_PRODUCTS_PER_PAGE = 20;
 const HOME_FAVORITES_STORAGE_PREFIX = "velo:home-favorite-products";
 
 const formatCurrency = (value: number) =>
@@ -75,6 +91,7 @@ const mapProductPreview = (product: CatalogProductRow): ProductPreview | null =>
     price: Number(product.cost_price) || 0,
     ordersCount: Number(product.orders_count) || 0,
     rating: toCatalogMetricNumber(product.rating),
+    source: product.source ?? null,
   };
 };
 
@@ -199,6 +216,9 @@ const MobileProductCard = ({
 
   return (
     <article className="relative min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <span className="absolute left-2 top-2 z-10 max-w-[70%] truncate rounded-[4px] bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm">
+        {getSourceLabel(product.source)}
+      </span>
       <button
         type="button"
         onClick={() => navigate(`/dashboard/catalogo/${product.id}`)}
@@ -219,7 +239,7 @@ const MobileProductCard = ({
           )}
         </div>
         <div className="p-2.5">
-          <div className="mb-1.5 flex flex-wrap gap-1">
+          <div className="mb-1.5 flex flex-wrap items-center gap-1">
             <span className="max-w-full truncate rounded-[4px] bg-[#F1F1F1] px-1.5 py-0.5 text-[9px] font-bold text-black/55">
               {product.category}
             </span>
@@ -293,6 +313,38 @@ const MobileAliVeloHome = ({
   }, [mobileCategoryFilter, mobilePriceFilter, mobileRatingFilter, mobileSearchQuery, products]);
   const firstProduct = featuredProducts[0];
   const secondProduct = featuredProducts[1] ?? firstProduct;
+
+  const [productsPage, setProductsPage] = useState(1);
+  const totalProductPages = Math.max(1, Math.ceil(featuredProducts.length / HOME_PRODUCTS_PER_PAGE));
+
+  // Volta para a primeira página sempre que o filtro/busca muda o conjunto.
+  useEffect(() => {
+    setProductsPage(1);
+  }, [mobileCategoryFilter, mobilePriceFilter, mobileRatingFilter, mobileSearchQuery]);
+
+  // Corrige a página caso o total encolha (ex.: filtro reduziu a lista).
+  useEffect(() => {
+    setProductsPage((current) => Math.min(current, totalProductPages));
+  }, [totalProductPages]);
+
+  const pagedProducts = useMemo(() => {
+    const start = (productsPage - 1) * HOME_PRODUCTS_PER_PAGE;
+    return featuredProducts.slice(start, start + HOME_PRODUCTS_PER_PAGE);
+  }, [featuredProducts, productsPage]);
+
+  const productPageNumbers = useMemo(() => {
+    const maxButtons = 5;
+    let start = Math.max(1, productsPage - 2);
+    const end = Math.min(totalProductPages, start + maxButtons - 1);
+    start = Math.max(1, end - maxButtons + 1);
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  }, [productsPage, totalProductPages]);
+
+  const productsSectionRef = useRef<HTMLElement | null>(null);
+  const goToProductsPage = (nextPage: number) => {
+    setProductsPage(nextPage);
+    productsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   useEffect(() => {
     if (!openMobileFilter) return;
@@ -540,7 +592,7 @@ const MobileAliVeloHome = ({
         </div>
 
         {products.length > 0 && (
-          <section className="bg-white px-4 pt-5">
+          <section ref={productsSectionRef} className="scroll-mt-4 bg-white px-4 pt-5">
             <div className="mb-5 grid grid-cols-4 gap-0.5 pb-1">
               {mobileVeloActionItems.map((item) => (
                 <button
@@ -626,16 +678,57 @@ const MobileAliVeloHome = ({
             </div>
 
             {featuredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 pb-2">
-                {featuredProducts.map((product) => (
-                  <MobileProductCard
-                    key={`home-feature-${product.id}`}
-                    product={product}
-                    isFavorite={favoriteProductIds.includes(product.id)}
-                    onToggleFavorite={() => onToggleFavoriteProduct(product.id)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-3 pb-2">
+                  {pagedProducts.map((product) => (
+                    <MobileProductCard
+                      key={`home-feature-${product.id}`}
+                      product={product}
+                      isFavorite={favoriteProductIds.includes(product.id)}
+                      onToggleFavorite={() => onToggleFavoriteProduct(product.id)}
+                    />
+                  ))}
+                </div>
+
+                {totalProductPages > 1 && (
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 pb-2">
+                    <button
+                      type="button"
+                      onClick={() => goToProductsPage(Math.max(1, productsPage - 1))}
+                      disabled={productsPage === 1}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#111111] transition-colors active:bg-[#F1F1F3] disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Página anterior"
+                    >
+                      <ChevronLeft size={16} strokeWidth={2} />
+                    </button>
+
+                    {productPageNumbers.map((pageNumber) => (
+                      <button
+                        key={`home-page-${pageNumber}`}
+                        type="button"
+                        onClick={() => goToProductsPage(pageNumber)}
+                        className={`inline-flex h-9 min-w-9 items-center justify-center rounded-full border px-2.5 text-[13px] font-bold transition-colors ${
+                          productsPage === pageNumber
+                            ? "border-[#111111] bg-[#111111] text-white"
+                            : "border-[#E5E7EB] bg-white text-[#6B7280] active:bg-[#F1F1F3]"
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => goToProductsPage(Math.min(totalProductPages, productsPage + 1))}
+                      disabled={productsPage === totalProductPages}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#111111] transition-colors active:bg-[#F1F1F3] disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Próxima página"
+                    >
+                      <ChevronRight size={16} strokeWidth={2} />
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="rounded-[16px] border border-black/[0.08] bg-[#F7F7F8] px-4 py-8 text-center">
                 <p className="text-[14px] font-black tracking-[-0.03em] text-[#111111]">Nenhum produto encontrado</p>
@@ -678,7 +771,7 @@ const MobileHome = () => {
     let isMounted = true;
 
     const fetchProducts = async () => {
-      const columns = "id,title,category,images,cost_price,rating,is_active,is_blocked,stock_quantity,orders_count";
+      const columns = "id,title,category,images,cost_price,rating,is_active,is_blocked,stock_quantity,orders_count,source";
 
       // Busca produtos de todas as fontes disponíveis (c7drop, aliexpress, etc.)
       const result = await supabase
