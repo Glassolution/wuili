@@ -659,6 +659,45 @@ const HeroCarousel = ({
 
           {/* TEXTO — deslocado para a direita/centro */}
           <div className="relative z-20 order-2 px-6 pt-6 pb-6 md:order-none md:py-14 md:pl-4 md:pr-14">
+            <span
+              className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] shadow-sm"
+              style={{ color: s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#0F172A" }}
+            >
+              {s.eyebrow}
+            </span>
+            <h1 className="mt-4 text-[30px] font-black leading-[1.02] tracking-tight text-white drop-shadow-md md:text-[46px]">
+              {s.title}
+              <br />
+              <span style={{ color: s.accent }}>{s.highlight}</span>
+            </h1>
+            <p className="mt-3 max-w-[400px] text-[13px] font-medium leading-relaxed text-white/95 md:text-[14px]">
+              {salesAngle && idx === 0 ? salesAngle.slice(0, 140) : s.subtitle}
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <a
+                href={s.ctaHref}
+                className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[14px] font-black text-[#0F172A] shadow-2xl transition hover:scale-[1.03] hover:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.4)]"
+              >
+                {s.ctaLabel}
+                <ArrowRight size={16} strokeWidth={3} className="transition-transform group-hover:translate-x-1" />
+              </a>
+              <a
+                href="/catalogo"
+                className="inline-flex items-center rounded-full border-2 border-white/70 bg-white/10 px-6 py-3.5 text-[14px] font-bold text-white backdrop-blur transition hover:bg-white/20"
+              >
+                Ver ofertas
+              </a>
+            </div>
+
+            {/* mini trust chips */}
+            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-white/90">
+              <span className="inline-flex items-center gap-1.5"><Truck size={13} strokeWidth={2.6} /> Frete grátis Brasil</span>
+              <span className="inline-flex items-center gap-1.5"><ShieldCheck size={13} strokeWidth={2.6} /> Compra 100% segura</span>
+              <span className="inline-flex items-center gap-1.5"><Package size={13} strokeWidth={2.6} /> Troca em 30 dias</span>
+            </div>
+          </div>
+        </div>
+
 
         {/* Setas */}
         <button
