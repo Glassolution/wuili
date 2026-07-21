@@ -298,8 +298,9 @@ const PublicStoreCatalogPage = () => {
               const originalPrice = Math.max(product.price * 1.3, product.price + 30);
               const rating = 4.7 + ((idx % 3) * 0.1);
               return (
-                <article
+                <Link
                   key={product.id}
+                  to={slug ? `/loja/${slug}/produto/${product.id}` : "#"}
                   className="group flex flex-col overflow-hidden rounded-[20px] bg-white p-3 transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(26,26,26,0.08)]"
                 >
                   <div className="relative aspect-square overflow-hidden rounded-[14px] bg-[#e9e5d8]">
@@ -350,14 +351,18 @@ const PublicStoreCatalogPage = () => {
                       <button
                         type="button"
                         aria-label="Adicionar ao carrinho"
-                        onClick={() => navigate(cartHref)}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          navigate(cartHref);
+                        }}
                         className="flex h-9 w-9 items-center justify-center rounded-full bg-[#3d4a2a] text-[#f5f2ea] shadow-sm transition hover:bg-[#2c3620]"
                       >
                         <Plus size={14} strokeWidth={2.4} />
                       </button>
                     </div>
                   </div>
-                </article>
+                </Link>
               );
             })}
           </div>
