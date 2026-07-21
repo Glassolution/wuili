@@ -11,6 +11,7 @@ import {
   Plus,
   Sparkles,
   Store,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,8 @@ type ProjectCard = {
   lastEditedAt: string;
   sourceId: string | null;
   slug: string | null;
+  /** true quando o projeto pertence a outra pessoa e chegou por convite de equipe. */
+  isCollaborator: boolean;
 };
 
 const formatLastEdited = (value: string) =>
@@ -59,7 +62,7 @@ const getProjectDescription = (project: ProjectCard) => {
     : "Página de venda em rascunho para validar uma oferta de produto.";
 };
 
-const mapUserProject = (project: UserProject): ProjectCard => ({
+const mapUserProject = (project: UserProject, currentUserId: string | undefined): ProjectCard => ({
   id: project.id,
   nome: project.nome,
   tipo: project.tipo_projeto,
@@ -68,6 +71,7 @@ const mapUserProject = (project: UserProject): ProjectCard => ({
   lastEditedAt: project.last_edited_at,
   sourceId: project.source_id,
   slug: readMetadataString(project.metadata, "slug"),
+  isCollaborator: !!currentUserId && project.user_id !== currentUserId,
 });
 
 const loadLegacyProjects = async (userId: string): Promise<ProjectCard[]> => {
@@ -98,6 +102,7 @@ const loadLegacyProjects = async (userId: string): Promise<ProjectCard[]> => {
       lastEditedAt: profile.updated_at || profile.created_at,
       sourceId: profile.id,
       slug: null,
+      isCollaborator: false,
     });
   }
 
@@ -111,6 +116,7 @@ const loadLegacyProjects = async (userId: string): Promise<ProjectCard[]> => {
       lastEditedAt: page.updated_at || page.created_at,
       sourceId: page.id,
       slug: page.slug,
+      isCollaborator: false,
     });
   }
 
@@ -172,7 +178,7 @@ const StoreProjectsPage = () => {
         const userProjects = await fetchUserProjects();
         if (!active) return;
         setRawProjects(userProjects);
-        setProjects(userProjects.map(mapUserProject));
+        setProjects(userProjects.map((project) => mapUserProject(project, user.id)));
       } catch (error) {
         console.warn("[StoreProjectsPage] usando fallback legado para projetos.", error);
         const legacyProjects = await loadLegacyProjects(user.id);
@@ -188,6 +194,51 @@ const StoreProjectsPage = () => {
 
     return () => {
       active = false;
+    };
+  }, [user?.id]);
+
+  // Tempo real: reflete as edições de colaboradores (e do dono) sem recarregar a
+  // página. O RLS do Postgres garante que cada assinante só recebe os projetos que
+  // já pode ver, então basta reagir ao que chegar.
+  useEffect(() => {
+    const currentUserId = user?.id;
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel(`user-projects:${currentUserId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_projects" },
+        (payload) => {
+          if (payload.eventType === "UPDATE" && payload.new) {
+            const updated = payload.new as UserProject;
+            setRawProjects((prev) =>
+              prev.some((project) => project.id === updated.id)
+                ? prev.map((project) => (project.id === updated.id ? updated : project))
+                : prev,
+            );
+            setProjects((prev) =>
+              prev.some((project) => project.id === updated.id)
+                ? prev.map((project) => (project.id === updated.id ? mapUserProject(updated, currentUserId) : project))
+                : prev,
+            );
+            return;
+          }
+
+          // INSERT (novo projeto compartilhado) ou DELETE: recarrega para respeitar
+          // ordenação e visibilidade do RLS.
+          void fetchUserProjects()
+            .then((list) => {
+              setRawProjects(list);
+              setProjects(list.map((project) => mapUserProject(project, currentUserId)));
+            })
+            .catch(() => {});
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
     };
   }, [user?.id]);
 
@@ -212,7 +263,7 @@ const StoreProjectsPage = () => {
 
   const handleProjectChange = (updated: UserProject) => {
     setRawProjects((prev) => prev.map((project) => (project.id === updated.id ? updated : project)));
-    setProjects((prev) => prev.map((project) => (project.id === updated.id ? mapUserProject(updated) : project)));
+    setProjects((prev) => prev.map((project) => (project.id === updated.id ? mapUserProject(updated, user?.id) : project)));
   };
 
   const openProject = (project: ProjectCard) => {
@@ -226,7 +277,7 @@ const StoreProjectsPage = () => {
     try {
       const userProjects = await fetchUserProjects();
       setRawProjects(userProjects);
-      setProjects(userProjects.map(mapUserProject));
+      setProjects(userProjects.map((project) => mapUserProject(project, user?.id)));
       navigate(`/minha-loja/editor/${projectId}`, { state: { projectId } });
     } catch {
       navigate(`/minha-loja/editor/${projectId}`, { state: { projectId } });
@@ -356,6 +407,12 @@ const StoreProjectsPage = () => {
                                 ✓
                               </span>
                             ) : null}
+                            {project.isCollaborator ? (
+                              <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#eef3ff] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.04em] text-[#2563EB]">
+                                <Users size={9} strokeWidth={2.4} />
+                                Colaborador
+                              </span>
+                            ) : null}
                           </div>
                           <p className="truncate text-[11px] font-medium text-[#5d6268]">
                             {project.tipo === "loja_completa" ? "loja@velo.app" : "pagina@velo.app"}
@@ -407,6 +464,12 @@ const StoreProjectsPage = () => {
                         <span className="rounded-full bg-[#f1f1ee] px-2.5 py-1 text-[11px] font-semibold text-[#4f5358]">
                           {selectedProject.status === "publicado" ? "Publicado" : "Rascunho"}
                         </span>
+                        {selectedProject.isCollaborator ? (
+                          <span className="flex items-center gap-1 rounded-full bg-[#eef3ff] px-2.5 py-1 text-[11px] font-semibold text-[#2563EB]">
+                            <Users size={12} strokeWidth={2.2} />
+                            Colaborador
+                          </span>
+                        ) : null}
                       </div>
                       <p className="mt-1 truncate text-[12px] font-semibold text-[#777d85]">
                         {selectedProject.tipo === "loja_completa" ? "loja@velo.app" : "pagina@velo.app"} · editado em {formatLastEdited(selectedProject.lastEditedAt)}

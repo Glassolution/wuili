@@ -19,6 +19,7 @@ import {
   type ProjectVisibility,
   type UserProject,
 } from "@/lib/userProjects";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export type SettingsSection = "geral" | "equipe" | "publicacao" | "dominio";
 
@@ -428,15 +429,23 @@ const ProjectSettingsOverlay = ({ open, onClose, project, initialSection = "gera
                               className="h-11 flex-1 bg-transparent text-[14px] text-white outline-none disabled:opacity-60"
                             />
                           </div>
-                          <select
+                          <Select
                             value={inviteRole}
-                            onChange={(event) => setInviteRole(event.target.value as Exclude<ProjectRole, "owner">)}
+                            onValueChange={(value) => setInviteRole(value as Exclude<ProjectRole, "owner">)}
                             disabled={!isPaid || inviting}
-                            className="h-11 rounded-[11px] border border-white/[0.1] bg-black/25 px-3 text-[14px] text-white outline-none disabled:opacity-60"
                           >
-                            <option value="editor">Editor</option>
-                            <option value="viewer">Visualizador</option>
-                          </select>
+                            <SelectTrigger className="h-11 w-full rounded-[11px] border-white/[0.1] bg-black/25 px-3 text-[14px] text-white focus:ring-0 focus:ring-offset-0 disabled:opacity-60 sm:w-44">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="z-[130] rounded-[11px] border-white/10 bg-[#17182b] text-white">
+                              <SelectItem value="editor" className="rounded-lg text-[14px] text-white focus:bg-white/10 focus:text-white">
+                                Editor
+                              </SelectItem>
+                              <SelectItem value="viewer" className="rounded-lg text-[14px] text-white focus:bg-white/10 focus:text-white">
+                                Visualizador
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                           <button
                             type="button"
                             onClick={() => void handleInvite()}

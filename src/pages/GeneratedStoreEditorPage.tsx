@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, Eye, ExternalLink, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Globe, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
@@ -1580,14 +1580,11 @@ const GeneratedStoreEditorPage = () => {
     return () => { active = false; };
   }, [currentProject]);
 
-  // Hidrata template e nome a partir do projeto salvo (uma vez por projeto),
-  // para renderizar exatamente o template que o usuário escolheu na criação/edição.
-  const hydratedProjectRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!currentProject?.id || hydratedProjectRef.current === currentProject.id) return;
-    hydratedProjectRef.current = currentProject.id;
-
-    const metadata = currentProject.metadata;
+  // Aplica o metadata salvo do projeto no estado do editor. Usado tanto na
+  // hidratação inicial quanto na sincronização em tempo real (quando um
+  // colaborador edita, reaplicamos o metadata recebido para refletir no canvas).
+  const applyProjectMetadata = useCallback((project: UserProject) => {
+    const metadata = project.metadata;
     const meta = metadata && typeof metadata === "object" && !Array.isArray(metadata)
       ? (metadata as Record<string, unknown>)
       : {};
@@ -1602,7 +1599,7 @@ const GeneratedStoreEditorPage = () => {
 
     const savedName = typeof meta.storeName === "string" && meta.storeName.trim()
       ? meta.storeName.trim()
-      : currentProject.nome?.trim();
+      : project.nome?.trim();
     if (savedName) setStoreName(savedName);
 
     // Restaura as customizações salvas para que o editor reabra idêntico ao que
@@ -1618,10 +1615,20 @@ const GeneratedStoreEditorPage = () => {
     if (meta.elementOverrides && typeof meta.elementOverrides === "object" && !Array.isArray(meta.elementOverrides)) {
       setElementOverrides(meta.elementOverrides as Record<string, ElementOverride>);
     }
+  }, []);
+
+  // Hidrata template e nome a partir do projeto salvo (uma vez por projeto),
+  // para renderizar exatamente o template que o usuário escolheu na criação/edição.
+  const hydratedProjectRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentProject?.id || hydratedProjectRef.current === currentProject.id) return;
+    hydratedProjectRef.current = currentProject.id;
+
+    applyProjectMetadata(currentProject);
 
     // Libera o canvas só depois de aplicar o template salvo.
     setHydratedProjectId(currentProject.id);
-  }, [currentProject]);
+  }, [currentProject, applyProjectMetadata]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -1629,10 +1636,19 @@ const GeneratedStoreEditorPage = () => {
   }, [user?.id]);
 
   const autosaveReadyRef = useRef(false);
+  // Quando reaplicamos uma edição recebida de um colaborador, os setters mudam o
+  // estado e disparariam este autosave — o que reenviaria a mesma alteração e
+  // criaria um eco infinito entre as duas telas. Este flag pula exatamente o
+  // autosave provocado por essa reaplicação remota.
+  const skipNextAutosaveRef = useRef(false);
   useEffect(() => {
     if (!currentProject?.id) return;
     if (!autosaveReadyRef.current) {
       autosaveReadyRef.current = true;
+      return;
+    }
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
       return;
     }
     const timeout = window.setTimeout(() => {
@@ -1652,6 +1668,37 @@ const GeneratedStoreEditorPage = () => {
     }, 900);
     return () => window.clearTimeout(timeout);
   }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides, editedPrice]);
+
+  // Sincronização em tempo real dentro do editor: reflete no canvas as edições
+  // feitas por um colaborador (ou pelo dono em outra aba) no mesmo projeto.
+  // Ecos das próprias gravações são ignorados via metadata.lastEditedBy.
+  useEffect(() => {
+    if (!projectId) return;
+
+    const channel = supabase
+      .channel(`project-editor:${projectId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "user_projects", filter: `id=eq.${projectId}` },
+        (payload) => {
+          const incoming = payload.new as UserProject;
+          const meta = incoming.metadata && typeof incoming.metadata === "object" && !Array.isArray(incoming.metadata)
+            ? (incoming.metadata as Record<string, unknown>)
+            : {};
+          // Ignora o eco da própria gravação — só aplica edições de outra pessoa.
+          if (meta.lastEditedBy && meta.lastEditedBy === user?.id) return;
+
+          skipNextAutosaveRef.current = true;
+          applyProjectMetadata(incoming);
+          setCurrentProject((prev) => (prev && prev.id === incoming.id ? incoming : prev));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [projectId, user?.id, applyProjectMetadata]);
 
   // Broadcast em tempo real (sem esperar o autosave): assim que o dono edita
   // preço, nome ou accent no editor, o carrinho/checkout abertos em outra aba

@@ -104,7 +104,10 @@ export async function createUserProject(input: CreateProjectInput): Promise<User
   return data as UserProject;
 }
 
-/** Salva alterações do editor no metadata (autosave, sem botão). */
+/** Salva alterações do editor no metadata (autosave, sem botão).
+ *  Estampa metadata.lastEditedBy com o autor da gravação — a sincronização em
+ *  tempo real usa esse campo para distinguir o próprio eco (ignorar) das edições
+ *  de um colaborador (aplicar no canvas). */
 export async function saveProjectDraft(
   projectId: string,
   patch: Record<string, unknown>,
@@ -121,9 +124,12 @@ export async function saveProjectDraft(
       ? (current.metadata as Record<string, unknown>)
       : {};
 
+  const { data: sessionData } = await supabase.auth.getSession();
+  const editorId = sessionData.session?.user?.id ?? null;
+
   const { error } = await supabase
     .from("user_projects")
-    .update({ metadata: { ...base, ...patch } as Json, last_edited_at: new Date().toISOString() })
+    .update({ metadata: { ...base, ...patch, lastEditedBy: editorId } as Json, last_edited_at: new Date().toISOString() })
     .eq("id", projectId);
   if (error) throw error;
 }
