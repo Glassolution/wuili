@@ -3393,7 +3393,7 @@ const GeneratedStoreEditorPage = () => {
                 </div>
                 <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" data-editor-product="true" data-editor-product-id={displayedProducts[1%displayedProducts.length]?.id} src={displayedProducts[1%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
               </div>
-              <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-[#eef1de]">
+              <div className="relative flex min-h-[220px] overflow-hidden rounded-[18px] bg-[#eef1de]">
                 <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
                   <div>
                     <strong className="text-[10px] font-semibold tracking-[0.18em] text-black/50">ACABOU DE CHEGAR</strong>
