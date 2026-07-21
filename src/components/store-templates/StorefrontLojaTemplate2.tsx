@@ -109,13 +109,22 @@ const StorefrontLojaTemplate2 = ({
   const hero = list[0];
   const cats = Array.from(new Set(list.map((p) => p.category).filter(Boolean))).slice(0, 6) as string[];
   const displayCats = cats.length ? cats : ["Moda", "Eletrônicos", "Beleza", "Casa", "Pet", "Esporte e Fitness"];
+  const catImages = useMemo(() => {
+    const map: Record<string, string> = {};
+    displayCats.forEach((c) => {
+      const p = list.find((x) => x.category === c && x.imageUrl);
+      if (p?.imageUrl) map[c] = p.imageUrl;
+    });
+    return map;
+  }, [displayCats, list]);
   const countdown = useCountdown();
   const featured = list.slice(0, 4);
   const bestSellers = list.slice(0, 6);
   const ctaHref = heroCtaUrl.trim() || "/catalogo";
 
   return (
-    <div className="bg-white text-[#0F172A]" style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
+    <div className="bg-white text-[#0F172A]" style={{ fontFamily: "'Poppins', ui-sans-serif, system-ui, sans-serif" }}>
+
       {/* ANNOUNCEMENT BAR */}
       <div className="flex items-center justify-center gap-2 bg-[#2563EB] px-4 py-2 text-center text-[12px] font-semibold text-white">
         <span>🎉 Mega Promoção no ar! Até 60% OFF</span>
