@@ -1,141 +1,111 @@
-## Objetivo
+# Correção da categorização ML para publicação
 
-Cada página de vendas gerada passa a ter **3 telas conectadas** que o cliente final do usuário percorre:
+## Contexto verificado
 
-1. **Tela 1 — Produto** (a landing atual): CTA "Comprar agora".
-2. **Tela 2 — Carrinho / Confirmação**: resumo do pedido, quantidade, forma de pagamento, botão "Ir para checkout" (inspirada na imagem 2 — Cart / Coralab).
-3. **Tela 3 — Checkout**: dados do comprador + endereço + pagamento (Cartão ou **Pix**), botão "Pagar" (inspirada na imagem 3 — Configure your plan).
+- **Schema real de `catalog_products`** (checado agora): não existe coluna `metadata`. Colunas existentes de categoria: `category` (texto humano), `aliexpress_category_id` (texto do AliExpress). Migração dedicada é obrigatória.
+- **`category_predictor/predict`**: retorna 404 mesmo com Bearer válido de vendedor. Descontinuado. Remover.
+- **Normalização não é bala de prata**: rodei contra 20 títulos AliExpress reais (categorias variadas). Resultado bruto:
+  - 6 casos onde só o título normalizado devolveu resultado (o cru truncado em 60 chars devolveu vazio).
+  - 7 casos com match idêntico entre cru e normalizado.
+  - 7 casos onde a normalização **regrediu** (ex: "gargantilha com pingente" → cru retornou Colares, normalizado retornou Pingentes; "moda multicolorido tênis pulseira" → cru vazio, normalizado retornou Delineador). A normalização às vezes descarta a palavra-âncora certa.
+  - Conclusão: precisa ser **estratégia de duas consultas**, não substituição. Cada tentativa é uma chamada barata à API pública.
+- **Check dinâmico de SIZE_GRID_ID**: viável via `GET /categories/{id}/attributes`, mas API tem rate-limit agressivo. Precisa de cache.
 
-No **editor**, as três telas aparecem lado a lado (fluxo horizontal estilo Google Stitch), conectadas por linhas indicando "Tela 1 → Tela 2 → Tela 3", e cada uma é clicável para editar seu conteúdo. Após pagamento aprovado, o pedido cai automaticamente em `/dashboard/pedidos` do usuário dono da página.
+## O que vai ser feito
 
----
+### 1. Migração de schema
 
-## Rotas públicas novas
+Adicionar em `catalog_products`:
+- `ml_category_id text` — ID da categoria ML confirmada (predita ou escolhida manualmente).
+- `ml_category_status text` com CHECK em (`pending`, `auto`, `needs_manual`, `manual`) default `pending`. Persistente, consultável, indexável.
+- `ml_size_grid_id text` — grade de tamanho quando fashion.
+- Índice em `(ml_category_status)` para filtro/painel futuro de "pendentes".
 
-Hoje existe apenas `/p/:slug` (landing). Serão adicionadas:
+Sem colunas em JSON. Sem `metadata`. Padrão coerente com o resto da tabela.
+
+### 2. Edge Function `ml-publish/index.ts`
+
+- **Remover** a chamada a `category_predictor/predict` inteira.
+- **Novo `predictCategory(title)`** com estratégia de duas tentativas + cache de atributos:
+  1. Consulta `domain_discovery/search` com título truncado em 60 chars (comportamento atual).
+  2. Se retornar vazio OU cair em categoria com `SIZE_GRID_ID` obrigatório, consulta novamente com título normalizado (regex removendo faixas `\d+[-–/]\d+`, tokens numéricos soltos, unidades, stopwords PT-BR de marketing) e compara.
+  3. Escolhe a categoria não-vazia. Se as duas divergem em categoria-folha, prioriza a com menos atributos obrigatórios ou a que **não** exige grade de tamanho.
+- **Check de SIZE_GRID_ID dinâmico**: função `requiresSizeGrid(categoryId)` que consulta `GET /categories/{id}/attributes` e olha `tags.required` no atributo `SIZE_GRID_ID`. Cachear em memória (module-level `Map`) por `categoryId` durante o lifetime da instância. Não é allowlist hardcoded — usa a verdade da própria API.
+- **Fluxo de decisão** na publicação:
+  - Se payload traz `override_category_id` → validar folha via `GET /categories/{id}` (`children_categories == []`), usar direto. Se for fashion, exigir `size_grid_id` também no payload.
+  - Sem override + predição limpa (não-fashion, ou fashion **com** `size_grid_id` já no payload) → publica, grava `ml_category_status = 'auto'` e `ml_category_id`.
+  - Sem override + fashion sem grade → **não publica**. Grava `ml_category_status = 'needs_manual'` e `ml_category_id = <predicted>` como sugestão. Retorna 409 com body `{ code: 'CATEGORY_REQUIRES_MANUAL', predicted_category_id, predicted_category_name }`.
+- **Logging estruturado por 30 dias após deploy**: logar `{ product_id, title_raw, title_normalized, predicted_raw, predicted_normalized, final_category, status, requires_size_grid }` para permitir análise de acerto e ajuste da lista de stopwords.
+
+### 3. Frontend
+
+**`src/components/dashboard/ImportProductModal.tsx`**
+- Novo `<CategorySelector />` — autocomplete que chama `GET /sites/MLB/domain_discovery/search?q=…` direto do browser (endpoint público sem auth necessária), com debounce 300ms.
+- Ao clicar "Publicar":
+  - Se `catalog_products.ml_category_status == 'manual'` → envia `override_category_id` no payload direto.
+  - Caso contrário, publica normalmente e trata 409 `CATEGORY_REQUIRES_MANUAL` abrindo o seletor com a sugestão pré-preenchida. Ao confirmar, faz retry.
+- Se a categoria escolhida requer grade, mostrar `<SizeGridSelector />` que carrega `GET /categories/{id}/size_grids?attributes=SIZE_GRID_ID`. Salvar em `ml_size_grid_id`.
+
+**Novo painel `Produtos pendentes de categoria`** (rota `/admin/produtos-pendentes` ou seção em Catálogo): lista `WHERE ml_category_status = 'needs_manual'`. Não bloqueia essa fase — só preparar a query e um link no menu.
+
+### 4. Telemetria pós-deploy
+
+- Nova view SQL `v_ml_category_predictions_last_30d` agregando os logs por (categoria prevista, status) para consulta rápida.
+- Depois de 1 semana rodando, revisar amostra ~50 produtos e ajustar stopwords.
+
+## Detalhes técnicos
+
+**Normalização (`normalizeTitleForPrediction`)**
 
 ```
-/p/:slug              → Tela 1 (produto)  [já existe]
-/p/:slug/carrinho     → Tela 2 (confirmação)
-/p/:slug/checkout     → Tela 3 (checkout + Pix/cartão)
-/p/:slug/obrigado     → confirmação pós-pagamento
+lowercase → remover unidades (mm|cm|m|ml|l|g|kg|mah|w|v|hz|gb|mb|tb|pcs|pçs)
+→ remover faixas \d+[-–—/]\d+
+→ remover números soltos → remover pontuação
+→ tokenizar → filtrar stopwords → tokens[:6] → join
 ```
 
-Todas leem da mesma linha em `generated_sales_pages` (via slug) — as 3 telas compartilham produto, preço, imagens, cor de marca. Estado do carrinho passa via querystring/sessionStorage por enquanto (produto único).
+Stopwords iniciais: `nova novo moda grande premium luxo vintage sexy elegante casual chic requintado estilo estiloso bonito lindo fofo simples super mega ultra melhor perfeito diy artesanal 2020..2026 verão inverno primavera outono nova novidade tendência oferta promoção kit set`. A lista **vai ficar incompleta** — por isso a estratégia de fallback duplo é obrigatória e o log serve para calibrar depois.
 
----
+**Cache de atributos**
 
-## Editor: visão em fluxo horizontal
-
-Em `GeneratedStoreEditorPage` (ou página equivalente da sales page) adiciono um modo **"Fluxo"**:
-
-```text
-┌────────────┐    ┌────────────┐    ┌────────────┐
-│  Tela 1    │───▶│  Tela 2    │───▶│  Tela 3    │
-│  Produto   │    │  Carrinho  │    │  Checkout  │
-└────────────┘    └────────────┘    └────────────┘
+```
+const attrCache = new Map<string, { requiresGrid: boolean; isLeaf: boolean; ts: number }>()
+// TTL 6h; invalida na inicialização de nova instância — bom o suficiente
 ```
 
-- Cada card é um iframe do preview real da rota correspondente com `?editor=1`.
-- Clicar num card seleciona a tela e abre o painel de edição à direita (headline, CTA, cores, textos do checkout como "Pagamento seguro").
-- Setas SVG entre os cards indicam a transição.
-- Zoom / pan simples (scroll horizontal + botões +/−) para caber tudo.
+**Contrato do payload `ml-publish`**
 
-## Telas — o que cada uma mostra
-
-**Tela 2 (Carrinho)** — inspirada na imagem 2:
-- Título "Carrinho" + contador
-- Card com imagem, nome, preço, seletor de quantidade, "Remover"
-- Bloco "Pagamento seguro — Visa, Master, Pix, até 12x"
-- Total + botão preto largo "Ir para checkout"
-
-**Tela 3 (Checkout)** — inspirada na imagem 3, adaptada ao BR:
-- Coluna esquerda: **Forma de pagamento** (tabs Cartão / **Pix**), Nome completo, CPF, e-mail, telefone, CEP + endereço.
-- Coluna direita: resumo do pedido fixo (imagem, título, preço, frete, total), botão "Pagar".
-- Se Pix escolhido → após clicar, mostra QR Code + copia-cola (retornados pela edge function).
-- Se Cartão → campos de cartão (Mercado Pago SDK JS para tokenizar no browser, sem passar número pelo backend).
-
-## Backend — pagamento + pedido
-
-Edge Function nova: `public-sales-checkout`
-- Recebe: `slug`, dados do comprador, método (`pix` | `credit_card`), `card_token?`.
-- Busca a `generated_sales_pages` pelo slug → pega `user_id` (dono) e `catalog_product_id`, `price_brl`, `product_title`, `hero_image_url`.
-- Cria pagamento no Mercado Pago usando o `MERCADOPAGO_ACCESS_TOKEN` da plataforma (mesma conta do checkout de assinatura — **não mexe** no fluxo de assinatura nem no OAuth de sellers).
-- Retorna: `pix_qr_code` + `pix_qr_code_base64` (Pix) ou `status` (cartão).
-
-Tabela `store_orders` (nova):
-
-```sql
-create table public.store_orders (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null,           -- dono da página (recebe o pedido)
-  sales_page_id uuid not null references public.generated_sales_pages(id),
-  catalog_product_id uuid,
-  product_title text not null,
-  product_image_url text,
-  quantity int not null default 1,
-  unit_price numeric(10,2) not null,
-  total numeric(10,2) not null,
-  buyer_name text not null,
-  buyer_email text not null,
-  buyer_phone text,
-  buyer_cpf text,
-  shipping_address jsonb,
-  payment_method text not null,    -- 'pix' | 'credit_card'
-  payment_status text not null default 'pending',  -- pending|approved|rejected
-  mp_payment_id text,
-  pix_qr_code text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-grant select, insert, update on public.store_orders to authenticated;
-grant insert on public.store_orders to anon;   -- cliente final sem login
-grant all on public.store_orders to service_role;
-alter table public.store_orders enable row level security;
-
--- Dono da página vê seus pedidos
-create policy "owner reads own store orders"
-  on public.store_orders for select to authenticated
-  using (auth.uid() = user_id);
-
--- Inserção só via edge function (service_role); nenhuma policy para anon/authenticated insert direto.
+```json
+{
+  "product_id": "...",
+  "override_category_id": "MLB424841",   // opcional
+  "size_grid_id": "12345",               // opcional, exigido se override é fashion
+  ...resto do payload atual
+}
 ```
 
-Webhook `mp-webhook` já existe → adicionar branch: quando `metadata.kind = 'store_order'`, atualizar `store_orders.payment_status` e `mp_payment_id` pelo `external_reference`. Isso dispara também uma notificação para o dono via `notify_new_order` trigger equivalente (já existe para `orders`; replicaremos o padrão).
+**Response 409 novo**
 
-## Dashboard — página de Pedidos
+```json
+{
+  "code": "CATEGORY_REQUIRES_MANUAL",
+  "predicted_category_id": "MLB424841",
+  "predicted_category_name": "Calças",
+  "requires_size_grid": true
+}
+```
 
-`OrdersPage` (`/dashboard/pedidos`) já lista pedidos ML. Adiciono uma aba/segmento **"Loja"** que consulta `store_orders` do `auth.uid()` e mostra: comprador, produto, valor, método, status, data. Detalhe do pedido com endereço, telefone, CPF e status de pagamento.
+## O que NÃO vai ser feito
 
-## Arquivos a criar / alterar
+- Sem allowlist hardcoded de domínios fashion — check dinâmico via API + cache.
+- Sem coluna JSON `metadata`. Colunas dedicadas.
+- Sem fila assíncrona nesta fase — só o status persistente, que a fila usará depois quando o import em lote existir.
+- Sem alteração no scraper C7Drop nem em outras funções.
 
-Novos:
-- `src/pages/public-sales/SalesCartPage.tsx` (Tela 2)
-- `src/pages/public-sales/SalesCheckoutPage.tsx` (Tela 3, com Pix + cartão)
-- `src/pages/public-sales/SalesThankYouPage.tsx`
-- `src/components/editor/SalesFlowCanvas.tsx` (visão horizontal 3 cards + setas)
-- `supabase/functions/public-sales-checkout/index.ts`
-- migration `store_orders` + política + policies + branch no `mp-webhook`
+## Ordem de execução
 
-Alterados:
-- `src/App.tsx` — registrar `/p/:slug/carrinho`, `/p/:slug/checkout`, `/p/:slug/obrigado`
-- Página do editor da sales page — adicionar toggle "Fluxo" que renderiza `SalesFlowCanvas`
-- `src/pages/dashboard/OrdersPage.tsx` — aba "Loja" lendo `store_orders`
-- `supabase/functions/mp-webhook/index.ts` — tratar `kind=store_order`
-
-## O que NÃO muda
-
-- OAuth de seller MP (`connect-mercadopago-seller`, `mp-seller-auth-url`) — intocado.
-- Checkout de assinatura (`mp-checkout`) — intocado.
-- Nenhuma RLS existente é alterada.
-- Nenhum campo sensível novo em `get_public_store_products`.
-
-## Fora de escopo desta entrega
-
-- Múltiplos itens no carrinho (order bumps da imagem 2). Estrutura já suporta, mas UI de add-on fica para depois.
-- Cálculo real de frete por CEP (usaremos frete fixo configurável por página; default R$ 0).
-- Split de pagamento para seller conectado — nesta primeira versão o pagamento cai na conta da plataforma; repasse manual. Split via seller MP fica para uma iteração seguinte.
-
----
-
-Confirma que posso seguir com esse escopo? Em especial: (a) frete fixo por enquanto, (b) pagamento cai na conta da plataforma nesta primeira versão (sem split ainda).
+1. Migração SQL (colunas + índice).
+2. `ml-publish/index.ts` reescrita da predição + fluxo 409 + logging.
+3. `ImportProductModal.tsx` — seletor de categoria + tratamento de 409 + seletor de grade.
+4. View `v_ml_category_predictions_last_30d`.
+5. Testar publicação com 3 produtos AliExpress reais cobrindo: eletrônico (auto), fashion sem grade (409 → manual), fashion com override + grade (auto após seleção).

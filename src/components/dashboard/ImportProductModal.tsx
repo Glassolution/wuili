@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
+import { ManualCategoryDialog } from "@/components/dashboard/ManualCategoryDialog";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
@@ -253,6 +254,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [mlVerifyModalOpen, setMlVerifyModalOpen] = useState(false);
+  const [manualCatOpen, setManualCatOpen] = useState(false);
+  const [manualCatSuggestion, setManualCatSuggestion] = useState<{ id?: string; name?: string }>({});
 
   // Pricing engine
   const [multiplier, setMultiplier] = useState(2.5);
@@ -540,7 +543,9 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
     return true;
   };
 
-  const handlePublish = async () => {
+  const handlePublish = async (
+    override?: { categoryId?: string; sizeGridId?: string },
+  ) => {
     if (!validatePublish() || !user) return;
 
     const activeStore = getActiveStore();
@@ -596,6 +601,9 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
             ml_attributes: mlAttributes,
             weight: typeof product?.weight === "number" ? product.weight : null,
             product_url: product?.product_url ?? null,
+            // Overrides vindos do modal de categoria manual.
+            override_category_id: override?.categoryId,
+            size_grid_id: override?.sizeGridId,
           },
         },
       });
@@ -605,13 +613,27 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         // Tentamos extrair a mensagem amigável + código do corpo real da resposta.
         let friendly = data?.error as string | undefined;
         let code = data?.code as string | undefined;
+        let bodyExtra: Record<string, unknown> | undefined;
         const ctxRes = (error as any)?.context;
         if ((!friendly || !code) && ctxRes && typeof ctxRes.json === "function") {
           try {
             const body = await ctxRes.json();
             friendly = friendly || body?.error || body?.message;
             code = code || body?.code;
+            bodyExtra = body;
           } catch { /* ignore */ }
+        }
+
+        // Categoria exige seleção manual → abre o seletor com a sugestão do backend.
+        if (code === "CATEGORY_REQUIRES_MANUAL") {
+          veloToast.dismiss(toastId);
+          setManualCatSuggestion({
+            id: (bodyExtra?.predicted_category_id as string) || (data?.predicted_category_id as string) || undefined,
+            name: (bodyExtra?.predicted_category_name as string) || (data?.predicted_category_name as string) || undefined,
+          });
+          setManualCatOpen(true);
+          setPublishing(false);
+          return;
         }
 
         // Conta do ML bloqueada para publicar (cadastro incompleto, modo vendedor
@@ -1315,6 +1337,20 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           void checkSellerStatus();
         }}
       />
+
+      <ManualCategoryDialog
+        open={manualCatOpen}
+        onOpenChange={setManualCatOpen}
+        initialQuery={title.trim()}
+        predictedCategoryId={manualCatSuggestion.id}
+        predictedCategoryName={manualCatSuggestion.name}
+        onConfirm={async ({ categoryId, sizeGridId }) => {
+          setManualCatOpen(false);
+          await handlePublish({ categoryId, sizeGridId });
+        }}
+      />
+
+
 
       {/* Animations */}
       <style>{`

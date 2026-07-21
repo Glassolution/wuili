@@ -252,43 +252,186 @@ async function isLeafCategory(categoryId: string): Promise<boolean> {
   } catch { return false }
 }
 
-// Predict category from title, ensuring it's a leaf
-async function predictCategory(title: string): Promise<string> {
-  const fallback = 'MLB1051' // Generic "Outros" leaf category
+// === Category prediction (v2) ===
+// `category_predictor/predict` foi descontinuado (retorna 404 mesmo com Bearer
+// válido). Usamos apenas `domain_discovery/search` com estratégia de duas
+// consultas: título cru (60 chars) e título normalizado (sem números/faixas de
+// tamanho/stopwords de marketing). Se a categoria prevista exigir SIZE_GRID_ID
+// (fashion_grid) sem que o payload traga a grade, o caller devolve 409 e o
+// usuário escolhe a categoria manualmente pelo modal — nunca redirecionamos
+// silenciosamente para MLB1051.
 
+const STOPWORDS_PT = new Set([
+  'nova','novo','moda','grande','premium','luxo','luxuoso','vintage','sexy',
+  'elegante','casual','chic','requintado','estilo','estiloso','bonito','bonita',
+  'lindo','linda','fofo','fofa','simples','pequeno','pequena','mini','maxi',
+  'super','mega','ultra','melhor','melhores','incrivel','perfeito','perfeita',
+  'diy','artesanal','handmade','novidade','tendencia','oferta','promocao','kit','set',
+  'verao','inverno','primavera','outono',
+  '2020','2021','2022','2023','2024','2025','2026','2027',
+  'para','com','sem','de','do','da','dos','das','em','no','na','nos','nas','e','ou',
+  'feminino','feminina','masculino','masculina','meninas','meninos','mulher','mulheres',
+  'homem','homens','menina','menino','unissex','adulto','adulta','infantil',
+  'o','a','os','as','um','uma','uns','umas',
+])
+const UNIT_RE = /\b\d+(?:[.,]\d+)?\s*(?:mm|cm|m|ml|l|g|kg|mah|w|v|hz|khz|mhz|ghz|gb|mb|tb|pcs|peças|pcs|pçs|un)\b/gi
+const RANGE_RE = /\b\d+\s*[-–—\/]\s*\d+\b/g
+const BARE_NUM_RE = /\b\d+(?:[.,]\d+)?\b/g
+const PUNCT_RE = /[,;:!?()\[\]{}"'`]/g
+
+function normalizeTitleForPrediction(t: string): string {
+  const stripped = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const s = stripped
+    .replace(UNIT_RE, ' ')
+    .replace(RANGE_RE, ' ')
+    .replace(BARE_NUM_RE, ' ')
+    .replace(PUNCT_RE, ' ')
+  const toks = s.split(/\s+/).filter((w) => w.length > 1 && !STOPWORDS_PT.has(w))
+  return toks.slice(0, 6).join(' ')
+}
+
+// In-memory cache de atributos por categoria (TTL 6h). Usado tanto para
+// decidir requiresSizeGrid quanto para reaproveitar a lista completa de
+// atributos ao montar o payload.
+type AttrCacheEntry = {
+  attrs: Record<string, unknown>[]
+  isLeaf: boolean
+  requiresGrid: boolean
+  ts: number
+}
+const attrCache = new Map<string, AttrCacheEntry>()
+const ATTR_TTL_MS = 6 * 60 * 60 * 1000
+
+async function fetchCategoryAttrsCached(catId: string): Promise<AttrCacheEntry> {
+  const cached = attrCache.get(catId)
+  if (cached && Date.now() - cached.ts < ATTR_TTL_MS) return cached
+  let attrs: Record<string, unknown>[] = []
+  let requiresGrid = false
   try {
-    // Try category predictor first (returns leaf categories)
-    const predRes = await fetch(
-      `https://api.mercadolibre.com/sites/MLB/category_predictor/predict?title=${encodeURIComponent(title)}`
-    )
-    if (predRes.ok) {
-      const predData = await predRes.json()
-      if (predData?.id) {
-        console.log('Category predictor returned:', predData.id, predData.name)
-        if (await isLeafCategory(predData.id)) return predData.id
-        const leaf = await resolveLeafCategory(predData.id)
-        if (leaf) return leaf
+    const r = await fetch(`https://api.mercadolibre.com/categories/${catId}/attributes`)
+    if (r.ok) {
+      attrs = (await r.json()) as Record<string, unknown>[]
+      const sg = attrs.find((a) => cleanText(a.id) === 'SIZE_GRID_ID')
+      if (sg) {
+        const tags = (sg.tags as Record<string, unknown> | undefined) ?? {}
+        const values = (sg.values as unknown[] | undefined) ?? []
+        // fashion_grid: existe atributo SIZE_GRID_ID sem lista fechada de
+        // valores (o vendedor precisa criar a grade), OU está marcado como
+        // required/fixed. Em qualquer desses casos exigimos que o payload
+        // traga um size_grid_id explícito.
+        requiresGrid = values.length === 0 || Boolean(tags.required || tags.fixed)
       }
     }
   } catch (_e) { /* ignore */ }
 
+  let isLeaf = false
   try {
-    // Fallback: domain_discovery + resolve to leaf
-    const catRes = await fetch(
-      `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?q=${encodeURIComponent(title)}`
-    )
-    if (catRes.ok) {
-      const catData = await catRes.json()
-      if (Array.isArray(catData) && catData[0]?.category_id) {
-        const leafId = await resolveLeafCategory(catData[0].category_id)
-        console.log('domain_discovery resolved to leaf:', leafId)
-        return leafId
-      }
+    const r = await fetch(`https://api.mercadolibre.com/categories/${catId}`)
+    if (r.ok) {
+      const c = (await r.json()) as Record<string, unknown>
+      const ch = Array.isArray(c.children_categories) ? (c.children_categories as unknown[]) : []
+      isLeaf = ch.length === 0
     }
   } catch (_e) { /* ignore */ }
 
-  console.log('Using fallback category:', fallback)
-  return fallback
+  const entry: AttrCacheEntry = { attrs, isLeaf, requiresGrid, ts: Date.now() }
+  attrCache.set(catId, entry)
+  return entry
+}
+
+async function domainDiscoveryLookup(q: string): Promise<{ id: string; name: string } | null> {
+  if (!q || !q.trim()) return null
+  try {
+    const r = await fetch(
+      `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?limit=1&q=${encodeURIComponent(q)}`,
+    )
+    if (!r.ok) return null
+    const data = (await r.json()) as Array<Record<string, unknown>>
+    if (!Array.isArray(data) || !data[0]?.category_id) return null
+    return { id: String(data[0].category_id), name: String(data[0].category_name ?? '') }
+  } catch { return null }
+}
+
+type PredictionResult = {
+  categoryId: string
+  categoryName: string
+  rawPrediction: string | null
+  normalizedPrediction: string | null
+  normalizedTitle: string
+  requiresSizeGrid: boolean
+  source: 'raw' | 'normalized' | 'fallback'
+}
+
+async function predictCategory(title: string): Promise<PredictionResult> {
+  const FALLBACK = 'MLB1051'
+  const normalized = normalizeTitleForPrediction(title)
+
+  const rawHit = await domainDiscoveryLookup(title.slice(0, 60))
+  const rawInfo = rawHit ? await fetchCategoryAttrsCached(rawHit.id) : null
+
+  // Preferência 1: título cru retornou categoria-folha que NÃO exige grade.
+  if (rawHit && rawInfo?.isLeaf && !rawInfo.requiresGrid) {
+    return {
+      categoryId: rawHit.id,
+      categoryName: rawHit.name,
+      rawPrediction: rawHit.id,
+      normalizedPrediction: null,
+      normalizedTitle: normalized,
+      requiresSizeGrid: false,
+      source: 'raw',
+    }
+  }
+
+  // Preferência 2: título normalizado retorna algo publicável.
+  const normHit = normalized ? await domainDiscoveryLookup(normalized) : null
+  const normInfo = normHit ? await fetchCategoryAttrsCached(normHit.id) : null
+
+  if (normHit && normInfo?.isLeaf && !normInfo.requiresGrid) {
+    return {
+      categoryId: normHit.id,
+      categoryName: normHit.name,
+      rawPrediction: rawHit?.id ?? null,
+      normalizedPrediction: normHit.id,
+      normalizedTitle: normalized,
+      requiresSizeGrid: false,
+      source: 'normalized',
+    }
+  }
+
+  // Preferência 3: retornar a melhor previsão disponível, mesmo que seja
+  // fashion (o caller vai bloquear com 409 se faltar size_grid_id).
+  if (rawHit) {
+    return {
+      categoryId: rawHit.id,
+      categoryName: rawHit.name,
+      rawPrediction: rawHit.id,
+      normalizedPrediction: normHit?.id ?? null,
+      normalizedTitle: normalized,
+      requiresSizeGrid: Boolean(rawInfo?.requiresGrid),
+      source: 'raw',
+    }
+  }
+  if (normHit) {
+    return {
+      categoryId: normHit.id,
+      categoryName: normHit.name,
+      rawPrediction: null,
+      normalizedPrediction: normHit.id,
+      normalizedTitle: normalized,
+      requiresSizeGrid: Boolean(normInfo?.requiresGrid),
+      source: 'normalized',
+    }
+  }
+
+  return {
+    categoryId: FALLBACK,
+    categoryName: 'Outros',
+    rawPrediction: null,
+    normalizedPrediction: null,
+    normalizedTitle: normalized,
+    requiresSizeGrid: false,
+    source: 'fallback',
+  }
 }
 
 // Map ML API errors to user-friendly messages
@@ -566,60 +709,126 @@ Deno.serve(async (req) => {
     const productRecord = product as Record<string, unknown>
 
     // === CATEGORY (leaf only) ===
-    // Prioridade: 1) categoria explícita enviada pelo usuário (ml_category_id/category_id),
-    // 2) predição automática por título. Categoria explícita ainda passa por
-    // validação de leaf — se não for folha, resolvemos automaticamente.
-    const userCategoryOverride = cleanText(
+    // Prioridade:
+    //   1) override_category_id no payload (seleção manual do usuário)
+    //   2) legado: ml_category_id / category_id no productRecord
+    //   3) predição automática (domain_discovery com fallback normalizado)
+    // Fashion sem size_grid_id no payload → 409 CATEGORY_REQUIRES_MANUAL,
+    // marcando o produto como needs_manual para revisão explícita. NUNCA
+    // redirecionamos silenciosamente para MLB1051.
+    const productRecordId = cleanText(productRecord.id) || catalogProductId
+    const overrideCategoryRaw = cleanText(
+      (productRecord.override_category_id as string | undefined) ??
       (productRecord.ml_category_id as string | undefined) ??
       (productRecord.category_id as string | undefined),
     )
+    const providedSizeGridId = cleanText(
+      (productRecord.size_grid_id as string | undefined) ??
+      (productRecord.ml_size_grid_id as string | undefined),
+    )
+    const providedSizeGridRowId = cleanText(
+      (productRecord.size_grid_row_id as string | undefined) ??
+      (productRecord.ml_size_grid_row_id as string | undefined),
+    )
+
     let categoryId: string
-    if (userCategoryOverride && /^MLB\d+$/.test(userCategoryOverride)) {
-      categoryId = (await isLeafCategory(userCategoryOverride))
-        ? userCategoryOverride
-        : await resolveLeafCategory(userCategoryOverride)
-      console.log('Categoria (override do usuário):', categoryId)
+    let categoryStatusForRecord: 'auto' | 'manual' = 'auto'
+    let prediction: PredictionResult | null = null
+
+    if (overrideCategoryRaw && /^MLB\d+$/.test(overrideCategoryRaw)) {
+      const leafId = (await isLeafCategory(overrideCategoryRaw))
+        ? overrideCategoryRaw
+        : await resolveLeafCategory(overrideCategoryRaw)
+      categoryId = leafId
+      categoryStatusForRecord = 'manual'
+      console.log('[ml-publish] Categoria (override manual):', categoryId)
     } else {
-      categoryId = await predictCategory(title)
-      console.log('Categoria (auto):', categoryId)
+      prediction = await predictCategory(title)
+      categoryId = prediction.categoryId
+      console.log(
+        `[ml-publish] Categoria (auto/${prediction.source}):`,
+        categoryId,
+        `raw="${title.slice(0,60)}" norm="${prediction.normalizedTitle}"`,
+      )
     }
 
-    // === ATTRIBUTES ===
-    // Buscamos a ficha de atributos da categoria para saber quais sao
-    // obrigatorios e quais tem lista fechada de valores permitidos.
-    const fetchCategoryAttrs = async (catId: string): Promise<Record<string, unknown>[]> => {
-      try {
-        const attrRes = await fetch(`https://api.mercadolibre.com/categories/${catId}/attributes`)
-        if (attrRes.ok) return await attrRes.json()
-      } catch (_e) { /* ignore */ }
-      return []
-    }
-    let categoryAttrs = await fetchCategoryAttrs(categoryId)
+    // Carrega atributos da categoria (com cache) para checar SIZE_GRID e
+    // reaproveitar a lista completa na montagem do payload abaixo.
+    let categoryInfo = await fetchCategoryAttrsCached(categoryId)
 
-    // fashion_grid: categorias de moda (roupas/calçados) exigem SIZE_GRID_ID, que
-    // referencia uma grade de medidas (guia de tamanhos) criada pelo vendedor —
-    // NÃO tem lista fechada de valores. O catálogo de dropshipping não tem como
-    // preencher, então o ML rejeita com "missing.fashion_grid.grid_id.values" e a
-    // publicação trava. Como não dá para fabricar uma grade confiável,
-    // reencaminhamos para uma categoria genérica publicável (sem grade).
-    const sizeGridDef = categoryAttrs.find((a) => cleanText(a.id) === 'SIZE_GRID_ID')
-    const sizeGridHasValues = (((sizeGridDef?.values as unknown[]) ?? []).length) > 0
-    // Qualquer categoria que declara SIZE_GRID_ID sem lista fechada de valores
-    // é impublicável via dropshipping (não temos grade de medidas do vendedor).
-    // Antes só reencaminhávamos quando `tags.required` estava marcado, mas o ML
-    // rejeita "missing.fashion_grid.grid_id.values" mesmo em categorias onde
-    // esse flag não vem populado — então reencaminhamos sempre que o atributo
-    // existir sem valores.
-    if (sizeGridDef && !sizeGridHasValues) {
-      const FALLBACK_CATEGORY = 'MLB1051' // "Outros" — leaf genérico sem grade de medidas
-      console.warn(`[ml-publish] Categoria ${categoryId} declara SIZE_GRID_ID sem valores publicáveis — reencaminhando para ${FALLBACK_CATEGORY}.`)
-      categoryId = FALLBACK_CATEGORY
-      categoryAttrs = await fetchCategoryAttrs(categoryId)
+    // Bloqueio de fashion sem grade: se a categoria exige SIZE_GRID_ID e o
+    // payload não trouxer um `size_grid_id` explícito, gravamos o status
+    // 'needs_manual' e devolvemos 409 para o frontend abrir o seletor.
+    if (categoryInfo.requiresGrid && !providedSizeGridId) {
+      const suggested = prediction ?? {
+        categoryId,
+        categoryName: '',
+        rawPrediction: overrideCategoryRaw || null,
+        normalizedPrediction: null,
+        normalizedTitle: '',
+        requiresSizeGrid: true,
+        source: 'raw' as const,
+      }
+      console.warn(
+        `[ml-publish] Categoria ${categoryId} exige SIZE_GRID_ID e o payload não trouxe size_grid_id — bloqueando com 409 CATEGORY_REQUIRES_MANUAL.`,
+      )
+
+      if (productRecordId) {
+        try {
+          await supabase
+            .from('catalog_products')
+            .update({
+              ml_category_id: categoryId,
+              ml_category_status: 'needs_manual',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', productRecordId)
+        } catch (persistErr) {
+          console.error('[ml-publish] Falha ao gravar ml_category_status=needs_manual:', persistErr)
+        }
+        try {
+          await supabase.from('ml_category_prediction_log').insert({
+            product_id: productRecordId,
+            user_id,
+            title_raw: title,
+            title_normalized: suggested.normalizedTitle,
+            predicted_raw: suggested.rawPrediction,
+            predicted_normalized: suggested.normalizedPrediction,
+            final_category: categoryId,
+            final_status: 'needs_manual',
+            requires_size_grid: true,
+          })
+        } catch (logErr) {
+          console.error('[ml-publish] Falha ao gravar log de predição:', logErr)
+        }
+      }
+
+      return json({
+        error: 'Esta categoria exige uma grade de tamanho. Selecione a categoria e a grade manualmente para publicar.',
+        code: 'CATEGORY_REQUIRES_MANUAL',
+        predicted_category_id: categoryId,
+        predicted_category_name: suggested.categoryName,
+        requires_size_grid: true,
+      }, 409)
     }
 
-    // IDs de atributos que ESTA categoria de fato aceita. Usado para não enviar
-    // atributos que o ML descarta como inválidos ("was dropped because does not
-    // exists"), como SELLER_PACKAGE_DIMENSIONS em categorias que não os suportam.
+    // Compat: se veio size_grid_id/size_grid_row_id, injetamos como atributos
+    // no productRecord.ml_attributes para o pipeline existente montar o item.
+    if (providedSizeGridId) {
+      const existingAttrs = Array.isArray(productRecord.ml_attributes)
+        ? (productRecord.ml_attributes as MLAttribute[])
+        : []
+      const injected: MLAttribute[] = [
+        { id: 'SIZE_GRID_ID', value_name: providedSizeGridId },
+        ...(providedSizeGridRowId ? [{ id: 'SIZE_GRID_ROW_ID', value_name: providedSizeGridRowId }] : []),
+      ]
+      productRecord.ml_attributes = [
+        ...existingAttrs.filter((a) => !['SIZE_GRID_ID', 'SIZE_GRID_ROW_ID'].includes(String(a.id))),
+        ...injected,
+      ]
+    }
+
+    const categoryAttrs = categoryInfo.attrs
     const categoryAttrIds = new Set(categoryAttrs.map((a) => cleanText(a.id)))
 
 
@@ -1134,6 +1343,38 @@ Deno.serve(async (req) => {
       }
     } catch (pubErr) {
       console.error('Erro ao salvar publicação:', pubErr)
+    }
+
+    // Persistir categoria confirmada + status em catalog_products e log de predição.
+    if (productRecordId) {
+      try {
+        await supabase
+          .from('catalog_products')
+          .update({
+            ml_category_id: categoryId,
+            ml_category_status: categoryStatusForRecord,
+            ml_size_grid_id: providedSizeGridId || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', productRecordId)
+      } catch (persistErr) {
+        console.error('[ml-publish] Falha ao gravar categoria confirmada:', persistErr)
+      }
+      try {
+        await supabase.from('ml_category_prediction_log').insert({
+          product_id: productRecordId,
+          user_id,
+          title_raw: title,
+          title_normalized: prediction?.normalizedTitle ?? '',
+          predicted_raw: prediction?.rawPrediction ?? null,
+          predicted_normalized: prediction?.normalizedPrediction ?? null,
+          final_category: categoryId,
+          final_status: categoryStatusForRecord,
+          requires_size_grid: Boolean(providedSizeGridId),
+        })
+      } catch (logErr) {
+        console.error('[ml-publish] Falha ao gravar log de predição (success):', logErr)
+      }
     }
 
     console.log('=== ml-publish SUCCESS ===', itemId)
