@@ -42,6 +42,22 @@ function randomSuffix(): string {
   return Math.random().toString(36).slice(2, 7);
 }
 
+/** Retorna um slug único: prefere o baseSlug limpo; adiciona sufixo apenas em colisão. */
+async function ensureUniqueSlug(baseSlug: string): Promise<string> {
+  const clean = baseSlug || "loja";
+  const candidates = [clean, ...Array.from({ length: 8 }, (_, i) => `${clean}-${i + 2}`)];
+  for (const candidate of candidates) {
+    const { data, error } = await supabase
+      .from("user_projects")
+      .select("id")
+      .filter("metadata->>slug", "eq", candidate)
+      .limit(1);
+    if (error) break;
+    if (!data || data.length === 0) return candidate;
+  }
+  return `${clean}-${randomSuffix()}`;
+}
+
 export type CreateProjectInput = {
   nome: string;
   descricao: string;
