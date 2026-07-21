@@ -3347,7 +3347,11 @@ const GeneratedStoreEditorPage = () => {
                     </div>
                   </div>
 
-                  <div className="relative min-h-[380px] overflow-hidden bg-gradient-to-br from-[#e9e5d8] via-[#d9d3c1] to-[#b8b09a]">
+                  <div className="relative min-h-[420px] overflow-hidden bg-[#e9e5d8]">
+                    {/* decorative backdrop shapes */}
+                    <div className="pointer-events-none absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-white/60 via-[#d9d3c1]/50 to-transparent blur-2xl" />
+                    <div className="pointer-events-none absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-[#c8a24a]/15 blur-3xl" />
+                    <div className="pointer-events-none absolute inset-x-10 bottom-10 h-40 rounded-[50%] bg-[#1a1a1a]/10 blur-2xl" />
                     {heroSlides.map((src, idx) => {
                       const active = idx === heroSlideIndex % heroSlides.length;
                       return (
@@ -3358,7 +3362,8 @@ const GeneratedStoreEditorPage = () => {
                           data-editor-id={idx === 0 ? "hero-image" : undefined}
                           src={src || undefined}
                           alt=""
-                          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${active ? "opacity-100" : "opacity-0"}`}
+                          style={{ mixBlendMode: "multiply" }}
+                          className={`absolute inset-0 h-full w-full object-contain p-10 transition-opacity duration-700 ${active ? "opacity-100" : "opacity-0"}`}
                         />
                       );
                     })}
