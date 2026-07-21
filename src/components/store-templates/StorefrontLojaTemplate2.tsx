@@ -640,7 +640,7 @@ const HeroCarousel = ({
 
         <div className={`relative grid items-end ${mobile ? "grid-cols-1" : "md:grid-cols-[54%_46%]"} min-h-[380px] md:min-h-[460px]`}>
           {/* TEXTO — à esquerda */}
-          <div className="relative z-20 order-2 px-6 pt-6 pb-6 md:order-none md:py-14 md:pl-12 md:pr-6">
+          <div className="relative z-20 order-2 px-6 pt-6 pb-6 md:order-none md:py-14 md:pl-24 md:pr-6">
             <span
               className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] shadow-sm"
               style={{ color: s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#0F172A" }}
@@ -681,16 +681,12 @@ const HeroCarousel = ({
 
           {/* IMAGEM lifestyle — pessoa (waist-up), transparente (PNG), à direita */}
           <div className="relative order-1 h-[300px] self-end md:order-none md:h-[480px] md:min-h-[480px]">
-            {/* Halo de luz ambiente atrás da pessoa (integra ao fundo) */}
+            {/* Halo de luz ambiente atrás da pessoa — radial suave, sem borda dura */}
             <div
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[90%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-55 blur-3xl mix-blend-screen"
-              style={{ background: s.accent }}
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[110%] w-[110%] -translate-x-1/2 -translate-y-1/2 opacity-45"
+              style={{ background: `radial-gradient(ellipse at center, ${s.accent} 0%, transparent 60%)`, filter: "blur(20px)" }}
             />
-            {/* Luz rebatida da cor do banner sobre a pessoa (light wrap) */}
-            <div
-              className="pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay"
-              style={{ background: `linear-gradient(180deg, transparent 45%, ${s.accent} 100%)` }}
-            />
+
             {slides.map((sl, i) => (
               <img
                 key={sl.image}
