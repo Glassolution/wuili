@@ -255,7 +255,8 @@ function normalizeProducts(json: any, categoryId: string): any[] {
       aliexpress_category_id: categoryId,
       in_top_50: true,
       is_active: true,
-      is_blocked: false,
+      is_blocked: true, // AliExpress pausado no catálogo — mantemos oculto até reativarmos a fonte
+
       scraped_at: new Date().toISOString(),
     };
   }).filter((p) => p.external_id && p.title);
