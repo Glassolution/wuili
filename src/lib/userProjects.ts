@@ -42,6 +42,22 @@ function randomSuffix(): string {
   return Math.random().toString(36).slice(2, 7);
 }
 
+/** Retorna um slug único: prefere o baseSlug limpo; adiciona sufixo apenas em colisão. */
+async function ensureUniqueSlug(baseSlug: string): Promise<string> {
+  const clean = baseSlug || "loja";
+  const candidates = [clean, ...Array.from({ length: 8 }, (_, i) => `${clean}-${i + 2}`)];
+  for (const candidate of candidates) {
+    const { data, error } = await supabase
+      .from("user_projects")
+      .select("id")
+      .filter("metadata->>slug", "eq", candidate)
+      .limit(1);
+    if (error) break;
+    if (!data || data.length === 0) return candidate;
+  }
+  return `${clean}-${randomSuffix()}`;
+}
+
 export type CreateProjectInput = {
   nome: string;
   descricao: string;
@@ -60,7 +76,7 @@ export async function createUserProject(input: CreateProjectInput): Promise<User
   if (!user) throw new Error("not_authenticated");
 
   const baseSlug = slugify(input.nome) || "loja";
-  const slug = `${baseSlug}-${randomSuffix()}`;
+  const slug = await ensureUniqueSlug(baseSlug);
 
   const metadata: Record<string, unknown> = {
     descricao: input.descricao.trim(),
@@ -116,7 +132,7 @@ export async function publishProject(project: UserProject): Promise<UserProject>
   const metadata = readMetadata(project);
   let slug = typeof metadata.slug === "string" ? metadata.slug : "";
   if (!slug) {
-    slug = `${slugify(project.nome) || "loja"}-${randomSuffix()}`;
+    slug = await ensureUniqueSlug(slugify(project.nome) || "loja");
   }
   const nextMetadata = { ...metadata, slug } as Json;
 
