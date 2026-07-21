@@ -460,7 +460,7 @@ export async function updateProjectName(projectId: string, nome: string): Promis
 
 export async function updateProjectMetadata(
   project: UserProject,
-  patch: Partial<{ category: string; visibility: ProjectVisibility; subdomain: string }>,
+  patch: Record<string, unknown>,
 ): Promise<UserProject> {
   const nextMetadata = { ...readMetadata(project), ...patch } as Json;
   const { data, error } = await supabase
