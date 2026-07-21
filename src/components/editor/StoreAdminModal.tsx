@@ -406,17 +406,65 @@ export default function StoreAdminModal({
                       </button>
                     </section>
 
+                    {/* Produtos da loja (vindos do catálogo escolhido na criação) */}
+                    {storeProducts.length > 0 ? (
+                      <section>
+                        <div className="mb-3 flex items-baseline justify-between">
+                          <h3 className="text-[13.5px] font-semibold text-white">
+                            Produtos da loja
+                            <span className="ml-1 text-white/40">({storeProducts.length})</span>
+                          </h3>
+                          <p className="text-[11px] text-white/45">
+                            Vindos do catálogo escolhido ao criar a loja.
+                          </p>
+                        </div>
+                        <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                          {storeProducts.map((p) => (
+                            <li
+                              key={p.id}
+                              className="flex items-center gap-3 rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.04]"
+                            >
+                              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white/[0.05]">
+                                {p.imageUrl ? (
+                                  <img src={p.imageUrl} alt={p.title} className="h-full w-full object-cover" />
+                                ) : (
+                                  <div className="grid h-full w-full place-items-center text-white/30">
+                                    <ImageIcon size={14} />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[12.5px] font-medium text-white">{p.title}</p>
+                                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-white/55">
+                                  <span>{formatPriceBRL(p.price)}</span>
+                                  {p.category ? (
+                                    <>
+                                      <span className="text-white/25">·</span>
+                                      <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-white/70">
+                                        {p.category}
+                                      </span>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ) : null}
+
                     {/* Lista */}
                     <section>
                       <div className="mb-3 flex items-baseline justify-between">
                         <h3 className="text-[13.5px] font-semibold text-white">
-                          Produtos cadastrados{" "}
+                          Produtos próprios cadastrados{" "}
                           <span className="ml-1 text-white/40">({customProducts.length})</span>
                         </h3>
                         <p className="text-[11px] text-white/45">
                           Use as setas para reordenar. A ordem aparece na loja.
                         </p>
                       </div>
+
 
                       {customProducts.length === 0 ? (
                         <div className="rounded-2xl bg-white/[0.03] p-10 text-center">
