@@ -328,7 +328,7 @@ const StoreProjectsPage = () => {
           className="flex h-9 items-center gap-2 rounded-[7px] bg-[#1d1d1f] px-4 text-[13px] font-semibold text-white shadow-[0_10px_18px_rgba(0,0,0,0.10)] transition hover:bg-black"
         >
           <Plus size={15} />
-          {isAdmin ? "Novo projeto" : "Nova página de venda"}
+          {newProjectLabel}
         </button>
 
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
