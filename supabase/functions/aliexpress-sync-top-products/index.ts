@@ -762,6 +762,11 @@ serve(async (req) => {
         .in("id", droppedIds);
     }
 
+    const finalErrorMessage = [
+      stoppedByRateLimit ? `stopped_by_rate_limit (${stopReason ?? "rate_limit"})` : null,
+      errors.slice(0, 5).join(" | ") || null,
+    ].filter(Boolean).join(" | ") || null;
+
     await finalize({
       status: errorCount > 0 && productsNew + productsUpdated === 0 ? "failed" : "success",
       categories_processed: keywords.length,
@@ -769,8 +774,14 @@ serve(async (req) => {
       products_updated: productsUpdated,
       products_dropped_from_top: droppedIds.length,
       error_count: errorCount,
-      error_message: errors.slice(0, 5).join(" | ") || null,
+      error_message: finalErrorMessage,
     });
+
+    if (stoppedByRateLimit) {
+      console.warn(
+        `[aliexpress-sync-top-products] 🚦 execução finalizada com PARADA POR RATE-LIMIT — ${stopReason}. Enriquecidos ${enrichedCount}/${enrichLimit}, upserted ${productsNew + productsUpdated}.`,
+      );
+    }
 
     return new Response(
       JSON.stringify({
@@ -780,6 +791,10 @@ serve(async (req) => {
         products_updated: productsUpdated,
         products_dropped_from_top: droppedIds.length,
         errors: errorCount,
+        stopped_by_rate_limit: stoppedByRateLimit,
+        stop_reason: stopReason,
+        rate_limit_hits: rateLimitHits,
+        enriched: enrichedCount,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
