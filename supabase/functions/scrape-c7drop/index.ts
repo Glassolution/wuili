@@ -1,12 +1,34 @@
-// Scraper do catálogo público da C7 Drop (https://c7drop.com.br/loja/).
-// Usa a WooCommerce Store API pública (/wp-json/wc/store/v1/products), que retorna
-// preço, imagens, slug e estoque sem necessidade de autenticação — muito mais
-// confiável do que raspar o HTML paginado (o site lista 12 por página via JS).
-// Rodado a cada 12h via pg_cron, mas pode ser disparado manualmente:
-//   curl -X POST https://<project>.supabase.co/functions/v1/scrape-c7drop \
-//        -H "apikey: <anon-key>"
+// Scraper do catálogo público da C7 Drop.
+//
+// Em julho/2026 a C7 migrou de WordPress/WooCommerce para Next.js + Prisma. As
+// URLs antigas (`c7drop.com.br/wp-content/uploads/...`) e a `wc/store/v1` foram
+// aposentadas — retornam 308→403 no subdomínio `www`. As imagens que sobraram
+// no nosso catálogo (`catalog_products.images`) apontam pra esses caminhos
+// mortos, então nenhum produto renderiza foto no Velo.
+//
+// Nova fonte pública (sem auth):
+//   GET https://www.c7drop.com.br/api/products?page=<n>&limit=50
+//     → { products: [{id, name, slug, price, image, stock, categories:[{name,slug}]}], total, totalPages }
+//   GET https://www.c7drop.com.br/api/products/<slug>
+//     → objeto completo com images[], variants[], weight/width/height/length,
+//       description, shortDescription, categories[], brand, avgRating, reviewCount
+//
+// Todas as imagens agora vêm hospedadas no Vercel Blob Storage
+// (wfd7n2enlsvgxasp.public.blob.vercel-storage.com), acessível de qualquer IP.
+//
+// Modos disponíveis (query `?mode=`):
+//   • `full`             (default) — reescreve todos os produtos c7drop
+//   • `backfill_images`  — só atualiza `images` das linhas c7drop existentes,
+//                          preservando preço/título/link/estoque/etc. Usa
+//                          o mesmo endpoint por slug (nossa `external_id`).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { decodeHtmlEntities, detectBrand, extractAttribute, extractVariantOptions, inferCategory, isBlocked, isFakeAdProduct } from "../_shared/catalog-filters.ts";
+import {
+  decodeHtmlEntities,
+  detectBrand,
+  inferCategory,
+  isBlocked,
+  isFakeAdProduct,
+} from "../_shared/catalog-filters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,165 +36,323 @@ const corsHeaders = {
 };
 
 const SOURCE = "c7drop";
-const API_URL = "https://c7drop.com.br/wp-json/wc/store/v1/products";
-const PER_PAGE = 100;
-const MAX_PAGES = 30; // 30 * 100 = 3000, cobre folga sobre 1095
+const BASE = "https://www.c7drop.com.br";
+const LIST_URL = `${BASE}/api/products`;
+const DETAIL_URL = (slug: string) => `${BASE}/api/products/${encodeURIComponent(slug)}`;
+const PER_PAGE = 50; // API atual limita em 50 mesmo pedindo mais
+const MAX_PAGES = 60;
+const CONCURRENCY = 6;
 
-type WCProduct = {
-  id: number;
-  name: string;
-  slug: string;
-  permalink: string;
-  is_in_stock: boolean;
-  prices?: {
-    price?: string;            // em centavos (string)
-    regular_price?: string;
-    sale_price?: string;
-    currency_minor_unit?: number;
-    price_range?: { min_amount?: string; max_amount?: string } | null;
-  };
-  images?: Array<{ src?: string; thumbnail?: string }>;
-  attributes?: Array<{
-    name?: string;
-    taxonomy?: string;
-    terms?: Array<{ name?: string; slug?: string }>;
-  }>;
-  description?: string;
-  short_description?: string;
-  average_rating?: string | number;
-  total_sales?: string | number;
+const HEADERS = {
+  "User-Agent": "Mozilla/5.0 (compatible; VeloBot/1.0; +https://wuili.lovable.app)",
+  Accept: "application/json",
 };
 
-function parseWeightString(weightStr: string): number | null {
-  const clean = weightStr.trim().toLowerCase();
-  
-  // Extrai o número e a unidade (g ou kg)
-  const numMatch = clean.match(/([\d.,]+)\s*(g|kg)/);
-  if (!numMatch) {
-    const fallbackNum = parseFloat(clean.replace(',', '.'));
-    return isNaN(fallbackNum) ? null : fallbackNum;
-  }
+type ListItem = {
+  id: string;
+  name: string;
+  slug: string;
+  price: number | string | null;
+  compareAtPrice: number | string | null;
+  image: string | null;
+  stock: number | null;
+  categories?: Array<{ name?: string; slug?: string }>;
+};
 
-  const numVal = parseFloat(numMatch[1].replace(',', '.'));
-  if (isNaN(numVal)) return null;
+type ListResponse = {
+  products: ListItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+};
 
-  const unit = numMatch[2];
-  if (unit === 'g') {
-    return numVal / 1000; // Converte para kg
-  } else if (unit === 'kg') {
-    return numVal;
-  }
+type ProductImage = { url?: string | null; order?: number; isPrimary?: boolean };
+type ProductVariant = {
+  name?: string;
+  value?: string;
+  tier?: string;
+  price?: number | string | null;
+  stock?: number | null;
+  sku?: string | null;
+  image?: string | null;
+};
+type ProductDetail = {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  shortDescription?: string | null;
+  price: number | string | null;
+  compareAtPrice: number | string | null;
+  weight?: number | string | null;
+  width?: number | string | null;
+  height?: number | string | null;
+  length?: number | string | null;
+  stock: number | null;
+  active?: boolean;
+  images?: ProductImage[];
+  variants?: ProductVariant[];
+  categories?: Array<{ category?: { name?: string; slug?: string } } | { name?: string; slug?: string }>;
+  brand?: { name?: string } | null;
+  avgRating?: number | string | null;
+  reviewCount?: number | null;
+};
 
-  return null;
+function toNumber(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+  return Number.isFinite(n) ? n : null;
 }
 
-function extractWeightFromDescription(html: string | null | undefined): number | null {
-  if (!html) return null;
-
-  // 1. Procura na tabela andes-table de especificações (Peso)
-  // Ex: <div class="andes-table__header__container">Peso</div> ... <span ...>450 g</span>
-  const pesoTableRegex = /Peso<\/div>\s*<\/th>\s*<td[^>]*>\s*<span[^>]*class="[^"]*value[^"]*"[^>]*>([^<]+)<\/span>/i;
-  let match = html.match(pesoTableRegex);
-  if (match) {
-    const val = parseWeightString(match[1]);
-    if (val !== null && val > 0) return val;
+function normalizeImages(detail: ProductDetail, fallback?: string | null): string[] {
+  const list = (detail.images ?? [])
+    .slice()
+    .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))
+    .map((i) => (typeof i?.url === "string" ? i.url.trim() : ""))
+    .filter((s) => s.length > 0 && /^https?:\/\//i.test(s));
+  if (list.length === 0 && fallback && /^https?:\/\//i.test(fallback)) {
+    return [fallback.trim()];
   }
-
-  // Se não bater com o primeiro, tenta sem a classe "value"
-  const pesoTableRegexSimple = /Peso<\/div>\s*<\/th>\s*<td[^>]*>\s*<span[^>]*>([^<]+)<\/span>/i;
-  match = html.match(pesoTableRegexSimple);
-  if (match) {
-    const val = parseWeightString(match[1]);
-    if (val !== null && val > 0) return val;
-  }
-
-  // 2. Procura por "Peso aproximado: XXX" ou "Peso: XXX" no texto do HTML
-  const cleanText = html.replace(/<[^>]*>/g, ' ');
-  const pesoTextRegex = /Peso\s*(?:aproximado)?\s*:\s*([\d.,\s]+(?:g|kg|kg\.?|g\.?))\b/i;
-  match = cleanText.match(pesoTextRegex);
-  if (match) {
-    const val = parseWeightString(match[1]);
-    if (val !== null && val > 0) return val;
-  }
-
-  const pesoTextRegex2 = /Peso\s*(?:do produto)?\s*de\s*([\d.,\s]+(?:g|kg|kg\.?|g\.?))\b/i;
-  match = cleanText.match(pesoTextRegex2);
-  if (match) {
-    const val = parseWeightString(match[1]);
-    if (val !== null && val > 0) return val;
-  }
-
-  return null;
+  return Array.from(new Set(list));
 }
 
-
-function parsePriceMinor(p: WCProduct): number {
-  // C7Drop usa produto variável com duas opções de compra: "Atacado" (preço menor)
-  // e "Dropshipping" (preço maior). Para o modelo do Velo, sempre usamos o preço de
-  // dropshipping = max_amount do price_range. Produto simples não tem price_range,
-  // então caímos para prices.price.
-  const unit = p.prices?.currency_minor_unit ?? 2;
-  const raw = p.prices?.price_range?.max_amount ?? p.prices?.price;
-  if (!raw) return 0;
-  const n = parseInt(raw, 10);
-  if (isNaN(n)) return 0;
-  return n / Math.pow(10, unit);
+function pickCategoryName(detail: ProductDetail): string | null {
+  const raw = detail.categories?.[0];
+  if (!raw) return null;
+  // API às vezes devolve { category: {...} }, às vezes o objeto direto.
+  const inner = (raw as { category?: { name?: string } }).category ?? (raw as { name?: string });
+  const name = inner?.name;
+  return typeof name === "string" && name.trim().length > 0 ? name.trim() : null;
 }
 
-function parsePositiveMetric(value: unknown): number | null {
-  const parsed =
-    typeof value === "number" ? value : typeof value === "string" ? Number(value.replace(",", ".")) : Number.NaN;
-
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+function extractDropshippingPrice(detail: ProductDetail): number {
+  // Preferimos o preço da variante "Dropshipping" (que é o que o velo revende).
+  // Se não existir, caímos para o `price` de topo.
+  const dropVariant = detail.variants?.find((v) =>
+    (v.tier ?? "").toUpperCase() === "DROPSHIPPING" ||
+    (v.value ?? "").toLowerCase().includes("drop"),
+  );
+  const raw = toNumber(dropVariant?.price) ?? toNumber(detail.price);
+  return raw ?? 0;
 }
 
-function parsePositiveIntegerMetric(value: unknown): number | null {
-  const parsed = parsePositiveMetric(value);
-  return parsed === null ? null : Math.round(parsed);
+async function fetchJson<T>(url: string): Promise<T | null> {
+  const res = await fetch(url, { headers: HEADERS, redirect: "follow" });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GET ${url} → HTTP ${res.status}`);
+  return (await res.json()) as T;
 }
 
-async function fetchPage(page: number): Promise<WCProduct[]> {
-  const url = `${API_URL}?per_page=${PER_PAGE}&page=${page}&orderby=date&order=desc`;
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; VeloBot/1.0; +https://wuili.lovable.app)",
-      Accept: "application/json",
-    },
+async function fetchList(page: number): Promise<ListResponse | null> {
+  return fetchJson<ListResponse>(`${LIST_URL}?page=${page}&limit=${PER_PAGE}`);
+}
+
+async function fetchDetail(slug: string): Promise<ProductDetail | null> {
+  try {
+    return await fetchJson<ProductDetail>(DETAIL_URL(slug));
+  } catch (e) {
+    console.warn(`[scrape-c7drop] detalhe falhou p/ ${slug}:`, e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const idx = i++;
+      if (idx >= items.length) return;
+      results[idx] = await fn(items[idx]);
+    }
   });
-  if (res.status === 400 || res.status === 404) return []; // página além do total
-  if (!res.ok) {
-    throw new Error(`C7Drop HTTP ${res.status} na página ${page}`);
-  }
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
+  await Promise.all(workers);
+  return results;
+}
+
+function buildRowFromDetail(detail: ProductDetail, listItem?: ListItem): Record<string, unknown> | null {
+  const title = decodeHtmlEntities(detail.name ?? listItem?.name ?? "");
+  if (!title || !detail.slug) return null;
+  if (isFakeAdProduct(title, detail.slug)) return null;
+
+  const images = normalizeImages(detail, listItem?.image ?? null);
+  const price = extractDropshippingPrice(detail);
+  const blockedFlag = isBlocked(title);
+  const stock = toNumber(detail.stock ?? listItem?.stock) ?? 0;
+  const compareAt = toNumber(detail.compareAtPrice ?? listItem?.compareAtPrice ?? null);
+
+  const rawDesc = (detail.shortDescription && detail.shortDescription.trim().length > 0)
+    ? detail.shortDescription
+    : (detail.description ?? "");
+  const description = rawDesc && rawDesc.trim().length > 0
+    ? decodeHtmlEntities(rawDesc).trim()
+    : null;
+
+  const suggested = Math.round(price * 2 * 100) / 100;
+  // original_price ("de" riscado): só quando o fornecedor pratica desconto real.
+  const originalPrice = compareAt !== null && compareAt > price && price > 0
+    ? Math.round(compareAt * 2 * 100) / 100
+    : null;
+
+  const brandName = detail.brand?.name?.trim() || detectBrand(title);
+  const categoryFromApi = pickCategoryName(detail);
+  const category = categoryFromApi ?? inferCategory(title);
+
+  const weight = toNumber(detail.weight);
+  const rating = toNumber(detail.avgRating);
+  const ordersCount = typeof detail.reviewCount === "number" && detail.reviewCount > 0
+    ? detail.reviewCount
+    : null;
+
+  const now = new Date().toISOString();
+
+  return {
+    source: SOURCE,
+    external_id: detail.slug,
+    title,
+    description,
+    images,
+    cost_price: price,
+    suggested_price: suggested,
+    margin_percent: 100,
+    category,
+    supplier_name: "C7 Drop",
+    stock_quantity: stock > 0 ? stock : 0,
+    is_active: detail.active !== false,
+    product_url: `${BASE}/produto/${detail.slug}`,
+    is_blocked: blockedFlag,
+    brand: brandName ?? null,
+    weight: weight && weight > 0 ? weight : null,
+    ...(originalPrice !== null ? { original_price: originalPrice } : {}),
+    ...(rating !== null ? { rating } : {}),
+    ...(ordersCount !== null ? { orders_count: ordersCount } : {}),
+    scraped_at: now,
+    updated_at: now,
+  };
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    console.log(`[scrape-c7drop] Iniciando paginação ${API_URL}`);
-    const all: WCProduct[] = [];
-    for (let page = 1; page <= MAX_PAGES; page++) {
-      const batch = await fetchPage(page);
-      if (batch.length === 0) {
-        console.log(`[scrape-c7drop] Página ${page} vazia — fim da paginação.`);
-        break;
+    const url = new URL(req.url);
+    const mode = (url.searchParams.get("mode") ?? "full").toLowerCase();
+
+    // ------------------------------------------------------------------
+    // Modo backfill_images: só atualiza a coluna `images` das linhas
+    // existentes. Não toca preço/título/link/estoque/etc.
+    // ------------------------------------------------------------------
+    if (mode === "backfill_images" || mode === "backfill") {
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "400", 10) || 400, 1500);
+      const onlyStale = url.searchParams.get("only_stale") !== "0"; // default: pega só quem ainda tem wp-content
+      console.log(`[scrape-c7drop] Backfill de imagens iniciado (limit=${limit}, onlyStale=${onlyStale})`);
+      let q = supabase
+        .from("catalog_products")
+        .select("id,external_id,images")
+        .eq("source", SOURCE);
+      const { data: allRows, error: exErr } = await q;
+      if (exErr) throw exErr;
+      let candidates = allRows ?? [];
+      if (onlyStale) {
+        candidates = candidates.filter((r) => {
+          const s = JSON.stringify(r.images ?? []);
+          return !s.includes("vercel-storage");
+        });
       }
-      all.push(...batch);
-      console.log(`[scrape-c7drop] Página ${page}: ${batch.length} produtos (total acumulado ${all.length})`);
-      if (batch.length < PER_PAGE) break;
+      const rows = candidates.slice(0, limit);
+      console.log(`[scrape-c7drop] ${rows.length} produtos c7drop pra revisitar (de ${candidates.length} candidatos)`);
+
+      let updated = 0;
+      let missing = 0;
+      let unchanged = 0;
+      let errors = 0;
+      const now = new Date().toISOString();
+
+      await mapPool(rows, CONCURRENCY, async (row) => {
+        try {
+          const detail = await fetchDetail(row.external_id);
+          if (!detail) {
+            missing++;
+            return;
+          }
+          const images = normalizeImages(detail, null);
+          if (images.length === 0) {
+            missing++;
+            return;
+          }
+          const currentFirst = Array.isArray(row.images) && row.images.length > 0 ? String(row.images[0]) : "";
+          if (currentFirst === images[0] && Array.isArray(row.images) && row.images.length === images.length) {
+            unchanged++;
+            return;
+          }
+          const { error: upErr } = await supabase
+            .from("catalog_products")
+            .update({ images, scraped_at: now, updated_at: now })
+            .eq("id", row.id);
+          if (upErr) {
+            errors++;
+            console.error(`[scrape-c7drop] update falhou p/ ${row.external_id}: ${upErr.message}`);
+            return;
+          }
+          updated++;
+        } catch (e) {
+          errors++;
+          console.error(`[scrape-c7drop] backfill erro ${row.external_id}:`, e instanceof Error ? e.message : e);
+        }
+      });
+
+      const summary = { ok: true, mode: "backfill_images", total: rows.length, updated, unchanged, missing, errors };
+      console.log(`[scrape-c7drop] Backfill concluído:`, JSON.stringify(summary));
+      return new Response(JSON.stringify(summary), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log(`[scrape-c7drop] ${all.length} produtos coletados da API`);
+    // ------------------------------------------------------------------
+    // Modo full: pagina a lista, busca detalhe de cada produto e upserta.
+    // ------------------------------------------------------------------
+    console.log(`[scrape-c7drop] Iniciando full scrape via ${LIST_URL}`);
+    const list: ListItem[] = [];
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const res = await fetchList(page);
+      if (!res || !Array.isArray(res.products) || res.products.length === 0) break;
+      list.push(...res.products);
+      console.log(`[scrape-c7drop] Página ${page}/${res.totalPages}: ${res.products.length} itens (acumulado ${list.length})`);
+      if (page >= res.totalPages) break;
+    }
+    console.log(`[scrape-c7drop] Lista concluída: ${list.length} produtos`);
 
-    // Pré-carrega external_ids existentes para classificar insert vs update.
+    // Detalhe em paralelo (imagens completas, variantes, peso, dimensões, categoria).
+    let skippedFakeAds = 0;
+    let noDetail = 0;
+    let blocked = 0;
+    const rows: Record<string, unknown>[] = [];
+    await mapPool(list, CONCURRENCY, async (item) => {
+      if (!item.slug || !item.name) return;
+      if (isFakeAdProduct(decodeHtmlEntities(item.name), item.slug)) {
+        skippedFakeAds++;
+        return;
+      }
+      const detail = await fetchDetail(item.slug);
+      if (!detail) {
+        noDetail++;
+        return;
+      }
+      const row = buildRowFromDetail(detail, item);
+      if (!row) return;
+      if (row.is_blocked) blocked++;
+      rows.push(row);
+    });
+
+    console.log(
+      `[scrape-c7drop] Prontos p/ upsert: ${rows.length} (skipFakes=${skippedFakeAds}, semDetalhe=${noDetail}, blocked=${blocked})`,
+    );
+
+    // Detecta insert vs update.
     const { data: existing } = await supabase
       .from("catalog_products")
       .select("external_id")
@@ -181,92 +361,6 @@ Deno.serve(async (req) => {
 
     let inserted = 0;
     let updated = 0;
-    let blocked = 0;
-    const now = new Date().toISOString();
-
-    let skippedFakeAds = 0;
-    const rows = all
-      .filter((p) => {
-        if (!p.slug || !p.name) return false;
-        const decoded = decodeHtmlEntities(p.name);
-        if (isFakeAdProduct(decoded, p.permalink)) {
-          skippedFakeAds++;
-          return false;
-        }
-        return true;
-      })
-      .map((p) => {
-        const price = parsePriceMinor(p);
-        // Salva TODAS as imagens da galeria (a Store API já devolve o array completo).
-        // image[0] = capa, demais = imagens secundárias. Necessário para atender ao
-        // mínimo de 3 fotos exigido pelo Mercado Livre.
-        const images = (p.images ?? [])
-          .map((i) => i?.src ?? i?.thumbnail ?? "")
-          .filter((s) => !!s);
-        const title = decodeHtmlEntities(p.name);
-        const blockedFlag = isBlocked(title);
-        if (blockedFlag) blocked++;
-        // Marca: prioriza atributo do fornecedor; se não houver, tenta reconhecer
-        // no título por lista de marcas conhecidas. NÃO salva "Genérica" aqui —
-        // esse fallback é responsabilidade do ml-publish para não poluir o banco.
-        const brandFromAttr = extractAttribute(p.attributes, ["marca", "brand", "pa_marca"]);
-        const brand = brandFromAttr ?? detectBrand(title);
-        // Modelo: só grava quando o fornecedor informa explicitamente. Algumas
-        // categorias do ML rejeitam texto livre inventado — deixamos o usuário
-        // preencher no modal de revisão quando ausente.
-        const model = extractAttribute(p.attributes, ["modelo", "model", "pa_modelo"]);
-        const weight = extractWeightFromDescription(p.description || p.short_description);
-        const rating = parsePositiveMetric(p.average_rating);
-        const ordersCount = parsePositiveIntegerMetric(p.total_sales);
-        const variants = extractVariantOptions(p.attributes);
-        // Descrição: usamos short_description quando disponível (resumo curto que
-        // o fornecedor mantém limpo), com fallback para a descrição completa.
-        // Decodificamos entidades HTML mas preservamos as tags — o template
-        // renderiza como HTML sanitizado.
-        const rawDesc = (p.short_description && p.short_description.trim().length > 0)
-          ? p.short_description
-          : (p.description ?? "");
-        const description = rawDesc && rawDesc.trim().length > 0
-          ? decodeHtmlEntities(rawDesc).trim()
-          : null;
-        // original_price ("de" riscado): SÓ preenchemos quando o fornecedor
-        // pratica desconto real (regular_price > sale_price). Preço de referência
-        // fabricado é publicidade enganosa (CDC art. 37).
-        const unit = p.prices?.currency_minor_unit ?? 2;
-        let originalPrice: number | null = null;
-        const rp = p.prices?.regular_price ? parseInt(p.prices.regular_price, 10) : NaN;
-        const sp = p.prices?.sale_price ? parseInt(p.prices.sale_price, 10) : NaN;
-        if (Number.isFinite(rp) && Number.isFinite(sp) && rp > sp && sp > 0) {
-          originalPrice = Math.round((rp / Math.pow(10, unit)) * 2 * 100) / 100;
-        }
-        return {
-          source: SOURCE,
-          external_id: p.slug,
-          title,
-          description,
-          images,
-          cost_price: price,
-          suggested_price: Math.round(price * 2 * 100) / 100,
-          margin_percent: 100,
-          category: inferCategory(title),
-          supplier_name: "C7 Drop",
-          stock_quantity: p.is_in_stock ? 100 : 0,
-          is_active: true,
-          product_url: p.permalink,
-          is_blocked: blockedFlag,
-          brand,
-          model,
-          weight,
-          variants,
-          ...(originalPrice !== null ? { original_price: originalPrice } : {}),
-          ...(rating !== null ? { rating } : {}),
-          ...(ordersCount !== null ? { orders_count: ordersCount } : {}),
-          scraped_at: now,
-          updated_at: now,
-        };
-      });
-    console.log(`[scrape-c7drop] ${skippedFakeAds} anúncios falsos ignorados`);
-
     const BATCH = 200;
     for (let i = 0; i < rows.length; i += BATCH) {
       const slice = rows.slice(i, i + BATCH);
@@ -278,20 +372,22 @@ Deno.serve(async (req) => {
         throw error;
       }
       for (const r of slice) {
-        if (existingIds.has(r.external_id)) updated++;
+        if (existingIds.has(r.external_id as string)) updated++;
         else inserted++;
       }
     }
 
     const summary = {
       ok: true,
+      mode: "full",
       source: SOURCE,
-      total_scraped: all.length,
+      total_scraped: list.length,
       inserted,
       updated,
       blocked,
       skipped_fake_ads: skippedFakeAds,
-      ran_at: now,
+      no_detail: noDetail,
+      ran_at: new Date().toISOString(),
     };
     console.log("[scrape-c7drop] Concluído:", JSON.stringify(summary));
 
