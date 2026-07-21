@@ -2,9 +2,9 @@
 // Paleta: primary #2563EB, deep #1E40AF, sky #EFF6FF, orange #F97316,
 // ink #0F172A, mute #64748B, border #E2E8F0. Rounded 16-24, cards limpos.
 import { useEffect, useMemo, useState } from "react";
-import bannerLoja2_1 from "@/assets/banner-loja2-1.jpg";
-import bannerLoja2_2 from "@/assets/banner-loja2-2.jpg";
-import bannerLoja2_3 from "@/assets/banner-loja2-3.jpg";
+import bannerLoja2_1 from "@/assets/banner-loja2-1.png";
+import bannerLoja2_2 from "@/assets/banner-loja2-2.png";
+import bannerLoja2_3 from "@/assets/banner-loja2-3.png";
 import { ChevronLeft } from "lucide-react";
 import {
   ArrowRight,
