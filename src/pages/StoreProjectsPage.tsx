@@ -151,16 +151,26 @@ const StoreProjectsPage = () => {
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
   const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
+  const storeCount = useMemo(
+    () => projects.filter((project) => project.tipo === "loja_completa").length,
+    [projects],
+  );
+  const salesPageCount = useMemo(
+    () => projects.filter((project) => project.tipo === "pagina_venda").length,
+    [projects],
+  );
+  const canCreateStorePlan = isAdmin || canCreateStore(currentPlan, storeCount);
+  const canCreateSalesPagePlan = isAdmin || canCreateSalesPage(currentPlan, salesPageCount);
   const requestCreate = () => {
-    // Usuários gratuitos podem CRIAR páginas de vendas livremente.
-    // O bloqueio de plano acontece apenas ao PUBLICAR (dentro do editor).
-    // Admin pode criar loja completa; usuários comuns só criam página de venda.
+    // Se o plano atual não permite criar nenhum tipo de projeto, mostra o modal
+    // de upgrade em vez de abrir o wizard.
+    if (!isAdmin && !canCreateStorePlan && !canCreateSalesPagePlan) {
+      openUpgrade({ defaultPlan: "base" });
+      return;
+    }
     setWizardOpen(true);
   };
-  const visibleProjects = useMemo(
-    () => isAdmin ? projects : projects.filter((project) => project.tipo === "pagina_venda"),
-    [isAdmin, projects],
-  );
+  const visibleProjects = projects;
   const displayedProjects = useMemo(
     () => (filter === "all" ? visibleProjects : visibleProjects.filter((project) => project.tipo === filter)),
     [filter, visibleProjects],
