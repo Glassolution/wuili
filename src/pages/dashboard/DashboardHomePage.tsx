@@ -294,7 +294,8 @@ const DashboardHomePage = () => {
   const wizardDefaultTipo: ProjectType = canCreateStorePlan && !canCreateSalesPagePlan
     ? "loja_completa"
     : "pagina_venda";
-  const wizardAllowChoice = canCreateStorePlan && canCreateSalesPagePlan;
+  const wizardAllowChoice = true;
+  const { openUpgrade } = useUpgradeModal();
 
   const handleProjectCreated = (projectId: string) => {
     setWizardOpen(false);
