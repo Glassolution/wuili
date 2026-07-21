@@ -86,7 +86,6 @@ const getProductImages = (images: Json | null): string[] => {
   return proxyImageList(collect(images));
 };
 
-const mapProductPreview = (product: CatalogProductRow): ProductPreview | null => {
 const MIN_PRODUCT_IMAGES = 3;
 
 const mapProductPreview = (product: CatalogProductRow): ProductPreview | null => {
