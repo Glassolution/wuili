@@ -538,7 +538,9 @@ const ProductScoutAI = ({
         const { data: productsData, error: dbError } = await supabase
           .from("catalog_products")
           .select("id, title, images, cost_price, suggested_price, category, stock_quantity, product_url")
-          .in("id", orderedIds);
+          .in("id", orderedIds)
+          .neq("source", "aliexpress")
+          .eq("is_blocked", false);
 
         if (!dbError && productsData) {
           const productsById = new Map<string, CatalogProductRecord>(
