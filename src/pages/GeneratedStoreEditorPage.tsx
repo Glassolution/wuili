@@ -277,7 +277,7 @@ const GeneratedStoreEditorPage = () => {
   const navigate = useNavigate();
   const upgradeModal = useUpgradeModal();
   const { projectId: routeProjectId } = useParams<{ projectId: string }>();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { nome: profileName, foto: profilePhoto } = useProfile();
   const imageInput = useRef<HTMLInputElement>(null);
   const logoInput = useRef<HTMLInputElement>(null);
