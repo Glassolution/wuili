@@ -2,6 +2,10 @@
 // Paleta: primary #2563EB, deep #1E40AF, sky #EFF6FF, orange #F97316,
 // ink #0F172A, mute #64748B, border #E2E8F0. Rounded 16-24, cards limpos.
 import { useEffect, useMemo, useState } from "react";
+import bannerLoja2_1 from "@/assets/banner-loja2-1.jpg";
+import bannerLoja2_2 from "@/assets/banner-loja2-2.jpg";
+import bannerLoja2_3 from "@/assets/banner-loja2-3.jpg";
+import { ChevronLeft } from "lucide-react";
 import {
   ArrowRight,
   ChevronRight,
@@ -209,63 +213,69 @@ const StorefrontLojaTemplate2 = ({
         </div>
       </section>
 
-      {/* HERO BANNER — cream, product-cluster style */}
-      <section className="px-4 pt-2 md:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FEF3E2] via-[#FEF7ED] to-[#FDF6E3] p-6 md:p-10">
-          <span className="absolute right-4 top-4 z-10 grid h-16 w-16 place-items-center rounded-full bg-[#F97316] text-center text-[10px] font-extrabold leading-tight text-white shadow-lg md:right-8 md:top-8 md:h-20 md:w-20 md:text-[12px]">
-            <span>ATÉ<br />60%<br />OFF</span>
-          </span>
-          <div className={`grid items-center gap-6 ${mobile ? "grid-cols-1" : "md:grid-cols-2"}`}>
-            <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#F97316]">Qualidade Premium · Você Premium</span>
-              <h1 className="mt-3 text-[30px] font-extrabold leading-[1.02] tracking-tight text-[#0F172A] md:text-[44px]">
-                Tudo o que você precisa,<br />
-                <span className="text-[#2563EB]">em um só lugar</span>
-              </h1>
-              <p className="mt-3 max-w-[420px] text-[13px] leading-relaxed text-[#64748B]">
-                {salesAngle
-                  ? salesAngle.slice(0, 140)
-                  : "Descubra milhares de produtos de marcas confiáveis. Melhor preço, qualidade premium e entrega rápida."}
-              </p>
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <a href={ctaHref} className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-5 py-3 text-[13px] font-semibold text-white shadow-md transition hover:bg-[#1D4ED8]">
-                  Comprar agora
-                  <ArrowRight size={14} strokeWidth={2.4} />
-                </a>
-                <a href="/catalogo" className="inline-flex items-center rounded-full border border-[#0F172A]/15 bg-white px-5 py-3 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC]">
-                  Ver ofertas
-                </a>
-              </div>
-            </div>
-            <div className="relative flex items-center justify-center">
-              <div className="relative aspect-square w-full max-w-[320px]">
-                <div className="absolute inset-x-6 bottom-4 h-10 rounded-[50%] bg-black/10 blur-xl" />
-                <div className="absolute inset-6 rounded-full bg-white/80 shadow-inner" />
-                <img src={hero.imageUrl || heroImage} alt={hero.title} className="relative h-full w-full object-contain mix-blend-multiply drop-shadow-xl" />
-              </div>
-            </div>
-          </div>
+      {/* HERO BANNER CAROUSEL — lifestyle photography, real-store style */}
+      <HeroCarousel
+        slides={[
+          {
+            image: bannerLoja2_1,
+            eyebrow: "Nova coleção · Frete Grátis",
+            title: "Tudo o que você",
+            highlight: "precisa em um só lugar",
+            subtitle: "Milhares de produtos com o melhor preço e entrega rápida para todo o Brasil.",
+            badge: "ATÉ\n60%\nOFF",
+            badgeColor: "#F97316",
+            bg: "linear-gradient(90deg, #FDF6E3 0%, #FEF7ED 55%, #FEF3E2 100%)",
+            ctaHref,
+          },
+          {
+            image: bannerLoja2_2,
+            eyebrow: "Entrega expressa em todo Brasil",
+            title: "Chegou. Abriu.",
+            highlight: "Se apaixonou.",
+            subtitle: "Rastreie seu pedido em tempo real. Troca fácil em até 30 dias, sem burocracia.",
+            badge: "FRETE\nGRÁTIS",
+            badgeColor: "#2563EB",
+            bg: "linear-gradient(90deg, #EFF6FF 0%, #F8FAFC 55%, #F1F5F9 100%)",
+            ctaHref: "/catalogo",
+          },
+          {
+            image: bannerLoja2_3,
+            eyebrow: "Compre pelo celular",
+            title: "Ofertas na palma",
+            highlight: "da sua mão",
+            subtitle: "Novidades toda semana, pagamento em até 12x sem juros e cashback no Pix.",
+            badge: "12x\nSEM\nJUROS",
+            badgeColor: "#0EA5E9",
+            bg: "linear-gradient(90deg, #FFF7ED 0%, #FEF3E2 55%, #FFEDD5 100%)",
+            ctaHref: "/catalogo",
+          },
+        ]}
+        mobile={mobile}
+        salesAngle={salesAngle}
+      />
 
-          {/* TRUST STRIP inside hero */}
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/60 px-4 py-3 backdrop-blur-sm">
-            {[
-              { icon: Truck, t: "Frete Grátis", s: "Acima de R$199" },
-              { icon: Package, t: "Troca Fácil", s: "30 dias" },
-              { icon: ShieldCheck, t: "Pagto Seguro", s: "100% protegido" },
-            ].map(({ icon: Icon, t, s }) => (
-              <div key={t} className="flex flex-1 items-center gap-2 min-w-[130px]">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#FFF7ED] text-[#F97316]">
-                  <Icon size={15} strokeWidth={2.2} />
-                </span>
-                <div className="leading-tight">
-                  <strong className="block text-[11px] font-bold text-[#0F172A]">{t}</strong>
-                  <span className="block text-[10px] text-[#64748B]">{s}</span>
-                </div>
+      {/* TRUST STRIP */}
+      <section className="px-4 pt-4 md:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3">
+          {[
+            { icon: Truck, t: "Frete Grátis", s: "Acima de R$199" },
+            { icon: Package, t: "Troca Fácil", s: "30 dias" },
+            { icon: ShieldCheck, t: "Pagto Seguro", s: "100% protegido" },
+          ].map(({ icon: Icon, t, s }) => (
+            <div key={t} className="flex flex-1 items-center gap-2 min-w-[130px]">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#EFF6FF] text-[#2563EB]">
+                <Icon size={16} strokeWidth={2.2} />
+              </span>
+              <div className="leading-tight">
+                <strong className="block text-[12px] font-bold text-[#0F172A]">{t}</strong>
+                <span className="block text-[10px] text-[#64748B]">{s}</span>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </section>
+
+
 
 
       {/* FLASH DEAL */}
@@ -552,4 +562,144 @@ const StorefrontLojaTemplate2 = ({
   );
 };
 
+// -----------------------------------------------------------------------------
+// HeroCarousel — banners rotativos estilo loja real (lifestyle)
+// -----------------------------------------------------------------------------
+type HeroSlide = {
+  image: string;
+  eyebrow: string;
+  title: string;
+  highlight: string;
+  subtitle: string;
+  badge: string;
+  badgeColor: string;
+  bg: string;
+  ctaHref: string;
+};
+
+const HeroCarousel = ({
+  slides,
+  mobile,
+  salesAngle,
+}: {
+  slides: HeroSlide[];
+  mobile?: boolean;
+  salesAngle?: string;
+}) => {
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => setIdx((p) => (p + 1) % slides.length), 5500);
+    return () => clearInterval(t);
+  }, [paused, slides.length]);
+
+  const go = (n: number) => setIdx((n + slides.length) % slides.length);
+  const s = slides[idx];
+
+  return (
+    <section
+      className="px-4 pt-2 md:px-8"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div
+        className="relative overflow-hidden rounded-3xl shadow-sm"
+        style={{ background: s.bg }}
+      >
+        {/* Badge circular */}
+        <span
+          className="absolute right-4 top-4 z-20 grid h-16 w-16 place-items-center rounded-full text-center text-[10px] font-extrabold leading-tight text-white shadow-lg whitespace-pre md:right-8 md:top-8 md:h-20 md:w-20 md:text-[12px]"
+          style={{ background: s.badgeColor }}
+        >
+          {s.badge}
+        </span>
+
+        <div className={`relative grid items-center ${mobile ? "grid-cols-1" : "md:grid-cols-2"} min-h-[280px] md:min-h-[380px]`}>
+          {/* TEXTO */}
+          <div className="relative z-10 px-6 py-8 md:px-10 md:py-12">
+            <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#F97316]">
+              {s.eyebrow}
+            </span>
+            <h1 className="mt-3 text-[28px] font-extrabold leading-[1.05] tracking-tight text-[#0F172A] md:text-[42px]">
+              {s.title}
+              <br />
+              <span className="text-[#2563EB]">{s.highlight}</span>
+            </h1>
+            <p className="mt-3 max-w-[420px] text-[13px] leading-relaxed text-[#334155]">
+              {salesAngle && idx === 0 ? salesAngle.slice(0, 140) : s.subtitle}
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <a
+                href={s.ctaHref}
+                className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-5 py-3 text-[13px] font-semibold text-white shadow-md transition hover:bg-[#1D4ED8]"
+              >
+                Comprar agora
+                <ArrowRight size={14} strokeWidth={2.4} />
+              </a>
+              <a
+                href="/catalogo"
+                className="inline-flex items-center rounded-full border border-[#0F172A]/15 bg-white px-5 py-3 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC]"
+              >
+                Ver ofertas
+              </a>
+            </div>
+          </div>
+
+          {/* IMAGEM lifestyle */}
+          <div className="relative h-[220px] md:h-full md:min-h-[380px]">
+            {slides.map((sl, i) => (
+              <img
+                key={sl.image}
+                src={sl.image}
+                alt=""
+                className={`absolute inset-0 h-full w-full object-cover object-right transition-opacity duration-700 ${i === idx ? "opacity-100" : "opacity-0"}`}
+                style={{ objectPosition: mobile ? "right center" : "right center" }}
+              />
+            ))}
+            {/* fade horizontal para o texto respirar */}
+            <div
+              className="pointer-events-none absolute inset-0 hidden md:block"
+              style={{
+                background:
+                  "linear-gradient(90deg, " + s.bg.split(",")[1]?.trim() + " 0%, transparent 45%)",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Setas */}
+        <button
+          aria-label="Anterior"
+          onClick={() => go(idx - 1)}
+          className="absolute left-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#0F172A] shadow-md backdrop-blur transition hover:bg-white md:grid"
+        >
+          <ChevronLeft size={18} strokeWidth={2.4} />
+        </button>
+        <button
+          aria-label="Próximo"
+          onClick={() => go(idx + 1)}
+          className="absolute right-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#0F172A] shadow-md backdrop-blur transition hover:bg-white md:grid"
+        >
+          <ChevronRight size={18} strokeWidth={2.4} />
+        </button>
+
+        {/* Dots */}
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              aria-label={`Banner ${i + 1}`}
+              onClick={() => setIdx(i)}
+              className={`h-2 rounded-full transition-all ${i === idx ? "w-6 bg-[#2563EB]" : "w-2 bg-[#0F172A]/25 hover:bg-[#0F172A]/50"}`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 export default StorefrontLojaTemplate2;
+
