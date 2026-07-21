@@ -547,7 +547,7 @@ const DashboardHomePage = () => {
 
           {toolCards.map((card) => {
             const Icon = card.icon;
-            const storeCreationInTesting = card.title === "Loja completa" && !isAdmin;
+            const storeCreationInTesting = card.title === "Loja completa" && !canCreateStorePlan;
 
             return (
               <a
