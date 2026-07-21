@@ -165,12 +165,6 @@ const StoreProjectsPage = () => {
   const canCreateStorePlan = isAdmin || canCreateStore(currentPlan, storeCount);
   const canCreateSalesPagePlan = isAdmin || canCreateSalesPage(currentPlan, salesPageCount);
   const requestCreate = () => {
-    // Se o plano atual não permite criar nenhum tipo de projeto, mostra o modal
-    // de upgrade em vez de abrir o wizard.
-    if (!isAdmin && !canCreateStorePlan && !canCreateSalesPagePlan) {
-      openUpgrade({ defaultPlan: "base" });
-      return;
-    }
     setWizardOpen(true);
   };
   const visibleProjects = projects;
