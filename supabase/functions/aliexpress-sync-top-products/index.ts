@@ -703,6 +703,8 @@ serve(async (req) => {
     }
 
 
+    // Regra fixa (segunda camada): produto AliExpress só é publicável com ≥ MIN_IMAGES_REQUIRED fotos.
+    let insufficientPhotos = 0;
     for (const item of detailed) {
       const imgCount = Array.isArray(item.images) ? item.images.length : 0;
       if (imgCount < MIN_IMAGES_REQUIRED) {
