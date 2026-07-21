@@ -22,6 +22,7 @@ import ProductTemplate from "@/components/store-templates/ProductTemplate";
 import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateBeauty";
 import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
 import ProductTemplate4 from "@/components/store-templates/ProductTemplate4";
+import StorefrontLojaTemplate2 from "@/components/store-templates/StorefrontLojaTemplate2";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
 type CatalogItem = ExampleProduct & { category: string; imageUrls?: string[]; variants?: ProductVariantOption[]; originalPrice?: number | null; rating?: number; averageRating?: number; ratingCount?: string | number; reviewCount?: string | number; reviewsCount?: string | number };
@@ -2102,7 +2103,8 @@ const GeneratedStoreEditorPage = () => {
   ];
   const templateOptions = {
     loja: [
-      { id: "loja-1", name: "Template 1", desc: "Loja completa com vitrine e categorias.", image: "/template-01-loja-preview.png" },
+      { id: "loja-1", name: "Template 1", desc: "Loja completa AERO-STEP (creme e verde musgo).", image: "/template-01-loja-preview.png" },
+      { id: "loja-2", name: "Template 2", desc: "Marketly · e-commerce azul mobile-first.", image: "/template-01-loja-preview.png" },
     ],
     produto: [
       { id: "produto-1", name: "Template 1", desc: "Página de produto Velora.", image: "/template-produto-preview.png" },
@@ -3347,6 +3349,24 @@ const GeneratedStoreEditorPage = () => {
                   mobile={mobilePreview}
                 />
               )
+            ) : activeTemplate.id === "loja-2" ? (
+              <StorefrontLojaTemplate2
+                storeName={brandName}
+                heroImage={heroImage}
+                logoImage={logoImage}
+                salesAngle={flow.salesAngle}
+                heroCtaUrl={heroCtaUrl}
+                products={displayedProducts.map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  price: p.price,
+                  imageUrl: p.imageUrl,
+                  category: p.category,
+                  originalPrice: p.originalPrice ?? null,
+                }))}
+                mobile={mobilePreview}
+                projectId={currentProject?.id}
+              />
             ) : (
             <>
             {/* === TEMPLATE 01 - C-STYLE INSPIRED === */}
