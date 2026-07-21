@@ -247,11 +247,16 @@ Deno.serve(async (req) => {
     // existentes. Não toca preço/título/link/estoque/etc.
     // ------------------------------------------------------------------
     if (mode === "backfill_images" || mode === "backfill") {
-      console.log(`[scrape-c7drop] Backfill de imagens iniciado`);
-      const { data: existing, error: exErr } = await supabase
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "400", 10) || 400, 1500);
+      const onlyStale = url.searchParams.get("only_stale") !== "0"; // default: pega só quem ainda tem wp-content
+      console.log(`[scrape-c7drop] Backfill de imagens iniciado (limit=${limit}, onlyStale=${onlyStale})`);
+      let q = supabase
         .from("catalog_products")
         .select("id,external_id,images")
-        .eq("source", SOURCE);
+        .eq("source", SOURCE)
+        .limit(limit);
+      if (onlyStale) q = q.or("images.cs.[\"https://c7drop.com.br\"],images.cs.[\"https://www.c7drop.com.br\"]");
+      const { data: existing, error: exErr } = await q;
       if (exErr) throw exErr;
       const rows = existing ?? [];
       console.log(`[scrape-c7drop] ${rows.length} produtos c7drop pra revisitar`);
