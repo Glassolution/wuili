@@ -281,25 +281,25 @@ const StorefrontLojaTemplate = ({
       </section>
 
       <section className="grid grid-cols-1 gap-4 px-8 py-10 md:grid-cols-2">
-        <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-black text-white">
+        <div className="relative flex min-h-[220px] overflow-hidden rounded-[20px] bg-[#1a3c2a] text-white">
           <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
             <div>
-              <strong className="text-[10px] font-semibold tracking-[0.18em] text-white/70">OFERTA ESPECIAL</strong>
-              <h3 className="mt-1 text-[28px] font-semibold leading-[1.04] tracking-[-0.015em]">Preços que surpreendem</h3>
-              <p className="mt-2 max-w-[180px] text-[10px] text-white/55">Encontre produtos selecionados com condições especiais por tempo limitado.</p>
+              <strong className="inline-flex items-center rounded-full bg-[#e8ecd6] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#1a3c2a]">Oferta especial</strong>
+              <h3 className="mt-3 text-[28px] font-semibold leading-[1.04] tracking-[-0.015em]">Preços que surpreendem</h3>
+              <p className="mt-2 max-w-[180px] text-[10px] text-white/60">Encontre produtos selecionados com condições especiais por tempo limitado.</p>
             </div>
-            <button className="mt-4 w-fit rounded-full bg-white px-4 py-1.5 text-[9.5px] font-medium text-black">Ver ofertas</button>
+            <button className="mt-4 w-fit rounded-full bg-[#f5f2ea] px-4 py-1.5 text-[9.5px] font-medium text-[#1a3c2a] shadow-[0_6px_14px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5">Ver ofertas</button>
           </div>
           <div className="relative w-[44%] shrink-0 overflow-hidden"><img src={displayedProducts[1 % displayedProducts.length]?.imageUrl || heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center" /></div>
         </div>
-        <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-[#eeece7]">
+        <div className="relative flex min-h-[220px] overflow-hidden rounded-[20px] bg-[#eef1de]">
           <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
             <div>
-              <strong className="text-[10px] font-semibold tracking-[0.18em] text-black/50">ACABOU DE CHEGAR</strong>
-              <h3 className="mt-1 text-[28px] font-semibold leading-[1.04] tracking-[-0.015em]">Novidades para você</h3>
-              <p className="mt-2 max-w-[180px] text-[10px] text-black/55">Explore os lançamentos mais recentes de todas as categorias da loja.</p>
+              <strong className="inline-flex items-center rounded-full bg-[#1a3c2a] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#f5f2ea]">Acabou de chegar</strong>
+              <h3 className="mt-3 text-[28px] font-semibold leading-[1.04] tracking-[-0.015em] text-[#1a3c2a]">Novidades para você</h3>
+              <p className="mt-2 max-w-[180px] text-[10px] text-[#1a3c2a]/60">Explore os lançamentos mais recentes de todas as categorias da loja.</p>
             </div>
-            <button className="mt-4 w-fit rounded-full bg-black px-4 py-1.5 text-[9.5px] font-medium text-white">Conhecer novidades</button>
+            <button className="mt-4 w-fit rounded-full bg-[#1a3c2a] px-4 py-1.5 text-[9.5px] font-medium text-[#f5f2ea] shadow-[0_6px_14px_rgba(0,0,0,0.15)] transition hover:-translate-y-0.5">Conhecer novidades</button>
           </div>
           <div className="relative w-[44%] shrink-0 overflow-hidden"><img src={displayedProducts[2 % displayedProducts.length]?.imageUrl || heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center" /></div>
         </div>
