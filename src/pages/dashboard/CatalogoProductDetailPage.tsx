@@ -17,6 +17,7 @@ import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/comp
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import { veloToast } from "@/components/ui/velo-toast";
+import { proxyImageList } from "@/lib/imageProxy";
 
 const FAQItem = ({ question, answer }: { question: string; answer: string }) => {
   const [open, setOpen] = useState(false);
@@ -73,11 +74,12 @@ function extractImages(raw: unknown): string[] {
     try {
       arr = JSON.parse(raw);
     } catch {
-      return [raw];
+      return proxyImageList([raw]);
     }
   }
   if (!Array.isArray(arr)) return [];
-  return arr.filter((url): url is string => typeof url === "string" && url.length > 0);
+  const list = arr.filter((url): url is string => typeof url === "string" && url.length > 0);
+  return proxyImageList(list);
 }
 
 function mapProduct(p: CatalogProductRow): DetailedProduct {

@@ -36,6 +36,7 @@ import {
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import ProductScoutAI, { type AtlasResults } from "@/components/dashboard/ProductScoutAI";
 import { veloToast } from "@/components/ui/velo-toast";
+import { proxyImageList } from "@/lib/imageProxy";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { ProductCard, ProductCardSkeleton, type Product, formatPrice } from "@/components/dashboard/ProductCard";
 import {
@@ -816,22 +817,23 @@ const RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
 
 const getProductImages = (images: Json | null): string[] => {
   if (!images) return [];
-  if (Array.isArray(images)) {
-    return images.filter((image): image is string => typeof image === "string");
-  }
-
-  if (typeof images === "string") {
-    try {
-      const parsed: unknown = JSON.parse(images);
-      return Array.isArray(parsed)
-        ? parsed.filter((image): image is string => typeof image === "string")
-        : [images];
-    } catch {
-      return [images];
+  const raw: string[] = (() => {
+    if (Array.isArray(images)) {
+      return images.filter((image): image is string => typeof image === "string");
     }
-  }
-
-  return [];
+    if (typeof images === "string") {
+      try {
+        const parsed: unknown = JSON.parse(images);
+        return Array.isArray(parsed)
+          ? parsed.filter((image): image is string => typeof image === "string")
+          : [images];
+      } catch {
+        return [images];
+      }
+    }
+    return [];
+  })();
+  return proxyImageList(raw);
 };
 
 
