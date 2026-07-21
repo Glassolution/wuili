@@ -4226,98 +4226,106 @@ const GeneratedStoreEditorPage = () => {
 
       <AnimatePresence>
         {publishOpen ? (
-          <motion.div
-            key="publish-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-[130] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
-            onMouseDown={(event) => { if (event.target === event.currentTarget) setPublishOpen(false); }}
-          >
+          <>
+            <motion.div
+              key="publish-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-[125]"
+              onMouseDown={() => setPublishOpen(false)}
+            />
             <motion.section
-              key="publish-panel"
-              initial={{ opacity: 0, scale: 0.96, y: 14 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.97, y: 8 }}
-              transition={{ type: "spring", stiffness: 320, damping: 30 }}
-              className="w-full max-w-[440px] overflow-hidden rounded-[18px] bg-white text-[#18191c] shadow-[0_40px_120px_rgba(0,0,0,0.4)]"
+              key="publish-popover"
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 360, damping: 30 }}
+              className="fixed right-6 top-[72px] z-[130] w-[380px] overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#0e0f11] text-white shadow-[0_30px_90px_rgba(0,0,0,0.55)]"
+              onMouseDown={(event) => event.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-[#ececea] px-5 py-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e9f7ee] text-[#1f9d55]">
-                    <Check size={16} />
+              <div className="flex items-center justify-between px-5 pt-5">
+                <h2 className="text-[17px] font-semibold tracking-[-0.01em]">
+                  {currentProject?.status === "publicado" ? "Publicado" : "Publicar"}
+                </h2>
+                {currentProject?.status === "publicado" ? (
+                  <span className="flex items-center gap-1.5 text-[12px] font-medium text-white/50">
+                    <Eye size={13} /> 0
                   </span>
-                  <h2 className="text-[15px] font-semibold tracking-[-0.02em]">
-                    {currentProject?.status === "publicado" ? "Site publicado" : "Publicar site"}
-                  </h2>
+                ) : null}
+              </div>
+
+              <div className="px-5 pt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[13px] font-semibold text-white">Endereço do site</span>
+                  <button type="button" className="flex items-center gap-1.5 text-[12px] font-medium text-white/55 transition hover:text-white">
+                    <Link2 size={12} /> Domínio personalizado
+                  </button>
                 </div>
-                <button type="button" onClick={() => setPublishOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#5f6368] transition hover:bg-[#f3f3f1]" aria-label="Fechar">
-                  <X size={16} />
+                {publicUrl ? (
+                  <div className="flex items-center justify-between rounded-[12px] border border-white/[0.08] bg-[#17181a] px-3.5 py-3">
+                    <span className="truncate text-[13px] font-medium text-white/85">
+                      {publicUrl.replace(/^https?:\/\//, "")}
+                    </span>
+                    <button type="button" onClick={() => void handleCopyPublicUrl()} className="ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-white/60 transition hover:bg-white/[0.06] hover:text-white" aria-label="Copiar link">
+                      {publishCopied ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-[12px] border border-dashed border-white/[0.10] bg-[#17181a] px-3.5 py-3 text-[12.5px] text-white/50">
+                    Publique para gerar o subdomínio do seu projeto.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 border-t border-white/[0.06] px-5 py-4">
+                <p className="mb-2.5 text-[13px] font-semibold text-white">Quem pode ver este site</p>
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-white/80">
+                    <Globe size={16} strokeWidth={1.8} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-white">Público</p>
+                    <p className="text-[11.5px] text-white/50">Qualquer pessoa com o link</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 border-t border-white/[0.06] px-5 py-4">
+                <button type="button" onClick={() => setPublishOpen(false)} className="h-10 rounded-[10px] bg-white/[0.05] text-[12.5px] font-semibold text-white/80 transition hover:bg-white/[0.09]">
+                  Revisar segurança
+                </button>
+                <button type="button" onClick={() => setPublishOpen(false)} className="h-10 rounded-[10px] bg-white/[0.05] text-[12.5px] font-semibold text-white/80 transition hover:bg-white/[0.09]">
+                  Configurações
                 </button>
               </div>
 
-              <div className="space-y-4 px-5 py-5">
-                <div>
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-[#9a9a96]">
-                    Endereço do site
-                  </label>
-                  {currentProject?.status === "publicado" && publicUrl ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-10 min-w-0 flex-1 items-center rounded-[10px] border border-[#e0e0dc] px-3 text-[13px] font-medium text-[#33363b]">
-                        <span className="truncate">{publicUrl.replace(/^https?:\/\//, "")}</span>
-                      </div>
-                      <button type="button" onClick={() => void handleCopyPublicUrl()} className="flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] bg-[#f2f2f0] px-3 text-[12.5px] font-semibold text-[#33363b] transition hover:bg-[#e8e8e4]">
-                        {publishCopied ? <Check size={15} /> : <Copy size={15} />}
-                        {publishCopied ? "Copiado" : "Copiar"}
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="rounded-[10px] border border-dashed border-[#e0e0dc] bg-[#fafafa] px-3 py-2.5 text-[12.5px] font-medium text-[#6b7079]">
-                      Publique para gerar o link público do seu projeto.
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between rounded-[10px] bg-[#f7f7f5] px-3.5 py-3">
-                  <div>
-                    <p className="text-[12.5px] font-semibold text-[#33363b]">Quem pode ver este site</p>
-                    <p className="text-[11.5px] text-[#6b7079]">Qualquer pessoa com o link</p>
-                  </div>
-                  <span className="rounded-full bg-[#e9f7ee] px-2.5 py-1 text-[11px] font-bold text-[#1f9d55]">
-                    Público
-                  </span>
-                </div>
-
+              <div className="px-5 pb-5">
+                <button
+                  type="button"
+                  disabled={publishing}
+                  onClick={() => void handleConfirmPublish()}
+                  className="relative flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-[#3567e9] text-[13.5px] font-semibold text-white transition hover:bg-[#4272ee] disabled:opacity-55"
+                >
+                  {publishing ? <RefreshCcw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                  {currentProject?.status === "publicado" ? "Atualizar" : "Publicar agora"}
+                  <span className="absolute right-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-white/95" />
+                </button>
                 {currentProject?.status === "publicado" && publicUrl ? (
                   <a
                     href={publicUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex h-11 items-center justify-center gap-2 rounded-[11px] border border-[#e0e0dc] text-[13px] font-semibold text-[#33363b] transition hover:bg-[#f7f7f5]"
+                    className="mt-2 flex h-10 items-center justify-center gap-2 rounded-[10px] text-[12.5px] font-semibold text-white/70 transition hover:bg-white/[0.05] hover:text-white"
                   >
-                    <Link2 size={16} />
+                    <Link2 size={14} />
                     Abrir site publicado
                   </a>
                 ) : null}
               </div>
-
-              <div className="flex items-center justify-end gap-2 border-t border-[#ececea] px-5 py-4">
-                <button type="button" onClick={() => setPublishOpen(false)} className="h-10 rounded-[10px] px-4 text-[13px] font-semibold text-[#5f6368] transition hover:bg-[#f3f3f1]">
-                  Fechar
-                </button>
-                <button
-                  type="button"
-                  disabled={publishing}
-                  onClick={() => void handleConfirmPublish()}
-                  className="flex h-10 items-center gap-2 rounded-[10px] bg-[#3567e9] px-5 text-[13px] font-semibold text-white transition hover:bg-[#4272ee] disabled:opacity-55"
-                >
-                  {publishing ? <RefreshCcw size={15} className="animate-spin" /> : <Sparkles size={15} />}
-                  {currentProject?.status === "publicado" ? "Atualizar" : "Publicar agora"}
-                </button>
-              </div>
             </motion.section>
-          </motion.div>
+          </>
         ) : null}
       </AnimatePresence>
       {upgradeModalOpen ? (
