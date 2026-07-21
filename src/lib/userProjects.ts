@@ -132,7 +132,7 @@ export async function publishProject(project: UserProject): Promise<UserProject>
   const metadata = readMetadata(project);
   let slug = typeof metadata.slug === "string" ? metadata.slug : "";
   if (!slug) {
-    slug = `${slugify(project.nome) || "loja"}-${randomSuffix()}`;
+    slug = await ensureUniqueSlug(slugify(project.nome) || "loja");
   }
   const nextMetadata = { ...metadata, slug } as Json;
 
