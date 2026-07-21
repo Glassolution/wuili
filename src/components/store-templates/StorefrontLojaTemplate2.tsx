@@ -2,9 +2,9 @@
 // Paleta: primary #2563EB, deep #1E40AF, sky #EFF6FF, orange #F97316,
 // ink #0F172A, mute #64748B, border #E2E8F0. Rounded 16-24, cards limpos.
 import { useEffect, useMemo, useState } from "react";
-import bannerLoja2_1 from "@/assets/banner-loja2-1.jpg";
-import bannerLoja2_2 from "@/assets/banner-loja2-2.jpg";
-import bannerLoja2_3 from "@/assets/banner-loja2-3.jpg";
+import bannerLoja2_1 from "@/assets/banner-loja2-1.png";
+import bannerLoja2_2 from "@/assets/banner-loja2-2.png";
+import bannerLoja2_3 from "@/assets/banner-loja2-3.png";
 import { ChevronLeft } from "lucide-react";
 import {
   ArrowRight,
@@ -638,24 +638,24 @@ const HeroCarousel = ({
           {s.badge}
         </span>
 
-        <div className={`relative grid items-center ${mobile ? "grid-cols-1" : "md:grid-cols-[1.05fr_1fr]"} min-h-[340px] md:min-h-[440px]`}>
+        <div className={`relative grid items-end ${mobile ? "grid-cols-1" : "md:grid-cols-2"} min-h-[380px] md:min-h-[460px]`}>
           {/* TEXTO */}
-          <div className="relative z-20 px-6 py-9 md:px-12 md:py-14">
+          <div className="relative z-20 px-6 pt-9 pb-4 md:px-12 md:py-14">
             <span
               className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] shadow-sm"
               style={{ color: s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#0F172A" }}
             >
               {s.eyebrow}
             </span>
-            <h1 className="mt-4 text-[32px] font-black leading-[1.02] tracking-tight text-white drop-shadow-md md:text-[52px]">
+            <h1 className="mt-4 text-[30px] font-black leading-[1.02] tracking-tight text-white drop-shadow-md md:text-[46px]">
               {s.title}
               <br />
               <span style={{ color: s.accent }}>{s.highlight}</span>
             </h1>
-            <p className="mt-4 max-w-[440px] text-[14px] font-medium leading-relaxed text-white/95 md:text-[15px]">
+            <p className="mt-3 max-w-[400px] text-[13px] font-medium leading-relaxed text-white/95 md:text-[14px]">
               {salesAngle && idx === 0 ? salesAngle.slice(0, 140) : s.subtitle}
             </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-5 flex flex-wrap items-center gap-3">
               <a
                 href={s.ctaHref}
                 className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[14px] font-black text-[#0F172A] shadow-2xl transition hover:scale-[1.03] hover:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.4)]"
@@ -667,7 +667,7 @@ const HeroCarousel = ({
                 href="/catalogo"
                 className="inline-flex items-center rounded-full border-2 border-white/70 bg-white/10 px-6 py-3.5 text-[14px] font-bold text-white backdrop-blur transition hover:bg-white/20"
               >
-                Ver todas as ofertas
+                Ver ofertas
               </a>
             </div>
 
@@ -679,32 +679,22 @@ const HeroCarousel = ({
             </div>
           </div>
 
-          {/* IMAGEM lifestyle — pessoa em destaque */}
-          <div className="relative h-[260px] md:h-full md:min-h-[440px]">
+          {/* IMAGEM lifestyle — pessoa em destaque, transparente (PNG) */}
+          <div className="relative h-[320px] self-end md:h-[480px] md:min-h-[480px]">
+            {/* Halo/spotlight atrás da pessoa para dar profundidade */}
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[85%] w-[75%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl"
+              style={{ background: s.accent }}
+            />
             {slides.map((sl, i) => (
               <img
                 key={sl.image}
                 src={sl.image}
                 alt=""
                 loading={i === 0 ? "eager" : "lazy"}
-                className={`absolute inset-0 h-full w-full object-cover object-right-bottom transition-opacity duration-700 ${i === idx ? "opacity-100" : "opacity-0"}`}
+                className={`absolute inset-x-0 bottom-0 mx-auto h-full w-auto max-w-[95%] object-contain object-bottom drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)] transition-opacity duration-700 ${i === idx ? "opacity-100" : "opacity-0"}`}
               />
             ))}
-            {/* fade horizontal para o texto respirar */}
-            <div
-              className="pointer-events-none absolute inset-y-0 left-0 hidden w-2/3 md:block"
-              style={{
-                background:
-                  "linear-gradient(90deg, " + (s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#000") + " 0%, transparent 100%)",
-              }}
-            />
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 md:hidden"
-              style={{
-                background:
-                  "linear-gradient(180deg, transparent 0%, " + (s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#000") + " 100%)",
-              }}
-            />
           </div>
         </div>
 
