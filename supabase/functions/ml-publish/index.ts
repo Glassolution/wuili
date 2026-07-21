@@ -1399,21 +1399,15 @@ Deno.serve(async (req) => {
       } catch (persistErr) {
         console.error('[ml-publish] Falha ao gravar categoria confirmada:', persistErr)
       }
-      try {
-        await supabase.from('ml_category_prediction_log').insert({
-          product_id: productRecordId,
-          user_id,
-          title_raw: title,
-          title_normalized: prediction?.normalizedTitle ?? '',
-          predicted_raw: prediction?.rawPrediction ?? null,
-          predicted_normalized: prediction?.normalizedPrediction ?? null,
-          final_category: categoryId,
-          final_status: categoryStatusForRecord,
-          requires_size_grid: Boolean(providedSizeGridId),
-        })
-      } catch (logErr) {
-        console.error('[ml-publish] Falha ao gravar log de predição (success):', logErr)
-      }
+      await logPrediction(supabase, {
+        productId: productRecordId,
+        userId: user_id,
+        title,
+        prediction,
+        finalCategory: categoryId,
+        finalStatus: categoryStatusForRecord,
+        requiresSizeGrid: Boolean(providedSizeGridId),
+      })
     }
 
     console.log('=== ml-publish SUCCESS ===', itemId)
