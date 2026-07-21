@@ -203,17 +203,17 @@ const StorefrontLojaTemplate = ({
               ))}
             </div>
           </div>
-          <span aria-hidden="true" className="absolute z-10 bg-[#00213c]" style={{ left: "27.1%", top: "3.55%", width: "39.2%", height: "3.8%" }} />
-          <span aria-hidden="true" className="absolute z-10 bg-[#042f4f]" style={{ left: "80.6%", top: "3.55%", width: "14.2%", height: "3.8%" }} />
+          <span aria-hidden="true" className="absolute z-10 bg-[#0f2e1c]" style={{ left: "27.1%", top: "3.55%", width: "39.2%", height: "3.8%" }} />
+          <span aria-hidden="true" className="absolute z-10 bg-[#14351f]" style={{ left: "80.6%", top: "3.55%", width: "14.2%", height: "3.8%" }} />
           {heroNavLinks.map((item) => (
             <a key={item.label} href={item.href} className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: item.left, top: "3.92%", width: item.width, height: "3.05%", fontSize: "clamp(9.5px,0.86vw,14px)" }}>{item.label}</a>
           ))}
           <a href="tel:+551234567890" className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: "81.1%", top: "3.92%", width: "13.45%", height: "3.05%", fontSize: "clamp(9.5px,0.86vw,14px)" }}>Suporte: (123) 456-7890</a>
           <div className="absolute text-white" style={{ left: "27.35%", top: "50%", width: "28.4%", transform: "translateY(-50%)" }}>
-            <span className="block font-semibold uppercase tracking-[0.08em] text-[#e8c878]" style={{ fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{categories[0] || "Novidades"}</span>
+            <span className="inline-flex items-center rounded-full bg-[#e8ecd6] px-[3.2%] py-[1.2%] font-semibold uppercase tracking-[0.08em] text-[#1a3c2a]" style={{ fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{categories[0] || "Novidades"}</span>
             <h1 className="mt-[2.8%] font-semibold leading-[1.06] tracking-[-0.012em] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.22)]" style={{ fontSize: "clamp(22px,2.55vw,44px)" }}>{headlinePrimary}<br />{headlineSecondary}</h1>
-            <p className="mt-[3.4%] truncate font-normal leading-none text-white/72" style={{ fontSize: "clamp(8px,0.86vw,13.5px)" }}>{heroSubtitle}</p>
-            <a href={heroCtaHref} className="mt-[5%] inline-flex items-center justify-center whitespace-nowrap rounded-[4px] bg-[#f6ead2] font-semibold text-[#102434] shadow-[0_7px_18px_rgba(0,0,0,0.15)] transition hover:-translate-y-0.5 hover:bg-white" style={{ minWidth: "36%", height: "clamp(26px,2.65vw,44px)", paddingInline: "5.5%", gap: "0.45rem", fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{ctaPrimary || "Comprar agora"}<ChevronLeft aria-hidden="true" size={10} strokeWidth={2} className="rotate-180" /></a>
+            <p className="mt-[3.4%] truncate font-normal leading-none text-white/78" style={{ fontSize: "clamp(8px,0.86vw,13.5px)" }}>{heroSubtitle}</p>
+            <a href={heroCtaHref} className="mt-[5%] inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#f5f2ea] font-semibold text-[#1a3c2a] shadow-[0_7px_18px_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 hover:bg-white" style={{ minWidth: "36%", height: "clamp(26px,2.65vw,44px)", paddingInline: "5.5%", gap: "0.45rem", fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{ctaPrimary || "Comprar agora"}<ChevronLeft aria-hidden="true" size={10} strokeWidth={2} className="rotate-180" /></a>
           </div>
           <div className="absolute z-20 flex items-center gap-[1.2%]" style={{ left: "39.9%", top: "94.1%", width: "8.8%", height: "2.8%" }} aria-label="Carrossel do banner">
             {[0, 1, 2].map((dot) => (
