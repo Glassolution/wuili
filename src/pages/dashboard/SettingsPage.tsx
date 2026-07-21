@@ -775,9 +775,10 @@ const SecurityTab = () => {
         <button
           type="button"
           onClick={handleExcluirConta}
-          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#ef4444]/55 bg-white px-7 py-3 text-[14px] font-semibold text-[#ef4444] transition hover:bg-[#ef4444] hover:text-white dark:bg-transparent"
+          disabled={deleting}
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#ef4444]/55 bg-white px-7 py-3 text-[14px] font-semibold text-[#ef4444] transition hover:bg-[#ef4444] hover:text-white disabled:opacity-60 dark:bg-transparent"
         >
-          <Trash2 size={16} /> Excluir conta
+          <Trash2 size={16} /> {deleting ? "Excluindo..." : "Excluir conta"}
         </button>
       </div>
     </div>
