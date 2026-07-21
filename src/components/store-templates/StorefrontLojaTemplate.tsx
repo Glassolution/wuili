@@ -164,71 +164,22 @@ const StorefrontLojaTemplate = ({
         </div>
       </header>
 
-      {/* HERO */}
-      <section className="px-6 pb-10 md:px-10">
-        <div className="relative overflow-hidden rounded-[28px] bg-[#e9e5d8]">
-          <div className={`grid items-stretch ${mobile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]"}`}>
-            <div className="relative z-10 flex flex-col justify-between p-8 md:p-14">
-              <div>
-                <span className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#3d4a2a]">
-                  Prêmium coleção
-                </span>
-                <h1 className="mt-6 font-semibold uppercase leading-[0.98] tracking-[-0.02em] text-[#1a1a1a]" style={{ fontSize: "clamp(34px,4.2vw,68px)" }}>
-                  {headlinePrimary}
-                  <br />
-                  {headlineSecondary}
-                </h1>
-                <p className="mt-6 max-w-[380px] text-[13px] leading-relaxed text-[#1a1a1a]/60">{heroSubtitle}</p>
-              </div>
-              <div className="mt-10 flex flex-wrap items-center gap-3">
-                <a href={heroCtaHref} className="group inline-flex items-center gap-3 rounded-full bg-[#3d4a2a] py-2 pl-6 pr-2 text-[13px] font-semibold text-[#f5f2ea] transition hover:bg-[#2c3620]">
-                  <span>{ctaPrimary}</span>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#c8a24a] text-[#3d4a2a] transition group-hover:translate-x-0.5">
-                    <ArrowRight size={15} strokeWidth={2.4} />
-                  </span>
-                </a>
-                <a href="#novidades" className="inline-flex items-center rounded-full border border-[#1a1a1a]/12 bg-white/60 px-6 py-3 text-[13px] font-semibold text-[#1a1a1a] transition hover:border-[#3d4a2a]/40">
-                  Novidades
-                </a>
-              </div>
-              <div className="mt-10 flex items-center gap-4">
-                <div className="flex -space-x-2">
-                  {displayedProducts.slice(0, 3).map((p) => (
-                    <img key={`av-${p.id}`} src={p.imageUrl || heroImage} alt="" className="h-9 w-9 rounded-full border-2 border-[#e9e5d8] object-cover" />
-                  ))}
-                </div>
-                <div className="text-[11px] leading-tight text-[#1a1a1a]/70">
-                  <strong className="block text-[13px] font-semibold text-[#1a1a1a]">10.000+ clientes</strong>
-                  <span className="flex items-center gap-1">
-                    <Star size={11} strokeWidth={2} className="fill-[#c8a24a] text-[#c8a24a]" /> 4.9 · avaliação média
-                  </span>
-                </div>
-              </div>
-            </div>
+      {/* HERO — carrossel automático dos produtos da loja.
+          Antes: hero estático com heroImage genérica e badges flutuantes que
+          quebravam quando não havia imagem coerente (aspecto errado, faixas
+          verticais). Agora: até 3 produtos giram em foreground, com o próprio
+          nome/preço, sem depender de heroImage. */}
+      <HeroCarousel
+        products={displayedProducts.slice(0, 3)}
+        fallbackImage={heroImage}
+        headlinePrimary={headlinePrimary}
+        headlineSecondary={headlineSecondary}
+        subtitle={heroSubtitle}
+        ctaPrimary={ctaPrimary}
+        ctaHref={heroCtaHref}
+        mobile={mobile}
+      />
 
-            <div className="relative min-h-[380px] overflow-hidden">
-              <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
-              <div className={`absolute inset-y-6 right-6 flex flex-col gap-3 ${mobile ? "hidden" : "hidden md:flex"} w-[210px]`}>
-                {[
-                  { icon: Truck, title: "Frete grátis", desc: "A partir de R$ 199" },
-                  { icon: Package, title: "Prove antes de pagar", desc: "7 dias para trocar" },
-                  { icon: LockKeyhole, title: "Produtos originais", desc: "Garantia de qualidade" },
-                ].map(({ icon: Icon, title, desc }) => (
-                  <div key={title} className="flex items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 shadow-[0_10px_30px_rgba(26,26,26,0.08)] backdrop-blur">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e9e5d8] text-[#3d4a2a]">
-                      <Icon size={16} strokeWidth={1.9} />
-                    </span>
-                    <div className="min-w-0">
-                      <strong className="block text-[11.5px] font-semibold text-[#1a1a1a]">{title}</strong>
-                      <span className="block truncate text-[10px] text-[#1a1a1a]/55">{desc}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* SEARCH + CHIPS */}
       <section className="px-6 pb-10 md:px-10">
