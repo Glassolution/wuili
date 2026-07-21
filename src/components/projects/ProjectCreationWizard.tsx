@@ -147,6 +147,10 @@ type ProjectCreationWizardProps = {
   allowTipoChoice?: boolean;
   /** Se definido, pula a etapa de escolha de produtos e usa esses IDs. */
   preselectedProductIds?: string[];
+  /** Retorna true quando o plano atual do usuário não permite criar aquele tipo. */
+  isTipoRestricted?: (tipo: ProjectType) => boolean;
+  /** Chamado quando o usuário tenta escolher/criar um tipo restrito. */
+  onRestrictedTipo?: (tipo: ProjectType) => void;
   onCreated: (projectId: string) => void;
 };
 
@@ -156,6 +160,8 @@ const ProjectCreationWizard = ({
   defaultTipo,
   allowTipoChoice = false,
   preselectedProductIds,
+  isTipoRestricted,
+  onRestrictedTipo,
   onCreated,
 }: ProjectCreationWizardProps) => {
   const [tipo, setTipo] = useState<ProjectType>(defaultTipo ?? DEFAULT_TIPO);
