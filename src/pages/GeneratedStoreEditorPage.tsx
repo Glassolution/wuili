@@ -1853,9 +1853,9 @@ const GeneratedStoreEditorPage = () => {
   }, [currentProject]);
 
   // URL pública fica no domínio Velo com o slug da loja no caminho:
-  // Ex.: https://velods.com.br/pedra
+  // Ex.: https://velods.com.br/loja/pedra
   const publicUrl = projectSlug
-    ? `https://velods.com.br/${projectSlug}`
+    ? `https://velods.com.br/loja/${projectSlug}`
     : "";
 
 
