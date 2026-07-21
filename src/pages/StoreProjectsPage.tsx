@@ -555,7 +555,7 @@ const StoreProjectsPage = () => {
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}
         defaultTipo={wizardDefaultTipo}
-        allowTipoChoice={isAdmin}
+        allowTipoChoice={wizardAllowChoice}
         onCreated={handleProjectCreated}
       />
 
