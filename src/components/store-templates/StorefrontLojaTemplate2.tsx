@@ -562,4 +562,144 @@ const StorefrontLojaTemplate2 = ({
   );
 };
 
+// -----------------------------------------------------------------------------
+// HeroCarousel — banners rotativos estilo loja real (lifestyle)
+// -----------------------------------------------------------------------------
+type HeroSlide = {
+  image: string;
+  eyebrow: string;
+  title: string;
+  highlight: string;
+  subtitle: string;
+  badge: string;
+  badgeColor: string;
+  bg: string;
+  ctaHref: string;
+};
+
+const HeroCarousel = ({
+  slides,
+  mobile,
+  salesAngle,
+}: {
+  slides: HeroSlide[];
+  mobile?: boolean;
+  salesAngle?: string;
+}) => {
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => setIdx((p) => (p + 1) % slides.length), 5500);
+    return () => clearInterval(t);
+  }, [paused, slides.length]);
+
+  const go = (n: number) => setIdx((n + slides.length) % slides.length);
+  const s = slides[idx];
+
+  return (
+    <section
+      className="px-4 pt-2 md:px-8"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div
+        className="relative overflow-hidden rounded-3xl shadow-sm"
+        style={{ background: s.bg }}
+      >
+        {/* Badge circular */}
+        <span
+          className="absolute right-4 top-4 z-20 grid h-16 w-16 place-items-center rounded-full text-center text-[10px] font-extrabold leading-tight text-white shadow-lg whitespace-pre md:right-8 md:top-8 md:h-20 md:w-20 md:text-[12px]"
+          style={{ background: s.badgeColor }}
+        >
+          {s.badge}
+        </span>
+
+        <div className={`relative grid items-center ${mobile ? "grid-cols-1" : "md:grid-cols-2"} min-h-[280px] md:min-h-[380px]`}>
+          {/* TEXTO */}
+          <div className="relative z-10 px-6 py-8 md:px-10 md:py-12">
+            <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#F97316]">
+              {s.eyebrow}
+            </span>
+            <h1 className="mt-3 text-[28px] font-extrabold leading-[1.05] tracking-tight text-[#0F172A] md:text-[42px]">
+              {s.title}
+              <br />
+              <span className="text-[#2563EB]">{s.highlight}</span>
+            </h1>
+            <p className="mt-3 max-w-[420px] text-[13px] leading-relaxed text-[#334155]">
+              {salesAngle && idx === 0 ? salesAngle.slice(0, 140) : s.subtitle}
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <a
+                href={s.ctaHref}
+                className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-5 py-3 text-[13px] font-semibold text-white shadow-md transition hover:bg-[#1D4ED8]"
+              >
+                Comprar agora
+                <ArrowRight size={14} strokeWidth={2.4} />
+              </a>
+              <a
+                href="/catalogo"
+                className="inline-flex items-center rounded-full border border-[#0F172A]/15 bg-white px-5 py-3 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC]"
+              >
+                Ver ofertas
+              </a>
+            </div>
+          </div>
+
+          {/* IMAGEM lifestyle */}
+          <div className="relative h-[220px] md:h-full md:min-h-[380px]">
+            {slides.map((sl, i) => (
+              <img
+                key={sl.image}
+                src={sl.image}
+                alt=""
+                className={`absolute inset-0 h-full w-full object-cover object-right transition-opacity duration-700 ${i === idx ? "opacity-100" : "opacity-0"}`}
+                style={{ objectPosition: mobile ? "right center" : "right center" }}
+              />
+            ))}
+            {/* fade horizontal para o texto respirar */}
+            <div
+              className="pointer-events-none absolute inset-0 hidden md:block"
+              style={{
+                background:
+                  "linear-gradient(90deg, " + s.bg.split(",")[1]?.trim() + " 0%, transparent 45%)",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Setas */}
+        <button
+          aria-label="Anterior"
+          onClick={() => go(idx - 1)}
+          className="absolute left-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#0F172A] shadow-md backdrop-blur transition hover:bg-white md:grid"
+        >
+          <ChevronLeft size={18} strokeWidth={2.4} />
+        </button>
+        <button
+          aria-label="Próximo"
+          onClick={() => go(idx + 1)}
+          className="absolute right-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#0F172A] shadow-md backdrop-blur transition hover:bg-white md:grid"
+        >
+          <ChevronRight size={18} strokeWidth={2.4} />
+        </button>
+
+        {/* Dots */}
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              aria-label={`Banner ${i + 1}`}
+              onClick={() => setIdx(i)}
+              className={`h-2 rounded-full transition-all ${i === idx ? "w-6 bg-[#2563EB]" : "w-2 bg-[#0F172A]/25 hover:bg-[#0F172A]/50"}`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 export default StorefrontLojaTemplate2;
+
