@@ -255,7 +255,7 @@ Deno.serve(async (req) => {
         .select("id,external_id,images")
         .eq("source", SOURCE)
         .limit(limit);
-      if (onlyStale) q = q.or("images.cs.[\"https://c7drop.com.br\"],images.cs.[\"https://www.c7drop.com.br\"]");
+      if (onlyStale) q = q.not("images::text", "ilike", "%vercel-storage%");
       const { data: existing, error: exErr } = await q;
       if (exErr) throw exErr;
       const rows = existing ?? [];
