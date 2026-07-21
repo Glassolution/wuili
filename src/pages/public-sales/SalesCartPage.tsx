@@ -1,15 +1,13 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronDown, ChevronLeft, CreditCard, Loader2, Menu, Search, ShoppingBag, X } from "lucide-react";
+import { ChevronLeft, CreditCard, Loader2, Menu, Search, ShoppingBag, X } from "lucide-react";
 import { useState } from "react";
 import { formatBRL, useSalesPageData } from "./salesPageData";
 
 /**
- * Tela 2 — Carrinho
- * Layout inspirado no exemplo "tarlet" (imagem 2 do briefing): topbar com marca
- * e navegacao, tabela de itens à esquerda, painel "Payment Info." à direita,
- * botao azul de Check Out e rodapé com Continue Shopping + totais.
- * A submissao real do pagamento acontece na Tela 3 (checkout) — este painel
- * é apenas o resumo/coleta visual que leva o cliente para lá.
+ * Tela · Carrinho
+ * Segue o design system do template AERO STEP (creme #f5f2ea, verde musgo
+ * #3d4a2a/#1a3c2a, dourado #c8a24a) para manter o mesmo idioma visual da Home,
+ * Catálogo e Produto. O Checkout mantém o layout dele separadamente.
  */
 const SalesCartPage = () => {
   const { slug = "" } = useParams();
@@ -20,17 +18,17 @@ const SalesCartPage = () => {
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#F5F5F5]">
-        <Loader2 className="animate-spin text-black/40" />
+      <div className="grid min-h-screen place-items-center bg-[#f5f2ea]">
+        <Loader2 className="animate-spin text-[#3d4a2a]" />
       </div>
     );
   }
   if (error || !data) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#F5F5F5] p-6 text-center">
+      <div className="grid min-h-screen place-items-center bg-[#f5f2ea] p-6 text-center">
         <div>
-          <p className="text-lg font-semibold text-black">Página não encontrada</p>
-          <p className="mt-2 text-sm text-black/60">{error ?? "Tente novamente mais tarde."}</p>
+          <p className="text-lg font-semibold text-[#1a1a1a]">Página não encontrada</p>
+          <p className="mt-2 text-sm text-[#1a1a1a]/60">{error ?? "Tente novamente mais tarde."}</p>
         </div>
       </div>
     );
@@ -41,176 +39,166 @@ const SalesCartPage = () => {
   const total = subtotal + shipping;
 
   return (
-    <div className="bg-[#F5F5F5] py-8 px-4 sm:px-8" style={{ fontFamily: '"Inter", system-ui, sans-serif' }}>
-      <div className="mx-auto max-w-[1200px] rounded-lg bg-white px-6 py-8 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.12)] sm:px-10 sm:py-8">
-
-        {/* Topbar */}
-        <header className="flex items-center justify-between border-b border-black/[0.05] pb-6">
-          <Link to={`/loja/${slug}`} className="text-[18px] font-medium tracking-tight text-black">
+    <div className="min-h-screen bg-[#f5f2ea] text-[#1a1a1a]" style={{ fontFamily: '"Inter", system-ui, sans-serif' }}>
+      {/* Topbar (mesmo padrão do Catálogo/Produto) */}
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#1a1a1a]/8 px-6 py-5 md:px-10">
+        <div className="flex items-center gap-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3d4a2a] text-[11px] font-semibold text-[#f5f2ea]">
+            {(data.brand || "L").slice(0, 1).toUpperCase()}
+          </span>
+          <Link to={`/loja/${slug}`} className="text-[15px] font-semibold tracking-tight text-[#1a1a1a]">
             {(data.brand || "loja").toLowerCase()}
           </Link>
-          <nav className="hidden items-center gap-10 text-[14px] text-black/70 md:flex">
-            <Link to={`/loja/${slug}`} className="hover:text-black">Loja</Link>
-            <a href="#" className="hover:text-black">Novidades</a>
-            <a href="#" className="hover:text-black">Sobre</a>
-            <a href="#" className="hover:text-black">Contato</a>
-          </nav>
-          <div className="flex items-center gap-5 text-black/70">
-            <button aria-label="Buscar" className="hover:text-black"><Search size={18} /></button>
-            <div className="flex items-center gap-2">
-              <ShoppingBag size={18} />
-              <span className="text-[13px] font-medium text-black">{qty}</span>
-            </div>
-            <button aria-label="Menu" className="hover:text-black"><Menu size={20} /></button>
-          </div>
-        </header>
+        </div>
+        <nav className="hidden items-center gap-8 text-[13px] font-medium text-[#1a1a1a]/75 md:flex">
+          <Link to={`/loja/${slug}`} className="hover:text-[#3d4a2a]">Loja</Link>
+          <Link to={`/loja/${slug}/catalogo`} className="hover:text-[#3d4a2a]">Catálogo</Link>
+          <a href="#" className="hover:text-[#3d4a2a]">Sobre</a>
+          <a href="#" className="hover:text-[#3d4a2a]">Contato</a>
+        </nav>
+        <div className="flex items-center gap-3 text-[#1a1a1a]/75">
+          <button aria-label="Buscar" className="hover:text-[#3d4a2a]"><Search size={18} /></button>
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#3d4a2a] px-4 py-2 text-[12px] font-semibold text-[#f5f2ea]">
+            <ShoppingBag size={14} strokeWidth={2} />
+            Carrinho
+            <span className="ml-0.5 rounded-full bg-[#c8a24a] px-1.5 text-[10px] font-bold text-[#3d4a2a]">{qty}</span>
+          </span>
+          <button aria-label="Menu" className="hover:text-[#3d4a2a] md:hidden"><Menu size={20} /></button>
+        </div>
+      </header>
 
-        <div className="mt-12 grid gap-10 lg:grid-cols-[1fr_360px]">
-          {/* Cart list */}
+      <main className="mx-auto max-w-[1200px] px-6 py-12 md:px-10 md:py-16">
+        <div className="flex items-baseline justify-between gap-4">
           <div>
-            <h1 className="text-[36px] font-bold tracking-tight text-black sm:text-[40px]">Carrinho.</h1>
+            <span className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#3d4a2a]">
+              Seu pedido
+            </span>
+            <h1 className="mt-3 text-[36px] font-bold tracking-tight text-[#1a1a1a] sm:text-[44px]" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>
+              Carrinho.
+            </h1>
+          </div>
+          <Link to={`/loja/${slug}/catalogo`} className="hidden items-center gap-2 text-[13px] font-semibold text-[#3d4a2a] hover:text-[#2c3620] md:inline-flex">
+            <ChevronLeft size={16} /> Continuar comprando
+          </Link>
+        </div>
 
-            <div className="mt-10 grid grid-cols-[1.6fr_1fr_1fr_40px] items-center gap-4 border-b border-black/[0.08] pb-4 text-[12px] font-medium text-black/50">
+        <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_380px]">
+          {/* Itens */}
+          <section className="rounded-3xl border border-[#1a1a1a]/8 bg-white/70 p-6 shadow-[0_20px_60px_-40px_rgba(26,60,42,0.35)] sm:p-8">
+            <div className="grid grid-cols-[1.6fr_1fr_1fr_40px] items-center gap-4 border-b border-[#1a1a1a]/8 pb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#3d4a2a]/70">
               <span>Produto</span>
               <span>Quantidade</span>
               <span>Total</span>
               <span />
             </div>
 
-            <div className="grid grid-cols-[1.6fr_1fr_1fr_40px] items-center gap-4 border-b border-black/[0.06] py-6">
+            <div className="grid grid-cols-[1.6fr_1fr_1fr_40px] items-center gap-4 border-b border-[#1a1a1a]/6 py-6">
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-[#EDEDEA]">
+                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[#e8ecd6]">
                   {data.productImage ? (
                     <img src={data.productImage} alt={data.productTitle} className="h-full w-full object-cover" />
                   ) : null}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] font-semibold text-black">{data.productTitle}</p>
-                  <p className="mt-0.5 text-[12px] text-black/50">Envio para todo o Brasil</p>
+                  <p className="truncate text-[14px] font-semibold text-[#1a1a1a]">{data.productTitle}</p>
+                  <p className="mt-0.5 text-[12px] text-[#1a1a1a]/55">Envio para todo o Brasil</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-black/70">
-                <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="text-[16px] leading-none hover:text-black" aria-label="Diminuir">−</button>
-                <span className="w-6 text-center text-[14px] font-medium text-black">{qty}</span>
-                <button type="button" onClick={() => setQty((q) => Math.min(10, q + 1))} className="text-[16px] leading-none hover:text-black" aria-label="Aumentar">+</button>
+              <div className="flex items-center gap-2 rounded-full border border-[#1a1a1a]/10 bg-white px-3 py-1.5 text-[#1a1a1a]/80 w-fit">
+                <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="text-[16px] leading-none text-[#3d4a2a] hover:text-[#1a3c2a]" aria-label="Diminuir">−</button>
+                <span className="w-6 text-center text-[13px] font-semibold text-[#1a1a1a]">{qty}</span>
+                <button type="button" onClick={() => setQty((q) => Math.min(10, q + 1))} className="text-[16px] leading-none text-[#3d4a2a] hover:text-[#1a3c2a]" aria-label="Aumentar">+</button>
               </div>
-              <p className="text-[14px] font-medium text-black">{formatBRL(subtotal)}</p>
-              <button type="button" onClick={() => navigate(`/loja/${slug}`)} className="justify-self-end text-black/40 hover:text-black" aria-label="Remover">
+              <p className="text-[15px] font-bold text-[#1a3c2a]" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>{formatBRL(subtotal)}</p>
+              <button type="button" onClick={() => navigate(`/loja/${slug}/catalogo`)} className="justify-self-end text-[#1a1a1a]/40 hover:text-[#3d4a2a]" aria-label="Remover">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-              <Link to={`/loja/${slug}`} className="inline-flex items-center gap-2 text-[14px] font-semibold text-black hover:text-black/70">
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <Link to={`/loja/${slug}/catalogo`} className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#3d4a2a] hover:text-[#1a3c2a]">
                 <ChevronLeft size={16} /> Continuar comprando
               </Link>
-              <div className="min-w-[220px] space-y-2 text-[13px]">
-                <div className="flex justify-between text-black/60">
+              <div className="min-w-[240px] space-y-2 text-[13px]">
+                <div className="flex justify-between text-[#1a1a1a]/60">
                   <span>Subtotal</span>
                   <span>{formatBRL(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-black/60">
+                <div className="flex justify-between text-[#1a1a1a]/60">
                   <span>Frete</span>
-                  <span>Grátis</span>
+                  <span className="text-[#3d4a2a] font-semibold">Grátis</span>
                 </div>
-                <div className="mt-3 flex items-baseline justify-between border-t border-black/[0.08] pt-3">
-                  <span className="text-[15px] font-bold text-black">Total:</span>
-                  <span className="text-[18px] font-bold text-black">{formatBRL(total)}</span>
+                <div className="mt-3 flex items-baseline justify-between border-t border-[#1a1a1a]/10 pt-3">
+                  <span className="text-[14px] font-bold text-[#1a1a1a]">Total</span>
+                  <span className="text-[20px] font-bold text-[#1a3c2a]" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>{formatBRL(total)}</span>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Payment sidebar */}
-          <aside className="rounded-md bg-[#F5F5F5] p-6 sm:p-8">
-            <h2 className="text-[24px] font-bold tracking-tight text-black">Pagamento.</h2>
+          {/* Pagamento */}
+          <aside className="rounded-3xl border border-[#1a1a1a]/8 bg-[#1a3c2a] p-6 text-[#f5f2ea] shadow-[0_28px_80px_-40px_rgba(26,60,42,0.55)] sm:p-8">
+            <span className="inline-flex items-center rounded-full bg-[#c8a24a]/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#c8a24a]">
+              Pagamento
+            </span>
+            <h2 className="mt-3 text-[26px] font-bold tracking-tight" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>
+              Finalize com segurança.
+            </h2>
 
-            <p className="mt-6 text-[11px] font-medium uppercase tracking-wider text-black/50">Forma de pagamento</p>
+            <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#f5f2ea]/60">Forma de pagamento</p>
             <div className="mt-3 space-y-2">
               <button
                 type="button"
                 onClick={() => setMethod("card")}
-                className={`flex w-full items-center gap-3 rounded-md border px-3 py-3 text-left transition ${method === "card" ? "border-[#2563EB] bg-white" : "border-black/[0.08] bg-white/60"}`}
+                className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${method === "card" ? "border-[#c8a24a] bg-[#f5f2ea]/10" : "border-white/10 bg-transparent hover:border-white/20"}`}
               >
-                <span className={`grid h-4 w-4 place-items-center rounded-full border-2 ${method === "card" ? "border-[#2563EB]" : "border-black/25"}`}>
-                  {method === "card" ? <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" /> : null}
+                <span className={`grid h-4 w-4 place-items-center rounded-full border-2 ${method === "card" ? "border-[#c8a24a]" : "border-white/30"}`}>
+                  {method === "card" ? <span className="h-1.5 w-1.5 rounded-full bg-[#c8a24a]" /> : null}
                 </span>
-                <CreditCard size={16} className="text-black/70" />
-                <span className="text-[13px] font-medium text-black">Cartão de crédito</span>
+                <CreditCard size={16} className="text-[#f5f2ea]/80" />
+                <span className="text-[13px] font-medium">Cartão de crédito</span>
               </button>
               <button
                 type="button"
                 onClick={() => setMethod("pix")}
-                className={`flex w-full items-center gap-3 rounded-md border px-3 py-3 text-left transition ${method === "pix" ? "border-[#2563EB] bg-white" : "border-black/[0.08] bg-white/60"}`}
+                className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${method === "pix" ? "border-[#c8a24a] bg-[#f5f2ea]/10" : "border-white/10 bg-transparent hover:border-white/20"}`}
               >
-                <span className={`grid h-4 w-4 place-items-center rounded-full border-2 ${method === "pix" ? "border-[#2563EB]" : "border-black/25"}`}>
-                  {method === "pix" ? <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" /> : null}
+                <span className={`grid h-4 w-4 place-items-center rounded-full border-2 ${method === "pix" ? "border-[#c8a24a]" : "border-white/30"}`}>
+                  {method === "pix" ? <span className="h-1.5 w-1.5 rounded-full bg-[#c8a24a]" /> : null}
                 </span>
-                <span className="grid h-4 w-4 place-items-center rounded-sm bg-[#32BCAD] text-[9px] font-bold text-white">P</span>
-                <span className="text-[13px] font-medium text-black">Pix</span>
+                <span className="grid h-4 w-4 place-items-center rounded-sm bg-[#c8a24a] text-[9px] font-bold text-[#1a3c2a]">P</span>
+                <span className="text-[13px] font-medium">Pix</span>
               </button>
             </div>
 
-            {method === "card" ? (
-              <div className="mt-6 space-y-4">
-                <div>
-                  <label className="text-[11px] font-medium text-black/50">Nome no cartão:</label>
-                  <input
-                    type="text"
-                    placeholder="Nome impresso no cartão"
-                    className="mt-1 w-full border-b border-black/20 bg-transparent pb-1 text-[13px] font-medium text-black outline-none placeholder:font-normal placeholder:text-black/30"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-medium text-black/50">Número do cartão:</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0000 0000 0000 0000"
-                    className="mt-1 w-full border-b border-black/20 bg-transparent pb-1 text-[13px] font-medium tracking-wider text-black outline-none placeholder:font-normal placeholder:tracking-normal placeholder:text-black/30"
-                  />
-                </div>
-                <div className="grid grid-cols-[1fr_1fr_60px] gap-3">
-                  <div>
-                    <label className="text-[11px] font-medium text-black/50">Validade:</label>
-                    <button className="mt-1 flex w-full items-center justify-between border-b border-black/20 pb-1 text-[13px] font-medium text-black/30">
-                      MM <ChevronDown size={12} className="text-black/40" />
-                    </button>
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-medium text-black/50">Ano:</label>
-                    <button className="mt-1 flex w-full items-center justify-between border-b border-black/20 pb-1 text-[13px] font-medium text-black/30">
-                      AAAA <ChevronDown size={12} className="text-black/40" />
-                    </button>
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-medium text-black/50">CVV:</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="000"
-                      maxLength={4}
-                      className="mt-1 w-full border-b border-black/20 bg-transparent pb-1 text-[13px] font-medium text-black outline-none placeholder:font-normal placeholder:text-black/30"
-                    />
-                  </div>
-                </div>
+            <div className="mt-6 rounded-2xl bg-[#f5f2ea]/5 p-4 text-[12.5px] leading-relaxed text-[#f5f2ea]/75">
+              {method === "card"
+                ? "Você preencherá os dados do cartão no próximo passo, com criptografia ponta a ponta."
+                : "Ao continuar, geramos um QR Code Pix. O pagamento é confirmado em segundos."}
+            </div>
+
+            <div className="mt-6 space-y-1.5 border-t border-white/10 pt-5 text-[13px] text-[#f5f2ea]/80">
+              <div className="flex justify-between"><span>Subtotal</span><span>{formatBRL(subtotal)}</span></div>
+              <div className="flex justify-between"><span>Frete</span><span className="text-[#c8a24a] font-semibold">Grátis</span></div>
+              <div className="mt-3 flex items-baseline justify-between border-t border-white/10 pt-3 text-[#f5f2ea]">
+                <span className="text-[13px] font-semibold uppercase tracking-[0.18em]">Total</span>
+                <span className="text-[22px] font-bold" style={{ fontFamily: '"Fraunces", "Playfair Display", serif' }}>{formatBRL(total)}</span>
               </div>
-            ) : (
-              <div className="mt-6 rounded-md border border-dashed border-black/15 bg-white p-4 text-[12px] leading-relaxed text-black/60">
-                Ao continuar, geramos um QR Code Pix. O pagamento é confirmado em segundos.
-              </div>
-            )}
+            </div>
 
             <button
               type="button"
               onClick={() => navigate(`/loja/${slug}/checkout?qty=${qty}&method=${method}`)}
-              className="mt-8 inline-flex h-12 w-full items-center justify-center rounded-md bg-[#2563EB] text-[14px] font-semibold text-white transition hover:bg-[#1d4ed8]"
+              className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#c8a24a] text-[13.5px] font-bold text-[#1a3c2a] transition hover:bg-[#b8922e]"
             >
               Finalizar pedido
             </button>
+            <p className="mt-3 text-center text-[11px] text-[#f5f2ea]/50">
+              Pagamento 100% seguro · Entrega em todo o Brasil
+            </p>
           </aside>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

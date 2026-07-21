@@ -42,6 +42,22 @@ function randomSuffix(): string {
   return Math.random().toString(36).slice(2, 7);
 }
 
+/** Retorna um slug único: prefere o baseSlug limpo; adiciona sufixo apenas em colisão. */
+async function ensureUniqueSlug(baseSlug: string): Promise<string> {
+  const clean = baseSlug || "loja";
+  const candidates = [clean, ...Array.from({ length: 8 }, (_, i) => `${clean}-${i + 2}`)];
+  for (const candidate of candidates) {
+    const { data, error } = await supabase
+      .from("user_projects")
+      .select("id")
+      .filter("metadata->>slug", "eq", candidate)
+      .limit(1);
+    if (error) break;
+    if (!data || data.length === 0) return candidate;
+  }
+  return `${clean}-${randomSuffix()}`;
+}
+
 export type CreateProjectInput = {
   nome: string;
   descricao: string;
@@ -60,7 +76,7 @@ export async function createUserProject(input: CreateProjectInput): Promise<User
   if (!user) throw new Error("not_authenticated");
 
   const baseSlug = slugify(input.nome) || "loja";
-  const slug = `${baseSlug}-${randomSuffix()}`;
+  const slug = await ensureUniqueSlug(baseSlug);
 
   const metadata: Record<string, unknown> = {
     descricao: input.descricao.trim(),
@@ -116,7 +132,7 @@ export async function publishProject(project: UserProject): Promise<UserProject>
   const metadata = readMetadata(project);
   let slug = typeof metadata.slug === "string" ? metadata.slug : "";
   if (!slug) {
-    slug = `${slugify(project.nome) || "loja"}-${randomSuffix()}`;
+    slug = await ensureUniqueSlug(slugify(project.nome) || "loja");
   }
   const nextMetadata = { ...metadata, slug } as Json;
 
@@ -171,14 +187,25 @@ function firstImage(images: Json | null): string | null {
   return allImages(images)[0] ?? null;
 }
 
-/** Carrega um projeto publicado por slug (visível sem login via RPC SECURITY DEFINER). */
+/** Carrega um projeto publicado por slug (visível sem login via RPC SECURITY DEFINER).
+ *  Se não encontrar (ex.: rascunho não publicado ainda) e o usuário estiver autenticado,
+ *  tenta ler direto pela tabela — o RLS de owner permite ver o próprio rascunho, o que
+ *  viabiliza o preview do editor sem exigir publicação prévia. */
 export async function fetchPublicProject(slug: string): Promise<UserProject | null> {
   const { data, error } = await supabase.rpc("get_public_project", { p_slug: slug });
   if (error) throw error;
-  // RPC com RETURNS composite devolve uma linha só de nulls quando não há match.
   const project = data as UserProject | null;
-  if (!project || !project.id) return null;
-  return project;
+  if (project && project.id) return project;
+
+  // Fallback: tenta como owner (rascunho). Retorna null silenciosamente se não houver sessão.
+  const { data: session } = await supabase.auth.getSession();
+  if (!session?.session) return null;
+  const { data: draft } = await supabase
+    .from("user_projects")
+    .select("*")
+    .filter("metadata->>slug", "eq", slug)
+    .maybeSingle();
+  return (draft as UserProject | null) ?? null;
 }
 
 export function getProjectProductIds(project: UserProject | null): string[] {
@@ -449,7 +476,7 @@ export async function updateProjectName(projectId: string, nome: string): Promis
 
 export async function updateProjectMetadata(
   project: UserProject,
-  patch: Partial<{ category: string; visibility: ProjectVisibility; subdomain: string }>,
+  patch: Record<string, unknown>,
 ): Promise<UserProject> {
   const nextMetadata = { ...readMetadata(project), ...patch } as Json;
   const { data, error } = await supabase

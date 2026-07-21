@@ -295,6 +295,9 @@ export type Database = {
           is_active: boolean | null
           is_blocked: boolean
           margin_percent: number
+          ml_category_id: string | null
+          ml_category_status: string
+          ml_size_grid_id: string | null
           model: string | null
           orders_count: number | null
           original_price: number | null
@@ -326,6 +329,9 @@ export type Database = {
           is_active?: boolean | null
           is_blocked?: boolean
           margin_percent: number
+          ml_category_id?: string | null
+          ml_category_status?: string
+          ml_size_grid_id?: string | null
           model?: string | null
           orders_count?: number | null
           original_price?: number | null
@@ -357,6 +363,9 @@ export type Database = {
           is_active?: boolean | null
           is_blocked?: boolean
           margin_percent?: number
+          ml_category_id?: string | null
+          ml_category_status?: string
+          ml_size_grid_id?: string | null
           model?: string | null
           orders_count?: number | null
           original_price?: number | null
@@ -737,6 +746,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ml_category_prediction_log: {
+        Row: {
+          created_at: string
+          final_category: string | null
+          final_status: string | null
+          id: string
+          low_confidence: boolean
+          predicted_normalized: string | null
+          predicted_raw: string | null
+          product_id: string | null
+          requires_size_grid: boolean | null
+          source: string | null
+          title_normalized: string | null
+          title_raw: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          final_category?: string | null
+          final_status?: string | null
+          id?: string
+          low_confidence?: boolean
+          predicted_normalized?: string | null
+          predicted_raw?: string | null
+          product_id?: string | null
+          requires_size_grid?: boolean | null
+          source?: string | null
+          title_normalized?: string | null
+          title_raw?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          final_category?: string | null
+          final_status?: string | null
+          id?: string
+          low_confidence?: boolean
+          predicted_normalized?: string | null
+          predicted_raw?: string | null
+          product_id?: string | null
+          requires_size_grid?: boolean | null
+          source?: string | null
+          title_normalized?: string | null
+          title_raw?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       ml_oauth_states: {
         Row: {
@@ -2153,9 +2210,32 @@ export type Database = {
           },
         ]
       }
+      v_ml_category_predictions_last_30d: {
+        Row: {
+          day: string | null
+          final_status: string | null
+          requires_size_grid: boolean | null
+          total: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       claim_project_invites: { Args: never; Returns: number }
+      get_customer_orders: {
+        Args: { p_email: string; p_slug: string }
+        Returns: {
+          created_at: string
+          id: string
+          payment_method: string
+          payment_status: string
+          product_image_url: string
+          product_title: string
+          quantity: number
+          total: number
+          unit_price: number
+        }[]
+      }
       get_help_feed_authors: {
         Args: { _author_ids: string[] }
         Returns: {
@@ -2311,6 +2391,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "influencer"
+      ml_category_status: "pending" | "auto" | "needs_manual" | "manual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2439,6 +2520,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "influencer"],
+      ml_category_status: ["pending", "auto", "needs_manual", "manual"],
     },
   },
 } as const

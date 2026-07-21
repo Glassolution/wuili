@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
+import { ManualCategoryDialog } from "@/components/dashboard/ManualCategoryDialog";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
@@ -253,6 +254,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [mlVerifyModalOpen, setMlVerifyModalOpen] = useState(false);
+  const [manualCatOpen, setManualCatOpen] = useState(false);
+  const [manualCatSuggestion, setManualCatSuggestion] = useState<{ id?: string; name?: string }>({});
 
   // Pricing engine
   const [multiplier, setMultiplier] = useState(2.5);
@@ -540,20 +543,20 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
     return true;
   };
 
-  const handlePublish = async () => {
+  const handlePublish = async (
+    override?: { categoryId?: string; sizeGridId?: string },
+  ) => {
     if (!validatePublish() || !user) return;
 
+    // Publicar no Mercado Livre não exige loja Velo — basta a conta ML conectada.
     const activeStore = getActiveStore();
-    if (!activeStore) {
-      veloToast.error("Crie uma loja antes de publicar produtos");
-      return;
-    }
-
-    const publishedCount = getStorePublishedCount(activeStore.id);
-    const productLimit = activeStore.productLimit ?? 30;
-    if (publishedCount >= productLimit) {
-      veloToast.error(`Limite de ${productLimit} produtos atingido nesta loja`);
-      return;
+    if (activeStore) {
+      const publishedCount = getStorePublishedCount(activeStore.id);
+      const productLimit = activeStore.productLimit ?? 30;
+      if (publishedCount >= productLimit) {
+        veloToast.error(`Limite de ${productLimit} produtos atingido nesta loja`);
+        return;
+      }
     }
 
     if (planLimits.loading) {
@@ -576,46 +579,96 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         } catch { return []; }
       })();
 
-      const { data, error } = await supabase.functions.invoke("ml-publish", {
-        body: {
-          product: {
-            id: product?.id,
-            external_id: product?.external_id,
-            cj_product_id: null,
-            cj_product_url: product?.original_url ?? null,
-            cj_variant_id: null,
-            title: title.trim(),
-            price: sellPrice,
-            cost_price: totalCost,
-            description: description || `${title} - Produto de alta qualidade com envio rápido.`,
-            images,
-            available_quantity: Math.min(stockQty, 10),
-            condition: "new",
-            brand: brand.trim() || null,
-            model: model.trim() || null,
-            ml_attributes: mlAttributes,
-            weight: typeof product?.weight === "number" ? product.weight : null,
-            product_url: product?.product_url ?? null,
-          },
+      const publishBody = {
+        product: {
+          id: product?.id,
+          external_id: product?.external_id,
+          cj_product_id: null,
+          cj_product_url: product?.original_url ?? null,
+          cj_variant_id: null,
+          title: title.trim(),
+          price: sellPrice,
+          cost_price: totalCost,
+          description: description || `${title} - Produto de alta qualidade com envio rápido.`,
+          images,
+          available_quantity: Math.min(stockQty, 10),
+          condition: "new",
+          brand: brand.trim() || null,
+          model: model.trim() || null,
+          ml_attributes: mlAttributes,
+          weight: typeof product?.weight === "number" ? product.weight : null,
+          product_url: product?.product_url ?? null,
+          override_category_id: override?.categoryId,
+          size_grid_id: override?.sizeGridId,
         },
-      });
+      };
+      console.log("[ml-publish] request body:", JSON.stringify(publishBody, null, 2));
 
-      if (error || data?.error) {
-        // supabase.functions.invoke esconde o body quando status != 2xx.
-        // Tentamos extrair a mensagem amigável + código do corpo real da resposta.
-        let friendly = data?.error as string | undefined;
-        let code = data?.code as string | undefined;
-        const ctxRes = (error as any)?.context;
-        if ((!friendly || !code) && ctxRes && typeof ctxRes.json === "function") {
-          try {
-            const body = await ctxRes.json();
-            friendly = friendly || body?.error || body?.message;
-            code = code || body?.code;
-          } catch { /* ignore */ }
+      // Trocamos supabase.functions.invoke por fetch direto: o invoke consome
+      // o body internamente em respostas não-2xx (FunctionsHttpError com
+      // Response já drenado), impedindo a leitura do JSON de erro
+      // (CATEGORY_REQUIRES_MANUAL / CATEGORY_LOW_CONFIDENCE). Com fetch nós
+      // controlamos status + body em uma única leitura.
+      const SUPABASE_URL = "https://nqzpoioxvbqavrtphtoa.supabase.co";
+      const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xenBvaW94dmJxYXZydHBodG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNDMyNDgsImV4cCI6MjA5MDgxOTI0OH0.G1VlS8doiHQtooC2tyiiHbWl4h9kqoMSuirShDhhjzk";
+      const { data: sess } = await supabase.auth.getSession();
+      const accessToken = sess?.session?.access_token ?? SUPABASE_ANON;
+
+      let status = 0;
+      let body: any = null;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/ml-publish`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON,
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(publishBody),
+        });
+        status = res.status;
+        const raw = await res.text();
+        try { body = raw ? JSON.parse(raw) : null; } catch { body = { raw }; }
+      } catch (netErr: any) {
+        console.error("[ml-publish] network error:", netErr);
+        veloToast.error(netErr?.message || "Erro de rede ao publicar", { id: toastId });
+        setPublishing(false);
+        return;
+      }
+      console.log("[ml-publish] response:", { status, body });
+
+      if (status < 200 || status >= 300 || body?.error) {
+        const code: string | undefined = body?.code;
+        const friendly: string | undefined = body?.error || body?.message;
+
+        // Categoria exige seleção manual → abre o seletor com a sugestão do backend.
+        if (code === "CATEGORY_REQUIRES_MANUAL") {
+          veloToast.dismiss(toastId);
+          setManualCatSuggestion({
+            id: body?.predicted_category_id,
+            name: body?.predicted_category_name,
+          });
+          setManualCatOpen(true);
+          setPublishing(false);
+          return;
         }
 
-        // Conta do ML bloqueada para publicar (cadastro incompleto, modo vendedor
-        // não ativado, etc.) → abrimos o tutorial em 3 etapas em vez do toast.
+        // Divergência entre título cru e normalizado → apresenta as duas sugestões.
+        if (code === "CATEGORY_LOW_CONFIDENCE") {
+          veloToast.dismiss(toastId);
+          const suggestions: Array<{ category_id?: string; category_name?: string }> =
+            Array.isArray(body?.suggestions) ? body.suggestions : [];
+          const first = suggestions.find((s) => s.category_id);
+          setManualCatSuggestion({
+            id: first?.category_id,
+            name: first?.category_name,
+          });
+          setManualCatOpen(true);
+          setPublishing(false);
+          return;
+        }
+
+        // Conta do ML bloqueada para publicar → tutorial em 3 etapas.
         if (code === "ML_SELLER_CANNOT_LIST") {
           veloToast.dismiss(toastId);
           setMlVerifyModalOpen(true);
@@ -623,14 +676,17 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           return;
         }
 
-        veloToast.error(friendly || error?.message || "Erro ao publicar", { id: toastId });
+        veloToast.error(friendly || "Erro ao publicar", { id: toastId });
         setPublishing(false);
         return;
       }
 
+      const data = body;
+
+
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(4);
-      incrementStorePublishedCount(activeStore.id);
+      if (activeStore) incrementStorePublishedCount(activeStore.id);
 
       veloToast.success("Produto publicado com sucesso", {
         id: toastId,
@@ -1315,6 +1371,20 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           void checkSellerStatus();
         }}
       />
+
+      <ManualCategoryDialog
+        open={manualCatOpen}
+        onOpenChange={setManualCatOpen}
+        initialQuery={title.trim()}
+        predictedCategoryId={manualCatSuggestion.id}
+        predictedCategoryName={manualCatSuggestion.name}
+        onConfirm={async ({ categoryId, sizeGridId }) => {
+          setManualCatOpen(false);
+          await handlePublish({ categoryId, sizeGridId });
+        }}
+      />
+
+
 
       {/* Animations */}
       <style>{`

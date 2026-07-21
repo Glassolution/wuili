@@ -30,6 +30,7 @@ type ProductPreview = {
   title: string;
   category: string;
   image: string;
+  images: string[];
   price: number;
   ordersCount: number;
   rating: number | null;
@@ -85,14 +86,19 @@ const getProductImages = (images: Json | null): string[] => {
   return proxyImageList(collect(images));
 };
 
+const MIN_PRODUCT_IMAGES = 3;
+
 const mapProductPreview = (product: CatalogProductRow): ProductPreview | null => {
-  const image = getProductImages(product.images)[0];
-  if (!image) return null;
+  const images = getProductImages(product.images);
+  // Regra: só mostra na home mobile produtos com pelo menos 3 fotos disponíveis,
+  // pra evitar cards com uma única imagem antiga do fornecedor.
+  if (images.length < MIN_PRODUCT_IMAGES) return null;
   return {
     id: product.id,
     title: product.title ?? "Produto",
     category: product.category?.trim() || "Outros",
-    image,
+    image: images[0],
+    images,
     price: Number(product.cost_price) || 0,
     ordersCount: Number(product.orders_count) || 0,
     rating: toCatalogMetricNumber(product.rating),

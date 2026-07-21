@@ -1,141 +1,86 @@
-## Objetivo
 
-Cada página de vendas gerada passa a ter **3 telas conectadas** que o cliente final do usuário percorre:
+# Storefront completo Loja 1 — estilo AERO STEP
 
-1. **Tela 1 — Produto** (a landing atual): CTA "Comprar agora".
-2. **Tela 2 — Carrinho / Confirmação**: resumo do pedido, quantidade, forma de pagamento, botão "Ir para checkout" (inspirada na imagem 2 — Cart / Coralab).
-3. **Tela 3 — Checkout**: dados do comprador + endereço + pagamento (Cartão ou **Pix**), botão "Pagar" (inspirada na imagem 3 — Configure your plan).
+Reconstrução do template "Loja 1" como uma storefront de verdade, com paleta creme (#f5f2ea / #e9e5d8), verde musgo (#3d4a2a) e dourado sutil (#c8a24a), cantos arredondados grandes e cards de estilo de vida. Entrego em 4 fases pequenas pra você validar cada uma antes de eu seguir — evita retrabalho.
 
-No **editor**, as três telas aparecem lado a lado (fluxo horizontal estilo Google Stitch), conectadas por linhas indicando "Tela 1 → Tela 2 → Tela 3", e cada uma é clicável para editar seu conteúdo. Após pagamento aprovado, o pedido cai automaticamente em `/dashboard/pedidos` do usuário dono da página.
+## Design tokens (aplicados em todas as fases)
 
----
+- Fundo base: `#f5f2ea` (creme claro)
+- Superfícies/cards: `#ffffff` sobre creme, ou `#e9e5d8` (sálvia claro)
+- CTA / cabeçalho / seções escuras: `#3d4a2a` (verde musgo)
+- Acento (estrelas, badges, chip promocional): `#c8a24a` (dourado)
+- Texto principal: `#1a1a1a` sobre creme, `#f5f2ea` sobre verde
+- Raios: `rounded-[20px]` cards grandes, `rounded-full` botões/pills, `rounded-[14px]` cards de produto
+- Botão primário: pill verde musgo com ícone circular claro à direita (igual print de referência)
 
-## Rotas públicas novas
+## Fase 1 — Home da loja (a que aparece no editor)
 
-Hoje existe apenas `/p/:slug` (landing). Serão adicionadas:
+Substitui integralmente o bloco JSX inline em `src/pages/GeneratedStoreEditorPage.tsx` (linhas ~3270–3450) e o componente público `src/components/store-templates/StorefrontLojaTemplate.tsx` para ficarem idênticos.
 
-```
-/p/:slug              → Tela 1 (produto)  [já existe]
-/p/:slug/carrinho     → Tela 2 (confirmação)
-/p/:slug/checkout     → Tela 3 (checkout + Pix/cartão)
-/p/:slug/obrigado     → confirmação pós-pagamento
-```
-
-Todas leem da mesma linha em `generated_sales_pages` (via slug) — as 3 telas compartilham produto, preço, imagens, cor de marca. Estado do carrinho passa via querystring/sessionStorage por enquanto (produto único).
-
----
-
-## Editor: visão em fluxo horizontal
-
-Em `GeneratedStoreEditorPage` (ou página equivalente da sales page) adiciono um modo **"Fluxo"**:
+Estrutura nova (de cima pra baixo):
 
 ```text
-┌────────────┐    ┌────────────┐    ┌────────────┐
-│  Tela 1    │───▶│  Tela 2    │───▶│  Tela 3    │
-│  Produto   │    │  Carrinho  │    │  Checkout  │
-└────────────┘    └────────────┘    └────────────┘
+[Navbar creme]  logo · nav central (Catálogo/Novidades/Ofertas/Sobre) · Entrar · Carrinho verde
+[Hero card grande arredondado]
+  esquerda: eyebrow "PRÊMIUM" · headline em 3 linhas · sub · 2 CTAs (pill verde + pill outline)
+  direita: imagem de lifestyle recortada
+  cards flutuantes: "Frete grátis" · "Prove antes de pagar" · "Produtos originais"
+[Barra de busca creme + chips de categoria pill]
+[Hits de venda]  título + "Ver todos" · grid de 5 cards de produto com heart, rating dourado, preço, badge de desconto
+[2 cards lifestyle grandes]  Categoria A (imagem + copy + botão "Ver mais")  |  Categoria B
+[Mais 2 cards lifestyle]  Categoria C  |  Categoria D
+[Tech grid]  6 ícones em linha (Frete, Prova, Original, Qualidade, Suporte, Sustentável)
+[Club card horizontal verde]  cartão membership + copy + CTA
+[Strip de garantias]  4 colunas com ícone + label
+[Footer]  logo · 4 colunas de links · social · copyright
 ```
 
-- Cada card é um iframe do preview real da rota correspondente com `?editor=1`.
-- Clicar num card seleciona a tela e abre o painel de edição à direita (headline, CTA, cores, textos do checkout como "Pagamento seguro").
-- Setas SVG entre os cards indicam a transição.
-- Zoom / pan simples (scroll horizontal + botões +/−) para caber tudo.
+Todos os textos, imagens, categorias e produtos continuam vindos das mesmas fontes de dados que já alimentam o editor ao vivo (`brandName`, `heroImage`, `displayedProducts`, `browseCategories`, `categoryHighlights` etc.), com os mesmos `data-editor-*` para o editor inline continuar funcionando.
 
-## Telas — o que cada uma mostra
+## Fase 2 — Página de catálogo da loja
 
-**Tela 2 (Carrinho)** — inspirada na imagem 2:
-- Título "Carrinho" + contador
-- Card com imagem, nome, preço, seletor de quantidade, "Remover"
-- Bloco "Pagamento seguro — Visa, Master, Pix, até 12x"
-- Total + botão preto largo "Ir para checkout"
+Rota `/loja/:slug/catalogo` (ou a rota pública equivalente já existente do storefront). Layout:
 
-**Tela 3 (Checkout)** — inspirada na imagem 3, adaptada ao BR:
-- Coluna esquerda: **Forma de pagamento** (tabs Cartão / **Pix**), Nome completo, CPF, e-mail, telefone, CEP + endereço.
-- Coluna direita: resumo do pedido fixo (imagem, título, preço, frete, total), botão "Pagar".
-- Se Pix escolhido → após clicar, mostra QR Code + copia-cola (retornados pela edge function).
-- Se Cartão → campos de cartão (Mercado Pago SDK JS para tokenizar no browser, sem passar número pelo backend).
+- Navbar + footer compartilhados da Fase 1
+- Header creme com título "Catálogo", contagem de itens, busca
+- Sidebar esquerda com filtros: categoria (checkbox), faixa de preço (slider), ordenação, marca. Colapsável no mobile.
+- Grid de produtos em cards iguais aos da home
+- Paginação em pills
 
-## Backend — pagamento + pedido
+Fonte de dados: os mesmos produtos que o storefront hoje lê (via `catalog` edge function + produtos importados pelo dono da loja).
 
-Edge Function nova: `public-sales-checkout`
-- Recebe: `slug`, dados do comprador, método (`pix` | `credit_card`), `card_token?`.
-- Busca a `generated_sales_pages` pelo slug → pega `user_id` (dono) e `catalog_product_id`, `price_brl`, `product_title`, `hero_image_url`.
-- Cria pagamento no Mercado Pago usando o `MERCADOPAGO_ACCESS_TOKEN` da plataforma (mesma conta do checkout de assinatura — **não mexe** no fluxo de assinatura nem no OAuth de sellers).
-- Retorna: `pix_qr_code` + `pix_qr_code_base64` (Pix) ou `status` (cartão).
+## Fase 3 — Página de produto + carrinho
 
-Tabela `store_orders` (nova):
+- **Página de produto** (`/loja/:slug/produto/:id`): galeria à esquerda, painel de compra à direita (título, rating, preço, variantes em pills, quantidade, botão "Adicionar ao carrinho" verde musgo, acordeão de descrição/entrega/devolução, seção "Você também pode gostar")
+- **Carrinho** (`/loja/:slug/carrinho`): lista de itens com miniatura, ajuste de quantidade, resumo lateral com subtotal/frete/total e CTA "Finalizar compra"
+- Sem checkout novo nessa fase — o botão de finalizar leva pro checkout que já existe hoje
 
-```sql
-create table public.store_orders (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null,           -- dono da página (recebe o pedido)
-  sales_page_id uuid not null references public.generated_sales_pages(id),
-  catalog_product_id uuid,
-  product_title text not null,
-  product_image_url text,
-  quantity int not null default 1,
-  unit_price numeric(10,2) not null,
-  total numeric(10,2) not null,
-  buyer_name text not null,
-  buyer_email text not null,
-  buyer_phone text,
-  buyer_cpf text,
-  shipping_address jsonb,
-  payment_method text not null,    -- 'pix' | 'credit_card'
-  payment_status text not null default 'pending',  -- pending|approved|rejected
-  mp_payment_id text,
-  pix_qr_code text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-grant select, insert, update on public.store_orders to authenticated;
-grant insert on public.store_orders to anon;   -- cliente final sem login
-grant all on public.store_orders to service_role;
-alter table public.store_orders enable row level security;
+## Fase 4 — Conta do cliente da loja
 
--- Dono da página vê seus pedidos
-create policy "owner reads own store orders"
-  on public.store_orders for select to authenticated
-  using (auth.uid() = user_id);
+Isso exige backend novo (autenticação de clientes finais, separada do login do dono Velo). Entrego:
 
--- Inserção só via edge function (service_role); nenhuma policy para anon/authenticated insert direto.
-```
+- Tabela `store_customers` (id, store_id, email, nome, senha via Supabase Auth) com RLS por `store_id`
+- Tabela `store_customer_orders` (histórico) com RLS
+- Edge function `store-customer-signup` e `store-customer-login`
+- Páginas: `/loja/:slug/entrar`, `/loja/:slug/cadastro`, `/loja/:slug/conta` (dados, pedidos, endereços), todas no mesmo visual creme/verde
+- Botão "Entrar" da navbar da loja passa a apontar pra essas rotas
 
-Webhook `mp-webhook` já existe → adicionar branch: quando `metadata.kind = 'store_order'`, atualizar `store_orders.payment_status` e `mp_payment_id` pelo `external_reference`. Isso dispara também uma notificação para o dono via `notify_new_order` trigger equivalente (já existe para `orders`; replicaremos o padrão).
+Como isso mexe em auth e cria tabelas novas, faço só depois das Fases 1–3 aprovadas.
 
-## Dashboard — página de Pedidos
+## Detalhes técnicos
 
-`OrdersPage` (`/dashboard/pedidos`) já lista pedidos ML. Adiciono uma aba/segmento **"Loja"** que consulta `store_orders` do `auth.uid()` e mostra: comprador, produto, valor, método, status, data. Detalhe do pedido com endereço, telefone, CPF e status de pagamento.
+- **Onde muda a home**: `src/pages/GeneratedStoreEditorPage.tsx` (JSX inline do preview do editor) + `src/components/store-templates/StorefrontLojaTemplate.tsx` (versão pública renderizada em `velods.com.br`). Os dois precisam ficar em paridade — tratei os dois na mesma edição.
+- **Editor inline**: mantenho todos os atributos `data-editor-type`, `data-editor-section`, `data-editor-label`, `data-editor-product-id`, `data-editor-media-kind` pra edição inline (texto, imagens, ícones, seções) continuar funcionando sem regressão.
+- **Seções customizadas**: preservo as chamadas `renderCustomSectionsAfter("hero" | "categories" | "body" | "promotions" | "collections" | "footer")` nos mesmos pontos, pra não quebrar seções que o usuário já tenha adicionado via `SectionsEditorPage`.
+- **Dados**: nenhum mock — sigo usando `displayedProducts`, `catalog_products`, `user_projects`, integrações existentes.
+- **Mobile**: cada fase usa o mesmo `mobilePreview` já suportado hoje e reflui pro celular (hero empilha, grid vira 2 colunas, sidebar de filtros vira drawer).
+- **Fase 4 (auth de clientes)**: uso Lovable Cloud, RLS ativo em ambas as tabelas, sem `has_role`, sem tocar em schemas reservados.
 
-## Arquivos a criar / alterar
+## Ordem de entrega
 
-Novos:
-- `src/pages/public-sales/SalesCartPage.tsx` (Tela 2)
-- `src/pages/public-sales/SalesCheckoutPage.tsx` (Tela 3, com Pix + cartão)
-- `src/pages/public-sales/SalesThankYouPage.tsx`
-- `src/components/editor/SalesFlowCanvas.tsx` (visão horizontal 3 cards + setas)
-- `supabase/functions/public-sales-checkout/index.ts`
-- migration `store_orders` + política + policies + branch no `mp-webhook`
+1. Fase 1 (Home) — te mando pra revisar.
+2. Se aprovar, sigo pra Fase 2 (Catálogo).
+3. Depois Fase 3 (Produto + Carrinho).
+4. Por último Fase 4 (Conta do cliente), já com o backend.
 
-Alterados:
-- `src/App.tsx` — registrar `/p/:slug/carrinho`, `/p/:slug/checkout`, `/p/:slug/obrigado`
-- Página do editor da sales page — adicionar toggle "Fluxo" que renderiza `SalesFlowCanvas`
-- `src/pages/dashboard/OrdersPage.tsx` — aba "Loja" lendo `store_orders`
-- `supabase/functions/mp-webhook/index.ts` — tratar `kind=store_order`
-
-## O que NÃO muda
-
-- OAuth de seller MP (`connect-mercadopago-seller`, `mp-seller-auth-url`) — intocado.
-- Checkout de assinatura (`mp-checkout`) — intocado.
-- Nenhuma RLS existente é alterada.
-- Nenhum campo sensível novo em `get_public_store_products`.
-
-## Fora de escopo desta entrega
-
-- Múltiplos itens no carrinho (order bumps da imagem 2). Estrutura já suporta, mas UI de add-on fica para depois.
-- Cálculo real de frete por CEP (usaremos frete fixo configurável por página; default R$ 0).
-- Split de pagamento para seller conectado — nesta primeira versão o pagamento cai na conta da plataforma; repasse manual. Split via seller MP fica para uma iteração seguinte.
-
----
-
-Confirma que posso seguir com esse escopo? Em especial: (a) frete fixo por enquanto, (b) pagamento cai na conta da plataforma nesta primeira versão (sem split ainda).
+Posso começar pela Fase 1 agora?

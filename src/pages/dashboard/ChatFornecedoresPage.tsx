@@ -104,27 +104,20 @@ const formatSupportTime = (value: string | null) => {
 
 const getTicketNeedsReply = (ticket: AdminTicket) => ticket.last_sender === "user";
 
-const adminRoleChecks = (userId: string) => [
-  { _role: "admin" },
-  { role: "admin" },
-  { _user_id: userId, _role: "admin" },
-  { user_id: userId, role: "admin" },
-];
-
 async function checkAdminAccess(userId: string) {
-  for (const params of adminRoleChecks(userId)) {
-    const { data, error } = await (supabase as any).rpc("has_role", params);
-    if (!error && data === true) return true;
-  }
+  // Usa a funÃ§Ã£o Postgres publica is_admin(_user_id uuid) (SECURITY DEFINER)
+  // â€” a antiga has_role nao existe no banco e retornava 404.
+  const { data, error } = await (supabase as any).rpc("is_admin", { _user_id: userId });
+  if (!error && data === true) return true;
 
-  const { data, error } = await (supabase as any)
+  const { data: profile, error: profileError } = await (supabase as any)
     .from("profiles")
-    .select("role")
+    .select("is_admin, role")
     .or(`id.eq.${userId},user_id.eq.${userId}`)
     .maybeSingle();
 
-  if (error) return false;
-  return data?.role === "admin";
+  if (profileError) return false;
+  return profile?.is_admin === true || profile?.role === "admin";
 }
 
 const normalizeTicket = (ticket: any): AdminTicket => ({
@@ -671,7 +664,7 @@ function AdminSupportPanel() {
       void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
       notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
         console.error(error);
-        toast.error(error instanceof Error ? error.message : "Resposta enviada, mas não foi possível notificar por email.");
+        toast.error(error instanceof Error ? error.message : "Resposta enviada, mas nï¿½o foi possï¿½vel notificar por email.");
       });
     },
     onError: (error) => {

@@ -132,17 +132,19 @@ const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
   },
 };
 
-// Por enquanto só é possível criar página de vendas. A criação de loja completa
-// está desativada, então o tipo é fixo e a escolha some do formulário.
-const FIXED_TIPO: ProjectType = "pagina_venda";
+// Tipo padrão quando o caller não especifica: página de vendas.
+// Admins podem passar `defaultTipo="loja_completa"` para criar loja completa.
+const DEFAULT_TIPO: ProjectType = "pagina_venda";
 
 type ProjectCreationWizardProps = {
   open: boolean;
   onClose: () => void;
-  /** Ignorado enquanto a criação de loja completa está desativada. */
+  /** Tipo do projeto a ser criado. Default: página de venda. Admin pode passar "loja_completa". */
   defaultTipo?: ProjectType;
-  /** Ignorado enquanto a criação de loja completa está desativada. */
+  /** Reservado para uso futuro (travar tipo no wizard). */
   lockedTipo?: ProjectType;
+  /** Se true, mostra chooser no início pra o usuário escolher entre página de venda e loja completa. */
+  allowTipoChoice?: boolean;
   /** Se definido, pula a etapa de escolha de produtos e usa esses IDs. */
   preselectedProductIds?: string[];
   onCreated: (projectId: string) => void;
@@ -151,9 +153,13 @@ type ProjectCreationWizardProps = {
 const ProjectCreationWizard = ({
   open,
   onClose,
+  defaultTipo,
+  allowTipoChoice = false,
   preselectedProductIds,
   onCreated,
 }: ProjectCreationWizardProps) => {
+  const [tipo, setTipo] = useState<ProjectType>(defaultTipo ?? DEFAULT_TIPO);
+
   const skipProducts = !!(preselectedProductIds && preselectedProductIds.length > 0);
   const [step, setStep] = useState<Step>("info");
   const [direction, setDirection] = useState(0);
@@ -165,7 +171,9 @@ const ProjectCreationWizard = ({
   const [draggingLogo, setDraggingLogo] = useState(false);
   const [logoUrlInput, setLogoUrlInput] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>(preselectedProductIds ?? []);
-  const [templateId, setTemplateId] = useState<string>("produto-1");
+  const defaultTemplateId = tipo === "loja_completa" ? "loja-1" : "produto-1";
+  const [templateId, setTemplateId] = useState<string>(defaultTemplateId);
+
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -188,12 +196,13 @@ const ProjectCreationWizard = ({
     setDraggingLogo(false);
     setLogoUrlInput("");
     setSelectedProducts(preselectedProductIds ?? []);
-    setTemplateId("produto-1");
+    setTipo(defaultTipo ?? DEFAULT_TIPO);
+    setTemplateId((defaultTipo ?? DEFAULT_TIPO) === "loja_completa" ? "loja-1" : "produto-1");
     setSearch("");
     setLoadingIndex(0);
     setError(null);
     creatingRef.current = false;
-  }, [open, preselectedProductIds]);
+  }, [open, preselectedProductIds, defaultTipo]);
 
   useEffect(() => {
     if (!open || step !== "produtos" || products.length > 0) return;
@@ -223,8 +232,8 @@ const ProjectCreationWizard = ({
   }, [open, step, products.length]);
 
   const availableTemplates = useMemo(
-    () => TEMPLATES.filter((template) => template.tipo === FIXED_TIPO),
-    [],
+    () => TEMPLATES.filter((template) => template.tipo === tipo),
+    [tipo],
   );
 
   const filteredProducts = useMemo(() => {
@@ -315,7 +324,7 @@ const ProjectCreationWizard = ({
       const project = await createUserProject({
         nome,
         descricao,
-        tipo: FIXED_TIPO,
+        tipo: tipo,
         productIds: selectedProducts,
         template: templateId,
         logoImage,
@@ -490,6 +499,48 @@ const ProjectCreationWizard = ({
                 >
                   {step === "info" ? (
                     <div className="space-y-5">
+                      {allowTipoChoice ? (
+                        <motion.div variants={groupVariants}>
+                          <label className="mb-2 block text-[14px] font-medium text-white">
+                            Tipo de projeto
+                          </label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {([
+                              { value: "pagina_venda" as ProjectType, title: "Página de venda", desc: "Uma oferta focada em conversão." },
+                              { value: "loja_completa" as ProjectType, title: "Loja completa", desc: "Vitrine com vários produtos." },
+                            ]).map((option) => {
+                              const active = tipo === option.value;
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => {
+                                    setTipo(option.value);
+                                    setTemplateId(option.value === "loja_completa" ? "loja-1" : "produto-1");
+                                  }}
+                                  className={`rounded-[12px] border px-4 py-3 text-left transition-colors ${
+                                    active
+                                      ? "border-white/60 bg-[#2A2A2A] shadow-[0_0_0_3px_rgba(255,255,255,0.06)]"
+                                      : "border-white/[0.08] bg-[#242424] hover:border-white/20"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {option.value === "loja_completa" ? (
+                                      <Store size={16} strokeWidth={1.9} className="text-white" />
+                                    ) : (
+                                      <Sparkles size={16} strokeWidth={1.9} className="text-white" />
+                                    )}
+                                    <span className="text-[13.5px] font-semibold text-white">{option.title}</span>
+                                    {active ? <Check size={14} strokeWidth={2.2} className="ml-auto text-white" /> : null}
+                                  </div>
+                                  <p className="mt-1 text-[12px] leading-4 text-[#8A8A8A]">{option.desc}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      ) : null}
+
                       <motion.div variants={groupVariants}>
                         <label className="mb-2 block text-[14px] font-medium text-white">
                           Nome da loja
