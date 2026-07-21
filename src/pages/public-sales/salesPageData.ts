@@ -38,6 +38,7 @@ export type SalesPageData = {
   brand: string;
   storeLogoUrl?: string | null;
   storeDescription?: string | null;
+  tipoProjeto?: "loja_completa" | "pagina_venda";
 };
 
 export function useSalesPageData(slug: string | undefined) {
