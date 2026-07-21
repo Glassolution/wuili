@@ -297,17 +297,14 @@ const StoreProjectsPage = () => {
     }
   };
 
-  // Se pode criar loja e página, mostra o chooser. Caso só um dos dois esteja
-  // liberado no plano, o wizard já abre no tipo correto.
+  // A escolha entre loja completa e página de venda sempre fica visível para o
+  // usuário. Se o plano atual não permite um dos tipos, o wizard mostra o selo
+  // "Plano Pro" e dispara o modal de upgrade ao clicar.
   const wizardDefaultTipo: ProjectType = canCreateStorePlan && !canCreateSalesPagePlan
     ? "loja_completa"
     : "pagina_venda";
-  const wizardAllowChoice = canCreateStorePlan && canCreateSalesPagePlan;
-  const newProjectLabel = canCreateStorePlan && canCreateSalesPagePlan
-    ? "Novo projeto"
-    : canCreateStorePlan
-      ? "Nova loja"
-      : "Nova página de venda";
+  const wizardAllowChoice = true;
+  const newProjectLabel = "Novo projeto";
 
   return (
     <div className="-m-5 flex min-h-[calc(100vh-92px)] flex-1 flex-col bg-white text-[#171717] sm:-m-6 lg:-m-7">
