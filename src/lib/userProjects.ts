@@ -171,14 +171,25 @@ function firstImage(images: Json | null): string | null {
   return allImages(images)[0] ?? null;
 }
 
-/** Carrega um projeto publicado por slug (visível sem login via RPC SECURITY DEFINER). */
+/** Carrega um projeto publicado por slug (visível sem login via RPC SECURITY DEFINER).
+ *  Se não encontrar (ex.: rascunho não publicado ainda) e o usuário estiver autenticado,
+ *  tenta ler direto pela tabela — o RLS de owner permite ver o próprio rascunho, o que
+ *  viabiliza o preview do editor sem exigir publicação prévia. */
 export async function fetchPublicProject(slug: string): Promise<UserProject | null> {
   const { data, error } = await supabase.rpc("get_public_project", { p_slug: slug });
   if (error) throw error;
-  // RPC com RETURNS composite devolve uma linha só de nulls quando não há match.
   const project = data as UserProject | null;
-  if (!project || !project.id) return null;
-  return project;
+  if (project && project.id) return project;
+
+  // Fallback: tenta como owner (rascunho). Retorna null silenciosamente se não houver sessão.
+  const { data: session } = await supabase.auth.getSession();
+  if (!session?.session) return null;
+  const { data: draft } = await supabase
+    .from("user_projects")
+    .select("*")
+    .filter("metadata->>slug", "eq", slug)
+    .maybeSingle();
+  return (draft as UserProject | null) ?? null;
 }
 
 export function getProjectProductIds(project: UserProject | null): string[] {
