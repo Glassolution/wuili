@@ -226,7 +226,7 @@ const ProjectCreationWizard = ({
   }, [open, step, products.length]);
 
   const availableTemplates = useMemo(
-    () => TEMPLATES.filter((template) => template.tipo === FIXED_TIPO),
+    () => TEMPLATES.filter((template) => template.tipo === tipo),
     [],
   );
 
@@ -318,7 +318,7 @@ const ProjectCreationWizard = ({
       const project = await createUserProject({
         nome,
         descricao,
-        tipo: FIXED_TIPO,
+        tipo: tipo,
         productIds: selectedProducts,
         template: templateId,
         logoImage,
