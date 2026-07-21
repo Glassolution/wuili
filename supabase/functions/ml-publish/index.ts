@@ -309,7 +309,7 @@ function mapMLError(mlData: Record<string, unknown>): { message: string; code?: 
     return { message: buildSellerBlockedMessage(codes), code: 'ML_SELLER_CANNOT_LIST' }
   }
 
-  if (causeStr.includes('category_id')) return { message: 'Categoria inválida. Tente editar o título para melhor detecção automática.' }
+  if (causeStr.includes('category_id') || msgLower.includes('category')) return { message: 'Não conseguimos identificar a categoria automaticamente para este produto. Edite o título para deixá-lo mais descritivo ou selecione a categoria manualmente antes de publicar.', code: 'INVALID_CATEGORY' }
   // Repassa a mensagem/atributo real da API do ML, sem mascarar como
   // "Atributos obrigatórios faltando" (isso dificultava diagnóstico).
   if (causeStr.includes('missing_required') || causeStr.includes('attributes') || causeStr.includes('value')) {
