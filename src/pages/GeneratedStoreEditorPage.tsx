@@ -1059,6 +1059,11 @@ const GeneratedStoreEditorPage = () => {
   }, [selectedPath]);
 
   useEffect(() => {
+    const id = window.setInterval(() => setHeroSlideIndex((i) => i + 1), 4200);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     if (!selectedElement?.path) return;
     const update = () => {
       const element = getElementByPath(selectedElement.path);
