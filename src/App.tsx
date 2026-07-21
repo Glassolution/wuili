@@ -154,6 +154,7 @@ const App = () => (
               <Route path="/preview/:slug" element={<PublicStorePage />} />
               <Route path="/loja/:slug" element={<PublicStorePage />} />
               <Route path="/loja/:slug/catalogo" element={<PublicStoreCatalogPage />} />
+              <Route path="/loja/:slug/produto/:productId" element={<PublicProductPage />} />
               <Route path="/loja/:slug/carrinho" element={<SalesCartPage />} />
               <Route path="/loja/:slug/checkout" element={<SalesCheckoutPage />} />
               <Route path="/loja/:slug/obrigado" element={<SalesThankYouPage />} />
