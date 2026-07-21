@@ -3696,11 +3696,15 @@ const GeneratedStoreEditorPage = () => {
                 }));
                 const baseWidth = mobilePreview ? 390 : 1440;
                 const gap = 120;
-                const panelHeight = mobilePreview ? 1400 : 1600;
+                const defaultHeight = mobilePreview ? 1400 : 1600;
+                const HEIGHT_BY_KEY: Record<string, number> = mobilePreview
+                  ? { checkout: 980, obrigado: 720 }
+                  : { checkout: 780, obrigado: 560 };
                 return (
                   <>
                     {screens.map((screen, idx) => {
                       const leftOffset = (baseWidth + gap) * (idx + 1);
+                      const panelHeight = HEIGHT_BY_KEY[screen.key] ?? defaultHeight;
                       return (
                         <div
                           key={screen.key}
@@ -3725,13 +3729,15 @@ const GeneratedStoreEditorPage = () => {
                         </div>
                       );
                     })}
+
                     {screens.map((_, idx) => {
                       const leftOffset = (baseWidth + gap) * (idx + 1) - gap + 20;
                       return (
                         <div
                           key={`loja-arrow-${idx}`}
                           className="pointer-events-none absolute flex items-center text-white/30"
-                          style={{ left: leftOffset, top: 56 + panelHeight / 2 - 14, width: gap - 40 }}
+                          style={{ left: leftOffset, top: 56 + defaultHeight / 2 - 14, width: gap - 40 }}
+
                         >
                           <div className="h-px flex-1 bg-white/20" />
                           <ArrowRight size={28} strokeWidth={1.8} />
