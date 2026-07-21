@@ -573,11 +573,16 @@ Deno.serve(async (req) => {
     // publicação trava. Como não dá para fabricar uma grade confiável,
     // reencaminhamos para uma categoria genérica publicável (sem grade).
     const sizeGridDef = categoryAttrs.find((a) => cleanText(a.id) === 'SIZE_GRID_ID')
-    const sizeGridRequired = !!(sizeGridDef && (sizeGridDef.tags as Record<string, unknown> | undefined)?.required)
     const sizeGridHasValues = (((sizeGridDef?.values as unknown[]) ?? []).length) > 0
-    if (sizeGridRequired && !sizeGridHasValues) {
+    // Qualquer categoria que declara SIZE_GRID_ID sem lista fechada de valores
+    // é impublicável via dropshipping (não temos grade de medidas do vendedor).
+    // Antes só reencaminhávamos quando `tags.required` estava marcado, mas o ML
+    // rejeita "missing.fashion_grid.grid_id.values" mesmo em categorias onde
+    // esse flag não vem populado — então reencaminhamos sempre que o atributo
+    // existir sem valores.
+    if (sizeGridDef && !sizeGridHasValues) {
       const FALLBACK_CATEGORY = 'MLB1051' // "Outros" — leaf genérico sem grade de medidas
-      console.warn(`[ml-publish] Categoria ${categoryId} exige SIZE_GRID_ID (grade de medidas) sem lista de valores — reencaminhando para ${FALLBACK_CATEGORY}.`)
+      console.warn(`[ml-publish] Categoria ${categoryId} declara SIZE_GRID_ID sem valores publicáveis — reencaminhando para ${FALLBACK_CATEGORY}.`)
       categoryId = FALLBACK_CATEGORY
       categoryAttrs = await fetchCategoryAttrs(categoryId)
     }
