@@ -76,7 +76,7 @@ export async function createUserProject(input: CreateProjectInput): Promise<User
   if (!user) throw new Error("not_authenticated");
 
   const baseSlug = slugify(input.nome) || "loja";
-  const slug = `${baseSlug}-${randomSuffix()}`;
+  const slug = await ensureUniqueSlug(baseSlug);
 
   const metadata: Record<string, unknown> = {
     descricao: input.descricao.trim(),
