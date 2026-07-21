@@ -19,6 +19,7 @@ const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditor
 const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
 const PreviewPage = lazy(() => import("./pages/PreviewPage"));
 const PublicStorePage = lazy(() => import("./pages/PublicStorePage"));
+const PublicStoreCatalogPage = lazy(() => import("./pages/PublicStoreCatalogPage"));
 const SalesCartPage = lazy(() => import("./pages/public-sales/SalesCartPage"));
 const SalesCheckoutPage = lazy(() => import("./pages/public-sales/SalesCheckoutPage"));
 const SalesThankYouPage = lazy(() => import("./pages/public-sales/SalesThankYouPage"));
