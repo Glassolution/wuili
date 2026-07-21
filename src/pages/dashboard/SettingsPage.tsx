@@ -711,9 +711,25 @@ const NotificationsTab = () => {
 const sectionTitle = "text-[16px] font-bold text-[#111113] dark:text-white";
 
 const SecurityTab = () => {
-  const handleExcluirConta = () => {
-    if (!window.confirm("Tem certeza que deseja excluir sua conta? Esta acao e permanente e nao pode ser desfeita.")) return;
-    veloToast.success("Solicitacao de exclusao registrada. Nossa equipe processara em breve.");
+  const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
+
+  const handleExcluirConta = async () => {
+    if (deleting) return;
+    if (!window.confirm("Tem certeza? Essa acao nao pode ser desfeita. Sua conta e todos os dados serao excluidos permanentemente.")) return;
+    if (!window.confirm("Confirmacao final: excluir sua conta agora?")) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke("delete-account", { body: {} });
+      if (error) throw error;
+      await supabase.auth.signOut();
+      veloToast.success("Sua conta foi excluida.");
+      navigate("/", { replace: true });
+    } catch (e) {
+      console.error("[delete-account] falha", e);
+      veloToast.error("Nao foi possivel excluir a conta. Tente novamente.");
+      setDeleting(false);
+    }
   };
 
   return (
