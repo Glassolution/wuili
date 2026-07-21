@@ -3400,7 +3400,7 @@ const GeneratedStoreEditorPage = () => {
                     <h3 className="mt-1 text-[28px] font-semibold leading-[1.04] tracking-[-0.015em]">{"Novidades para voc\u00ea"}</h3>
                     <p className="mt-2 max-w-[180px] text-[10px] text-black/55">{"Explore os lan\u00e7amentos mais recentes de todas as categorias da loja."}</p>
                   </div>
-                  <button className="mt-4 w-fit rounded-full bg-black px-4 py-1.5 text-[9.5px] font-medium text-white">Conhecer novidades</button>
+                  <button className="mt-4 w-fit rounded-full bg-[#1a3c2a] px-4 py-1.5 text-[9.5px] font-medium text-white">Conhecer novidades</button>
                 </div>
                 <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" data-editor-product="true" data-editor-product-id={displayedProducts[2%displayedProducts.length]?.id} src={displayedProducts[2%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
               </div>
