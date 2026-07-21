@@ -405,7 +405,7 @@ const StorefrontLojaTemplate = ({
       {/* REVIEWS (real) */}
       {projectId ? (
         <section className="px-6 pb-14 md:px-10">
-          <StoreReviews projectId={projectId} />
+          <StoreReviews projectId={projectId} accent="#3d4a2a" />
         </section>
       ) : null}
 
