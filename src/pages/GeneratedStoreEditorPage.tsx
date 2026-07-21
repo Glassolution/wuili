@@ -3382,7 +3382,7 @@ const GeneratedStoreEditorPage = () => {
             {renderCustomSectionsAfter("body")}
             {/* PROMO BANDS */}
             <section data-editor-type="other" data-editor-section="promotions" data-editor-label="Seção promocional" className="grid grid-cols-1 gap-4 px-8 py-10 md:grid-cols-2">
-              <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-black text-white">
+              <div className="relative flex min-h-[220px] overflow-hidden rounded-[18px] bg-[#1a3c2a] text-white">
                 <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
                   <div>
                     <strong className="text-[10px] font-semibold tracking-[0.18em] text-white/70">OFERTA ESPECIAL</strong>
