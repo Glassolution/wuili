@@ -162,6 +162,16 @@ const App = () => (
               <Route path="/loja/:slug/checkout" element={<SalesCheckoutPage />} />
               <Route path="/loja/:slug/obrigado" element={<SalesThankYouPage />} />
               <Route path="/loja/:slug/login" element={<SalesLoginPage />} />
+              {/* Alias em inglês — URL pública padrão exibida ao dono da loja. */}
+              <Route path="/store/:slug" element={<PublicStorePage />} />
+              <Route path="/store/:slug/catalogo" element={<PublicStoreCatalogPage />} />
+              <Route path="/store/:slug/produto/:productId" element={<PublicProductPage />} />
+              <Route path="/store/:slug/conta" element={<PublicStoreAccountPage />} />
+              <Route path="/store/:slug/carrinho" element={<SalesCartPage />} />
+              <Route path="/store/:slug/checkout" element={<SalesCheckoutPage />} />
+              <Route path="/store/:slug/obrigado" element={<SalesThankYouPage />} />
+              <Route path="/store/:slug/login" element={<SalesLoginPage />} />
+
               <Route path="/preview/:slug/carrinho" element={<SalesCartPage />} />
               <Route path="/preview/:slug/checkout" element={<SalesCheckoutPage />} />
               <Route path="/preview/:slug/login" element={<SalesLoginPage />} />
