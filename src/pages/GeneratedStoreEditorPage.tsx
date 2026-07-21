@@ -4039,6 +4039,14 @@ const GeneratedStoreEditorPage = () => {
         onNameChange={setStoreName}
       />
 
+      <StoreAdminModal
+        open={adminOpen}
+        onClose={() => setAdminOpen(false)}
+        project={currentProject}
+        onProjectUpdated={setCurrentProject}
+      />
+
+
       {showPlans ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onMouseDown={(event)=>{if(event.target===event.currentTarget)setShowPlans(false)}}>
           <section role="dialog" aria-modal="true" aria-labelledby="plans-title" className="relative w-full max-w-[1020px] overflow-hidden rounded-[28px] bg-[#111] p-7 text-white shadow-[0_30px_120px_rgba(0,0,0,0.8)] sm:p-10">
