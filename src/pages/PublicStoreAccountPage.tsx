@@ -68,8 +68,8 @@ export default function PublicStoreAccountPage() {
     if (!slug) return;
     (async () => {
       setLoading(true);
-      const { data } = await supabase.rpc("get_public_project", { p_slug: slug });
-      setProject((data as UserProject) ?? null);
+      const p = await fetchPublicProject(slug);
+      setProject(p);
       try {
         const raw = localStorage.getItem(storageKey(slug));
         if (raw) setCustomer(JSON.parse(raw));
