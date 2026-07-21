@@ -757,15 +757,54 @@ Deno.serve(async (req) => {
       prediction = await predictCategory(title)
       categoryId = prediction.categoryId
       console.log(
-        `[ml-publish] Categoria (auto/${prediction.source}):`,
+        `[ml-publish] Categoria (auto/${prediction.source}${prediction.lowConfidence ? '/low_conf' : ''}):`,
         categoryId,
-        `raw="${title.slice(0,60)}" norm="${prediction.normalizedTitle}"`,
+        `raw="${title.slice(0,60)}" norm="${prediction.normalizedTitle}" rawCat=${prediction.rawPrediction} normCat=${prediction.normalizedPrediction}`,
       )
+
+      // Divergência entre raw e normalized (ambas folha, não-fashion, distintas)
+      // → baixa confiança: bloqueia com 409 e devolve as duas sugestões.
+      if (prediction.lowConfidence && productRecordId) {
+        try {
+          await supabase
+            .from('catalog_products')
+            .update({
+              ml_category_id: categoryId,
+              ml_category_status: 'needs_manual',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', productRecordId)
+        } catch (persistErr) {
+          console.error('[ml-publish] Falha ao gravar needs_manual (low_conf):', persistErr)
+        }
+        await logPrediction(supabase, {
+          productId: productRecordId,
+          userId: user_id,
+          title,
+          prediction,
+          finalCategory: categoryId,
+          finalStatus: 'needs_manual',
+          requiresSizeGrid: false,
+        })
+        return json({
+          error: 'Não temos certeza da categoria correta deste produto. Selecione manualmente entre as sugestões.',
+          code: 'CATEGORY_LOW_CONFIDENCE',
+          suggestions: [
+            { category_id: prediction.rawPrediction, category_name: prediction.rawCategoryName, source: 'raw' },
+            { category_id: prediction.normalizedPrediction, category_name: prediction.normalizedCategoryName, source: 'normalized' },
+          ],
+        }, 409)
+      }
     }
 
     // Carrega atributos da categoria (com cache) para checar SIZE_GRID e
     // reaproveitar a lista completa na montagem do payload abaixo.
     let categoryInfo = await fetchCategoryAttrsCached(categoryId)
+
+    // Bloqueio de fashion sem grade: se a categoria exige SIZE_GRID_ID e o
+    // payload não trouxer um `size_grid_id` explícito, gravamos o status
+    // 'needs_manual' e devolvemos 409 para o frontend abrir o seletor.
+    if (categoryInfo.requiresGrid && !providedSizeGridId) {
 
     // Bloqueio de fashion sem grade: se a categoria exige SIZE_GRID_ID e o
     // payload não trouxer um `size_grid_id` explícito, gravamos o status
