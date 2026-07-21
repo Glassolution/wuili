@@ -3678,9 +3678,17 @@ const GeneratedStoreEditorPage = () => {
                 };
                 // A Home é sempre o canvas principal (à esquerda). As demais telas
                 // aparecem na ordem definida pelo dono da loja (customerFlow).
-                const orderedKeys = customerFlow.filter((k) => k !== "home" && SCREEN_MAP[k]);
-                // Garante Conta do cliente ao final se o dono não incluiu.
-                if (!orderedKeys.includes("conta")) orderedKeys.push("conta");
+                // Login e Conta (cadastro) andam sempre juntos, lado a lado.
+                const rawOrder = customerFlow.filter((k) => k !== "home" && k !== "conta" && SCREEN_MAP[k]);
+                const orderedKeys: string[] = [];
+                for (const k of rawOrder) {
+                  orderedKeys.push(k);
+                  if (k === "login") orderedKeys.push("conta");
+                }
+                if (!orderedKeys.includes("conta")) {
+                  if (!orderedKeys.includes("login")) orderedKeys.push("login");
+                  orderedKeys.push("conta");
+                }
                 const screens = orderedKeys.map((key, idx) => ({
                   key,
                   label: `Tela ${idx + 2} · ${SCREEN_MAP[key]!.label}`,
