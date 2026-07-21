@@ -3602,6 +3602,67 @@ const GeneratedStoreEditorPage = () => {
 
             </>
           ) : null}
+
+          {activeTemplate.kind === "loja" && projectSlug ? (
+            <>
+              {(() => {
+                const productPathId = featuredProduct?.id ? `/${featuredProduct.id}` : "";
+                const screens = [
+                  { key: "catalogo", label: "Tela 2 · Catálogo", path: `/loja/${projectSlug}/catalogo?preview=1` },
+                  { key: "produto", label: "Tela 3 · Produto", path: `/loja/${projectSlug}/produto${productPathId}?preview=1` },
+                  { key: "carrinho", label: "Tela 4 · Carrinho", path: `/loja/${projectSlug}/carrinho?preview=1` },
+                  { key: "checkout", label: "Tela 5 · Checkout", path: `/loja/${projectSlug}/checkout?preview=1` },
+                  { key: "conta", label: "Tela 6 · Conta do cliente", path: `/loja/${projectSlug}/conta?preview=1` },
+                ];
+                const baseWidth = mobilePreview ? 390 : 1440;
+                const gap = 120;
+                const panelHeight = mobilePreview ? 1400 : 1600;
+                return (
+                  <>
+                    {screens.map((screen, idx) => {
+                      const leftOffset = (baseWidth + gap) * (idx + 1);
+                      return (
+                        <div
+                          key={screen.key}
+                          className="pointer-events-none absolute top-0"
+                          style={{ left: leftOffset, width: baseWidth }}
+                        >
+                          <div className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
+                            <Monitor size={20} strokeWidth={1.8} />
+                            {screen.label}
+                            <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold tracking-normal text-white/55">Preview</span>
+                          </div>
+                          <div
+                            className="relative overflow-hidden bg-white shadow-[0_30px_100px_rgba(0,0,0,0.46)] ring-1 ring-white/[0.10]"
+                            style={{ width: baseWidth, height: panelHeight }}
+                          >
+                            <iframe
+                              src={screen.path}
+                              title={screen.label}
+                              style={{ width: "100%", height: "100%", border: 0, pointerEvents: "none" }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {screens.map((_, idx) => {
+                      const leftOffset = (baseWidth + gap) * (idx + 1) - gap + 20;
+                      return (
+                        <div
+                          key={`loja-arrow-${idx}`}
+                          className="pointer-events-none absolute flex items-center text-white/30"
+                          style={{ left: leftOffset, top: 56 + panelHeight / 2 - 14, width: gap - 40 }}
+                        >
+                          <div className="h-px flex-1 bg-white/20" />
+                          <ArrowRight size={28} strokeWidth={1.8} />
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              })()}
+            </>
+          ) : null}
         </div>
 
 
