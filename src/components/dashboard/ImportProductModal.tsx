@@ -548,17 +548,15 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
   ) => {
     if (!validatePublish() || !user) return;
 
+    // Publicar no Mercado Livre não exige loja Velo — basta a conta ML conectada.
     const activeStore = getActiveStore();
-    if (!activeStore) {
-      veloToast.error("Crie uma loja antes de publicar produtos");
-      return;
-    }
-
-    const publishedCount = getStorePublishedCount(activeStore.id);
-    const productLimit = activeStore.productLimit ?? 30;
-    if (publishedCount >= productLimit) {
-      veloToast.error(`Limite de ${productLimit} produtos atingido nesta loja`);
-      return;
+    if (activeStore) {
+      const publishedCount = getStorePublishedCount(activeStore.id);
+      const productLimit = activeStore.productLimit ?? 30;
+      if (publishedCount >= productLimit) {
+        veloToast.error(`Limite de ${productLimit} produtos atingido nesta loja`);
+        return;
+      }
     }
 
     if (planLimits.loading) {
