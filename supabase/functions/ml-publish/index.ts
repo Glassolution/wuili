@@ -709,60 +709,126 @@ Deno.serve(async (req) => {
     const productRecord = product as Record<string, unknown>
 
     // === CATEGORY (leaf only) ===
-    // Prioridade: 1) categoria explícita enviada pelo usuário (ml_category_id/category_id),
-    // 2) predição automática por título. Categoria explícita ainda passa por
-    // validação de leaf — se não for folha, resolvemos automaticamente.
-    const userCategoryOverride = cleanText(
+    // Prioridade:
+    //   1) override_category_id no payload (seleção manual do usuário)
+    //   2) legado: ml_category_id / category_id no productRecord
+    //   3) predição automática (domain_discovery com fallback normalizado)
+    // Fashion sem size_grid_id no payload → 409 CATEGORY_REQUIRES_MANUAL,
+    // marcando o produto como needs_manual para revisão explícita. NUNCA
+    // redirecionamos silenciosamente para MLB1051.
+    const productRecordId = cleanText(productRecord.id) || catalogProductId
+    const overrideCategoryRaw = cleanText(
+      (productRecord.override_category_id as string | undefined) ??
       (productRecord.ml_category_id as string | undefined) ??
       (productRecord.category_id as string | undefined),
     )
+    const providedSizeGridId = cleanText(
+      (productRecord.size_grid_id as string | undefined) ??
+      (productRecord.ml_size_grid_id as string | undefined),
+    )
+    const providedSizeGridRowId = cleanText(
+      (productRecord.size_grid_row_id as string | undefined) ??
+      (productRecord.ml_size_grid_row_id as string | undefined),
+    )
+
     let categoryId: string
-    if (userCategoryOverride && /^MLB\d+$/.test(userCategoryOverride)) {
-      categoryId = (await isLeafCategory(userCategoryOverride))
-        ? userCategoryOverride
-        : await resolveLeafCategory(userCategoryOverride)
-      console.log('Categoria (override do usuário):', categoryId)
+    let categoryStatusForRecord: 'auto' | 'manual' = 'auto'
+    let prediction: PredictionResult | null = null
+
+    if (overrideCategoryRaw && /^MLB\d+$/.test(overrideCategoryRaw)) {
+      const leafId = (await isLeafCategory(overrideCategoryRaw))
+        ? overrideCategoryRaw
+        : await resolveLeafCategory(overrideCategoryRaw)
+      categoryId = leafId
+      categoryStatusForRecord = 'manual'
+      console.log('[ml-publish] Categoria (override manual):', categoryId)
     } else {
-      categoryId = await predictCategory(title)
-      console.log('Categoria (auto):', categoryId)
+      prediction = await predictCategory(title)
+      categoryId = prediction.categoryId
+      console.log(
+        `[ml-publish] Categoria (auto/${prediction.source}):`,
+        categoryId,
+        `raw="${title.slice(0,60)}" norm="${prediction.normalizedTitle}"`,
+      )
     }
 
-    // === ATTRIBUTES ===
-    // Buscamos a ficha de atributos da categoria para saber quais sao
-    // obrigatorios e quais tem lista fechada de valores permitidos.
-    const fetchCategoryAttrs = async (catId: string): Promise<Record<string, unknown>[]> => {
-      try {
-        const attrRes = await fetch(`https://api.mercadolibre.com/categories/${catId}/attributes`)
-        if (attrRes.ok) return await attrRes.json()
-      } catch (_e) { /* ignore */ }
-      return []
-    }
-    let categoryAttrs = await fetchCategoryAttrs(categoryId)
+    // Carrega atributos da categoria (com cache) para checar SIZE_GRID e
+    // reaproveitar a lista completa na montagem do payload abaixo.
+    let categoryInfo = await fetchCategoryAttrsCached(categoryId)
 
-    // fashion_grid: categorias de moda (roupas/calçados) exigem SIZE_GRID_ID, que
-    // referencia uma grade de medidas (guia de tamanhos) criada pelo vendedor —
-    // NÃO tem lista fechada de valores. O catálogo de dropshipping não tem como
-    // preencher, então o ML rejeita com "missing.fashion_grid.grid_id.values" e a
-    // publicação trava. Como não dá para fabricar uma grade confiável,
-    // reencaminhamos para uma categoria genérica publicável (sem grade).
-    const sizeGridDef = categoryAttrs.find((a) => cleanText(a.id) === 'SIZE_GRID_ID')
-    const sizeGridHasValues = (((sizeGridDef?.values as unknown[]) ?? []).length) > 0
-    // Qualquer categoria que declara SIZE_GRID_ID sem lista fechada de valores
-    // é impublicável via dropshipping (não temos grade de medidas do vendedor).
-    // Antes só reencaminhávamos quando `tags.required` estava marcado, mas o ML
-    // rejeita "missing.fashion_grid.grid_id.values" mesmo em categorias onde
-    // esse flag não vem populado — então reencaminhamos sempre que o atributo
-    // existir sem valores.
-    if (sizeGridDef && !sizeGridHasValues) {
-      const FALLBACK_CATEGORY = 'MLB1051' // "Outros" — leaf genérico sem grade de medidas
-      console.warn(`[ml-publish] Categoria ${categoryId} declara SIZE_GRID_ID sem valores publicáveis — reencaminhando para ${FALLBACK_CATEGORY}.`)
-      categoryId = FALLBACK_CATEGORY
-      categoryAttrs = await fetchCategoryAttrs(categoryId)
+    // Bloqueio de fashion sem grade: se a categoria exige SIZE_GRID_ID e o
+    // payload não trouxer um `size_grid_id` explícito, gravamos o status
+    // 'needs_manual' e devolvemos 409 para o frontend abrir o seletor.
+    if (categoryInfo.requiresGrid && !providedSizeGridId) {
+      const suggested = prediction ?? {
+        categoryId,
+        categoryName: '',
+        rawPrediction: overrideCategoryRaw || null,
+        normalizedPrediction: null,
+        normalizedTitle: '',
+        requiresSizeGrid: true,
+        source: 'raw' as const,
+      }
+      console.warn(
+        `[ml-publish] Categoria ${categoryId} exige SIZE_GRID_ID e o payload não trouxe size_grid_id — bloqueando com 409 CATEGORY_REQUIRES_MANUAL.`,
+      )
+
+      if (productRecordId) {
+        try {
+          await supabase
+            .from('catalog_products')
+            .update({
+              ml_category_id: categoryId,
+              ml_category_status: 'needs_manual',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', productRecordId)
+        } catch (persistErr) {
+          console.error('[ml-publish] Falha ao gravar ml_category_status=needs_manual:', persistErr)
+        }
+        try {
+          await supabase.from('ml_category_prediction_log').insert({
+            product_id: productRecordId,
+            user_id,
+            title_raw: title,
+            title_normalized: suggested.normalizedTitle,
+            predicted_raw: suggested.rawPrediction,
+            predicted_normalized: suggested.normalizedPrediction,
+            final_category: categoryId,
+            final_status: 'needs_manual',
+            requires_size_grid: true,
+          })
+        } catch (logErr) {
+          console.error('[ml-publish] Falha ao gravar log de predição:', logErr)
+        }
+      }
+
+      return json({
+        error: 'Esta categoria exige uma grade de tamanho. Selecione a categoria e a grade manualmente para publicar.',
+        code: 'CATEGORY_REQUIRES_MANUAL',
+        predicted_category_id: categoryId,
+        predicted_category_name: suggested.categoryName,
+        requires_size_grid: true,
+      }, 409)
     }
 
-    // IDs de atributos que ESTA categoria de fato aceita. Usado para não enviar
-    // atributos que o ML descarta como inválidos ("was dropped because does not
-    // exists"), como SELLER_PACKAGE_DIMENSIONS em categorias que não os suportam.
+    // Compat: se veio size_grid_id/size_grid_row_id, injetamos como atributos
+    // no productRecord.ml_attributes para o pipeline existente montar o item.
+    if (providedSizeGridId) {
+      const existingAttrs = Array.isArray(productRecord.ml_attributes)
+        ? (productRecord.ml_attributes as MLAttribute[])
+        : []
+      const injected: MLAttribute[] = [
+        { id: 'SIZE_GRID_ID', value_name: providedSizeGridId },
+        ...(providedSizeGridRowId ? [{ id: 'SIZE_GRID_ROW_ID', value_name: providedSizeGridRowId }] : []),
+      ]
+      productRecord.ml_attributes = [
+        ...existingAttrs.filter((a) => !['SIZE_GRID_ID', 'SIZE_GRID_ROW_ID'].includes(String(a.id))),
+        ...injected,
+      ]
+    }
+
+    const categoryAttrs = categoryInfo.attrs
     const categoryAttrIds = new Set(categoryAttrs.map((a) => cleanText(a.id)))
 
 
