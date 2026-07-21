@@ -241,6 +241,17 @@ async function resolveLeafCategory(categoryId: string): Promise<string> {
   return current
 }
 
+// Verifica se uma categoria é folha (leaf) e existe no ML
+async function isLeafCategory(categoryId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.mercadolibre.com/categories/${categoryId}`)
+    if (!res.ok) return false
+    const cat = await res.json()
+    const children = Array.isArray(cat?.children_categories) ? cat.children_categories : []
+    return children.length === 0
+  } catch { return false }
+}
+
 // Predict category from title, ensuring it's a leaf
 async function predictCategory(title: string): Promise<string> {
   const fallback = 'MLB1051' // Generic "Outros" leaf category
@@ -254,7 +265,9 @@ async function predictCategory(title: string): Promise<string> {
       const predData = await predRes.json()
       if (predData?.id) {
         console.log('Category predictor returned:', predData.id, predData.name)
-        return predData.id
+        if (await isLeafCategory(predData.id)) return predData.id
+        const leaf = await resolveLeafCategory(predData.id)
+        if (leaf) return leaf
       }
     }
   } catch (_e) { /* ignore */ }
