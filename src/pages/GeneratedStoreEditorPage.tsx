@@ -1859,7 +1859,7 @@ const GeneratedStoreEditorPage = () => {
 
   useEffect(() => {
     if (!flow) return;
-    setHeroImage("/hero-pasted-image-2.png");
+    setHeroImage("");
     let mounted = true;
     const loadStore = async () => {
       const { data: authData } = await supabase.auth.getUser();
