@@ -297,7 +297,17 @@ const StoreProjectsPage = () => {
     }
   };
 
-  const wizardDefaultTipo: ProjectType = isAdmin ? "loja_completa" : "pagina_venda";
+  // Se pode criar loja e página, mostra o chooser. Caso só um dos dois esteja
+  // liberado no plano, o wizard já abre no tipo correto.
+  const wizardDefaultTipo: ProjectType = canCreateStorePlan && !canCreateSalesPagePlan
+    ? "loja_completa"
+    : "pagina_venda";
+  const wizardAllowChoice = canCreateStorePlan && canCreateSalesPagePlan;
+  const newProjectLabel = canCreateStorePlan && canCreateSalesPagePlan
+    ? "Novo projeto"
+    : canCreateStorePlan
+      ? "Nova loja"
+      : "Nova página de venda";
 
   return (
     <div className="-m-5 flex min-h-[calc(100vh-92px)] flex-1 flex-col bg-white text-[#171717] sm:-m-6 lg:-m-7">
