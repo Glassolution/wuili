@@ -19,6 +19,12 @@ const DETAIL_BATCH_SIZE = 6; // product.get em paralelo por lote (Promise.all)
 const DETAIL_BATCH_DELAY_MS = 400; // pausa entre lotes para respeitar rate-limit AliExpress
 const MIN_IMAGES_REQUIRED = 3; // regra fixa: produto AliExpress só é publicável com ≥ 3 fotos
 const STUCK_RUN_MINUTES = 15; // execuções "running" mais antigas que isso são marcadas como failed no boot
+// Circuit breaker de rate-limit: se >= metade de um lote falhar por rate-limit,
+// OU se acumulado ultrapassar RATE_LIMIT_ABORT_TOTAL, aborta enriquecimento e
+// descarta os produtos ainda não enriquecidos (evita salvar galerias truncadas).
+const RATE_LIMIT_ABORT_BATCH_RATIO = 0.5;
+const RATE_LIMIT_ABORT_TOTAL = 10;
+const RATE_LIMIT_ERROR_REGEX = /rate.?limit|too many|frequency|qps|call.?limit|flow.?limit|isv\.invoke-limit|429/i;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -625,6 +631,9 @@ serve(async (req) => {
     );
     let enrichedCount = 0;
     let rateLimitHits = 0;
+    let stoppedByRateLimit = false;
+    let stopReason: string | null = null;
+    const enrichedIds = new Set<string>();
     for (let i = 0; i < enrichLimit; i += DETAIL_BATCH_SIZE) {
       const slice = detailed.slice(i, Math.min(i + DETAIL_BATCH_SIZE, enrichLimit));
       const results = await Promise.all(
@@ -634,10 +643,14 @@ serve(async (req) => {
             .catch((err) => ({ item, detail: null, err })),
         ),
       );
+      let batchRateLimitHits = 0;
       for (const { item, detail, err } of results) {
         if (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          if (/rate.?limit|too many|frequency|qps/i.test(msg)) rateLimitHits++;
+          if (RATE_LIMIT_ERROR_REGEX.test(msg)) {
+            rateLimitHits++;
+            batchRateLimitHits++;
+          }
           continue;
         }
         if (detail) {
@@ -646,25 +659,51 @@ serve(async (req) => {
           if (detail.rating != null) item.rating = detail.rating;
           if (detail.reviews_count != null) item.reviews_count = detail.reviews_count;
           enrichedCount++;
+          enrichedIds.add(item.external_id);
         }
       }
       const done = Math.min(i + DETAIL_BATCH_SIZE, enrichLimit);
       console.log(
-        `[aliexpress-sync-top-products] enrich progresso ${done}/${enrichLimit} (ok=${enrichedCount}, rateLimit=${rateLimitHits}, elapsed=${Date.now() - enrichStart}ms)`,
+        `[aliexpress-sync-top-products] enrich progresso ${done}/${enrichLimit} (ok=${enrichedCount}, rateLimit=${rateLimitHits}, batchRL=${batchRateLimitHits}/${slice.length}, elapsed=${Date.now() - enrichStart}ms)`,
       );
+
+      // Circuit breaker: proximidade do limite → abortar sem processar mais produtos.
+      const batchRatio = slice.length > 0 ? batchRateLimitHits / slice.length : 0;
+      if (batchRatio >= RATE_LIMIT_ABORT_BATCH_RATIO || rateLimitHits >= RATE_LIMIT_ABORT_TOTAL) {
+        stoppedByRateLimit = true;
+        stopReason = batchRatio >= RATE_LIMIT_ABORT_BATCH_RATIO
+          ? `rate_limit: lote com ${batchRateLimitHits}/${slice.length} falhas (>= ${Math.round(RATE_LIMIT_ABORT_BATCH_RATIO * 100)}%)`
+          : `rate_limit: acumulado ${rateLimitHits} hits (>= ${RATE_LIMIT_ABORT_TOTAL})`;
+        console.warn(
+          `[aliexpress-sync-top-products] ⚠️ ABORT por proximidade do rate-limit da API AliExpress — ${stopReason}. Enriquecidos ${enrichedCount}/${enrichLimit}. Produtos NÃO enriquecidos serão DESCARTADOS para evitar galerias truncadas.`,
+        );
+        break;
+      }
+
       if (((i / DETAIL_BATCH_SIZE) | 0) % 5 === 0) {
         await patchLog({ products_updated: enrichedCount });
       }
       if (i + DETAIL_BATCH_SIZE < enrichLimit) await sleep(DETAIL_BATCH_DELAY_MS);
     }
     console.log(
-      `[aliexpress-sync-top-products] enriquecimento concluído: ${enrichedCount}/${enrichLimit} em ${Date.now() - enrichStart}ms (rateLimit hits=${rateLimitHits})`,
+      `[aliexpress-sync-top-products] enriquecimento ${stoppedByRateLimit ? "INTERROMPIDO (rate-limit)" : "concluído"}: ${enrichedCount}/${enrichLimit} em ${Date.now() - enrichStart}ms (rateLimit hits=${rateLimitHits})`,
     );
 
-    // Regra fixa: produto AliExpress só é publicável se tiver >= MIN_IMAGES_REQUIRED fotos.
-    // Produtos abaixo do mínimo entram no banco marcados como não-publicáveis (is_active=false),
-    // continuam visíveis no catálogo interno com badge "Fotos insuficientes", mas não vão para
-    // publicação em marketplaces nem para lojas públicas.
+    // Se abortou por rate-limit, descarta produtos não enriquecidos (galerias podem estar truncadas
+    // com apenas a thumbnail do text.search). Essa é a proteção primária; o filtro ≥3 fotos abaixo
+    // continua como segunda camada.
+    if (stoppedByRateLimit) {
+      const before = detailed.length;
+      const kept = detailed.filter((p) => enrichedIds.has(p.external_id));
+      detailed.length = 0;
+      detailed.push(...kept);
+      console.warn(
+        `[aliexpress-sync-top-products] descarte por rate-limit: ${before - kept.length} produtos não enriquecidos removidos (${kept.length} mantidos)`,
+      );
+    }
+
+
+    // Regra fixa (segunda camada): produto AliExpress só é publicável com ≥ MIN_IMAGES_REQUIRED fotos.
     let insufficientPhotos = 0;
     for (const item of detailed) {
       const imgCount = Array.isArray(item.images) ? item.images.length : 0;
@@ -723,6 +762,11 @@ serve(async (req) => {
         .in("id", droppedIds);
     }
 
+    const finalErrorMessage = [
+      stoppedByRateLimit ? `stopped_by_rate_limit (${stopReason ?? "rate_limit"})` : null,
+      errors.slice(0, 5).join(" | ") || null,
+    ].filter(Boolean).join(" | ") || null;
+
     await finalize({
       status: errorCount > 0 && productsNew + productsUpdated === 0 ? "failed" : "success",
       categories_processed: keywords.length,
@@ -730,8 +774,14 @@ serve(async (req) => {
       products_updated: productsUpdated,
       products_dropped_from_top: droppedIds.length,
       error_count: errorCount,
-      error_message: errors.slice(0, 5).join(" | ") || null,
+      error_message: finalErrorMessage,
     });
+
+    if (stoppedByRateLimit) {
+      console.warn(
+        `[aliexpress-sync-top-products] 🚦 execução finalizada com PARADA POR RATE-LIMIT — ${stopReason}. Enriquecidos ${enrichedCount}/${enrichLimit}, upserted ${productsNew + productsUpdated}.`,
+      );
+    }
 
     return new Response(
       JSON.stringify({
@@ -741,6 +791,10 @@ serve(async (req) => {
         products_updated: productsUpdated,
         products_dropped_from_top: droppedIds.length,
         errors: errorCount,
+        stopped_by_rate_limit: stoppedByRateLimit,
+        stop_reason: stopReason,
+        rate_limit_hits: rateLimitHits,
+        enriched: enrichedCount,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
