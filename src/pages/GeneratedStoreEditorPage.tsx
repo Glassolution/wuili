@@ -3269,110 +3269,135 @@ const GeneratedStoreEditorPage = () => {
             <>
             {/* === TEMPLATE 01 - C-STYLE INSPIRED === */}
             {/* Main header */}
-            <StorefrontNavbar storeName={brandName} logoImage={logoImage} activePage="store" className="relative z-30" />
+            {/* ============ TEMPLATE 01 · AERO-STEP STYLE ============ */}
+            <div className="bg-[#f5f2ea] text-[#1a1a1a]" style={{fontFamily:selectedFontStack}}>
 
-            {/* HERO - imagem literal com overlays percentuais */}
-            <section data-editor-type="other" data-editor-section="hero" data-editor-label="Seção hero" className="relative overflow-hidden bg-[#1a3c2a] shadow-[0_14px_34px_rgba(26,60,42,0.25)]" style={{fontFamily:selectedFontStack}}>
-              <img data-editor-type="image" data-editor-media-kind="banner" data-editor-id="hero-image" src={heroImage} alt="" aria-hidden="true" className="block h-auto w-full"/>
+            {/* NAVBAR */}
+            <header data-editor-type="other" data-editor-section="navbar" data-editor-label="Barra de navegação" className="relative z-30 flex items-center justify-between gap-6 px-10 py-5">
+              <a href="#" className="flex items-center gap-2.5">
+                {logoImage ? <img data-editor-type="image" data-editor-media-kind="logo" src={logoImage} alt={brandName} className="h-8 w-8 rounded-full object-cover"/> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3d4a2a] text-[11px] font-semibold text-[#f5f2ea]">{brandName.slice(0,1).toUpperCase()}</span>}
+                <span data-editor-type="text" className="text-[15px] font-semibold tracking-[-0.01em] uppercase">{brandName}</span>
+              </a>
+              <nav className="hidden items-center gap-8 md:flex">
+                {["Catálogo","Novidades","Ofertas","Sobre","Contato"].map((label)=>(
+                  <a key={label} data-editor-type="text" href="#" className="text-[13px] font-medium text-[#1a1a1a]/75 transition hover:text-[#3d4a2a]">{label}</a>
+                ))}
+              </nav>
+              <div className="flex items-center gap-3">
+                <a href="#entrar" className="inline-flex items-center gap-2 rounded-full border border-[#1a1a1a]/12 bg-white px-4 py-2 text-[12px] font-semibold text-[#1a1a1a] transition hover:border-[#3d4a2a]/40"><UserRound size={14} strokeWidth={2}/>Entrar</a>
+                <a href="#carrinho" className="inline-flex items-center gap-2 rounded-full bg-[#3d4a2a] px-4 py-2 text-[12px] font-semibold text-[#f5f2ea] transition hover:bg-[#2c3620]"><ShoppingBag size={14} strokeWidth={2}/>Carrinho<span className="ml-0.5 rounded-full bg-[#c8a24a] px-1.5 text-[10px] font-bold text-[#3d4a2a]">0</span></a>
+              </div>
+            </header>
 
-              <div className="absolute inset-0" aria-label={"Conte\u00fado do banner principal"}>
-                <div className="absolute z-20 overflow-hidden bg-white text-[#1f2933]" style={{ left: "3.12%", top: "0%", width: "19.45%", height: "100%" }}>
-                  <div className="flex h-[7.9%] w-full items-center border-b border-black/5 bg-white px-[5%]" style={{ fontSize: "clamp(7.5px,0.82vw,13px)" }}>
-                    <div className="flex h-[68%] w-full items-center gap-[7%] rounded-[3px] bg-[#12301f] px-[6%] text-white">
-                      <Menu size={15} strokeWidth={2} className="h-[1.18em] w-[1.18em] shrink-0"/>
-                      <span className="font-medium leading-none">Categorias</span>
+            {/* HERO */}
+            <section data-editor-type="other" data-editor-section="hero" data-editor-label="Seção hero" className="px-10 pb-10">
+              <div className="relative overflow-hidden rounded-[28px] bg-[#e9e5d8]">
+                <div className={`grid ${mobilePreview?"grid-cols-1":"grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]"} items-stretch`}>
+                  <div className="relative z-10 flex flex-col justify-between p-10 md:p-14">
+                    <div>
+                      <span data-editor-type="text" className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#3d4a2a]">Prêmium coleção</span>
+                      <h1 data-editor-type="text" className="mt-6 font-semibold uppercase leading-[0.98] tracking-[-0.02em] text-[#1a1a1a]" style={{fontSize:"clamp(34px,4.2vw,68px)"}}>
+                        {headlinePrimary}<br/>{headlineSecondary}
+                      </h1>
+                      <p data-editor-type="text" className="mt-6 max-w-[380px] text-[13px] leading-relaxed text-[#1a1a1a]/60">{heroSubtitle}</p>
+                    </div>
+                    <div className="mt-10 flex flex-wrap items-center gap-3">
+                      <a data-editor-role="button" href={heroCtaHref} className="group inline-flex items-center gap-3 rounded-full bg-[#3d4a2a] py-2 pl-6 pr-2 text-[13px] font-semibold text-[#f5f2ea] transition hover:bg-[#2c3620]">
+                        <span data-editor-type="text">{ctaPrimary || "Ver catálogo"}</span>
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#c8a24a] text-[#3d4a2a] transition group-hover:translate-x-0.5"><ArrowRight size={15} strokeWidth={2.4}/></span>
+                      </a>
+                      <a href="#novidades" className="inline-flex items-center rounded-full border border-[#1a1a1a]/12 bg-white/60 px-6 py-3 text-[13px] font-semibold text-[#1a1a1a] transition hover:border-[#3d4a2a]/40">Novidades</a>
+                    </div>
+                    <div className="mt-10 flex items-center gap-4">
+                      <div className="flex -space-x-2">
+                        {displayedProducts.slice(0,3).map((p)=>(
+                          <img key={`av-${p.id}`} src={p.imageUrl||heroImage} alt="" className="h-9 w-9 rounded-full border-2 border-[#e9e5d8] object-cover"/>
+                        ))}
+                      </div>
+                      <div className="text-[11px] leading-tight text-[#1a1a1a]/70">
+                        <strong className="block text-[13px] font-semibold text-[#1a1a1a]">10.000+ clientes</strong>
+                        <span className="flex items-center gap-1"><Star size={11} strokeWidth={2} className="fill-[#c8a24a] text-[#c8a24a]"/> 4.9 · avaliação média</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="h-[92.1%] overflow-y-auto px-[7%] py-[4.2%] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {sidebarIconCategories.map((category)=>{
-                      const CategoryIcon = getCategoryIcon(category);
-                      return <a key={category} href="#categorias" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="group flex h-[9.2%] min-h-[30px] w-full items-center gap-[8%] rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(7px,0.72vw,10.5px)" }}>
-                        <CategoryIcon data-editor-type="icon" data-editor-icon="Sparkles" size={15} strokeWidth={1.65} className="h-[1.55em] w-[1.55em] shrink-0"/>
-                        <span data-editor-type="text" className="min-w-0 flex-1 truncate">{category}</span>
-                        <ChevronLeft size={12} className="h-[1.28em] w-[1.28em] shrink-0 rotate-180 text-current opacity-70"/>
-                      </a>;
-                    })}
-                    {sidebarExtraCategories.map((category)=>{
-                      return <a key={category} href="#categorias" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="flex min-h-[24px] w-full items-center rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(6.5px,0.66vw,9.5px)" }}>{category}</a>;
-                    })}
-                    <div className="my-[4%] border-t border-black/10" />
-                    {["Ofertas especiais","Cart\u00f5es presente"].map((item)=>(
-                      <a key={item} href="#ofertas" onMouseEnter={(event)=>{event.currentTarget.style.backgroundColor=accent;event.currentTarget.style.color="#fff";}} onMouseLeave={(event)=>{event.currentTarget.style.backgroundColor="";event.currentTarget.style.color="#1f2933";}} className="flex min-h-[28px] w-full items-center gap-[8%] rounded-[2px] px-[3%] font-medium leading-none text-[#1f2933] transition" style={{ fontSize: "clamp(7px,0.72vw,10.5px)" }}>
-                        <Gift data-editor-type="icon" data-editor-icon="Gift" size={15} strokeWidth={1.65} className="h-[1.55em] w-[1.55em] shrink-0"/>
-                        <span data-editor-type="text" className="min-w-0 flex-1 truncate">{item}</span>
-                      </a>
-                    ))}
+
+                  <div className="relative min-h-[380px] overflow-hidden">
+                    <img data-editor-type="image" data-editor-media-kind="banner" data-editor-id="hero-image" src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover"/>
+                    <div className="absolute inset-y-6 right-6 flex w-[210px] flex-col gap-3">
+                      {[{icon:Truck,title:"Frete grátis",desc:"A partir de R$ 199"},{icon:Package,title:"Prove antes de pagar",desc:"7 dias para trocar"},{icon:LockKeyhole,title:"Produtos originais",desc:"Garantia de qualidade"}].map(({icon:Icon,title,desc})=>(
+                        <div key={title} className="flex items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 shadow-[0_10px_30px_rgba(26,26,26,0.08)] backdrop-blur">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e9e5d8] text-[#3d4a2a]"><Icon data-editor-type="icon" size={16} strokeWidth={1.9}/></span>
+                          <div className="min-w-0">
+                            <strong data-editor-type="text" className="block text-[11.5px] font-semibold text-[#1a1a1a]">{title}</strong>
+                            <span data-editor-type="text" className="block truncate text-[10px] text-[#1a1a1a]/55">{desc}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>                <span aria-hidden="true" className="absolute z-10 bg-[#12301f]" style={{ left: "27.1%", top: "3.55%", width: "39.2%", height: "3.8%" }} />
-                <span aria-hidden="true" className="absolute z-10 bg-[#1a3c2a]" style={{ left: "80.6%", top: "3.55%", width: "14.2%", height: "3.8%" }} />
-                {heroNavLinks.map((item)=>(
-                  <a key={item.label} href={item.href} className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: item.left, top: "3.92%", width: item.width, height: "3.05%", fontSize: "clamp(9.5px,0.86vw,14px)" }}>{item.label}</a>
-                ))}
-                <a href="tel:+551234567890" className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: "81.1%", top: "3.92%", width: "13.45%", height: "3.05%", fontSize: "clamp(9.5px,0.86vw,14px)" }}>Suporte: (123) 456-7890</a>
-
-                <div className="absolute text-white" style={{ left: "27.35%", top: "50%", width: "28.4%", transform: "translateY(-50%)" }}>
-                  <span data-editor-type="text" className="block font-semibold uppercase tracking-[0.08em] text-[#eef1de]" style={{ fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{categories[0] || "Novidades"}</span>
-                  <h1 data-editor-type="text" className="mt-[2.8%] font-semibold leading-[1.06] tracking-[-0.012em] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.22)]" style={{ fontSize: "clamp(22px,2.55vw,44px)" }}>{headlinePrimary}<br/>{headlineSecondary}</h1>
-                  <p data-editor-type="text" className="mt-[3.4%] truncate font-normal leading-none text-white/72" style={{ fontSize: "clamp(8px,0.86vw,13.5px)" }}>{heroSubtitle}</p>
-                  <a data-editor-role="button" href={heroCtaHref} className="mt-[5%] inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#eef1de] font-semibold text-[#1a3c2a] shadow-[0_7px_18px_rgba(0,0,0,0.15)] transition hover:-translate-y-0.5 hover:bg-white" style={{ minWidth: "36%", height: "clamp(26px,2.65vw,44px)", paddingInline: "5.5%", gap: "0.45rem", fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{ctaPrimary || "Comprar agora"}<ChevronLeft aria-hidden="true" size={10} strokeWidth={2} className="rotate-180"/></a>
-                </div>
-
-                <div className="absolute z-20 flex items-center gap-[1.2%]" style={{ left: "39.9%", top: "94.1%", width: "8.8%", height: "2.8%" }} aria-label="Carrossel do banner">
-                  {[0,1,2].map((dot)=>(
-                    <button key={dot} type="button" aria-label={`Banner ${dot+1}`} className="h-full flex-1 rounded-full bg-transparent" />
-                  ))}
                 </div>
               </div>
             </section>
             {renderCustomSectionsAfter("hero")}
-            {/* BROWSE BY CATEGORY */}
-            <section data-editor-type="other" data-editor-section="categories" data-editor-label="Seção de categorias" className="px-6 pb-7 pt-5">
-              <div className="mb-4 text-center">
-                <h2 className="text-[15px] font-semibold leading-none tracking-normal">Navegue por categorias</h2>
-                <p className="mt-1 text-[9px] leading-none text-black/50">{"Explore cole\u00e7\u00f5es selecionadas para cada parte da sua rotina."}</p>
-              </div>
-              <div className="relative">
-                <div className="flex w-full items-start justify-between gap-3 overflow-x-auto pb-2 pr-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {browseCategories.map(({category,imageUrl})=>(
-                    <a key={category} href="#categorias" className="group grid w-[84px] shrink-0 grid-rows-[84px_28px] justify-items-center gap-2 text-center">
-                      <span className="flex h-[84px] w-[84px] items-center justify-center overflow-hidden rounded-full bg-[#e8ecd6] transition duration-300 group-hover:-translate-y-1">
-                        <img data-editor-type="image" src={imageUrl} alt={category} className="h-full w-full object-contain p-2"/>
-                      </span>
-                      <span className="flex min-h-[24px] items-start justify-center text-[8.5px] font-medium leading-tight text-black/80">{category}</span>
+
+            {/* SEARCH + CATEGORY CHIPS */}
+            <section data-editor-type="other" data-editor-section="categories" data-editor-label="Busca e categorias" className="px-10 pb-10">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                <div className="flex flex-1 items-center gap-3 rounded-full bg-white px-5 py-3 shadow-[0_6px_18px_rgba(26,26,26,0.05)]">
+                  <Search size={16} strokeWidth={2} className="shrink-0 text-[#1a1a1a]/50"/>
+                  <input placeholder="Buscar por produto, categoria ou marca..." className="flex-1 border-none bg-transparent text-[13px] text-[#1a1a1a] outline-none placeholder:text-[#1a1a1a]/45"/>
+                  <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#3d4a2a] text-[#f5f2ea]"><ArrowRight size={14} strokeWidth={2.2}/></button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                  {browseCategories.slice(0,5).map(({category})=>(
+                    <a key={category} href="#" className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[12px] font-medium text-[#1a1a1a] transition hover:bg-[#e9e5d8]">
+                      <span data-editor-type="text">{category}</span>
                     </a>
                   ))}
+                  <a href="#" className="inline-flex items-center gap-1.5 rounded-full bg-[#3d4a2a] px-4 py-2 text-[12px] font-semibold text-[#f5f2ea]"><LayoutGrid size={13} strokeWidth={2}/>Todas</a>
                 </div>
-                <button type="button" aria-label="Ver mais categorias" className="absolute right-0 top-[28px] flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black shadow-[0_4px_14px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5"><ChevronLeft size={14} className="rotate-180"/></button>
               </div>
             </section>
             {renderCustomSectionsAfter("categories")}
 
-            {/* TRENDING PRODUCTS */}
-            <section data-editor-type="other" data-editor-section="body" data-editor-label="Seção de produtos" className="px-6 pb-8 pt-1">
-              <div className="mb-4 flex items-end justify-between">
+            {/* HITS DE VENDA */}
+            <section data-editor-type="other" data-editor-section="body" data-editor-label="Produtos em destaque" className="px-10 pb-14">
+              <div className="mb-6 flex items-end justify-between gap-4">
                 <div>
-                  <h2 className="text-[16px] font-semibold leading-none tracking-normal">Produtos em alta <span className="text-[#f5b800]">{"\u26a1"}</span></h2>
-                  <p className="mt-1 text-[10px] text-black/50">Os produtos mais recentes da sua loja.</p>
+                  <h2 data-editor-type="text" className="text-[24px] font-semibold uppercase tracking-[-0.01em] text-[#1a1a1a]">Hits de venda</h2>
+                  <p data-editor-type="text" className="mt-1 text-[12px] text-[#1a1a1a]/55">Os produtos mais desejados da loja neste mês.</p>
                 </div>
-                <a href="#produtos" className="flex items-center gap-2 text-[10px] font-medium text-black/70 transition hover:text-black">Ver todos <ChevronLeft size={12} className="rotate-180"/></a>
+                <a href="#produtos" className="inline-flex items-center gap-2 text-[12px] font-semibold text-[#3d4a2a] transition hover:gap-3">Ver todos <ArrowRight size={13} strokeWidth={2}/></a>
               </div>
-              <div id="produtos" className={`grid gap-x-4 gap-y-6 ${mobilePreview?"grid-cols-2":"grid-cols-2 md:grid-cols-6"}` }>
-                {displayedProducts.slice(0,6).map((product)=>{
+              <div id="produtos" className={`grid gap-4 ${mobilePreview?"grid-cols-2":"grid-cols-2 md:grid-cols-3 lg:grid-cols-5"}`}>
+                {displayedProducts.slice(0,5).map((product,idx)=>{
+                  const originalPrice = Math.max(product.price*1.3, product.price+30);
+                  const discountPct = Math.round((1 - product.price/originalPrice)*100);
                   const explicitRating = product.rating ?? product.averageRating;
-                  const explicitCount = product.ratingCount ?? product.reviewCount ?? product.reviewsCount;
                   const mockMetrics = getProductCatalogMetrics({ id: product.id, rating: explicitRating ?? null, ordersCount: null });
-                  const ratingLabel = typeof explicitRating === "number" ? `${explicitRating.toFixed(1)}${explicitCount ? ` (${explicitCount})` : ""}` : `${mockMetrics.rating.toFixed(1)} (${formatReviewCount(mockMetrics.ordersCount)})`;
+                  const rating = typeof explicitRating === "number" ? explicitRating : mockMetrics.rating;
+                  const orders = product.ratingCount ?? product.reviewCount ?? mockMetrics.ordersCount;
                   return (
-                    <article key={product.id} className="group min-w-0">
-                      <div className="relative aspect-[1/1.04] overflow-hidden rounded-[16px] bg-white">
+                    <article key={product.id} className="group flex flex-col overflow-hidden rounded-[20px] bg-white p-3 transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(26,26,26,0.08)]">
+                      <div className="relative aspect-square overflow-hidden rounded-[14px] bg-[#e9e5d8]">
+                        {idx===0 ? <span className="absolute left-3 top-3 z-10 rounded-full bg-[#c8a24a] px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[#3d4a2a]">Novidade</span> : idx===3 ? <span className="absolute left-3 top-3 z-10 rounded-full bg-[#3d4a2a] px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[#f5f2ea]">-{discountPct}%</span> : null}
+                        <button type="button" aria-label="Favoritar" className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[#1a1a1a]/70 shadow-sm transition hover:text-[#3d4a2a]"><Heart data-editor-type="icon" size={14} strokeWidth={1.9}/></button>
                         <img data-editor-type="image" data-editor-product="true" data-editor-product-id={product.id} src={product.imageUrl||heroImage} alt={product.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
-                        <button type="button" aria-label={`Favoritar ${product.title}`} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-black/70 shadow-sm transition hover:text-black"><Heart data-editor-type="icon" data-editor-icon="Heart" size={12} strokeWidth={1.5}/></button>
                       </div>
-                      {ratingLabel ? <div className="mt-2 flex items-center gap-1 text-[8.5px] font-semibold text-black/45"><Star data-editor-type="icon" data-editor-icon="Star" size={10} strokeWidth={1.8} className="fill-[#f5b800] text-[#f5b800]"/><span data-editor-type="text">{ratingLabel}</span></div> : null}
-                      <h3 data-editor-type="text" className="mt-1 line-clamp-2 min-h-[28px] text-[11px] font-medium leading-snug text-black/85">{product.title}</h3>
-                      <div className="mt-1 flex items-center justify-between gap-2">
-                        <strong className="text-[12px] font-semibold text-black">{formatBRL(Math.max(product.price*2.1,product.price+20))}</strong>
-                        <button type="button" aria-label={`Adicionar ${product.title} ao carrinho`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] border border-black/20 bg-white text-black shadow-sm transition hover:-translate-y-0.5 hover:text-black"><ShoppingCart data-editor-type="icon" data-editor-icon="ShoppingCart" size={14} strokeWidth={1.75}/></button>
+                      <div className="mt-3 flex flex-1 flex-col px-1 pb-1">
+                        <h3 data-editor-type="text" className="line-clamp-2 min-h-[36px] text-[13px] font-semibold leading-snug text-[#1a1a1a]">{product.title}</h3>
+                        <div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[#1a1a1a]/60">
+                          <Star size={11} strokeWidth={2} className="fill-[#c8a24a] text-[#c8a24a]"/>
+                          <span data-editor-type="text">{rating.toFixed(1)}</span>
+                          <span className="text-[#1a1a1a]/35">· {formatReviewCount(Number(orders) || 0)} vendas</span>
+                        </div>
+                        <div className="mt-3 flex items-end justify-between gap-2">
+                          <div>
+                            <strong className="block text-[15px] font-semibold text-[#1a1a1a]">{formatBRL(product.price)}</strong>
+                            {idx===3 ? <span className="text-[10px] text-[#1a1a1a]/40 line-through">{formatBRL(originalPrice)}</span> : null}
+                          </div>
+                          <button type="button" aria-label="Adicionar ao carrinho" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#3d4a2a] text-[#f5f2ea] shadow-sm transition hover:bg-[#2c3620]"><Plus data-editor-type="icon" size={14} strokeWidth={2.4}/></button>
+                        </div>
                       </div>
                     </article>
                   );
@@ -3380,68 +3405,100 @@ const GeneratedStoreEditorPage = () => {
               </div>
             </section>
             {renderCustomSectionsAfter("body")}
-            {/* PROMO BANDS */}
-            <section data-editor-type="other" data-editor-section="promotions" data-editor-label="Seção promocional" className="grid grid-cols-1 gap-4 px-8 py-10 md:grid-cols-2">
-              <div className="relative flex min-h-[220px] overflow-hidden rounded-[18px] bg-[#1a3c2a] text-white">
-                <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
-                  <div>
-                    <strong className="text-[10px] font-semibold tracking-[0.18em] text-white/70">OFERTA ESPECIAL</strong>
-                    <h3 className="mt-1 text-[28px] font-semibold leading-[1.04] tracking-[-0.015em]">{"Pre\u00e7os que surpreendem"}</h3>
-                    <p className="mt-2 max-w-[180px] text-[10px] text-white/55">{"Encontre produtos selecionados com condi\u00e7\u00f5es especiais por tempo limitado."}</p>
-                  </div>
-                  <button className="mt-4 w-fit rounded-full bg-white px-4 py-1.5 text-[9.5px] font-medium text-black">Ver ofertas</button>
-                </div>
-                <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" data-editor-product="true" data-editor-product-id={displayedProducts[1%displayedProducts.length]?.id} src={displayedProducts[1%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
-              </div>
-              <div className="relative flex min-h-[220px] overflow-hidden rounded-[18px] bg-[#eef1de]">
-                <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
-                  <div>
-                    <strong className="text-[10px] font-semibold tracking-[0.18em] text-black/50">ACABOU DE CHEGAR</strong>
-                    <h3 className="mt-1 text-[28px] font-semibold leading-[1.04] tracking-[-0.015em]">{"Novidades para voc\u00ea"}</h3>
-                    <p className="mt-2 max-w-[180px] text-[10px] text-black/55">{"Explore os lan\u00e7amentos mais recentes de todas as categorias da loja."}</p>
-                  </div>
-                  <button className="mt-4 w-fit rounded-full bg-[#1a3c2a] px-4 py-1.5 text-[9.5px] font-medium text-white">Conhecer novidades</button>
-                </div>
-                <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" data-editor-product="true" data-editor-product-id={displayedProducts[2%displayedProducts.length]?.id} src={displayedProducts[2%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
-              </div>
-            </section>
-            {renderCustomSectionsAfter("promotions")}
 
-            {/* FEATURED COLLECTIONS */}
-            <section data-editor-type="other" data-editor-section="collections" data-editor-label="Seção de coleções" className="px-8 pb-6 pt-10">
-              <div className="mb-5 flex items-end justify-between gap-4">
-                <div>
-                  <h2 className="text-[15px] font-semibold leading-none tracking-normal text-black">{"Cole\u00e7\u00f5es em destaque"}</h2>
-                  <p className="mt-2 text-[10.5px] leading-none text-black/50">{"Explore a loja pela categoria que combina com voc\u00ea."}</p>
-                </div>
-                <a href="/catalogo" className="inline-flex shrink-0 items-center gap-1.5 text-[10.5px] font-medium text-black transition hover:translate-x-0.5 hover:text-black/65">
-                  Ver todas <span aria-hidden="true">{"\u2192"}</span>
-                </a>
-              </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                {categoryHighlights.map(({category,imageUrl,key},index)=>(
-                  <a key={key} href={`/catalogo?categoria=${encodeURIComponent(category)}`} className={`group relative aspect-[1.55/1] overflow-hidden rounded-[14px] ${collectionStyles[index % collectionStyles.length]} text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.035)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_35px_rgba(16,24,40,0.12)]`}>
-                    <img data-editor-type="image" src={imageUrl} alt={category} className="absolute bottom-0 right-0 h-[96%] w-[68%] object-contain object-right-bottom p-2 transition duration-500 group-hover:scale-105"/>
-                    <div className="absolute inset-x-0 bottom-0 z-10 p-4">
-                      <strong className="block max-w-[56%] text-[13px] font-semibold leading-[1.08] text-black">{category}</strong>
-                      <span className="mt-1 block max-w-[58%] text-[8.5px] font-normal leading-snug text-black/58">
-                        {collectionDescriptions[category] || "Explore produtos escolhidos para voc\u00ea."}
-                      </span>
+            {/* LIFESTYLE CARDS 2x1 */}
+            <section data-editor-type="other" data-editor-section="promotions" data-editor-label="Cards de coleção" className="grid grid-cols-1 gap-4 px-10 pb-4 md:grid-cols-2">
+              {categoryHighlights.slice(0,2).map(({category,imageUrl,key})=>(
+                <a key={key} href={`/catalogo?categoria=${encodeURIComponent(category)}`} className="group relative flex min-h-[240px] overflow-hidden rounded-[24px] bg-[#e9e5d8]">
+                  <div className="relative z-10 flex flex-1 flex-col justify-between p-8">
+                    <div>
+                      <strong data-editor-type="text" className="block text-[24px] font-semibold uppercase leading-[1.02] tracking-[-0.01em] text-[#1a1a1a]">{category}</strong>
+                      <p data-editor-type="text" className="mt-2 max-w-[180px] text-[12px] text-[#1a1a1a]/60">{collectionDescriptions[category]||"Peças selecionadas para você."}</p>
                     </div>
-                  </a>
-                ))}
-              </div>
+                    <span className="mt-6 inline-flex w-fit items-center gap-2 text-[12px] font-semibold text-[#3d4a2a] transition group-hover:gap-3">Explorar <ArrowRight size={13} strokeWidth={2}/></span>
+                  </div>
+                  <div className="relative w-[46%] shrink-0 overflow-hidden">
+                    <img data-editor-type="image" src={imageUrl} alt={category} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
+                  </div>
+                </a>
+              ))}
+            </section>
+
+            <section data-editor-type="other" data-editor-section="collections" data-editor-label="Coleções secundárias" className="grid grid-cols-1 gap-4 px-10 pb-14 md:grid-cols-2">
+              {categoryHighlights.slice(2,4).map(({category,imageUrl,key})=>(
+                <a key={key} href={`/catalogo?categoria=${encodeURIComponent(category)}`} className="group relative flex min-h-[220px] overflow-hidden rounded-[24px] bg-[#e9e5d8]">
+                  <div className="relative z-10 flex flex-1 flex-col justify-between p-8">
+                    <div>
+                      <strong data-editor-type="text" className="block text-[24px] font-semibold uppercase leading-[1.02] tracking-[-0.01em] text-[#1a1a1a]">{category}</strong>
+                      <p data-editor-type="text" className="mt-2 max-w-[180px] text-[12px] text-[#1a1a1a]/60">{collectionDescriptions[category]||"Peças selecionadas para você."}</p>
+                    </div>
+                    <span className="mt-6 inline-flex w-fit items-center gap-2 text-[12px] font-semibold text-[#3d4a2a] transition group-hover:gap-3">Explorar <ArrowRight size={13} strokeWidth={2}/></span>
+                  </div>
+                  <div className="relative w-[46%] shrink-0 overflow-hidden">
+                    <img data-editor-type="image" src={imageUrl} alt={category} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"/>
+                  </div>
+                </a>
+              ))}
             </section>
             {renderCustomSectionsAfter("collections")}
 
-            <section data-editor-type="other" data-editor-section="end" data-editor-label="Seção final" aria-label="Benef\u00edcios da loja" className="mx-8 mb-8 overflow-hidden rounded-[10px] bg-[#06263b] text-white shadow-[0_14px_30px_rgba(2,20,32,0.14)]">
-              <div className={`grid ${mobilePreview ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"}`}>
-                {trustBadges.map(({title,description,icon: Icon},index)=>(
-                  <div key={title} className={`flex min-h-[64px] items-center gap-3 px-5 py-4 ${index > 0 ? "md:border-l md:border-white/10" : ""} ${index > 1 ? "border-t border-white/10 md:border-t-0" : ""}`}>
-                    <Icon data-editor-type="icon" size={18} strokeWidth={1.75} className="shrink-0 text-white/90"/>
+            {/* TECH GRID */}
+            <section data-editor-type="other" data-editor-section="tech" data-editor-label="Tecnologias / diferenciais" className="px-10 pb-14">
+              <h2 data-editor-type="text" className="mb-6 text-[18px] font-semibold uppercase tracking-[-0.01em] text-[#1a1a1a]">Diferenciais da loja</h2>
+              <div className={`grid gap-3 ${mobilePreview?"grid-cols-2":"grid-cols-2 md:grid-cols-3 lg:grid-cols-6"}`}>
+                {[
+                  {icon:Truck,title:"Entrega rápida",desc:"Em todo o Brasil"},
+                  {icon:Package,title:"Troca fácil",desc:"7 dias sem custo"},
+                  {icon:LockKeyhole,title:"Compra segura",desc:"Pagamento protegido"},
+                  {icon:Gem,title:"Produtos originais",desc:"Curadoria garantida"},
+                  {icon:Headphones,title:"Suporte 7 dias",desc:"Atendimento humano"},
+                  {icon:Leaf,title:"Consumo consciente",desc:"Embalagem sustentável"},
+                ].map(({icon:Icon,title,desc})=>(
+                  <div key={title} className="flex flex-col items-start gap-3 rounded-[18px] bg-white p-5">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#e9e5d8] text-[#3d4a2a]"><Icon data-editor-type="icon" size={20} strokeWidth={1.8}/></span>
+                    <div>
+                      <strong data-editor-type="text" className="block text-[12px] font-semibold text-[#1a1a1a]">{title}</strong>
+                      <span data-editor-type="text" className="mt-1 block text-[11px] text-[#1a1a1a]/55">{desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* CLUB CARD */}
+            <section data-editor-type="other" data-editor-section="club" data-editor-label="Clube da loja" className="px-10 pb-14">
+              <div className="relative flex flex-col items-stretch gap-6 overflow-hidden rounded-[28px] bg-[#3d4a2a] p-8 text-[#f5f2ea] md:flex-row md:items-center md:p-12">
+                <div className="flex h-32 w-52 shrink-0 items-end justify-start overflow-hidden rounded-[18px] bg-gradient-to-br from-[#5a6a3f] to-[#3d4a2a] p-5 shadow-inner">
+                  <div>
+                    <strong data-editor-type="text" className="block text-[18px] font-bold uppercase leading-none tracking-tight">{brandName}</strong>
+                    <span className="mt-1 block text-[11px] uppercase tracking-[0.2em] text-[#c8a24a]">Club</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#c8a24a]">Programa de vantagens</span>
+                  <h3 data-editor-type="text" className="mt-3 text-[26px] font-semibold uppercase leading-[1.05] tracking-[-0.01em]">Entre no {brandName} Club</h3>
+                  <p data-editor-type="text" className="mt-2 max-w-[520px] text-[12px] leading-relaxed text-[#f5f2ea]/70">Ofertas exclusivas, acesso antecipado a novidades, bônus personalizados e muito mais. Grátis, sem letra miúda.</p>
+                </div>
+                <div className="flex flex-col items-stretch gap-3 md:items-end">
+                  <div className="flex flex-wrap gap-2 text-[10px] text-[#f5f2ea]/70">
+                    <span className="rounded-full bg-white/8 px-3 py-1">5% cashback</span>
+                    <span className="rounded-full bg-white/8 px-3 py-1">Acesso VIP</span>
+                    <span className="rounded-full bg-white/8 px-3 py-1">Descontos</span>
+                  </div>
+                  <a href="#club" className="inline-flex items-center gap-3 rounded-full bg-[#c8a24a] py-2 pl-6 pr-2 text-[13px] font-semibold text-[#3d4a2a] transition hover:bg-[#d4b062]">Tornar-se membro <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3d4a2a] text-[#c8a24a]"><ArrowRight size={13} strokeWidth={2.4}/></span></a>
+                </div>
+              </div>
+            </section>
+
+            {/* TRUST STRIP */}
+            <section data-editor-type="other" data-editor-section="end" data-editor-label="Garantias" className="px-10 pb-10">
+              <div className="grid grid-cols-2 gap-3 rounded-[20px] bg-white p-6 md:grid-cols-4">
+                {trustBadges.map(({title,description,icon: Icon})=>(
+                  <div key={title} className="flex items-start gap-3">
+                    <Icon data-editor-type="icon" size={18} strokeWidth={1.8} className="mt-0.5 shrink-0 text-[#3d4a2a]"/>
                     <div className="min-w-0">
-                      <strong className="block text-[10px] font-semibold leading-tight text-white">{title}</strong>
-                      <span className="mt-0.5 block text-[8px] leading-tight text-white/70">{description}</span>
+                      <strong data-editor-type="text" className="block text-[12px] font-semibold text-[#1a1a1a]">{title}</strong>
+                      <span data-editor-type="text" className="mt-0.5 block text-[10.5px] leading-tight text-[#1a1a1a]/55">{description}</span>
                     </div>
                   </div>
                 ))}
@@ -3449,7 +3506,42 @@ const GeneratedStoreEditorPage = () => {
             </section>
             {renderCustomSectionsAfter("end")}
 
-            <footer className="border-t border-black/10 bg-[#f5f4f2] px-8 py-7 text-center text-[10px] tracking-[0.12em] text-black/45">{"\u00a9"} {new Date().getFullYear()} {brandName} {"\u00b7"} Todos os direitos reservados</footer>
+            {/* FOOTER */}
+            <footer data-editor-type="other" data-editor-section="footer" data-editor-label="Rodapé" className="border-t border-[#1a1a1a]/8 bg-[#f5f2ea] px-10 pb-10 pt-14">
+              <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
+                <div className="col-span-2">
+                  <div className="flex items-center gap-2.5">
+                    {logoImage ? <img src={logoImage} alt={brandName} className="h-9 w-9 rounded-full object-cover"/> : <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#3d4a2a] text-[13px] font-semibold text-[#f5f2ea]">{brandName.slice(0,1).toUpperCase()}</span>}
+                    <span data-editor-type="text" className="text-[16px] font-semibold uppercase tracking-tight">{brandName}</span>
+                  </div>
+                  <p data-editor-type="text" className="mt-4 max-w-[280px] text-[12px] leading-relaxed text-[#1a1a1a]/60">Produtos selecionados com curadoria, entrega rápida e a melhor experiência de compra do Brasil.</p>
+                  <div className="mt-5 flex items-center gap-2">
+                    {[Instagram,Facebook,Youtube,Twitter].map((Icon,i)=>(
+                      <a key={i} href="#" className="flex h-9 w-9 items-center justify-center rounded-full border border-[#1a1a1a]/10 bg-white text-[#1a1a1a]/70 transition hover:border-[#3d4a2a] hover:text-[#3d4a2a]"><Icon size={14} strokeWidth={1.8}/></a>
+                    ))}
+                  </div>
+                </div>
+                {[
+                  {title:"Catálogo",links:["Todos os produtos","Novidades","Ofertas","Mais vendidos"]},
+                  {title:"Ajuda",links:["Entrega","Trocas","Perguntas frequentes","Contato"]},
+                  {title:"Empresa",links:["Sobre nós","Blog","Trabalhe conosco","Imprensa"]},
+                ].map((col)=>(
+                  <div key={col.title}>
+                    <strong data-editor-type="text" className="mb-4 block text-[12px] font-semibold uppercase tracking-[0.15em] text-[#1a1a1a]">{col.title}</strong>
+                    <ul className="space-y-2.5">
+                      {col.links.map((l)=>(<li key={l}><a href="#" data-editor-type="text" className="text-[12px] text-[#1a1a1a]/60 transition hover:text-[#3d4a2a]">{l}</a></li>))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-[#1a1a1a]/8 pt-6 md:flex-row md:items-center">
+                <span className="text-[11px] text-[#1a1a1a]/45">© {new Date().getFullYear()} {brandName} · Todos os direitos reservados</span>
+                <span className="text-[11px] text-[#1a1a1a]/45">Feito com Velo</span>
+              </div>
+            </footer>
+            {renderCustomSectionsAfter("footer")}
+
+            </div>
             </>
             )}
 
