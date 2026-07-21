@@ -3736,7 +3736,8 @@ const GeneratedStoreEditorPage = () => {
                         <div
                           key={`loja-arrow-${idx}`}
                           className="pointer-events-none absolute flex items-center text-white/30"
-                          style={{ left: leftOffset, top: 56 + panelHeight / 2 - 14, width: gap - 40 }}
+                          style={{ left: leftOffset, top: 56 + defaultHeight / 2 - 14, width: gap - 40 }}
+
                         >
                           <div className="h-px flex-1 bg-white/20" />
                           <ArrowRight size={28} strokeWidth={1.8} />
