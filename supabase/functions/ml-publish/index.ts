@@ -805,11 +805,6 @@ Deno.serve(async (req) => {
     // payload não trouxer um `size_grid_id` explícito, gravamos o status
     // 'needs_manual' e devolvemos 409 para o frontend abrir o seletor.
     if (categoryInfo.requiresGrid && !providedSizeGridId) {
-
-    // Bloqueio de fashion sem grade: se a categoria exige SIZE_GRID_ID e o
-    // payload não trouxer um `size_grid_id` explícito, gravamos o status
-    // 'needs_manual' e devolvemos 409 para o frontend abrir o seletor.
-    if (categoryInfo.requiresGrid && !providedSizeGridId) {
       const suggested = prediction ?? {
         categoryId,
         categoryName: '',
