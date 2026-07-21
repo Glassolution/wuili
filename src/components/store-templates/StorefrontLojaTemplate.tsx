@@ -4,8 +4,11 @@
 // preview do editor (GeneratedStoreEditorPage). Paleta creme (#f5f2ea) +
 // verde musgo (#3d4a2a) + acento dourado (#c8a24a), cantos arredondados,
 // cards de lifestyle e cards de produto em pill.
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Facebook,
   Gem,
   Headphones,
@@ -26,6 +29,7 @@ import {
 } from "lucide-react";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 import StoreReviews from "@/components/store-templates/StoreReviews";
+
 
 export type LojaTemplateProduct = {
   id: string;
