@@ -28,6 +28,7 @@ import { preloadVidalytics } from "@/lib/vidalyticsPreload";
 import MobileHome from "@/components/dashboard/MobileHome";
 import { usePlan } from "@/hooks/usePlan";
 import { canCreateStore, canCreateSalesPage } from "@/lib/planLimits";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 
 const DASHBOARD_IMAGE_SRC = "/assets/dashboard-inicio-colado.png";
 const WHATSAPP_SUPPORT_URL =
