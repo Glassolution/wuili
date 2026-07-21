@@ -351,14 +351,18 @@ const PublicStoreCatalogPage = () => {
                       <button
                         type="button"
                         aria-label="Adicionar ao carrinho"
-                        onClick={() => navigate(cartHref)}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          navigate(cartHref);
+                        }}
                         className="flex h-9 w-9 items-center justify-center rounded-full bg-[#3d4a2a] text-[#f5f2ea] shadow-sm transition hover:bg-[#2c3620]"
                       >
                         <Plus size={14} strokeWidth={2.4} />
                       </button>
                     </div>
                   </div>
-                </article>
+                </Link>
               );
             })}
           </div>
