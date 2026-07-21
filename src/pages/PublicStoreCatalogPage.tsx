@@ -158,13 +158,13 @@ const PublicStoreCatalogPage = () => {
           </button>
         </nav>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
+          <Link
+            to={slug ? `/loja/${slug}/conta` : "#"}
             className="hidden items-center gap-2 rounded-full border border-[#1a1a1a]/12 bg-white px-4 py-2 text-[12px] font-semibold text-[#1a1a1a] transition hover:border-[#3d4a2a]/40 md:inline-flex"
           >
             <UserRound size={14} strokeWidth={2} />
             Entrar
-          </button>
+          </Link>
           <Link
             to={cartHref}
             className="inline-flex items-center gap-2 rounded-full bg-[#3d4a2a] px-4 py-2 text-[12px] font-semibold text-[#f5f2ea] transition hover:bg-[#2c3620]"
