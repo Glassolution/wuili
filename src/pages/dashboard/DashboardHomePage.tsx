@@ -284,7 +284,16 @@ const DashboardHomePage = () => {
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
-  const wizardDefaultTipo: ProjectType = isAdmin ? "loja_completa" : "pagina_venda";
+  const { plan: currentPlan } = usePlan();
+  // Não temos a contagem exata aqui — usamos 0 para decidir apenas se o plano
+  // permite criar cada tipo de projeto. Os limites reais são reavaliados na
+  // página de projetos com base na contagem atual.
+  const canCreateStorePlan = isAdmin || canCreateStore(currentPlan, 0);
+  const canCreateSalesPagePlan = isAdmin || canCreateSalesPage(currentPlan, 0);
+  const wizardDefaultTipo: ProjectType = canCreateStorePlan && !canCreateSalesPagePlan
+    ? "loja_completa"
+    : "pagina_venda";
+  const wizardAllowChoice = canCreateStorePlan && canCreateSalesPagePlan;
 
   const handleProjectCreated = (projectId: string) => {
     setWizardOpen(false);
