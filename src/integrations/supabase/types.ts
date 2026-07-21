@@ -2222,6 +2222,20 @@ export type Database = {
     }
     Functions: {
       claim_project_invites: { Args: never; Returns: number }
+      get_customer_orders: {
+        Args: { p_email: string; p_slug: string }
+        Returns: {
+          created_at: string
+          id: string
+          payment_method: string
+          payment_status: string
+          product_image_url: string
+          product_title: string
+          quantity: number
+          total: number
+          unit_price: number
+        }[]
+      }
       get_help_feed_authors: {
         Args: { _author_ids: string[] }
         Returns: {
