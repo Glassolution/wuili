@@ -638,52 +638,12 @@ const HeroCarousel = ({
           {s.badge}
         </span>
 
-        <div className={`relative grid items-end ${mobile ? "grid-cols-1" : "md:grid-cols-2"} min-h-[380px] md:min-h-[460px]`}>
-          {/* TEXTO */}
-          <div className="relative z-20 px-6 pt-9 pb-4 md:px-12 md:py-14">
-            <span
-              className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] shadow-sm"
-              style={{ color: s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#0F172A" }}
-            >
-              {s.eyebrow}
-            </span>
-            <h1 className="mt-4 text-[30px] font-black leading-[1.02] tracking-tight text-white drop-shadow-md md:text-[46px]">
-              {s.title}
-              <br />
-              <span style={{ color: s.accent }}>{s.highlight}</span>
-            </h1>
-            <p className="mt-3 max-w-[400px] text-[13px] font-medium leading-relaxed text-white/95 md:text-[14px]">
-              {salesAngle && idx === 0 ? salesAngle.slice(0, 140) : s.subtitle}
-            </p>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <a
-                href={s.ctaHref}
-                className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[14px] font-black text-[#0F172A] shadow-2xl transition hover:scale-[1.03] hover:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.4)]"
-              >
-                {s.ctaLabel}
-                <ArrowRight size={16} strokeWidth={3} className="transition-transform group-hover:translate-x-1" />
-              </a>
-              <a
-                href="/catalogo"
-                className="inline-flex items-center rounded-full border-2 border-white/70 bg-white/10 px-6 py-3.5 text-[14px] font-bold text-white backdrop-blur transition hover:bg-white/20"
-              >
-                Ver ofertas
-              </a>
-            </div>
-
-            {/* mini trust chips */}
-            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-white/90">
-              <span className="inline-flex items-center gap-1.5"><Truck size={13} strokeWidth={2.6} /> Frete grátis Brasil</span>
-              <span className="inline-flex items-center gap-1.5"><ShieldCheck size={13} strokeWidth={2.6} /> Compra 100% segura</span>
-              <span className="inline-flex items-center gap-1.5"><Package size={13} strokeWidth={2.6} /> Troca em 30 dias</span>
-            </div>
-          </div>
-
-          {/* IMAGEM lifestyle — pessoa em destaque, transparente (PNG) */}
-          <div className="relative h-[320px] self-end md:h-[480px] md:min-h-[480px]">
+        <div className={`relative grid items-end ${mobile ? "grid-cols-1" : "md:grid-cols-[46%_54%]"} min-h-[380px] md:min-h-[460px]`}>
+          {/* IMAGEM lifestyle — pessoa (waist-up), transparente (PNG), ancorada à esquerda */}
+          <div className="relative order-1 h-[300px] self-end md:order-none md:h-[480px] md:min-h-[480px]">
             {/* Halo/spotlight atrás da pessoa para dar profundidade */}
             <div
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[85%] w-[75%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl"
+              className="pointer-events-none absolute left-[38%] top-1/2 h-[85%] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl"
               style={{ background: s.accent }}
             />
             {slides.map((sl, i) => (
@@ -692,11 +652,13 @@ const HeroCarousel = ({
                 src={sl.image}
                 alt=""
                 loading={i === 0 ? "eager" : "lazy"}
-                className={`absolute inset-x-0 bottom-0 mx-auto h-full w-auto max-w-[95%] object-contain object-bottom drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)] transition-opacity duration-700 ${i === idx ? "opacity-100" : "opacity-0"}`}
+                className={`absolute bottom-0 left-0 h-[112%] w-auto max-w-none object-contain object-bottom drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)] transition-opacity duration-700 md:left-[-4%] ${i === idx ? "opacity-100" : "opacity-0"}`}
               />
             ))}
           </div>
-        </div>
+
+          {/* TEXTO — deslocado para a direita/centro */}
+          <div className="relative z-20 order-2 px-6 pt-6 pb-6 md:order-none md:py-14 md:pl-4 md:pr-14">
 
         {/* Setas */}
         <button
