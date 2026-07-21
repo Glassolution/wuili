@@ -21,6 +21,8 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
 import ProjectSettingsOverlay from "@/components/editor/ProjectSettingsOverlay";
 import { usePlan } from "@/hooks/usePlan";
+import { canCreateSalesPage, canCreateStore } from "@/lib/planLimits";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { toast } from "sonner";
 
 type ProjectCard = {
