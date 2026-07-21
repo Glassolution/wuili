@@ -622,7 +622,6 @@ Deno.serve(async (req) => {
     // exists"), como SELLER_PACKAGE_DIMENSIONS em categorias que não os suportam.
     const categoryAttrIds = new Set(categoryAttrs.map((a) => cleanText(a.id)))
 
-    const productRecord = product as Record<string, unknown>
 
     // Resolve o valor digitado pelo usuário contra a lista fechada de valores
     // do ML (quando existe). NUNCA cai para values[0] silenciosamente — se o
