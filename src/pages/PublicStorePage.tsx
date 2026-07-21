@@ -205,10 +205,19 @@ const PublishedLojaPage = ({ project }: { project: UserProject }) => {
   // Mesma delegação de clique do template de produto: qualquer botão/link
   // com intenção de compra abre o carrinho.
   const handleTemplateClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const target = (event.target as HTMLElement).closest("button, a");
+    const target = (event.target as HTMLElement).closest("a, button") as HTMLElement | null;
     if (!target) return;
     const text = (target.textContent || "").trim().toLowerCase();
     const aria = (target.getAttribute("aria-label") || "").toLowerCase();
+    const href = target.getAttribute("href") || "";
+    // Links do template para o catálogo apontam para "/catalogo" (raiz). Dentro
+    // de uma loja publicada eles precisam entrar no catálogo escopado pelo slug.
+    if (slug && /^\/catalogo(?:$|[/?#])/.test(href)) {
+      event.preventDefault();
+      const suffix = href.replace(/^\/catalogo/, "");
+      navigate(`/loja/${slug}/catalogo${suffix}`);
+      return;
+    }
     if (/adicionar ao carrinho|comprar|carrinho/.test(text + " " + aria)) {
       event.preventDefault();
       if (slug) navigate(`/loja/${slug}/carrinho`);
