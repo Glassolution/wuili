@@ -547,30 +547,27 @@ const DashboardHomePage = () => {
 
           {toolCards.map((card) => {
             const Icon = card.icon;
-            const storeCreationInTesting = card.title === "Loja completa" && !canCreateStorePlan;
 
             return (
               <a
-                href={storeCreationInTesting ? "/dashboard/minha-loja" : card.href}
+                href={card.href}
                 key={card.title}
-                className={`pointer-events-auto absolute top-[83.8%] h-[19.2%] w-[15.6%] rounded-[0.82vw] border border-black/[0.07] bg-white p-[1.25vw] text-left no-underline shadow-[0_0.6vw_1.3vw_rgba(15,23,42,0.035)] transition duration-150 hover:-translate-y-[2px] hover:border-black/[0.14] hover:shadow-[0_0.75vw_1.6vw_rgba(15,23,42,0.075)] ${
-                  storeCreationInTesting ? "opacity-75" : ""
-                }`}
+                className="pointer-events-auto absolute top-[83.8%] h-[19.2%] w-[15.6%] rounded-[0.82vw] border border-black/[0.07] bg-white p-[1.25vw] text-left no-underline shadow-[0_0.6vw_1.3vw_rgba(15,23,42,0.035)] transition duration-150 hover:-translate-y-[2px] hover:border-black/[0.14] hover:shadow-[0_0.75vw_1.6vw_rgba(15,23,42,0.075)]"
                 style={{ left: card.left }}
               >
                 <span className="flex h-[clamp(24px,2.6vw,50px)] w-[clamp(24px,2.6vw,50px)] items-center justify-center rounded-[0.56vw] bg-black text-white shadow-[0_0.45vw_0.9vw_rgba(0,0,0,0.14)]">
                   <Icon className="h-[52%] w-[52%]" strokeWidth={1.9} />
                 </span>
 
-                {card.badge || storeCreationInTesting ? (
+                {card.badge ? (
                   <span className="absolute right-[1vw] top-[1vw] rounded-[0.32vw] bg-[#f1f2f4] px-[0.45vw] py-[0.17vw] text-[clamp(6px,0.58vw,11px)] font-bold text-black">
-                    {storeCreationInTesting ? "Plano Pro" : card.badge}
+                    {card.badge}
                   </span>
                 ) : null}
 
                 <h3 className="mt-[1vw] text-[clamp(9px,1.02vw,20px)] font-semibold leading-[1.08] tracking-[-0.018em] text-[#242832]">{card.title}</h3>
                 <p className="mt-[0.65vw] text-[clamp(7px,0.72vw,14px)] font-medium leading-[1.36] text-[#68707d]">
-                  {storeCreationInTesting ? "Lojas completas fazem parte do plano Pro. Faça upgrade para desbloquear." : card.description}
+                  {card.description}
                 </p>
               </a>
             );
