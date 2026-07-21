@@ -17,6 +17,7 @@ import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/comp
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import { veloToast } from "@/components/ui/velo-toast";
+import { proxyImageList } from "@/lib/imageProxy";
 
 const FAQItem = ({ question, answer }: { question: string; answer: string }) => {
   const [open, setOpen] = useState(false);

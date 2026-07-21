@@ -36,6 +36,7 @@ import {
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import ProductScoutAI, { type AtlasResults } from "@/components/dashboard/ProductScoutAI";
 import { veloToast } from "@/components/ui/velo-toast";
+import { proxyImageList } from "@/lib/imageProxy";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { ProductCard, ProductCardSkeleton, type Product, formatPrice } from "@/components/dashboard/ProductCard";
 import {
