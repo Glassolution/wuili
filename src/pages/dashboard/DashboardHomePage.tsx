@@ -564,7 +564,7 @@ const DashboardHomePage = () => {
 
                 {card.badge || storeCreationInTesting ? (
                   <span className="absolute right-[1vw] top-[1vw] rounded-[0.32vw] bg-[#f1f2f4] px-[0.45vw] py-[0.17vw] text-[clamp(6px,0.58vw,11px)] font-bold text-black">
-                    {storeCreationInTesting ? "EM TESTES" : card.badge}
+                    {storeCreationInTesting ? "Plano Pro" : card.badge}
                   </span>
                 ) : null}
 
