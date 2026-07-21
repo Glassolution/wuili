@@ -1801,6 +1801,19 @@ const GeneratedStoreEditorPage = () => {
 
   const publicUrl = projectSlug ? `https://${projectSlug}.velostore.app` : "";
 
+  // Ordem das telas definida pelo dono da loja em Administração > Fluxo do cliente.
+  // O canvas principal é sempre a Home; as demais telas do fluxo aparecem lado a lado
+  // seguindo essa sequência (ex.: se o usuário mover "Login" antes do "Carrinho",
+  // o iframe de login vai aparecer antes do carrinho).
+  const customerFlow = useMemo<string[]>(() => {
+    const m = currentProject?.metadata;
+    if (m && typeof m === "object" && !Array.isArray(m)) {
+      const flow = (m as Record<string, unknown>).customerFlow;
+      if (Array.isArray(flow)) return flow.filter((v): v is string => typeof v === "string");
+    }
+    return ["home", "catalogo", "produto", "carrinho", "checkout", "obrigado"];
+  }, [currentProject]);
+
   const handleOpenPublish = () => {
     if (isFreePlan) {
       setUpgradeModalOpen(true);
