@@ -1852,10 +1852,10 @@ const GeneratedStoreEditorPage = () => {
     return "";
   }, [currentProject]);
 
-  // URL pública fica no nosso domínio: <origem>/store/<slug-do-cliente>.
-  // Ex.: https://wuili.lovable.app/store/pedra
+  // URL pública fica no domínio Velo: <slug>.velods.com.br
+  // Ex.: https://pedra.velods.com.br
   const publicUrl = projectSlug
-    ? `${typeof window !== "undefined" ? window.location.origin : "https://wuili.lovable.app"}/store/${projectSlug}`
+    ? `https://${projectSlug}.velods.com.br`
     : "";
 
 
