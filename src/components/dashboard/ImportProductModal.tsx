@@ -686,7 +686,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(4);
-      incrementStorePublishedCount(activeStore.id);
+      if (activeStore) incrementStorePublishedCount(activeStore.id);
 
       veloToast.success("Produto publicado com sucesso", {
         id: toastId,
