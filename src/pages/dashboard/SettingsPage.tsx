@@ -194,15 +194,15 @@ const ProfileTab = () => {
           ...(fotoFile ? { avatar_url: fotoFile } : {}),
         };
 
-        const { error, count } = await supabase
+        const { data: updated, error } = await supabase
           .from("profiles")
           .update(profilePayload)
           .eq("user_id", user.id)
-          .select("user_id", { count: "exact", head: true });
+          .select("user_id");
 
         if (error) throw error;
 
-        if (!count) {
+        if (!updated || updated.length === 0) {
           const { error: insertError } = await supabase.from("profiles").insert({
             user_id: user.id,
             ...profilePayload,
