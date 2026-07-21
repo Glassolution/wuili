@@ -277,7 +277,7 @@ const GeneratedStoreEditorPage = () => {
   const navigate = useNavigate();
   const upgradeModal = useUpgradeModal();
   const { projectId: routeProjectId } = useParams<{ projectId: string }>();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { nome: profileName, foto: profilePhoto } = useProfile();
   const imageInput = useRef<HTMLInputElement>(null);
   const logoInput = useRef<HTMLInputElement>(null);
@@ -2738,14 +2738,18 @@ const GeneratedStoreEditorPage = () => {
             Convidar
           </button>
           <button type="button" className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#d8b287] text-[#4c2414] ring-1 ring-white/15" aria-label={`Perfil de ${profileName || user?.email || "usuário"}`}>
-            {profilePhoto ? (
+            {authLoading || !user ? (
+              <span className="h-full w-full animate-pulse bg-[#3a3b3d]" />
+            ) : profilePhoto ? (
               <img src={profilePhoto} alt={`Foto de ${profileName || user?.email || "perfil"}`} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
             ) : (
               <span className="grid h-full w-full place-items-center bg-[radial-gradient(circle_at_50%_28%,#f6d2a7_0_20%,transparent_21%),linear-gradient(135deg,#b66a3e,#7c341b)] text-[10px] font-bold text-white">
-                {(profileName || user?.email || "V").slice(0, 1).toUpperCase()}
+                {(profileName !== "Usuario" ? profileName : user?.email || "V").slice(0, 1).toUpperCase()}
               </span>
             )}
-            <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-[#0e0f10] bg-[#7ac943]" />
+            {!authLoading && user ? (
+              <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-[#0e0f10] bg-[#7ac943]" />
+            ) : null}
           </button>
         </div>
       </header>
