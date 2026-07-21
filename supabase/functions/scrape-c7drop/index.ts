@@ -253,13 +253,18 @@ Deno.serve(async (req) => {
       let q = supabase
         .from("catalog_products")
         .select("id,external_id,images")
-        .eq("source", SOURCE)
-        .limit(limit);
-      if (onlyStale) q = q.not("images::text", "ilike", "%vercel-storage%");
-      const { data: existing, error: exErr } = await q;
+        .eq("source", SOURCE);
+      const { data: allRows, error: exErr } = await q;
       if (exErr) throw exErr;
-      const rows = existing ?? [];
-      console.log(`[scrape-c7drop] ${rows.length} produtos c7drop pra revisitar`);
+      let candidates = allRows ?? [];
+      if (onlyStale) {
+        candidates = candidates.filter((r) => {
+          const s = JSON.stringify(r.images ?? []);
+          return !s.includes("vercel-storage");
+        });
+      }
+      const rows = candidates.slice(0, limit);
+      console.log(`[scrape-c7drop] ${rows.length} produtos c7drop pra revisitar (de ${candidates.length} candidatos)`);
 
       let updated = 0;
       let missing = 0;
