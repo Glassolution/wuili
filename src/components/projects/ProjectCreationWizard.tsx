@@ -132,16 +132,16 @@ const STEP_COPY: Record<Step, { title: string; subtitle: string }> = {
   },
 };
 
-// Por enquanto só é possível criar página de vendas. A criação de loja completa
-// está desativada, então o tipo é fixo e a escolha some do formulário.
-const FIXED_TIPO: ProjectType = "pagina_venda";
+// Tipo padrão quando o caller não especifica: página de vendas.
+// Admins podem passar `defaultTipo="loja_completa"` para criar loja completa.
+const DEFAULT_TIPO: ProjectType = "pagina_venda";
 
 type ProjectCreationWizardProps = {
   open: boolean;
   onClose: () => void;
-  /** Ignorado enquanto a criação de loja completa está desativada. */
+  /** Tipo do projeto a ser criado. Default: página de venda. Admin pode passar "loja_completa". */
   defaultTipo?: ProjectType;
-  /** Ignorado enquanto a criação de loja completa está desativada. */
+  /** Reservado para uso futuro (travar tipo no wizard). */
   lockedTipo?: ProjectType;
   /** Se definido, pula a etapa de escolha de produtos e usa esses IDs. */
   preselectedProductIds?: string[];
@@ -151,9 +151,12 @@ type ProjectCreationWizardProps = {
 const ProjectCreationWizard = ({
   open,
   onClose,
+  defaultTipo,
   preselectedProductIds,
   onCreated,
 }: ProjectCreationWizardProps) => {
+  const tipo: ProjectType = defaultTipo ?? DEFAULT_TIPO;
+
   const skipProducts = !!(preselectedProductIds && preselectedProductIds.length > 0);
   const [step, setStep] = useState<Step>("info");
   const [direction, setDirection] = useState(0);
@@ -165,7 +168,9 @@ const ProjectCreationWizard = ({
   const [draggingLogo, setDraggingLogo] = useState(false);
   const [logoUrlInput, setLogoUrlInput] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>(preselectedProductIds ?? []);
-  const [templateId, setTemplateId] = useState<string>("produto-1");
+  const defaultTemplateId = tipo === "loja_completa" ? "loja-1" : "produto-1";
+  const [templateId, setTemplateId] = useState<string>(defaultTemplateId);
+
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -188,7 +193,7 @@ const ProjectCreationWizard = ({
     setDraggingLogo(false);
     setLogoUrlInput("");
     setSelectedProducts(preselectedProductIds ?? []);
-    setTemplateId("produto-1");
+    setTemplateId(defaultTemplateId);
     setSearch("");
     setLoadingIndex(0);
     setError(null);
@@ -223,7 +228,7 @@ const ProjectCreationWizard = ({
   }, [open, step, products.length]);
 
   const availableTemplates = useMemo(
-    () => TEMPLATES.filter((template) => template.tipo === FIXED_TIPO),
+    () => TEMPLATES.filter((template) => template.tipo === tipo),
     [],
   );
 
@@ -315,7 +320,7 @@ const ProjectCreationWizard = ({
       const project = await createUserProject({
         nome,
         descricao,
-        tipo: FIXED_TIPO,
+        tipo: tipo,
         productIds: selectedProducts,
         template: templateId,
         logoImage,
