@@ -2206,11 +2206,10 @@ export type Database = {
       }
       v_ml_category_predictions_last_30d: {
         Row: {
-          final_category: string | null
+          day: string | null
           final_status: string | null
-          last_seen: string | null
-          occurrences: number | null
           requires_size_grid: boolean | null
+          total: number | null
         }
         Relationships: []
       }
@@ -2372,6 +2371,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "influencer"
+      ml_category_status: "pending" | "auto" | "needs_manual" | "manual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2500,6 +2500,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "influencer"],
+      ml_category_status: ["pending", "auto", "needs_manual", "manual"],
     },
   },
 } as const
