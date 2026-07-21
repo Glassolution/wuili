@@ -40,7 +40,7 @@ const CreateSalesPageModal = ({ open, productTitle, onClose, onConfirm }: Props)
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData.user?.id ?? "anon";
       const ext = file.name.split(".").pop() || "png";
-      const path = `store-logos/${uid}/${crypto.randomUUID()}.${ext}`;
+      const path = `${uid}/store-logos/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("assets").upload(path, file, {
         cacheControl: "3600",
         upsert: false,

@@ -314,7 +314,8 @@ const GeneratedStoreEditorPage = () => {
   const [accent, setAccent] = useState("#111111");
   const [font, setFont] = useState("Geist");
   const [columns, setColumns] = useState(3);
-  const [heroImage, setHeroImage] = useState("/hero-pasted-image-2.png");
+  const [heroImage, setHeroImage] = useState("");
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [heroCtaUrl, setHeroCtaUrl] = useState("/catalogo");
   const [products, setProducts] = useState<CatalogItem[]>([]);
@@ -1056,6 +1057,11 @@ const GeneratedStoreEditorPage = () => {
     if (element) element.setAttribute("data-editor-selected", "true");
     selectedElementRef.current = element;
   }, [selectedPath]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setHeroSlideIndex((i) => i + 1), 4200);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!selectedElement?.path) return;
@@ -1905,7 +1911,7 @@ const GeneratedStoreEditorPage = () => {
 
   useEffect(() => {
     if (!flow) return;
-    setHeroImage("/hero-pasted-image-2.png");
+    setHeroImage("");
     let mounted = true;
     const loadStore = async () => {
       const { data: authData } = await supabase.auth.getUser();
@@ -2074,6 +2080,12 @@ const GeneratedStoreEditorPage = () => {
   const ctaPrimary = copy.cta1;
   const ctaSecondary = copy.cta2;
   const heroCtaHref = heroCtaUrl.trim() || "/catalogo";
+  const heroSlides = (() => {
+    const productImgs = displayedProducts.map((p) => p.imageUrl).filter((u): u is string => !!u);
+    const custom = heroImage && !heroImage.startsWith("/hero-pasted-image") ? [heroImage] : [];
+    const combined = [...custom, ...productImgs];
+    return combined.length ? combined.slice(0, 4) : [""];
+  })();
   const taglinePool = ["Escolhas para voc\u00ea", "Qualidade todo dia", "Descubra o novo", "Tudo em um s\u00f3 lugar"];
   const brandTagline = taglinePool[taglineVariant % taglinePool.length];
   const fontOptions = [
@@ -3382,8 +3394,26 @@ const GeneratedStoreEditorPage = () => {
                     </div>
                   </div>
 
-                  <div className="relative min-h-[380px] overflow-hidden">
-                    <img data-editor-type="image" data-editor-media-kind="banner" data-editor-id="hero-image" src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover"/>
+                  <div className="relative min-h-[420px] overflow-hidden bg-[#e9e5d8]">
+                    {/* decorative backdrop shapes */}
+                    <div className="pointer-events-none absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full bg-gradient-to-br from-white/60 via-[#d9d3c1]/50 to-transparent blur-2xl" />
+                    <div className="pointer-events-none absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-[#c8a24a]/15 blur-3xl" />
+                    <div className="pointer-events-none absolute inset-x-10 bottom-10 h-40 rounded-[50%] bg-[#1a1a1a]/10 blur-2xl" />
+                    {heroSlides.map((src, idx) => {
+                      const active = idx === heroSlideIndex % heroSlides.length;
+                      return (
+                        <img
+                          key={`${src}-${idx}`}
+                          data-editor-type={idx === 0 ? "image" : undefined}
+                          data-editor-media-kind={idx === 0 ? "banner" : undefined}
+                          data-editor-id={idx === 0 ? "hero-image" : undefined}
+                          src={src || undefined}
+                          alt=""
+                          style={{ mixBlendMode: "multiply" }}
+                          className={`absolute inset-0 h-full w-full object-contain p-10 transition-opacity duration-700 ${active ? "opacity-100" : "opacity-0"}`}
+                        />
+                      );
+                    })}
                     <div className="absolute inset-y-6 right-6 flex w-[210px] flex-col gap-3">
                       {[{icon:Truck,title:"Frete grátis",desc:"A partir de R$ 199"},{icon:Package,title:"Prove antes de pagar",desc:"7 dias para trocar"},{icon:LockKeyhole,title:"Produtos originais",desc:"Garantia de qualidade"}].map(({icon:Icon,title,desc})=>(
                         <div key={title} className="flex items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 shadow-[0_10px_30px_rgba(26,26,26,0.08)] backdrop-blur">
@@ -3395,6 +3425,22 @@ const GeneratedStoreEditorPage = () => {
                         </div>
                       ))}
                     </div>
+                    {heroSlides.length > 1 && (
+                      <div className="absolute inset-x-0 bottom-5 flex items-center justify-center gap-2">
+                        {heroSlides.map((_, idx) => {
+                          const active = idx === heroSlideIndex % heroSlides.length;
+                          return (
+                            <button
+                              key={`hero-dot-${idx}`}
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); setHeroSlideIndex(idx); }}
+                              aria-label={`Slide ${idx + 1}`}
+                              className={`h-1.5 rounded-full transition-all ${active ? "w-6 bg-white" : "w-1.5 bg-white/50"}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3679,9 +3725,17 @@ const GeneratedStoreEditorPage = () => {
                 };
                 // A Home é sempre o canvas principal (à esquerda). As demais telas
                 // aparecem na ordem definida pelo dono da loja (customerFlow).
-                const orderedKeys = customerFlow.filter((k) => k !== "home" && SCREEN_MAP[k]);
-                // Garante Conta do cliente ao final se o dono não incluiu.
-                if (!orderedKeys.includes("conta")) orderedKeys.push("conta");
+                // Login e Conta (cadastro) andam sempre juntos, lado a lado.
+                const rawOrder = customerFlow.filter((k) => k !== "home" && k !== "conta" && SCREEN_MAP[k]);
+                const orderedKeys: string[] = [];
+                for (const k of rawOrder) {
+                  orderedKeys.push(k);
+                  if (k === "login") orderedKeys.push("conta");
+                }
+                if (!orderedKeys.includes("conta")) {
+                  if (!orderedKeys.includes("login")) orderedKeys.push("login");
+                  orderedKeys.push("conta");
+                }
                 const screens = orderedKeys.map((key, idx) => ({
                   key,
                   label: `Tela ${idx + 2} · ${SCREEN_MAP[key]!.label}`,
@@ -3689,11 +3743,15 @@ const GeneratedStoreEditorPage = () => {
                 }));
                 const baseWidth = mobilePreview ? 390 : 1440;
                 const gap = 120;
-                const panelHeight = mobilePreview ? 1400 : 1600;
+                const defaultHeight = mobilePreview ? 1400 : 1600;
+                const HEIGHT_BY_KEY: Record<string, number> = mobilePreview
+                  ? { checkout: 980, obrigado: 720 }
+                  : { checkout: 780, obrigado: 560 };
                 return (
                   <>
                     {screens.map((screen, idx) => {
                       const leftOffset = (baseWidth + gap) * (idx + 1);
+                      const panelHeight = HEIGHT_BY_KEY[screen.key] ?? defaultHeight;
                       return (
                         <div
                           key={screen.key}
@@ -3718,13 +3776,15 @@ const GeneratedStoreEditorPage = () => {
                         </div>
                       );
                     })}
+
                     {screens.map((_, idx) => {
                       const leftOffset = (baseWidth + gap) * (idx + 1) - gap + 20;
                       return (
                         <div
                           key={`loja-arrow-${idx}`}
                           className="pointer-events-none absolute flex items-center text-white/30"
-                          style={{ left: leftOffset, top: 56 + panelHeight / 2 - 14, width: gap - 40 }}
+                          style={{ left: leftOffset, top: 56 + defaultHeight / 2 - 14, width: gap - 40 }}
+
                         >
                           <div className="h-px flex-1 bg-white/20" />
                           <ArrowRight size={28} strokeWidth={1.8} />
@@ -4115,7 +4175,15 @@ const GeneratedStoreEditorPage = () => {
         onClose={() => setAdminOpen(false)}
         project={currentProject}
         onProjectUpdated={setCurrentProject}
+        storeProducts={products.map((p) => ({
+          id: p.id,
+          title: p.title,
+          price: p.price,
+          imageUrl: p.imageUrl || p.imageUrls?.[0] || "",
+          category: p.category,
+        }))}
       />
+
 
 
       {showPlans ? (
