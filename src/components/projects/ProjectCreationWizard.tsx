@@ -321,6 +321,10 @@ const ProjectCreationWizard = ({
 
   const runCreation = async () => {
     if (creatingRef.current) return;
+    if (isTipoRestricted?.(tipo)) {
+      onRestrictedTipo?.(tipo);
+      return;
+    }
     creatingRef.current = true;
     setError(null);
     goTo("loading", 1);
