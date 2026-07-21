@@ -641,6 +641,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       if (status < 200 || status >= 300 || body?.error) {
         const code: string | undefined = body?.code;
+        alert("STATUS: " + status + " | CODE: " + (body?.code ?? "sem code") + " | ERROR: " + (body?.error ?? "sem error"));
         const friendly: string | undefined = body?.error || body?.message;
 
         // Categoria exige seleção manual → abre o seletor com a sugestão do backend.
