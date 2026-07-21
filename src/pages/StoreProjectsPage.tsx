@@ -337,21 +337,14 @@ const StoreProjectsPage = () => {
             <Inbox size={15} strokeWidth={1.8} />
             Todos {visibleProjects.length}
           </button>
-          {canCreateStorePlan || storeCount > 0 ? (
-            <button
-              type="button"
-              onClick={() => setFilter("loja_completa")}
-              className={filterTabCls(filter === "loja_completa")}
-            >
-              <Store size={15} strokeWidth={1.8} />
-              Lojas {projectCounts.stores}
-            </button>
-          ) : (
-            <span className="flex h-9 items-center gap-2 rounded-[7px] bg-[#f3f3f1] px-3 text-[12px] font-semibold text-[#6d7177]">
-              <FlaskConical size={14} strokeWidth={1.8} />
-              Loja completa · disponível no plano Pro
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => setFilter("loja_completa")}
+            className={filterTabCls(filter === "loja_completa")}
+          >
+            <Store size={15} strokeWidth={1.8} />
+            Lojas {projectCounts.stores}
+          </button>
           <button
             type="button"
             onClick={() => setFilter("pagina_venda")}
