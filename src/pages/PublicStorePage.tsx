@@ -26,6 +26,7 @@ import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateB
 import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
 import ProductTemplate4 from "@/components/store-templates/ProductTemplate4";
 import StorefrontLojaTemplate from "@/components/store-templates/StorefrontLojaTemplate";
+import StorefrontLojaTemplate2 from "@/components/store-templates/StorefrontLojaTemplate2";
 import PreviewPage from "@/pages/PreviewPage";
 import SectionRenderer from "@/components/store-sections/SectionRenderer";
 import { parseSections, parseTheme } from "@/lib/storeSections/types";
@@ -224,26 +225,44 @@ const PublishedLojaPage = ({ project }: { project: UserProject }) => {
     }
   };
 
+  const templateId = getProjectTemplate(project);
+  const isTemplate2 = templateId === "loja-2";
+  const mappedProducts = products.map((product) => ({
+    id: product.id,
+    title: product.title,
+    price: product.price,
+    imageUrl: product.imageUrl,
+    category: product.category,
+    originalPrice: product.originalPrice,
+  }));
+
   return (
     <div ref={rootRef} className="bg-white text-[#111]" style={{ fontFamily: fontStack }} onClick={handleTemplateClick}>
-      <StorefrontLojaTemplate
-        storeName={getProjectStoreName(project) || project.nome}
-        accent={getProjectAccent(project)}
-        heroImage={getProjectHeroImage(project) || DEFAULT_HERO_IMAGE}
-        logoImage={getProjectLogoImage(project)}
-        salesAngle={getProjectDescription(project)}
-        heroCtaUrl={getProjectHeroCtaUrl(project)}
-        copyVariant={getProjectCopyVariant(project)}
-        products={products.map((product) => ({
-          id: product.id,
-          title: product.title,
-          price: product.price,
-          imageUrl: product.imageUrl,
-          category: product.category,
-        }))}
-        mobile={false}
-        projectId={project.id}
-      />
+      {isTemplate2 ? (
+        <StorefrontLojaTemplate2
+          storeName={getProjectStoreName(project) || project.nome}
+          heroImage={getProjectHeroImage(project) || DEFAULT_HERO_IMAGE}
+          logoImage={getProjectLogoImage(project)}
+          salesAngle={getProjectDescription(project)}
+          heroCtaUrl={getProjectHeroCtaUrl(project)}
+          products={mappedProducts}
+          mobile={false}
+          projectId={project.id}
+        />
+      ) : (
+        <StorefrontLojaTemplate
+          storeName={getProjectStoreName(project) || project.nome}
+          accent={getProjectAccent(project)}
+          heroImage={getProjectHeroImage(project) || DEFAULT_HERO_IMAGE}
+          logoImage={getProjectLogoImage(project)}
+          salesAngle={getProjectDescription(project)}
+          heroCtaUrl={getProjectHeroCtaUrl(project)}
+          copyVariant={getProjectCopyVariant(project)}
+          products={mappedProducts}
+          mobile={false}
+          projectId={project.id}
+        />
+      )}
     </div>
   );
 };

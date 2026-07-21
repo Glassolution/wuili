@@ -19,9 +19,15 @@ const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditor
 const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
 const PreviewPage = lazy(() => import("./pages/PreviewPage"));
 const PublicStorePage = lazy(() => import("./pages/PublicStorePage"));
-const PublicStoreCatalogPage = lazy(() => import("./pages/PublicStoreCatalogPage"));
-const PublicProductPage = lazy(() => import("./pages/PublicProductPage"));
-const PublicStoreAccountPage = lazy(() => import("./pages/PublicStoreAccountPage"));
+const PublicStoreCatalogPage = lazy(() =>
+  import("./pages/PublicStoreTemplateDispatcher").then((m) => ({ default: m.PublicStoreCatalogDispatcher })),
+);
+const PublicProductPage = lazy(() =>
+  import("./pages/PublicStoreTemplateDispatcher").then((m) => ({ default: m.PublicProductDispatcher })),
+);
+const PublicStoreAccountPage = lazy(() =>
+  import("./pages/PublicStoreTemplateDispatcher").then((m) => ({ default: m.PublicStoreAccountDispatcher })),
+);
 const SalesCartPage = lazy(() => import("./pages/public-sales/SalesCartPage"));
 const SalesCheckoutPage = lazy(() => import("./pages/public-sales/SalesCheckoutPage"));
 const SalesLoginPage = lazy(() => import("./pages/public-sales/SalesLoginPage"));
