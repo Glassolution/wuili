@@ -115,6 +115,7 @@ export function useSalesPageData(slug: string | undefined) {
           price: editedPrice ?? basePrice,
           accent: getProjectAccent(project),
           brand: getProjectStoreName(project) || project.nome,
+          tipoProjeto: (project.tipo_projeto as "loja_completa" | "pagina_venda") ?? undefined,
         });
 
         // Realtime: sincroniza preço/marca em tempo real quando o dono edita
