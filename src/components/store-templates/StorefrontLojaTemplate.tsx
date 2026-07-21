@@ -100,7 +100,7 @@ const heroNavLinks = [
   { label: "Inspiração", href: "#inspiracao", left: "60.6%", width: "7.4%" },
 ];
 
-const collectionStyles = ["bg-[#f4ded6]", "bg-[#eee8dc]", "bg-[#a8c9df]", "bg-[#f1eee5]"];
+const collectionStyles = ["bg-[#eef1de]", "bg-[#e6ecd0]", "bg-[#dae4c2]", "bg-[#f2efe1]"];
 
 const collectionDescriptions: Record<string, string> = {
   Casa: "Peças para deixar seu espaço mais bonito.",
