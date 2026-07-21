@@ -3389,7 +3389,7 @@ const GeneratedStoreEditorPage = () => {
                         <div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[#1a1a1a]/60">
                           <Star size={11} strokeWidth={2} className="fill-[#c8a24a] text-[#c8a24a]"/>
                           <span data-editor-type="text">{rating.toFixed(1)}</span>
-                          <span className="text-[#1a1a1a]/35">· {formatReviewCount(orders)} vendas</span>
+                          <span className="text-[#1a1a1a]/35">· {formatReviewCount(Number(orders) || 0)} vendas</span>
                         </div>
                         <div className="mt-3 flex items-end justify-between gap-2">
                           <div>
