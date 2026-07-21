@@ -177,9 +177,9 @@ export default function StoreAdminModal({
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ duration: 0.18 }}
             onClick={(e) => e.stopPropagation()}
-            className="flex h-[86vh] w-full max-w-[960px] flex-col overflow-hidden rounded-[22px] border border-white/8 bg-[#0b0d10] shadow-[0_40px_120px_rgba(0,0,0,0.55)]"
+            className="flex h-[86vh] w-full max-w-[960px] flex-col overflow-hidden rounded-[22px] border border-white/[0.04] bg-[#0b0d10] shadow-[0_40px_120px_rgba(0,0,0,0.55)]"
           >
-            <header className="flex items-center justify-between border-b border-white/6 px-6 py-4">
+            <header className="flex items-center justify-between border-b border-white/[0.05] px-6 py-4">
               <div>
                 <h2 className="text-[15px] font-semibold text-white">Administração da loja</h2>
                 <p className="mt-0.5 text-[12px] text-white/50">
@@ -194,7 +194,7 @@ export default function StoreAdminModal({
               </button>
             </header>
 
-            <div className="flex items-center gap-1 border-b border-white/6 px-4 pt-3">
+            <div className="flex items-center gap-1 border-b border-white/[0.05] px-4 pt-3">
               {(
                 [
                   { id: "clientes", label: "Clientes", icon: Users },
@@ -230,7 +230,7 @@ export default function StoreAdminModal({
                       Nenhum cliente ainda. Assim que sua loja receber o primeiro pedido, ele aparece aqui.
                     </div>
                   ) : (
-                    <div className="overflow-hidden rounded-xl border border-white/8">
+                    <div className="overflow-hidden rounded-xl border border-white/[0.04]">
                       <table className="w-full text-left text-[12px] text-white/80">
                         <thead className="bg-white/4 text-[11px] uppercase tracking-wider text-white/50">
                           <tr>
@@ -243,7 +243,7 @@ export default function StoreAdminModal({
                         </thead>
                         <tbody>
                           {orders.map((o) => (
-                            <tr key={o.id} className="border-t border-white/5">
+                            <tr key={o.id} className="border-t border-white/[0.04]">
                               <td className="px-3 py-2">{o.customer_name || "—"}</td>
                               <td className="px-3 py-2 text-white/60">{o.customer_email || "—"}</td>
                               <td className="px-3 py-2">{formatPriceBRL(o.total_amount ?? 0)}</td>
@@ -262,7 +262,7 @@ export default function StoreAdminModal({
 
               {tab === "produtos" ? (
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
+                  <div className="rounded-xl border border-white/[0.04] bg-white/[0.02] p-4">
                     <h3 className="text-[13px] font-semibold text-white">Adicionar produto próprio</h3>
                     <p className="mt-1 text-[11.5px] text-white/50">
                       Produtos que você mesmo entrega — aparecerão junto aos itens do catálogo Velo.
@@ -313,7 +313,7 @@ export default function StoreAdminModal({
                       {customProducts.map((p) => (
                         <li
                           key={p.id}
-                          className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-3"
+                          className="flex items-center gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] p-3"
                         >
                           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white/5">
                             {p.imageUrl ? (
@@ -346,7 +346,7 @@ export default function StoreAdminModal({
                       logo no início.
                     </p>
                   </div>
-                  <label className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-[12.5px] text-white">
+                  <label className="flex items-center gap-2 rounded-xl border border-white/[0.04] bg-white/[0.02] px-4 py-3 text-[12.5px] text-white">
                     <input
                       type="checkbox"
                       checked={flow.includes("login")}
@@ -359,7 +359,7 @@ export default function StoreAdminModal({
                     {flow.map((step, index) => (
                       <li
                         key={step}
-                        className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2"
+                        className="flex items-center gap-3 rounded-xl border border-white/[0.04] bg-white/[0.02] px-3 py-2"
                       >
                         <span className="grid h-6 w-6 place-items-center rounded-full bg-white/8 text-[11px] font-semibold text-white/80">
                           {index + 1}
@@ -386,7 +386,7 @@ export default function StoreAdminModal({
               ) : null}
             </div>
 
-            <footer className="flex items-center justify-between border-t border-white/6 px-6 py-3">
+            <footer className="flex items-center justify-between border-t border-white/[0.05] px-6 py-3">
               <span className="text-[11.5px] text-white/45">
                 Alterações são aplicadas ao republicar a loja.
               </span>
