@@ -1338,6 +1338,20 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         }}
       />
 
+      <ManualCategoryDialog
+        open={manualCatOpen}
+        onOpenChange={setManualCatOpen}
+        initialQuery={title.trim()}
+        predictedCategoryId={manualCatSuggestion.id}
+        predictedCategoryName={manualCatSuggestion.name}
+        onConfirm={async ({ categoryId, sizeGridId }) => {
+          setManualCatOpen(false);
+          await handlePublish({ categoryId, sizeGridId });
+        }}
+      />
+
+
+
       {/* Animations */}
       <style>{`
         .step-fade {
