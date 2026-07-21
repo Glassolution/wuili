@@ -4,8 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Loader2, LogOut, MapPin, Package, ShoppingBag, User, UserRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getProjectLogoImage, getProjectStoreName } from "@/lib/publicStore";
-import type { UserProject } from "@/lib/onboardingProject";
+import {
+  fetchPublicProject,
+  getProjectLogoImage,
+  getProjectStoreName,
+  type UserProject,
+} from "@/lib/userProjects";
 
 type Customer = {
   name: string;
