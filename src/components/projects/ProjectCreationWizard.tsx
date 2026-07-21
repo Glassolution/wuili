@@ -499,6 +499,48 @@ const ProjectCreationWizard = ({
                 >
                   {step === "info" ? (
                     <div className="space-y-5">
+                      {allowTipoChoice ? (
+                        <motion.div variants={groupVariants}>
+                          <label className="mb-2 block text-[14px] font-medium text-white">
+                            Tipo de projeto
+                          </label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {([
+                              { value: "pagina_venda" as ProjectType, title: "Página de venda", desc: "Uma oferta focada em conversão." },
+                              { value: "loja_completa" as ProjectType, title: "Loja completa", desc: "Vitrine com vários produtos." },
+                            ]).map((option) => {
+                              const active = tipo === option.value;
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => {
+                                    setTipo(option.value);
+                                    setTemplateId(option.value === "loja_completa" ? "loja-1" : "produto-1");
+                                  }}
+                                  className={`rounded-[12px] border px-4 py-3 text-left transition-colors ${
+                                    active
+                                      ? "border-white/60 bg-[#2A2A2A] shadow-[0_0_0_3px_rgba(255,255,255,0.06)]"
+                                      : "border-white/[0.08] bg-[#242424] hover:border-white/20"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {option.value === "loja_completa" ? (
+                                      <Store size={16} strokeWidth={1.9} className="text-white" />
+                                    ) : (
+                                      <Sparkles size={16} strokeWidth={1.9} className="text-white" />
+                                    )}
+                                    <span className="text-[13.5px] font-semibold text-white">{option.title}</span>
+                                    {active ? <Check size={14} strokeWidth={2.2} className="ml-auto text-white" /> : null}
+                                  </div>
+                                  <p className="mt-1 text-[12px] leading-4 text-[#8A8A8A]">{option.desc}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      ) : null}
+
                       <motion.div variants={groupVariants}>
                         <label className="mb-2 block text-[14px] font-medium text-white">
                           Nome da loja
