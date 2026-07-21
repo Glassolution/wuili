@@ -128,7 +128,7 @@ export function ManualCategoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg z-[70]">
         <DialogHeader>
           <DialogTitle>Selecionar categoria manualmente</DialogTitle>
           <DialogDescription>
