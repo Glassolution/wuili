@@ -1306,6 +1306,96 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Rede de segurança para atributos exigidos pelo CATÁLOGO do ML
+    // (missing_catalog_required) e por regras CONDICIONAIS
+    // (missing_conditional_required — ex.: GTIN para certas categorias).
+    // Esses casos não vêm marcados como `required` no endpoint de atributos
+    // da categoria, então a montagem inicial não os inclui. Aqui lemos os
+    // cause[] retornados pelo ML, preenchemos defaults sensatos e reenviamos.
+    if (!itemResponse.ok) {
+      const causeArr = arrayFromUnknown((itemData as Record<string, unknown>)?.cause)
+      const missingAttrIds = new Set<string>()
+      for (const c of causeArr) {
+        if (!c || typeof c !== 'object') continue
+        const cc = c as Record<string, unknown>
+        const codeStr = cleanText(cc.code).toLowerCase()
+        const msgStr  = cleanText(cc.message)
+        const attrId  = cleanText(cc.attribute_id).toUpperCase()
+        if (
+          codeStr.includes('missing_catalog_required') ||
+          codeStr.includes('missing_conditional_required') ||
+          codeStr.includes('missing_required')
+        ) {
+          if (attrId) missingAttrIds.add(attrId)
+          // Alguns causes trazem apenas message "The attributes [X] are required..."
+          const bracketMatches = msgStr.match(/\[([A-Z0-9_,\s]+)\]/g) || []
+          for (const bm of bracketMatches) {
+            const inner = bm.slice(1, -1)
+            for (const raw of inner.split(',')) {
+              const id = raw.trim().toUpperCase()
+              if (id && /^[A-Z][A-Z0-9_]*$/.test(id)) missingAttrIds.add(id)
+            }
+          }
+          // Detecta "campo Cor" no texto em pt-BR
+          if (/\bcor\b/i.test(msgStr)) missingAttrIds.add('COLOR')
+          if (/\bgtin\b/i.test(msgStr) || /c[oó]digo universal/i.test(msgStr)) missingAttrIds.add('GTIN')
+        }
+      }
+
+      if (missingAttrIds.size > 0) {
+        console.warn('[ml-publish] Atributos exigidos pelo catálogo/condicional faltando:', Array.from(missingAttrIds))
+        const patched = [...(mlPayload.attributes as MLAttribute[])]
+        const has = (id: string) => patched.some(a => String(a.id).toUpperCase() === id)
+
+        // Defaults por atributo conhecido. Priorizamos valores universalmente
+        // aceitos pelo ML e que não geram penalização de qualidade.
+        const defaults: Record<string, MLAttribute> = {
+          GTIN:              { id: 'GTIN', value_name: 'Não aplicável' },
+          COLOR:             { id: 'COLOR', value_name: 'Preto' },
+          MAIN_COLOR:        { id: 'MAIN_COLOR', value_name: 'Preto' },
+          SECONDARY_COLOR:   { id: 'SECONDARY_COLOR', value_name: 'Preto' },
+          COLOR_FAMILY:      { id: 'COLOR_FAMILY', value_name: 'Preto' },
+          GENDER:            { id: 'GENDER', value_name: 'Sem gênero' },
+          AGE_GROUP:         { id: 'AGE_GROUP', value_name: 'Adultos' },
+          ITEM_CONDITION:    { id: 'ITEM_CONDITION', value_name: 'Novo' },
+          MPN:               { id: 'MPN', value_name: cleanText(productRecord.external_id) || 'N/D' },
+          MANUFACTURER:      { id: 'MANUFACTURER', value_name: 'Genérica' },
+          MODEL:             { id: 'MODEL', value_name: 'Não especificado' },
+          LINE:              { id: 'LINE', value_name: 'N/D' },
+          IS_KIT:            { id: 'IS_KIT', value_name: 'Não' },
+          UNITS_PER_PACKAGE: { id: 'UNITS_PER_PACKAGE', value_name: '1' },
+          ITEMS_PER_PACK:    { id: 'ITEMS_PER_PACK', value_name: '1' },
+          PACKAGE_TYPE:      { id: 'PACKAGE_TYPE', value_name: 'Caixa' },
+        }
+
+        for (const id of missingAttrIds) {
+          if (has(id)) continue
+          const def = defaults[id]
+          if (def) {
+            patched.push(def)
+          } else {
+            // Fallback genérico — melhor que travar o anúncio.
+            patched.push({ id, value_name: 'N/D' })
+          }
+        }
+
+        const retryPayload = { ...mlPayload, attributes: patched }
+        console.log('[ml-publish] Retry com atributos catálogo/condicional preenchidos:',
+          patched.filter(a => missingAttrIds.has(String(a.id).toUpperCase()))
+                 .map(a => `${a.id}=${a.value_id ?? a.value_name}`))
+        itemResponse = await fetch('https://api.mercadolibre.com/items', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(retryPayload),
+        })
+        itemData = await itemResponse.json()
+        console.log('Item criado (retry catálogo/condicional):', JSON.stringify(itemData).substring(0, 800))
+      }
+    }
+
     if (!itemResponse.ok || !itemData?.id) {
       console.error('Erro ao criar produto:', JSON.stringify(itemData))
       const mapped = itemResponse.ok
@@ -1313,6 +1403,7 @@ Deno.serve(async (req) => {
         : mapMLError(itemData)
       return json({ error: mapped.message, code: mapped.code, details: itemData }, 400)
     }
+
 
     const itemId = itemData.id as string
     console.log('Item ID:', itemId)
