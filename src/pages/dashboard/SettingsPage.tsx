@@ -711,9 +711,25 @@ const NotificationsTab = () => {
 const sectionTitle = "text-[16px] font-bold text-[#111113] dark:text-white";
 
 const SecurityTab = () => {
-  const handleExcluirConta = () => {
-    if (!window.confirm("Tem certeza que deseja excluir sua conta? Esta acao e permanente e nao pode ser desfeita.")) return;
-    veloToast.success("Solicitacao de exclusao registrada. Nossa equipe processara em breve.");
+  const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
+
+  const handleExcluirConta = async () => {
+    if (deleting) return;
+    if (!window.confirm("Tem certeza? Essa acao nao pode ser desfeita. Sua conta e todos os dados serao excluidos permanentemente.")) return;
+    if (!window.confirm("Confirmacao final: excluir sua conta agora?")) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke("delete-account", { body: {} });
+      if (error) throw error;
+      await supabase.auth.signOut();
+      veloToast.success("Sua conta foi excluida.");
+      navigate("/", { replace: true });
+    } catch (e) {
+      console.error("[delete-account] falha", e);
+      veloToast.error("Nao foi possivel excluir a conta. Tente novamente.");
+      setDeleting(false);
+    }
   };
 
   return (
@@ -759,9 +775,10 @@ const SecurityTab = () => {
         <button
           type="button"
           onClick={handleExcluirConta}
-          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#ef4444]/55 bg-white px-7 py-3 text-[14px] font-semibold text-[#ef4444] transition hover:bg-[#ef4444] hover:text-white dark:bg-transparent"
+          disabled={deleting}
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#ef4444]/55 bg-white px-7 py-3 text-[14px] font-semibold text-[#ef4444] transition hover:bg-[#ef4444] hover:text-white disabled:opacity-60 dark:bg-transparent"
         >
-          <Trash2 size={16} /> Excluir conta
+          <Trash2 size={16} /> {deleting ? "Excluindo..." : "Excluir conta"}
         </button>
       </div>
     </div>

@@ -96,28 +96,17 @@ Deno.serve(async (req) => {
       };
       const invitedHadPaid = await hadPaidBefore(userId);
       if (!invitedHadPaid) {
-        // 1) Try by invited_user_id (linked or pending)
-        let { data: refInvited } = await adminR
+        // Só aplica desconto se o usuário entrou de fato pelo link do convite
+        // (/convite/:token → accept-referral seta invited_user_id + status='linked').
+        // Sem fallback por email: acesso direto ao site não recebe desconto.
+        const { data: refInvited } = await adminR
           .from("referrals")
           .select("id,inviter_id,status,expires_at,invited_rewarded,invited_email")
           .eq("invited_user_id", userId)
-          .in("status", ["linked", "pending"])
+          .eq("status", "linked")
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-
-        // 2) Fallback: match by email (user signed up without visiting /convite/:token)
-        if (!refInvited && userEmail) {
-          const { data: refByEmail } = await adminR
-            .from("referrals")
-            .select("id,inviter_id,status,expires_at,invited_rewarded,invited_email")
-            .ilike("invited_email", userEmail)
-            .in("status", ["pending", "linked"])
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (refByEmail) refInvited = refByEmail;
-        }
 
         if (refInvited && !refInvited.invited_rewarded && new Date(refInvited.expires_at) > new Date()) {
           // Auto-link if still pending / missing invited_user_id

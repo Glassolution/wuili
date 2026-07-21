@@ -198,32 +198,19 @@ const CheckoutPage = () => {
         return p && p !== "gratis" && p !== "free" && s.status === "active";
       });
 
-      // 1) Convidado com desconto disponível
+      // 1) Convidado com desconto — só se veio pelo link do convite (invited_user_id preenchido via /convite/:token)
       if (!hasPaid) {
         const nowIso = new Date().toISOString();
-        let { data: ref } = await supabase
+        const { data: ref } = await supabase
           .from("referrals")
           .select("id,expires_at,invited_rewarded,status")
           .eq("invited_user_id", userId)
-          .in("status", ["linked", "pending"])
+          .eq("status", "linked")
           .eq("invited_rewarded", false)
           .gt("expires_at", nowIso)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (!ref && userEmail) {
-          const { data: refByEmail } = await supabase
-            .from("referrals")
-            .select("id,expires_at,invited_rewarded,status")
-            .ilike("invited_email", userEmail)
-            .in("status", ["pending", "linked"])
-            .eq("invited_rewarded", false)
-            .gt("expires_at", nowIso)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (refByEmail) ref = refByEmail;
-        }
         if (!cancelled && ref) {
           setReferralDiscount(15);
           return;
