@@ -218,35 +218,44 @@ const StorefrontLojaTemplate2 = ({
         slides={[
           {
             image: bannerLoja2_1,
-            eyebrow: "Nova coleção · Frete Grátis",
-            title: "Tudo o que você",
-            highlight: "precisa em um só lugar",
-            subtitle: "Milhares de produtos com o melhor preço e entrega rápida para todo o Brasil.",
+            eyebrow: "MEGA LIQUIDAÇÃO · APENAS HOJE",
+            title: "Estilo novo,",
+            highlight: "preço de sonho",
+            subtitle: "Mais de 10.000 produtos com até 60% OFF. Frete grátis para todo o Brasil em compras acima de R$ 199.",
             badge: "ATÉ\n60%\nOFF",
-            badgeColor: "#F97316",
-            bg: "linear-gradient(90deg, #FDF6E3 0%, #FEF7ED 55%, #FEF3E2 100%)",
+            badgeColor: "#FDE047",
+            badgeText: "#7C2D12",
+            bg: "linear-gradient(135deg, #F43F5E 0%, #EC4899 55%, #F97316 100%)",
+            accent: "#FDE047",
+            ctaLabel: "Comprar agora",
             ctaHref,
           },
           {
             image: bannerLoja2_2,
-            eyebrow: "Entrega expressa em todo Brasil",
-            title: "Chegou. Abriu.",
-            highlight: "Se apaixonou.",
-            subtitle: "Rastreie seu pedido em tempo real. Troca fácil em até 30 dias, sem burocracia.",
+            eyebrow: "ENTREGA EXPRESSA EM TODO BRASIL",
+            title: "Peça hoje,",
+            highlight: "receba amanhã",
+            subtitle: "Rastreamento em tempo real e troca fácil em até 30 dias. Sem burocracia, sem estresse.",
             badge: "FRETE\nGRÁTIS",
-            badgeColor: "#2563EB",
-            bg: "linear-gradient(90deg, #EFF6FF 0%, #F8FAFC 55%, #F1F5F9 100%)",
+            badgeColor: "#FACC15",
+            badgeText: "#1E3A8A",
+            bg: "linear-gradient(135deg, #1D4ED8 0%, #2563EB 55%, #06B6D4 100%)",
+            accent: "#FACC15",
+            ctaLabel: "Ver ofertas",
             ctaHref: "/catalogo",
           },
           {
             image: bannerLoja2_3,
-            eyebrow: "Compre pelo celular",
-            title: "Ofertas na palma",
-            highlight: "da sua mão",
-            subtitle: "Novidades toda semana, pagamento em até 12x sem juros e cashback no Pix.",
+            eyebrow: "PIX COM CASHBACK · 12X SEM JUROS",
+            title: "Compre fácil,",
+            highlight: "pague do seu jeito",
+            subtitle: "Novidades toda semana no seu celular. Parcele em 12x sem juros ou ganhe cashback pagando no Pix.",
             badge: "12x\nSEM\nJUROS",
-            badgeColor: "#0EA5E9",
-            bg: "linear-gradient(90deg, #FFF7ED 0%, #FEF3E2 55%, #FFEDD5 100%)",
+            badgeColor: "#FDE047",
+            badgeText: "#4C1D95",
+            bg: "linear-gradient(135deg, #6D28D9 0%, #9333EA 55%, #DB2777 100%)",
+            accent: "#FDE047",
+            ctaLabel: "Explorar ofertas",
             ctaHref: "/catalogo",
           },
         ]}
@@ -573,7 +582,10 @@ type HeroSlide = {
   subtitle: string;
   badge: string;
   badgeColor: string;
+  badgeText: string;
   bg: string;
+  accent: string;
+  ctaLabel: string;
   ctaHref: string;
 };
 
@@ -605,65 +617,92 @@ const HeroCarousel = ({
       onMouseLeave={() => setPaused(false)}
     >
       <div
-        className="relative overflow-hidden rounded-3xl shadow-sm"
+        className="relative overflow-hidden rounded-3xl shadow-xl ring-1 ring-black/5"
         style={{ background: s.bg }}
       >
-        {/* Badge circular */}
+        {/* Decorative shapes */}
+        <div
+          className="pointer-events-none absolute -left-16 -top-16 h-64 w-64 rounded-full opacity-20 blur-2xl"
+          style={{ background: s.accent }}
+        />
+        <div
+          className="pointer-events-none absolute -bottom-24 left-1/3 h-72 w-72 rounded-full opacity-10 blur-3xl"
+          style={{ background: "#ffffff" }}
+        />
+
+        {/* Badge selo — canto superior direito */}
         <span
-          className="absolute right-4 top-4 z-20 grid h-16 w-16 place-items-center rounded-full text-center text-[10px] font-extrabold leading-tight text-white shadow-lg whitespace-pre md:right-8 md:top-8 md:h-20 md:w-20 md:text-[12px]"
-          style={{ background: s.badgeColor }}
+          className="absolute right-4 top-4 z-30 grid h-20 w-20 rotate-[-8deg] place-items-center rounded-full text-center text-[11px] font-black uppercase leading-tight shadow-2xl ring-4 ring-white/40 whitespace-pre md:right-10 md:top-10 md:h-24 md:w-24 md:text-[13px]"
+          style={{ background: s.badgeColor, color: s.badgeText }}
         >
           {s.badge}
         </span>
 
-        <div className={`relative grid items-center ${mobile ? "grid-cols-1" : "md:grid-cols-2"} min-h-[280px] md:min-h-[380px]`}>
+        <div className={`relative grid items-center ${mobile ? "grid-cols-1" : "md:grid-cols-[1.05fr_1fr]"} min-h-[340px] md:min-h-[440px]`}>
           {/* TEXTO */}
-          <div className="relative z-10 px-6 py-8 md:px-10 md:py-12">
-            <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#F97316]">
+          <div className="relative z-20 px-6 py-9 md:px-12 md:py-14">
+            <span
+              className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] shadow-sm"
+              style={{ color: s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#0F172A" }}
+            >
               {s.eyebrow}
             </span>
-            <h1 className="mt-3 text-[28px] font-extrabold leading-[1.05] tracking-tight text-[#0F172A] md:text-[42px]">
+            <h1 className="mt-4 text-[32px] font-black leading-[1.02] tracking-tight text-white drop-shadow-md md:text-[52px]">
               {s.title}
               <br />
-              <span className="text-[#2563EB]">{s.highlight}</span>
+              <span style={{ color: s.accent }}>{s.highlight}</span>
             </h1>
-            <p className="mt-3 max-w-[420px] text-[13px] leading-relaxed text-[#334155]">
+            <p className="mt-4 max-w-[440px] text-[14px] font-medium leading-relaxed text-white/95 md:text-[15px]">
               {salesAngle && idx === 0 ? salesAngle.slice(0, 140) : s.subtitle}
             </p>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <a
                 href={s.ctaHref}
-                className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-5 py-3 text-[13px] font-semibold text-white shadow-md transition hover:bg-[#1D4ED8]"
+                className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[14px] font-black text-[#0F172A] shadow-2xl transition hover:scale-[1.03] hover:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.4)]"
               >
-                Comprar agora
-                <ArrowRight size={14} strokeWidth={2.4} />
+                {s.ctaLabel}
+                <ArrowRight size={16} strokeWidth={3} className="transition-transform group-hover:translate-x-1" />
               </a>
               <a
                 href="/catalogo"
-                className="inline-flex items-center rounded-full border border-[#0F172A]/15 bg-white px-5 py-3 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC]"
+                className="inline-flex items-center rounded-full border-2 border-white/70 bg-white/10 px-6 py-3.5 text-[14px] font-bold text-white backdrop-blur transition hover:bg-white/20"
               >
-                Ver ofertas
+                Ver todas as ofertas
               </a>
+            </div>
+
+            {/* mini trust chips */}
+            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-white/90">
+              <span className="inline-flex items-center gap-1.5"><Truck size={13} strokeWidth={2.6} /> Frete grátis Brasil</span>
+              <span className="inline-flex items-center gap-1.5"><ShieldCheck size={13} strokeWidth={2.6} /> Compra 100% segura</span>
+              <span className="inline-flex items-center gap-1.5"><Package size={13} strokeWidth={2.6} /> Troca em 30 dias</span>
             </div>
           </div>
 
-          {/* IMAGEM lifestyle */}
-          <div className="relative h-[220px] md:h-full md:min-h-[380px]">
+          {/* IMAGEM lifestyle — pessoa em destaque */}
+          <div className="relative h-[260px] md:h-full md:min-h-[440px]">
             {slides.map((sl, i) => (
               <img
                 key={sl.image}
                 src={sl.image}
                 alt=""
-                className={`absolute inset-0 h-full w-full object-cover object-right transition-opacity duration-700 ${i === idx ? "opacity-100" : "opacity-0"}`}
-                style={{ objectPosition: mobile ? "right center" : "right center" }}
+                loading={i === 0 ? "eager" : "lazy"}
+                className={`absolute inset-0 h-full w-full object-cover object-right-bottom transition-opacity duration-700 ${i === idx ? "opacity-100" : "opacity-0"}`}
               />
             ))}
             {/* fade horizontal para o texto respirar */}
             <div
-              className="pointer-events-none absolute inset-0 hidden md:block"
+              className="pointer-events-none absolute inset-y-0 left-0 hidden w-2/3 md:block"
               style={{
                 background:
-                  "linear-gradient(90deg, " + s.bg.split(",")[1]?.trim() + " 0%, transparent 45%)",
+                  "linear-gradient(90deg, " + (s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#000") + " 0%, transparent 100%)",
+              }}
+            />
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-24 md:hidden"
+              style={{
+                background:
+                  "linear-gradient(180deg, transparent 0%, " + (s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#000") + " 100%)",
               }}
             />
           </div>
@@ -673,26 +712,26 @@ const HeroCarousel = ({
         <button
           aria-label="Anterior"
           onClick={() => go(idx - 1)}
-          className="absolute left-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#0F172A] shadow-md backdrop-blur transition hover:bg-white md:grid"
+          className="absolute left-3 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#0F172A] shadow-xl transition hover:scale-110 md:grid"
         >
-          <ChevronLeft size={18} strokeWidth={2.4} />
+          <ChevronLeft size={20} strokeWidth={2.6} />
         </button>
         <button
           aria-label="Próximo"
           onClick={() => go(idx + 1)}
-          className="absolute right-3 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#0F172A] shadow-md backdrop-blur transition hover:bg-white md:grid"
+          className="absolute right-3 top-1/2 z-30 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#0F172A] shadow-xl transition hover:scale-110 md:grid"
         >
-          <ChevronRight size={18} strokeWidth={2.4} />
+          <ChevronRight size={20} strokeWidth={2.6} />
         </button>
 
         {/* Dots */}
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+        <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2">
           {slides.map((_, i) => (
             <button
               key={i}
               aria-label={`Banner ${i + 1}`}
               onClick={() => setIdx(i)}
-              className={`h-2 rounded-full transition-all ${i === idx ? "w-6 bg-[#2563EB]" : "w-2 bg-[#0F172A]/25 hover:bg-[#0F172A]/50"}`}
+              className={`h-2 rounded-full transition-all ${i === idx ? "w-8 bg-white" : "w-2 bg-white/50 hover:bg-white/80"}`}
             />
           ))}
         </div>
