@@ -314,7 +314,8 @@ const GeneratedStoreEditorPage = () => {
   const [accent, setAccent] = useState("#111111");
   const [font, setFont] = useState("Geist");
   const [columns, setColumns] = useState(3);
-  const [heroImage, setHeroImage] = useState("/hero-pasted-image-2.png");
+  const [heroImage, setHeroImage] = useState("");
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [heroCtaUrl, setHeroCtaUrl] = useState("/catalogo");
   const [products, setProducts] = useState<CatalogItem[]>([]);
@@ -1056,6 +1057,11 @@ const GeneratedStoreEditorPage = () => {
     if (element) element.setAttribute("data-editor-selected", "true");
     selectedElementRef.current = element;
   }, [selectedPath]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setHeroSlideIndex((i) => i + 1), 4200);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!selectedElement?.path) return;
@@ -1858,7 +1864,7 @@ const GeneratedStoreEditorPage = () => {
 
   useEffect(() => {
     if (!flow) return;
-    setHeroImage("/hero-pasted-image-2.png");
+    setHeroImage("");
     let mounted = true;
     const loadStore = async () => {
       const { data: authData } = await supabase.auth.getUser();
@@ -2027,6 +2033,12 @@ const GeneratedStoreEditorPage = () => {
   const ctaPrimary = copy.cta1;
   const ctaSecondary = copy.cta2;
   const heroCtaHref = heroCtaUrl.trim() || "/catalogo";
+  const heroSlides = (() => {
+    const productImgs = displayedProducts.map((p) => p.imageUrl).filter((u): u is string => !!u);
+    const custom = heroImage && !heroImage.startsWith("/hero-pasted-image") ? [heroImage] : [];
+    const combined = [...custom, ...productImgs];
+    return combined.length ? combined.slice(0, 4) : [""];
+  })();
   const taglinePool = ["Escolhas para voc\u00ea", "Qualidade todo dia", "Descubra o novo", "Tudo em um s\u00f3 lugar"];
   const brandTagline = taglinePool[taglineVariant % taglinePool.length];
   const fontOptions = [
@@ -3335,8 +3347,21 @@ const GeneratedStoreEditorPage = () => {
                     </div>
                   </div>
 
-                  <div className="relative min-h-[380px] overflow-hidden">
-                    <img data-editor-type="image" data-editor-media-kind="banner" data-editor-id="hero-image" src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover"/>
+                  <div className="relative min-h-[380px] overflow-hidden bg-gradient-to-br from-[#e9e5d8] via-[#d9d3c1] to-[#b8b09a]">
+                    {heroSlides.map((src, idx) => {
+                      const active = idx === heroSlideIndex % heroSlides.length;
+                      return (
+                        <img
+                          key={`${src}-${idx}`}
+                          data-editor-type={idx === 0 ? "image" : undefined}
+                          data-editor-media-kind={idx === 0 ? "banner" : undefined}
+                          data-editor-id={idx === 0 ? "hero-image" : undefined}
+                          src={src || undefined}
+                          alt=""
+                          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${active ? "opacity-100" : "opacity-0"}`}
+                        />
+                      );
+                    })}
                     <div className="absolute inset-y-6 right-6 flex w-[210px] flex-col gap-3">
                       {[{icon:Truck,title:"Frete grátis",desc:"A partir de R$ 199"},{icon:Package,title:"Prove antes de pagar",desc:"7 dias para trocar"},{icon:LockKeyhole,title:"Produtos originais",desc:"Garantia de qualidade"}].map(({icon:Icon,title,desc})=>(
                         <div key={title} className="flex items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 shadow-[0_10px_30px_rgba(26,26,26,0.08)] backdrop-blur">
@@ -3348,6 +3373,22 @@ const GeneratedStoreEditorPage = () => {
                         </div>
                       ))}
                     </div>
+                    {heroSlides.length > 1 && (
+                      <div className="absolute inset-x-0 bottom-5 flex items-center justify-center gap-2">
+                        {heroSlides.map((_, idx) => {
+                          const active = idx === heroSlideIndex % heroSlides.length;
+                          return (
+                            <button
+                              key={`hero-dot-${idx}`}
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); setHeroSlideIndex(idx); }}
+                              aria-label={`Slide ${idx + 1}`}
+                              className={`h-1.5 rounded-full transition-all ${active ? "w-6 bg-white" : "w-1.5 bg-white/50"}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
