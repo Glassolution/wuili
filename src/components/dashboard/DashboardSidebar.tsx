@@ -601,7 +601,7 @@ const DashboardSidebar = () => {
 
     const resolveAdminRole = async () => {
       const [hasRoleResult, profileByUserId, profileById, userRole] = await Promise.allSettled([
-        supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
+        supabase.rpc("is_admin", { _user_id: user.id }),
         (supabase as any).from("profiles").select("role").eq("user_id", user.id).maybeSingle(),
         (supabase as any).from("profiles").select("role").eq("id", user.id).maybeSingle(),
         (supabase as any).from("user_roles").select("role").eq("user_id", user.id).maybeSingle(),
