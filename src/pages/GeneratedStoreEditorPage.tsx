@@ -1852,10 +1852,10 @@ const GeneratedStoreEditorPage = () => {
     return "";
   }, [currentProject]);
 
-  // URL pública fica no domínio Velo: <slug>.velods.com.br
-  // Ex.: https://pedra.velods.com.br
+  // URL pública fica no domínio Velo com o slug da loja no caminho:
+  // Ex.: https://velods.com.br/pedra
   const publicUrl = projectSlug
-    ? `https://${projectSlug}.velods.com.br`
+    ? `https://velods.com.br/${projectSlug}`
     : "";
 
 
