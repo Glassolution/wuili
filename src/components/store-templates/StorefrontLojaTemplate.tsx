@@ -4,8 +4,11 @@
 // preview do editor (GeneratedStoreEditorPage). Paleta creme (#f5f2ea) +
 // verde musgo (#3d4a2a) + acento dourado (#c8a24a), cantos arredondados,
 // cards de lifestyle e cards de produto em pill.
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Facebook,
   Gem,
   Headphones,
@@ -26,6 +29,7 @@ import {
 } from "lucide-react";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 import StoreReviews from "@/components/store-templates/StoreReviews";
+
 
 export type LojaTemplateProduct = {
   id: string;
@@ -91,8 +95,156 @@ const copyPool = [
   { p: "Novas ideias", s: "Para sua rotina", sub: "Uma curadoria diversa de produtos que combinam praticidade, qualidade e bom preço.", cta1: "Descobrir produtos" },
 ];
 
+type HeroCarouselProps = {
+  products: LojaTemplateProduct[];
+  fallbackImage: string;
+  headlinePrimary: string;
+  headlineSecondary: string;
+  subtitle: string;
+  ctaPrimary: string;
+  ctaHref: string;
+  mobile: boolean;
+};
+
+/** Banner rotativo com até 3 produtos da própria loja (auto-avança a cada 5s).
+ *  Substitui o hero antigo que dependia de uma imagem estática desalinhada. */
+const HeroCarousel = ({
+  products,
+  fallbackImage,
+  headlinePrimary,
+  headlineSecondary,
+  subtitle,
+  ctaPrimary,
+  ctaHref,
+  mobile,
+}: HeroCarouselProps) => {
+  const slides = products.length > 0 ? products : [];
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const id = window.setInterval(() => setIndex((i) => (i + 1) % slides.length), 5000);
+    return () => window.clearInterval(id);
+  }, [slides.length]);
+  const current = slides[index];
+  const currentImage = current?.imageUrl || fallbackImage;
+
+  return (
+    <section className="px-6 pb-10 md:px-10">
+      <div className="relative overflow-hidden rounded-[28px] bg-[#e9e5d8]">
+        <div className={`grid items-stretch ${mobile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]"}`}>
+          {/* Copy + CTA (esquerda) */}
+          <div className="relative z-10 flex flex-col justify-between p-8 md:p-14">
+            <div>
+              <span className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#3d4a2a]">
+                Prêmium coleção
+              </span>
+              <h1 className="mt-6 font-semibold uppercase leading-[0.98] tracking-[-0.02em] text-[#1a1a1a]" style={{ fontSize: "clamp(34px,4.2vw,68px)" }}>
+                {headlinePrimary}
+                <br />
+                {headlineSecondary}
+              </h1>
+              <p className="mt-6 max-w-[380px] text-[13px] leading-relaxed text-[#1a1a1a]/60">{subtitle}</p>
+            </div>
+            <div className="mt-10 flex flex-wrap items-center gap-3">
+              <a href={ctaHref} className="group inline-flex items-center gap-3 rounded-full bg-[#3d4a2a] py-2 pl-6 pr-2 text-[13px] font-semibold text-[#f5f2ea] transition hover:bg-[#2c3620]">
+                <span>{ctaPrimary}</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#c8a24a] text-[#3d4a2a] transition group-hover:translate-x-0.5">
+                  <ArrowRight size={15} strokeWidth={2.4} />
+                </span>
+              </a>
+              <a href="#novidades" className="inline-flex items-center rounded-full border border-[#1a1a1a]/12 bg-white/60 px-6 py-3 text-[13px] font-semibold text-[#1a1a1a] transition hover:border-[#3d4a2a]/40">
+                Novidades
+              </a>
+            </div>
+            {slides.length > 0 && (
+              <div className="mt-10 flex items-center gap-4">
+                <div className="flex -space-x-2">
+                  {slides.map((p) => (
+                    <img key={`av-${p.id}`} src={p.imageUrl || fallbackImage} alt="" className="h-9 w-9 rounded-full border-2 border-[#e9e5d8] object-cover" />
+                  ))}
+                </div>
+                <div className="text-[11px] leading-tight text-[#1a1a1a]/70">
+                  <strong className="block text-[13px] font-semibold text-[#1a1a1a]">{slides.length} destaques</strong>
+                  <span className="flex items-center gap-1">
+                    <Star size={11} strokeWidth={2} className="fill-[#c8a24a] text-[#c8a24a]" /> Produtos mais recentes
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Slide do produto (direita) */}
+          <div className="relative flex min-h-[380px] items-center justify-center overflow-hidden p-6 md:p-10">
+            <img
+              key={`bg-${current?.id ?? "empty"}`}
+              src={currentImage}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-30"
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#e9e5d8]/60 via-transparent to-[#f5f2ea]/60" />
+            {current ? (
+              <a
+                href={ctaHref}
+                key={`card-${current.id}`}
+                className="relative z-10 flex w-full max-w-[320px] flex-col overflow-hidden rounded-[24px] bg-white p-4 shadow-[0_24px_60px_rgba(26,26,26,0.14)] transition hover:-translate-y-1"
+              >
+                <div className="relative aspect-square overflow-hidden rounded-[16px] bg-[#f5f2ea]">
+                  <img src={current.imageUrl || fallbackImage} alt={current.title} className="h-full w-full object-cover" />
+                  <span className="absolute left-3 top-3 rounded-full bg-[#c8a24a] px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[#3d4a2a]">
+                    Em destaque
+                  </span>
+                </div>
+                <div className="mt-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-semibold text-[#1a1a1a]">{current.title}</p>
+                    <p className="mt-0.5 text-[11px] text-[#1a1a1a]/55">{current.category || "Produto em destaque"}</p>
+                  </div>
+                  <span className="shrink-0 text-[14px] font-semibold text-[#3d4a2a]">{formatBRL(current.price)}</span>
+                </div>
+              </a>
+            ) : null}
+
+            {slides.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Anterior"
+                  onClick={() => setIndex((i) => (i - 1 + slides.length) % slides.length)}
+                  className="absolute left-4 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#3d4a2a] shadow transition hover:bg-white"
+                >
+                  <ChevronLeft size={16} strokeWidth={2.2} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Próximo"
+                  onClick={() => setIndex((i) => (i + 1) % slides.length)}
+                  className="absolute right-4 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#3d4a2a] shadow transition hover:bg-white"
+                >
+                  <ChevronRight size={16} strokeWidth={2.2} />
+                </button>
+                <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-1.5">
+                  {slides.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={`Ir para slide ${i + 1}`}
+                      onClick={() => setIndex(i)}
+                      className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-[#3d4a2a]" : "w-1.5 bg-[#3d4a2a]/30"}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const StorefrontLojaTemplate = ({
   storeName,
+
   heroImage,
   logoImage = null,
   salesAngle = "",
@@ -160,71 +312,22 @@ const StorefrontLojaTemplate = ({
         </div>
       </header>
 
-      {/* HERO */}
-      <section className="px-6 pb-10 md:px-10">
-        <div className="relative overflow-hidden rounded-[28px] bg-[#e9e5d8]">
-          <div className={`grid items-stretch ${mobile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]"}`}>
-            <div className="relative z-10 flex flex-col justify-between p-8 md:p-14">
-              <div>
-                <span className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#3d4a2a]">
-                  Prêmium coleção
-                </span>
-                <h1 className="mt-6 font-semibold uppercase leading-[0.98] tracking-[-0.02em] text-[#1a1a1a]" style={{ fontSize: "clamp(34px,4.2vw,68px)" }}>
-                  {headlinePrimary}
-                  <br />
-                  {headlineSecondary}
-                </h1>
-                <p className="mt-6 max-w-[380px] text-[13px] leading-relaxed text-[#1a1a1a]/60">{heroSubtitle}</p>
-              </div>
-              <div className="mt-10 flex flex-wrap items-center gap-3">
-                <a href={heroCtaHref} className="group inline-flex items-center gap-3 rounded-full bg-[#3d4a2a] py-2 pl-6 pr-2 text-[13px] font-semibold text-[#f5f2ea] transition hover:bg-[#2c3620]">
-                  <span>{ctaPrimary}</span>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#c8a24a] text-[#3d4a2a] transition group-hover:translate-x-0.5">
-                    <ArrowRight size={15} strokeWidth={2.4} />
-                  </span>
-                </a>
-                <a href="#novidades" className="inline-flex items-center rounded-full border border-[#1a1a1a]/12 bg-white/60 px-6 py-3 text-[13px] font-semibold text-[#1a1a1a] transition hover:border-[#3d4a2a]/40">
-                  Novidades
-                </a>
-              </div>
-              <div className="mt-10 flex items-center gap-4">
-                <div className="flex -space-x-2">
-                  {displayedProducts.slice(0, 3).map((p) => (
-                    <img key={`av-${p.id}`} src={p.imageUrl || heroImage} alt="" className="h-9 w-9 rounded-full border-2 border-[#e9e5d8] object-cover" />
-                  ))}
-                </div>
-                <div className="text-[11px] leading-tight text-[#1a1a1a]/70">
-                  <strong className="block text-[13px] font-semibold text-[#1a1a1a]">10.000+ clientes</strong>
-                  <span className="flex items-center gap-1">
-                    <Star size={11} strokeWidth={2} className="fill-[#c8a24a] text-[#c8a24a]" /> 4.9 · avaliação média
-                  </span>
-                </div>
-              </div>
-            </div>
+      {/* HERO — carrossel automático dos produtos da loja.
+          Antes: hero estático com heroImage genérica e badges flutuantes que
+          quebravam quando não havia imagem coerente (aspecto errado, faixas
+          verticais). Agora: até 3 produtos giram em foreground, com o próprio
+          nome/preço, sem depender de heroImage. */}
+      <HeroCarousel
+        products={displayedProducts.slice(0, 3)}
+        fallbackImage={heroImage}
+        headlinePrimary={headlinePrimary}
+        headlineSecondary={headlineSecondary}
+        subtitle={heroSubtitle}
+        ctaPrimary={ctaPrimary}
+        ctaHref={heroCtaHref}
+        mobile={mobile}
+      />
 
-            <div className="relative min-h-[380px] overflow-hidden">
-              <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
-              <div className={`absolute inset-y-6 right-6 flex flex-col gap-3 ${mobile ? "hidden" : "hidden md:flex"} w-[210px]`}>
-                {[
-                  { icon: Truck, title: "Frete grátis", desc: "A partir de R$ 199" },
-                  { icon: Package, title: "Prove antes de pagar", desc: "7 dias para trocar" },
-                  { icon: LockKeyhole, title: "Produtos originais", desc: "Garantia de qualidade" },
-                ].map(({ icon: Icon, title, desc }) => (
-                  <div key={title} className="flex items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 shadow-[0_10px_30px_rgba(26,26,26,0.08)] backdrop-blur">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e9e5d8] text-[#3d4a2a]">
-                      <Icon size={16} strokeWidth={1.9} />
-                    </span>
-                    <div className="min-w-0">
-                      <strong className="block text-[11.5px] font-semibold text-[#1a1a1a]">{title}</strong>
-                      <span className="block truncate text-[10px] text-[#1a1a1a]/55">{desc}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* SEARCH + CHIPS */}
       <section className="px-6 pb-10 md:px-10">
