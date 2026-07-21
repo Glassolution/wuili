@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Box,
   FileText,
-  FlaskConical,
   Inbox,
   Loader2,
   Mail,
