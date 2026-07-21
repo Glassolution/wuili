@@ -636,6 +636,20 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           return;
         }
 
+        // Divergência entre título cru e normalizado → apresenta as duas sugestões.
+        if (code === "CATEGORY_LOW_CONFIDENCE") {
+          veloToast.dismiss(toastId);
+          const suggestions = ((bodyExtra?.suggestions ?? (data as any)?.suggestions) as Array<{ category_id?: string; category_name?: string }> | undefined) || [];
+          const first = suggestions.find((s) => s.category_id);
+          setManualCatSuggestion({
+            id: first?.category_id,
+            name: first?.category_name,
+          });
+          setManualCatOpen(true);
+          setPublishing(false);
+          return;
+        }
+
         // Conta do ML bloqueada para publicar (cadastro incompleto, modo vendedor
         // não ativado, etc.) → abrimos o tutorial em 3 etapas em vez do toast.
         if (code === "ML_SELLER_CANNOT_LIST") {
