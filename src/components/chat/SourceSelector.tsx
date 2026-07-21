@@ -51,7 +51,7 @@ const sources: {
 ];
 
 export const SourceSelector = ({ onConfirm }: SourceSelectorProps) => {
-  const [selected, setSelected] = useState<ProductSource>("aliexpress");
+  const [selected, setSelected] = useState<ProductSource>("mercadolivre");
 
   return (
     <div className="rounded-2xl border border-border bg-background shadow-sm w-full max-w-[340px] overflow-hidden">
