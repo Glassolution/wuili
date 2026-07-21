@@ -581,32 +581,34 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         } catch { return []; }
       })();
 
-      const { data, error } = await supabase.functions.invoke("ml-publish", {
-        body: {
-          product: {
-            id: product?.id,
-            external_id: product?.external_id,
-            cj_product_id: null,
-            cj_product_url: product?.original_url ?? null,
-            cj_variant_id: null,
-            title: title.trim(),
-            price: sellPrice,
-            cost_price: totalCost,
-            description: description || `${title} - Produto de alta qualidade com envio rápido.`,
-            images,
-            available_quantity: Math.min(stockQty, 10),
-            condition: "new",
-            brand: brand.trim() || null,
-            model: model.trim() || null,
-            ml_attributes: mlAttributes,
-            weight: typeof product?.weight === "number" ? product.weight : null,
-            product_url: product?.product_url ?? null,
-            // Overrides vindos do modal de categoria manual.
-            override_category_id: override?.categoryId,
-            size_grid_id: override?.sizeGridId,
-          },
+      const publishBody = {
+        product: {
+          id: product?.id,
+          external_id: product?.external_id,
+          cj_product_id: null,
+          cj_product_url: product?.original_url ?? null,
+          cj_variant_id: null,
+          title: title.trim(),
+          price: sellPrice,
+          cost_price: totalCost,
+          description: description || `${title} - Produto de alta qualidade com envio rápido.`,
+          images,
+          available_quantity: Math.min(stockQty, 10),
+          condition: "new",
+          brand: brand.trim() || null,
+          model: model.trim() || null,
+          ml_attributes: mlAttributes,
+          weight: typeof product?.weight === "number" ? product.weight : null,
+          product_url: product?.product_url ?? null,
+          override_category_id: override?.categoryId,
+          size_grid_id: override?.sizeGridId,
         },
+      };
+      console.log("[ml-publish] request body:", JSON.stringify(publishBody, null, 2));
+      const { data, error } = await supabase.functions.invoke("ml-publish", {
+        body: publishBody,
       });
+      console.log("[ml-publish] response:", { data, error });
 
       if (error || data?.error) {
         // supabase.functions.invoke esconde o body quando status != 2xx.
