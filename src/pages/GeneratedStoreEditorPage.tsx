@@ -2028,6 +2028,12 @@ const GeneratedStoreEditorPage = () => {
   const ctaPrimary = copy.cta1;
   const ctaSecondary = copy.cta2;
   const heroCtaHref = heroCtaUrl.trim() || "/catalogo";
+  const heroSlides = (() => {
+    const productImgs = displayedProducts.map((p) => p.imageUrl).filter((u): u is string => !!u);
+    const custom = heroImage && !heroImage.startsWith("/hero-pasted-image") ? [heroImage] : [];
+    const combined = [...custom, ...productImgs];
+    return combined.length ? combined.slice(0, 4) : [""];
+  })();
   const taglinePool = ["Escolhas para voc\u00ea", "Qualidade todo dia", "Descubra o novo", "Tudo em um s\u00f3 lugar"];
   const brandTagline = taglinePool[taglineVariant % taglinePool.length];
   const fontOptions = [
