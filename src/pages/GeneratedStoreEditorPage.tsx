@@ -4128,7 +4128,15 @@ const GeneratedStoreEditorPage = () => {
         onClose={() => setAdminOpen(false)}
         project={currentProject}
         onProjectUpdated={setCurrentProject}
+        storeProducts={products.map((p) => ({
+          id: p.id,
+          title: p.title,
+          price: p.price,
+          imageUrl: p.imageUrl || p.imageUrls?.[0] || "",
+          category: p.category,
+        }))}
       />
+
 
 
       {showPlans ? (
