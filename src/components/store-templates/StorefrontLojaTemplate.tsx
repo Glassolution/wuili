@@ -170,12 +170,12 @@ const StorefrontLojaTemplate = ({
     <>
       <StorefrontNavbar storeName={brandName} logoImage={logoImage} activePage="store" className="relative z-30" />
 
-      <section className="relative overflow-hidden bg-[#062f4e] shadow-[0_14px_34px_rgba(6,42,67,0.2)]">
+      <section className="relative overflow-hidden bg-[#1a3c2a] shadow-[0_14px_34px_rgba(20,42,26,0.22)]">
         <img src={heroImage} alt="" aria-hidden="true" className="block h-auto w-full" />
         <div className="absolute inset-0" aria-label="Conteúdo do banner principal">
-          <div className="absolute z-20 overflow-hidden bg-white text-[#1f2933]" style={{ left: "3.12%", top: "0%", width: "19.45%", height: "100%" }}>
-            <div className="flex h-[7.9%] w-full items-center border-b border-black/5 bg-white px-[5%]" style={{ fontSize: "clamp(7.5px,0.82vw,13px)" }}>
-              <div className="flex h-[68%] w-full items-center gap-[7%] rounded-[3px] bg-[#082f4b] px-[6%] text-white">
+          <div className="absolute z-20 overflow-hidden bg-[#f5f2ea] text-[#1f2933]" style={{ left: "3.12%", top: "0%", width: "19.45%", height: "100%" }}>
+            <div className="flex h-[7.9%] w-full items-center border-b border-black/5 bg-[#f5f2ea] px-[5%]" style={{ fontSize: "clamp(7.5px,0.82vw,13px)" }}>
+              <div className="flex h-[68%] w-full items-center gap-[7%] rounded-full bg-[#1a3c2a] px-[6%] text-white">
                 <Menu size={15} strokeWidth={2} className="h-[1.18em] w-[1.18em] shrink-0" />
                 <span className="font-medium leading-none">Categorias</span>
               </div>
