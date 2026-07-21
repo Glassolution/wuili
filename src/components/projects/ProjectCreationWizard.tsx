@@ -168,7 +168,9 @@ const ProjectCreationWizard = ({
   const [draggingLogo, setDraggingLogo] = useState(false);
   const [logoUrlInput, setLogoUrlInput] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>(preselectedProductIds ?? []);
-  const [templateId, setTemplateId] = useState<string>("produto-1");
+  const defaultTemplateId = tipo === "loja_completa" ? "loja-1" : "produto-1";
+  const [templateId, setTemplateId] = useState<string>(defaultTemplateId);
+
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
