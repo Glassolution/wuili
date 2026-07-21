@@ -233,7 +233,7 @@ const ProjectCreationWizard = ({
 
   const availableTemplates = useMemo(
     () => TEMPLATES.filter((template) => template.tipo === tipo),
-    [],
+    [tipo],
   );
 
   const filteredProducts = useMemo(() => {
