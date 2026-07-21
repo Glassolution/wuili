@@ -1345,6 +1345,38 @@ Deno.serve(async (req) => {
       console.error('Erro ao salvar publicação:', pubErr)
     }
 
+    // Persistir categoria confirmada + status em catalog_products e log de predição.
+    if (productRecordId) {
+      try {
+        await supabase
+          .from('catalog_products')
+          .update({
+            ml_category_id: categoryId,
+            ml_category_status: categoryStatusForRecord,
+            ml_size_grid_id: providedSizeGridId || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', productRecordId)
+      } catch (persistErr) {
+        console.error('[ml-publish] Falha ao gravar categoria confirmada:', persistErr)
+      }
+      try {
+        await supabase.from('ml_category_prediction_log').insert({
+          product_id: productRecordId,
+          user_id,
+          title_raw: title,
+          title_normalized: prediction?.normalizedTitle ?? '',
+          predicted_raw: prediction?.rawPrediction ?? null,
+          predicted_normalized: prediction?.normalizedPrediction ?? null,
+          final_category: categoryId,
+          final_status: categoryStatusForRecord,
+          requires_size_grid: Boolean(providedSizeGridId),
+        })
+      } catch (logErr) {
+        console.error('[ml-publish] Falha ao gravar log de predição (success):', logErr)
+      }
+    }
+
     console.log('=== ml-publish SUCCESS ===', itemId)
     return json({ success: true, permalink: itemData.permalink, item_id: itemId })
 
