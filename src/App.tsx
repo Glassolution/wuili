@@ -19,6 +19,7 @@ const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditor
 const StoreCatalogPage = lazy(() => import("./pages/StoreCatalogPage"));
 const PreviewPage = lazy(() => import("./pages/PreviewPage"));
 const PublicStorePage = lazy(() => import("./pages/PublicStorePage"));
+const PublicStoreCatalogPage = lazy(() => import("./pages/PublicStoreCatalogPage"));
 const SalesCartPage = lazy(() => import("./pages/public-sales/SalesCartPage"));
 const SalesCheckoutPage = lazy(() => import("./pages/public-sales/SalesCheckoutPage"));
 const SalesThankYouPage = lazy(() => import("./pages/public-sales/SalesThankYouPage"));
@@ -151,6 +152,7 @@ const App = () => (
               <Route path="/privacidade" element={<PrivacyPage />} />
               <Route path="/preview/:slug" element={<PublicStorePage />} />
               <Route path="/loja/:slug" element={<PublicStorePage />} />
+              <Route path="/loja/:slug/catalogo" element={<PublicStoreCatalogPage />} />
               <Route path="/loja/:slug/carrinho" element={<SalesCartPage />} />
               <Route path="/loja/:slug/checkout" element={<SalesCheckoutPage />} />
               <Route path="/loja/:slug/obrigado" element={<SalesThankYouPage />} />
