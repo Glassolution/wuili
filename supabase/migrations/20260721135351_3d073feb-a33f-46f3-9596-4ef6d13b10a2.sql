@@ -1,0 +1,1 @@
+UPDATE public.catalog_products SET is_blocked = true WHERE source = 'aliexpress' AND is_blocked = false;
