@@ -232,14 +232,14 @@ const StorefrontLojaTemplate = ({
           <div className="flex w-full items-start justify-between gap-3 overflow-x-auto pb-2 pr-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {browseCategories.map(({ category, imageUrl }) => (
               <a key={category} href="#categorias" className="group grid w-[84px] shrink-0 grid-rows-[84px_28px] justify-items-center gap-2 text-center">
-                <span className="flex h-[84px] w-[84px] items-center justify-center overflow-hidden rounded-full bg-[#f3f1ee] transition duration-300 group-hover:-translate-y-1">
+                <span className="flex h-[84px] w-[84px] items-center justify-center overflow-hidden rounded-full bg-[#eef1de] ring-1 ring-[#1a3c2a]/5 transition duration-300 group-hover:-translate-y-1 group-hover:bg-[#e6ecd0]">
                   <img src={imageUrl} alt={category} className="h-full w-full object-contain p-2" />
                 </span>
-                <span className="flex min-h-[24px] items-start justify-center text-[8.5px] font-medium leading-tight text-black/80">{category}</span>
+                <span className="flex min-h-[24px] items-start justify-center text-[8.5px] font-medium leading-tight text-[#1a3c2a]/80">{category}</span>
               </a>
             ))}
           </div>
-          <button type="button" aria-label="Ver mais categorias" className="absolute right-0 top-[28px] flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-black shadow-[0_4px_14px_rgba(0,0,0,0.12)] transition hover:-translate-y-0.5"><ChevronLeft size={14} className="rotate-180" /></button>
+          <button type="button" aria-label="Ver mais categorias" className="absolute right-0 top-[28px] flex h-8 w-8 items-center justify-center rounded-full border border-[#1a3c2a]/10 bg-[#f5f2ea] text-[#1a3c2a] shadow-[0_4px_14px_rgba(26,60,42,0.14)] transition hover:-translate-y-0.5"><ChevronLeft size={14} className="rotate-180" /></button>
         </div>
       </section>
 
