@@ -1,24 +1,18 @@
-// Reescreve URLs de fornecedores que bloqueiam hotlink (ex.: C7 Drop tem
-// firewall Vercel que devolve 403 pra qualquer <img src>). Roteamos essas URLs
-// pela edge function `img-proxy`, que refaz o fetch com headers de browser e
-// serve o binário com CORS + cache imutável.
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-
-const PROXY_HOSTS = new Set(["c7drop.com.br", "www.c7drop.com.br"]);
+// Rehosting de imagens dos fornecedores.
+//
+// C7 Drop hospeda as imagens em `c7drop.com.br` (Vercel), que retorna 403 pra
+// requisições vindas de cloud IPs (Supabase Edge, nossa sandbox). Isso significa
+// que proxy server-side não resolve — a única saída é rehospedar as imagens
+// no Storage do próprio Supabase quando o scraper roda em ambiente permitido.
+//
+// Por enquanto este helper é passthrough: navegadores dos usuários geralmente
+// conseguem carregar direto (o bloqueio do Vercel mira em bots server-side),
+// então roteá-los pelo proxy só piora. A função `img-proxy` continua deployada
+// pra uso futuro se um host adicionar bloqueio a browsers também.
 
 export function proxyImageUrl(input: string | null | undefined): string {
   if (!input) return "";
-  const trimmed = input.trim();
-  if (!trimmed) return "";
-  if (!SUPABASE_URL) return trimmed;
-  try {
-    const parsed = new URL(trimmed);
-    if (!PROXY_HOSTS.has(parsed.hostname)) return trimmed;
-    return `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/img-proxy?u=${encodeURIComponent(trimmed)}`;
-  } catch {
-    return trimmed;
-  }
+  return input.trim();
 }
 
 export function proxyImageList(list: readonly (string | null | undefined)[] | null | undefined): string[] {
