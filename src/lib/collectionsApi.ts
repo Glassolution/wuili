@@ -104,25 +104,29 @@ export const onCollectionsUpdated = (callback: () => void) => {
   return () => window.removeEventListener(COLLECTIONS_UPDATED_EVENT, callback);
 };
 
+import { proxyImageList } from "@/lib/imageProxy";
+
 const getProductImages = (images: Json | null): string[] => {
   if (!images) return [];
 
-  if (Array.isArray(images)) {
-    return images.filter((image): image is string => typeof image === "string" && image.trim().length > 0);
-  }
-
-  if (typeof images === "string") {
-    try {
-      const parsed: unknown = JSON.parse(images);
-      return Array.isArray(parsed)
-        ? parsed.filter((image): image is string => typeof image === "string" && image.trim().length > 0)
-        : [images];
-    } catch {
-      return [images];
+  const rawList: string[] = (() => {
+    if (Array.isArray(images)) {
+      return images.filter((image): image is string => typeof image === "string" && image.trim().length > 0);
     }
-  }
+    if (typeof images === "string") {
+      try {
+        const parsed: unknown = JSON.parse(images);
+        return Array.isArray(parsed)
+          ? parsed.filter((image): image is string => typeof image === "string" && image.trim().length > 0)
+          : [images];
+      } catch {
+        return [images];
+      }
+    }
+    return [];
+  })();
 
-  return [];
+  return proxyImageList(rawList);
 };
 
 export const listCollections = async (userId: string, limit?: number): Promise<VeloCollection[]> => {
