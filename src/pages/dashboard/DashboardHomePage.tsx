@@ -26,6 +26,8 @@ import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
 import type { ProjectType } from "@/lib/userProjects";
 import { preloadVidalytics } from "@/lib/vidalyticsPreload";
 import MobileHome from "@/components/dashboard/MobileHome";
+import { usePlan } from "@/hooks/usePlan";
+import { canCreateStore, canCreateSalesPage } from "@/lib/planLimits";
 
 const DASHBOARD_IMAGE_SRC = "/assets/dashboard-inicio-colado.png";
 const WHATSAPP_SUPPORT_URL =
