@@ -21,7 +21,9 @@ const SalesCheckoutPage = () => {
   const qty = Math.max(1, Math.min(10, Number(searchParams.get("qty") ?? 1)));
 
   const { data, loading, error } = useSalesPageData(slug);
-  const [method, setMethod] = useState<PayMethod>("pix");
+  // Pagamento é sempre Pix (aprovação imediata); o checkout não oferece mais
+  // escolha de forma de pagamento. O cartão era apenas modo demo.
+  const [method] = useState<PayMethod>("pix");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<null | {
     orderId: string;
@@ -128,41 +130,6 @@ const SalesCheckoutPage = () => {
         <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_400px]">
           {/* Coluna esquerda - formulário */}
           <div className="space-y-8">
-            <section>
-              <h2 className="text-[18px] font-semibold text-black">Forma de pagamento</h2>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setMethod("pix")}
-                  className={`h-16 rounded-2xl border px-4 text-left transition ${method === "pix" ? "border-black bg-black/[0.03]" : "border-black/10 bg-[#F7F7F5]"}`}
-                >
-                  <p className="text-[13px] font-semibold text-black">Pix</p>
-                  <p className="text-[11px] text-black/50">Aprovação imediata</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMethod("credit_card")}
-                  className={`h-16 rounded-2xl border px-4 text-left transition ${method === "credit_card" ? "border-black bg-black/[0.03]" : "border-black/10 bg-[#F7F7F5]"}`}
-                >
-                  <p className="text-[13px] font-semibold text-black">Cartão de crédito</p>
-                  <p className="text-[11px] text-black/50">Visa · Master · Amex</p>
-                </button>
-              </div>
-
-              {method === "credit_card" && (
-                <div className="mt-4 grid gap-3">
-                  <div className="h-14 rounded-2xl bg-[#F5F5F3] px-4 py-3 text-[13px] text-black/40">Número do cartão</div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="h-14 rounded-2xl bg-[#F5F5F3] px-4 py-3 text-[13px] text-black/40">Validade</div>
-                    <div className="h-14 rounded-2xl bg-[#F5F5F3] px-4 py-3 text-[13px] text-black/40">CVV</div>
-                  </div>
-                  <p className="text-[11px] text-black/50">
-                    Nesta versão o cartão está em modo demo — use Pix para concluir uma cobrança real.
-                  </p>
-                </div>
-              )}
-            </section>
-
             <section>
               <h2 className="text-[18px] font-semibold text-black">Seus dados</h2>
               <div className="mt-4 space-y-3">

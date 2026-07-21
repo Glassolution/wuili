@@ -155,28 +155,43 @@ const SalesCartPage = () => {
               <div className="mt-6 space-y-4">
                 <div>
                   <label className="text-[11px] font-medium text-black/50">Nome no cartão:</label>
-                  <div className="mt-1 border-b border-black/20 pb-1 text-[13px] font-medium text-black">João da Silva</div>
+                  <input
+                    type="text"
+                    placeholder="Nome impresso no cartão"
+                    className="mt-1 w-full border-b border-black/20 bg-transparent pb-1 text-[13px] font-medium text-black outline-none placeholder:font-normal placeholder:text-black/30"
+                  />
                 </div>
                 <div>
                   <label className="text-[11px] font-medium text-black/50">Número do cartão:</label>
-                  <div className="mt-1 border-b border-black/20 pb-1 text-[13px] font-medium tracking-wider text-black">•••• •••• •••• 2153</div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0000 0000 0000 0000"
+                    className="mt-1 w-full border-b border-black/20 bg-transparent pb-1 text-[13px] font-medium tracking-wider text-black outline-none placeholder:font-normal placeholder:tracking-normal placeholder:text-black/30"
+                  />
                 </div>
                 <div className="grid grid-cols-[1fr_1fr_60px] gap-3">
                   <div>
                     <label className="text-[11px] font-medium text-black/50">Validade:</label>
-                    <button className="mt-1 flex w-full items-center justify-between border-b border-black/20 pb-1 text-[13px] font-medium text-black">
-                      05 <ChevronDown size={12} />
+                    <button className="mt-1 flex w-full items-center justify-between border-b border-black/20 pb-1 text-[13px] font-medium text-black/30">
+                      MM <ChevronDown size={12} className="text-black/40" />
                     </button>
                   </div>
                   <div>
                     <label className="text-[11px] font-medium text-black/50">Ano:</label>
-                    <button className="mt-1 flex w-full items-center justify-between border-b border-black/20 pb-1 text-[13px] font-medium text-black">
-                      2028 <ChevronDown size={12} />
+                    <button className="mt-1 flex w-full items-center justify-between border-b border-black/20 pb-1 text-[13px] font-medium text-black/30">
+                      AAAA <ChevronDown size={12} className="text-black/40" />
                     </button>
                   </div>
                   <div>
                     <label className="text-[11px] font-medium text-black/50">CVV:</label>
-                    <div className="mt-1 border-b border-black/20 pb-1 text-[13px] font-medium text-black">156</div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="000"
+                      maxLength={4}
+                      className="mt-1 w-full border-b border-black/20 bg-transparent pb-1 text-[13px] font-medium text-black outline-none placeholder:font-normal placeholder:text-black/30"
+                    />
                   </div>
                 </div>
               </div>
