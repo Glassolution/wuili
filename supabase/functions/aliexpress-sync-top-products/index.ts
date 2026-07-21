@@ -19,6 +19,12 @@ const DETAIL_BATCH_SIZE = 6; // product.get em paralelo por lote (Promise.all)
 const DETAIL_BATCH_DELAY_MS = 400; // pausa entre lotes para respeitar rate-limit AliExpress
 const MIN_IMAGES_REQUIRED = 3; // regra fixa: produto AliExpress só é publicável com ≥ 3 fotos
 const STUCK_RUN_MINUTES = 15; // execuções "running" mais antigas que isso são marcadas como failed no boot
+// Circuit breaker de rate-limit: se >= metade de um lote falhar por rate-limit,
+// OU se acumulado ultrapassar RATE_LIMIT_ABORT_TOTAL, aborta enriquecimento e
+// descarta os produtos ainda não enriquecidos (evita salvar galerias truncadas).
+const RATE_LIMIT_ABORT_BATCH_RATIO = 0.5;
+const RATE_LIMIT_ABORT_TOTAL = 10;
+const RATE_LIMIT_ERROR_REGEX = /rate.?limit|too many|frequency|qps|call.?limit|flow.?limit|isv\.invoke-limit|429/i;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
