@@ -242,8 +242,9 @@ const HeroCarousel = ({
   );
 };
 
-
+const StorefrontLojaTemplate = ({
   storeName,
+
   heroImage,
   logoImage = null,
   salesAngle = "",
