@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Box,
   FileText,
-  FlaskConical,
   Inbox,
   Loader2,
   Mail,
@@ -165,12 +164,6 @@ const StoreProjectsPage = () => {
   const canCreateStorePlan = isAdmin || canCreateStore(currentPlan, storeCount);
   const canCreateSalesPagePlan = isAdmin || canCreateSalesPage(currentPlan, salesPageCount);
   const requestCreate = () => {
-    // Se o plano atual não permite criar nenhum tipo de projeto, mostra o modal
-    // de upgrade em vez de abrir o wizard.
-    if (!isAdmin && !canCreateStorePlan && !canCreateSalesPagePlan) {
-      openUpgrade({ defaultPlan: "base" });
-      return;
-    }
     setWizardOpen(true);
   };
   const visibleProjects = projects;
@@ -297,17 +290,14 @@ const StoreProjectsPage = () => {
     }
   };
 
-  // Se pode criar loja e página, mostra o chooser. Caso só um dos dois esteja
-  // liberado no plano, o wizard já abre no tipo correto.
+  // A escolha entre loja completa e página de venda sempre fica visível para o
+  // usuário. Se o plano atual não permite um dos tipos, o wizard mostra o selo
+  // "Plano Pro" e dispara o modal de upgrade ao clicar.
   const wizardDefaultTipo: ProjectType = canCreateStorePlan && !canCreateSalesPagePlan
     ? "loja_completa"
     : "pagina_venda";
-  const wizardAllowChoice = canCreateStorePlan && canCreateSalesPagePlan;
-  const newProjectLabel = canCreateStorePlan && canCreateSalesPagePlan
-    ? "Novo projeto"
-    : canCreateStorePlan
-      ? "Nova loja"
-      : "Nova página de venda";
+  const wizardAllowChoice = true;
+  const newProjectLabel = "Novo projeto";
 
   return (
     <div className="-m-5 flex min-h-[calc(100vh-92px)] flex-1 flex-col bg-white text-[#171717] sm:-m-6 lg:-m-7">
@@ -340,21 +330,14 @@ const StoreProjectsPage = () => {
             <Inbox size={15} strokeWidth={1.8} />
             Todos {visibleProjects.length}
           </button>
-          {canCreateStorePlan || storeCount > 0 ? (
-            <button
-              type="button"
-              onClick={() => setFilter("loja_completa")}
-              className={filterTabCls(filter === "loja_completa")}
-            >
-              <Store size={15} strokeWidth={1.8} />
-              Lojas {projectCounts.stores}
-            </button>
-          ) : (
-            <span className="flex h-9 items-center gap-2 rounded-[7px] bg-[#f3f3f1] px-3 text-[12px] font-semibold text-[#6d7177]">
-              <FlaskConical size={14} strokeWidth={1.8} />
-              Loja completa · disponível no plano Pro
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => setFilter("loja_completa")}
+            className={filterTabCls(filter === "loja_completa")}
+          >
+            <Store size={15} strokeWidth={1.8} />
+            Lojas {projectCounts.stores}
+          </button>
           <button
             type="button"
             onClick={() => setFilter("pagina_venda")}
@@ -556,6 +539,13 @@ const StoreProjectsPage = () => {
         onClose={() => setWizardOpen(false)}
         defaultTipo={wizardDefaultTipo}
         allowTipoChoice={wizardAllowChoice}
+        isTipoRestricted={(t) =>
+          t === "loja_completa" ? !canCreateStorePlan : !canCreateSalesPagePlan
+        }
+        onRestrictedTipo={(t) => {
+          setWizardOpen(false);
+          openUpgrade({ defaultPlan: t === "loja_completa" ? "pro" : "base" });
+        }}
         onCreated={handleProjectCreated}
       />
 
