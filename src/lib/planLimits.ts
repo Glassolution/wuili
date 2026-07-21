@@ -118,3 +118,21 @@ export const canConnectMarketplace = (
   return !hasReachedLimit(usage.connectedMarketplaces ?? 0, limits.marketplaces);
 };
 
+export const canCreateStore = (
+  plan?: string | null,
+  currentStoreCount = 0,
+): boolean => {
+  const limits = getPlanLimits(plan);
+  if (limits.stores === 0) return false;
+  return !hasReachedLimit(currentStoreCount, limits.stores);
+};
+
+export const canCreateSalesPage = (
+  plan?: string | null,
+  currentPageCount = 0,
+): boolean => {
+  const limits = getPlanLimits(plan);
+  if (limits.salesPages === 0) return false;
+  return !hasReachedLimit(currentPageCount, limits.salesPages);
+};
+

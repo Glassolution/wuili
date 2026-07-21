@@ -26,6 +26,8 @@ import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
 import type { ProjectType } from "@/lib/userProjects";
 import { preloadVidalytics } from "@/lib/vidalyticsPreload";
 import MobileHome from "@/components/dashboard/MobileHome";
+import { usePlan } from "@/hooks/usePlan";
+import { canCreateStore, canCreateSalesPage } from "@/lib/planLimits";
 
 const DASHBOARD_IMAGE_SRC = "/assets/dashboard-inicio-colado.png";
 const WHATSAPP_SUPPORT_URL =
@@ -282,7 +284,16 @@ const DashboardHomePage = () => {
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
-  const wizardDefaultTipo: ProjectType = isAdmin ? "loja_completa" : "pagina_venda";
+  const { plan: currentPlan } = usePlan();
+  // Não temos a contagem exata aqui — usamos 0 para decidir apenas se o plano
+  // permite criar cada tipo de projeto. Os limites reais são reavaliados na
+  // página de projetos com base na contagem atual.
+  const canCreateStorePlan = isAdmin || canCreateStore(currentPlan, 0);
+  const canCreateSalesPagePlan = isAdmin || canCreateSalesPage(currentPlan, 0);
+  const wizardDefaultTipo: ProjectType = canCreateStorePlan && !canCreateSalesPagePlan
+    ? "loja_completa"
+    : "pagina_venda";
+  const wizardAllowChoice = canCreateStorePlan && canCreateSalesPagePlan;
 
   const handleProjectCreated = (projectId: string) => {
     setWizardOpen(false);
@@ -536,7 +547,7 @@ const DashboardHomePage = () => {
 
           {toolCards.map((card) => {
             const Icon = card.icon;
-            const storeCreationInTesting = card.title === "Loja completa" && !isAdmin;
+            const storeCreationInTesting = card.title === "Loja completa" && !canCreateStorePlan;
 
             return (
               <a
@@ -553,13 +564,13 @@ const DashboardHomePage = () => {
 
                 {card.badge || storeCreationInTesting ? (
                   <span className="absolute right-[1vw] top-[1vw] rounded-[0.32vw] bg-[#f1f2f4] px-[0.45vw] py-[0.17vw] text-[clamp(6px,0.58vw,11px)] font-bold text-black">
-                    {storeCreationInTesting ? "EM TESTES" : card.badge}
+                    {storeCreationInTesting ? "Plano Pro" : card.badge}
                   </span>
                 ) : null}
 
                 <h3 className="mt-[1vw] text-[clamp(9px,1.02vw,20px)] font-semibold leading-[1.08] tracking-[-0.018em] text-[#242832]">{card.title}</h3>
                 <p className="mt-[0.65vw] text-[clamp(7px,0.72vw,14px)] font-medium leading-[1.36] text-[#68707d]">
-                  {storeCreationInTesting ? "Recurso temporariamente disponível apenas para testes internos." : card.description}
+                  {storeCreationInTesting ? "Lojas completas fazem parte do plano Pro. Faça upgrade para desbloquear." : card.description}
                 </p>
               </a>
             );
@@ -852,7 +863,7 @@ const DashboardHomePage = () => {
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}
         defaultTipo={wizardDefaultTipo}
-        allowTipoChoice={isAdmin}
+        allowTipoChoice={wizardAllowChoice}
         onCreated={handleProjectCreated}
       />
     </main>

@@ -21,6 +21,8 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
 import ProjectSettingsOverlay from "@/components/editor/ProjectSettingsOverlay";
 import { usePlan } from "@/hooks/usePlan";
+import { canCreateSalesPage, canCreateStore } from "@/lib/planLimits";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { toast } from "sonner";
 
 type ProjectCard = {
@@ -139,6 +141,7 @@ const StoreProjectsPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const { plan: currentPlan } = usePlan();
+  const { open: openUpgrade } = useUpgradeModal();
   const [projects, setProjects] = useState<ProjectCard[]>([]);
   const [rawProjects, setRawProjects] = useState<UserProject[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -151,16 +154,26 @@ const StoreProjectsPage = () => {
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
   const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
+  const storeCount = useMemo(
+    () => projects.filter((project) => project.tipo === "loja_completa").length,
+    [projects],
+  );
+  const salesPageCount = useMemo(
+    () => projects.filter((project) => project.tipo === "pagina_venda").length,
+    [projects],
+  );
+  const canCreateStorePlan = isAdmin || canCreateStore(currentPlan, storeCount);
+  const canCreateSalesPagePlan = isAdmin || canCreateSalesPage(currentPlan, salesPageCount);
   const requestCreate = () => {
-    // Usuários gratuitos podem CRIAR páginas de vendas livremente.
-    // O bloqueio de plano acontece apenas ao PUBLICAR (dentro do editor).
-    // Admin pode criar loja completa; usuários comuns só criam página de venda.
+    // Se o plano atual não permite criar nenhum tipo de projeto, mostra o modal
+    // de upgrade em vez de abrir o wizard.
+    if (!isAdmin && !canCreateStorePlan && !canCreateSalesPagePlan) {
+      openUpgrade({ defaultPlan: "base" });
+      return;
+    }
     setWizardOpen(true);
   };
-  const visibleProjects = useMemo(
-    () => isAdmin ? projects : projects.filter((project) => project.tipo === "pagina_venda"),
-    [isAdmin, projects],
-  );
+  const visibleProjects = projects;
   const displayedProjects = useMemo(
     () => (filter === "all" ? visibleProjects : visibleProjects.filter((project) => project.tipo === filter)),
     [filter, visibleProjects],
@@ -284,7 +297,17 @@ const StoreProjectsPage = () => {
     }
   };
 
-  const wizardDefaultTipo: ProjectType = isAdmin ? "loja_completa" : "pagina_venda";
+  // Se pode criar loja e página, mostra o chooser. Caso só um dos dois esteja
+  // liberado no plano, o wizard já abre no tipo correto.
+  const wizardDefaultTipo: ProjectType = canCreateStorePlan && !canCreateSalesPagePlan
+    ? "loja_completa"
+    : "pagina_venda";
+  const wizardAllowChoice = canCreateStorePlan && canCreateSalesPagePlan;
+  const newProjectLabel = canCreateStorePlan && canCreateSalesPagePlan
+    ? "Novo projeto"
+    : canCreateStorePlan
+      ? "Nova loja"
+      : "Nova página de venda";
 
   return (
     <div className="-m-5 flex min-h-[calc(100vh-92px)] flex-1 flex-col bg-white text-[#171717] sm:-m-6 lg:-m-7">
@@ -305,7 +328,7 @@ const StoreProjectsPage = () => {
           className="flex h-9 items-center gap-2 rounded-[7px] bg-[#1d1d1f] px-4 text-[13px] font-semibold text-white shadow-[0_10px_18px_rgba(0,0,0,0.10)] transition hover:bg-black"
         >
           <Plus size={15} />
-          {isAdmin ? "Novo projeto" : "Nova página de venda"}
+          {newProjectLabel}
         </button>
 
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -317,7 +340,7 @@ const StoreProjectsPage = () => {
             <Inbox size={15} strokeWidth={1.8} />
             Todos {visibleProjects.length}
           </button>
-          {isAdmin ? (
+          {canCreateStorePlan || storeCount > 0 ? (
             <button
               type="button"
               onClick={() => setFilter("loja_completa")}
@@ -329,7 +352,7 @@ const StoreProjectsPage = () => {
           ) : (
             <span className="flex h-9 items-center gap-2 rounded-[7px] bg-[#f3f3f1] px-3 text-[12px] font-semibold text-[#6d7177]">
               <FlaskConical size={14} strokeWidth={1.8} />
-              Loja completa · Em fase de testes
+              Loja completa · disponível no plano Pro
             </span>
           )}
           <button
@@ -532,7 +555,7 @@ const StoreProjectsPage = () => {
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}
         defaultTipo={wizardDefaultTipo}
-        allowTipoChoice={isAdmin}
+        allowTipoChoice={wizardAllowChoice}
         onCreated={handleProjectCreated}
       />
 
