@@ -570,7 +570,7 @@ const DashboardHomePage = () => {
 
                 <h3 className="mt-[1vw] text-[clamp(9px,1.02vw,20px)] font-semibold leading-[1.08] tracking-[-0.018em] text-[#242832]">{card.title}</h3>
                 <p className="mt-[0.65vw] text-[clamp(7px,0.72vw,14px)] font-medium leading-[1.36] text-[#68707d]">
-                  {storeCreationInTesting ? "Recurso temporariamente disponível apenas para testes internos." : card.description}
+                  {storeCreationInTesting ? "Lojas completas fazem parte do plano Pro. Faça upgrade para desbloquear." : card.description}
                 </p>
               </a>
             );
