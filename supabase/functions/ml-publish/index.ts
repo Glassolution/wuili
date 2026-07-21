@@ -564,8 +564,23 @@ Deno.serve(async (req) => {
 
 
     // === CATEGORY (leaf only) ===
-    let categoryId = await predictCategory(title)
-    console.log('Categoria final (leaf):', categoryId)
+    // Prioridade: 1) categoria explícita enviada pelo usuário (ml_category_id/category_id),
+    // 2) predição automática por título. Categoria explícita ainda passa por
+    // validação de leaf — se não for folha, resolvemos automaticamente.
+    const userCategoryOverride = cleanText(
+      (productRecord.ml_category_id as string | undefined) ??
+      (productRecord.category_id as string | undefined),
+    )
+    let categoryId: string
+    if (userCategoryOverride && /^MLB\d+$/.test(userCategoryOverride)) {
+      categoryId = (await isLeafCategory(userCategoryOverride))
+        ? userCategoryOverride
+        : await resolveLeafCategory(userCategoryOverride)
+      console.log('Categoria (override do usuário):', categoryId)
+    } else {
+      categoryId = await predictCategory(title)
+      console.log('Categoria (auto):', categoryId)
+    }
 
     // === ATTRIBUTES ===
     // Buscamos a ficha de atributos da categoria para saber quais sao
