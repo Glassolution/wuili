@@ -314,7 +314,8 @@ const GeneratedStoreEditorPage = () => {
   const [accent, setAccent] = useState("#111111");
   const [font, setFont] = useState("Geist");
   const [columns, setColumns] = useState(3);
-  const [heroImage, setHeroImage] = useState("/hero-pasted-image-2.png");
+  const [heroImage, setHeroImage] = useState("");
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [heroCtaUrl, setHeroCtaUrl] = useState("/catalogo");
   const [products, setProducts] = useState<CatalogItem[]>([]);
