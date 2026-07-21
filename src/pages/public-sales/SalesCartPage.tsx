@@ -46,12 +46,33 @@ const SalesCartPage = () => {
   const credits = useCredits ? 5 : 0;
   const total = Math.max(0, subtotal + deliveryFee + serviceFee + tax + tip - credits);
 
+  // Somente lojas (loja_completa) usam o design personalizado AERO STEP.
+  // Páginas de vendas (pagina_venda) usam um layout branco/neutro padrão.
+  const isStore = data.tipoProjeto === "loja_completa";
+  const t = isStore
+    ? {
+        bg: "#f5f2ea", surface: "rgba(255,255,255,0.8)", border: "rgba(26,26,26,0.08)",
+        text: "#1a1a1a", muted: "rgba(26,26,26,0.6)", accent: "#3d4a2a", accentDark: "#1a3c2a",
+        accentText: "#f5f2ea", gold: "#c8a24a", cta: "#c8442a", ctaHover: "#a83820",
+        thumbBg: "#e8ecd6",
+        bodyFont: '"Inter", system-ui, sans-serif',
+        displayFont: '"Fraunces", "Playfair Display", serif',
+      }
+    : {
+        bg: "#ffffff", surface: "#ffffff", border: "rgba(15,23,42,0.10)",
+        text: "#0f172a", muted: "rgba(15,23,42,0.55)", accent: "#0f172a", accentDark: "#0f172a",
+        accentText: "#ffffff", gold: "#0f172a", cta: "#0f172a", ctaHover: "#1e293b",
+        thumbBg: "#f1f5f9",
+        bodyFont: 'Inter, system-ui, -apple-system, sans-serif',
+        displayFont: 'Inter, system-ui, -apple-system, sans-serif',
+      };
+
   const Step = ({ label, active }: { label: string; active?: boolean }) => (
-    <span className={`text-[12px] tracking-[0.24em] uppercase ${active ? "text-[#1a1a1a] font-semibold" : "text-[#1a1a1a]/40"}`}>{label}</span>
+    <span className="text-[12px] tracking-[0.24em] uppercase" style={{ color: active ? t.text : t.muted, fontWeight: active ? 600 : 400 }}>{label}</span>
   );
 
   return (
-    <div className="min-h-screen bg-[#f5f2ea] text-[#1a1a1a]" style={{ fontFamily: '"Inter", system-ui, sans-serif' }}>
+    <div className="min-h-screen" style={{ backgroundColor: t.bg, color: t.text, fontFamily: t.bodyFont }}>
       {/* Topbar */}
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#1a1a1a]/8 px-6 py-5 md:px-10">
         <div className="flex items-center gap-3">
