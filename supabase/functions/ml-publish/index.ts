@@ -831,21 +831,15 @@ Deno.serve(async (req) => {
         } catch (persistErr) {
           console.error('[ml-publish] Falha ao gravar ml_category_status=needs_manual:', persistErr)
         }
-        try {
-          await supabase.from('ml_category_prediction_log').insert({
-            product_id: productRecordId,
-            user_id,
-            title_raw: title,
-            title_normalized: suggested.normalizedTitle,
-            predicted_raw: suggested.rawPrediction,
-            predicted_normalized: suggested.normalizedPrediction,
-            final_category: categoryId,
-            final_status: 'needs_manual',
-            requires_size_grid: true,
-          })
-        } catch (logErr) {
-          console.error('[ml-publish] Falha ao gravar log de predição:', logErr)
-        }
+        await logPrediction(supabase, {
+          productId: productRecordId,
+          userId: user_id,
+          title,
+          prediction,
+          finalCategory: categoryId,
+          finalStatus: 'needs_manual',
+          requiresSizeGrid: true,
+        })
       }
 
       return json({
