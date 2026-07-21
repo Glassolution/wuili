@@ -161,8 +161,10 @@ const App = () => (
               <Route path="/loja/:slug/carrinho" element={<SalesCartPage />} />
               <Route path="/loja/:slug/checkout" element={<SalesCheckoutPage />} />
               <Route path="/loja/:slug/obrigado" element={<SalesThankYouPage />} />
+              <Route path="/loja/:slug/login" element={<SalesLoginPage />} />
               <Route path="/preview/:slug/carrinho" element={<SalesCartPage />} />
               <Route path="/preview/:slug/checkout" element={<SalesCheckoutPage />} />
+              <Route path="/preview/:slug/login" element={<SalesLoginPage />} />
               <Route path="/preview/:slug/obrigado" element={<SalesThankYouPage />} />
               <Route path="/minha-loja/fluxo" element={<ProtectedRoute><SalesFlowEditorPage /></ProtectedRoute>} />
               <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
