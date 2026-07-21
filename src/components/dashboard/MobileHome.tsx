@@ -16,6 +16,7 @@ import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { listCollectionsWithSummaries, type CollectionSummary } from "@/lib/collectionsApi";
 import { veloToast } from "@/components/ui/velo-toast";
+import { proxyImageList } from "@/lib/imageProxy";
 import {
   ProductFavoriteButton,
   formatReviewCount,
