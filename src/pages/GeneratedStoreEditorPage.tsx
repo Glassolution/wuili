@@ -1797,7 +1797,7 @@ const GeneratedStoreEditorPage = () => {
     return "";
   }, [currentProject]);
 
-  const publicUrl = projectSlug ? `${PUBLIC_APP_URL}/loja/${projectSlug}` : "";
+  const publicUrl = projectSlug ? `https://${projectSlug}.velostore.app` : "";
 
   const handleOpenPublish = () => {
     if (isFreePlan) {
