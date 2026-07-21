@@ -241,6 +241,17 @@ async function resolveLeafCategory(categoryId: string): Promise<string> {
   return current
 }
 
+// Verifica se uma categoria é folha (leaf) e existe no ML
+async function isLeafCategory(categoryId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.mercadolibre.com/categories/${categoryId}`)
+    if (!res.ok) return false
+    const cat = await res.json()
+    const children = Array.isArray(cat?.children_categories) ? cat.children_categories : []
+    return children.length === 0
+  } catch { return false }
+}
+
 // Predict category from title, ensuring it's a leaf
 async function predictCategory(title: string): Promise<string> {
   const fallback = 'MLB1051' // Generic "Outros" leaf category
@@ -254,7 +265,9 @@ async function predictCategory(title: string): Promise<string> {
       const predData = await predRes.json()
       if (predData?.id) {
         console.log('Category predictor returned:', predData.id, predData.name)
-        return predData.id
+        if (await isLeafCategory(predData.id)) return predData.id
+        const leaf = await resolveLeafCategory(predData.id)
+        if (leaf) return leaf
       }
     }
   } catch (_e) { /* ignore */ }
@@ -296,7 +309,7 @@ function mapMLError(mlData: Record<string, unknown>): { message: string; code?: 
     return { message: buildSellerBlockedMessage(codes), code: 'ML_SELLER_CANNOT_LIST' }
   }
 
-  if (causeStr.includes('category_id')) return { message: 'Categoria inválida. Tente editar o título para melhor detecção automática.' }
+  if (causeStr.includes('category_id') || msgLower.includes('category')) return { message: 'Não conseguimos identificar a categoria automaticamente para este produto. Edite o título para deixá-lo mais descritivo ou selecione a categoria manualmente antes de publicar.', code: 'INVALID_CATEGORY' }
   // Repassa a mensagem/atributo real da API do ML, sem mascarar como
   // "Atributos obrigatórios faltando" (isso dificultava diagnóstico).
   if (causeStr.includes('missing_required') || causeStr.includes('attributes') || causeStr.includes('value')) {
@@ -551,8 +564,23 @@ Deno.serve(async (req) => {
 
 
     // === CATEGORY (leaf only) ===
-    let categoryId = await predictCategory(title)
-    console.log('Categoria final (leaf):', categoryId)
+    // Prioridade: 1) categoria explícita enviada pelo usuário (ml_category_id/category_id),
+    // 2) predição automática por título. Categoria explícita ainda passa por
+    // validação de leaf — se não for folha, resolvemos automaticamente.
+    const userCategoryOverride = cleanText(
+      (productRecord.ml_category_id as string | undefined) ??
+      (productRecord.category_id as string | undefined),
+    )
+    let categoryId: string
+    if (userCategoryOverride && /^MLB\d+$/.test(userCategoryOverride)) {
+      categoryId = (await isLeafCategory(userCategoryOverride))
+        ? userCategoryOverride
+        : await resolveLeafCategory(userCategoryOverride)
+      console.log('Categoria (override do usuário):', categoryId)
+    } else {
+      categoryId = await predictCategory(title)
+      console.log('Categoria (auto):', categoryId)
+    }
 
     // === ATTRIBUTES ===
     // Buscamos a ficha de atributos da categoria para saber quais sao
