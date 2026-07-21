@@ -30,6 +30,7 @@ type ProductPreview = {
   title: string;
   category: string;
   image: string;
+  images: string[];
   price: number;
   ordersCount: number;
   rating: number | null;
