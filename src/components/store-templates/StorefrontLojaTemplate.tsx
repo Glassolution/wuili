@@ -308,18 +308,19 @@ const StorefrontLojaTemplate = ({
       <section className="px-8 pb-6 pt-10">
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-[15px] font-semibold leading-none tracking-normal text-black">Coleções em destaque</h2>
-            <p className="mt-2 text-[10.5px] leading-none text-black/50">Explore a loja pela categoria que combina com você.</p>
+            <span className="inline-flex items-center rounded-full bg-[#eef1de] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#1a3c2a]">Coleções</span>
+            <h2 className="mt-2 text-[15px] font-semibold leading-none tracking-normal text-[#1a3c2a]">Coleções em destaque</h2>
+            <p className="mt-2 text-[10.5px] leading-none text-[#1a3c2a]/55">Explore a loja pela categoria que combina com você.</p>
           </div>
-          <a href="/catalogo" className="inline-flex shrink-0 items-center gap-1.5 text-[10.5px] font-medium text-black transition hover:translate-x-0.5 hover:text-black/65">Ver todas <span aria-hidden="true">→</span></a>
+          <a href="/catalogo" className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#1a3c2a] px-3 py-1.5 text-[10.5px] font-medium text-[#f5f2ea] transition hover:-translate-y-0.5">Ver todas <span aria-hidden="true">→</span></a>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {categoryHighlights.map(({ category, imageUrl, key }, index) => (
-            <a key={key} href={`/catalogo?categoria=${encodeURIComponent(category)}`} className={`group relative aspect-[1.55/1] overflow-hidden rounded-[14px] ${collectionStyles[index % collectionStyles.length]} text-black shadow-[inset_0_0_0_1px_rgba(0,0,0,0.035)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_35px_rgba(16,24,40,0.12)]`}>
+            <a key={key} href={`/catalogo?categoria=${encodeURIComponent(category)}`} className={`group relative aspect-[1.55/1] overflow-hidden rounded-[20px] ${collectionStyles[index % collectionStyles.length]} text-[#1a3c2a] shadow-[inset_0_0_0_1px_rgba(26,60,42,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_35px_rgba(26,60,42,0.14)]`}>
               <img src={imageUrl} alt={category} className="absolute bottom-0 right-0 h-[96%] w-[68%] object-contain object-right-bottom p-2 transition duration-500 group-hover:scale-105" />
               <div className="absolute inset-x-0 bottom-0 z-10 p-4">
-                <strong className="block max-w-[56%] text-[13px] font-semibold leading-[1.08] text-black">{category}</strong>
-                <span className="mt-1 block max-w-[58%] text-[8.5px] font-normal leading-snug text-black/58">{collectionDescriptions[category] || "Explore produtos escolhidos para você."}</span>
+                <strong className="block max-w-[56%] text-[13px] font-semibold leading-[1.08] text-[#1a3c2a]">{category}</strong>
+                <span className="mt-1 block max-w-[58%] text-[8.5px] font-normal leading-snug text-[#1a3c2a]/60">{collectionDescriptions[category] || "Explore produtos escolhidos para você."}</span>
               </div>
             </a>
           ))}
