@@ -141,6 +141,7 @@ const StoreProjectsPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const { plan: currentPlan } = usePlan();
+  const { open: openUpgrade } = useUpgradeModal();
   const [projects, setProjects] = useState<ProjectCard[]>([]);
   const [rawProjects, setRawProjects] = useState<UserProject[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
