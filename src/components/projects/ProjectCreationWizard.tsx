@@ -143,6 +143,8 @@ type ProjectCreationWizardProps = {
   defaultTipo?: ProjectType;
   /** Reservado para uso futuro (travar tipo no wizard). */
   lockedTipo?: ProjectType;
+  /** Se true, mostra chooser no início pra o usuário escolher entre página de venda e loja completa. */
+  allowTipoChoice?: boolean;
   /** Se definido, pula a etapa de escolha de produtos e usa esses IDs. */
   preselectedProductIds?: string[];
   onCreated: (projectId: string) => void;
@@ -152,10 +154,11 @@ const ProjectCreationWizard = ({
   open,
   onClose,
   defaultTipo,
+  allowTipoChoice = false,
   preselectedProductIds,
   onCreated,
 }: ProjectCreationWizardProps) => {
-  const tipo: ProjectType = defaultTipo ?? DEFAULT_TIPO;
+  const [tipo, setTipo] = useState<ProjectType>(defaultTipo ?? DEFAULT_TIPO);
 
   const skipProducts = !!(preselectedProductIds && preselectedProductIds.length > 0);
   const [step, setStep] = useState<Step>("info");
