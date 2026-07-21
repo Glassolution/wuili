@@ -1852,7 +1852,12 @@ const GeneratedStoreEditorPage = () => {
     return "";
   }, [currentProject]);
 
-  const publicUrl = projectSlug ? `https://${projectSlug}.velostore.app` : "";
+  // URL pública fica no nosso domínio: <origem>/store/<slug-do-cliente>.
+  // Ex.: https://wuili.lovable.app/store/pedra
+  const publicUrl = projectSlug
+    ? `${typeof window !== "undefined" ? window.location.origin : "https://wuili.lovable.app"}/store/${projectSlug}`
+    : "";
+
 
   // Ordem das telas definida pelo dono da loja em Administração > Fluxo do cliente.
   // O canvas principal é sempre a Home; as demais telas do fluxo aparecem lado a lado
