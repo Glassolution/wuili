@@ -3347,8 +3347,21 @@ const GeneratedStoreEditorPage = () => {
                     </div>
                   </div>
 
-                  <div className="relative min-h-[380px] overflow-hidden">
-                    <img data-editor-type="image" data-editor-media-kind="banner" data-editor-id="hero-image" src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover"/>
+                  <div className="relative min-h-[380px] overflow-hidden bg-gradient-to-br from-[#e9e5d8] via-[#d9d3c1] to-[#b8b09a]">
+                    {heroSlides.map((src, idx) => {
+                      const active = idx === heroSlideIndex % heroSlides.length;
+                      return (
+                        <img
+                          key={`${src}-${idx}`}
+                          data-editor-type={idx === 0 ? "image" : undefined}
+                          data-editor-media-kind={idx === 0 ? "banner" : undefined}
+                          data-editor-id={idx === 0 ? "hero-image" : undefined}
+                          src={src || undefined}
+                          alt=""
+                          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${active ? "opacity-100" : "opacity-0"}`}
+                        />
+                      );
+                    })}
                     <div className="absolute inset-y-6 right-6 flex w-[210px] flex-col gap-3">
                       {[{icon:Truck,title:"Frete grátis",desc:"A partir de R$ 199"},{icon:Package,title:"Prove antes de pagar",desc:"7 dias para trocar"},{icon:LockKeyhole,title:"Produtos originais",desc:"Garantia de qualidade"}].map(({icon:Icon,title,desc})=>(
                         <div key={title} className="flex items-center gap-3 rounded-2xl bg-white/95 px-4 py-3 shadow-[0_10px_30px_rgba(26,26,26,0.08)] backdrop-blur">
@@ -3360,6 +3373,22 @@ const GeneratedStoreEditorPage = () => {
                         </div>
                       ))}
                     </div>
+                    {heroSlides.length > 1 && (
+                      <div className="absolute inset-x-0 bottom-5 flex items-center justify-center gap-2">
+                        {heroSlides.map((_, idx) => {
+                          const active = idx === heroSlideIndex % heroSlides.length;
+                          return (
+                            <button
+                              key={`hero-dot-${idx}`}
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); setHeroSlideIndex(idx); }}
+                              aria-label={`Slide ${idx + 1}`}
+                              className={`h-1.5 rounded-full transition-all ${active ? "w-6 bg-white" : "w-1.5 bg-white/50"}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
