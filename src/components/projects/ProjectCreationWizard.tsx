@@ -193,7 +193,7 @@ const ProjectCreationWizard = ({
     setDraggingLogo(false);
     setLogoUrlInput("");
     setSelectedProducts(preselectedProductIds ?? []);
-    setTemplateId("produto-1");
+    setTemplateId(defaultTemplateId);
     setSearch("");
     setLoadingIndex(0);
     setError(null);
