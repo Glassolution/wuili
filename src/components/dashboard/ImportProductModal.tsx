@@ -605,33 +605,50 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         },
       };
       console.log("[ml-publish] request body:", JSON.stringify(publishBody, null, 2));
-      const { data, error } = await supabase.functions.invoke("ml-publish", {
-        body: publishBody,
-      });
-      console.log("[ml-publish] response:", { data, error });
 
-      if (error || data?.error) {
-        // supabase.functions.invoke esconde o body quando status != 2xx.
-        // Tentamos extrair a mensagem amigável + código do corpo real da resposta.
-        let friendly = data?.error as string | undefined;
-        let code = data?.code as string | undefined;
-        let bodyExtra: Record<string, unknown> | undefined;
-        const ctxRes = (error as any)?.context;
-        if ((!friendly || !code) && ctxRes && typeof ctxRes.json === "function") {
-          try {
-            const body = await ctxRes.json();
-            friendly = friendly || body?.error || body?.message;
-            code = code || body?.code;
-            bodyExtra = body;
-          } catch { /* ignore */ }
-        }
+      // Trocamos supabase.functions.invoke por fetch direto: o invoke consome
+      // o body internamente em respostas não-2xx (FunctionsHttpError com
+      // Response já drenado), impedindo a leitura do JSON de erro
+      // (CATEGORY_REQUIRES_MANUAL / CATEGORY_LOW_CONFIDENCE). Com fetch nós
+      // controlamos status + body em uma única leitura.
+      const SUPABASE_URL = "https://nqzpoioxvbqavrtphtoa.supabase.co";
+      const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xenBvaW94dmJxYXZydHBodG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNDMyNDgsImV4cCI6MjA5MDgxOTI0OH0.G1VlS8doiHQtooC2tyiiHbWl4h9kqoMSuirShDhhjzk";
+      const { data: sess } = await supabase.auth.getSession();
+      const accessToken = sess?.session?.access_token ?? SUPABASE_ANON;
+
+      let status = 0;
+      let body: any = null;
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/ml-publish`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON,
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(publishBody),
+        });
+        status = res.status;
+        const raw = await res.text();
+        try { body = raw ? JSON.parse(raw) : null; } catch { body = { raw }; }
+      } catch (netErr: any) {
+        console.error("[ml-publish] network error:", netErr);
+        veloToast.error(netErr?.message || "Erro de rede ao publicar", { id: toastId });
+        setPublishing(false);
+        return;
+      }
+      console.log("[ml-publish] response:", { status, body });
+
+      if (status < 200 || status >= 300 || body?.error) {
+        const code: string | undefined = body?.code;
+        const friendly: string | undefined = body?.error || body?.message;
 
         // Categoria exige seleção manual → abre o seletor com a sugestão do backend.
         if (code === "CATEGORY_REQUIRES_MANUAL") {
           veloToast.dismiss(toastId);
           setManualCatSuggestion({
-            id: (bodyExtra?.predicted_category_id as string) || (data?.predicted_category_id as string) || undefined,
-            name: (bodyExtra?.predicted_category_name as string) || (data?.predicted_category_name as string) || undefined,
+            id: body?.predicted_category_id,
+            name: body?.predicted_category_name,
           });
           setManualCatOpen(true);
           setPublishing(false);
@@ -641,7 +658,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         // Divergência entre título cru e normalizado → apresenta as duas sugestões.
         if (code === "CATEGORY_LOW_CONFIDENCE") {
           veloToast.dismiss(toastId);
-          const suggestions = ((bodyExtra?.suggestions ?? (data as any)?.suggestions) as Array<{ category_id?: string; category_name?: string }> | undefined) || [];
+          const suggestions: Array<{ category_id?: string; category_name?: string }> =
+            Array.isArray(body?.suggestions) ? body.suggestions : [];
           const first = suggestions.find((s) => s.category_id);
           setManualCatSuggestion({
             id: first?.category_id,
@@ -652,8 +670,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           return;
         }
 
-        // Conta do ML bloqueada para publicar (cadastro incompleto, modo vendedor
-        // não ativado, etc.) → abrimos o tutorial em 3 etapas em vez do toast.
+        // Conta do ML bloqueada para publicar → tutorial em 3 etapas.
         if (code === "ML_SELLER_CANNOT_LIST") {
           veloToast.dismiss(toastId);
           setMlVerifyModalOpen(true);
@@ -661,10 +678,13 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           return;
         }
 
-        veloToast.error(friendly || error?.message || "Erro ao publicar", { id: toastId });
+        veloToast.error(friendly || "Erro ao publicar", { id: toastId });
         setPublishing(false);
         return;
       }
+
+      const data = body;
+
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(4);
