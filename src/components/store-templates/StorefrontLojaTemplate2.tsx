@@ -132,84 +132,93 @@ const StorefrontLojaTemplate2 = ({
       </div>
 
       {/* HEADER */}
-      <header className="sticky top-0 z-30 border-b border-[#E2E8F0] bg-white">
+      <header className="sticky top-0 z-30 bg-white">
         <div className="flex items-center gap-3 px-4 py-3 md:px-8">
           <button type="button" aria-label="Menu" className="grid h-9 w-9 place-items-center rounded-lg text-[#0F172A] hover:bg-[#F1F5F9]">
-            <Menu size={20} strokeWidth={2} />
+            <Menu size={22} strokeWidth={2.2} />
           </button>
-          <a href="/" className="flex items-center gap-2">
+          <a href="/" className="flex items-center gap-2.5">
             {logoImage ? (
-              <img src={logoImage} alt={brandName} className="h-9 w-9 rounded-lg object-cover" />
+              <img src={logoImage} alt={brandName} className="h-10 w-10 rounded-xl object-cover" />
             ) : (
-              <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#2563EB] text-white shadow-sm">
-                <ShoppingCart size={18} strokeWidth={2.4} />
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#2563EB] text-white shadow-sm">
+                <ShoppingBag size={20} strokeWidth={2.2} />
               </span>
             )}
             <div className="leading-tight">
-              <span className="block text-[17px] font-bold tracking-tight text-[#0F172A]">{brandName}</span>
+              <span className="block text-[19px] font-extrabold tracking-tight text-[#0F172A]">{brandName}</span>
               <span className="block text-[10px] font-medium text-[#64748B]">Shop Smart, Live Better</span>
             </div>
           </a>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1.5">
             <button aria-label="Conta" className="grid h-10 w-10 place-items-center rounded-full text-[#0F172A] hover:bg-[#F1F5F9]">
               <User size={20} strokeWidth={1.9} />
             </button>
             <button aria-label="Favoritos" className="relative grid h-10 w-10 place-items-center rounded-full text-[#0F172A] hover:bg-[#F1F5F9]">
               <Heart size={20} strokeWidth={1.9} />
-              <span className="absolute right-1 top-1 grid h-4 min-w-[16px] place-items-center rounded-full bg-[#2563EB] px-1 text-[9px] font-bold text-white">2</span>
+              <span className="absolute right-0.5 top-0.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-[#2563EB] px-1 text-[9px] font-bold text-white">2</span>
             </button>
             <a href="/carrinho" aria-label="Carrinho" className="relative grid h-10 w-10 place-items-center rounded-full text-[#0F172A] hover:bg-[#F1F5F9]">
               <ShoppingCart size={20} strokeWidth={1.9} />
-              <span className="absolute right-1 top-1 grid h-4 min-w-[16px] place-items-center rounded-full bg-[#F97316] px-1 text-[9px] font-bold text-white">3</span>
+              <span className="absolute right-0.5 top-0.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-[#F97316] px-1 text-[9px] font-bold text-white">3</span>
             </a>
           </div>
         </div>
 
         {/* SEARCH */}
         <div className="px-4 pb-4 md:px-8">
-          <div className="flex items-center gap-2 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 focus-within:border-[#2563EB]">
-            <Search size={16} strokeWidth={2} className="text-[#64748B]" />
-            <input
-              placeholder="Buscar produtos, marcas e mais..."
-              className="flex-1 border-none bg-transparent text-[13px] text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
-            />
-            <button type="button" className="grid h-8 w-8 place-items-center rounded-full bg-[#2563EB] text-white">
-              <Search size={14} strokeWidth={2.4} />
+          <div className="flex items-stretch gap-0 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm focus-within:border-[#2563EB]">
+            <div className="flex flex-1 items-center gap-2 bg-[#F8FAFC] px-4">
+              <Search size={16} strokeWidth={2.2} className="text-[#94A3B8]" />
+              <input
+                placeholder="Buscar produtos, marcas e mais..."
+                className="w-full border-none bg-transparent py-3 text-[13px] text-[#0F172A] outline-none placeholder:text-[#94A3B8]"
+              />
+            </div>
+            <button type="button" aria-label="Buscar" className="grid w-14 place-items-center bg-[#2563EB] text-white transition hover:bg-[#1D4ED8]">
+              <Search size={18} strokeWidth={2.4} />
             </button>
           </div>
         </div>
       </header>
 
-      {/* CATEGORY PILLS */}
-      <section className="px-4 pt-4 md:px-8">
-        <div className="scrollbar-hide flex gap-4 overflow-x-auto pb-2">
-          {displayCats.map((c) => (
-            <a key={c} href={`/catalogo?categoria=${encodeURIComponent(c)}`} className="flex shrink-0 flex-col items-center gap-1.5">
-              <span className="grid h-14 w-14 place-items-center rounded-full border border-[#E2E8F0] bg-[#F8FAFC] text-[24px]">
-                {CATEGORY_ICONS[c] || "🛍️"}
-              </span>
-              <span className="max-w-[64px] truncate text-[11px] font-medium text-[#0F172A]">{c}</span>
-            </a>
-          ))}
+      {/* CATEGORY ROW — real product photos in circles */}
+      <section className="px-4 pt-1 md:px-8">
+        <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-3">
+          {displayCats.map((c) => {
+            const img = catImages[c];
+            return (
+              <a key={c} href={`/catalogo?categoria=${encodeURIComponent(c)}`} className="flex shrink-0 flex-col items-center gap-1.5">
+                <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-[#F1F5F9] ring-1 ring-[#E2E8F0]">
+                  {img ? (
+                    <img src={img} alt={c} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-[22px]">{CATEGORY_ICONS[c] || "🛍️"}</span>
+                  )}
+                </span>
+                <span className="max-w-[68px] truncate text-[11px] font-medium text-[#0F172A]">{c}</span>
+              </a>
+            );
+          })}
           <a href="/catalogo" className="flex shrink-0 flex-col items-center gap-1.5">
-            <span className="grid h-14 w-14 place-items-center rounded-full bg-[#2563EB] text-white">
-              <Layers size={20} strokeWidth={2} />
+            <span className="grid h-16 w-16 place-items-center rounded-full bg-[#F1F5F9] ring-1 ring-[#E2E8F0] text-[#0F172A]">
+              <MoreHorizontal size={22} strokeWidth={2.2} />
             </span>
             <span className="text-[11px] font-medium text-[#0F172A]">Todos</span>
           </a>
         </div>
       </section>
 
-      {/* HERO BANNER */}
-      <section className="px-4 pt-4 md:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#EFF6FF] via-[#DBEAFE] to-[#F1F5F9] p-6 md:p-10">
-          <span className="absolute right-4 top-4 grid h-16 w-16 place-items-center rounded-full bg-[#F97316] text-center text-[10px] font-bold leading-tight text-white shadow-lg md:right-8 md:top-8 md:h-20 md:w-20 md:text-[12px]">
+      {/* HERO BANNER — cream, product-cluster style */}
+      <section className="px-4 pt-2 md:px-8">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FEF3E2] via-[#FEF7ED] to-[#FDF6E3] p-6 md:p-10">
+          <span className="absolute right-4 top-4 z-10 grid h-16 w-16 place-items-center rounded-full bg-[#F97316] text-center text-[10px] font-extrabold leading-tight text-white shadow-lg md:right-8 md:top-8 md:h-20 md:w-20 md:text-[12px]">
             <span>ATÉ<br />60%<br />OFF</span>
           </span>
           <div className={`grid items-center gap-6 ${mobile ? "grid-cols-1" : "md:grid-cols-2"}`}>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#F97316]">Qualidade Premium</span>
-              <h1 className="mt-2 text-[28px] font-bold leading-[1.05] tracking-tight text-[#0F172A] md:text-[42px]">
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#F97316]">Qualidade Premium · Você Premium</span>
+              <h1 className="mt-3 text-[30px] font-extrabold leading-[1.02] tracking-tight text-[#0F172A] md:text-[44px]">
                 Tudo o que você precisa,<br />
                 <span className="text-[#2563EB]">em um só lugar</span>
               </h1>
@@ -223,35 +232,41 @@ const StorefrontLojaTemplate2 = ({
                   Comprar agora
                   <ArrowRight size={14} strokeWidth={2.4} />
                 </a>
-                <a href="/catalogo" className="inline-flex items-center rounded-full border border-[#0F172A]/20 bg-white px-5 py-3 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#F1F5F9]">
+                <a href="/catalogo" className="inline-flex items-center rounded-full border border-[#0F172A]/15 bg-white px-5 py-3 text-[13px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC]">
                   Ver ofertas
                 </a>
               </div>
             </div>
             <div className="relative flex items-center justify-center">
-              <div className="relative aspect-square w-full max-w-[280px]">
-                <div className="absolute inset-4 rounded-full bg-white/70 blur-2xl" />
-                <img src={hero.imageUrl || heroImage} alt={hero.title} className="relative h-full w-full object-contain mix-blend-multiply" />
+              <div className="relative aspect-square w-full max-w-[320px]">
+                <div className="absolute inset-x-6 bottom-4 h-10 rounded-[50%] bg-black/10 blur-xl" />
+                <div className="absolute inset-6 rounded-full bg-white/80 shadow-inner" />
+                <img src={hero.imageUrl || heroImage} alt={hero.title} className="relative h-full w-full object-contain mix-blend-multiply drop-shadow-xl" />
               </div>
             </div>
           </div>
 
-          {/* TRUST STRIP */}
-          <div className="mt-6 grid grid-cols-3 gap-2 border-t border-[#0F172A]/10 pt-4 text-center">
+          {/* TRUST STRIP inside hero */}
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/60 px-4 py-3 backdrop-blur-sm">
             {[
               { icon: Truck, t: "Frete Grátis", s: "Acima de R$199" },
               { icon: Package, t: "Troca Fácil", s: "30 dias" },
               { icon: ShieldCheck, t: "Pagto Seguro", s: "100% protegido" },
             ].map(({ icon: Icon, t, s }) => (
-              <div key={t} className="flex flex-col items-center gap-1">
-                <Icon size={16} strokeWidth={2} className="text-[#F97316]" />
-                <strong className="text-[11px] font-semibold text-[#0F172A]">{t}</strong>
-                <span className="text-[10px] text-[#64748B]">{s}</span>
+              <div key={t} className="flex flex-1 items-center gap-2 min-w-[130px]">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#FFF7ED] text-[#F97316]">
+                  <Icon size={15} strokeWidth={2.2} />
+                </span>
+                <div className="leading-tight">
+                  <strong className="block text-[11px] font-bold text-[#0F172A]">{t}</strong>
+                  <span className="block text-[10px] text-[#64748B]">{s}</span>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
+
 
       {/* FLASH DEAL */}
       <section className="px-4 pt-6 md:px-8">
