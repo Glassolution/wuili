@@ -3272,13 +3272,13 @@ const GeneratedStoreEditorPage = () => {
             <StorefrontNavbar storeName={brandName} logoImage={logoImage} activePage="store" className="relative z-30" />
 
             {/* HERO - imagem literal com overlays percentuais */}
-            <section data-editor-type="other" data-editor-section="hero" data-editor-label="Seção hero" className="relative overflow-hidden bg-[#062f4e] shadow-[0_14px_34px_rgba(6,42,67,0.2)]" style={{fontFamily:selectedFontStack}}>
+            <section data-editor-type="other" data-editor-section="hero" data-editor-label="Seção hero" className="relative overflow-hidden bg-[#1a3c2a] shadow-[0_14px_34px_rgba(26,60,42,0.25)]" style={{fontFamily:selectedFontStack}}>
               <img data-editor-type="image" data-editor-media-kind="banner" data-editor-id="hero-image" src={heroImage} alt="" aria-hidden="true" className="block h-auto w-full"/>
 
               <div className="absolute inset-0" aria-label={"Conte\u00fado do banner principal"}>
                 <div className="absolute z-20 overflow-hidden bg-white text-[#1f2933]" style={{ left: "3.12%", top: "0%", width: "19.45%", height: "100%" }}>
                   <div className="flex h-[7.9%] w-full items-center border-b border-black/5 bg-white px-[5%]" style={{ fontSize: "clamp(7.5px,0.82vw,13px)" }}>
-                    <div className="flex h-[68%] w-full items-center gap-[7%] rounded-[3px] bg-[#082f4b] px-[6%] text-white">
+                    <div className="flex h-[68%] w-full items-center gap-[7%] rounded-[3px] bg-[#12301f] px-[6%] text-white">
                       <Menu size={15} strokeWidth={2} className="h-[1.18em] w-[1.18em] shrink-0"/>
                       <span className="font-medium leading-none">Categorias</span>
                     </div>
@@ -3303,18 +3303,18 @@ const GeneratedStoreEditorPage = () => {
                       </a>
                     ))}
                   </div>
-                </div>                <span aria-hidden="true" className="absolute z-10 bg-[#00213c]" style={{ left: "27.1%", top: "3.55%", width: "39.2%", height: "3.8%" }} />
-                <span aria-hidden="true" className="absolute z-10 bg-[#042f4f]" style={{ left: "80.6%", top: "3.55%", width: "14.2%", height: "3.8%" }} />
+                </div>                <span aria-hidden="true" className="absolute z-10 bg-[#12301f]" style={{ left: "27.1%", top: "3.55%", width: "39.2%", height: "3.8%" }} />
+                <span aria-hidden="true" className="absolute z-10 bg-[#1a3c2a]" style={{ left: "80.6%", top: "3.55%", width: "14.2%", height: "3.8%" }} />
                 {heroNavLinks.map((item)=>(
                   <a key={item.label} href={item.href} className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: item.left, top: "3.92%", width: item.width, height: "3.05%", fontSize: "clamp(9.5px,0.86vw,14px)" }}>{item.label}</a>
                 ))}
                 <a href="tel:+551234567890" className="absolute z-20 flex items-center whitespace-nowrap px-[0.15%] font-semibold leading-none text-white transition hover:text-white/75" style={{ left: "81.1%", top: "3.92%", width: "13.45%", height: "3.05%", fontSize: "clamp(9.5px,0.86vw,14px)" }}>Suporte: (123) 456-7890</a>
 
                 <div className="absolute text-white" style={{ left: "27.35%", top: "50%", width: "28.4%", transform: "translateY(-50%)" }}>
-                  <span data-editor-type="text" className="block font-semibold uppercase tracking-[0.08em] text-[#e8c878]" style={{ fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{categories[0] || "Novidades"}</span>
+                  <span data-editor-type="text" className="block font-semibold uppercase tracking-[0.08em] text-[#eef1de]" style={{ fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{categories[0] || "Novidades"}</span>
                   <h1 data-editor-type="text" className="mt-[2.8%] font-semibold leading-[1.06] tracking-[-0.012em] text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.22)]" style={{ fontSize: "clamp(22px,2.55vw,44px)" }}>{headlinePrimary}<br/>{headlineSecondary}</h1>
                   <p data-editor-type="text" className="mt-[3.4%] truncate font-normal leading-none text-white/72" style={{ fontSize: "clamp(8px,0.86vw,13.5px)" }}>{heroSubtitle}</p>
-                  <a data-editor-role="button" href={heroCtaHref} className="mt-[5%] inline-flex items-center justify-center whitespace-nowrap rounded-[4px] bg-[#f6ead2] font-semibold text-[#102434] shadow-[0_7px_18px_rgba(0,0,0,0.15)] transition hover:-translate-y-0.5 hover:bg-white" style={{ minWidth: "36%", height: "clamp(26px,2.65vw,44px)", paddingInline: "5.5%", gap: "0.45rem", fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{ctaPrimary || "Comprar agora"}<ChevronLeft aria-hidden="true" size={10} strokeWidth={2} className="rotate-180"/></a>
+                  <a data-editor-role="button" href={heroCtaHref} className="mt-[5%] inline-flex items-center justify-center whitespace-nowrap rounded-[4px] bg-[#eef1de] font-semibold text-[#1a3c2a] shadow-[0_7px_18px_rgba(0,0,0,0.15)] transition hover:-translate-y-0.5 hover:bg-white" style={{ minWidth: "36%", height: "clamp(26px,2.65vw,44px)", paddingInline: "5.5%", gap: "0.45rem", fontSize: "clamp(6.5px,0.68vw,10.5px)" }}>{ctaPrimary || "Comprar agora"}<ChevronLeft aria-hidden="true" size={10} strokeWidth={2} className="rotate-180"/></a>
                 </div>
 
                 <div className="absolute z-20 flex items-center gap-[1.2%]" style={{ left: "39.9%", top: "94.1%", width: "8.8%", height: "2.8%" }} aria-label="Carrossel do banner">
@@ -3335,7 +3335,7 @@ const GeneratedStoreEditorPage = () => {
                 <div className="flex w-full items-start justify-between gap-3 overflow-x-auto pb-2 pr-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {browseCategories.map(({category,imageUrl})=>(
                     <a key={category} href="#categorias" className="group grid w-[84px] shrink-0 grid-rows-[84px_28px] justify-items-center gap-2 text-center">
-                      <span className="flex h-[84px] w-[84px] items-center justify-center overflow-hidden rounded-full bg-[#f3f1ee] transition duration-300 group-hover:-translate-y-1">
+                      <span className="flex h-[84px] w-[84px] items-center justify-center overflow-hidden rounded-full bg-[#e8ecd6] transition duration-300 group-hover:-translate-y-1">
                         <img data-editor-type="image" src={imageUrl} alt={category} className="h-full w-full object-contain p-2"/>
                       </span>
                       <span className="flex min-h-[24px] items-start justify-center text-[8.5px] font-medium leading-tight text-black/80">{category}</span>
@@ -3393,7 +3393,7 @@ const GeneratedStoreEditorPage = () => {
                 </div>
                 <div className="relative w-[44%] shrink-0 overflow-hidden"><img data-editor-type="image" data-editor-product="true" data-editor-product-id={displayedProducts[1%displayedProducts.length]?.id} src={displayedProducts[1%displayedProducts.length]?.imageUrl||heroImage} alt="" className="absolute inset-0 h-full w-full object-cover object-center"/></div>
               </div>
-              <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-[#eeece7]">
+              <div className="relative flex min-h-[220px] overflow-hidden rounded-[8px] bg-[#eef1de]">
                 <div className="relative z-10 flex flex-1 flex-col justify-between p-6">
                   <div>
                     <strong className="text-[10px] font-semibold tracking-[0.18em] text-black/50">ACABOU DE CHEGAR</strong>
