@@ -738,7 +738,7 @@ const CheckoutPage = () => {
                   <span className="font-semibold text-white/66">
                     {isTrial ? "Depois do trial" : billingCycle === "annual" ? "Total anual" : "Total mensal"}
                   </span>
-                  <span className="font-semibold text-white">{isTrial ? "R$ 99,90/mês" : finalCheckoutPrice}</span>
+                  <span className="font-semibold text-white">{isTrial ? "R$ 29,90/mês" : finalCheckoutPrice}</span>
                 </div>
                 <div className="mt-7 flex items-center justify-between">
                   <span className="font-semibold text-white/66">Total devido hoje</span>
