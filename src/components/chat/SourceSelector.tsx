@@ -17,6 +17,8 @@ const sources: {
   {
     id: "aliexpress",
     label: "AliExpress",
+    disabled: true,
+    badge: "Em breve",
     logo: (
       <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
         <rect width="40" height="40" rx="8" fill="#FF6A00" />
