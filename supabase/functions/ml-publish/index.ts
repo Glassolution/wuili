@@ -563,6 +563,8 @@ Deno.serve(async (req) => {
     }
 
 
+    const productRecord = product as Record<string, unknown>
+
     // === CATEGORY (leaf only) ===
     // Prioridade: 1) categoria explícita enviada pelo usuário (ml_category_id/category_id),
     // 2) predição automática por título. Categoria explícita ainda passa por
