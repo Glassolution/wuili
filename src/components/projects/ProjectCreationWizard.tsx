@@ -196,12 +196,13 @@ const ProjectCreationWizard = ({
     setDraggingLogo(false);
     setLogoUrlInput("");
     setSelectedProducts(preselectedProductIds ?? []);
-    setTemplateId(defaultTemplateId);
+    setTipo(defaultTipo ?? DEFAULT_TIPO);
+    setTemplateId((defaultTipo ?? DEFAULT_TIPO) === "loja_completa" ? "loja-1" : "produto-1");
     setSearch("");
     setLoadingIndex(0);
     setError(null);
     creatingRef.current = false;
-  }, [open, preselectedProductIds]);
+  }, [open, preselectedProductIds, defaultTipo]);
 
   useEffect(() => {
     if (!open || step !== "produtos" || products.length > 0) return;
