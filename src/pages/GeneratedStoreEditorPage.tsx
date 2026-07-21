@@ -12,6 +12,7 @@ import { usePlan } from "@/hooks/usePlan";
 import { useProfile } from "@/lib/profileContext";
 import { claimProjectInvites, createUserProject, getProjectProductIds, parseVariantOptions, publishProject, saveProjectDraft, type ProductVariantOption, type UserProject } from "@/lib/userProjects";
 import ProjectSettingsOverlay, { type SettingsSection } from "@/components/editor/ProjectSettingsOverlay";
+import StoreAdminModal from "@/components/editor/StoreAdminModal";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 import { normalizePriceText } from "@/lib/priceFormat";
 import { addProductToCollection, createCollection, ensureExampleCollectionProducts, getCollectionProductIds, listCollections } from "@/lib/collectionsApi";
@@ -337,6 +338,7 @@ const GeneratedStoreEditorPage = () => {
   const [publishing, setPublishing] = useState(false);
   const [publishCopied, setPublishCopied] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const { plan: currentPlan } = usePlan();
   const isFreePlan = currentPlan === "gratis" || currentPlan === "go";
   const [editorPanelTab, setEditorPanelTab] = useState<EditorPanelTab>("personalizar");
@@ -3172,13 +3174,12 @@ const GeneratedStoreEditorPage = () => {
                   Adicionar produtos
                 </button>
                 <div className="my-3 h-px bg-[#292d31]" />
-                {/* "Adicionar produtos" (acima) abre o drawer de seleção dentro do
-                    editor. Este abre o catálogo completo do Velo numa nova aba,
-                    para navegação mais ampla sem tirar o usuário do editor. */}
-                <button type="button" onClick={() => window.open("/dashboard/catalogo", "_blank", "noopener,noreferrer")} className="group flex h-8 w-full items-center gap-2 rounded-[9px] px-2 text-left text-[9px] font-medium text-white/66 outline-none transition hover:bg-white/[0.06] hover:text-white">
-                  <LayoutGrid size={13} strokeWidth={1.8} />
-                  <span className="flex-1">Abrir catálogo completo</span>
-                  <ExternalLink size={12} className="transition group-hover:translate-x-0.5" />
+                {/* Administração da loja: clientes, produtos próprios e reordenação
+                    do fluxo (login antes/depois do checkout etc.). */}
+                <button type="button" onClick={() => setAdminOpen(true)} className="group flex h-8 w-full items-center gap-2 rounded-[9px] px-2 text-left text-[9px] font-medium text-white/66 outline-none transition hover:bg-white/[0.06] hover:text-white">
+                  <LockKeyhole size={13} strokeWidth={1.8} />
+                  <span className="flex-1">Administração</span>
+                  <ChevronRight size={12} className="transition group-hover:translate-x-0.5" />
                 </button>
               </>
             ) : (
@@ -4036,6 +4037,14 @@ const GeneratedStoreEditorPage = () => {
         onProjectChange={setCurrentProject}
         onNameChange={setStoreName}
       />
+
+      <StoreAdminModal
+        open={adminOpen}
+        onClose={() => setAdminOpen(false)}
+        project={currentProject}
+        onProjectUpdated={setCurrentProject}
+      />
+
 
       {showPlans ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onMouseDown={(event)=>{if(event.target===event.currentTarget)setShowPlans(false)}}>
