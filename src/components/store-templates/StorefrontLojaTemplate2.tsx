@@ -1,7 +1,7 @@
 // Template "Loja 2" — estilo MARKETLY (mobile-first, azul elétrico).
 // Paleta: primary #2563EB, deep #1E40AF, sky #EFF6FF, orange #F97316,
 // ink #0F172A, mute #64748B, border #E2E8F0. Rounded 16-24, cards limpos.
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   ChevronRight,
@@ -12,9 +12,11 @@ import {
   Layers,
   Mail,
   Menu,
+  MoreHorizontal,
   Package,
   Search,
   ShieldCheck,
+  ShoppingBag,
   ShoppingCart,
   Star,
   Truck,
