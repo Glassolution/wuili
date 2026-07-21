@@ -246,10 +246,10 @@ const StorefrontLojaTemplate = ({
       <section className="px-6 pb-8 pt-1">
         <div className="mb-4 flex items-end justify-between">
           <div>
-            <h2 className="text-[16px] font-semibold leading-none tracking-normal">Produtos em alta <span className="text-[#f5b800]">⚡</span></h2>
+            <h2 className="text-[16px] font-semibold leading-none tracking-normal text-[#1a3c2a]">Produtos em alta <span className="ml-1 inline-flex items-center rounded-full bg-[#e8ecd6] px-2 py-0.5 text-[9px] font-semibold text-[#1a3c2a]">Best Seller</span></h2>
             <p className="mt-1 text-[10px] text-black/50">Os produtos mais recentes da sua loja.</p>
           </div>
-          <a href="#produtos" className="flex items-center gap-2 text-[10px] font-medium text-black/70 transition hover:text-black">Ver todos <ChevronLeft size={12} className="rotate-180" /></a>
+          <a href="#produtos" className="inline-flex items-center gap-2 rounded-full bg-[#eef1de] px-3 py-1.5 text-[10px] font-medium text-[#1a3c2a] transition hover:bg-[#e6ecd0]">Ver todos <ChevronLeft size={12} className="rotate-180" /></a>
         </div>
         <div id="produtos" className={`grid gap-x-4 gap-y-6 ${mobile ? "grid-cols-2" : "grid-cols-2 md:grid-cols-6"}`}>
           {displayedProducts.slice(0, 6).map((product) => {
