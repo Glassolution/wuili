@@ -264,15 +264,15 @@ const StorefrontLojaTemplate = ({
               : null;
             return (
               <article key={product.id} className="group min-w-0">
-                <div className="relative aspect-[1/1.04] overflow-hidden rounded-[16px] bg-white">
+                <div className="relative aspect-[1/1.04] overflow-hidden rounded-[18px] bg-[#f5f2ea]">
                   <img src={product.imageUrl || heroImage} alt={product.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                  <button type="button" aria-label={`Favoritar ${product.title}`} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-black/70 shadow-sm transition hover:text-black"><Heart size={12} strokeWidth={1.5} /></button>
+                  <button type="button" aria-label={`Favoritar ${product.title}`} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-[#1a3c2a]/70 shadow-sm transition hover:text-[#1a3c2a]"><Heart size={12} strokeWidth={1.5} /></button>
                 </div>
-                {ratingLabel ? <div className="mt-2 flex items-center gap-1 text-[8.5px] font-semibold text-black/45"><Star size={10} strokeWidth={1.8} className="fill-[#f5b800] text-[#f5b800]" /><span>{ratingLabel}</span></div> : null}
-                <h3 className="mt-1 line-clamp-2 min-h-[28px] text-[11px] font-medium leading-snug text-black/85">{product.title}</h3>
+                {ratingLabel ? <div className="mt-2 flex items-center gap-1 text-[8.5px] font-semibold text-[#1a3c2a]/60"><Star size={10} strokeWidth={1.8} className="fill-[#c9a84c] text-[#c9a84c]" /><span>{ratingLabel}</span></div> : null}
+                <h3 className="mt-1 line-clamp-2 min-h-[28px] text-[11px] font-medium leading-snug text-[#1a3c2a]/90">{product.title}</h3>
                 <div className="mt-1 flex items-center justify-between gap-2">
-                  <strong className="text-[12px] font-semibold text-black">{formatBRL(Math.max(product.price * 2.1, product.price + 20))}</strong>
-                  <button type="button" aria-label={`Adicionar ${product.title} ao carrinho`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] border border-black/20 bg-white text-black shadow-sm transition hover:-translate-y-0.5 hover:text-black"><ShoppingCart size={14} strokeWidth={1.75} /></button>
+                  <strong className="text-[12px] font-semibold text-[#1a3c2a]">{formatBRL(Math.max(product.price * 2.1, product.price + 20))}</strong>
+                  <button type="button" aria-label={`Adicionar ${product.title} ao carrinho`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#1a3c2a]/15 bg-[#f5f2ea] text-[#1a3c2a] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#eef1de]"><ShoppingCart size={14} strokeWidth={1.75} /></button>
                 </div>
               </article>
             );
