@@ -1001,6 +1001,34 @@ Deno.serve(async (req) => {
       console.log('Item criado (retry sem family_name):', JSON.stringify(itemData).substring(0, 800))
     }
 
+    // Última rede de segurança: se o ML ainda rejeitar por grade de medidas
+    // (fashion_grid/SIZE_GRID_ID) mesmo depois do reencaminhamento inicial,
+    // reenviamos o item para a categoria genérica "Outros" (MLB1051) e
+    // limpamos atributos exclusivos de moda para permitir a publicação.
+    if (!itemResponse.ok) {
+      const msg = causeMessages(itemData)
+      if (msg.includes('size_grid_id') || msg.includes('fashion_grid') || msg.includes('grid_id')) {
+        console.warn('[ml-publish] ML rejeitou por SIZE_GRID_ID mesmo após reencaminhamento — reenviando em MLB1051.')
+        const fallbackPayload = {
+          ...mlPayload,
+          category_id: 'MLB1051',
+          attributes: (mlPayload.attributes as MLAttribute[]).filter((a) =>
+            !['SIZE_GRID_ID', 'SIZE_GRID_ROW_ID', 'SIZE'].includes(String(a.id))
+          ),
+        }
+        itemResponse = await fetch('https://api.mercadolibre.com/items', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(fallbackPayload),
+        })
+        itemData = await itemResponse.json()
+        console.log('Item criado (retry MLB1051):', JSON.stringify(itemData).substring(0, 800))
+      }
+    }
+
     if (!itemResponse.ok || !itemData?.id) {
       console.error('Erro ao criar produto:', JSON.stringify(itemData))
       const mapped = itemResponse.ok
