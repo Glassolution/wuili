@@ -540,6 +540,13 @@ const StoreProjectsPage = () => {
         onClose={() => setWizardOpen(false)}
         defaultTipo={wizardDefaultTipo}
         allowTipoChoice={wizardAllowChoice}
+        isTipoRestricted={(t) =>
+          t === "loja_completa" ? !canCreateStorePlan : !canCreateSalesPagePlan
+        }
+        onRestrictedTipo={(t) => {
+          setWizardOpen(false);
+          openUpgrade({ defaultPlan: t === "loja_completa" ? "pro" : "base" });
+        }}
         onCreated={handleProjectCreated}
       />
 
