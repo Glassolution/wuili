@@ -638,9 +638,27 @@ const HeroCarousel = ({
           {s.badge}
         </span>
 
-        <div className={`relative grid items-end ${mobile ? "grid-cols-1" : "md:grid-cols-2"} min-h-[380px] md:min-h-[460px]`}>
-          {/* TEXTO */}
-          <div className="relative z-20 px-6 pt-9 pb-4 md:px-12 md:py-14">
+        <div className={`relative grid items-end ${mobile ? "grid-cols-1" : "md:grid-cols-[46%_54%]"} min-h-[380px] md:min-h-[460px]`}>
+          {/* IMAGEM lifestyle — pessoa (waist-up), transparente (PNG), ancorada à esquerda */}
+          <div className="relative order-1 h-[300px] self-end md:order-none md:h-[480px] md:min-h-[480px]">
+            {/* Halo/spotlight atrás da pessoa para dar profundidade */}
+            <div
+              className="pointer-events-none absolute left-[38%] top-1/2 h-[85%] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl"
+              style={{ background: s.accent }}
+            />
+            {slides.map((sl, i) => (
+              <img
+                key={sl.image}
+                src={sl.image}
+                alt=""
+                loading={i === 0 ? "eager" : "lazy"}
+                className={`absolute bottom-0 left-0 h-[112%] w-auto max-w-none object-contain object-bottom drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)] transition-opacity duration-700 md:left-[-4%] ${i === idx ? "opacity-100" : "opacity-0"}`}
+              />
+            ))}
+          </div>
+
+          {/* TEXTO — deslocado para a direita/centro */}
+          <div className="relative z-20 order-2 px-6 pt-6 pb-6 md:order-none md:py-14 md:pl-4 md:pr-14">
             <span
               className="inline-flex items-center rounded-full bg-white/95 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] shadow-sm"
               style={{ color: s.bg.match(/#[0-9A-F]{6}/i)?.[0] || "#0F172A" }}
@@ -678,25 +696,8 @@ const HeroCarousel = ({
               <span className="inline-flex items-center gap-1.5"><Package size={13} strokeWidth={2.6} /> Troca em 30 dias</span>
             </div>
           </div>
-
-          {/* IMAGEM lifestyle — pessoa em destaque, transparente (PNG) */}
-          <div className="relative h-[320px] self-end md:h-[480px] md:min-h-[480px]">
-            {/* Halo/spotlight atrás da pessoa para dar profundidade */}
-            <div
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[85%] w-[75%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl"
-              style={{ background: s.accent }}
-            />
-            {slides.map((sl, i) => (
-              <img
-                key={sl.image}
-                src={sl.image}
-                alt=""
-                loading={i === 0 ? "eager" : "lazy"}
-                className={`absolute inset-x-0 bottom-0 mx-auto h-full w-auto max-w-[95%] object-contain object-bottom drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)] transition-opacity duration-700 ${i === idx ? "opacity-100" : "opacity-0"}`}
-              />
-            ))}
-          </div>
         </div>
+
 
         {/* Setas */}
         <button
