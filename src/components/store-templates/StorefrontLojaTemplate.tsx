@@ -327,14 +327,14 @@ const StorefrontLojaTemplate = ({
         </div>
       </section>
 
-      <section aria-label="Benefícios da loja" className="mx-8 mb-8 overflow-hidden rounded-[10px] bg-[#06263b] text-white shadow-[0_14px_30px_rgba(2,20,32,0.14)]">
+      <section aria-label="Benefícios da loja" className="mx-8 mb-8 overflow-hidden rounded-[22px] bg-[#1a3c2a] text-white shadow-[0_18px_38px_rgba(20,42,26,0.22)]">
         <div className={`grid ${mobile ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"}`}>
           {trustBadges.map(({ title, description, icon: Icon }, index) => (
-            <div key={title} className={`flex min-h-[64px] items-center gap-3 px-5 py-4 ${index > 0 ? "md:border-l md:border-white/10" : ""} ${index > 1 ? "border-t border-white/10 md:border-t-0" : ""}`}>
-              <Icon size={18} strokeWidth={1.75} className="shrink-0 text-white/90" />
+            <div key={title} className={`flex min-h-[68px] items-center gap-3 px-5 py-4 ${index > 0 ? "md:border-l md:border-white/10" : ""} ${index > 1 ? "border-t border-white/10 md:border-t-0" : ""}`}>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e8ecd6]/15 ring-1 ring-[#e8ecd6]/25"><Icon size={16} strokeWidth={1.75} className="text-[#e8ecd6]" /></span>
               <div className="min-w-0">
                 <strong className="block text-[10px] font-semibold leading-tight text-white">{title}</strong>
-                <span className="mt-0.5 block text-[8px] leading-tight text-white/70">{description}</span>
+                <span className="mt-0.5 block text-[8px] leading-tight text-white/65">{description}</span>
               </div>
             </div>
           ))}
@@ -344,7 +344,7 @@ const StorefrontLojaTemplate = ({
       {/* Avaliações reais dos clientes + formulário */}
       <StoreReviews projectId={projectId} accent={accent} mobile={mobile} background="#ffffff" />
 
-      <footer className="border-t border-black/10 bg-[#f5f4f2] px-8 py-7 text-center text-[10px] tracking-[0.12em] text-black/45">© {new Date().getFullYear()} {brandName} · Todos os direitos reservados</footer>
+      <footer className="border-t border-[#1a3c2a]/10 bg-[#1a3c2a] px-8 py-7 text-center text-[10px] tracking-[0.12em] text-[#f5f2ea]/70">© {new Date().getFullYear()} {brandName} · Todos os direitos reservados</footer>
     </>
   );
 };
