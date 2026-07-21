@@ -73,11 +73,12 @@ function extractImages(raw: unknown): string[] {
     try {
       arr = JSON.parse(raw);
     } catch {
-      return [raw];
+      return proxyImageList([raw]);
     }
   }
   if (!Array.isArray(arr)) return [];
-  return arr.filter((url): url is string => typeof url === "string" && url.length > 0);
+  const list = arr.filter((url): url is string => typeof url === "string" && url.length > 0);
+  return proxyImageList(list);
 }
 
 function mapProduct(p: CatalogProductRow): DetailedProduct {

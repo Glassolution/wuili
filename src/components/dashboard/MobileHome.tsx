@@ -60,24 +60,28 @@ const formatInteger = (value: number) => new Intl.NumberFormat("pt-BR").format(v
 
 const getProductImages = (images: Json | null): string[] => {
   if (!images) return [];
-  if (Array.isArray(images)) {
-    return images.flatMap((entry) => {
-      if (typeof entry === "string" && entry.trim()) return [entry.trim()];
-      if (entry && typeof entry === "object" && "url" in entry) {
-        const url = (entry as { url?: unknown }).url;
-        return typeof url === "string" && url.trim() ? [url.trim()] : [];
-      }
-      return [];
-    });
-  }
-  if (typeof images === "string") {
-    try {
-      return getProductImages(JSON.parse(images) as Json);
-    } catch {
-      return images.trim() ? [images.trim()] : [];
+  const collect = (input: Json | null): string[] => {
+    if (!input) return [];
+    if (Array.isArray(input)) {
+      return input.flatMap((entry) => {
+        if (typeof entry === "string" && entry.trim()) return [entry.trim()];
+        if (entry && typeof entry === "object" && "url" in entry) {
+          const url = (entry as { url?: unknown }).url;
+          return typeof url === "string" && url.trim() ? [url.trim()] : [];
+        }
+        return [];
+      });
     }
-  }
-  return [];
+    if (typeof input === "string") {
+      try {
+        return collect(JSON.parse(input) as Json);
+      } catch {
+        return input.trim() ? [input.trim()] : [];
+      }
+    }
+    return [];
+  };
+  return proxyImageList(collect(images));
 };
 
 const mapProductPreview = (product: CatalogProductRow): ProductPreview | null => {

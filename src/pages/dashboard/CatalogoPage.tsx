@@ -816,22 +816,23 @@ const RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
 
 const getProductImages = (images: Json | null): string[] => {
   if (!images) return [];
-  if (Array.isArray(images)) {
-    return images.filter((image): image is string => typeof image === "string");
-  }
-
-  if (typeof images === "string") {
-    try {
-      const parsed: unknown = JSON.parse(images);
-      return Array.isArray(parsed)
-        ? parsed.filter((image): image is string => typeof image === "string")
-        : [images];
-    } catch {
-      return [images];
+  const raw: string[] = (() => {
+    if (Array.isArray(images)) {
+      return images.filter((image): image is string => typeof image === "string");
     }
-  }
-
-  return [];
+    if (typeof images === "string") {
+      try {
+        const parsed: unknown = JSON.parse(images);
+        return Array.isArray(parsed)
+          ? parsed.filter((image): image is string => typeof image === "string")
+          : [images];
+      } catch {
+        return [images];
+      }
+    }
+    return [];
+  })();
+  return proxyImageList(raw);
 };
 
 
