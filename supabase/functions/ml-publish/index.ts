@@ -356,10 +356,13 @@ type PredictionResult = {
   categoryId: string
   categoryName: string
   rawPrediction: string | null
+  rawCategoryName: string | null
   normalizedPrediction: string | null
+  normalizedCategoryName: string | null
   normalizedTitle: string
   requiresSizeGrid: boolean
-  source: 'raw' | 'normalized' | 'fallback'
+  source: 'raw' | 'normalized' | 'agreed' | 'divergent' | 'fallback'
+  lowConfidence: boolean
 }
 
 async function predictCategory(title: string): Promise<PredictionResult> {
@@ -368,69 +371,77 @@ async function predictCategory(title: string): Promise<PredictionResult> {
 
   const rawHit = await domainDiscoveryLookup(title.slice(0, 60))
   const rawInfo = rawHit ? await fetchCategoryAttrsCached(rawHit.id) : null
-
-  // Preferência 1: título cru retornou categoria-folha que NÃO exige grade.
-  if (rawHit && rawInfo?.isLeaf && !rawInfo.requiresGrid) {
-    return {
-      categoryId: rawHit.id,
-      categoryName: rawHit.name,
-      rawPrediction: rawHit.id,
-      normalizedPrediction: null,
-      normalizedTitle: normalized,
-      requiresSizeGrid: false,
-      source: 'raw',
-    }
-  }
-
-  // Preferência 2: título normalizado retorna algo publicável.
   const normHit = normalized ? await domainDiscoveryLookup(normalized) : null
   const normInfo = normHit ? await fetchCategoryAttrsCached(normHit.id) : null
 
-  if (normHit && normInfo?.isLeaf && !normInfo.requiresGrid) {
-    return {
-      categoryId: normHit.id,
-      categoryName: normHit.name,
-      rawPrediction: rawHit?.id ?? null,
-      normalizedPrediction: normHit.id,
-      normalizedTitle: normalized,
-      requiresSizeGrid: false,
-      source: 'normalized',
-    }
+  const rawOK = Boolean(rawHit && rawInfo?.isLeaf && !rawInfo.requiresGrid)
+  const normOK = Boolean(normHit && normInfo?.isLeaf && !normInfo.requiresGrid)
+
+  const base = {
+    rawPrediction: rawHit?.id ?? null,
+    rawCategoryName: rawHit?.name ?? null,
+    normalizedPrediction: normHit?.id ?? null,
+    normalizedCategoryName: normHit?.name ?? null,
+    normalizedTitle: normalized,
   }
 
-  // Preferência 3: retornar a melhor previsão disponível, mesmo que seja
-  // fashion (o caller vai bloquear com 409 se faltar size_grid_id).
-  if (rawHit) {
-    return {
-      categoryId: rawHit.id,
-      categoryName: rawHit.name,
-      rawPrediction: rawHit.id,
-      normalizedPrediction: normHit?.id ?? null,
-      normalizedTitle: normalized,
-      requiresSizeGrid: Boolean(rawInfo?.requiresGrid),
-      source: 'raw',
+  // Ambas válidas (folha, não-fashion): concordância = alta confiança;
+  // divergência = baixa confiança → caller devolve 409 CATEGORY_LOW_CONFIDENCE.
+  if (rawOK && normOK && rawHit && normHit) {
+    if (rawHit.id === normHit.id) {
+      return { ...base, categoryId: rawHit.id, categoryName: rawHit.name, requiresSizeGrid: false, source: 'agreed', lowConfidence: false }
     }
+    return { ...base, categoryId: rawHit.id, categoryName: rawHit.name, requiresSizeGrid: false, source: 'divergent', lowConfidence: true }
+  }
+
+  // Só uma válida: usa (comportamento atual).
+  if (rawOK && rawHit) {
+    return { ...base, categoryId: rawHit.id, categoryName: rawHit.name, requiresSizeGrid: false, source: 'raw', lowConfidence: false }
+  }
+  if (normOK && normHit) {
+    return { ...base, categoryId: normHit.id, categoryName: normHit.name, requiresSizeGrid: false, source: 'normalized', lowConfidence: false }
+  }
+
+  // Nenhuma válida: retorna a melhor previsão (mesmo fashion) — caller bloqueia com 409 se faltar grade.
+  if (rawHit) {
+    return { ...base, categoryId: rawHit.id, categoryName: rawHit.name, requiresSizeGrid: Boolean(rawInfo?.requiresGrid), source: 'raw', lowConfidence: false }
   }
   if (normHit) {
-    return {
-      categoryId: normHit.id,
-      categoryName: normHit.name,
-      rawPrediction: null,
-      normalizedPrediction: normHit.id,
-      normalizedTitle: normalized,
-      requiresSizeGrid: Boolean(normInfo?.requiresGrid),
-      source: 'normalized',
-    }
+    return { ...base, categoryId: normHit.id, categoryName: normHit.name, requiresSizeGrid: Boolean(normInfo?.requiresGrid), source: 'normalized', lowConfidence: false }
   }
 
-  return {
-    categoryId: FALLBACK,
-    categoryName: 'Outros',
-    rawPrediction: null,
-    normalizedPrediction: null,
-    normalizedTitle: normalized,
-    requiresSizeGrid: false,
-    source: 'fallback',
+  return { ...base, categoryId: FALLBACK, categoryName: 'Outros', requiresSizeGrid: false, source: 'fallback', lowConfidence: false }
+}
+
+async function logPrediction(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    productId: string | null
+    userId: string | null
+    title: string
+    prediction: PredictionResult | null
+    finalCategory: string
+    finalStatus: string
+    requiresSizeGrid: boolean
+  },
+) {
+  if (!args.productId) return
+  try {
+    await supabase.from('ml_category_prediction_log').insert({
+      product_id: args.productId,
+      user_id: args.userId,
+      title_raw: args.title,
+      title_normalized: args.prediction?.normalizedTitle ?? '',
+      predicted_raw: args.prediction?.rawPrediction ?? null,
+      predicted_normalized: args.prediction?.normalizedPrediction ?? null,
+      final_category: args.finalCategory,
+      final_status: args.finalStatus,
+      requires_size_grid: args.requiresSizeGrid,
+      source: args.prediction?.source ?? null,
+      low_confidence: args.prediction?.lowConfidence ?? false,
+    })
+  } catch (logErr) {
+    console.error('[ml-publish] Falha ao gravar log de predição:', logErr)
   }
 }
 
