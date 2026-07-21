@@ -228,7 +228,7 @@ export default function StoreAdminModal({
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-semibold text-white">Administração</p>
-                  <p className="truncate text-[10.5px] text-white/45">{project?.name || "Sua loja"}</p>
+                  <p className="truncate text-[10.5px] text-white/45">{project?.nome || "Sua loja"}</p>
                 </div>
               </div>
 
