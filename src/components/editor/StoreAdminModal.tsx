@@ -82,17 +82,28 @@ function readAdminMeta(project: UserProject | null) {
 // Tokens de cor — sidebar #0f1114, conteúdo #17191d, bordas suaves #ffffff10.
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
+export type StoreProductLite = {
+  id: string;
+  title: string;
+  price: number;
+  imageUrl: string;
+  category?: string;
+};
+
 export default function StoreAdminModal({
   open,
   onClose,
   project,
   onProjectUpdated,
+  storeProducts = [],
 }: {
   open: boolean;
   onClose: () => void;
   project: UserProject | null;
   onProjectUpdated: (next: UserProject) => void;
+  storeProducts?: StoreProductLite[];
 }) {
+
   const [tab, setTab] = useState<Tab>("clientes");
   const [orders, setOrders] = useState<StoreOrderRow[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
