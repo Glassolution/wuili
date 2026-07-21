@@ -1801,6 +1801,19 @@ const GeneratedStoreEditorPage = () => {
 
   const publicUrl = projectSlug ? `https://${projectSlug}.velostore.app` : "";
 
+  // Ordem das telas definida pelo dono da loja em Administração > Fluxo do cliente.
+  // O canvas principal é sempre a Home; as demais telas do fluxo aparecem lado a lado
+  // seguindo essa sequência (ex.: se o usuário mover "Login" antes do "Carrinho",
+  // o iframe de login vai aparecer antes do carrinho).
+  const customerFlow = useMemo<string[]>(() => {
+    const m = currentProject?.metadata;
+    if (m && typeof m === "object" && !Array.isArray(m)) {
+      const flow = (m as Record<string, unknown>).customerFlow;
+      if (Array.isArray(flow)) return flow.filter((v): v is string => typeof v === "string");
+    }
+    return ["home", "catalogo", "produto", "carrinho", "checkout", "obrigado"];
+  }, [currentProject]);
+
   const handleOpenPublish = () => {
     if (isFreePlan) {
       setUpgradeModalOpen(true);
@@ -3608,13 +3621,25 @@ const GeneratedStoreEditorPage = () => {
             <>
               {(() => {
                 const productPathId = featuredProduct?.id ? `/${featuredProduct.id}` : "";
-                const screens = [
-                  { key: "catalogo", label: "Tela 2 · Catálogo", path: `/loja/${projectSlug}/catalogo?preview=1` },
-                  { key: "produto", label: "Tela 3 · Produto", path: `/loja/${projectSlug}/produto${productPathId}?preview=1` },
-                  { key: "carrinho", label: "Tela 4 · Carrinho", path: `/loja/${projectSlug}/carrinho?preview=1` },
-                  { key: "checkout", label: "Tela 5 · Checkout", path: `/loja/${projectSlug}/checkout?preview=1` },
-                  { key: "conta", label: "Tela 6 · Conta do cliente", path: `/loja/${projectSlug}/conta?preview=1` },
-                ];
+                const SCREEN_MAP: Record<string, { label: string; path: string } | undefined> = {
+                  catalogo: { label: "Catálogo", path: `/loja/${projectSlug}/catalogo?preview=1` },
+                  produto: { label: "Produto", path: `/loja/${projectSlug}/produto${productPathId}?preview=1` },
+                  login: { label: "Login / Cadastro", path: `/loja/${projectSlug}/login?preview=1` },
+                  carrinho: { label: "Carrinho", path: `/loja/${projectSlug}/carrinho?preview=1` },
+                  checkout: { label: "Checkout", path: `/loja/${projectSlug}/checkout?preview=1` },
+                  obrigado: { label: "Confirmação", path: `/loja/${projectSlug}/obrigado?preview=1` },
+                  conta: { label: "Conta do cliente", path: `/loja/${projectSlug}/conta?preview=1` },
+                };
+                // A Home é sempre o canvas principal (à esquerda). As demais telas
+                // aparecem na ordem definida pelo dono da loja (customerFlow).
+                const orderedKeys = customerFlow.filter((k) => k !== "home" && SCREEN_MAP[k]);
+                // Garante Conta do cliente ao final se o dono não incluiu.
+                if (!orderedKeys.includes("conta")) orderedKeys.push("conta");
+                const screens = orderedKeys.map((key, idx) => ({
+                  key,
+                  label: `Tela ${idx + 2} · ${SCREEN_MAP[key]!.label}`,
+                  path: SCREEN_MAP[key]!.path,
+                }));
                 const baseWidth = mobilePreview ? 390 : 1440;
                 const gap = 120;
                 const panelHeight = mobilePreview ? 1400 : 1600;
