@@ -564,6 +564,20 @@ const PLAN_DATA = [
     features: ["Exploração do catálogo", "Dashboard demonstrativo", "IA básica de teste"],
   },
   {
+    id: "base",
+    name: "Base",
+    price: "R$39,90",
+    period: "/mês",
+    description: "Pra quem quer começar a vender sem travar no operacional.",
+    features: [
+      "Até 50 produtos publicados",
+      "1 marketplace conectado",
+      "1 página de vendas por IA",
+      "Catálogo validado completo",
+      "Analytics básico",
+    ],
+  },
+  {
     id: "pro",
     name: "Pro",
     price: "R$79,80",
@@ -634,7 +648,7 @@ const PlanTab = () => {
       {/* Available plans */}
       <h3 className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white mb-3">Outros planos</h3>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {PLAN_DATA.map((p) => {
+        {PLAN_DATA.filter((p) => p.id !== "gratis").map((p) => {
           const isCurrent = p.id === plan;
           const isSelectable = !isCurrent && p.id !== "gratis";
           return (
@@ -663,7 +677,7 @@ const PlanTab = () => {
               <button
                 disabled={!isSelectable}
                 onClick={() => {
-                  if (p.id !== "gratis") upgradeModal.open({ defaultPlan: p.id === "business" ? "business" : "pro" });
+                  if (p.id !== "gratis") upgradeModal.open({ defaultPlan: p.id === "business" ? "business" : p.id === "base" ? "base" : "pro" });
                 }}
                 className={`mt-4 w-full py-2 rounded-full text-[12px] font-medium ${
                   !isSelectable

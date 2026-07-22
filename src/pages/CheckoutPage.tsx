@@ -519,20 +519,19 @@ const CheckoutPage = () => {
                   : getOriginalDisplayPrice(id, billingCycle);
                 const savings = hasReferralDiscount ? null : getSavingsDisplay(originalPrice, displayPrice);
 
-                // O plano em destaque ganha borda de cor e CTA sólido, como no
-                // card "Most Popular" de referência.
-                const isFeatured = id === "pro";
+                // O card SELECIONADO ganha o destaque (borda preta, ícone sólido,
+                // sombra) — o mesmo tratamento que antes era fixo no Pro. Assim o
+                // realce acompanha o plano que a pessoa escolher.
+                const isFeatured = isSelected;
 
                 return (
                   <article
                     key={id}
                     onClick={() => setSelectedPlanId(id)}
                     className={`relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-6 transition duration-200 ${
-                      isFeatured
+                      isSelected
                         ? "border-[#0A0A0A] shadow-[0_10px_36px_rgba(0,0,0,0.09)]"
-                        : isSelected
-                          ? "border-black/25"
-                          : "border-black/10 hover:border-black/25"
+                        : "border-black/10 hover:border-black/25"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
