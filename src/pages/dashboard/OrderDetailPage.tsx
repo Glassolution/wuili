@@ -176,7 +176,9 @@ const OrderDetailPage = () => {
   const address = getAddress(order);
   const image = getProductImage(order);
   const stage = getTrackingStage(order);
+  const supplier = supplierHref(order.supplier_url);
   const mlHref = mlOrderHref(order);
+
 
   const steps = [
     { label: "Pedido recebido", date: order.ordered_at ?? order.created_at },
