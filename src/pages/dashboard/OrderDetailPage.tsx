@@ -543,7 +543,9 @@ const OrderDetailPage = () => {
         </section>
       </div>
     </div>
+    </>
   );
+
 };
 
 export default OrderDetailPage;
