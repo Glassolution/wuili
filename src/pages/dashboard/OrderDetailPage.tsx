@@ -166,11 +166,166 @@ const OrderDetailPage = () => {
 
   const statusLabel = statusLabels[(order.status ?? "pending").toLowerCase()] ?? clean(order.status);
 
+  const mobileStageLabels = ["Recebido", "Em trânsito", "Entregue"];
+  const mobileStageDates = [order.ordered_at ?? order.created_at, order.date_shipped, order.date_delivered];
+  const mobileStage = stage >= 3 ? 2 : stage >= 2 ? 1 : 0;
+  const mobileBadge = stage >= 3 ? "Entregue" : stage >= 2 ? "Em trânsito" : stage >= 1 ? "Preparando" : "Recebido";
+
   return (
-    <div
-      className="min-h-full bg-[#FAFAFA] px-4 pb-16 pt-4 sm:px-6 sm:pt-6"
-      style={{ fontFamily: 'Inter, "Geist Sans", ui-sans-serif, system-ui, sans-serif' }}
-    >
+    <>
+      {/* MOBILE */}
+      <div
+        className="min-h-full bg-white pb-24 md:hidden"
+        style={{ fontFamily: 'Inter, "Geist Sans", ui-sans-serif, system-ui, sans-serif' }}
+      >
+        <div className="flex items-center gap-3 px-5 pb-5 pt-4">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/pedidos")}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#0A0A0A]"
+            aria-label="Voltar"
+          >
+            <ArrowLeft size={20} strokeWidth={1.8} />
+          </button>
+          <h1 className="flex-1 text-center text-[15px] font-semibold text-[#0A0A0A]">Detalhes</h1>
+          <div className="h-9 w-9" />
+        </div>
+
+        <div className="px-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F5F5F5]">
+                <Package size={20} strokeWidth={1.6} className="text-[#0A0A0A]" />
+              </div>
+              <div>
+                <p className="text-[12px] text-[#737373]">Product ID:</p>
+                <p className="mt-0.5 text-[17px] font-semibold tracking-tight text-[#0A0A0A]">{getOrderCode(order)}</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-[#E8F1FF] px-3 py-1.5 text-[12px] font-semibold text-[#1D4ED8]">
+              {mobileBadge}
+            </span>
+          </div>
+
+          {/* progress */}
+          <div className="mt-7">
+            <div className="relative flex items-center justify-between">
+              {mobileStageLabels.map((_, i) => (
+                <div
+                  key={i}
+                  className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full ${
+                    i < mobileStage
+                      ? "bg-[#0A0A0A] text-white"
+                      : i === mobileStage
+                        ? "border-[3px] border-[#0A0A0A] bg-white"
+                        : "border-2 border-[#E5E5E5] bg-white"
+                  }`}
+                >
+                  {i < mobileStage && <Check size={14} strokeWidth={3} />}
+                </div>
+              ))}
+              <div className="absolute left-3 right-3 top-1/2 -z-0 h-[2px] -translate-y-1/2 bg-[#E5E5E5]" />
+              <div
+                className="absolute left-3 top-1/2 -z-0 h-[2px] -translate-y-1/2 bg-[#0A0A0A] transition-all"
+                style={{ width: `calc(${(mobileStage / (mobileStageLabels.length - 1)) * 100}% - 24px)` }}
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {mobileStageLabels.map((label, i) => (
+                <div key={label} className={i === 0 ? "text-left" : i === mobileStageLabels.length - 1 ? "text-right" : "text-center"}>
+                  <p className={`text-[13px] font-semibold ${i <= mobileStage ? "text-[#0A0A0A]" : "text-[#A3A3A3]"}`}>{label}</p>
+                  <p className={`mt-1 text-[11px] ${i <= mobileStage ? "text-[#737373]" : "text-[#A3A3A3]"}`}>
+                    {i <= mobileStage ? formatDate(mobileStageDates[i]) : "Pendente"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* supplier CTA */}
+          <div className="mt-7">
+            {supplier ? (
+              <a
+                href={supplier}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#0A0A0A] text-[15px] font-semibold text-white active:scale-[0.99]"
+              >
+                <ShoppingBag size={17} strokeWidth={1.8} />
+                Comprar no Fornecedor
+                <ExternalLink size={15} strokeWidth={1.8} />
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-black/30 text-[15px] font-semibold text-white"
+              >
+                <ShoppingBag size={17} strokeWidth={1.8} />
+                Fornecedor indisponível
+              </button>
+            )}
+          </div>
+
+          {/* customer info */}
+          <div className="mt-7">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-[#737373]">
+              <MapPin size={14} strokeWidth={1.8} /> Detalhes da entrega
+            </div>
+            <h2 className="mt-2 text-[20px] font-semibold tracking-tight text-[#0A0A0A]">Informações do Cliente</h2>
+
+            <div className="mt-5 space-y-5">
+              <div className="flex items-start gap-3">
+                <UserRound size={18} strokeWidth={1.6} className="mt-0.5 text-[#A3A3A3]" />
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">Nome</p>
+                  <p className="mt-1 text-[15px] font-semibold text-[#0A0A0A]">{clean(order.buyer_name)}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Phone size={18} strokeWidth={1.6} className="mt-0.5 text-[#A3A3A3]" />
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">Telefone</p>
+                  <p className="mt-1 text-[15px] font-semibold text-[#0A0A0A]">{clean(order.buyer_phone)}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <MapPin size={18} strokeWidth={1.6} className="mt-0.5 text-[#A3A3A3]" />
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">Endereço completo</p>
+                  <div className="mt-1 space-y-0.5 text-[15px] font-semibold leading-snug text-[#0A0A0A]">
+                    {address.length > 0 ? address.map((line) => <p key={line}>{line}</p>) : <p>—</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* product card */}
+          <div className="mt-6 flex items-center gap-3 rounded-2xl bg-[#F6F6F6] p-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
+              {image ? (
+                <img src={image} alt={getProductName(order)} className="h-full w-full object-cover" />
+              ) : (
+                <Package size={20} strokeWidth={1.5} className="text-[#A3A3A3]" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="line-clamp-2 text-[14px] font-semibold text-[#0A0A0A]">{getProductName(order)}</p>
+              <p className="mt-1 text-[12px] text-[#737373]">Qtd. {quantity} · {formatBRL(unitPrice)}</p>
+            </div>
+          </div>
+
+          <p className="mt-4 text-center text-[12px] text-[#A3A3A3]">Aguardando atualização</p>
+        </div>
+      </div>
+
+      {/* DESKTOP */}
+      <div
+        className="hidden min-h-full bg-[#FAFAFA] px-4 pb-16 pt-4 sm:px-6 sm:pt-6 md:block"
+        style={{ fontFamily: 'Inter, "Geist Sans", ui-sans-serif, system-ui, sans-serif' }}
+      >
+
       <div className="mx-auto w-full max-w-5xl">
         <button
           type="button"
