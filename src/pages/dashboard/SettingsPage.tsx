@@ -474,10 +474,12 @@ const IntegrationsTab = () => {
       <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Integrações</h2>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Conecte suas plataformas de venda e recebimento.</p>
 
-      <div className="mb-4">
-        <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Pagamentos</h3>
-        <MercadoPagoIntegrationCard />
-      </div>
+      {isAdmin && (
+        <div className="mb-4">
+          <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Pagamentos</h3>
+          <MercadoPagoIntegrationCard />
+        </div>
+      )}
 
       {isAdmin && (
         <div className="mb-4">

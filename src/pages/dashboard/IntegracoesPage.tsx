@@ -7,6 +7,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
+import { isAdminEmail } from "@/lib/adminAccess";
 
 type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
 
@@ -25,7 +26,8 @@ const platforms: PlatformCard[] = [
 ];
 
 const IntegracoesPage = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin" || isAdminEmail(user?.email);
   const planLimits = usePlanLimits();
   const [statuses, setStatuses] = useState<Record<string, IntegrationStatus>>({});
   const [loading, setLoading] = useState(true);
@@ -109,10 +111,12 @@ const IntegracoesPage = () => {
         <p className="text-sm text-muted-foreground mt-1">Conecte suas contas para publicar e gerenciar produtos.</p>
       </div>
 
-      <div>
-        <h2 className="text-sm font-semibold text-foreground mb-3">Pagamentos</h2>
-        <MercadoPagoIntegrationCard />
-      </div>
+      {isAdmin && (
+        <div>
+          <h2 className="text-sm font-semibold text-foreground mb-3">Pagamentos</h2>
+          <MercadoPagoIntegrationCard />
+        </div>
+      )}
 
       {loading ? (
         <div className="text-sm text-muted-foreground animate-pulse">Carregando...</div>
