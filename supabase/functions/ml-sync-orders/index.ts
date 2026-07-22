@@ -163,16 +163,18 @@ serve(async (req) => {
       const buyerState = addr.state?.name ?? "";
       const buyerZip = addr.zip_code ?? "";
 
-      // Lookup user_publications mapping
+      // Lookup user_publications mapping + catalog product supplier
       let cjVariantId: string | null = null;
       let cjProductId: string | null = null;
       let cjProductUrl: string | null = null;
       let costPrice: number | null = null;
+      let catalogProductId: string | null = null;
+      let supplierUrl: string | null = null;
 
       if (mlItemId) {
         const { data: pub } = await adminClient
           .from("user_publications")
-          .select("cj_variant_id, cj_product_id, cj_product_url, cost_price")
+          .select("cj_variant_id, cj_product_id, cj_product_url, cost_price, catalog_product_id")
           .eq("ml_item_id", mlItemId)
           .eq("user_id", userId)
           .maybeSingle();
@@ -182,6 +184,23 @@ serve(async (req) => {
           cjProductId = pub.cj_product_id ?? null;
           cjProductUrl = pub.cj_product_url ?? null;
           costPrice = pub.cost_price ?? null;
+          catalogProductId = pub.catalog_product_id ?? null;
+
+          if (catalogProductId) {
+            // catalog_product_id in user_publications may be a UUID or the external slug
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(catalogProductId);
+            const { data: cp } = await adminClient
+              .from("catalog_products")
+              .select("id, product_url")
+              .or(isUuid ? `id.eq.${catalogProductId}` : `external_id.eq.${catalogProductId}`)
+              .maybeSingle();
+            if (cp) {
+              supplierUrl = cp.product_url ?? cjProductUrl ?? null;
+              catalogProductId = cp.id; // normalize to UUID for FK
+            }
+          }
+
+          if (!supplierUrl && cjProductUrl) supplierUrl = cjProductUrl;
         }
       }
 
@@ -194,6 +213,7 @@ serve(async (req) => {
         .insert({
           user_id: userId,
           external_order_id: mlOrderId,
+          ml_order_id: mlOrderId,
           platform: "mercadolivre",
           product_title: item?.item?.title ?? "Produto Mercado Livre",
           product_image: item?.item?.thumbnail_url ?? null,
@@ -207,11 +227,16 @@ serve(async (req) => {
           buyer_state: buyerState,
           buyer_zip: buyerZip,
           sale_price: salePrice,
+          total_amount: salePrice,
+          quantity: Number(item?.quantity ?? 1),
           cost_price: costPrice,
           profit: profit,
           status: fullOrder.status === "paid" ? "paid" : (fullOrder.status === "cancelled" ? "cancelled" : "pending"),
           tracking_code: fullOrder.shipping?.tracking_number ?? null,
           ordered_at: fullOrder.date_created,
+          catalog_product_id: catalogProductId,
+          supplier_url: supplierUrl,
+          raw: fullOrder,
         })
         .select()
         .single();
