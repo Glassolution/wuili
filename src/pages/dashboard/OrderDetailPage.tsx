@@ -19,7 +19,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { getMockLucasOrder, isMockLucasOrder, isLucasMockOrderUser } from "@/lib/mockLucasOrder";
+
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
 
