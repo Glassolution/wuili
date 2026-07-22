@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { veloToast } from "@/components/ui/velo-toast";
-import { getMockLucasOrder, isLucasMockOrderUser, isMockLucasOrder } from "@/lib/mockLucasOrder";
+
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
 
