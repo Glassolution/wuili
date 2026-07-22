@@ -437,7 +437,7 @@ const ProjectSettingsOverlay = ({ open, onClose, project, initialSection = "gera
                             <SelectTrigger className="h-11 w-full rounded-[11px] border-white/[0.1] bg-black/25 px-3 text-[14px] text-white focus:ring-0 focus:ring-offset-0 disabled:opacity-60 sm:w-44">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="z-[130] rounded-[11px] border-white/10 bg-[#17182b] text-white">
+                            <SelectContent className="z-[130] rounded-[11px] border-white/10 bg-[#1c1d1e] text-white">
                               <SelectItem value="editor" className="rounded-lg text-[14px] text-white focus:bg-white/10 focus:text-white">
                                 Editor
                               </SelectItem>
@@ -467,15 +467,22 @@ const ProjectSettingsOverlay = ({ open, onClose, project, initialSection = "gera
                     <div className="mt-4 divide-y divide-white/[0.06] rounded-[16px] border border-white/[0.07] bg-white/[0.02]">
                       <div className="flex items-center gap-3 px-5 py-4">
                         <span className="w-40 shrink-0 text-[14px] text-white/70">Categoria</span>
-                        <select
-                          value={category}
-                          onChange={(event) => { setCategory(event.target.value); void handleSaveMetadata({ category: event.target.value }); }}
+                        <Select
+                          value={category || undefined}
+                          onValueChange={(value) => { setCategory(value); void handleSaveMetadata({ category: value }); }}
                           disabled={!isOwner || saving}
-                          className="flex-1 rounded-[10px] bg-black/25 px-3 py-2 text-right text-[14px] text-white outline-none disabled:opacity-60"
                         >
-                          <option value="">Selecionar categoria</option>
-                          {CATEGORIES.map((item) => <option key={item} value={item}>{item}</option>)}
-                        </select>
+                          <SelectTrigger className="h-10 flex-1 rounded-[10px] border-white/[0.1] bg-black/25 px-3 text-[14px] text-white focus:ring-0 focus:ring-offset-0 disabled:opacity-60">
+                            <SelectValue placeholder="Selecionar categoria" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[130] max-h-72 rounded-[11px] border-white/10 bg-[#1c1d1e] text-white">
+                            {CATEGORIES.map((item) => (
+                              <SelectItem key={item} value={item} className="rounded-lg text-[14px] text-white focus:bg-white/10 focus:text-white">
+                                {item}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="flex items-center gap-3 px-5 py-4">
                         <div className="flex-1">
