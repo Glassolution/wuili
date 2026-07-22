@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -355,7 +355,24 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
 const OrdersPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<OrderTab>("ml");
+  const syncedRef = useRef(false);
+
+  useEffect(() => {
+    if (!user?.id || syncedRef.current) return;
+    syncedRef.current = true;
+    supabase.functions
+      .invoke("ml-sync-orders")
+      .then(({ error: syncErr }) => {
+        if (syncErr) {
+          console.warn("[OrdersPage] ml-sync-orders falhou", syncErr);
+          return;
+        }
+        queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user.id] });
+      })
+      .catch((err) => console.warn("[OrdersPage] ml-sync-orders exception", err));
+  }, [user?.id, queryClient]);
 
   const {
     data: rawOrders,
