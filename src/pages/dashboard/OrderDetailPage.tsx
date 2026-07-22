@@ -19,7 +19,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { getMockLucasOrder, isMockLucasOrder, isLucasMockOrderUser } from "@/lib/mockLucasOrder";
+
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
 
@@ -202,11 +202,7 @@ const OrderDetailPage = () => {
       const { data, error: queryError } = await supabase.from("ml_orders_view").select("*");
       if (queryError) throw queryError;
       const orders = (data ?? []) as MlOrderDetail[];
-      if (!isLucasMockOrderUser(user?.email) || !user?.id) return orders;
-      return [
-        getMockLucasOrder(user.id),
-        ...orders.filter((order) => !isMockLucasOrder(order)),
-      ] as MlOrderDetail[];
+      return orders;
     },
     select: (orders) => orders.find((item) => [item.ml_order_id, item.id, item.external_order_id].some((value) => value === id)) ?? null,
   });

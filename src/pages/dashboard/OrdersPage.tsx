@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { veloToast } from "@/components/ui/velo-toast";
-import { getMockLucasOrder, isLucasMockOrderUser, isMockLucasOrder } from "@/lib/mockLucasOrder";
+
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
 
@@ -385,13 +385,7 @@ const OrdersPage = () => {
 
   const orders = useMemo(
     () => {
-      const baseOrders =
-        isLucasMockOrderUser(user?.email) && user?.id
-          ? [
-              getMockLucasOrder(user.id),
-              ...(rawOrders ?? []).filter((order) => !isMockLucasOrder(order)),
-            ]
-          : [...(rawOrders ?? [])];
+      const baseOrders = [...(rawOrders ?? [])];
 
       return baseOrders.sort((a, b) => {
         const left = new Date(a.ordered_at ?? a.created_at ?? 0).getTime();
