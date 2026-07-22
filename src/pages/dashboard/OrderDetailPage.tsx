@@ -354,7 +354,7 @@ const OrderDetailPage = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="line-clamp-2 text-[14px] font-semibold text-[#0A0A0A]">{getProductName(order)}</p>
-                  <p className="mt-1 text-[12px] text-[#737373]">ID do produto: {clean(order.ml_item_id)}</p>
+                  <p className="mt-1 text-[12px] text-[#737373]">ID do produto: {clean(order.external_order_id)}</p>
                 </div>
               </div>
               <p className="text-[13px] font-semibold text-[#0A0A0A] sm:text-center">{String(quantity).padStart(2, "0")}</p>
