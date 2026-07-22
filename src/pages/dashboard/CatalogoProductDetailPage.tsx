@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -117,6 +117,9 @@ function mapProduct(p: CatalogProductRow): DetailedProduct {
 // ============================================================
 // Página
 // ============================================================
+// Altura máxima da descrição do fornecedor antes de recolher com "Expandir descrição".
+const DESC_COLLAPSED_MAX = 340;
+
 const CatalogoProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -130,6 +133,38 @@ const CatalogoProductDetailPage = () => {
   const [rawProduct, setRawProduct] = useState<CatalogProductRow | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showSalesPageSoon, setShowSalesPageSoon] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [descOverflows, setDescOverflows] = useState(false);
+  const descRef = useRef<HTMLDivElement>(null);
+
+  // Ao trocar de produto, volta a descrição para o estado recolhido.
+  useEffect(() => {
+    setDescExpanded(false);
+  }, [product?.description]);
+
+  // Decide se o botão "Expandir descrição" precisa aparecer. scrollHeight reflete a
+  // altura real do conteúdo mesmo com o clamp de max-height aplicado. Medimos de forma
+  // PONTUAL (imediato + rAF + timeout para fontes/layout tardio) e em resize — NUNCA
+  // com ResizeObserver no próprio elemento, pois o clamp muda o tamanho dele e criaria
+  // um loop infinito de medição/setState.
+  // Callback ref: dispara exatamente quando o nó da descrição é anexado ao DOM
+  // (garante que o elemento existe — um useEffect podia rodar antes do nó montar).
+  // O nó medido NÃO é clampado (o clamp fica no wrapper pai), então scrollHeight é a
+  // altura real do conteúdo e medir aqui é seguro/estável.
+  const measureDescNode = useCallback((node: HTMLDivElement | null) => {
+    descRef.current = node;
+    if (node) setDescOverflows(node.scrollHeight > DESC_COLLAPSED_MAX + 24);
+  }, []);
+
+  // Re-mede em resize da janela (a largura muda a altura do texto).
+  useEffect(() => {
+    const measure = () => {
+      const el = descRef.current;
+      if (el) setDescOverflows(el.scrollHeight > DESC_COLLAPSED_MAX + 24);
+    };
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -285,7 +320,7 @@ const CatalogoProductDetailPage = () => {
   };
 
   return (
-    <div className="-m-5 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)]">
+    <div className="-m-5 shrink-0 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)]">
       <div className="w-full px-5 py-6 sm:px-8 sm:py-8 lg:px-10">
         
         {/* CABEÇALHO DA PÁGINA */}
@@ -589,10 +624,31 @@ const CatalogoProductDetailPage = () => {
 
             {/* Descrição real do fornecedor */}
             {product.description ? (
-              <div
-                className="mb-6 text-[14px] leading-6 text-[#3F3F46] prose prose-sm max-w-none [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-black/10 [&_td]:px-3 [&_td]:py-2 [&_td]:text-[13px] [&_th]:border [&_th]:border-black/10 [&_th]:px-3 [&_th]:py-2 [&_th]:text-[13px] [&_th]:font-semibold [&_h3]:text-[14px] [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_img]:hidden"
-                dangerouslySetInnerHTML={{ __html: product.description }}
-              />
+              <div className="mb-6">
+                <div
+                  className="relative"
+                  style={!descExpanded && descOverflows ? { maxHeight: DESC_COLLAPSED_MAX, overflow: "hidden" } : undefined}
+                >
+                  <div
+                    ref={measureDescNode}
+                    className="overflow-x-auto text-[14px] leading-6 text-[#3F3F46] prose prose-sm max-w-none [&_*]:max-w-full [&_table]:!my-3 [&_table]:!w-full [&_table]:!table-fixed [&_table]:border-collapse [&_th]:border [&_th]:border-black/10 [&_th]:!w-[38%] [&_th]:px-3 [&_th]:py-2 [&_th]:text-[13px] [&_th]:font-semibold [&_th]:!text-left [&_th]:align-top [&_th]:whitespace-normal [&_th]:break-words [&_td]:border [&_td]:border-black/10 [&_td]:px-3 [&_td]:py-2 [&_td]:text-[13px] [&_td]:!text-left [&_td]:align-top [&_td]:whitespace-normal [&_td]:break-words [&_h3]:text-[14px] [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_img]:hidden"
+                    dangerouslySetInnerHTML={{ __html: product.description }}
+                  />
+                  {!descExpanded && descOverflows ? (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white via-white/85 to-transparent" />
+                  ) : null}
+                </div>
+                {descOverflows ? (
+                  <button
+                    type="button"
+                    onClick={() => setDescExpanded((v) => !v)}
+                    className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0A0A0A] transition-colors hover:text-[#404040]"
+                  >
+                    {descExpanded ? "Recolher descrição" : "Expandir descrição"}
+                    <ChevronDown size={15} className={`transition-transform duration-200 ${descExpanded ? "rotate-180" : ""}`} />
+                  </button>
+                ) : null}
+              </div>
             ) : (
               <p className="mb-6 text-[14px] leading-6 text-[#3F3F46]">
                 O fornecedor ainda não disponibilizou uma descrição detalhada para este produto.
