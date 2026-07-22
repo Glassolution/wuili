@@ -62,6 +62,27 @@ const clean = (value: string | number | null | undefined) => {
   return text || "—";
 };
 
+const isMissing = (value: string | number | null | undefined) => clean(value) === "—";
+
+const mlOrderHref = (o: MlOrderDetail) => {
+  const id = (o.ml_order_id ?? o.external_order_id ?? "").toString().trim();
+  if (!id) return null;
+  return `https://www.mercadolivre.com.br/vendas/${id}/detalhe`;
+};
+
+const MLLinkButton = ({ href, label }: { href: string; label: string }) => (
+  <a
+    href={href}
+    target="_blank"
+    rel="noreferrer"
+    title={`Ver ${label} no Mercado Livre`}
+    className="inline-flex h-6 items-center gap-1 rounded-md border border-[#FFE600] bg-[#FFF9C2] px-2 text-[10px] font-semibold text-[#2D3277] transition hover:bg-[#FFE600]"
+  >
+    Ver no ML
+    <ExternalLink size={10} strokeWidth={2} />
+  </a>
+);
+
 const getOrderCode = (o: MlOrderDetail) => clean(o.ml_order_id ?? o.external_order_id ?? o.id);
 const getProductName = (o: MlOrderDetail) => clean(o.catalog_title ?? o.product_title);
 const getProductImage = (o: MlOrderDetail) => {
