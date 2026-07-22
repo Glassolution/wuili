@@ -485,7 +485,10 @@ const OrderDetailPage = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">Telefone</p>
-                <p className="mt-1 break-words text-[14px] font-semibold text-[#0A0A0A]">{clean(order.buyer_phone)}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <p className="break-words text-[14px] font-semibold text-[#0A0A0A]">{clean(order.buyer_phone)}</p>
+                  {isMissing(order.buyer_phone) && mlHref && <MLLinkButton href={mlHref} label="telefone" />}
+                </div>
               </div>
             </div>
 
@@ -495,7 +498,10 @@ const OrderDetailPage = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">E-mail</p>
-                <p className="mt-1 break-words text-[14px] font-semibold text-[#0A0A0A]">{clean(order.buyer_email)}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <p className="break-words text-[14px] font-semibold text-[#0A0A0A]">{clean(order.buyer_email)}</p>
+                  {isMissing(order.buyer_email) && mlHref && <MLLinkButton href={mlHref} label="e-mail" />}
+                </div>
               </div>
             </div>
 
