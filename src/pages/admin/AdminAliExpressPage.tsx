@@ -177,6 +177,19 @@ export default function AdminAliExpressPage() {
               </button>
             )}
             <button
+              onClick={toggleCron}
+              disabled={togglingCron || cronActive === null}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
+                cronActive
+                  ? "bg-red-500/15 text-red-300 hover:bg-red-500/25"
+                  : "bg-green-500/15 text-green-300 hover:bg-green-500/25"
+              }`}
+              title={cronActive ? "Desligar sincronização automática (6h)" : "Reativar sincronização automática (6h)"}
+            >
+              {togglingCron ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
+              {cronActive === null ? "Cron —" : cronActive ? "Desligar cron" : "Ligar cron"}
+            </button>
+            <button
               onClick={syncNow}
               disabled={syncing}
               className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
