@@ -41,6 +41,8 @@ export default function AdminAliExpressPage() {
   const [syncing, setSyncing] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [cronActive, setCronActive] = useState<boolean | null>(null);
+  const [togglingCron, setTogglingCron] = useState(false);
   const [form, setForm] = useState({ velo_category: "", aliexpress_category_id: "", aliexpress_category_name: "" });
 
   const lastLog = useMemo(() => logs[0] ?? null, [logs]);
