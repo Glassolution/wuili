@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
-import { ManualCategoryDialog } from "@/components/dashboard/ManualCategoryDialog";
+// import { ManualCategoryDialog } from "@/components/dashboard/ManualCategoryDialog"; // removido a pedido
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
