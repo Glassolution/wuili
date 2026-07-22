@@ -254,8 +254,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [mlVerifyModalOpen, setMlVerifyModalOpen] = useState(false);
-  const [manualCatOpen, setManualCatOpen] = useState(false);
-  const [manualCatSuggestion, setManualCatSuggestion] = useState<{ id?: string; name?: string }>({});
+  // Estado do modal manual de categoria removido a pedido do usuário.
 
   // Pricing engine
   const [multiplier, setMultiplier] = useState(2.5);
