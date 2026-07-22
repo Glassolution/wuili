@@ -385,13 +385,7 @@ const OrdersPage = () => {
 
   const orders = useMemo(
     () => {
-      const baseOrders =
-        isLucasMockOrderUser(user?.email) && user?.id
-          ? [
-              getMockLucasOrder(user.id),
-              ...(rawOrders ?? []).filter((order) => !isMockLucasOrder(order)),
-            ]
-          : [...(rawOrders ?? [])];
+      const baseOrders = [...(rawOrders ?? [])];
 
       return baseOrders.sort((a, b) => {
         const left = new Date(a.ordered_at ?? a.created_at ?? 0).getTime();
