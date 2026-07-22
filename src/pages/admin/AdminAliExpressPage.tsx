@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Loader2, Link2 } from "lucide-react";
+import { RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Loader2, Link2, Power } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
