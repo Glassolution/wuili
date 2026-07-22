@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Loader2, Link2 } from "lucide-react";
+import { RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Loader2, Link2, Power } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,22 +41,27 @@ export default function AdminAliExpressPage() {
   const [syncing, setSyncing] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [cronActive, setCronActive] = useState<boolean | null>(null);
+  const [togglingCron, setTogglingCron] = useState(false);
   const [form, setForm] = useState({ velo_category: "", aliexpress_category_id: "", aliexpress_category_name: "" });
 
   const lastLog = useMemo(() => logs[0] ?? null, [logs]);
 
   const load = async () => {
     setLoading(true);
-    const [m, l, p] = await Promise.all([
+    const [m, l, p, c] = await Promise.all([
       supabase.from("category_mapping").select("*").order("velo_category"),
       supabase.from("aliexpress_sync_log").select("*").order("started_at", { ascending: false }).limit(10),
       user?.id
         ? supabase.from("profiles").select("aliexpress_access_token").eq("user_id", user.id).maybeSingle()
         : Promise.resolve({ data: null }),
+      (supabase.rpc as any)("get_aliexpress_cron_status"),
     ]);
     if (m.data) setMappings(m.data as Mapping[]);
     if (l.data) setLogs(l.data as SyncLog[]);
     setIsConnected(Boolean((p as any)?.data?.aliexpress_access_token));
+    const row = Array.isArray((c as any)?.data) ? (c as any).data[0] : null;
+    setCronActive(row ? Boolean(row.active) : null);
     setLoading(false);
   };
 
@@ -133,6 +138,23 @@ export default function AdminAliExpressPage() {
     }
   };
 
+  const toggleCron = async () => {
+    if (cronActive === null) return;
+    const next = !cronActive;
+    if (!confirm(next ? "Reativar o cron do AliExpress (executa a cada 6h)?" : "Desligar o cron do AliExpress? Nenhuma sincronização automática vai rodar até você reativar.")) return;
+    setTogglingCron(true);
+    try {
+      const { error } = await (supabase.rpc as any)("set_aliexpress_cron_active", { p_active: next });
+      if (error) throw error;
+      setCronActive(next);
+      veloToast.success(next ? "Cron reativado" : "Cron desligado");
+    } catch (err) {
+      veloToast.error(err instanceof Error ? err.message : "Falha ao alterar cron");
+    } finally {
+      setTogglingCron(false);
+    }
+  };
+
   return (
     <AdminShell active="settings" userId={user?.id ?? ""}>
       <div className="space-y-6">
@@ -154,6 +176,19 @@ export default function AdminAliExpressPage() {
                 {connecting ? "Conectando..." : "Conectar AliExpress"}
               </button>
             )}
+            <button
+              onClick={toggleCron}
+              disabled={togglingCron || cronActive === null}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
+                cronActive
+                  ? "bg-red-500/15 text-red-300 hover:bg-red-500/25"
+                  : "bg-green-500/15 text-green-300 hover:bg-green-500/25"
+              }`}
+              title={cronActive ? "Desligar sincronização automática (6h)" : "Reativar sincronização automática (6h)"}
+            >
+              {togglingCron ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
+              {cronActive === null ? "Cron —" : cronActive ? "Desligar cron" : "Ligar cron"}
+            </button>
             <button
               onClick={syncNow}
               disabled={syncing}
