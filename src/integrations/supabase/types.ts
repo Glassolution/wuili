@@ -2222,6 +2222,15 @@ export type Database = {
     }
     Functions: {
       claim_project_invites: { Args: never; Returns: number }
+      get_aliexpress_cron_status: {
+        Args: never
+        Returns: {
+          active: boolean
+          jobid: number
+          jobname: string
+          schedule: string
+        }[]
+      }
       get_customer_orders: {
         Args: { p_email: string; p_slug: string }
         Returns: {
@@ -2382,6 +2391,10 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_project_owner: {
         Args: { p_project: string; p_user: string }
+        Returns: boolean
+      }
+      set_aliexpress_cron_active: {
+        Args: { p_active: boolean }
         Returns: boolean
       }
       user_has_active_paid_plan: {
