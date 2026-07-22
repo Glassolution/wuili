@@ -138,6 +138,23 @@ export default function AdminAliExpressPage() {
     }
   };
 
+  const toggleCron = async () => {
+    if (cronActive === null) return;
+    const next = !cronActive;
+    if (!confirm(next ? "Reativar o cron do AliExpress (executa a cada 6h)?" : "Desligar o cron do AliExpress? Nenhuma sincronização automática vai rodar até você reativar.")) return;
+    setTogglingCron(true);
+    try {
+      const { error } = await (supabase.rpc as any)("set_aliexpress_cron_active", { p_active: next });
+      if (error) throw error;
+      setCronActive(next);
+      veloToast.success(next ? "Cron reativado" : "Cron desligado");
+    } catch (err) {
+      veloToast.error(err instanceof Error ? err.message : "Falha ao alterar cron");
+    } finally {
+      setTogglingCron(false);
+    }
+  };
+
   return (
     <AdminShell active="settings" userId={user?.id ?? ""}>
       <div className="space-y-6">
