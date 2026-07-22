@@ -99,12 +99,7 @@ const AuthEntryPage = () => {
 
     if (error) {
       setEmailLoading(false);
-      toast.error(
-        error.message === "User already registered"
-          ? "Este e-mail já possui conta. Entre para continuar."
-          : error.message,
-        { id: toastId }
-      );
+      toast.error(translateAuthError(error), { id: toastId });
       return;
     }
 
