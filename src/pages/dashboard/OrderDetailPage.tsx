@@ -62,6 +62,27 @@ const clean = (value: string | number | null | undefined) => {
   return text || "—";
 };
 
+const isMissing = (value: string | number | null | undefined) => clean(value) === "—";
+
+const mlOrderHref = (o: MlOrderDetail) => {
+  const id = (o.ml_order_id ?? o.external_order_id ?? "").toString().trim();
+  if (!id) return null;
+  return `https://www.mercadolivre.com.br/vendas/${id}/detalhe`;
+};
+
+const MLLinkButton = ({ href, label }: { href: string; label: string }) => (
+  <a
+    href={href}
+    target="_blank"
+    rel="noreferrer"
+    title={`Ver ${label} no Mercado Livre`}
+    className="inline-flex h-6 items-center gap-1 rounded-md border border-[#FFE600] bg-[#FFF9C2] px-2 text-[10px] font-semibold text-[#2D3277] transition hover:bg-[#FFE600]"
+  >
+    Ver no ML
+    <ExternalLink size={10} strokeWidth={2} />
+  </a>
+);
+
 const getOrderCode = (o: MlOrderDetail) => clean(o.ml_order_id ?? o.external_order_id ?? o.id);
 const getProductName = (o: MlOrderDetail) => clean(o.catalog_title ?? o.product_title);
 const getProductImage = (o: MlOrderDetail) => {
@@ -156,6 +177,8 @@ const OrderDetailPage = () => {
   const image = getProductImage(order);
   const stage = getTrackingStage(order);
   const supplier = supplierHref(order.supplier_url);
+  const mlHref = mlOrderHref(order);
+
 
   const steps = [
     { label: "Pedido recebido", date: order.ordered_at ?? order.created_at },
@@ -284,9 +307,12 @@ const OrderDetailPage = () => {
               </div>
               <div className="flex items-start gap-3">
                 <Phone size={18} strokeWidth={1.6} className="mt-0.5 text-[#A3A3A3]" />
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">Telefone</p>
-                  <p className="mt-1 text-[15px] font-semibold text-[#0A0A0A]">{clean(order.buyer_phone)}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <p className="text-[15px] font-semibold text-[#0A0A0A]">{clean(order.buyer_phone)}</p>
+                    {isMissing(order.buyer_phone) && mlHref && <MLLinkButton href={mlHref} label="telefone" />}
+                  </div>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -459,7 +485,10 @@ const OrderDetailPage = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">Telefone</p>
-                <p className="mt-1 break-words text-[14px] font-semibold text-[#0A0A0A]">{clean(order.buyer_phone)}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <p className="break-words text-[14px] font-semibold text-[#0A0A0A]">{clean(order.buyer_phone)}</p>
+                  {isMissing(order.buyer_phone) && mlHref && <MLLinkButton href={mlHref} label="telefone" />}
+                </div>
               </div>
             </div>
 
@@ -469,7 +498,10 @@ const OrderDetailPage = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">E-mail</p>
-                <p className="mt-1 break-words text-[14px] font-semibold text-[#0A0A0A]">{clean(order.buyer_email)}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <p className="break-words text-[14px] font-semibold text-[#0A0A0A]">{clean(order.buyer_email)}</p>
+                  {isMissing(order.buyer_email) && mlHref && <MLLinkButton href={mlHref} label="e-mail" />}
+                </div>
               </div>
             </div>
 
