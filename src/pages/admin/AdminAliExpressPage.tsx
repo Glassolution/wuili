@@ -49,16 +49,20 @@ export default function AdminAliExpressPage() {
 
   const load = async () => {
     setLoading(true);
-    const [m, l, p] = await Promise.all([
+    const [m, l, p, c] = await Promise.all([
       supabase.from("category_mapping").select("*").order("velo_category"),
       supabase.from("aliexpress_sync_log").select("*").order("started_at", { ascending: false }).limit(10),
       user?.id
         ? supabase.from("profiles").select("aliexpress_access_token").eq("user_id", user.id).maybeSingle()
         : Promise.resolve({ data: null }),
+      // @ts-expect-error RPC não tipada até regenerar types
+      supabase.rpc("get_aliexpress_cron_status"),
     ]);
     if (m.data) setMappings(m.data as Mapping[]);
     if (l.data) setLogs(l.data as SyncLog[]);
     setIsConnected(Boolean((p as any)?.data?.aliexpress_access_token));
+    const row = Array.isArray((c as any)?.data) ? (c as any).data[0] : null;
+    setCronActive(row ? Boolean(row.active) : null);
     setLoading(false);
   };
 
