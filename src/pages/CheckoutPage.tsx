@@ -11,7 +11,7 @@ import { veloToast as toast } from "@/components/ui/velo-toast";
 import { VeloLogo, VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
-import PromoCountdown from "@/components/PromoCountdown";
+
 
 type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
@@ -29,10 +29,8 @@ type PlanData = {
 const PLANS_DATA: Record<string, PlanData> = {
   base: {
     name: "Base",
-    price: "R$ 29,90",
-    originalPrice: "R$ 39,90",
+    price: "R$ 39,90",
     description: "Pra quem quer começar a vender sem travar no operacional.",
-    badge: "Promo 19h",
     features: [
       "Importação automática de até 50 produtos por mês pro Mercado Livre",
       "1 página de vendas gerada por IA por mês",
@@ -71,13 +69,13 @@ const PLANS_DATA: Record<string, PlanData> = {
 };
 
 const PLAN_AMOUNTS: Record<string, number> = {
-  base: 29.9,
+  base: 39.9,
   pro: 79.8,
   business: 159.6,
 };
 
 const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
-  base: 322.92,   // 29.90 * 12 * 0.9
+  base: 430.92,   // 39.90 * 12 * 0.9
   pro: 861.84,    // 79.80 * 12 * 0.9
   business: 1723.68, // 159.60 * 12 * 0.9
 };
@@ -200,32 +198,19 @@ const CheckoutPage = () => {
         return p && p !== "gratis" && p !== "free" && s.status === "active";
       });
 
-      // 1) Convidado com desconto disponível
+      // 1) Convidado com desconto — só se veio pelo link do convite (invited_user_id preenchido via /convite/:token)
       if (!hasPaid) {
         const nowIso = new Date().toISOString();
-        let { data: ref } = await supabase
+        const { data: ref } = await supabase
           .from("referrals")
           .select("id,expires_at,invited_rewarded,status")
           .eq("invited_user_id", userId)
-          .in("status", ["linked", "pending"])
+          .eq("status", "linked")
           .eq("invited_rewarded", false)
           .gt("expires_at", nowIso)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (!ref && userEmail) {
-          const { data: refByEmail } = await supabase
-            .from("referrals")
-            .select("id,expires_at,invited_rewarded,status")
-            .ilike("invited_email", userEmail)
-            .in("status", ["pending", "linked"])
-            .eq("invited_rewarded", false)
-            .gt("expires_at", nowIso)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (refByEmail) ref = refByEmail;
-        }
         if (!cancelled && ref) {
           setReferralDiscount(15);
           return;
@@ -513,9 +498,6 @@ const CheckoutPage = () => {
               </button>
             </div>
 
-            <div className="mx-auto mt-5 max-w-6xl">
-              <PromoCountdown />
-            </div>
 
             {hasReferralDiscount && (
               <div className="mx-auto mt-4 flex max-w-6xl items-center gap-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] font-semibold text-emerald-800">

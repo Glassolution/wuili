@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, X, Rocket, Sparkles, Crown } from "lucide-react";
-import PromoCountdown from "@/components/PromoCountdown";
+
 
 type BillingCycle = "monthly" | "annual";
 
@@ -30,9 +30,8 @@ const PLANS: PlanEntry[] = [
     iconBg: "bg-slate-100",
     iconColor: "text-slate-600",
     tagline: "Pra quem quer começar a vender sem travar no operacional.",
-    monthly: 29.9,
-    originalMonthly: 39.9,
-    annual: 322.92,
+    monthly: 39.9,
+    annual: 430.92,
     features: [
       "Importação automática de até 50 produtos por mês pro Mercado Livre",
       "1 página de vendas gerada por IA por mês",
@@ -195,9 +194,6 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
           </div>
         </div>
 
-        <div className="mt-6">
-          <PromoCountdown />
-        </div>
 
         <div className="mt-6 grid gap-5 md:grid-cols-3">
           {PLANS.map((plan) => {

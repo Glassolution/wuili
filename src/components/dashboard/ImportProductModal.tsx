@@ -1195,7 +1195,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                     onClick={() => upgradeModal.open({ defaultPlan: "base" })}
                     className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#0A0A0A] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A]"
                   >
-                    Assinar Base — R$ 29,90/mês
+                    Assinar Base — R$ 39,90/mês
                   </button>
                   <p className="mt-3 text-center text-[12.5px] leading-relaxed text-gray-500">
                     Assinatura mensal do plano Base. Cancele quando quiser.
