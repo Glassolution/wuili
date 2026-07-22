@@ -307,9 +307,12 @@ const OrderDetailPage = () => {
               </div>
               <div className="flex items-start gap-3">
                 <Phone size={18} strokeWidth={1.6} className="mt-0.5 text-[#A3A3A3]" />
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">Telefone</p>
-                  <p className="mt-1 text-[15px] font-semibold text-[#0A0A0A]">{clean(order.buyer_phone)}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <p className="text-[15px] font-semibold text-[#0A0A0A]">{clean(order.buyer_phone)}</p>
+                    {isMissing(order.buyer_phone) && mlHref && <MLLinkButton href={mlHref} label="telefone" />}
+                  </div>
                 </div>
               </div>
               <div className="flex items-start gap-3">
