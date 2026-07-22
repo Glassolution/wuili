@@ -55,8 +55,7 @@ export default function AdminAliExpressPage() {
       user?.id
         ? supabase.from("profiles").select("aliexpress_access_token").eq("user_id", user.id).maybeSingle()
         : Promise.resolve({ data: null }),
-      // @ts-expect-error RPC não tipada até regenerar types
-      supabase.rpc("get_aliexpress_cron_status"),
+      (supabase.rpc as any)("get_aliexpress_cron_status"),
     ]);
     if (m.data) setMappings(m.data as Mapping[]);
     if (l.data) setLogs(l.data as SyncLog[]);
