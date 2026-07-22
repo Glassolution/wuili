@@ -641,29 +641,14 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         const code: string | undefined = body?.code;
         const friendly: string | undefined = body?.error || body?.message;
 
-        // Categoria exige seleção manual → abre o seletor com a sugestão do backend.
-        if (code === "CATEGORY_REQUIRES_MANUAL") {
-          veloToast.dismiss(toastId);
-          setManualCatSuggestion({
-            id: body?.predicted_category_id,
-            name: body?.predicted_category_name,
-          });
-          setManualCatOpen(true);
-          setPublishing(false);
-          return;
-        }
-
-        // Divergência entre título cru e normalizado → apresenta as duas sugestões.
-        if (code === "CATEGORY_LOW_CONFIDENCE") {
-          veloToast.dismiss(toastId);
-          const suggestions: Array<{ category_id?: string; category_name?: string }> =
-            Array.isArray(body?.suggestions) ? body.suggestions : [];
-          const first = suggestions.find((s) => s.category_id);
-          setManualCatSuggestion({
-            id: first?.category_id,
-            name: first?.category_name,
-          });
-          setManualCatOpen(true);
+        // Categoria não pôde ser resolvida automaticamente → apenas informa o usuário.
+        // (O modal manual foi removido a pedido: publicação no Mercado Livre está
+        // temporariamente indisponível para produtos sem categoria confiável.)
+        if (code === "CATEGORY_REQUIRES_MANUAL" || code === "CATEGORY_LOW_CONFIDENCE") {
+          veloToast.error(
+            "Não foi possível publicar este produto no Mercado Livre no momento. Tente outro produto.",
+            { id: toastId },
+          );
           setPublishing(false);
           return;
         }
