@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
 
       const targetPlan = (sub.post_trial_plan as string) || (sub.plan as string) || "pro";
       // Preços por plano — mesma fonte de verdade do mp-checkout (base/pro/business).
-      const PLAN_PRICES: Record<string, number> = { base: 29.90, pro: 79.80, business: 159.60 };
+      const PLAN_PRICES: Record<string, number> = { base: 39.90, pro: 79.80, business: 159.60 };
       const amount = Number(sub.next_charge_amount ?? PLAN_PRICES[targetPlan] ?? PLAN_PRICES.pro);
       const customerId = sub.mp_customer_id as string | null;
       const cardId = sub.mp_card_id as string | null;
