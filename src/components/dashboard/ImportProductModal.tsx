@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
-import { ManualCategoryDialog } from "@/components/dashboard/ManualCategoryDialog";
+// import { ManualCategoryDialog } from "@/components/dashboard/ManualCategoryDialog"; // removido a pedido
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
@@ -254,8 +254,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [mlVerifyModalOpen, setMlVerifyModalOpen] = useState(false);
-  const [manualCatOpen, setManualCatOpen] = useState(false);
-  const [manualCatSuggestion, setManualCatSuggestion] = useState<{ id?: string; name?: string }>({});
+  // Estado do modal manual de categoria removido a pedido do usuário.
 
   // Pricing engine
   const [multiplier, setMultiplier] = useState(2.5);
@@ -641,29 +640,14 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         const code: string | undefined = body?.code;
         const friendly: string | undefined = body?.error || body?.message;
 
-        // Categoria exige seleção manual → abre o seletor com a sugestão do backend.
-        if (code === "CATEGORY_REQUIRES_MANUAL") {
-          veloToast.dismiss(toastId);
-          setManualCatSuggestion({
-            id: body?.predicted_category_id,
-            name: body?.predicted_category_name,
-          });
-          setManualCatOpen(true);
-          setPublishing(false);
-          return;
-        }
-
-        // Divergência entre título cru e normalizado → apresenta as duas sugestões.
-        if (code === "CATEGORY_LOW_CONFIDENCE") {
-          veloToast.dismiss(toastId);
-          const suggestions: Array<{ category_id?: string; category_name?: string }> =
-            Array.isArray(body?.suggestions) ? body.suggestions : [];
-          const first = suggestions.find((s) => s.category_id);
-          setManualCatSuggestion({
-            id: first?.category_id,
-            name: first?.category_name,
-          });
-          setManualCatOpen(true);
+        // Categoria não pôde ser resolvida automaticamente → apenas informa o usuário.
+        // (O modal manual foi removido a pedido: publicação no Mercado Livre está
+        // temporariamente indisponível para produtos sem categoria confiável.)
+        if (code === "CATEGORY_REQUIRES_MANUAL" || code === "CATEGORY_LOW_CONFIDENCE") {
+          veloToast.error(
+            "Não foi possível publicar este produto no Mercado Livre no momento. Tente outro produto.",
+            { id: toastId },
+          );
           setPublishing(false);
           return;
         }
@@ -1372,17 +1356,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         }}
       />
 
-      <ManualCategoryDialog
-        open={manualCatOpen}
-        onOpenChange={setManualCatOpen}
-        initialQuery={title.trim()}
-        predictedCategoryId={manualCatSuggestion.id}
-        predictedCategoryName={manualCatSuggestion.name}
-        onConfirm={async ({ categoryId, sizeGridId }) => {
-          setManualCatOpen(false);
-          await handlePublish({ categoryId, sizeGridId });
-        }}
-      />
+      {/* ManualCategoryDialog removido: não exibir seletor de categoria manual. */}
 
 
 
