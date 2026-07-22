@@ -16,6 +16,32 @@ const enter = {
 
 const smooth = { duration: 0.72, ease: [0.22, 1, 0.36, 1] as const };
 
+const translateAuthError = (error: { message?: string; code?: string; status?: number } | null | undefined): string => {
+  if (!error) return "Não foi possível criar sua conta. Tente novamente.";
+  const raw = (error.message ?? "").toLowerCase();
+  const code = (error.code ?? "").toLowerCase();
+
+  if (code === "user_already_exists" || raw.includes("already registered") || raw.includes("already exists")) {
+    return "Este e-mail já possui conta. Entre para continuar.";
+  }
+  if (code === "weak_password" || raw.includes("pwned") || raw.includes("data breach") || raw.includes("known to have been used")) {
+    return "Essa senha aparece em vazamentos públicos. Escolha uma senha diferente, de preferência com letras, números e símbolos.";
+  }
+  if (raw.includes("password should be at least") || raw.includes("password is too short")) {
+    return "A senha precisa ter pelo menos 8 caracteres.";
+  }
+  if (code === "validation_failed" || raw.includes("invalid email") || raw.includes("invalid format") || raw.includes("unable to validate email")) {
+    return "Digite um e-mail válido.";
+  }
+  if (code === "over_email_send_rate_limit" || raw.includes("rate limit")) {
+    return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo.";
+  }
+  if (code === "signup_disabled" || raw.includes("signups not allowed")) {
+    return "Cadastros temporariamente indisponíveis. Tente novamente em instantes.";
+  }
+  return "Não foi possível criar sua conta. Verifique os dados e tente novamente.";
+};
+
 const AuthEntryPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,12 +125,7 @@ const AuthEntryPage = () => {
 
     if (error) {
       setEmailLoading(false);
-      toast.error(
-        error.message === "User already registered"
-          ? "Este e-mail já possui conta. Entre para continuar."
-          : error.message,
-        { id: toastId }
-      );
+      toast.error(translateAuthError(error), { id: toastId });
       return;
     }
 
