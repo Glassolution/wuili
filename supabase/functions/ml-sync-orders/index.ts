@@ -259,7 +259,7 @@ serve(async (req) => {
           quantity: Number(item?.quantity ?? 1),
           cost_price: costPrice,
           profit: profit,
-          status: fullOrder.status === "paid" ? "paid" : (fullOrder.status === "cancelled" ? "cancelled" : "pending"),
+          status: normalizedStatus,
           tracking_code: fullOrder.shipping?.tracking_number ?? null,
           ordered_at: fullOrder.date_created,
           catalog_product_id: catalogProductId,
