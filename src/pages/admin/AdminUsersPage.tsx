@@ -285,35 +285,33 @@ const AdminUsersPage = () => {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <AdminShell active="users" userId={user.id}>
-      <div
-        className="min-h-full bg-transparent text-white"
-        style={{ fontFamily: "'Geist', 'Inter Tight', -apple-system, sans-serif" }}
-      >
-        {/* Top bar */}
-        <header className="flex flex-col gap-4 border-b border-white/[0.06] px-6 py-5 md:flex-row md:items-center md:justify-between">
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Usuários</h1>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-              <input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Buscar"
-                className="h-9 w-64 rounded-full border border-white/10 bg-[#161617] pl-9 pr-4 text-[13px] text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
-              />
-            </div>
-            <button className="relative rounded-full border border-white/10 bg-[#161617] p-2 text-white/60 hover:text-white">
-              <Bell size={16} />
-              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#EF4444]" />
-            </button>
+    <AdminShell
+      active="users"
+      userId={user.id}
+      title="Usuários"
+      actions={
+        <>
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Buscar"
+              className="h-9 w-64 rounded-full border border-white/10 bg-[#161617] pl-9 pr-4 text-[13px] text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
+            />
           </div>
-        </header>
-
-        <div className="p-6">
+          <button className="relative rounded-full border border-white/10 bg-[#161617] p-2 text-white/60 hover:text-white">
+            <Bell size={16} />
+            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#EF4444]" />
+          </button>
+        </>
+      }
+    >
+      <div className="min-h-full bg-transparent text-white">
+        <div>
           <section className="border-0 bg-transparent">
             {/* Toolbar */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

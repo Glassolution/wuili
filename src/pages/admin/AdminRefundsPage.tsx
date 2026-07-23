@@ -191,22 +191,20 @@ const AdminRefundsPage = () => {
   ];
 
   return (
-    <AdminShell active="refunds" userId={user.id}>
+    <AdminShell
+      active="refunds"
+      userId={user.id}
+      title="Reembolsos"
+      subtitle="Contas ativas, pedidos recentes e histórico de reembolsos efetuados."
+      actions={
+        <div className="flex items-center gap-2 text-[12px] text-[#8A8A8E]">
+          <RotateCcw size={14} strokeWidth={1.5} />
+          Janela de elegibilidade: {REFUND_WINDOW_DAYS} dias
+        </div>
+      }
+    >
       <div className="min-h-full bg-transparent text-white">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
-          <header className="flex flex-col gap-4 border-b border-white/[0.08] pb-6 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8A8A8E]">Admin</p>
-              <h1 className="text-[24px] font-semibold tracking-tight text-white mt-1">Reembolsos</h1>
-              <p className="mt-1 text-[13px] text-[#8A8A8E]">
-                Contas ativas, pedidos recentes e histórico de reembolsos efetuados.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-[12px] text-[#8A8A8E]">
-              <RotateCcw size={14} strokeWidth={1.5} />
-              Janela de elegibilidade: {REFUND_WINDOW_DAYS} dias
-            </div>
-          </header>
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {tabs.map((t) => {

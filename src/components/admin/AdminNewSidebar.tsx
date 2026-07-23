@@ -1,10 +1,9 @@
-import { useEffect, useState, type CSSProperties, type ElementType } from "react";
+import { useEffect, useState, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ChevronDown,
-  ChevronUp,
   DollarSign,
   Headset,
   LayoutDashboard,
@@ -17,11 +16,22 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import SearchPalette from "@/components/dashboard/SearchPalette";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sidebar do admin — reconstruída do zero com as proporções da referência
+// (Polar). Diferenças-chave em relação à versão anterior:
+//  • Largura 272px (antes 248) e mais respiro horizontal interno.
+//  • Fundo neutro near-black com divisória sutil à direita (antes um card
+//    quente #171714 emoldurado).
+//  • Nav items 40px de altura, ícones 18px em cinza apagado (antes 32px / 16px
+//    brancos), texto 14px; item ativo com fundo sutil translúcido, sem sombra.
+//  • Card de usuário mais arredondado e com padding maior.
+//  • Busca no rodapé como caixa "bordada" (estilo docs), não um box inset.
+// ─────────────────────────────────────────────────────────────────────────────
+
 type NavItem = {
   label: string;
   icon: ElementType;
   to: string;
-  dimmed?: boolean;
   badge?: number;
 };
 
@@ -44,217 +54,8 @@ const getInitials = (name: string, email?: string | null) => {
     .toUpperCase();
 };
 
-const styles = {
-  sidebar: {
-    width: 248,
-    height: "100%",
-    minHeight: 0,
-    flexShrink: 0,
-    display: "flex",
-    flexDirection: "column",
-    overflow: "visible",
-    position: "relative",
-    boxSizing: "border-box",
-    padding: "18px 16px",
-    borderRadius: 0,
-    border: "1px solid #2A2926",
-    background: "#171714",
-    color: "#FFFFFF",
-    boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.05)",
-  } satisfies CSSProperties,
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  } satisfies CSSProperties,
-  brand: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    minWidth: 0,
-    color: "#F2F1EC",
-    textDecoration: "none",
-  } satisfies CSSProperties,
-  brandText: {
-    fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 18,
-    lineHeight: "22px",
-    fontWeight: 700,
-    letterSpacing: "-0.065em",
-  } satisfies CSSProperties,
-  search: {
-    marginTop: 22,
-    height: 36,
-    width: "100%",
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    boxSizing: "border-box",
-    border: 0,
-    borderRadius: 11,
-    padding: "0 10px",
-    background: "#070706",
-    color: "#FFFFFF",
-    textAlign: "left",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
-    cursor: "pointer",
-  } satisfies CSSProperties,
-  searchText: {
-    minWidth: 0,
-    flex: 1,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    fontSize: 14,
-    lineHeight: "18px",
-    fontWeight: 600,
-    letterSpacing: "-0.03em",
-  } satisfies CSSProperties,
-  searchBadge: {
-    width: 24,
-    height: 24,
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    background: "#24231F",
-    color: "#FFFFFF",
-    fontSize: 15,
-    lineHeight: "15px",
-    fontWeight: 650,
-  } satisfies CSSProperties,
-  nav: {
-    marginTop: 22,
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-  } satisfies CSSProperties,
-  navLinkBase: {
-    height: 32,
-    display: "flex",
-    alignItems: "center",
-    gap: 9,
-    boxSizing: "border-box",
-    borderRadius: 10,
-    padding: "0 10px",
-    textDecoration: "none",
-    fontSize: 13,
-    lineHeight: "16px",
-    letterSpacing: "-0.02em",
-  } satisfies CSSProperties,
-  navBadge: {
-    marginLeft: "auto",
-    minWidth: 18,
-    height: 18,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxSizing: "border-box",
-    padding: "0 6px",
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.12)",
-    color: "#FFFFFF",
-    fontSize: 10.5,
-    lineHeight: "10px",
-    fontWeight: 700,
-    letterSpacing: "-0.02em",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
-  } satisfies CSSProperties,
-  spacer: {
-    minHeight: 0,
-    flex: 1,
-  } satisfies CSSProperties,
-  backLink: {
-    height: 32,
-    display: "flex",
-    alignItems: "center",
-    gap: 9,
-    boxSizing: "border-box",
-    borderRadius: 10,
-    padding: "0 10px",
-    marginBottom: 10,
-    border: 0,
-    width: "100%",
-    background: "transparent",
-    color: "rgba(255,255,255,0.62)",
-    fontSize: 12.5,
-    fontWeight: 500,
-    letterSpacing: "-0.02em",
-    cursor: "pointer",
-    textDecoration: "none",
-  } satisfies CSSProperties,
-  profileCard: {
-    width: "100%",
-    minWidth: 0,
-    minHeight: 52,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    boxSizing: "border-box",
-    border: 0,
-    borderRadius: 14,
-    padding: "8px 10px",
-    background: "#20201D",
-    color: "#FFFFFF",
-    textAlign: "left",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.22)",
-    cursor: "pointer",
-  } satisfies CSSProperties,
-  avatar: {
-    width: 32,
-    height: 32,
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    borderRadius: 999,
-    background: "#30302C",
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: "-0.02em",
-  } satisfies CSSProperties,
-  profileText: {
-    minWidth: 0,
-    flex: 1,
-  } satisfies CSSProperties,
-  profileName: {
-    display: "block",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    color: "#FFFFFF",
-    fontSize: 13,
-    lineHeight: "16px",
-    fontWeight: 650,
-    letterSpacing: "-0.025em",
-  } satisfies CSSProperties,
-  profileEmail: {
-    display: "block",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    marginTop: 2,
-    color: "rgba(255,255,255,0.62)",
-    fontSize: 11,
-    lineHeight: "14px",
-    fontWeight: 500,
-  } satisfies CSSProperties,
-  profileChevrons: {
-    width: 16,
-    flexShrink: 0,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    color: "rgba(255,255,255,0.5)",
-  } satisfies CSSProperties,
-};
-
 const VeloIconOnly = () => (
-  <svg aria-hidden="true" width="30" height="30" viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }}>
+  <svg aria-hidden="true" width="26" height="26" viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }}>
     <path d="M33 18 A11 11 0 1 0 33 30" stroke="#F2F1EC" strokeWidth="4" strokeLinecap="round" />
     <path d="M30 26 L34 30 L38 26" stroke="#F2F1EC" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
@@ -262,20 +63,28 @@ const VeloIconOnly = () => (
 
 const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) => {
   const Icon = item.icon;
-  const linkStyle: CSSProperties = {
-    ...styles.navLinkBase,
-    color: active ? "#FFFFFF" : item.dimmed ? "rgba(255,255,255,0.62)" : "#FFFFFF",
-    background: active ? "#2A2925" : "transparent",
-    fontWeight: active ? 650 : 500,
-    boxShadow: active ? "0 10px 28px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08)" : "none",
-  };
-
   return (
-    <Link to={item.to} aria-current={active ? "page" : undefined} style={linkStyle}>
-      <Icon size={16} strokeWidth={1.65} aria-hidden="true" />
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+    <Link
+      to={item.to}
+      aria-current={active ? "page" : undefined}
+      className={`group flex h-10 items-center gap-3 rounded-[10px] px-3 text-[14px] tracking-[-0.01em] transition-colors ${
+        active
+          ? "bg-white/[0.07] font-semibold text-white"
+          : "font-medium text-white/60 hover:bg-white/[0.035] hover:text-white/90"
+      }`}
+    >
+      <Icon
+        size={18}
+        strokeWidth={1.6}
+        aria-hidden="true"
+        className={active ? "text-white" : "text-white/45 group-hover:text-white/70"}
+      />
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
       {item.badge ? (
-        <span style={styles.navBadge} aria-label={`${item.badge} tickets abertos`}>
+        <span
+          aria-label={`${item.badge} tickets abertos`}
+          className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-white/[0.1] px-1.5 text-[10.5px] font-semibold text-white/80"
+        >
           {item.badge > 99 ? "99+" : item.badge}
         </span>
       ) : null}
@@ -318,7 +127,10 @@ export const AdminNewSidebar = () => {
     };
   }, [qc, user?.id]);
 
-  const foto = (user?.user_metadata?.avatar_url as string | undefined) || (user?.user_metadata?.picture as string | undefined) || null;
+  const foto =
+    (user?.user_metadata?.avatar_url as string | undefined) ||
+    (user?.user_metadata?.picture as string | undefined) ||
+    null;
   const profileName =
     (user?.user_metadata?.full_name as string | undefined) ||
     (user?.user_metadata?.name as string | undefined) ||
@@ -332,23 +144,38 @@ export const AdminNewSidebar = () => {
   };
 
   return (
-    <aside className="velo-dashboard-sidebar" style={styles.sidebar}>
-      <header style={styles.header}>
-        <Link to="/admin/painel" style={styles.brand}>
-          <VeloIconOnly />
-          <span style={styles.brandText}>Velo</span>
-        </Link>
-      </header>
+    <aside
+      className="velo-dashboard-sidebar flex h-full w-[272px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0A0A0B] px-4 py-5"
+      style={{
+        fontFamily:
+          '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      }}
+    >
+      {/* 1. Marca */}
+      <Link to="/admin/painel" className="flex items-center gap-2.5 px-2 text-[#F2F1EC] no-underline">
+        <VeloIconOnly />
+        <span className="text-[19px] font-bold leading-none tracking-[-0.05em]">Velo</span>
+      </Link>
 
-      <button type="button" aria-label="Buscar" style={styles.search} onClick={() => setSearchOpen(true)}>
-        <Search size={15} strokeWidth={1.7} aria-hidden="true" />
-        <span style={styles.searchText}>Buscar</span>
-        <span style={styles.searchBadge}>/</span>
+      {/* 2. Seletor de usuário/workspace — card arredondado com padding generoso */}
+      <button
+        type="button"
+        aria-label="Abrir perfil"
+        onClick={() => navigate("/dashboard/configuracoes")}
+        className="mt-6 flex w-full items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-2.5 py-2.5 text-left transition-colors hover:bg-white/[0.05]"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.08] text-[11px] font-bold text-white">
+          {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : initials}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13.5px] font-semibold leading-tight text-white">{profileName}</span>
+          <span className="mt-0.5 block truncate text-[11.5px] leading-tight text-white/45">{profileEmail}</span>
+        </span>
+        <ChevronDown size={16} strokeWidth={1.7} aria-hidden="true" className="shrink-0 text-white/40" />
       </button>
 
-      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin />
-
-      <nav aria-label="Navegação do admin" style={styles.nav}>
+      {/* 3. Navegação */}
+      <nav aria-label="Navegação do admin" className="mt-7 flex flex-col gap-1">
         {navItems.map((item) => (
           <SidebarNavLink
             key={item.label}
@@ -358,31 +185,32 @@ export const AdminNewSidebar = () => {
         ))}
       </nav>
 
-      <div aria-hidden="true" style={styles.spacer} />
+      <div aria-hidden="true" className="min-h-0 flex-1" />
 
-      <Link to="/dashboard" style={styles.backLink}>
+      {/* 4. Retorno secundário */}
+      <Link
+        to="/dashboard"
+        className="mb-2 flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-white/55 no-underline transition-colors hover:bg-white/[0.035] hover:text-white/85"
+      >
         <ArrowLeft size={16} strokeWidth={1.65} aria-hidden="true" />
         <span>Voltar à Velo</span>
       </Link>
 
+      {/* 5. Busca fixada no rodapé (caixa bordada, estilo docs da referência) */}
       <button
         type="button"
-        aria-label="Abrir perfil"
-        onClick={() => navigate("/dashboard/configuracoes")}
-        style={styles.profileCard}
+        aria-label="Buscar"
+        onClick={() => setSearchOpen(true)}
+        className="flex h-11 w-full items-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 text-left transition-colors hover:bg-white/[0.045]"
       >
-        <span style={styles.avatar}>
-          {foto ? <img src={foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}
-        </span>
-        <span style={styles.profileText}>
-          <span style={styles.profileName}>{profileName}</span>
-          <span style={styles.profileEmail}>{profileEmail}</span>
-        </span>
-        <span aria-hidden="true" style={styles.profileChevrons}>
-          <ChevronUp size={14} strokeWidth={1.8} />
-          <ChevronDown size={14} strokeWidth={1.8} />
+        <Search size={16} strokeWidth={1.7} aria-hidden="true" className="text-white/45" />
+        <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-white/70">Buscar</span>
+        <span className="grid h-6 w-6 place-items-center rounded-md bg-white/[0.07] text-[13px] font-medium text-white/55">
+          /
         </span>
       </button>
+
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin />
     </aside>
   );
 };

@@ -304,21 +304,19 @@ const AdminSupportPage = () => {
 
 
   return (
-    <AdminShell active="support" userId={user.id}>
-      <div className="min-h-full bg-[#0A0A0B] p-5 text-white md:p-8">
+    <AdminShell
+      active="support"
+      userId={user.id}
+      title="Suporte por setor"
+      subtitle="Tickets abertos organizados por categoria. Clique em um card para responder o usuário."
+      actions={
+        <div className="rounded-full bg-white/10 px-4 py-2 text-[13px] font-semibold text-white">
+          {tickets.length} abertos
+        </div>
+      }
+    >
+      <div className="min-h-full bg-transparent text-white">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
-          <header className="flex flex-col gap-4 rounded-3xl border border-[#242425] bg-[#161617] px-6 py-5 shadow-sm md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#6A6A6F]">Admin · CRM</p>
-              <h1 className="text-[24px] font-black tracking-tight">Suporte por setor</h1>
-              <p className="mt-1 text-[13px] text-[#8A8A8E]">
-                Tickets abertos organizados por categoria. Clique em um card para responder o usuário.
-              </p>
-            </div>
-            <div className="rounded-full bg-white/10 px-4 py-2 text-[13px] font-semibold text-white">
-              {tickets.length} abertos
-            </div>
-          </header>
 
           {loadingTickets ? (
             <div className="flex items-center justify-center rounded-3xl border border-[#242425] bg-[#161617] py-24">

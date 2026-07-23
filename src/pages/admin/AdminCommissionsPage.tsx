@@ -265,14 +265,14 @@ const AdminCommissionsPage = () => {
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   return (
-    <AdminShell active="commissions" userId={user.id}>
+    <AdminShell
+      active="commissions"
+      userId={user.id}
+      title="Comissões"
+      subtitle="Rastreie o funil completo por afiliado (visitas, cadastros e pagamentos)."
+    >
       <div className="min-h-full bg-transparent text-white">
-        <header className="flex flex-col gap-3 border-b border-white/[0.08] pb-6">
-          <h1 className="font-sans text-[24px] font-semibold tracking-tight text-white">Comissões</h1>
-          <p className="text-[13px] text-[#8A8A8E]">Rastreie o funil completo por afiliado (visitas, cadastros e pagamentos).</p>
-        </header>
-
-        <section className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 border-b border-white/[0.08]">
+        <section className="grid grid-cols-2 border-b border-white/[0.08] md:grid-cols-4 xl:grid-cols-7">
           <MetricCard label="Total de afiliados" value={String(totals.totalAffiliates)} className="py-6 pr-4 pl-0" />
           <MetricCard label="Cliques" value={String(totals.clicks)} className="py-6 px-4 border-l border-white/[0.08]" />
           <MetricCard label="Cadastros" value={String(totals.signups)} className="py-6 px-4 border-l border-white/[0.08]" />

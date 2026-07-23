@@ -156,49 +156,48 @@ export default function AdminAliExpressPage() {
   };
 
   return (
-    <AdminShell active="settings" userId={user?.id ?? ""}>
+    <AdminShell
+      active="settings"
+      userId={user?.id ?? ""}
+      title="Sincronização AliExpress"
+      subtitle="Mapeamento de categorias e status da sincronização automática (a cada 6h)."
+      actions={
+        <>
+          {isConnected === false && (
+            <button
+              onClick={connectAliExpress}
+              disabled={connecting}
+              className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
+            >
+              {connecting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+              {connecting ? "Conectando..." : "Conectar AliExpress"}
+            </button>
+          )}
+          <button
+            onClick={toggleCron}
+            disabled={togglingCron || cronActive === null}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
+              cronActive
+                ? "bg-red-500/15 text-red-300 hover:bg-red-500/25"
+                : "bg-green-500/15 text-green-300 hover:bg-green-500/25"
+            }`}
+            title={cronActive ? "Desligar sincronização automática (6h)" : "Reativar sincronização automática (6h)"}
+          >
+            {togglingCron ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
+            {cronActive === null ? "Cron —" : cronActive ? "Desligar cron" : "Ligar cron"}
+          </button>
+          <button
+            onClick={syncNow}
+            disabled={syncing}
+            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
+          >
+            {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            {syncing ? "Sincronizando..." : "Sincronizar agora"}
+          </button>
+        </>
+      }
+    >
       <div className="space-y-6">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Sincronização AliExpress</h1>
-            <p className="mt-1 text-sm text-white/60">
-              Mapeamento de categorias e status da sincronização automática (a cada 6h).
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {isConnected === false && (
-              <button
-                onClick={connectAliExpress}
-                disabled={connecting}
-                className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
-              >
-                {connecting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
-                {connecting ? "Conectando..." : "Conectar AliExpress"}
-              </button>
-            )}
-            <button
-              onClick={toggleCron}
-              disabled={togglingCron || cronActive === null}
-              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
-                cronActive
-                  ? "bg-red-500/15 text-red-300 hover:bg-red-500/25"
-                  : "bg-green-500/15 text-green-300 hover:bg-green-500/25"
-              }`}
-              title={cronActive ? "Desligar sincronização automática (6h)" : "Reativar sincronização automática (6h)"}
-            >
-              {togglingCron ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
-              {cronActive === null ? "Cron —" : cronActive ? "Desligar cron" : "Ligar cron"}
-            </button>
-            <button
-              onClick={syncNow}
-              disabled={syncing}
-              className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
-            >
-              {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-              {syncing ? "Sincronizando..." : "Sincronizar agora"}
-            </button>
-          </div>
-        </header>
 
         {/* Status card */}
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
