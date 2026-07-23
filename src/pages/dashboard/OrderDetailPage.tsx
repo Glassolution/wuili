@@ -424,7 +424,7 @@ const OrderDetailPage = () => {
             </div>
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">Status</p>
-              <p className="mt-1.5 text-[14px] font-semibold text-[#0A0A0A]">{statusLabel}</p>
+              <p className={`mt-1.5 text-[14px] font-semibold ${isRefunded ? "text-[#B91C1C]" : "text-[#0A0A0A]"}`}>{statusLabel}</p>
             </div>
           </div>
         </section>
