@@ -398,7 +398,7 @@ const DashboardHomePage = () => {
           <div className="absolute inset-x-0 top-0 h-[35.2%] bg-white" />
 
           <div className="absolute left-[0.7%] top-[1.5%] h-[9.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
-            <span className="absolute left-[1.9%] top-1/2 flex h-[clamp(22px,2.2vw,42px)] w-[clamp(22px,2.2vw,42px)] -translate-y-1/2 items-center justify-center rounded-[0.45vw] bg-black text-white shadow-[0_0.45vw_0.95vw_rgba(0,0,0,0.16)]">
+            <span className="absolute left-[1.9%] top-1/2 flex h-[clamp(22px,2.2vw,42px)] w-[clamp(22px,2.2vw,42px)] -translate-y-1/2 items-center justify-center rounded-[0.45vw] bg-[#2563EB] text-white shadow-[0_0.45vw_0.95vw_rgba(37,99,235,0.28)]">
               <Home className="h-[55%] w-[55%]" fill="currentColor" strokeWidth={2} />
             </span>
             <div className="absolute left-[5.0%] top-1/2 flex -translate-y-1/2 items-baseline gap-[0.55vw]">
