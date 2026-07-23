@@ -390,6 +390,11 @@ const IntegrationsTab = () => {
   const { user, role } = useAuth();
   const isAdmin = role === "admin" || isAdminEmail(user?.email);
   const planLimits = usePlanLimits();
+  const navigate = useNavigate();
+  const { plan: currentPlan } = usePlan();
+  // Mesma proteção de assinatura de "Produtos em Alta": no plano gratuito os
+  // marketplaces ficam com blur e o clique leva para a página de planos.
+  const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([
     { platform: "mercadolivre", label: "Mercado Livre", connected: false, loading: true },
@@ -490,7 +495,8 @@ const IntegrationsTab = () => {
 
       <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Marketplaces</h3>
 
-      <div className="space-y-2.5">
+      <div className="relative">
+      <div className={`space-y-2.5 ${isFreePlan ? "pointer-events-none select-none blur-[5px]" : ""}`}>
         {integrations.map((i) => (
           <div
             key={i.platform}
@@ -534,6 +540,23 @@ const IntegrationsTab = () => {
             )}
           </div>
         ))}
+      </div>
+      {isFreePlan && (
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard/planos")}
+          aria-label="Disponível apenas com um plano ativo"
+          title="Disponível apenas com um plano ativo"
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-[0_6px_18px_rgba(0,0,0,0.14)] dark:bg-zinc-900">
+            <Lock size={18} className="text-[#0A0A0A] dark:text-white" />
+          </span>
+          <span className="rounded-full bg-black px-3.5 py-1.5 text-[12px] font-semibold text-white dark:bg-white dark:text-black">
+            Disponível no plano pago
+          </span>
+        </button>
+      )}
       </div>
 
       <p className="mt-4 text-[11px] text-[#A3A3A3] dark:text-zinc-400">
