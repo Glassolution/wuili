@@ -226,6 +226,22 @@ function parseIncomingAttributes(value: unknown): MLAttribute[] {
   })
 }
 
+function inferGenderValue(
+  title: string,
+  values: Array<{ id?: string; name?: string }>,
+): { value_id?: string; value_name: string } {
+  const normalizedTitle = normalizeText(title)
+  const female = /\b(mulher|mulheres|feminino|feminina|femininos|femininas|menina|meninas|dama|damas)\b/.test(normalizedTitle)
+  const male = /\b(homem|homens|masculino|masculina|masculinos|masculinas|menino|meninos)\b/.test(normalizedTitle)
+  const wanted = female && !male ? 'feminino' : male && !female ? 'masculino' : 'sem genero'
+  const aliases = wanted === 'sem genero' ? ['sem genero', 'unissex'] : [wanted]
+  const matched = values.find((value) => aliases.some((alias) => normalizeText(value.name).includes(alias)))
+
+  return matched
+    ? { ...(matched.id ? { value_id: matched.id } : {}), value_name: cleanText(matched.name) }
+    : { value_name: wanted === 'sem genero' ? 'Sem gênero' : wanted === 'feminino' ? 'Feminino' : 'Masculino' }
+}
+
 // Resolve to a leaf category by walking children_categories until empty
 async function resolveLeafCategory(categoryId: string): Promise<string> {
   let current = categoryId
@@ -1113,6 +1129,11 @@ Deno.serve(async (req) => {
         mergeAttribute(allAttrs, { id, value_name: 'Não especificado' })
         continue
       }
+      if (id === 'GENDER') {
+        const values = (attrDef.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+        mergeAttribute(allAttrs, { id, ...inferGenderValue(title, values) })
+        continue
+      }
       // Detecta atributos numéricos (com ou sem unidade). O ML rejeita "N/D"
       // com item.attribute.number_invalid_format nesses casos — precisamos
       // enviar um número real seguido de uma unidade permitida.
@@ -1315,12 +1336,16 @@ Deno.serve(async (req) => {
     if (!itemResponse.ok) {
       const causeArr = arrayFromUnknown((itemData as Record<string, unknown>)?.cause)
       const missingAttrIds = new Set<string>()
+      let hasInvalidTitleGender = false
       for (const c of causeArr) {
         if (!c || typeof c !== 'object') continue
         const cc = c as Record<string, unknown>
         const codeStr = cleanText(cc.code).toLowerCase()
         const msgStr  = cleanText(cc.message)
         const attrId  = cleanText(cc.attribute_id).toUpperCase()
+        if (codeStr.includes('invalid.title.gender') || /title match the gender/i.test(msgStr)) {
+          hasInvalidTitleGender = true
+        }
         if (
           codeStr.includes('missing_catalog_required') ||
           codeStr.includes('missing_conditional_required') ||
@@ -1339,8 +1364,11 @@ Deno.serve(async (req) => {
           // Detecta "campo Cor" no texto em pt-BR
           if (/\bcor\b/i.test(msgStr)) missingAttrIds.add('COLOR')
           if (/\bgtin\b/i.test(msgStr) || /c[oó]digo universal/i.test(msgStr)) missingAttrIds.add('GTIN')
+          if (/\bmodelo\b/i.test(msgStr) || /\bmodel\b/i.test(msgStr)) missingAttrIds.add('MODEL')
         }
       }
+
+      if (hasInvalidTitleGender) missingAttrIds.add('GENDER')
 
       if (missingAttrIds.size > 0) {
         console.warn('[ml-publish] Atributos exigidos pelo catálogo/condicional faltando:', Array.from(missingAttrIds))
@@ -1369,6 +1397,16 @@ Deno.serve(async (req) => {
         }
 
         for (const id of missingAttrIds) {
+          if (id === 'GENDER') {
+            const genderDef = categoryAttrs.find(a => cleanText(a.id) === 'GENDER')
+            const values = (genderDef?.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+            const inferred = inferGenderValue(title, values)
+            const existingIndex = patched.findIndex(a => String(a.id).toUpperCase() === 'GENDER')
+            const genderAttr = { id: 'GENDER', ...inferred }
+            if (existingIndex >= 0) patched[existingIndex] = genderAttr
+            else patched.push(genderAttr)
+            continue
+          }
           if (has(id)) continue
           const def = defaults[id]
           if (def) {
