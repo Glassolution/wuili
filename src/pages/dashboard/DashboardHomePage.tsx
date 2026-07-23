@@ -73,35 +73,29 @@ type DashboardStats = { [K in DashboardStatKey]: number } & {
 
 const formatCount = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
-const toolCards = [
+// Todos os cards abrem o mesmo TutorialModal: hoje a plataforma tem um único
+// vídeo (TutorialVideoEmbed é fixo). Quando houver um vídeo por tema, basta o
+// modal aceitar um id e cada card passar o seu.
+const tutorialCards = [
   {
-    left: "7.9%",
-    icon: Package,
-    title: "Catalogo Velo",
-    badge: "NOVO",
-    description: "Escolha produtos reais e importe para sua operacao.",
-    href: "/dashboard/catalogo",
+    label: "Catálogo",
+    title: "Catálogo Velo",
+    description: "Escolha produtos reais do catálogo e importe para sua operação.",
   },
   {
-    left: "43.8%",
-    icon: Home,
+    label: "Loja",
     title: "Loja completa",
     description: "Monte sua loja com produto, copy, visual e estrutura.",
-    href: "/onboarding/criar-loja",
   },
   {
-    left: "62.2%",
-    icon: BookOpen,
+    label: "Em alta",
     title: "Produtos em alta",
     description: "Analise demanda, margem e oportunidades de dropshipping.",
-    href: "/dashboard/produtos-em-alta",
   },
   {
-    left: "79.2%",
-    icon: Search,
-    title: "Integracoes",
-    description: "Conecte canais e prepare suas publicacoes.",
-    href: "/dashboard/integracoes",
+    label: "Integrações",
+    title: "Integrações",
+    description: "Conecte seus canais e prepare as publicações.",
   },
 ];
 
@@ -536,50 +530,46 @@ const DashboardHomePage = () => {
           <div className="absolute inset-x-0 top-[72.4%] h-[41.6%] bg-white" />
           <div className="absolute left-[2.9%] right-[2.9%] top-[72.4%] h-px bg-black/[0.06]" />
 
-          <div className="absolute left-[2.65%] top-[76.6%] bg-white pr-[1.5vw]">
-            <h2 className="text-[clamp(12px,1.08vw,21px)] font-semibold tracking-[-0.02em] text-[#262b35]">Explore nossas ferramentas</h2>
-            <p className="mt-[0.45vw] text-[clamp(8px,0.82vw,16px)] font-medium text-[#606876]">Um guia pratico para usar as solucoes da plataforma</p>
-          </div>
+          {/* Bloco de tutoriais: altura automática (o mask branco acima cobre a
+              área da imagem de fundo que ficava atrás dos antigos cards). */}
+          <div className="pointer-events-auto absolute left-[2.65%] right-[2.65%] top-[75.8%] rounded-[0.85vw] border border-black/[0.08] bg-white p-[1.15vw] shadow-[0_0.5vw_1.2vw_rgba(15,23,42,0.04)]">
+            <h2 className="text-[clamp(9px,0.85vw,17px)] font-bold tracking-[-0.01em] text-[#1f2430]">Tutoriais</h2>
+            <button
+              type="button"
+              onClick={() => setTutorialOpen(true)}
+              className="mt-[0.3vw] block text-[clamp(9px,0.83vw,16px)] font-normal text-[#2563EB] underline-offset-2 hover:underline"
+            >
+              Assista aos tutoriais e aprenda a usar a Velo
+            </button>
 
-          <button
-            type="button"
-            className="pointer-events-auto absolute left-[2.55%] top-[88.4%] flex h-[clamp(26px,2.8vw,54px)] w-[clamp(26px,2.8vw,54px)] items-center justify-center rounded-[0.55vw] border border-black/[0.08] bg-white text-black shadow-[0_0.3vw_0.85vw_rgba(15,23,42,0.04)]"
-            aria-label="Voltar"
-          >
-            <ChevronLeft className="h-[45%] w-[45%]" strokeWidth={2.4} />
-          </button>
-
-          {toolCards.map((card) => {
-            const Icon = card.icon;
-
-            return (
-              <a
-                href={card.href}
-                key={card.title}
-                className="pointer-events-auto absolute top-[83.8%] h-[19.2%] w-[15.6%] rounded-[0.82vw] border border-black/[0.07] bg-white p-[1.25vw] text-left no-underline shadow-[0_0.6vw_1.3vw_rgba(15,23,42,0.035)] transition duration-150 hover:-translate-y-[2px] hover:border-black/[0.14] hover:shadow-[0_0.75vw_1.6vw_rgba(15,23,42,0.075)]"
-                style={{ left: card.left }}
-              >
-                <span className="flex h-[clamp(24px,2.6vw,50px)] w-[clamp(24px,2.6vw,50px)] items-center justify-center rounded-[0.56vw] bg-black text-white shadow-[0_0.45vw_0.9vw_rgba(0,0,0,0.14)]">
-                  <Icon className="h-[52%] w-[52%]" strokeWidth={1.9} />
-                </span>
-
-                {card.badge ? (
-                  <span className="absolute right-[1vw] top-[1vw] rounded-[0.32vw] bg-[#f1f2f4] px-[0.45vw] py-[0.17vw] text-[clamp(6px,0.58vw,11px)] font-bold text-black">
-                    {card.badge}
+            <div className="mt-[1vw] grid grid-cols-4 gap-[1vw]">
+              {tutorialCards.map((card) => (
+                <button
+                  type="button"
+                  key={card.title}
+                  onClick={() => setTutorialOpen(true)}
+                  className="group rounded-[0.6vw] border border-black/[0.08] bg-white p-[0.6vw] text-left transition duration-150 hover:-translate-y-[2px] hover:border-black/[0.16] hover:shadow-[0_0.6vw_1.3vw_rgba(15,23,42,0.07)]"
+                >
+                  <span className="relative block aspect-video w-full overflow-hidden rounded-[0.42vw] bg-[radial-gradient(115%_75%_at_50%_120%,#a78bfa_0%,#7c3aed_26%,#3b1d8f_52%,#0b0714_78%),linear-gradient(180deg,#05040a_0%,#0b0714_100%)]">
+                    {/* Rastro claro que a referência traz por baixo do rótulo. */}
+                    <span className="absolute inset-x-[10%] bottom-[18%] h-[5%] rounded-full bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.9)_50%,transparent_100%)] blur-[0.5vw]" />
+                    <PlayCircle
+                      className="absolute left-1/2 top-[38%] h-[clamp(14px,1.5vw,29px)] w-[clamp(14px,1.5vw,29px)] -translate-x-1/2 -translate-y-1/2 text-white/95 transition-transform duration-150 group-hover:scale-110"
+                      strokeWidth={1.5}
+                    />
+                    <span className="absolute inset-x-[6%] bottom-[22%] text-center text-[clamp(9px,1.12vw,22px)] font-extrabold uppercase leading-none tracking-[-0.02em] text-white">
+                      {card.label}
+                    </span>
                   </span>
-                ) : null}
 
-                <h3 className="mt-[1vw] text-[clamp(9px,1.02vw,20px)] font-semibold leading-[1.08] tracking-[-0.018em] text-[#242832]">{card.title}</h3>
-                <p className="mt-[0.65vw] text-[clamp(7px,0.72vw,14px)] font-medium leading-[1.36] text-[#68707d]">
-                  {card.description}
-                </p>
-              </a>
-            );
-          })}
-
-          <span className="absolute bottom-[4.85%] right-[9.1%] hidden text-[clamp(8px,0.82vw,16px)] font-semibold text-white">
-            Comecando
-          </span>
+                  <span className="mt-[0.7vw] block text-[clamp(8px,0.78vw,15px)] font-bold leading-none text-[#1f2430]">{card.title}</span>
+                  <span className="mt-[0.4vw] block text-[clamp(7px,0.72vw,14px)] font-normal leading-[1.4] text-[#7b8391]">
+                    {card.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
