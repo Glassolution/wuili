@@ -778,20 +778,22 @@ Deno.serve(async (req) => {
         `raw="${title.slice(0,60)}" norm="${prediction.normalizedTitle}" rawCat=${prediction.rawPrediction} normCat=${prediction.normalizedPrediction}`,
       )
 
-      // Divergência entre raw e normalized (ambas folha, não-fashion, distintas)
-      // → baixa confiança: bloqueia com 409 e devolve as duas sugestões.
+      // Divergência entre raw e normalized (ambas folha, não-fashion, distintas):
+      // seguimos com a previsão do título completo, que preserva mais contexto.
+      // O seletor manual foi removido do frontend; devolver 409 aqui tornava
+      // produtos válidos (especialmente AliExpress) impossíveis de publicar.
       if (prediction.lowConfidence && productRecordId) {
         try {
           await supabase
             .from('catalog_products')
             .update({
               ml_category_id: categoryId,
-              ml_category_status: 'needs_manual',
+              ml_category_status: 'auto',
               updated_at: new Date().toISOString(),
             })
             .eq('id', productRecordId)
         } catch (persistErr) {
-          console.error('[ml-publish] Falha ao gravar needs_manual (low_conf):', persistErr)
+          console.error('[ml-publish] Falha ao gravar categoria automática (low_conf):', persistErr)
         }
         await logPrediction(supabase, {
           productId: productRecordId,
@@ -799,17 +801,12 @@ Deno.serve(async (req) => {
           title,
           prediction,
           finalCategory: categoryId,
-          finalStatus: 'needs_manual',
+          finalStatus: 'auto',
           requiresSizeGrid: false,
         })
-        return json({
-          error: 'Não temos certeza da categoria correta deste produto. Selecione manualmente entre as sugestões.',
-          code: 'CATEGORY_LOW_CONFIDENCE',
-          suggestions: [
-            { category_id: prediction.rawPrediction, category_name: prediction.rawCategoryName, source: 'raw' },
-            { category_id: prediction.normalizedPrediction, category_name: prediction.normalizedCategoryName, source: 'normalized' },
-          ],
-        }, 409)
+        console.warn(
+          `[ml-publish] Previsões divergentes; seguindo automaticamente com ${categoryId} (${prediction.rawCategoryName ?? 'categoria do título completo'}).`,
+        )
       }
     }
 
