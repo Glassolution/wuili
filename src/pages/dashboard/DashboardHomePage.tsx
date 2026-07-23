@@ -398,12 +398,14 @@ const DashboardHomePage = () => {
           <div className="absolute inset-x-0 top-0 h-[35.2%] bg-white" />
 
           <div className="absolute left-[0.7%] top-[1.5%] h-[9.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
-            <span className="absolute left-[1.9%] top-1/2 flex h-[clamp(22px,2.2vw,42px)] w-[clamp(22px,2.2vw,42px)] -translate-y-1/2 items-center justify-center rounded-[0.45vw] bg-[#2563EB] text-white shadow-[0_0.45vw_0.95vw_rgba(37,99,235,0.28)]">
-              <Home className="h-[55%] w-[55%]" fill="currentColor" strokeWidth={2} />
-            </span>
-            <div className="absolute left-[5.0%] top-1/2 flex -translate-y-1/2 items-baseline gap-[0.55vw]">
-              <span className="text-[clamp(10px,0.9vw,18px)] font-bold text-[#252936]">Inicio</span>
-              <span className="text-[clamp(9px,0.82vw,16px)] font-medium text-[#676d79]">
+            {/* Ícone e textos vivem na mesma linha flex: o espaçamento acompanha
+                o tamanho da fonte em vez de depender de um left fixo. */}
+            <div className="absolute left-[1.9%] top-1/2 flex -translate-y-1/2 items-center gap-[0.5vw]">
+              <span className="flex h-[clamp(17px,1.62vw,31px)] w-[clamp(17px,1.62vw,31px)] shrink-0 items-center justify-center rounded-[0.36vw] bg-black text-white">
+                <Home className="h-[52%] w-[52%]" fill="currentColor" strokeWidth={2} />
+              </span>
+              <span className="text-[clamp(10px,0.86vw,17px)] font-bold tracking-[-0.01em] text-[#1f2430]">Inicio</span>
+              <span className="text-[clamp(10px,0.83vw,16px)] font-normal text-[#868d99]">
                 {loadingStats ? "Carregando dados da sua conta" : `Ola, ${statsData?.displayName ?? "Velo"}. Visao geral da sua conta`}
               </span>
             </div>
