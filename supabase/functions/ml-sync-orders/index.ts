@@ -155,25 +155,6 @@ serve(async (req) => {
       else if (rawStatus === "cancelled") normalizedStatus = "cancelled";
       else normalizedStatus = "pending";
 
-      if (existing) {
-        const trackingCode = fullOrder.shipping?.tracking_number ?? null;
-        const { error: updErr } = await adminClient
-          .from("orders")
-          .update({
-            status: normalizedStatus,
-            tracking_code: trackingCode,
-            raw: fullOrder,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-        if (updErr) {
-          console.error(`[ml-sync-orders] Error updating order ${mlOrderId}:`, updErr.message);
-        } else if (existing.status !== normalizedStatus) {
-          console.log(`[ml-sync-orders] Order ${mlOrderId} status: ${existing.status} → ${normalizedStatus}`);
-        }
-        continue;
-      }
-
       const item = fullOrder.order_items?.[0];
       const mlItemId = item?.item?.id as string | undefined;
       const buyer = fullOrder.buyer ?? {};
@@ -213,6 +194,37 @@ serve(async (req) => {
       const buyerCity = addr.city?.name ?? "";
       const buyerState = addr.state?.name ?? addr.state?.id ?? "";
       const buyerZip = addr.zip_code ?? "";
+
+      if (existing) {
+        const trackingCode = shipping?.tracking_number ?? null;
+        const updatePayload: Record<string, unknown> = {
+          status: normalizedStatus,
+          tracking_code: trackingCode,
+          raw: { ...fullOrder, shipping },
+          updated_at: new Date().toISOString(),
+        };
+        // Backfill buyer/shipping fields when we now have them
+        if (buyerName && buyerName !== "Comprador") updatePayload.buyer_name = buyerName;
+        if (buyerPhone) updatePayload.buyer_phone = buyerPhone;
+        if (buyerEmail) updatePayload.buyer_email = buyerEmail;
+        if (buyerAddress) updatePayload.buyer_address = buyerAddress;
+        if (streetNumber) updatePayload.buyer_number = streetNumber;
+        if (buyerNeighborhood) updatePayload.buyer_neighborhood = buyerNeighborhood;
+        if (buyerCity) updatePayload.buyer_city = buyerCity;
+        if (buyerState) updatePayload.buyer_state = buyerState;
+        if (buyerZip) updatePayload.buyer_zip = buyerZip;
+
+        const { error: updErr } = await adminClient
+          .from("orders")
+          .update(updatePayload)
+          .eq("id", existing.id);
+        if (updErr) {
+          console.error(`[ml-sync-orders] Error updating order ${mlOrderId}:`, updErr.message);
+        } else if (existing.status !== normalizedStatus) {
+          console.log(`[ml-sync-orders] Order ${mlOrderId} status: ${existing.status} → ${normalizedStatus}`);
+        }
+        continue;
+      }
 
       // Lookup user_publications mapping + catalog product supplier
       let cjVariantId: string | null = null;
