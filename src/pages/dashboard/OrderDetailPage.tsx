@@ -233,7 +233,7 @@ const OrderDetailPage = () => {
                 <p className="mt-0.5 text-[17px] font-semibold tracking-tight text-[#0A0A0A]">{getOrderCode(order)}</p>
               </div>
             </div>
-            <span className="rounded-full bg-[#E8F1FF] px-3 py-1.5 text-[12px] font-semibold text-[#1D4ED8]">
+            <span className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${isRefunded ? "bg-[#FEE2E2] text-[#B91C1C]" : "bg-[#E8F1FF] text-[#1D4ED8]"}`}>
               {mobileBadge}
             </span>
           </div>
