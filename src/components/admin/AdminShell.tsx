@@ -84,7 +84,7 @@ export const AdminShell = ({ children, active, fullBleed = false, title, subtitl
         {fullBleed ? (
           <>
             {/* Dashboard controla o próprio topo; só o breadcrumb vem do shell. */}
-            <div className="px-6 pt-6 sm:px-9 sm:pt-8">
+            <div className="px-8 pt-8 sm:px-10 sm:pt-10">
               <Breadcrumb active={active} />
             </div>
             {children}
