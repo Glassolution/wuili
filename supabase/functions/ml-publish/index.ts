@@ -226,6 +226,22 @@ function parseIncomingAttributes(value: unknown): MLAttribute[] {
   })
 }
 
+function inferGenderValue(
+  title: string,
+  values: Array<{ id?: string; name?: string }>,
+): { value_id?: string; value_name: string } {
+  const normalizedTitle = normalizeText(title)
+  const female = /\b(mulher|mulheres|feminino|feminina|femininos|femininas|menina|meninas|dama|damas)\b/.test(normalizedTitle)
+  const male = /\b(homem|homens|masculino|masculina|masculinos|masculinas|menino|meninos)\b/.test(normalizedTitle)
+  const wanted = female && !male ? 'feminino' : male && !female ? 'masculino' : 'sem genero'
+  const aliases = wanted === 'sem genero' ? ['sem genero', 'unissex'] : [wanted]
+  const matched = values.find((value) => aliases.some((alias) => normalizeText(value.name).includes(alias)))
+
+  return matched
+    ? { ...(matched.id ? { value_id: matched.id } : {}), value_name: cleanText(matched.name) }
+    : { value_name: wanted === 'sem genero' ? 'Sem gênero' : wanted === 'feminino' ? 'Feminino' : 'Masculino' }
+}
+
 // Resolve to a leaf category by walking children_categories until empty
 async function resolveLeafCategory(categoryId: string): Promise<string> {
   let current = categoryId
@@ -762,20 +778,22 @@ Deno.serve(async (req) => {
         `raw="${title.slice(0,60)}" norm="${prediction.normalizedTitle}" rawCat=${prediction.rawPrediction} normCat=${prediction.normalizedPrediction}`,
       )
 
-      // Divergência entre raw e normalized (ambas folha, não-fashion, distintas)
-      // → baixa confiança: bloqueia com 409 e devolve as duas sugestões.
+      // Divergência entre raw e normalized (ambas folha, não-fashion, distintas):
+      // seguimos com a previsão do título completo, que preserva mais contexto.
+      // O seletor manual foi removido do frontend; devolver 409 aqui tornava
+      // produtos válidos (especialmente AliExpress) impossíveis de publicar.
       if (prediction.lowConfidence && productRecordId) {
         try {
           await supabase
             .from('catalog_products')
             .update({
               ml_category_id: categoryId,
-              ml_category_status: 'needs_manual',
+              ml_category_status: 'auto',
               updated_at: new Date().toISOString(),
             })
             .eq('id', productRecordId)
         } catch (persistErr) {
-          console.error('[ml-publish] Falha ao gravar needs_manual (low_conf):', persistErr)
+          console.error('[ml-publish] Falha ao gravar categoria automática (low_conf):', persistErr)
         }
         await logPrediction(supabase, {
           productId: productRecordId,
@@ -783,17 +801,12 @@ Deno.serve(async (req) => {
           title,
           prediction,
           finalCategory: categoryId,
-          finalStatus: 'needs_manual',
+          finalStatus: 'auto',
           requiresSizeGrid: false,
         })
-        return json({
-          error: 'Não temos certeza da categoria correta deste produto. Selecione manualmente entre as sugestões.',
-          code: 'CATEGORY_LOW_CONFIDENCE',
-          suggestions: [
-            { category_id: prediction.rawPrediction, category_name: prediction.rawCategoryName, source: 'raw' },
-            { category_id: prediction.normalizedPrediction, category_name: prediction.normalizedCategoryName, source: 'normalized' },
-          ],
-        }, 409)
+        console.warn(
+          `[ml-publish] Previsões divergentes; seguindo automaticamente com ${categoryId} (${prediction.rawCategoryName ?? 'categoria do título completo'}).`,
+        )
       }
     }
 
@@ -1113,6 +1126,11 @@ Deno.serve(async (req) => {
         mergeAttribute(allAttrs, { id, value_name: 'Não especificado' })
         continue
       }
+      if (id === 'GENDER') {
+        const values = (attrDef.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+        mergeAttribute(allAttrs, { id, ...inferGenderValue(title, values) })
+        continue
+      }
       // Detecta atributos numéricos (com ou sem unidade). O ML rejeita "N/D"
       // com item.attribute.number_invalid_format nesses casos — precisamos
       // enviar um número real seguido de uma unidade permitida.
@@ -1217,6 +1235,7 @@ Deno.serve(async (req) => {
     }
 
     console.log('Payload:', JSON.stringify(mlPayload))
+    let effectivePayload = mlPayload
     let itemResponse = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
@@ -1249,6 +1268,7 @@ Deno.serve(async (req) => {
     if (!itemResponse.ok && causeMessages(itemData).includes('[title]')) {
       console.warn('[ml-publish] Conta no modelo User Products — reenviando sem title')
       const { title: _omitTitle, ...payloadNoTitle } = mlPayload
+      effectivePayload = payloadNoTitle as typeof mlPayload
       itemResponse = await fetch('https://api.mercadolibre.com/items', {
         method: 'POST',
         headers: {
@@ -1266,6 +1286,7 @@ Deno.serve(async (req) => {
     if (!itemResponse.ok && causeMessages(itemData).includes('family name')) {
       console.warn('[ml-publish] Conta no modelo clássico — reenviando sem family_name')
       const { family_name: _omitFn, ...payloadNoFn } = mlPayload as any
+      effectivePayload = payloadNoFn as typeof mlPayload
       itemResponse = await fetch('https://api.mercadolibre.com/items', {
         method: 'POST',
         headers: {
@@ -1287,12 +1308,13 @@ Deno.serve(async (req) => {
       if (msg.includes('size_grid_id') || msg.includes('fashion_grid') || msg.includes('grid_id')) {
         console.warn('[ml-publish] ML rejeitou por SIZE_GRID_ID mesmo após reencaminhamento — reenviando em MLB1051.')
         const fallbackPayload = {
-          ...mlPayload,
+          ...effectivePayload,
           category_id: 'MLB1051',
-          attributes: (mlPayload.attributes as MLAttribute[]).filter((a) =>
+          attributes: (effectivePayload.attributes as MLAttribute[]).filter((a) =>
             !['SIZE_GRID_ID', 'SIZE_GRID_ROW_ID', 'SIZE'].includes(String(a.id))
           ),
         }
+        effectivePayload = fallbackPayload as typeof mlPayload
         itemResponse = await fetch('https://api.mercadolibre.com/items', {
           method: 'POST',
           headers: {
@@ -1315,12 +1337,16 @@ Deno.serve(async (req) => {
     if (!itemResponse.ok) {
       const causeArr = arrayFromUnknown((itemData as Record<string, unknown>)?.cause)
       const missingAttrIds = new Set<string>()
+      let hasInvalidTitleGender = false
       for (const c of causeArr) {
         if (!c || typeof c !== 'object') continue
         const cc = c as Record<string, unknown>
         const codeStr = cleanText(cc.code).toLowerCase()
         const msgStr  = cleanText(cc.message)
         const attrId  = cleanText(cc.attribute_id).toUpperCase()
+        if (codeStr.includes('invalid.title.gender') || /title match the gender/i.test(msgStr)) {
+          hasInvalidTitleGender = true
+        }
         if (
           codeStr.includes('missing_catalog_required') ||
           codeStr.includes('missing_conditional_required') ||
@@ -1339,12 +1365,15 @@ Deno.serve(async (req) => {
           // Detecta "campo Cor" no texto em pt-BR
           if (/\bcor\b/i.test(msgStr)) missingAttrIds.add('COLOR')
           if (/\bgtin\b/i.test(msgStr) || /c[oó]digo universal/i.test(msgStr)) missingAttrIds.add('GTIN')
+          if (/\bmodelo\b/i.test(msgStr) || /\bmodel\b/i.test(msgStr)) missingAttrIds.add('MODEL')
         }
       }
 
+      if (hasInvalidTitleGender) missingAttrIds.add('GENDER')
+
       if (missingAttrIds.size > 0) {
         console.warn('[ml-publish] Atributos exigidos pelo catálogo/condicional faltando:', Array.from(missingAttrIds))
-        const patched = [...(mlPayload.attributes as MLAttribute[])]
+        const patched = [...(effectivePayload.attributes as MLAttribute[])]
         const has = (id: string) => patched.some(a => String(a.id).toUpperCase() === id)
 
         // Defaults por atributo conhecido. Priorizamos valores universalmente
@@ -1369,17 +1398,34 @@ Deno.serve(async (req) => {
         }
 
         for (const id of missingAttrIds) {
+          if (id === 'GENDER') {
+            const genderDef = categoryAttrs.find(a => cleanText(a.id) === 'GENDER')
+            const values = (genderDef?.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+            const inferred = inferGenderValue(title, values)
+            const existingIndex = patched.findIndex(a => String(a.id).toUpperCase() === 'GENDER')
+            const genderAttr = { id: 'GENDER', ...inferred }
+            if (existingIndex >= 0) patched[existingIndex] = genderAttr
+            else patched.push(genderAttr)
+            continue
+          }
           if (has(id)) continue
           const def = defaults[id]
           if (def) {
-            patched.push(def)
+            const attrDef = categoryAttrs.find(a => cleanText(a.id).toUpperCase() === id) as Record<string, unknown> | undefined
+            const resolved = attrDef
+              ? resolveAgainstList(attrDef, {
+                  ...(def.value_id ? { value_id: def.value_id } : {}),
+                  ...(def.value_name ? { value_name: def.value_name } : {}),
+                })
+              : def
+            patched.push({ id, ...resolved })
           } else {
             // Fallback genérico — melhor que travar o anúncio.
             patched.push({ id, value_name: 'N/D' })
           }
         }
 
-        const retryPayload = { ...mlPayload, attributes: patched }
+        const retryPayload = { ...effectivePayload, attributes: patched }
         console.log('[ml-publish] Retry com atributos catálogo/condicional preenchidos:',
           patched.filter(a => missingAttrIds.has(String(a.id).toUpperCase()))
                  .map(a => `${a.id}=${a.value_id ?? a.value_name}`))
