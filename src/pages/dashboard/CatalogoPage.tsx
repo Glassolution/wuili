@@ -811,6 +811,13 @@ const categoryMap: Record<CategoryKey, string | null> = {
 };
 
 const PRICE_OPTIONS = ["Todos os preços", "Até R$ 50", "R$ 50-150", "Acima de R$ 150"];
+const SOURCE_OPTIONS = ["Todos os fornecedores", "C7 Drop", "AliExpress"] as const;
+type SourceOption = typeof SOURCE_OPTIONS[number];
+const sourceOptionToDb: Record<SourceOption, "c7drop" | "aliexpress" | null> = {
+  "Todos os fornecedores": null,
+  "C7 Drop": "c7drop",
+  "AliExpress": "aliexpress",
+};
 const RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
 
 
