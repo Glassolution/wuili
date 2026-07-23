@@ -177,18 +177,41 @@ serve(async (req) => {
       const item = fullOrder.order_items?.[0];
       const mlItemId = item?.item?.id as string | undefined;
       const buyer = fullOrder.buyer ?? {};
-      const shipping = fullOrder.shipping ?? {};
+      let shipping = fullOrder.shipping ?? {};
+
+      // Fetch full shipment details — /orders/{id} only returns a shipping id,
+      // the real receiver_address + receiver phone live at /shipments/{id}
+      const shipmentId = shipping?.id ?? fullOrder.shipping?.id;
+      if (shipmentId) {
+        try {
+          const shipRes = await fetch(`https://api.mercadolibre.com/shipments/${shipmentId}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (shipRes.ok) {
+            const shipData = await shipRes.json();
+            shipping = { ...shipping, ...shipData };
+          } else {
+            console.warn(`[ml-sync-orders] Failed to fetch shipment ${shipmentId}: ${shipRes.status}`);
+          }
+        } catch (e) {
+          console.warn(`[ml-sync-orders] Shipment fetch error for ${shipmentId}:`, (e as Error).message);
+        }
+      }
       const addr = shipping.receiver_address ?? {};
 
-      const buyerName = buyer.nickname ?? buyer.first_name ?? "Comprador";
+      const fullBuyerName = [buyer.first_name, buyer.last_name].filter(Boolean).join(" ").trim();
+      const buyerName = addr.receiver_name || fullBuyerName || buyer.nickname || "Comprador";
       const buyerEmail = buyer.email ?? "";
-      const buyerPhone = buyer.phone?.number ?? buyer.alternative_phone?.number ?? "";
+      const buyerPhone = addr.receiver_phone
+        ?? (buyer.phone?.area_code && buyer.phone?.number ? `(${buyer.phone.area_code}) ${buyer.phone.number}` : buyer.phone?.number)
+        ?? buyer.alternative_phone?.number
+        ?? "";
       const streetName = addr.street_name ?? "";
       const streetNumber = addr.street_number ?? "";
       const buyerAddress = [streetName, streetNumber].filter(Boolean).join(", ");
       const buyerNeighborhood = addr.neighborhood?.name ?? "";
       const buyerCity = addr.city?.name ?? "";
-      const buyerState = addr.state?.name ?? "";
+      const buyerState = addr.state?.name ?? addr.state?.id ?? "";
       const buyerZip = addr.zip_code ?? "";
 
       // Lookup user_publications mapping + catalog product supplier
