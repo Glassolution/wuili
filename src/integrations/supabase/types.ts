@@ -2397,6 +2397,7 @@ export type Database = {
         Args: { p_active: boolean }
         Returns: boolean
       }
+      unaccent: { Args: { "": string }; Returns: string }
       user_has_active_paid_plan: {
         Args: { target_user: string }
         Returns: boolean
