@@ -44,7 +44,11 @@ const statusLabels: Record<string, string> = {
   cancelled: "Cancelado",
   canceled: "Cancelado",
   failed: "Falhou",
+  refunded: "Reembolsado",
+  charged_back: "Estornado",
 };
+
+const REFUND_STATUSES = new Set(["refunded", "charged_back", "cancelled", "canceled"]);
 
 const formatBRL = (value: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
