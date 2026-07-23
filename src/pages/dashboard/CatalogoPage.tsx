@@ -811,6 +811,13 @@ const categoryMap: Record<CategoryKey, string | null> = {
 };
 
 const PRICE_OPTIONS = ["Todos os preços", "Até R$ 50", "R$ 50-150", "Acima de R$ 150"];
+const SOURCE_OPTIONS = ["Todos os fornecedores", "C7 Drop", "AliExpress"] as const;
+type SourceOption = typeof SOURCE_OPTIONS[number];
+const sourceOptionToDb: Record<SourceOption, "c7drop" | "aliexpress" | null> = {
+  "Todos os fornecedores": null,
+  "C7 Drop": "c7drop",
+  "AliExpress": "aliexpress",
+};
 const RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
 
 
@@ -897,7 +904,8 @@ const CatalogoPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("Todos os preços");
   const [selectedRating, setSelectedRating] = useState("Todas");
-  const [openDropdown, setOpenDropdown] = useState<"category" | "price" | "rating" | null>(null);
+  const [selectedSource, setSelectedSource] = useState<SourceOption>("C7 Drop");
+  const [openDropdown, setOpenDropdown] = useState<"category" | "price" | "rating" | "source" | null>(null);
   const filterBarRef = useRef<HTMLDivElement | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -1054,12 +1062,18 @@ const CatalogoPage = () => {
           let query = supabase
             .from("catalog_products")
             .select("*", { count: "exact" })
-            .eq("source", "c7drop")
             .eq("is_blocked", false)
             .gt("stock_quantity", 0)
             .order("created_at", { ascending: false })
             .order("id", { ascending: false })
             .range(start, end);
+
+          const dbSource = sourceOptionToDb[selectedSource];
+          if (dbSource) {
+            query = query.eq("source", dbSource);
+          } else {
+            query = query.in("source", ["c7drop", "aliexpress"]);
+          }
 
 
 
@@ -1093,7 +1107,7 @@ const CatalogoPage = () => {
     };
 
     fetchProducts();
-  }, [currentPage, searchQuery, activeCategory, atlasResults]);
+  }, [currentPage, searchQuery, activeCategory, atlasResults, selectedSource]);
 
 
   // Buscar recomendações
@@ -1244,6 +1258,19 @@ const CatalogoPage = () => {
                 options={RATING_OPTIONS}
                 onSelect={(option) => {
                   setSelectedRating(option);
+                  setOpenDropdown(null);
+                }}
+              />
+
+              <FilterDropdown
+                label="Fornecedor"
+                value={selectedSource}
+                isOpen={openDropdown === "source"}
+                onToggle={() => setOpenDropdown((current) => (current === "source" ? null : "source"))}
+                options={[...SOURCE_OPTIONS]}
+                onSelect={(option) => {
+                  setSelectedSource(option as SourceOption);
+                  setCurrentPage(1);
                   setOpenDropdown(null);
                 }}
               />
