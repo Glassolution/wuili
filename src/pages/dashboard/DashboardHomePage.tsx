@@ -34,30 +34,33 @@ const DASHBOARD_IMAGE_SRC = "/assets/dashboard-inicio-colado.png";
 const WHATSAPP_SUPPORT_URL =
   "https://wa.me/5547999286334?text=Oi%2C%20preciso%20de%20ajuda%20com%20a%20minha%20conta%20Velo.";
 
+// Roxo pontual da faixa de upgrade / botão principal. Não entra na paleta geral
+// do produto — segue restrito ao topo do Início.
+const UPGRADE_PURPLE = "#6C5DD3";
+const UPGRADE_PURPLE_DARK = "#4834D4";
+
+// A descrição virou conteúdo do tooltip "?" ao lado do rótulo: os cards do topo
+// mostram só rótulo + número.
 const metricCards = [
   {
-    left: "3.4%",
     icon: Package,
     key: "totalProducts",
     title: "Total de Produtos",
     description: "Produtos salvos ou publicados na sua conta Velo.",
   },
   {
-    left: "27.1%",
     icon: BookOpen,
     key: "totalOrders",
     title: "Total de Pedidos",
     description: "Pedidos recebidos nos seus canais conectados.",
   },
   {
-    left: "50.8%",
     icon: Briefcase,
     key: "salesPages",
     title: "Paginas criadas",
     description: "Paginas de vendas geradas para seus produtos.",
   },
   {
-    left: "74.5%",
     icon: Search,
     key: "integrations",
     title: "Integracoes",
@@ -386,6 +389,24 @@ const DashboardHomePage = () => {
         willChange: "opacity, transform",
       }}
     >
+      {/* Faixa de upgrade: estática nesta etapa (não consulta o plano real). */}
+      <div
+        className="flex w-full items-center justify-between gap-4 px-[2.4vw] py-[0.85vw] text-white"
+        style={{ background: `linear-gradient(90deg, ${UPGRADE_PURPLE} 0%, ${UPGRADE_PURPLE_DARK} 100%)` }}
+      >
+        <p className="text-[clamp(11px,0.86vw,17px)] font-medium leading-snug">
+          Você está no Plano Grátis. Faça upgrade para desbloquear todos os recursos
+        </p>
+        <button
+          type="button"
+          onClick={() => openUpgrade()}
+          className="flex shrink-0 items-center gap-[0.4vw] whitespace-nowrap rounded-full bg-white px-[1.1vw] py-[0.42vw] text-[clamp(10px,0.8vw,16px)] font-semibold text-[#3a2fb0] shadow-[0_0.3vw_0.8vw_rgba(0,0,0,0.14)] transition hover:bg-white/90"
+        >
+          Fazer Upgrade
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+
       <section className="relative w-full overflow-visible bg-white text-[#252936]">
         <img
           src={DASHBOARD_IMAGE_SRC}
@@ -398,14 +419,14 @@ const DashboardHomePage = () => {
           <div className="absolute inset-x-0 top-0 h-[35.2%] bg-white" />
 
           <div className="absolute left-[0.7%] top-[1.5%] h-[9.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
-            <span className="absolute left-[1.9%] top-1/2 flex h-[clamp(22px,2.2vw,42px)] w-[clamp(22px,2.2vw,42px)] -translate-y-1/2 items-center justify-center rounded-[0.45vw] bg-black text-white shadow-[0_0.45vw_0.95vw_rgba(0,0,0,0.16)]">
-              <Home className="h-[55%] w-[55%]" fill="currentColor" strokeWidth={2} />
-            </span>
-            <div className="absolute left-[5.0%] top-1/2 flex -translate-y-1/2 items-baseline gap-[0.55vw]">
-              <span className="text-[clamp(10px,0.9vw,18px)] font-bold text-[#252936]">Inicio</span>
-              <span className="text-[clamp(9px,0.82vw,16px)] font-medium text-[#676d79]">
-                {loadingStats ? "Carregando dados da sua conta" : `Ola, ${statsData?.displayName ?? "Velo"}. Visao geral da sua conta`}
-              </span>
+            <div className="absolute left-[1.9%] top-1/2 flex -translate-y-1/2 items-center">
+              {loadingStats ? (
+                <span className="block h-[clamp(15px,1.35vw,27px)] w-[clamp(120px,11vw,220px)] animate-pulse rounded-full bg-black/[0.08]" />
+              ) : (
+                <h1 className="text-[clamp(15px,1.35vw,27px)] font-bold leading-none tracking-[-0.025em] text-[#111318]">
+                  {`Olá, ${statsData?.displayName ?? "Velo"}!`}
+                </h1>
+              )}
             </div>
             <div className="pointer-events-auto absolute right-[1.9%] top-1/2 flex -translate-y-1/2 items-center gap-[0.55vw]">
               <button
@@ -420,10 +441,10 @@ const DashboardHomePage = () => {
                 type="button"
                 onClick={() => setWizardOpen(true)}
                 style={{
-                  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #1D1F23",
-                  borderTop: "1.5px solid rgba(255,255,255,0.15)",
-                  boxShadow: "0px 4px 7px rgba(0,0,0,0.2), 0px 0px 0px 1.5px #000000",
-                  textShadow: "0px 4px 4px rgba(0,0,0,0.4)",
+                  background: `linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 18%), ${UPGRADE_PURPLE_DARK}`,
+                  borderTop: "1.5px solid rgba(255,255,255,0.22)",
+                  boxShadow: `0px 4px 7px rgba(72,52,212,0.28), 0px 0px 0px 1.5px ${UPGRADE_PURPLE_DARK}`,
+                  textShadow: "0px 4px 4px rgba(0,0,0,0.25)",
                 }}
                 className="flex items-center gap-[0.35vw] rounded-[0.45vw] px-[0.8vw] py-[0.36vw] text-[clamp(8px,0.74vw,14px)] font-medium text-white transition-opacity hover:opacity-90"
               >
@@ -433,23 +454,29 @@ const DashboardHomePage = () => {
             </div>
           </div>
 
-          <div className="absolute left-[0.7%] top-[10.5%] h-[17.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
-            <span className="absolute left-[25.2%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
-            <span className="absolute left-[49.0%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
-            <span className="absolute left-[72.8%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
+          <div className="absolute inset-x-0 top-[10.5%] grid h-[17.0%] grid-cols-4 gap-[1.1vw] border-b border-black/[0.06] bg-[#f4f5f7] px-[1.9%] py-[1.5vw]">
             {metricCards.map((card) => {
               const Icon = card.icon;
 
               return (
-                <div key={card.title} className="absolute top-[20%] w-[19.0%]" style={{ left: card.left }}>
-                  <div className="flex items-center gap-[0.45vw] text-[clamp(8px,0.78vw,15px)] font-semibold leading-none text-[#8f95a3]">
-                    <Icon className="h-[clamp(11px,1.05vw,20px)] w-[clamp(11px,1.05vw,20px)] text-[#c3c8d4]" strokeWidth={1.9} />
-                    <span>{card.title}</span>
+                <div
+                  key={card.title}
+                  className="flex flex-col justify-center rounded-[0.75vw] border border-black/[0.06] bg-white px-[1.15vw] py-[1vw] shadow-[0_0.35vw_0.9vw_rgba(15,23,42,0.05)]"
+                >
+                  <div className="flex items-center gap-[0.45vw] text-[clamp(8px,0.78vw,15px)] font-semibold leading-none text-[#5c626e]">
+                    <Icon className="h-[clamp(11px,1.05vw,20px)] w-[clamp(11px,1.05vw,20px)] shrink-0 text-[#2c3140]" strokeWidth={1.5} />
+                    <span className="truncate">{card.title}</span>
+                    {/* Descrição antiga vira tooltip para não perder a explicação. */}
+                    <HelpCircle
+                      className="h-[clamp(9px,0.85vw,16px)] w-[clamp(9px,0.85vw,16px)] shrink-0 text-[#b3b8c4]"
+                      strokeWidth={1.5}
+                    >
+                      <title>{card.description}</title>
+                    </HelpCircle>
                   </div>
                   {loadingStats
-                    ? <div className="mt-[0.75vw] h-[clamp(16px,1.65vw,32px)] w-[46%] animate-pulse rounded-full bg-black/[0.08]" />
-                    : <p className="mt-[0.75vw] text-[clamp(16px,1.65vw,32px)] font-semibold leading-none text-black">{formatCount(statsData?.[card.key] ?? 0)}</p>}
-                  <p className="mt-[0.9vw] text-[clamp(8px,0.82vw,16px)] font-medium leading-[1.36] text-[#6f7582]">{card.description}</p>
+                    ? <div className="mt-[0.8vw] h-[clamp(16px,1.85vw,36px)] w-[46%] animate-pulse rounded-full bg-black/[0.08]" />
+                    : <p className="mt-[0.8vw] text-[clamp(16px,1.85vw,36px)] font-bold leading-none tracking-[-0.02em] text-[#111318]">{formatCount(statsData?.[card.key] ?? 0)}</p>}
                 </div>
               );
             })}
