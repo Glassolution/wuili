@@ -904,7 +904,8 @@ const CatalogoPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("Todos os preços");
   const [selectedRating, setSelectedRating] = useState("Todas");
-  const [openDropdown, setOpenDropdown] = useState<"category" | "price" | "rating" | null>(null);
+  const [selectedSource, setSelectedSource] = useState<SourceOption>("C7 Drop");
+  const [openDropdown, setOpenDropdown] = useState<"category" | "price" | "rating" | "source" | null>(null);
   const filterBarRef = useRef<HTMLDivElement | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
