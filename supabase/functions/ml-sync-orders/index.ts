@@ -128,15 +128,11 @@ serve(async (req) => {
       // Check if already synchronized
       const { data: existing } = await adminClient
         .from("orders")
-        .select("id")
+        .select("id, status")
         .eq("external_order_id", mlOrderId)
         .maybeSingle();
 
-      if (existing) {
-        continue;
-      }
-
-      // Fetch full order for complete details
+      // Fetch full order for complete details (needed for both insert and status update)
       const orderRes = await fetch(`https://api.mercadolibre.com/orders/${mlOrderId}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -145,6 +141,38 @@ serve(async (req) => {
         continue;
       }
       const fullOrder = await orderRes.json();
+
+      // Derive normalized status considering refunds/cancellations
+      const rawStatus = String(fullOrder.status ?? "").toLowerCase();
+      const hasRefund = Array.isArray(fullOrder.payments)
+        && fullOrder.payments.some((p: any) => {
+          const s = String(p?.status ?? "").toLowerCase();
+          return s === "refunded" || s === "charged_back" || Number(p?.transaction_amount_refunded ?? 0) > 0;
+        });
+      let normalizedStatus: string;
+      if (hasRefund) normalizedStatus = "refunded";
+      else if (rawStatus === "paid") normalizedStatus = "paid";
+      else if (rawStatus === "cancelled") normalizedStatus = "cancelled";
+      else normalizedStatus = "pending";
+
+      if (existing) {
+        const trackingCode = fullOrder.shipping?.tracking_number ?? null;
+        const { error: updErr } = await adminClient
+          .from("orders")
+          .update({
+            status: normalizedStatus,
+            tracking_code: trackingCode,
+            raw: fullOrder,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (updErr) {
+          console.error(`[ml-sync-orders] Error updating order ${mlOrderId}:`, updErr.message);
+        } else if (existing.status !== normalizedStatus) {
+          console.log(`[ml-sync-orders] Order ${mlOrderId} status: ${existing.status} → ${normalizedStatus}`);
+        }
+        continue;
+      }
 
       const item = fullOrder.order_items?.[0];
       const mlItemId = item?.item?.id as string | undefined;
