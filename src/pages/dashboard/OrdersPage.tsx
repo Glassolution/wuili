@@ -31,7 +31,20 @@ const statusLabels: Record<string, string> = {
   cancelled: "Cancelado",
   canceled: "Cancelado",
   failed: "Falhou",
+  refunded: "Reembolsado",
+  charged_back: "Estornado",
 };
+
+const statusStyles: Record<string, string> = {
+  refunded: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
+  charged_back: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
+  cancelled: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
+  canceled: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
+  failed: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
+};
+
+const getStatusStyle = (status: string | null | undefined) =>
+  statusStyles[(status ?? "").toLowerCase()] ?? "border-black/[0.08] bg-[#F5F5F5] text-[#404040]";
 
 const pageFont = {
   fontFamily: 'Inter, "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
