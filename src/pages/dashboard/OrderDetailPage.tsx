@@ -139,9 +139,31 @@ const OrderDetailPage = () => {
     },
   });
 
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     if (error) veloToast.error("Não foi possível carregar os detalhes do pedido.");
   }, [error]);
+
+  // Auto-sync ML orders on mount + realtime updates
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.functions.invoke("ml-sync-orders").catch(() => undefined);
+    const channel = supabase
+      .channel(`order-detail-${user.id}-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["ml-order-detail", user.id, id] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, id, queryClient]);
+
 
   if (isLoading) {
     return (
