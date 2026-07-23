@@ -1107,7 +1107,7 @@ const CatalogoPage = () => {
     };
 
     fetchProducts();
-  }, [currentPage, searchQuery, activeCategory, atlasResults]);
+  }, [currentPage, searchQuery, activeCategory, atlasResults, selectedSource]);
 
 
   // Buscar recomendações
