@@ -30,15 +30,14 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   settings: "AliExpress",
 };
 
-// Breadcrumb: fonte pequena e apagada com separador "/" (como na referência).
-// O último item é levemente mais claro, mas o destaque real é o título abaixo.
+// Breadcrumb: bem pequeno, cinza apagado e com tracking levemente aumentado.
 const Breadcrumb = ({ active }: { active: AdminSection }) => (
-  <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[12.5px] tracking-[-0.01em]">
-    <span className="text-white/35">Admin</span>
+  <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] tracking-[0.02em]">
+    <span className="text-white/30">Admin</span>
     <span className="text-white/20" aria-hidden="true">
       /
     </span>
-    <span className="text-white/55">{SECTION_LABEL[active]}</span>
+    <span className="text-white/45">{SECTION_LABEL[active]}</span>
   </nav>
 );
 
@@ -55,15 +54,15 @@ const PageHeader = ({
   subtitle?: string;
   actions?: ReactNode;
 }) => (
-  <div className="px-6 pt-6 sm:px-9 sm:pt-8">
+  <div className="px-8 pt-8 sm:px-10 sm:pt-10">
     <Breadcrumb active={active} />
     {title ? (
-      <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
-          <h1 className="text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-white sm:text-[32px]">
+          <h1 className="text-[38px] font-bold leading-[1.05] tracking-[-0.03em] text-white sm:text-[44px]">
             {title}
           </h1>
-          {subtitle ? <p className="mt-2 max-w-[560px] text-[14px] leading-relaxed text-white/50">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-3 max-w-[560px] text-[14px] leading-relaxed text-white/50">{subtitle}</p> : null}
         </div>
         {actions ? <div className="flex flex-shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
@@ -85,7 +84,7 @@ export const AdminShell = ({ children, active, fullBleed = false, title, subtitl
         {fullBleed ? (
           <>
             {/* Dashboard controla o próprio topo; só o breadcrumb vem do shell. */}
-            <div className="px-6 pt-6 sm:px-9 sm:pt-8">
+            <div className="px-8 pt-8 sm:px-10 sm:pt-10">
               <Breadcrumb active={active} />
             </div>
             {children}

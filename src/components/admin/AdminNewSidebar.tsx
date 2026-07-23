@@ -67,23 +67,23 @@ const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) =>
     <Link
       to={item.to}
       aria-current={active ? "page" : undefined}
-      className={`group flex h-10 items-center gap-3 rounded-[10px] px-3 text-[14px] tracking-[-0.01em] transition-colors ${
+      className={`group flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] tracking-[-0.005em] transition-colors ${
         active
-          ? "bg-white/[0.07] font-semibold text-white"
-          : "font-medium text-white/60 hover:bg-white/[0.035] hover:text-white/90"
+          ? "bg-white/[0.045] font-normal text-white"
+          : "font-normal text-white/55 hover:bg-white/[0.03] hover:text-white/85"
       }`}
     >
       <Icon
-        size={18}
-        strokeWidth={1.6}
+        size={15}
+        strokeWidth={1.5}
         aria-hidden="true"
-        className={active ? "text-white" : "text-white/45 group-hover:text-white/70"}
+        className={active ? "text-white/85" : "text-white/40 group-hover:text-white/65"}
       />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
       {item.badge ? (
         <span
           aria-label={`${item.badge} tickets abertos`}
-          className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-white/[0.1] px-1.5 text-[10.5px] font-semibold text-white/80"
+          className="ml-auto inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-white/[0.08] px-1.5 text-[10px] font-medium text-white/70"
         >
           {item.badge > 99 ? "99+" : item.badge}
         </span>
@@ -145,34 +145,32 @@ export const AdminNewSidebar = () => {
 
   return (
     <aside
-      className="velo-dashboard-sidebar flex h-full w-[272px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0A0A0B] px-4 py-5"
+      className="velo-dashboard-sidebar flex h-full w-[228px] shrink-0 flex-col border-r border-white/[0.05] bg-[#0A0A0B] px-3 py-4"
       style={{
         fontFamily:
           '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
       {/* 1. Marca */}
-      <Link to="/admin/painel" className="flex items-center gap-2.5 px-2 text-[#F2F1EC] no-underline">
+      <Link to="/admin/painel" className="flex items-center gap-2 px-2 text-[#F2F1EC] no-underline">
         <VeloIconOnly />
-        <span className="text-[19px] font-bold leading-none tracking-[-0.05em]">Velo</span>
+        <span className="text-[17px] font-semibold leading-none tracking-[-0.04em]">Velo</span>
       </Link>
 
-      {/* 2. Seletor de usuário/workspace — card arredondado com padding generoso */}
+      {/* 2. Pill de usuário — compacto, sem borda pesada, sem email */}
       <button
         type="button"
         aria-label="Abrir perfil"
         onClick={() => navigate("/dashboard/configuracoes")}
-        className="mt-6 flex w-full items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-2.5 py-2.5 text-left transition-colors hover:bg-white/[0.05]"
+        className="mt-5 flex w-full items-center gap-2 rounded-full border border-transparent bg-white/[0.03] px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.06]"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.08] text-[11px] font-bold text-white">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.1] text-[10px] font-semibold text-white">
           {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : initials}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-semibold leading-tight text-white">{profileName}</span>
-          <span className="mt-0.5 block truncate text-[11.5px] leading-tight text-white/45">{profileEmail}</span>
-        </span>
-        <ChevronDown size={16} strokeWidth={1.7} aria-hidden="true" className="shrink-0 text-white/40" />
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium leading-none text-white/85">{profileName}</span>
+        <ChevronDown size={13} strokeWidth={1.7} aria-hidden="true" className="mr-1 shrink-0 text-white/35" />
       </button>
+
 
       {/* 3. Navegação */}
       <nav aria-label="Navegação do admin" className="mt-7 flex flex-col gap-1">
