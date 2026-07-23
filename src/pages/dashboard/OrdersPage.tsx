@@ -224,7 +224,7 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
 
         <div>
           <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Status</p>
-          <span className="inline-flex h-7 items-center rounded-full border border-black/[0.08] bg-[#F5F5F5] px-2.5 text-[12px] font-semibold text-[#404040]">
+          <span className={`inline-flex h-7 items-center rounded-full border px-2.5 text-[12px] font-semibold ${getStatusStyle(order.status)}`}>
             {getStatusLabel(order.status)}
           </span>
         </div>
