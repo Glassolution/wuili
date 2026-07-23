@@ -155,16 +155,68 @@ serve(async (req) => {
       else if (rawStatus === "cancelled") normalizedStatus = "cancelled";
       else normalizedStatus = "pending";
 
+      const item = fullOrder.order_items?.[0];
+      const mlItemId = item?.item?.id as string | undefined;
+      const buyer = fullOrder.buyer ?? {};
+      let shipping = fullOrder.shipping ?? {};
+
+      // Fetch full shipment details — /orders/{id} only returns a shipping id,
+      // the real receiver_address + receiver phone live at /shipments/{id}
+      const shipmentId = shipping?.id ?? fullOrder.shipping?.id;
+      if (shipmentId) {
+        try {
+          const shipRes = await fetch(`https://api.mercadolibre.com/shipments/${shipmentId}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (shipRes.ok) {
+            const shipData = await shipRes.json();
+            shipping = { ...shipping, ...shipData };
+          } else {
+            console.warn(`[ml-sync-orders] Failed to fetch shipment ${shipmentId}: ${shipRes.status}`);
+          }
+        } catch (e) {
+          console.warn(`[ml-sync-orders] Shipment fetch error for ${shipmentId}:`, (e as Error).message);
+        }
+      }
+      const addr = shipping.receiver_address ?? {};
+
+      const fullBuyerName = [buyer.first_name, buyer.last_name].filter(Boolean).join(" ").trim();
+      const buyerName = addr.receiver_name || fullBuyerName || buyer.nickname || "Comprador";
+      const buyerEmail = buyer.email ?? "";
+      const buyerPhone = addr.receiver_phone
+        ?? (buyer.phone?.area_code && buyer.phone?.number ? `(${buyer.phone.area_code}) ${buyer.phone.number}` : buyer.phone?.number)
+        ?? buyer.alternative_phone?.number
+        ?? "";
+      const streetName = addr.street_name ?? "";
+      const streetNumber = addr.street_number ?? "";
+      const buyerAddress = [streetName, streetNumber].filter(Boolean).join(", ");
+      const buyerNeighborhood = addr.neighborhood?.name ?? "";
+      const buyerCity = addr.city?.name ?? "";
+      const buyerState = addr.state?.name ?? addr.state?.id ?? "";
+      const buyerZip = addr.zip_code ?? "";
+
       if (existing) {
-        const trackingCode = fullOrder.shipping?.tracking_number ?? null;
+        const trackingCode = shipping?.tracking_number ?? null;
+        const updatePayload: Record<string, unknown> = {
+          status: normalizedStatus,
+          tracking_code: trackingCode,
+          raw: { ...fullOrder, shipping },
+          updated_at: new Date().toISOString(),
+        };
+        // Backfill buyer/shipping fields when we now have them
+        if (buyerName && buyerName !== "Comprador") updatePayload.buyer_name = buyerName;
+        if (buyerPhone) updatePayload.buyer_phone = buyerPhone;
+        if (buyerEmail) updatePayload.buyer_email = buyerEmail;
+        if (buyerAddress) updatePayload.buyer_address = buyerAddress;
+        if (streetNumber) updatePayload.buyer_number = streetNumber;
+        if (buyerNeighborhood) updatePayload.buyer_neighborhood = buyerNeighborhood;
+        if (buyerCity) updatePayload.buyer_city = buyerCity;
+        if (buyerState) updatePayload.buyer_state = buyerState;
+        if (buyerZip) updatePayload.buyer_zip = buyerZip;
+
         const { error: updErr } = await adminClient
           .from("orders")
-          .update({
-            status: normalizedStatus,
-            tracking_code: trackingCode,
-            raw: fullOrder,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq("id", existing.id);
         if (updErr) {
           console.error(`[ml-sync-orders] Error updating order ${mlOrderId}:`, updErr.message);
@@ -173,23 +225,6 @@ serve(async (req) => {
         }
         continue;
       }
-
-      const item = fullOrder.order_items?.[0];
-      const mlItemId = item?.item?.id as string | undefined;
-      const buyer = fullOrder.buyer ?? {};
-      const shipping = fullOrder.shipping ?? {};
-      const addr = shipping.receiver_address ?? {};
-
-      const buyerName = buyer.nickname ?? buyer.first_name ?? "Comprador";
-      const buyerEmail = buyer.email ?? "";
-      const buyerPhone = buyer.phone?.number ?? buyer.alternative_phone?.number ?? "";
-      const streetName = addr.street_name ?? "";
-      const streetNumber = addr.street_number ?? "";
-      const buyerAddress = [streetName, streetNumber].filter(Boolean).join(", ");
-      const buyerNeighborhood = addr.neighborhood?.name ?? "";
-      const buyerCity = addr.city?.name ?? "";
-      const buyerState = addr.state?.name ?? "";
-      const buyerZip = addr.zip_code ?? "";
 
       // Lookup user_publications mapping + catalog product supplier
       let cjVariantId: string | null = null;
