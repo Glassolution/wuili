@@ -1411,7 +1411,14 @@ Deno.serve(async (req) => {
           if (has(id)) continue
           const def = defaults[id]
           if (def) {
-            patched.push(def)
+            const attrDef = categoryAttrs.find(a => cleanText(a.id).toUpperCase() === id) as Record<string, unknown> | undefined
+            const resolved = attrDef
+              ? resolveAgainstList(attrDef, {
+                  ...(def.value_id ? { value_id: def.value_id } : {}),
+                  ...(def.value_name ? { value_name: def.value_name } : {}),
+                })
+              : def
+            patched.push({ id, ...resolved })
           } else {
             // Fallback genérico — melhor que travar o anúncio.
             patched.push({ id, value_name: 'N/D' })
