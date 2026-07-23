@@ -1238,6 +1238,7 @@ Deno.serve(async (req) => {
     }
 
     console.log('Payload:', JSON.stringify(mlPayload))
+    let effectivePayload = mlPayload
     let itemResponse = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
@@ -1270,6 +1271,7 @@ Deno.serve(async (req) => {
     if (!itemResponse.ok && causeMessages(itemData).includes('[title]')) {
       console.warn('[ml-publish] Conta no modelo User Products — reenviando sem title')
       const { title: _omitTitle, ...payloadNoTitle } = mlPayload
+      effectivePayload = payloadNoTitle as typeof mlPayload
       itemResponse = await fetch('https://api.mercadolibre.com/items', {
         method: 'POST',
         headers: {
@@ -1287,6 +1289,7 @@ Deno.serve(async (req) => {
     if (!itemResponse.ok && causeMessages(itemData).includes('family name')) {
       console.warn('[ml-publish] Conta no modelo clássico — reenviando sem family_name')
       const { family_name: _omitFn, ...payloadNoFn } = mlPayload as any
+      effectivePayload = payloadNoFn as typeof mlPayload
       itemResponse = await fetch('https://api.mercadolibre.com/items', {
         method: 'POST',
         headers: {
@@ -1308,12 +1311,13 @@ Deno.serve(async (req) => {
       if (msg.includes('size_grid_id') || msg.includes('fashion_grid') || msg.includes('grid_id')) {
         console.warn('[ml-publish] ML rejeitou por SIZE_GRID_ID mesmo após reencaminhamento — reenviando em MLB1051.')
         const fallbackPayload = {
-          ...mlPayload,
+          ...effectivePayload,
           category_id: 'MLB1051',
-          attributes: (mlPayload.attributes as MLAttribute[]).filter((a) =>
+          attributes: (effectivePayload.attributes as MLAttribute[]).filter((a) =>
             !['SIZE_GRID_ID', 'SIZE_GRID_ROW_ID', 'SIZE'].includes(String(a.id))
           ),
         }
+        effectivePayload = fallbackPayload as typeof mlPayload
         itemResponse = await fetch('https://api.mercadolibre.com/items', {
           method: 'POST',
           headers: {
@@ -1372,7 +1376,7 @@ Deno.serve(async (req) => {
 
       if (missingAttrIds.size > 0) {
         console.warn('[ml-publish] Atributos exigidos pelo catálogo/condicional faltando:', Array.from(missingAttrIds))
-        const patched = [...(mlPayload.attributes as MLAttribute[])]
+        const patched = [...(effectivePayload.attributes as MLAttribute[])]
         const has = (id: string) => patched.some(a => String(a.id).toUpperCase() === id)
 
         // Defaults por atributo conhecido. Priorizamos valores universalmente
@@ -1417,7 +1421,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        const retryPayload = { ...mlPayload, attributes: patched }
+        const retryPayload = { ...effectivePayload, attributes: patched }
         console.log('[ml-publish] Retry com atributos catálogo/condicional preenchidos:',
           patched.filter(a => missingAttrIds.has(String(a.id).toUpperCase()))
                  .map(a => `${a.id}=${a.value_id ?? a.value_name}`))
