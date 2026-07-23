@@ -454,7 +454,7 @@ const DashboardHomePage = () => {
             </div>
           </div>
 
-          <div className="absolute inset-x-0 top-[10.5%] grid h-[17.0%] grid-cols-4 gap-[1.1vw] border-b border-black/[0.06] bg-[#f4f5f7] px-[1.9%] py-[1.5vw]">
+          <div className="absolute inset-x-0 top-[10.5%] grid h-[17.0%] grid-cols-4 gap-[1.1vw] border-b border-black/[0.06] bg-white px-[1.9%] py-[1.5vw]">
             {metricCards.map((card) => {
               const Icon = card.icon;
 
