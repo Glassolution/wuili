@@ -1104,10 +1104,12 @@ const CatalogoPage = () => {
           supabase
             .from("catalog_products")
             .select("*")
+            .eq("source", "c7drop")
             .eq("is_blocked", false)
             .gt("stock_quantity", 0)
             .limit(10),
         );
+
 
         if (fetchError) throw fetchError;
         setRecommendations((data || []).map(mapProduct));
