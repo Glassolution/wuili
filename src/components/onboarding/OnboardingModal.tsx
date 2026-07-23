@@ -4,11 +4,13 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronRight,
   Code2,
   Cpu,
   Eye,
   Facebook,
   FileX,
+  HelpCircle,
   Home,
   Instagram,
   LayoutGrid,
@@ -34,7 +36,7 @@ import {
   Youtube,
   type LucideIcon,
 } from "lucide-react";
-import { VeloLogo } from "@/components/VeloLogo";
+import { VeloLogo, VeloMark } from "@/components/VeloLogo";
 
 // Novo onboarding da Velo em modal de 3 etapas (substitui o antigo fluxo de
 // cadastro). Puramente frontend: as respostas ficam em estado local e NÃO são
@@ -234,43 +236,44 @@ type OnboardingModalProps = {
 // Easing "ease-out expo" — sensação suave/premium usada nas transições de etapa.
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-// ── Mesma paleta de superfícies do wizard de criação de projeto (referência) ──
-// Fundo chapado, card um degrau acima e blocos internos um degrau abaixo do
-// card, todos separados por uma borda fina de 1px em branco translúcido.
+// ── Paleta do quiz (split-screen) — ISOLADA a esta tela ──────────────────────
+// A referência é um layout claro com painel de marca sólido à esquerda. Usamos
+// o azul de marca da Velo (CLAUDE.md §10) só aqui; o resto do app segue
+// monocromático. Nada disto vaza para o design system global.
+const BRAND_BLUE = "#2563EB"; // azul elétrico
+const BRAND_BLUE_DARK = "#1E3A8A"; // azul escuro
+
+// Painel esquerdo: gradiente diagonal do azul elétrico ao azul escuro, dando
+// volume sem virar um chapado.
+const brandPanelStyle: CSSProperties = {
+  background: `linear-gradient(160deg, ${BRAND_BLUE} 0%, ${BRAND_BLUE_DARK} 100%)`,
+};
+
+// Botão primário: azul de marca sólido com brilho sutil no topo.
 const primaryButtonStyle: CSSProperties = {
-  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #2A2A2A",
-  border: "1px solid rgba(255,255,255,0.14)",
-  boxShadow: "0 4px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10)",
-  textShadow: "0 1px 2px rgba(0,0,0,0.40)",
+  background: `linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 16%), ${BRAND_BLUE}`,
+  boxShadow: "0 6px 16px rgba(37,99,235,0.30), inset 0 1px 0 rgba(255,255,255,0.18)",
 };
 
-const overlayStyle: CSSProperties = {
-  background: "#1A1A1A",
-};
-
-const cardStyle: CSSProperties = {
-  background: "#1E1E1E",
-  border: "1px solid rgba(255,255,255,0.08)",
-  boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
-};
-
-// Cards de opção: mesmo tom dos campos do wizard. O selecionado sobe um degrau
-// e clareia a borda, sem glow forte — a referência é sóbria.
+// Cards de opção (painel direito, fundo claro). Seleção = destaque de borda +
+// fundo azul claro, SEM checkmark/radio.
 const optionCardStyle = (selected: boolean): CSSProperties =>
   selected
     ? {
-        background: "#2A2A2A",
-        border: "1px solid rgba(255,255,255,0.40)",
+        background: "#EFF4FF",
+        border: `1.5px solid ${BRAND_BLUE}`,
+        boxShadow: "0 4px 14px rgba(37,99,235,0.14)",
       }
     : {
-        background: "#242424",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: "#FFFFFF",
+        border: "1.5px solid #E5E7EB",
       };
 
-const iconChipStyle: CSSProperties = {
-  background: "rgba(255,255,255,0.07)",
-  border: "1px solid rgba(255,255,255,0.08)",
-};
+// Container quadrado do ícone à esquerda do card.
+const iconChipStyle = (selected: boolean): CSSProperties =>
+  selected
+    ? { background: BRAND_BLUE, color: "#FFFFFF" }
+    : { background: "#EEF2FF", color: BRAND_BLUE };
 
 const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
   const [step, setStep] = useState(0);
@@ -334,8 +337,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[120] flex flex-col items-center overflow-y-auto px-4 py-6 sm:px-6"
-      style={overlayStyle}
+      className="fixed inset-0 z-[120] flex overflow-hidden bg-white"
       role="dialog"
       aria-modal="true"
       aria-label="Onboarding da Velo"
@@ -343,17 +345,96 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
       animate={{ opacity: 1 }}
       transition={{ duration: reduce ? 0.001 : 0.2 }}
     >
-      {/* Escala uniforme do conteúdo: reduz o modal proporcionalmente (como um
-          "zoom out"), mantendo a proporção original do card. Usamos `zoom` (e
-          não `transform: scale`) porque o zoom encolhe também a caixa de layout,
-          então o conteúdo passa a caber na tela sem forçar rolagem na etapa 3. */}
-      <div
-        className="flex w-full flex-col items-center"
-        style={{ zoom: 0.82 } as CSSProperties}
+      {/* ── Painel esquerdo (marca) ──────────────────────────────────────────
+          ~35% da largura no desktop; no mobile vira uma faixa compacta no topo
+          (logo + headline reduzida), sem o rodapé decorativo. */}
+      <aside
+        className="relative hidden shrink-0 flex-col overflow-hidden p-8 text-white lg:flex lg:w-[35%] lg:max-w-[480px] lg:p-12"
+        style={brandPanelStyle}
       >
-        {/* Cabeçalho da página: marca + título + subtítulo, centralizados. */}
-        <div className="flex flex-col items-center text-center">
-          <VeloLogo size="md" variant="light" />
+        {/* Textura sutil de fundo para o azul não ficar chapado. */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.18]"
+          style={{
+            background:
+              "radial-gradient(120% 80% at 15% 0%, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 55%)",
+          }}
+        />
+
+        <div className="relative z-10">
+          <VeloLogo size="md" variant="dark" />
+        </div>
+
+        <div className="relative z-10 mt-14 flex-1">
+          <h1 className="text-[34px] font-bold leading-[1.1] tracking-[-0.02em] xl:text-[40px]">
+            Vamos montar sua
+            <br />
+            operação de vendas.
+          </h1>
+          <p className="mt-4 max-w-[320px] text-[15px] leading-relaxed text-white/70">
+            Algumas perguntas rápidas para a Velo se ajustar ao seu negócio — do
+            catálogo aos anúncios.
+          </p>
+
+          {/* Stepper vertical reaproveitando os títulos das etapas. */}
+          <ol className="mt-10 space-y-4">
+            {STEPS.map((s, index) => {
+              const active = index === step;
+              const done = index < step;
+              return (
+                <li key={s.title} className="flex items-center gap-3">
+                  <span
+                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[13px] font-semibold transition-colors duration-300 ${
+                      active
+                        ? "border-white bg-white text-[#1E3A8A]"
+                        : done
+                        ? "border-white/70 bg-white/20 text-white"
+                        : "border-white/30 text-white/50"
+                    }`}
+                  >
+                    {done ? <Check size={14} strokeWidth={2.4} /> : index + 1}
+                  </span>
+                  <span
+                    className={`text-[14px] transition-colors duration-300 ${
+                      active ? "font-semibold text-white" : "text-white/55"
+                    }`}
+                  >
+                    {s.title}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+
+        {/* Rodapé decorativo (área reservada para ilustração/gráfico). */}
+        <div className="relative z-10 mt-8 flex items-end justify-start">
+          <VeloMark size={112} tone="soft" className="opacity-90" />
+        </div>
+      </aside>
+
+      {/* ── Painel direito (perguntas) ───────────────────────────────────────
+          Fundo claro, ocupa o restante da largura. Rola verticalmente quando as
+          opções passam da altura da tela. */}
+      <section className="relative flex min-w-0 flex-1 flex-col overflow-y-auto bg-white">
+        {/* Cabeçalho do painel: logo (só no mobile, já que o painel de marca
+            está oculto) + link de ajuda no canto superior direito. */}
+        <div className="flex items-center justify-between px-6 pt-6 sm:px-10 lg:px-14">
+          <div className="lg:hidden">
+            <VeloLogo size="sm" variant="light" />
+          </div>
+          <span className="hidden lg:block" />
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#64748B] transition-colors hover:text-[#2563EB] sm:text-[14px]"
+          >
+            <HelpCircle size={15} strokeWidth={1.8} />
+            Precisando de ajuda?
+          </button>
+        </div>
+
+        <div className="mx-auto w-full max-w-[560px] flex-1 px-6 py-8 sm:px-10 lg:px-4 lg:py-12">
+          {/* Título + subtítulo da etapa. */}
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -362,131 +443,111 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
               exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
               transition={{ duration: reduce ? 0.001 : 0.28, ease: EASE }}
             >
-              <h1 className="mt-7 text-[28px] font-bold tracking-[-0.02em] text-white sm:text-[30px]">
+              <p className="text-[13px] font-medium text-[#2563EB]">
+                Etapa {step + 1} de {STEPS.length}
+              </p>
+              <h2 className="mt-2 text-[26px] font-bold tracking-[-0.02em] text-[#0F172A] sm:text-[28px]">
                 {current.title}
-              </h1>
-              <p className="mt-2 max-w-[520px] text-[14px] text-[#8A8A8A] sm:text-[15px]">{current.subtitle}</p>
+              </h2>
+              <p className="mt-1.5 text-[14px] text-[#64748B] sm:text-[15px]">
+                {current.subtitle}
+              </p>
             </motion.div>
           </AnimatePresence>
-        </div>
 
-      {/* Card central com as perguntas da etapa. */}
-      <motion.div
-        className="mt-6 w-full max-w-[880px] rounded-[16px] p-6 sm:p-10"
-        style={cardStyle}
-        initial={reduce ? false : { opacity: 0, y: 14, scale: 0.985 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: reduce ? 0.001 : 0.34, ease: EASE }}
-      >
-        {/* Passo + barra de progresso segmentada em 3 partes (fill animado). */}
-        <p className="text-[13px] font-medium text-white/50">Etapa {step + 1} de {STEPS.length}</p>
-        <div className="mt-2 flex gap-2" role="progressbar" aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={step + 1}>
-          {STEPS.map((_, index) => (
-            <span key={index} className="h-[6px] flex-1 overflow-hidden rounded-full bg-white/10">
-              <motion.span
-                className="block h-full w-full rounded-full bg-white"
-                style={{ originX: 0 }}
-                initial={false}
-                animate={{ scaleX: index <= step ? 1 : 0 }}
-                transition={{ duration: reduce ? 0.001 : 0.4, ease: [0.16, 1, 0.3, 1] }}
-              />
-            </span>
-          ))}
-        </div>
-
-        {/* Perguntas (slide/fade direcional por etapa). */}
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={step}
-            className="mt-8 space-y-8"
-            custom={direction}
-            variants={contentVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            {current.questions.map((question) => (
-              <motion.fieldset key={question.id} variants={groupVariants}>
-                <legend className="mb-3 text-[15px] font-semibold text-white sm:text-[16px]">
-                  {question.label}
-                  {question.optional ? <span className="ml-2 text-[13px] font-normal text-white/40">(opcional)</span> : null}
-                </legend>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {question.options.map((option) => {
-                    const selected = answers[question.id] === option.value;
-                    const Icon = option.icon;
-                    return (
-                      <motion.button
-                        key={option.value}
-                        type="button"
-                        onClick={() => select(question.id, option.value)}
-                        aria-pressed={selected}
-                        whileTap={reduce ? undefined : { scale: 0.98 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        style={optionCardStyle(selected)}
-                        className={`flex min-h-[64px] items-center gap-3 rounded-[10px] p-3.5 text-left transition-[background-color,border-color,transform] duration-200 ${
-                          selected ? "" : "hover:-translate-y-0.5"
-                          }`}
-                      >
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] text-white" style={iconChipStyle}>
-                          <Icon size={18} strokeWidth={1.5} />
-                        </span>
-                        <span className="flex-1 text-[14px] font-medium leading-tight text-white sm:text-[15px]">
-                          {option.label}
-                        </span>
-                        <span
-                          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors duration-200 ${
-                            selected ? "border-white" : "border-white/30"
+          {/* Perguntas (slide/fade direcional por etapa). */}
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={step}
+              className="mt-8 space-y-8"
+              custom={direction}
+              variants={contentVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              {current.questions.map((question) => (
+                <motion.fieldset key={question.id} variants={groupVariants}>
+                  <legend className="mb-3 text-[14px] font-semibold text-[#0F172A] sm:text-[15px]">
+                    {question.label}
+                    {question.optional ? (
+                      <span className="ml-2 text-[13px] font-normal text-[#94A3B8]">(opcional)</span>
+                    ) : null}
+                  </legend>
+                  {/* Cards horizontais empilhados: ícone quadrado à esquerda,
+                      label, chevron à direita. */}
+                  <div className="flex flex-col gap-2.5">
+                    {question.options.map((option) => {
+                      const selected = answers[question.id] === option.value;
+                      const Icon = option.icon;
+                      return (
+                        <motion.button
+                          key={option.value}
+                          type="button"
+                          onClick={() => select(question.id, option.value)}
+                          aria-pressed={selected}
+                          whileTap={reduce ? undefined : { scale: 0.99 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          style={optionCardStyle(selected)}
+                          className={`group flex min-h-[60px] items-center gap-3.5 rounded-[12px] px-4 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 ${
+                            selected ? "" : "hover:border-[#C7D2FE] hover:-translate-y-0.5"
                           }`}
                         >
-                          {selected ? (
-                            <motion.span
-                              className="h-2.5 w-2.5 rounded-full bg-white"
-                              initial={reduce ? false : { scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{ type: "spring", stiffness: 520, damping: 26 }}
-                            />
-                          ) : null}
-                        </span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </motion.fieldset>
-            ))}
-          </motion.div>
-        </AnimatePresence>
+                          <span
+                            className="grid h-10 w-10 shrink-0 place-items-center rounded-[9px] transition-colors duration-200"
+                            style={iconChipStyle(selected)}
+                          >
+                            <Icon size={19} strokeWidth={1.6} />
+                          </span>
+                          <span className="flex-1 text-[14px] font-medium leading-tight text-[#0F172A] sm:text-[15px]">
+                            {option.label}
+                          </span>
+                          <ChevronRight
+                            size={18}
+                            strokeWidth={2}
+                            className={`shrink-0 transition-colors duration-200 ${
+                              selected ? "text-[#2563EB]" : "text-[#CBD5E1] group-hover:text-[#94A3B8]"
+                            }`}
+                          />
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.fieldset>
+              ))}
+            </motion.div>
+          </AnimatePresence>
 
-        {/* Rodapé de navegação. */}
-        <div className="mt-9 flex items-center justify-between">
-          {step > 0 ? (
+          {/* Rodapé de navegação. */}
+          <div className="mt-10 flex items-center justify-between">
+            {step > 0 ? (
+              <motion.button
+                type="button"
+                onClick={handleBack}
+                whileTap={reduce ? undefined : { scale: 0.97 }}
+                className="inline-flex items-center gap-2 text-[14px] font-medium text-[#64748B] transition-colors hover:text-[#0F172A]"
+              >
+                <ArrowLeft size={16} strokeWidth={1.8} />
+                Voltar
+              </motion.button>
+            ) : (
+              <span />
+            )}
+
             <motion.button
               type="button"
-              onClick={handleBack}
-              whileTap={reduce ? undefined : { scale: 0.97 }}
-              className="inline-flex items-center gap-2 text-[14px] font-medium text-white/60 transition-colors hover:text-white"
+              onClick={handleNext}
+              disabled={!canContinue}
+              style={primaryButtonStyle}
+              whileTap={reduce || !canContinue ? undefined : { scale: 0.97 }}
+              className="inline-flex h-11 items-center gap-2 rounded-[10px] px-6 text-[15px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <ArrowLeft size={16} strokeWidth={1.8} />
-              Voltar
+              {isLastStep ? "Concluir" : "Avançar"}
+              {isLastStep ? <Check size={16} strokeWidth={2} /> : <ArrowRight size={16} strokeWidth={2} />}
             </motion.button>
-          ) : (
-            <span />
-          )}
-
-          <motion.button
-            type="button"
-            onClick={handleNext}
-            disabled={!canContinue}
-            style={primaryButtonStyle}
-            whileTap={reduce || !canContinue ? undefined : { scale: 0.97 }}
-            className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[15px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {isLastStep ? "Concluir" : "Avançar"}
-            {isLastStep ? <Check size={16} strokeWidth={2} /> : <ArrowRight size={16} strokeWidth={2} />}
-          </motion.button>
+          </div>
         </div>
-      </motion.div>
-      </div>
+      </section>
     </motion.div>
   );
 };
