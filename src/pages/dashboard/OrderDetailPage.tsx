@@ -44,7 +44,11 @@ const statusLabels: Record<string, string> = {
   cancelled: "Cancelado",
   canceled: "Cancelado",
   failed: "Falhou",
+  refunded: "Reembolsado",
+  charged_back: "Estornado",
 };
+
+const REFUND_STATUSES = new Set(["refunded", "charged_back", "cancelled", "canceled"]);
 
 const formatBRL = (value: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
@@ -187,12 +191,16 @@ const OrderDetailPage = () => {
     { label: "Entregue", date: order.date_delivered },
   ];
 
-  const statusLabel = statusLabels[(order.status ?? "pending").toLowerCase()] ?? clean(order.status);
+  const statusKey = (order.status ?? "pending").toLowerCase();
+  const statusLabel = statusLabels[statusKey] ?? clean(order.status);
+  const isRefunded = REFUND_STATUSES.has(statusKey);
 
   const mobileStageLabels = ["Recebido", "Em trânsito", "Entregue"];
   const mobileStageDates = [order.ordered_at ?? order.created_at, order.date_shipped, order.date_delivered];
   const mobileStage = stage >= 3 ? 2 : stage >= 2 ? 1 : 0;
-  const mobileBadge = stage >= 3 ? "Entregue" : stage >= 2 ? "Em trânsito" : stage >= 1 ? "Preparando" : "Recebido";
+  const mobileBadge = isRefunded
+    ? statusLabel
+    : stage >= 3 ? "Entregue" : stage >= 2 ? "Em trânsito" : stage >= 1 ? "Preparando" : "Recebido";
 
   return (
     <>
@@ -225,7 +233,7 @@ const OrderDetailPage = () => {
                 <p className="mt-0.5 text-[17px] font-semibold tracking-tight text-[#0A0A0A]">{getOrderCode(order)}</p>
               </div>
             </div>
-            <span className="rounded-full bg-[#E8F1FF] px-3 py-1.5 text-[12px] font-semibold text-[#1D4ED8]">
+            <span className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${isRefunded ? "bg-[#FEE2E2] text-[#B91C1C]" : "bg-[#E8F1FF] text-[#1D4ED8]"}`}>
               {mobileBadge}
             </span>
           </div>
@@ -416,7 +424,7 @@ const OrderDetailPage = () => {
             </div>
             <div>
               <p className="text-[11px] font-medium uppercase tracking-wide text-[#A3A3A3]">Status</p>
-              <p className="mt-1.5 text-[14px] font-semibold text-[#0A0A0A]">{statusLabel}</p>
+              <p className={`mt-1.5 text-[14px] font-semibold ${isRefunded ? "text-[#B91C1C]" : "text-[#0A0A0A]"}`}>{statusLabel}</p>
             </div>
           </div>
         </section>
