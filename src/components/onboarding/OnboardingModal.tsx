@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "framer-motion";
 import {
   ArrowLeft,
@@ -250,12 +250,6 @@ const brandPanelStyle: CSSProperties = {
   background: `linear-gradient(160deg, ${INK_2} 0%, ${INK} 100%)`,
 };
 
-// Botão primário: preto sólido com brilho sutil no topo.
-const primaryButtonStyle: CSSProperties = {
-  background: `linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 16%), ${INK}`,
-  boxShadow: "0 6px 16px rgba(10,10,10,0.30), inset 0 1px 0 rgba(255,255,255,0.16)",
-};
-
 // Cards de opção (painel direito, fundo claro). Seleção = borda preta + leve
 // tom de fundo cinza, SEM checkmark/radio.
 const optionCardStyle = (selected: boolean): CSSProperties =>
@@ -277,42 +271,83 @@ const iconChipStyle = (selected: boolean): CSSProperties =>
     ? { background: INK, border: `1.5px solid ${INK}`, color: "#FFFFFF" }
     : { background: "#FFFFFF", border: "1.5px solid #D4D4D8", color: "#52525B" };
 
+// ── Fluxo linear: uma pergunta por tela ──────────────────────────────────────
+// As 3 macro-etapas do stepper continuam sendo o agrupamento visual/lógico, mas
+// a navegação interna passa a ser por pergunta individual. Cada pergunta guarda
+// o índice da etapa a que pertence para destacar o stepper corretamente.
+type FlatQuestion = Question & { stepIndex: number };
+const FLAT_QUESTIONS: FlatQuestion[] = STEPS.flatMap((s, stepIndex) =>
+  s.questions.map((q) => ({ ...q, stepIndex })),
+);
+
+// Tempo que o card selecionado fica visível (animação) antes do avanço
+// automático para a próxima pergunta.
+const ADVANCE_MS = 2500;
+
 const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
-  const [step, setStep] = useState(0);
+  // Navegação por PERGUNTA (não mais por etapa). `index` aponta para a pergunta
+  // atual no fluxo linear; a macro-etapa é derivada dela.
+  const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
+  // Nonce incrementado a cada clique: reinicia a barra de progresso mesmo quando
+  // o usuário reclica a MESMA opção (o `selected` não muda, mas o timer sim).
+  const [selectionNonce, setSelectionNonce] = useState(0);
   const reduce = useReducedMotion();
 
-  const current = STEPS[step];
-  const isLastStep = step === STEPS.length - 1;
+  const question = FLAT_QUESTIONS[index];
+  const currentStepIndex = question.stepIndex;
+  const currentStep = STEPS[currentStepIndex];
 
-  const select = (questionId: string, value: string) =>
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  // Refs para leitura estável dentro do timer de avanço (evita closures velhas).
+  const indexRef = useRef(index);
+  const answersRef = useRef(answers);
+  useEffect(() => {
+    indexRef.current = index;
+  }, [index]);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
 
-  // Só habilita avançar quando todas as perguntas obrigatórias da etapa atual
-  // foram respondidas (perguntas marcadas como opcionais não bloqueiam).
-  const canContinue = useMemo(
-    () => current.questions.every((q) => q.optional || Boolean(answers[q.id])),
-    [current, answers],
-  );
+  // Timer do avanço automático.
+  const advanceTimer = useRef<number | null>(null);
+  const clearAdvance = () => {
+    if (advanceTimer.current !== null) {
+      window.clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
+  };
+  // Garante que nenhum timer pendente sobreviva ao desmontar do modal.
+  useEffect(() => clearAdvance, []);
 
-  const handleNext = () => {
-    if (!canContinue) return;
-    if (isLastStep) {
-      onComplete(answers);
+  // Avança para a próxima pergunta — ou conclui o quiz na última.
+  const advance = () => {
+    clearAdvance();
+    if (indexRef.current >= FLAT_QUESTIONS.length - 1) {
+      onComplete(answersRef.current);
       return;
     }
     setDirection(1);
-    setStep((value) => value + 1);
+    setIndex((value) => value + 1);
   };
 
+  // Clique numa opção: aplica a seleção e agenda o avanço automático após a
+  // animação de ~2,5s. Reclicar (mesma ou outra opção) reinicia o timer.
+  const select = (questionId: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    setSelectionNonce((n) => n + 1);
+    clearAdvance();
+    advanceTimer.current = window.setTimeout(advance, ADVANCE_MS);
+  };
+
+  // "Voltar" já existia no fluxo anterior — preservado, agora por pergunta.
   const handleBack = () => {
+    clearAdvance();
     setDirection(-1);
-    setStep((value) => Math.max(0, value - 1));
+    setIndex((value) => Math.max(0, value - 1));
   };
 
-  // Slide + fade direcional do conteúdo da etapa (respeitando reduced-motion),
-  // com stagger dos grupos de pergunta ao entrar.
+  // Slide + fade direcional do conteúdo (respeitando reduced-motion).
   const contentVariants: Variants = {
     initial: (dir: number) => ({ opacity: 0, x: reduce ? 0 : dir >= 0 ? 30 : -30 }),
     animate: {
@@ -321,8 +356,8 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
       transition: {
         duration: reduce ? 0.001 : 0.32,
         ease: EASE,
-        staggerChildren: reduce ? 0 : 0.055,
-        delayChildren: reduce ? 0 : 0.04,
+        staggerChildren: reduce ? 0 : 0.05,
+        delayChildren: reduce ? 0 : 0.03,
       },
     },
     exit: (dir: number) => ({
@@ -332,9 +367,9 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
     }),
   };
 
-  const groupVariants: Variants = {
+  const optionVariants: Variants = {
     initial: { opacity: 0, y: reduce ? 0 : 10 },
-    animate: { opacity: 1, y: 0, transition: { duration: reduce ? 0.001 : 0.28, ease: EASE } },
+    animate: { opacity: 1, y: 0, transition: { duration: reduce ? 0.001 : 0.26, ease: EASE } },
   };
 
   return (
@@ -381,9 +416,9 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
 
           {/* Stepper vertical reaproveitando os títulos das etapas. */}
           <ol className="mt-10 space-y-4">
-            {STEPS.map((s, index) => {
-              const active = index === step;
-              const done = index < step;
+            {STEPS.map((s, stepIdx) => {
+              const active = stepIdx === currentStepIndex;
+              const done = stepIdx < currentStepIndex;
               return (
                 <li key={s.title} className="flex items-center gap-3">
                   <span
@@ -395,7 +430,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                         : "border-white/30 text-white/50"
                     }`}
                   >
-                    {done ? <Check size={14} strokeWidth={2.4} /> : index + 1}
+                    {done ? <Check size={14} strokeWidth={2.4} /> : stepIdx + 1}
                   </span>
                   <span
                     className={`text-[14px] transition-colors duration-300 ${
@@ -417,12 +452,13 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
       </aside>
 
       {/* ── Painel direito (perguntas) ───────────────────────────────────────
-          Fundo claro, ocupa o restante da largura. Rola verticalmente quando as
-          opções passam da altura da tela. */}
+          Fundo claro, ocupa o restante da largura. Uma pergunta por tela: em
+          alturas normais o conteúdo cabe sem scroll; overflow-y-auto é só uma
+          rede de segurança para viewports muito baixas (nunca corta conteúdo). */}
       <section className="relative flex min-w-0 flex-1 flex-col overflow-y-auto bg-white">
         {/* Cabeçalho do painel: logo (só no mobile, já que o painel de marca
             está oculto) + link de ajuda no canto superior direito. */}
-        <div className="flex items-center justify-between px-6 pt-6 sm:px-10 lg:px-14">
+        <div className="flex shrink-0 items-center justify-between px-6 pt-6 sm:px-10 lg:px-14">
           <div className="lg:hidden">
             {/* Fundo branco: variant="dark" = caixa preta + wordmark preto. */}
             <VeloLogo size="sm" variant="dark" />
@@ -437,101 +473,112 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           </button>
         </div>
 
-        <div className="mx-auto w-full max-w-[560px] flex-1 px-6 py-8 sm:px-10 lg:px-4 lg:py-12">
-          {/* Título + subtítulo da etapa. */}
+        <div className="mx-auto flex w-full max-w-[560px] flex-1 flex-col px-6 py-6 sm:px-10 lg:px-4 lg:py-6">
+          {/* Título + subtítulo da MACRO-etapa (anima só quando a etapa muda). */}
           <AnimatePresence mode="wait">
             <motion.div
-              key={step}
+              key={currentStepIndex}
+              className="shrink-0"
               initial={reduce ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
               transition={{ duration: reduce ? 0.001 : 0.28, ease: EASE }}
             >
               <p className="text-[13px] font-semibold text-[#0A0A0A]">
-                Etapa {step + 1} de {STEPS.length}
+                Etapa {currentStepIndex + 1} de {STEPS.length}
               </p>
               <h2 className="mt-2 text-[26px] font-bold tracking-[-0.02em] text-[#0F172A] sm:text-[28px]">
-                {current.title}
+                {currentStep.title}
               </h2>
               <p className="mt-1.5 text-[14px] text-[#64748B] sm:text-[15px]">
-                {current.subtitle}
+                {currentStep.subtitle}
               </p>
             </motion.div>
           </AnimatePresence>
 
-          {/* Perguntas (slide/fade direcional por etapa). */}
+          {/* UMA pergunta por tela (slide/fade direcional). */}
           <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={step}
-              className="mt-8 space-y-8"
+            <motion.fieldset
+              key={index}
+              className="mt-6 flex flex-1 flex-col justify-start"
               custom={direction}
               variants={contentVariants}
               initial="initial"
               animate="animate"
               exit="exit"
             >
-              {current.questions.map((question) => (
-                <motion.fieldset key={question.id} variants={groupVariants}>
-                  <legend className="mb-3 text-[14px] font-semibold text-[#0F172A] sm:text-[15px]">
-                    {question.label}
-                    {question.optional ? (
-                      <span className="ml-2 text-[13px] font-normal text-[#94A3B8]">(opcional)</span>
-                    ) : null}
-                  </legend>
-                  {/* Cards horizontais empilhados: ícone quadrado à esquerda
-                      (outline/sólido conforme seleção), título + descrição em
-                      duas linhas, e seta à direita apenas no card selecionado. */}
-                  <div className="flex flex-col gap-2.5">
-                    {question.options.map((option) => {
-                      const selected = answers[question.id] === option.value;
-                      const Icon = option.icon;
-                      return (
-                        <motion.button
-                          key={option.value}
-                          type="button"
-                          onClick={() => select(question.id, option.value)}
-                          aria-pressed={selected}
-                          whileTap={reduce ? undefined : { scale: 0.99 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                          style={optionCardStyle(selected)}
-                          className={`group flex min-h-[68px] items-center gap-3.5 rounded-[12px] px-4 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 ${
-                            selected ? "" : "hover:border-[#D4D4D8] hover:-translate-y-0.5"
-                          }`}
-                        >
-                          <span
-                            className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] transition-colors duration-200"
-                            style={iconChipStyle(selected)}
-                          >
-                            <Icon size={20} strokeWidth={selected ? 1.9 : 1.7} />
-                          </span>
-                          <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="text-[14px] font-semibold leading-tight text-[#0F172A] sm:text-[15px]">
-                              {option.label}
-                            </span>
-                            <span className="mt-0.5 text-[12.5px] font-normal leading-snug text-[#71717A] sm:text-[13px]">
-                              {option.description}
-                            </span>
-                          </span>
-                          {/* Seta visível só no selecionado (referência). */}
-                          <ArrowRight
-                            size={18}
-                            strokeWidth={2}
-                            className={`shrink-0 text-[#0A0A0A] transition-opacity duration-200 ${
-                              selected ? "opacity-100" : "opacity-0"
-                            }`}
-                          />
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </motion.fieldset>
-              ))}
-            </motion.div>
+              <legend className="mb-3 text-[14px] font-semibold text-[#0F172A] sm:text-[15px]">
+                {question.label}
+                {question.optional ? (
+                  <span className="ml-2 text-[13px] font-normal text-[#94A3B8]">(opcional)</span>
+                ) : null}
+              </legend>
+              {/* Cards horizontais empilhados: ícone quadrado à esquerda
+                  (outline/sólido conforme seleção), título + descrição em duas
+                  linhas, seta à direita e barra de progresso do avanço, ambas
+                  só no card selecionado. */}
+              <div className="flex flex-col gap-2">
+                {question.options.map((option) => {
+                  const selected = answers[question.id] === option.value;
+                  const Icon = option.icon;
+                  return (
+                    <motion.button
+                      key={option.value}
+                      type="button"
+                      variants={optionVariants}
+                      onClick={() => select(question.id, option.value)}
+                      aria-pressed={selected}
+                      whileTap={reduce ? undefined : { scale: 0.99 }}
+                      style={optionCardStyle(selected)}
+                      className={`group relative flex min-h-[60px] items-center gap-3.5 overflow-hidden rounded-[12px] px-4 py-2.5 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 ${
+                        selected ? "" : "hover:border-[#D4D4D8] hover:-translate-y-0.5"
+                      }`}
+                    >
+                      <span
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] transition-colors duration-200"
+                        style={iconChipStyle(selected)}
+                      >
+                        <Icon size={20} strokeWidth={selected ? 1.9 : 1.7} />
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-[14px] font-semibold leading-tight text-[#0F172A] sm:text-[15px]">
+                          {option.label}
+                        </span>
+                        <span className="mt-0.5 text-[12.5px] font-normal leading-snug text-[#71717A] sm:text-[13px]">
+                          {option.description}
+                        </span>
+                      </span>
+                      {/* Seta visível só no selecionado (referência). */}
+                      <ArrowRight
+                        size={18}
+                        strokeWidth={2}
+                        className={`shrink-0 text-[#0A0A0A] transition-opacity duration-200 ${
+                          selected ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                      {/* Barra de progresso: preenche em ~2,5s e, ao completar,
+                          o avanço automático dispara. `selectionNonce` na key faz
+                          reiniciar mesmo ao reclicar a mesma opção. */}
+                      {selected ? (
+                        <motion.span
+                          key={selectionNonce}
+                          className="pointer-events-none absolute bottom-0 left-0 h-[3px] bg-[#0A0A0A]"
+                          initial={{ width: "0%" }}
+                          animate={{ width: "100%" }}
+                          transition={{ duration: reduce ? 0.001 : ADVANCE_MS / 1000, ease: "linear" }}
+                        />
+                      ) : null}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </motion.fieldset>
           </AnimatePresence>
 
-          {/* Rodapé de navegação. */}
-          <div className="mt-10 flex items-center justify-between">
-            {step > 0 ? (
+          {/* Rodapé: apenas "Voltar" (o botão "Avançar" foi removido — o avanço
+              é automático após a seleção). */}
+          <div className="mt-4 flex shrink-0 items-center">
+            {index > 0 ? (
               <motion.button
                 type="button"
                 onClick={handleBack}
@@ -541,21 +588,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                 <ArrowLeft size={16} strokeWidth={1.8} />
                 Voltar
               </motion.button>
-            ) : (
-              <span />
-            )}
-
-            <motion.button
-              type="button"
-              onClick={handleNext}
-              disabled={!canContinue}
-              style={primaryButtonStyle}
-              whileTap={reduce || !canContinue ? undefined : { scale: 0.97 }}
-              className="inline-flex h-11 items-center gap-2 rounded-[10px] px-6 text-[15px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {isLastStep ? "Concluir" : "Avançar"}
-              {isLastStep ? <Check size={16} strokeWidth={2} /> : <ArrowRight size={16} strokeWidth={2} />}
-            </motion.button>
+            ) : null}
           </div>
         </div>
       </section>
