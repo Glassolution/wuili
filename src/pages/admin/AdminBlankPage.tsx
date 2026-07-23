@@ -583,14 +583,14 @@ const MetricCard = ({
   value: string;
   delta: number;
 }) => (
-  <article className="relative min-w-0 overflow-hidden rounded-[18px] border border-[#242425] bg-[#161617] px-5 py-5 shadow-[0_18px_45px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.04)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(255,255,255,0.022),transparent_42%,rgba(0,0,0,0.18))]">
+  <article className="relative min-w-0 overflow-hidden rounded-[24px] border border-white/[0.04] bg-[#141416] px-8 py-8 shadow-[0_18px_45px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.03)] before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(180deg,rgba(255,255,255,0.02),transparent_42%,rgba(0,0,0,0.18))]">
     <div className="flex items-center gap-2.5">
       <span className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E5E5E7] text-[#161617] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]">
         <Icon className="h-3 w-3" strokeWidth={1.9} />
       </span>
       <span className="truncate text-[12px] font-medium text-[#8A8A8E]">{label}</span>
     </div>
-    <p className="mt-6 truncate text-[25px] font-semibold text-white">{value}</p>
+    <p className="mt-8 truncate text-[28px] font-semibold text-white">{value}</p>
     <DeltaLine delta={delta} compact />
   </article>
 );
