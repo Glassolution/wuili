@@ -31,7 +31,7 @@ const statusLabels: Record<string, string> = {
   cancelled: "Cancelado",
   canceled: "Cancelado",
   failed: "Falhou",
-  refunded: "Reembolsado",
+  refunded: "Cancelado",
   charged_back: "Estornado",
 };
 
@@ -96,7 +96,7 @@ const supplierHref = (url: string | null | undefined) => {
 const SupplierButton = ({ url, compact = false }: { url: string | null | undefined; compact?: boolean }) => {
   const href = supplierHref(url);
   const classes = compact
-    ? "inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 text-[12px] font-semibold text-[#0A0A0A] transition hover:border-black/[0.18] hover:bg-black/[0.02]"
+    ? "inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#0A0A0A] px-3 text-[12px] font-semibold text-white transition hover:bg-black/90"
     : "inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#0A0A0A] px-4 text-[13px] font-semibold text-white transition hover:bg-black/90";
 
   if (!href) {

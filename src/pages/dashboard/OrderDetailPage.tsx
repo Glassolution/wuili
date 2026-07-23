@@ -44,7 +44,7 @@ const statusLabels: Record<string, string> = {
   cancelled: "Cancelado",
   canceled: "Cancelado",
   failed: "Falhou",
-  refunded: "Reembolsado",
+  refunded: "Cancelado",
   charged_back: "Estornado",
 };
 
@@ -378,7 +378,7 @@ const OrderDetailPage = () => {
 
       {/* DESKTOP */}
       <div
-        className="hidden min-h-full bg-[#FAFAFA] px-4 pb-16 pt-4 sm:px-6 sm:pt-6 md:block"
+        className="hidden min-h-full px-4 pb-16 pt-4 sm:px-6 sm:pt-6 md:block"
         style={{ fontFamily: 'Inter, "Geist Sans", ui-sans-serif, system-ui, sans-serif' }}
       >
 
@@ -393,9 +393,9 @@ const OrderDetailPage = () => {
         </button>
 
         {/* Header */}
-        <div className="text-center">
-          <h1 className="text-[26px] font-semibold tracking-tight text-[#0A0A0A]">Detalhes do Pedido</h1>
-          <p className="mx-auto mt-2 max-w-xl text-[13px] text-[#737373]">
+        <div>
+          <h1 className="text-[24px] font-semibold tracking-normal text-[#0A0A0A]">Detalhes do Pedido</h1>
+          <p className="mt-1 text-[13px] text-[#737373]">
             Acompanhe todas as informações do cliente e do pedido para realizar a compra com o fornecedor.
           </p>
         </div>

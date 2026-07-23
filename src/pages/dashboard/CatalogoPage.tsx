@@ -820,7 +820,24 @@ const sourceOptionToDb: Record<SourceOption, "c7drop" | "aliexpress" | null> = {
 };
 const RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
 
-
+// Embaralhamento determinístico (Fisher-Yates com PRNG mulberry32). Mesmo `seed`
+// → mesma ordem, então a mesma página sempre exibe o mesmo arranjo, sem
+// reordenar a cada render nem duplicar itens entre páginas.
+const seededShuffle = <T,>(items: T[], seed: number): T[] => {
+  const result = [...items];
+  let state = seed >>> 0;
+  const nextRandom = () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(nextRandom() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+};
 
 const getProductImages = (images: Json | null): string[] => {
   if (!images) return [];
@@ -904,7 +921,7 @@ const CatalogoPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("Todos os preços");
   const [selectedRating, setSelectedRating] = useState("Todas");
-  const [selectedSource, setSelectedSource] = useState<SourceOption>("C7 Drop");
+  const [selectedSource, setSelectedSource] = useState<SourceOption>("Todos os fornecedores");
   const [openDropdown, setOpenDropdown] = useState<"category" | "price" | "rating" | "source" | null>(null);
   const filterBarRef = useRef<HTMLDivElement | null>(null);
 
@@ -1055,49 +1072,92 @@ const CatalogoPage = () => {
           return;
         }
 
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        const end = start + ITEMS_PER_PAGE - 1;
+        const dbSource = sourceOptionToDb[selectedSource];
 
-        const fetchCatalogPage = () => {
-          let query = supabase
-            .from("catalog_products")
-            .select("*", { count: "exact" })
-            .eq("is_blocked", false)
-            .gt("stock_quantity", 0)
-            .order("created_at", { ascending: false })
-            .order("id", { ascending: false })
-            .range(start, end);
-
-          const dbSource = sourceOptionToDb[selectedSource];
-          if (dbSource) {
-            query = query.eq("source", dbSource);
-          } else {
-            query = query.in("source", ["c7drop", "aliexpress"]);
-          }
-
-
-
-
+        // Filtros comuns (categoria/busca/disponibilidade) aplicados a qualquer
+        // consulta do catálogo. `any`: o tipo encadeado do PostgREST filter builder
+        // não é exportado de forma prática; a query final é tipada pelo Supabase.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const applyCommonFilters = (query: any) => {
+          let q = query.eq("is_blocked", false).gt("stock_quantity", 0);
           if (activeCategory !== "todos") {
             const dbCategory = categoryMap[activeCategory];
-            if (dbCategory) {
-              query = query.eq("category", dbCategory);
-            }
+            if (dbCategory) q = q.eq("category", dbCategory);
           }
-
           if (searchQuery.trim()) {
-            query = query.ilike("title", `%${searchQuery.trim()}%`);
+            q = q.ilike("title", `%${searchQuery.trim()}%`);
           }
-
-          return query;
+          return q;
         };
 
-        const { data, count, error: fetchError } = await withFreshSupabaseSession(fetchCatalogPage);
+        if (dbSource) {
+          // Fonte específica: página única, "mais recentes primeiro".
+          const start = (currentPage - 1) * ITEMS_PER_PAGE;
+          const end = start + ITEMS_PER_PAGE - 1;
+          const { data, count, error: fetchError } = await withFreshSupabaseSession(() =>
+            applyCommonFilters(supabase.from("catalog_products").select("*", { count: "exact" }))
+              .eq("source", dbSource)
+              .order("created_at", { ascending: false })
+              .order("id", { ascending: false })
+              .range(start, end),
+          );
+          if (fetchError) throw fetchError;
+          setProducts((data || []).map(mapProduct));
+          setTotalCount(count || 0);
+        } else {
+          // "Todos os fornecedores": C7Drop (824) supera muito a AliExpress (226),
+          // então uma ordenação única deixa a AliExpress rara. Buscamos metade da
+          // página de cada fonte e intercalamos, garantindo ~50/50 por página
+          // enquanto ambas tiverem produtos.
+          const half = Math.floor(ITEMS_PER_PAGE / 2);
+          const sourceStart = (currentPage - 1) * half;
+          const sourceEnd = sourceStart + half - 1;
 
-        if (fetchError) throw fetchError;
+          const fetchSource = (src: "c7drop" | "aliexpress") =>
+            withFreshSupabaseSession(() =>
+              applyCommonFilters(supabase.from("catalog_products").select("*", { count: "exact" }))
+                .eq("source", src)
+                .order("created_at", { ascending: false })
+                .order("id", { ascending: false })
+                .range(sourceStart, sourceEnd),
+            );
 
-        setProducts((data || []).map(mapProduct));
-        setTotalCount(count || 0);
+          const [c7res, aliRes] = await Promise.all([fetchSource("c7drop"), fetchSource("aliexpress")]);
+          if (c7res.error) throw c7res.error;
+          if (aliRes.error) throw aliRes.error;
+
+          const c7 = (c7res.data || []).map(mapProduct);
+          const ali = (aliRes.data || []).map(mapProduct);
+
+          // Mantém ~50/50 por página, mas sem o padrão alternado óbvio
+          // (C7, Ali, C7, …). Embaralha com semente ligada à página (ordem estável
+          // por página) e rejeita arranjos com mais de 2 do mesmo fornecedor
+          // seguidos — evita tanto a alternância perfeita quanto blocos visíveis.
+          const runIsOk = (list: Product[]) => {
+            let run = 1;
+            for (let i = 1; i < list.length; i++) {
+              run = list[i].supplierLabel === list[i - 1].supplierLabel ? run + 1 : 1;
+              if (run > 2) return false;
+            }
+            return true;
+          };
+          const combined = [...c7, ...ali];
+          let mixed = combined;
+          for (let attempt = 0; attempt < 24; attempt++) {
+            const candidate = seededShuffle(combined, currentPage * 2654435761 + attempt * 40503);
+            if (runIsOk(candidate)) {
+              mixed = candidate;
+              break;
+            }
+            mixed = candidate; // fallback: usa o último se nenhum passar
+          }
+
+          setProducts(mixed);
+          // Cada página consome `half` de cada fonte; o total de páginas é ditado
+          // pela fonte maior. totalCount só alimenta o cálculo de páginas.
+          const maxCount = Math.max(c7res.count || 0, aliRes.count || 0);
+          setTotalCount(maxCount * 2);
+        }
       } catch (err: any) {
         console.error("Erro ao buscar produtos do catálogo:", err);
         setError(`Não foi possível carregar o catálogo agora. Detalhes: ${err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err))}`);

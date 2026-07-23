@@ -144,6 +144,10 @@ const CheckoutPage = () => {
     ? "annual"
     : "monthly";
   const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
+  // Destaque visual (borda preta, sombra, logo sólido) segue o hover do mouse,
+  // não mais o plano selecionado. A seleção continua no clique e alimenta o
+  // resumo/checkout ao lado.
+  const [hoveredPlanId, setHoveredPlanId] = useState<string | null>(null);
   const skipSelect = searchParams.get("skipSelect") === "1";
   const [showPaymentStep, setShowPaymentStep] = useState(isTrial || skipSelect);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(initialBillingCycle);
@@ -519,19 +523,20 @@ const CheckoutPage = () => {
                   : getOriginalDisplayPrice(id, billingCycle);
                 const savings = hasReferralDiscount ? null : getSavingsDisplay(originalPrice, displayPrice);
 
-                // O card SELECIONADO ganha o destaque (borda preta, ícone sólido,
-                // sombra) — o mesmo tratamento que antes era fixo no Pro. Assim o
-                // realce acompanha o plano que a pessoa escolher.
-                const isFeatured = isSelected;
+                // O destaque (borda preta, ícone sólido, sombra, elevação) segue o
+                // card sob o mouse — não mais o plano selecionado.
+                const isFeatured = hoveredPlanId === id;
 
                 return (
                   <article
                     key={id}
                     onClick={() => setSelectedPlanId(id)}
-                    className={`relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-6 transition duration-200 ${
-                      isSelected
-                        ? "border-[#0A0A0A] shadow-[0_10px_36px_rgba(0,0,0,0.09)]"
-                        : "border-black/10 hover:border-black/25"
+                    onMouseEnter={() => setHoveredPlanId(id)}
+                    onMouseLeave={() => setHoveredPlanId((cur) => (cur === id ? null : cur))}
+                    className={`relative flex cursor-pointer flex-col rounded-[16px] border bg-white p-6 transition-all duration-300 ease-out will-change-transform ${
+                      isFeatured
+                        ? "-translate-y-1.5 border-[#0A0A0A] shadow-[0_16px_44px_rgba(0,0,0,0.12)]"
+                        : "translate-y-0 border-black/10 shadow-none"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
