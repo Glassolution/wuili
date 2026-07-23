@@ -191,12 +191,16 @@ const OrderDetailPage = () => {
     { label: "Entregue", date: order.date_delivered },
   ];
 
-  const statusLabel = statusLabels[(order.status ?? "pending").toLowerCase()] ?? clean(order.status);
+  const statusKey = (order.status ?? "pending").toLowerCase();
+  const statusLabel = statusLabels[statusKey] ?? clean(order.status);
+  const isRefunded = REFUND_STATUSES.has(statusKey);
 
   const mobileStageLabels = ["Recebido", "Em trânsito", "Entregue"];
   const mobileStageDates = [order.ordered_at ?? order.created_at, order.date_shipped, order.date_delivered];
   const mobileStage = stage >= 3 ? 2 : stage >= 2 ? 1 : 0;
-  const mobileBadge = stage >= 3 ? "Entregue" : stage >= 2 ? "Em trânsito" : stage >= 1 ? "Preparando" : "Recebido";
+  const mobileBadge = isRefunded
+    ? statusLabel
+    : stage >= 3 ? "Entregue" : stage >= 2 ? "Em trânsito" : stage >= 1 ? "Preparando" : "Recebido";
 
   return (
     <>
