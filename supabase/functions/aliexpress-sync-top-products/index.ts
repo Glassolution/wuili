@@ -703,20 +703,36 @@ serve(async (req) => {
     }
 
 
-    // Regra fixa (segunda camada): produto AliExpress só é publicável com ≥ MIN_IMAGES_REQUIRED fotos.
-    let insufficientPhotos = 0;
+    // Regra fixa (segunda camada): produto AliExpress só entra "publicável" (visível no catálogo)
+    // se atender TODOS os critérios que o Mercado Livre exige e o AliExpress raramente fornece:
+    //   • ≥ MIN_IMAGES_REQUIRED fotos
+    //   • estoque > 0
+    //   • título com ≥ 20 caracteres
+    //   • categoria mapeável (exclui "moda" — exige SIZE_GRID_ID — e "outros"/vazio)
+    // Quem não passa vira is_blocked=true + is_active=false → some do catálogo e da importação.
+    const PUBLISHABLE_CATEGORIES = new Set([
+      "eletronicos", "casa", "automotivo", "beleza", "pet",
+      "esporte e fitness", "saude e bem-estar", "decoracao",
+      "bebe e infantil", "bijuterias",
+    ]);
+    const normCat = (s: unknown) =>
+      String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    let hiddenNotPublishable = 0;
     for (const item of detailed) {
       const imgCount = Array.isArray(item.images) ? item.images.length : 0;
-      if (imgCount < MIN_IMAGES_REQUIRED) {
-        item.is_active = false;
-        insufficientPhotos++;
-      } else {
-        item.is_active = true;
-      }
+      const hasImgs = imgCount >= MIN_IMAGES_REQUIRED;
+      const hasStock = Number(item.stock_quantity ?? 0) > 0;
+      const goodTitle = String(item.title ?? "").length >= 20;
+      const goodCat = PUBLISHABLE_CATEGORIES.has(normCat(item.category));
+      const publishable = hasImgs && hasStock && goodTitle && goodCat;
+      item.is_active = publishable;
+      item.is_blocked = !publishable;
+      if (!publishable) hiddenNotPublishable++;
     }
     console.log(
-      `[aliexpress-sync-top-products] regra ≥${MIN_IMAGES_REQUIRED} fotos: ${insufficientPhotos}/${detailed.length} produtos marcados como não-publicáveis (is_active=false)`,
+      `[aliexpress-sync-top-products] filtro publicável no ML: ${hiddenNotPublishable}/${detailed.length} produtos ocultados`,
     );
+
 
 
     // PASSO 2 — Upsert em catalog_products
