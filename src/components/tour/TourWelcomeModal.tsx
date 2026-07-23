@@ -18,6 +18,21 @@ const cardStyle: CSSProperties = {
   boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
 };
 
+// Badge circular do ícone: leve destaque de fundo, borda sutil e um brilho
+// interno para dar volume — tudo em tons de branco/cinza (sem cor).
+const iconBadgeStyle: CSSProperties = {
+  background: "linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 100%)",
+  border: "1px solid rgba(255,255,255,0.12)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.14), 0 8px 24px rgba(0,0,0,0.45)",
+};
+
+// Glow discreto atrás do badge — radial monocromático (cinza/branco), sem
+// gradiente colorido, apenas para separar o ícone do fundo escuro do card.
+const iconGlowStyle: CSSProperties = {
+  background:
+    "radial-gradient(circle, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 40%, rgba(255,255,255,0) 70%)",
+};
+
 const primaryButtonStyle: CSSProperties = {
   background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #2A2A2A",
   border: "1px solid rgba(255,255,255,0.14)",
@@ -55,32 +70,42 @@ export default function TourWelcomeModal({
             transition={{ type: "spring", stiffness: 340, damping: 32, mass: 0.9 }}
             onClick={(e) => e.stopPropagation()}
             style={cardStyle}
-            className="w-full max-w-[440px] rounded-[16px] p-6"
+            className="relative w-full max-w-[420px] rounded-[16px] px-8 pb-7 pt-11 text-center"
           >
-            <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border border-white/[0.08] bg-white/[0.07] text-white">
-                <Sparkles size={20} strokeWidth={1.8} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <h2 className="text-[18px] font-semibold tracking-[-0.01em] text-white">
-                  {firstName ? `Bem-vindo, ${firstName}!` : "Bem-vindo à Velo!"}
-                </h2>
-                <p className="mt-1.5 text-[13.5px] leading-[20px] text-[#8A8A8A]">
-                  Quer um tour rápido pela plataforma? Vamos mostrar o que cada área faz e como
-                  usar — leva menos de um minuto.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onDismiss}
-                aria-label="Fechar"
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#6B6B6B] transition-colors hover:bg-white/10 hover:text-white"
+            {/* Fechar (X) — canto superior direito. */}
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label="Fechar"
+              className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-[8px] text-[#6B6B6B] transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X size={18} strokeWidth={1.5} />
+            </button>
+
+            {/* Ícone central dentro de badge circular com glow monocromático. */}
+            <div className="relative mx-auto grid h-16 w-16 place-items-center">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -inset-4 rounded-full blur-[6px]"
+                style={iconGlowStyle}
+              />
+              <span
+                className="relative grid h-16 w-16 place-items-center rounded-full text-white"
+                style={iconBadgeStyle}
               >
-                <X size={18} strokeWidth={1.9} />
-              </button>
+                <Sparkles size={26} strokeWidth={1.5} />
+              </span>
             </div>
 
-            <div className="mt-6 flex items-center justify-between gap-3">
+            <h2 className="mt-5 text-[20px] font-semibold tracking-[-0.01em] text-white">
+              {firstName ? `Bem-vindo, ${firstName}!` : "Bem-vindo à Velo!"}
+            </h2>
+            <p className="mx-auto mt-2.5 max-w-[320px] text-[13.5px] leading-[20px] text-[#8A8A8A]">
+              Quer um tour rápido pela plataforma? Vamos mostrar o que cada área faz e como
+              usar — leva menos de um minuto.
+            </p>
+
+            <div className="mt-8 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={onDismiss}
@@ -95,7 +120,7 @@ export default function TourWelcomeModal({
                 className="inline-flex h-11 items-center gap-2 rounded-[10px] px-5 text-[14.5px] font-medium text-white"
               >
                 Fazer o tour
-                <ArrowRight size={16} strokeWidth={2} />
+                <ArrowRight size={16} strokeWidth={1.5} />
               </button>
             </div>
           </motion.div>
