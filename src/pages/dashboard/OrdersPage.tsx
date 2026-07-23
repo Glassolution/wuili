@@ -372,20 +372,72 @@ const OrdersPage = () => {
   const [tab, setTab] = useState<OrderTab>("ml");
   const syncedRef = useRef(false);
 
+  const triggerSync = useMemo(
+    () => () => {
+      if (!user?.id) return;
+      supabase.functions
+        .invoke("ml-sync-orders")
+        .then(({ error: syncErr }) => {
+          if (syncErr) {
+            console.warn("[OrdersPage] ml-sync-orders falhou", syncErr);
+            return;
+          }
+          queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user.id] });
+          queryClient.invalidateQueries({ queryKey: ["store-orders", user.id] });
+        })
+        .catch((err) => console.warn("[OrdersPage] ml-sync-orders exception", err));
+    },
+    [user?.id, queryClient],
+  );
+
+  // Initial sync on mount
   useEffect(() => {
     if (!user?.id || syncedRef.current) return;
     syncedRef.current = true;
-    supabase.functions
-      .invoke("ml-sync-orders")
-      .then(({ error: syncErr }) => {
-        if (syncErr) {
-          console.warn("[OrdersPage] ml-sync-orders falhou", syncErr);
-          return;
-        }
-        queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user.id] });
-      })
-      .catch((err) => console.warn("[OrdersPage] ml-sync-orders exception", err));
+    triggerSync();
+  }, [user?.id, triggerSync]);
+
+  // Periodic sync every 45s while page is visible
+  useEffect(() => {
+    if (!user?.id) return;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") triggerSync();
+    }, 45_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") triggerSync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user?.id, triggerSync]);
+
+  // Realtime subscription: invalidate queries on any change
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`orders-realtime-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user.id] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "store_orders", filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["store-orders", user.id] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id, queryClient]);
+
 
   const {
     data: rawOrders,
