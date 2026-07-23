@@ -67,23 +67,23 @@ const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) =>
     <Link
       to={item.to}
       aria-current={active ? "page" : undefined}
-      className={`group flex h-10 items-center gap-3 rounded-[10px] px-3 text-[14px] tracking-[-0.01em] transition-colors ${
+      className={`group flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] tracking-[-0.005em] transition-colors ${
         active
-          ? "bg-white/[0.07] font-semibold text-white"
-          : "font-medium text-white/60 hover:bg-white/[0.035] hover:text-white/90"
+          ? "bg-white/[0.045] font-normal text-white"
+          : "font-normal text-white/55 hover:bg-white/[0.03] hover:text-white/85"
       }`}
     >
       <Icon
-        size={18}
-        strokeWidth={1.6}
+        size={15}
+        strokeWidth={1.5}
         aria-hidden="true"
-        className={active ? "text-white" : "text-white/45 group-hover:text-white/70"}
+        className={active ? "text-white/85" : "text-white/40 group-hover:text-white/65"}
       />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
       {item.badge ? (
         <span
           aria-label={`${item.badge} tickets abertos`}
-          className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-white/[0.1] px-1.5 text-[10.5px] font-semibold text-white/80"
+          className="ml-auto inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-white/[0.08] px-1.5 text-[10px] font-medium text-white/70"
         >
           {item.badge > 99 ? "99+" : item.badge}
         </span>
