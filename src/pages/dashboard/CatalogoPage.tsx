@@ -1262,6 +1262,19 @@ const CatalogoPage = () => {
                 }}
               />
 
+              <FilterDropdown
+                label="Fornecedor"
+                value={selectedSource}
+                isOpen={openDropdown === "source"}
+                onToggle={() => setOpenDropdown((current) => (current === "source" ? null : "source"))}
+                options={[...SOURCE_OPTIONS]}
+                onSelect={(option) => {
+                  setSelectedSource(option as SourceOption);
+                  setCurrentPage(1);
+                  setOpenDropdown(null);
+                }}
+              />
+
               <div className="hidden xl:block xl:flex-1" />
 
               <div className="shrink-0 xl:ml-auto">
