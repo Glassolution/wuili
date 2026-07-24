@@ -40,6 +40,12 @@ const PAGE_BG = "bg-[#F1F1F1]";
 const CARD_SHELL =
   "rounded-[0.85vw] border border-[#E6E7EB] bg-white shadow-[0_0.5vw_1.2vw_rgba(15,23,42,0.04)]";
 const CARD_INNER = "rounded-[0.6vw] border border-[#E6E7EB] bg-white";
+
+// Os dois botões do header compartilham altura, raio, respiro e tamanho de
+// ícone — antes cada um tinha o seu, e eles não batiam entre si.
+const HEADER_BUTTON =
+  "flex h-[clamp(26px,2.15vw,41px)] items-center gap-[0.45vw] rounded-[0.45vw] px-[1.15vw] text-[clamp(8px,0.74vw,14px)] leading-none";
+const HEADER_BUTTON_ICON = "h-[clamp(10px,0.9vw,17px)] w-[clamp(10px,0.9vw,17px)] shrink-0";
 const WHATSAPP_SUPPORT_URL =
   "https://wa.me/5547999286334?text=Oi%2C%20preciso%20de%20ajuda%20com%20a%20minha%20conta%20Velo.";
 
@@ -450,13 +456,13 @@ const DashboardHomePage = () => {
                 {loadingStats ? "Carregando dados da sua conta" : `Ola, ${statsData?.displayName ?? "Velo"}. Visao geral da sua conta`}
               </span>
             </div>
-            <div className="pointer-events-auto absolute right-[1.9%] top-1/2 flex -translate-y-1/2 items-center gap-[0.55vw]">
+            <div className="pointer-events-auto absolute right-[1.9%] top-1/2 flex -translate-y-1/2 items-center gap-[0.6vw]">
               <button
                 type="button"
                 onClick={() => setTutorialOpen(true)}
-                className="flex items-center gap-[0.35vw] rounded-full border border-black/[0.12] bg-white px-[0.8vw] py-[0.36vw] text-[clamp(8px,0.74vw,14px)] font-semibold text-[#252936] shadow-[0_0.3vw_0.8vw_rgba(15,23,42,0.07)] transition hover:bg-black hover:text-white"
+                className={`${HEADER_BUTTON} border border-black/[0.12] bg-white font-semibold text-[#252936] shadow-[0_0.3vw_0.8vw_rgba(15,23,42,0.07)] transition hover:bg-black hover:text-white`}
               >
-                <PlayCircle className="h-[clamp(10px,0.9vw,17px)] w-[clamp(10px,0.9vw,17px)]" strokeWidth={2} />
+                <PlayCircle className={HEADER_BUTTON_ICON} strokeWidth={2} />
                 Assistir Tutorial
               </button>
               <button
@@ -464,13 +470,17 @@ const DashboardHomePage = () => {
                 onClick={() => setWizardOpen(true)}
                 style={{
                   background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #1D1F23",
-                  borderTop: "1.5px solid rgba(255,255,255,0.15)",
-                  boxShadow: "0px 4px 7px rgba(0,0,0,0.2), 0px 0px 0px 1.5px #000000",
+                  // Antes o preto usava um anel externo de 1,5px, que o deixava
+                  // ~3px mais alto que o branco. Uma borda de 1px entra na
+                  // mesma conta de altura dos dois.
+                  borderColor: "#000000",
+                  borderTopColor: "rgba(255,255,255,0.22)",
+                  boxShadow: "0px 4px 7px rgba(0,0,0,0.2)",
                   textShadow: "0px 4px 4px rgba(0,0,0,0.4)",
                 }}
-                className="flex items-center gap-[0.35vw] rounded-[0.45vw] px-[0.8vw] py-[0.36vw] text-[clamp(8px,0.74vw,14px)] font-medium text-white transition-opacity hover:opacity-90"
+                className={`${HEADER_BUTTON} border font-medium text-white transition-opacity hover:opacity-90`}
               >
-                <Sparkles className="h-[clamp(10px,0.9vw,17px)] w-[clamp(10px,0.9vw,17px)]" strokeWidth={2} />
+                <Sparkles className={HEADER_BUTTON_ICON} strokeWidth={2} />
                 Criar Página com IA
               </button>
             </div>
