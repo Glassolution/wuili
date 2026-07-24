@@ -6,10 +6,12 @@ import {
   Briefcase,
   ChevronLeft,
   ChevronRight,
+  CircleDollarSign,
   HelpCircle,
   Home,
   Lightbulb,
   Megaphone,
+  MessageCircle,
   MessageSquare,
   Package,
   PlayCircle,
@@ -98,6 +100,39 @@ const tutorialCards = [
     description: "Conecte seus canais e prepare as publicações.",
   },
 ];
+
+// Cada card aponta para algo que já existe na Velo (indicação, novidades,
+// central de ajuda e suporte no WhatsApp) — nenhum link de fachada.
+const infoCards = [
+  {
+    icon: CircleDollarSign,
+    action: "invite",
+    title: "Programa de indicação",
+    description: "Ganhe 15% sobre as compras dos amigos que você indicar para a Velo.",
+    button: "Convidar amigo",
+  },
+  {
+    icon: Megaphone,
+    action: "news",
+    title: "Novidades",
+    description: "Acompanhe os recursos e melhorias que a equipe Velo acabou de lançar.",
+    button: "Ver novidades",
+  },
+  {
+    icon: HelpCircle,
+    action: "help",
+    title: "Central de ajuda",
+    description: "Encontre respostas para as dúvidas mais comuns e boas práticas.",
+    button: "Abrir central de ajuda",
+  },
+  {
+    icon: MessageCircle,
+    action: "whatsapp",
+    title: "Falar com o suporte",
+    description: "Converse com nosso time pelo WhatsApp e tire suas dúvidas.",
+    button: "Iniciar conversa",
+  },
+] as const;
 
 const friendCards = [0, 1, 2, 3, 4];
 
@@ -371,7 +406,9 @@ const DashboardHomePage = () => {
       <MobileHome />
 
     <main
-      className="hidden md:block -m-5 min-h-[calc(100%+2.5rem)] bg-white pb-[clamp(110px,12vw,220px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      // O pb precisa cobrir o quanto os blocos de tutoriais/informações passam
+      // do fim da imagem de fundo — ambos escalam com vw, então acompanham.
+      className="hidden md:block -m-5 min-h-[calc(100%+2.5rem)] bg-white pb-[clamp(260px,31vw,560px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
       style={{
         opacity: entered ? 1 : 0,
         transform: entered ? "translateY(0) scale(1)" : "translateY(24px) scale(0.992)",
@@ -530,9 +567,11 @@ const DashboardHomePage = () => {
           <div className="absolute inset-x-0 top-[72.4%] h-[41.6%] bg-white" />
           <div className="absolute left-[2.9%] right-[2.9%] top-[72.4%] h-px bg-black/[0.06]" />
 
-          {/* Bloco de tutoriais: altura automática (o mask branco acima cobre a
-              área da imagem de fundo que ficava atrás dos antigos cards). */}
-          <div className="pointer-events-auto absolute left-[2.65%] right-[2.65%] top-[75.8%] rounded-[0.85vw] border border-black/[0.08] bg-white p-[1.15vw] shadow-[0_0.5vw_1.2vw_rgba(15,23,42,0.04)]">
+          {/* Tutoriais + Informações: um único container em fluxo normal, para
+              os blocos empilharem sem depender de porcentagens da imagem (o
+              mask branco acima já cobre a área da imagem de fundo). */}
+          <div className="pointer-events-auto absolute left-[2.65%] right-[2.65%] top-[75.8%] space-y-[1.15vw]">
+          <div className="rounded-[0.85vw] border border-black/[0.08] bg-white p-[1.15vw] shadow-[0_0.5vw_1.2vw_rgba(15,23,42,0.04)]">
             <h2 className="text-[clamp(9px,0.85vw,17px)] font-bold tracking-[-0.01em] text-[#1f2430]">Tutoriais</h2>
             <button
               type="button"
@@ -569,6 +608,61 @@ const DashboardHomePage = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="rounded-[0.85vw] border border-black/[0.08] bg-white p-[1.3vw] shadow-[0_0.5vw_1.2vw_rgba(15,23,42,0.04)]">
+            <h2 className="text-[clamp(10px,0.95vw,19px)] font-bold tracking-[-0.015em] text-[#1f2430]">Informações</h2>
+            <p className="mt-[0.35vw] text-[clamp(9px,0.85vw,17px)] font-normal text-[#7b8391]">
+              Explore recursos e links úteis para aproveitar melhor a sua conta.
+            </p>
+
+            <div className="mt-[1.15vw] grid grid-cols-4 gap-[1.15vw]">
+              {infoCards.map((card) => {
+                const Icon = card.icon;
+                const isWhatsApp = card.action === "whatsapp";
+
+                const openAction = () => {
+                  if (card.action === "invite") {
+                    setInviteOpen(true);
+                    return;
+                  }
+                  setSupportTab(card.action === "news" ? "news" : "help");
+                  setSupportOpen(true);
+                };
+
+                const buttonClasses =
+                  "mt-auto inline-flex w-fit items-center rounded-[0.45vw] border border-black/[0.14] bg-white px-[0.85vw] py-[0.42vw] text-[clamp(8px,0.78vw,15px)] font-semibold text-[#1f2430] no-underline transition hover:bg-[#f5f6f8]";
+
+                return (
+                  <div
+                    key={card.title}
+                    className="flex flex-col rounded-[0.6vw] border border-black/[0.08] bg-white p-[1.15vw]"
+                  >
+                    <Icon
+                      className="h-[clamp(15px,1.5vw,29px)] w-[clamp(15px,1.5vw,29px)] text-[#1f2430]"
+                      strokeWidth={1.75}
+                    />
+                    <h3 className="mt-[0.85vw] text-[clamp(9px,0.95vw,19px)] font-bold leading-none tracking-[-0.015em] text-[#1f2430]">
+                      {card.title}
+                    </h3>
+                    <p className="mb-[1.15vw] mt-[0.55vw] text-[clamp(8px,0.82vw,16px)] font-normal leading-[1.45] text-[#7b8391]">
+                      {card.description}
+                    </p>
+
+                    {isWhatsApp ? (
+                      <a href={WHATSAPP_SUPPORT_URL} target="_blank" rel="noreferrer" className={buttonClasses}>
+                        {card.button}
+                      </a>
+                    ) : (
+                      <button type="button" onClick={openAction} className={buttonClasses}>
+                        {card.button}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           </div>
         </div>
       </section>
