@@ -9,7 +9,6 @@ import {
   CircleDollarSign,
   HelpCircle,
   Home,
-  Lightbulb,
   Megaphone,
   MessageCircle,
   MessageSquare,
@@ -416,7 +415,10 @@ const DashboardHomePage = () => {
     <main
       // O pb precisa cobrir o quanto os blocos de tutoriais/informações passam
       // do fim da imagem de fundo — ambos escalam com vw, então acompanham.
-      className={`hidden md:block -m-5 min-h-[calc(100%+2.5rem)] ${PAGE_BG} pb-[clamp(260px,31vw,560px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]`}
+      // shrink-0: o container de rolagem do shell é flex-col, então sem isso o
+      // main encolhe até a altura da viewport, o padding-bottom não vira altura
+      // e a rolagem para antes do fim do conteúdo.
+      className={`hidden shrink-0 md:block -m-5 min-h-[calc(100%+2.5rem)] ${PAGE_BG} pb-[clamp(260px,31vw,560px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]`}
       style={{
         opacity: entered ? 1 : 0,
         transform: entered ? "translateY(0) scale(1)" : "translateY(24px) scale(0.992)",
@@ -889,24 +891,6 @@ const DashboardHomePage = () => {
       ) : null}
 
       <div className="fixed bottom-[20px] right-[20px] z-[70] flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setSupportTab("home");
-            setSupportOpen(true);
-          }}
-          className="group flex h-[42px] items-center gap-2.5 rounded-[15px] bg-black px-4 pr-2 text-[14px] font-semibold text-white shadow-[0_12px_28px_rgba(0,0,0,0.24)] transition hover:-translate-y-0.5 hover:bg-[#171717]"
-          aria-label="Abrir suporte da Velo"
-        >
-          <span className="flex h-6 w-6 items-center justify-center text-white">
-            <Lightbulb size={19} fill="currentColor" strokeWidth={2.1} />
-          </span>
-          <span className="whitespace-nowrap">Getting Started</span>
-          <span className="ml-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[#222222] text-[19px] font-medium leading-none text-white/80 transition group-hover:bg-[#2b2b2b] group-hover:text-white">
-            ×
-          </span>
-        </button>
-
         <button
           type="button"
           onClick={() => {
