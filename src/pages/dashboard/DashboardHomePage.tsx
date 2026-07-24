@@ -33,6 +33,14 @@ import { canCreateStore, canCreateSalesPage } from "@/lib/planLimits";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 
 const DASHBOARD_IMAGE_SRC = "/assets/dashboard-inicio-colado.png";
+
+// Fundo cinza da página e moldura única dos cards. A imagem de fundo é coberta
+// por inteiro pelas máscaras, então pintá-las com PAGE_BG deixa a página toda
+// cinza sem faixas de cor diferentes.
+const PAGE_BG = "bg-[#F1F1F1]";
+const CARD_SHELL =
+  "rounded-[0.85vw] border border-[#E6E7EB] bg-white shadow-[0_0.5vw_1.2vw_rgba(15,23,42,0.04)]";
+const CARD_INNER = "rounded-[0.6vw] border border-[#E6E7EB] bg-white";
 const WHATSAPP_SUPPORT_URL =
   "https://wa.me/5547999286334?text=Oi%2C%20preciso%20de%20ajuda%20com%20a%20minha%20conta%20Velo.";
 
@@ -408,7 +416,7 @@ const DashboardHomePage = () => {
     <main
       // O pb precisa cobrir o quanto os blocos de tutoriais/informações passam
       // do fim da imagem de fundo — ambos escalam com vw, então acompanham.
-      className="hidden md:block -m-5 min-h-[calc(100%+2.5rem)] bg-white pb-[clamp(260px,31vw,560px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      className={`hidden md:block -m-5 min-h-[calc(100%+2.5rem)] ${PAGE_BG} pb-[clamp(260px,31vw,560px)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]`}
       style={{
         opacity: entered ? 1 : 0,
         transform: entered ? "translateY(0) scale(1)" : "translateY(24px) scale(0.992)",
@@ -417,7 +425,7 @@ const DashboardHomePage = () => {
         willChange: "opacity, transform",
       }}
     >
-      <section className="relative w-full overflow-visible bg-white text-[#252936]">
+      <section className={`relative w-full overflow-visible ${PAGE_BG} text-[#252936]`}>
         <img
           src={DASHBOARD_IMAGE_SRC}
           alt=""
@@ -426,9 +434,9 @@ const DashboardHomePage = () => {
         />
 
         <div className="pointer-events-none absolute inset-0 font-sans">
-          <div className="absolute inset-x-0 top-0 h-[35.2%] bg-white" />
+          <div className={`absolute inset-x-0 top-0 h-[35.2%] ${PAGE_BG}`} />
 
-          <div className="absolute left-[0.7%] top-[1.5%] h-[9.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
+          <div className="absolute left-[2.65%] right-[2.65%] top-[1.5%] h-[9.0%]">
             {/* Ícone e textos vivem na mesma linha flex: o espaçamento acompanha
                 o tamanho da fonte em vez de depender de um left fixo. */}
             <div className="absolute left-[1.9%] top-1/2 flex -translate-y-1/2 items-center gap-[0.5vw]">
@@ -466,7 +474,7 @@ const DashboardHomePage = () => {
             </div>
           </div>
 
-          <div className="absolute left-[0.7%] top-[10.5%] h-[17.0%] w-[98.6%] border-b border-black/[0.06] bg-white">
+          <div className={`absolute left-[2.65%] right-[2.65%] top-[11.3%] h-[15.7%] ${CARD_SHELL}`}>
             <span className="absolute left-[25.2%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
             <span className="absolute left-[49.0%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
             <span className="absolute left-[72.8%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
@@ -488,21 +496,19 @@ const DashboardHomePage = () => {
             })}
           </div>
 
-          <div className="absolute inset-x-0 top-[27.5%] h-[44.9%] bg-white" />
-          <div className="absolute left-[4.8%] top-[29.2%] h-[42.0%] w-[33.4%] bg-white" />
-          <div className="absolute left-[36.9%] top-[27.6%] h-[5.5%] w-[20.4%] bg-white" />
-          <div className="absolute left-[6.55%] top-[30.9%] h-[27.2%] w-[30.6%] overflow-hidden rounded-[1.05vw] border border-black/[0.06] bg-white shadow-[0_0.65vw_1.5vw_rgba(15,23,42,0.045)]">
+          <div className={`absolute inset-x-0 top-[27.5%] h-[44.9%] ${PAGE_BG}`} />
+          {/* Card do carrossel. Os remendos brancos que existiam nesta faixa
+              eram redundantes — a máscara acima já cobre a imagem — e saíram
+              para não pintarem cinza por cima do card. */}
+          <div className={`absolute left-[2.65%] right-[2.65%] top-[28.5%] h-[41.5%] ${CARD_SHELL}`} />
+          <div className="absolute left-[6.55%] top-[30.9%] h-[27.2%] w-[30.6%] overflow-hidden rounded-[1.05vw] border border-[#E6E7EB] bg-white shadow-[0_0.65vw_1.5vw_rgba(15,23,42,0.045)]">
             <CtaVisual visual={cta.visual} />
           </div>
-
-          <div className="absolute left-[38.6%] top-[31.8%] h-[22.2%] w-[53.0%] bg-white" />
-          <div className="absolute left-[0.0%] top-[35.2%] z-20 h-[22.0%] w-[5.8%] bg-white" />
-          <div className="absolute right-[0.0%] top-[35.2%] z-20 h-[22.0%] w-[5.8%] bg-white" />
 
           <button
             type="button"
             onClick={showPreviousCta}
-            className="pointer-events-auto absolute left-[1.55%] top-[40.6%] z-30 flex h-[clamp(26px,2.85vw,54px)] w-[clamp(26px,2.85vw,54px)] items-center justify-center rounded-[0.55vw] border border-black/[0.08] bg-white text-black shadow-[0_0.35vw_0.95vw_rgba(15,23,42,0.055)] transition-transform hover:-translate-x-[1px]"
+            className="pointer-events-auto absolute left-[3.5%] top-[40.6%] z-30 flex h-[clamp(26px,2.85vw,54px)] w-[clamp(26px,2.85vw,54px)] items-center justify-center rounded-[0.55vw] border border-[#E6E7EB] bg-white text-black shadow-[0_0.35vw_0.95vw_rgba(15,23,42,0.055)] transition-transform hover:-translate-x-[1px]"
             aria-label="CTA anterior"
           >
             <ChevronLeft className="h-[45%] w-[45%]" strokeWidth={2.4} />
@@ -510,7 +516,7 @@ const DashboardHomePage = () => {
           <button
             type="button"
             onClick={showNextCta}
-            className="pointer-events-auto absolute right-[2.2%] top-[40.6%] z-30 flex h-[clamp(26px,2.85vw,54px)] w-[clamp(26px,2.85vw,54px)] items-center justify-center rounded-[0.55vw] border border-black/[0.08] bg-white text-black shadow-[0_0.35vw_0.95vw_rgba(15,23,42,0.055)] transition-transform hover:translate-x-[1px]"
+            className="pointer-events-auto absolute right-[3.5%] top-[40.6%] z-30 flex h-[clamp(26px,2.85vw,54px)] w-[clamp(26px,2.85vw,54px)] items-center justify-center rounded-[0.55vw] border border-[#E6E7EB] bg-white text-black shadow-[0_0.35vw_0.95vw_rgba(15,23,42,0.055)] transition-transform hover:translate-x-[1px]"
             aria-label="Proximo CTA"
           >
             <ChevronRight className="h-[45%] w-[45%]" strokeWidth={2.4} />
@@ -548,8 +554,6 @@ const DashboardHomePage = () => {
             </a>
           )}
 
-          <div className="absolute left-[42.0%] top-[55.35%] z-20 h-[6.0%] w-[12.6%] bg-white" />
-          <div className="absolute left-[41.8%] top-[61.0%] z-0 h-[10.7%] w-[14.2%] bg-white" />
           <div className="absolute left-[45.0%] top-[64.9%] z-30 flex h-[3.2%] w-[6.0%] items-center justify-center gap-[0.55vw] rounded-full bg-white shadow-[0_0.35vw_1vw_rgba(15,23,42,0.08)] ring-1 ring-black/[0.05]">
             {ctaSlides.map((slide, index) => (
               <button
@@ -564,14 +568,13 @@ const DashboardHomePage = () => {
             ))}
           </div>
 
-          <div className="absolute inset-x-0 top-[72.4%] h-[41.6%] bg-white" />
-          <div className="absolute left-[2.9%] right-[2.9%] top-[72.4%] h-px bg-black/[0.06]" />
+          <div className={`absolute inset-x-0 top-[72.4%] h-[41.6%] ${PAGE_BG}`} />
 
           {/* Tutoriais + Informações: um único container em fluxo normal, para
               os blocos empilharem sem depender de porcentagens da imagem (o
               mask branco acima já cobre a área da imagem de fundo). */}
-          <div className="pointer-events-auto absolute left-[2.65%] right-[2.65%] top-[75.8%] space-y-[1.15vw]">
-          <div className="rounded-[0.85vw] border border-black/[0.08] bg-white p-[1.15vw] shadow-[0_0.5vw_1.2vw_rgba(15,23,42,0.04)]">
+          <div className="pointer-events-auto absolute left-[2.65%] right-[2.65%] top-[71.4%] space-y-[1.15vw]">
+          <div className={`${CARD_SHELL} p-[1.15vw]`}>
             <h2 className="text-[clamp(9px,0.85vw,17px)] font-bold tracking-[-0.01em] text-[#1f2430]">Tutoriais</h2>
             <button
               type="button"
@@ -587,7 +590,11 @@ const DashboardHomePage = () => {
                   type="button"
                   key={card.title}
                   onClick={() => setTutorialOpen(true)}
-                  className="group rounded-[0.6vw] border border-black/[0.08] bg-white p-[0.6vw] text-left transition duration-150 hover:-translate-y-[2px] hover:border-black/[0.16] hover:shadow-[0_0.6vw_1.3vw_rgba(15,23,42,0.07)]"
+                  // A regra global `button[class*="border"]` (index.css) vence a
+                  // utility por especificidade; o inline garante a mesma borda
+                  // dos demais cards.
+                  style={{ borderColor: "#E6E7EB" }}
+                  className={`group ${CARD_INNER} p-[0.6vw] text-left transition duration-150 hover:-translate-y-[2px] hover:shadow-[0_0.6vw_1.3vw_rgba(15,23,42,0.07)]`}
                 >
                   <span className="relative block aspect-video w-full overflow-hidden rounded-[0.42vw] bg-[radial-gradient(115%_75%_at_50%_120%,#a78bfa_0%,#7c3aed_26%,#3b1d8f_52%,#0b0714_78%),linear-gradient(180deg,#05040a_0%,#0b0714_100%)]">
                     {/* Rastro claro que a referência traz por baixo do rótulo. */}
@@ -610,7 +617,7 @@ const DashboardHomePage = () => {
             </div>
           </div>
 
-          <div className="rounded-[0.85vw] border border-black/[0.08] bg-white p-[1.3vw] shadow-[0_0.5vw_1.2vw_rgba(15,23,42,0.04)]">
+          <div className={`${CARD_SHELL} p-[1.3vw]`}>
             <h2 className="text-[clamp(10px,0.95vw,19px)] font-bold tracking-[-0.015em] text-[#1f2430]">Informações</h2>
             <p className="mt-[0.35vw] text-[clamp(9px,0.85vw,17px)] font-normal text-[#7b8391]">
               Explore recursos e links úteis para aproveitar melhor a sua conta.
@@ -636,7 +643,7 @@ const DashboardHomePage = () => {
                 return (
                   <div
                     key={card.title}
-                    className="flex flex-col rounded-[0.6vw] border border-black/[0.08] bg-white p-[1.15vw]"
+                    className={`flex flex-col ${CARD_INNER} p-[1.15vw]`}
                   >
                     <Icon
                       className="h-[clamp(15px,1.5vw,29px)] w-[clamp(15px,1.5vw,29px)] text-[#1f2430]"
