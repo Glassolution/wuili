@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, BadgeCheck, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -30,7 +30,15 @@ const baseNavItems: NavItem[] = [
       { label: "Páginas de venda", icon: Sparkles, to: "/dashboard/minha-loja" },
     ],
   },
-  { label: "Produtos em Alta", icon: Trophy, to: "/dashboard/produtos-em-alta" },
+  {
+    // Categoria "Produtos vencedores" (troféu, como "Winning Products"): abre
+    // e mostra "Produtos em Alta" como sub-item.
+    label: "Produtos vencedores",
+    icon: Trophy,
+    children: [
+      { label: "Produtos em Alta", icon: TrendingUp, to: "/dashboard/produtos-em-alta" },
+    ],
+  },
   { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
   { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
