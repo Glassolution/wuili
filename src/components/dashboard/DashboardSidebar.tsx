@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ChevronDown, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, BadgeCheck, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,21 @@ const baseNavItems: NavItem[] = [
 const affiliatesNavItem: NavItem = { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
 
 const normalizePath = (path: string) => path.split("?")[0].replace(/\/$/, "");
+
+// Transição do "sliding highlight" (pill do item ativo) e do submenu.
+const PILL_EASE = [0.4, 0, 0.2, 1] as const;
+
+// Hover/foco dos itens (inline styles não fazem :hover, então injetamos CSS).
+const NAV_CSS = `
+.velo-nav-item, .velo-nav-sub { transition: background-color 150ms ease-out, color 150ms ease-out; }
+.velo-nav-item:hover:not([data-active="true"]) { background-color: rgba(10,10,10,0.05); }
+.velo-nav-sub:hover:not([data-active="true"]) { background-color: rgba(10,10,10,0.045); }
+.velo-nav-ico { transition: transform 150ms ease-out; }
+.velo-nav-item:hover .velo-nav-ico, .velo-nav-sub:hover .velo-nav-ico { transform: scale(1.09); }
+@media (prefers-reduced-motion: reduce) {
+  .velo-nav-item, .velo-nav-sub, .velo-nav-ico { transition: none; }
+}
+`;
 
 const tourTargetByLabel: Record<string, string> = {
   Início: "inicio",
@@ -550,70 +566,121 @@ const VeloIconOnly = () => (
   </span>
 );
 
-const SidebarNavLink = ({ item, active, sub = false }: { item: NavItem; active: boolean; sub?: boolean }) => {
+// Pill de fundo do item ativo. Com layoutId compartilhado, o framer desliza o
+// mesmo elemento entre os itens ao trocar de página (sliding highlight).
+const ActivePill = ({ sub, reduce }: { sub?: boolean; reduce: boolean }) => (
+  <motion.span
+    layoutId={sub ? undefined : "navActivePill"}
+    aria-hidden="true"
+    initial={sub ? { opacity: 0 } : false}
+    animate={sub ? { opacity: 1 } : undefined}
+    exit={sub ? { opacity: 0 } : undefined}
+    transition={reduce ? { duration: 0 } : { duration: 0.24, ease: PILL_EASE }}
+    style={{
+      position: "absolute",
+      inset: 0,
+      zIndex: -1,
+      borderRadius: sub ? 9 : 10,
+      background: sub ? "rgba(74,51,245,0.10)" : "linear-gradient(90deg, #6558F6, #4A33F5)",
+      boxShadow: sub ? "none" : "0 1px 2px rgba(0,0,0,0.08)",
+    }}
+  />
+);
+
+const SidebarNavLink = ({ item, active, sub = false, reduce }: { item: NavItem; active: boolean; sub?: boolean; reduce: boolean }) => {
   const Icon = item.icon;
   const linkStyle: CSSProperties = {
     ...(sub ? styles.navSubLinkBase : styles.navLinkBase),
+    position: "relative",
+    isolation: "isolate",
     color: active ? (sub ? "#4A33F5" : "#FFFFFF") : "#0A0A0A",
-    background: active
-      ? sub
-        ? "rgba(74,51,245,0.09)"
-        : "linear-gradient(90deg, #6558F6, #4A33F5)"
-      : "transparent",
     fontWeight: active ? 600 : 500,
-    boxShadow: active && !sub ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
   };
 
   return (
-    <Link to={item.to!} aria-current={active ? "page" : undefined} data-dashboard-tour={tourTargetByLabel[item.label]} style={linkStyle}>
-      <Icon size={sub ? 18 : 20} strokeWidth={2} fill="none" aria-hidden="true" />
+    <Link
+      to={item.to!}
+      aria-current={active ? "page" : undefined}
+      data-active={active ? "true" : "false"}
+      data-dashboard-tour={tourTargetByLabel[item.label]}
+      className={sub ? "velo-nav-sub" : "velo-nav-item"}
+      style={linkStyle}
+    >
+      {active ? <ActivePill sub={sub} reduce={reduce} /> : null}
+      <Icon className="velo-nav-ico" size={sub ? 18 : 20} strokeWidth={2.25} fill="none" aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
 };
 
-// Item pai expansível (categoria). Abre/fecha os sub-itens ao clicar; fica com
-// o pill roxo quando algum filho é a rota ativa, como na referência.
+// Item pai expansível (categoria). Mesmo layout dos demais (ícone + label com
+// gap fixo, à esquerda); o chevron vai para a direita com margin-left:auto e
+// rotaciona ao abrir. Fica com o pill roxo quando algum filho é a rota ativa.
 const SidebarCategory = ({
   item,
   open,
   childActive,
   onToggle,
   isActive,
+  reduce,
 }: {
   item: NavItem;
   open: boolean;
   childActive: boolean;
   onToggle: () => void;
   isActive: (i: NavItem) => boolean;
+  reduce: boolean;
 }) => {
   const Icon = item.icon;
-  const Chevron = open ? ChevronDown : ChevronRight;
   const btnStyle: CSSProperties = {
     ...styles.navLinkBase,
     width: "100%",
     border: 0,
     cursor: "pointer",
+    textAlign: "left",
+    position: "relative",
+    isolation: "isolate",
     color: childActive ? "#FFFFFF" : "#0A0A0A",
-    background: childActive ? "linear-gradient(90deg, #6558F6, #4A33F5)" : "transparent",
     fontWeight: childActive ? 600 : 500,
-    boxShadow: childActive ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
   };
 
   return (
     <>
-      <button type="button" onClick={onToggle} aria-expanded={open} style={btnStyle}>
-        <Icon size={20} strokeWidth={2} fill="none" aria-hidden="true" />
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
-        <Chevron size={16} strokeWidth={1.75} aria-hidden="true" style={{ flexShrink: 0, opacity: 0.8 }} />
+      <button type="button" onClick={onToggle} aria-expanded={open} data-active={childActive ? "true" : "false"} className="velo-nav-item" style={btnStyle}>
+        {childActive ? <ActivePill reduce={reduce} /> : null}
+        <Icon className="velo-nav-ico" size={20} strokeWidth={2.25} fill="none" aria-hidden="true" />
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+        <ChevronRight
+          size={16}
+          strokeWidth={2.25}
+          aria-hidden="true"
+          style={{
+            marginLeft: "auto",
+            flexShrink: 0,
+            opacity: 0.75,
+            transform: open ? "rotate(90deg)" : "rotate(0deg)",
+            transition: reduce ? "none" : `transform 200ms cubic-bezier(${PILL_EASE.join(",")})`,
+          }}
+        />
       </button>
-      {open ? (
-        <div style={styles.subWrap}>
-          {item.children!.map((child) => (
-            <SidebarNavLink key={child.label} item={child} active={isActive(child)} sub />
-          ))}
-        </div>
-      ) : null}
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            key="sub"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={reduce ? { duration: 0 } : { duration: 0.22, ease: "easeOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <div style={styles.subWrap}>
+              {item.children!.map((child) => (
+                <SidebarNavLink key={child.label} item={child} active={isActive(child)} sub reduce={reduce} />
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </>
   );
 };
@@ -623,6 +690,7 @@ const DashboardSidebar = () => {
   const navigate = useNavigate();
   const { user, signOut, role } = useAuth();
   const { nome, foto } = useProfile();
+  const reduce = !!useReducedMotion();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   // Evita ícone quebrado/circulo vazio quando a foto do perfil não existe ou
@@ -824,6 +892,7 @@ const DashboardSidebar = () => {
 
   return (
     <aside className="velo-dashboard-sidebar" style={styles.sidebar}>
+      <style>{NAV_CSS}</style>
       <header style={styles.header}>
         <Link to="/dashboard" style={styles.brand}>
           <VeloIconOnly />
@@ -846,9 +915,10 @@ const DashboardSidebar = () => {
               childActive={isChildActive(item)}
               onToggle={() => toggleCategory(item.label)}
               isActive={isActive}
+              reduce={reduce}
             />
           ) : (
-            <SidebarNavLink key={item.label} item={item} active={isActive(item)} />
+            <SidebarNavLink key={item.label} item={item} active={isActive(item)} reduce={reduce} />
           ),
         )}
       </nav>
