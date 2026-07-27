@@ -283,7 +283,7 @@ const styles = {
     lineHeight: "17px",
     fontWeight: 700,
     letterSpacing: "-0.02em",
-    color: "#1A1A1A",
+    color: "#0A0A0A",
   } satisfies CSSProperties,
   promoSub: {
     display: "block",
@@ -500,7 +500,7 @@ const VeloIconOnly = () => (
 
 const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) => {
   const Icon = item.icon;
-  const inactiveColor = "#1A1A1A";
+  const inactiveColor = "#0A0A0A";
   const linkStyle: CSSProperties = {
     ...styles.navLinkBase,
     color: active ? "#FFFFFF" : inactiveColor,
@@ -757,7 +757,7 @@ const DashboardSidebar = () => {
       <button
         type="button"
         onClick={() => navigate("/docs")}
-        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", border: 0, background: "transparent", padding: "6px 12px", marginBottom: 8, cursor: "pointer", textAlign: "left", color: "#1A1A1A" }}
+        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", border: 0, background: "transparent", padding: "6px 12px", marginBottom: 8, cursor: "pointer", textAlign: "left", color: "#0A0A0A" }}
       >
         <Lightbulb size={18} strokeWidth={1.5} aria-hidden="true" />
         <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: "-0.02em" }}>Sugestões</span>
