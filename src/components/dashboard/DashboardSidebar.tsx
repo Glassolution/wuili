@@ -132,8 +132,8 @@ const styles = {
   } satisfies CSSProperties,
   brandText: {
     fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 20,
-    lineHeight: "24px",
+    fontSize: 18,
+    lineHeight: "22px",
     fontWeight: 700,
     letterSpacing: "-0.065em",
   } satisfies CSSProperties,
@@ -183,16 +183,16 @@ const styles = {
     marginBottom: 22,
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 3,
   } satisfies CSSProperties,
   navLinkBase: {
-    height: 44,
+    height: 40,
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     boxSizing: "border-box",
     borderRadius: 12,
-    padding: "0 14px",
+    padding: "0 12px",
     textDecoration: "none",
     fontSize: 15,
     lineHeight: "20px",
@@ -496,14 +496,14 @@ const VeloIconOnly = () => (
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 12,
+      borderRadius: 10,
       background: "linear-gradient(135deg, #6E60F8 0%, #4A33F5 100%)",
       boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 2px 5px rgba(0,0,0,0.12)",
     }}
   >
-    <svg width="25" height="25" viewBox="0 0 48 48" fill="none">
-      <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
-      <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
+      <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" />
+      <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   </span>
 );
@@ -521,7 +521,7 @@ const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) =>
 
   return (
     <Link to={item.to} aria-current={active ? "page" : undefined} data-dashboard-tour={tourTargetByLabel[item.label]} style={linkStyle}>
-      <Icon size={21} strokeWidth={1.75} fill="none" aria-hidden="true" />
+      <Icon size={19} strokeWidth={1.25} fill="none" aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
