@@ -128,10 +128,14 @@ const styles = {
   header: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    paddingTop: 4,
-    paddingBottom: 6,
+    justifyContent: "flex-start",
+    // Mesmo recuo horizontal dos itens de nav (padding-left 11), para o logo
+    // alinhar com a coluna de ícones abaixo. padding-top baixo para a nav não
+    // ser empurrada para baixo.
+    gap: 11,
+    paddingLeft: 11,
+    paddingTop: 2,
+    paddingBottom: 8,
   } satisfies CSSProperties,
   brand: {
     display: "flex",
@@ -143,8 +147,8 @@ const styles = {
   } satisfies CSSProperties,
   brandText: {
     fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 24,
-    lineHeight: "28px",
+    fontSize: 21,
+    lineHeight: "25px",
     fontWeight: 700,
     letterSpacing: "-0.05em",
   } satisfies CSSProperties,
@@ -518,16 +522,16 @@ const VeloIconOnly = () => (
     style={{
       position: "relative",
       overflow: "hidden",
-      width: 48,
-      height: 48,
+      width: 38,
+      height: 38,
       flexShrink: 0,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 14,
+      borderRadius: 11,
       background: "linear-gradient(150deg, #7A6CFF 0%, #5B4BF3 48%, #4A33F5 100%)",
       boxShadow:
-        "inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -3px 6px rgba(43,26,158,0.45), 0 6px 14px rgba(0,0,0,0.20)",
+        "inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -3px 6px rgba(43,26,158,0.45), 0 5px 11px rgba(0,0,0,0.18)",
     }}
   >
     <span
@@ -539,7 +543,7 @@ const VeloIconOnly = () => (
         pointerEvents: "none",
       }}
     />
-    <svg width="26" height="26" viewBox="0 0 48 48" fill="none" style={{ position: "relative" }}>
+    <svg width="20" height="20" viewBox="0 0 48 48" fill="none" style={{ position: "relative" }}>
       <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.4" strokeLinecap="round" />
       <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -562,7 +566,7 @@ const SidebarNavLink = ({ item, active, sub = false }: { item: NavItem; active: 
 
   return (
     <Link to={item.to!} aria-current={active ? "page" : undefined} data-dashboard-tour={tourTargetByLabel[item.label]} style={linkStyle}>
-      <Icon size={sub ? 16 : 17} strokeWidth={1.25} fill="none" aria-hidden="true" />
+      <Icon size={sub ? 18 : 20} strokeWidth={2} fill="none" aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
@@ -599,7 +603,7 @@ const SidebarCategory = ({
   return (
     <>
       <button type="button" onClick={onToggle} aria-expanded={open} style={btnStyle}>
-        <Icon size={17} strokeWidth={1.25} fill="none" aria-hidden="true" />
+        <Icon size={20} strokeWidth={2} fill="none" aria-hidden="true" />
         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
         <Chevron size={16} strokeWidth={1.75} aria-hidden="true" style={{ flexShrink: 0, opacity: 0.8 }} />
       </button>
