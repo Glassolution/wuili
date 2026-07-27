@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ClipboardList, Copy, CreditCard, Gift, Home, Info, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, UserRound, Users } from "lucide-react";
+import { Archive, BadgeCheck, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -763,6 +763,17 @@ const DashboardSidebar = () => {
           </button>
         </section>
       )}
+
+      {/* Linha "Feature Requests" da referência, adaptada à Velo como
+          "Sugestões" (leva à comunidade/ajuda, onde vão feedbacks). */}
+      <button
+        type="button"
+        onClick={() => navigate("/docs")}
+        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", border: 0, background: "transparent", padding: "6px 12px", marginBottom: 8, cursor: "pointer", textAlign: "left", color: "#1A1A1A" }}
+      >
+        <Lightbulb size={18} strokeWidth={1.5} aria-hidden="true" />
+        <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: "-0.02em" }}>Sugestões</span>
+      </button>
 
       {/* Blocos adaptados à Velo no estilo da referência (equivalentes ao
           "Refer & Earn" e ao card verde de loja). O bloco "FREE AI Shopify
