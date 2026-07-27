@@ -132,8 +132,8 @@ const styles = {
   } satisfies CSSProperties,
   brandText: {
     fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 18,
-    lineHeight: "22px",
+    fontSize: 16,
+    lineHeight: "20px",
     fontWeight: 700,
     letterSpacing: "-0.065em",
   } satisfies CSSProperties,
@@ -186,16 +186,16 @@ const styles = {
     gap: 3,
   } satisfies CSSProperties,
   navLinkBase: {
-    height: 40,
+    height: 36,
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 9,
     boxSizing: "border-box",
-    borderRadius: 12,
-    padding: "0 12px",
+    borderRadius: 10,
+    padding: "0 11px",
     textDecoration: "none",
-    fontSize: 15,
-    lineHeight: "20px",
+    fontSize: 14,
+    lineHeight: "18px",
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
   spacer: {
@@ -255,27 +255,27 @@ const styles = {
     boxSizing: "border-box",
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     border: 0,
-    borderRadius: 14,
-    padding: "12px 12px",
-    marginBottom: 10,
+    borderRadius: 12,
+    padding: "10px 11px",
+    marginBottom: 8,
     textAlign: "left",
     cursor: "pointer",
   } satisfies CSSProperties,
   promoIcon: {
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
     flexShrink: 0,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 10,
+    borderRadius: 9,
   } satisfies CSSProperties,
   promoTitle: {
     display: "block",
-    fontSize: 14,
-    lineHeight: "18px",
+    fontSize: 13,
+    lineHeight: "17px",
     fontWeight: 700,
     letterSpacing: "-0.02em",
     color: "#1A1A1A",
@@ -283,8 +283,8 @@ const styles = {
   promoSub: {
     display: "block",
     marginTop: 1,
-    fontSize: 12.5,
-    lineHeight: "16px",
+    fontSize: 11.5,
+    lineHeight: "15px",
     fontWeight: 500,
     color: "rgba(10,10,10,0.55)",
   } satisfies CSSProperties,
@@ -305,8 +305,8 @@ const styles = {
     boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.08)",
   } satisfies CSSProperties,
   avatar: {
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
     flexShrink: 0,
     display: "flex",
     alignItems: "center",
@@ -315,7 +315,7 @@ const styles = {
     borderRadius: 999,
     background: "#E4E4E7",
     color: "#4B5563",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
@@ -329,8 +329,8 @@ const styles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     color: "#0A0A0A",
-    fontSize: 14,
-    lineHeight: "18px",
+    fontSize: 13,
+    lineHeight: "17px",
     fontWeight: 600,
     letterSpacing: "-0.025em",
   } satisfies CSSProperties,
@@ -341,8 +341,8 @@ const styles = {
     whiteSpace: "nowrap",
     marginTop: 2,
     color: "rgba(10,10,10,0.55)",
-    fontSize: 12,
-    lineHeight: "15px",
+    fontSize: 11,
+    lineHeight: "14px",
     fontWeight: 500,
   } satisfies CSSProperties,
   profileChevrons: {
@@ -355,8 +355,6 @@ const styles = {
   } satisfies CSSProperties,
   profileWrap: {
     position: "relative",
-    paddingTop: 12,
-    borderTop: "1px solid rgba(10,10,10,0.07)",
   } satisfies CSSProperties,
   profilePanel: {
     position: "absolute",
@@ -490,18 +488,18 @@ const VeloIconOnly = () => (
   <span
     aria-hidden="true"
     style={{
-      width: 40,
-      height: 40,
+      width: 34,
+      height: 34,
       flexShrink: 0,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 10,
+      borderRadius: 9,
       background: "linear-gradient(135deg, #6E60F8 0%, #4A33F5 100%)",
       boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 2px 5px rgba(0,0,0,0.12)",
     }}
   >
-    <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
+    <svg width="17" height="17" viewBox="0 0 48 48" fill="none">
       <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" />
       <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -521,7 +519,7 @@ const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) =>
 
   return (
     <Link to={item.to} aria-current={active ? "page" : undefined} data-dashboard-tour={tourTargetByLabel[item.label]} style={linkStyle}>
-      <Icon size={19} strokeWidth={1.25} fill="none" aria-hidden="true" />
+      <Icon size={17} strokeWidth={1.25} fill="none" aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
@@ -735,6 +733,10 @@ const DashboardSidebar = () => {
         ))}
       </nav>
 
+      {/* Espaço flexível: empurra o cluster de baixo (upgrade + cards promo +
+          perfil) todo junto para o fundo, agrupado como na referência. */}
+      <div aria-hidden="true" style={styles.spacer} />
+
       {showUpgradeCard && (
         <section aria-label={trialTimeLeft ? "Tempo restante do trial" : "Upgrade para Premium"} style={styles.upgradeCard}>
           <span style={styles.upgradeIcon} aria-hidden="true">
@@ -785,11 +787,6 @@ const DashboardSidebar = () => {
           <span style={styles.promoSub}>Crie sua loja em minutos</span>
         </span>
       </button>
-
-      {/* Espaço flexível movido para ANTES do rodapé: o bloco de upgrade/promos
-          cola logo abaixo da nav (como na referência) e só o perfil é empurrado
-          para o fim — sem o vazio grande no meio. */}
-      <div aria-hidden="true" style={styles.spacer} />
 
       <div ref={profileMenuRef} style={styles.profileWrap}>
         <button
