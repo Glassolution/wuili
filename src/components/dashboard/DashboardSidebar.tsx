@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, UserRound, Users } from "lucide-react";
+import { Archive, BadgeCheck, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -181,6 +181,11 @@ const styles = {
   nav: {
     marginTop: 16,
     marginBottom: 22,
+    // Ocupa o espaço restante e rola internamente se os itens não couberem,
+    // mantendo o cluster de baixo (upgrade + cards + perfil) sempre visível.
+    flex: 1,
+    minHeight: 0,
+    overflowY: "auto",
     display: "flex",
     flexDirection: "column",
     gap: 3,
@@ -468,19 +473,6 @@ const styles = {
   } satisfies CSSProperties,
 };
 
-const SignatureUpgradeIcon = () => (
-  <svg width="30" height="30" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-    <path
-      d="M5.2 19.2C8.4 14.8 11.2 7.7 10.4 6.5C9.6 5.4 7.2 12.2 7 17.2C6.8 22.1 12.8 8.4 14.1 9.9C15.3 11.3 11.6 18.5 13.2 18.8C14.8 19.1 17.7 13.1 19.5 13.9C20.9 14.5 18.8 17.6 16.7 18.5C20.1 17.7 22.3 18.4 23.8 19.3"
-      stroke="#1A1A1A"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path d="M18.8 7.1H23.8" stroke="#1A1A1A" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
-
 // Logo em "badge" (ícone de app): quadrado arredondado com preenchimento em
 // gradiente roxo e o símbolo da Velo em branco no centro — como na referência.
 // A sombra é neutra (sem glow roxo, conforme a regra de cor do produto).
@@ -733,14 +725,10 @@ const DashboardSidebar = () => {
         ))}
       </nav>
 
-      {/* Espaço flexível: empurra o cluster de baixo (upgrade + cards promo +
-          perfil) todo junto para o fundo, agrupado como na referência. */}
-      <div aria-hidden="true" style={styles.spacer} />
-
       {showUpgradeCard && (
         <section aria-label={trialTimeLeft ? "Tempo restante do trial" : "Upgrade para Premium"} style={styles.upgradeCard}>
           <span style={styles.upgradeIcon} aria-hidden="true">
-            <SignatureUpgradeIcon />
+            <Trophy size={28} strokeWidth={1.75} />
           </span>
           <p style={styles.upgradeTitle}>{trialTimeLeft ? "Trial ativo" : "Upgrade para o Premium!"}</p>
           <p style={styles.upgradeCopy}>
