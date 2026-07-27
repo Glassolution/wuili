@@ -119,8 +119,10 @@ const styles = {
   header: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     gap: 12,
+    paddingTop: 4,
+    paddingBottom: 6,
   } satisfies CSSProperties,
   brand: {
     display: "flex",
@@ -132,10 +134,10 @@ const styles = {
   } satisfies CSSProperties,
   brandText: {
     fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 16,
-    lineHeight: "20px",
+    fontSize: 24,
+    lineHeight: "28px",
     fontWeight: 700,
-    letterSpacing: "-0.065em",
+    letterSpacing: "-0.05em",
   } satisfies CSSProperties,
   search: {
     marginTop: 22,
@@ -473,27 +475,39 @@ const styles = {
   } satisfies CSSProperties,
 };
 
-// Logo em "badge" (ícone de app): quadrado arredondado com preenchimento em
-// gradiente roxo e o símbolo da Velo em branco no centro — como na referência.
-// A sombra é neutra (sem glow roxo, conforme a regra de cor do produto).
+// Logo em "badge" (ícone de app), maior e com efeito glossy: brilho no canto
+// superior (shine radial) + realce interno no topo e sombra interna na base
+// (profundidade 3D) + drop shadow neutro. Sem glow roxo externo.
 const VeloIconOnly = () => (
   <span
     aria-hidden="true"
     style={{
-      width: 34,
-      height: 34,
+      position: "relative",
+      overflow: "hidden",
+      width: 48,
+      height: 48,
       flexShrink: 0,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 9,
-      background: "linear-gradient(135deg, #6E60F8 0%, #4A33F5 100%)",
-      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 2px 5px rgba(0,0,0,0.12)",
+      borderRadius: 14,
+      background: "linear-gradient(150deg, #7A6CFF 0%, #5B4BF3 48%, #4A33F5 100%)",
+      boxShadow:
+        "inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -3px 6px rgba(43,26,158,0.45), 0 6px 14px rgba(0,0,0,0.20)",
     }}
   >
-    <svg width="17" height="17" viewBox="0 0 48 48" fill="none">
-      <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" />
-      <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    <span
+      style={{
+        position: "absolute",
+        inset: 0,
+        background:
+          "radial-gradient(120% 85% at 26% 12%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 55%)",
+        pointerEvents: "none",
+      }}
+    />
+    <svg width="26" height="26" viewBox="0 0 48 48" fill="none" style={{ position: "relative" }}>
+      <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   </span>
 );
