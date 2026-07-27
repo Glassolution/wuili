@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ChevronDown, ChevronUp, ClipboardList, Copy, CreditCard, Home, Info, LogOut, MessagesSquare, Plus, Search, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, UserRound, Users, X } from "lucide-react";
+import { Archive, BadgeCheck, ClipboardList, Copy, CreditCard, Gift, Home, Info, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import SearchPalette from "@/components/dashboard/SearchPalette";
+import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 
 type NavItem = {
   label: string;
@@ -99,7 +100,7 @@ const getInitials = (name: string, email?: string | null) => {
 
 const styles = {
   sidebar: {
-    width: 248,
+    width: 276,
     height: "100%",
     minHeight: 0,
     flexShrink: 0,
@@ -110,10 +111,10 @@ const styles = {
     boxSizing: "border-box",
     padding: "18px 16px",
     borderRadius: 0,
-    border: "1px solid #2A2926",
-    background: "#171714",
-    color: "#FFFFFF",
-    boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.05)",
+    border: "1px solid #E5E7EB",
+    background: "#F9FAFB",
+    color: "#0A0A0A",
+    boxShadow: "none",
   } satisfies CSSProperties,
   header: {
     display: "flex",
@@ -126,13 +127,13 @@ const styles = {
     alignItems: "center",
     gap: 12,
     minWidth: 0,
-    color: "#F2F1EC",
+    color: "#0A0A0A",
     textDecoration: "none",
   } satisfies CSSProperties,
   brandText: {
     fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 18,
-    lineHeight: "22px",
+    fontSize: 20,
+    lineHeight: "24px",
     fontWeight: 700,
     letterSpacing: "-0.065em",
   } satisfies CSSProperties,
@@ -147,10 +148,10 @@ const styles = {
     border: 0,
     borderRadius: 11,
     padding: "0 10px",
-    background: "#070706",
-    color: "#FFFFFF",
+    background: "#F1F1F3",
+    color: "#4B5563",
     textAlign: "left",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+    boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.06)",
   } satisfies CSSProperties,
   searchText: {
     minWidth: 0,
@@ -171,29 +172,30 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 8,
-    background: "#24231F",
-    color: "#FFFFFF",
+    background: "#E4E4E7",
+    color: "#4B5563",
     fontSize: 15,
     lineHeight: "15px",
     fontWeight: 650,
   } satisfies CSSProperties,
   nav: {
-    marginTop: 22,
+    marginTop: 16,
+    marginBottom: 22,
     display: "flex",
     flexDirection: "column",
-    gap: 4,
+    gap: 6,
   } satisfies CSSProperties,
   navLinkBase: {
-    height: 32,
+    height: 44,
     display: "flex",
     alignItems: "center",
-    gap: 9,
+    gap: 12,
     boxSizing: "border-box",
-    borderRadius: 10,
-    padding: "0 10px",
+    borderRadius: 12,
+    padding: "0 14px",
     textDecoration: "none",
-    fontSize: 13,
-    lineHeight: "16px",
+    fontSize: 15,
+    lineHeight: "20px",
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
   spacer: {
@@ -203,67 +205,88 @@ const styles = {
   upgradeCard: {
     width: "100%",
     boxSizing: "border-box",
-    borderRadius: 13,
-    padding: 10,
-    marginBottom: 10,
-    background: "#191918",
-    color: "#FFFFFF",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.075), 0 10px 30px rgba(0,0,0,0.24)",
+    borderRadius: 16,
+    padding: "18px 16px 16px",
+    marginBottom: 12,
+    background: "linear-gradient(180deg, #CBC8F9 0%, #EFEEFC 100%)",
+    color: "#0A0A0A",
+    boxShadow: "none",
+    textAlign: "center",
   } satisfies CSSProperties,
-  upgradeTop: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 8,
-  } satisfies CSSProperties,
+  // Ícone "herói" centralizado no topo do card (sem chip), como na referência.
   upgradeIcon: {
-    width: 35,
-    height: 35,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 9,
-    background: "#141413",
-    color: "#FFFFFF",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12), 0 8px 18px rgba(0,0,0,0.18)",
-  } satisfies CSSProperties,
-  upgradeClose: {
-    width: 18,
-    height: 18,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 0,
-    border: 0,
-    background: "transparent",
-    color: "rgba(255,255,255,0.45)",
+    margin: "0 auto 8px",
+    color: "#1A1A1A",
   } satisfies CSSProperties,
   upgradeTitle: {
-    margin: "12px 0 0",
-    color: "#FFFFFF",
-    fontSize: 13,
-    lineHeight: "17px",
-    fontWeight: 650,
+    margin: "0",
+    color: "#0A0A0A",
+    fontSize: 15,
+    lineHeight: "19px",
+    fontWeight: 700,
     letterSpacing: "-0.03em",
   } satisfies CSSProperties,
   upgradeCopy: {
-    margin: "7px 0 0",
-    color: "rgba(255,255,255,0.56)",
-    fontSize: 11,
-    lineHeight: "15px",
+    margin: "6px 0 0",
+    color: "rgba(10,10,10,0.6)",
+    fontSize: 12,
+    lineHeight: "16px",
     fontWeight: 500,
   } satisfies CSSProperties,
   upgradeButton: {
-    marginTop: 12,
+    marginTop: 14,
     width: "100%",
-    height: 32,
+    height: 38,
     border: 0,
-    borderRadius: 9,
-    background: "#2B2B29",
+    borderRadius: 10,
+    background: "#121827",
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 650,
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+    boxShadow: "none",
+  } satisfies CSSProperties,
+  // Blocos promocionais adaptados à Velo (estilo dos cards da referência):
+  // ícone colorido à esquerda + título/subtítulo à direita, fundo tonalizado.
+  promoCard: {
+    width: "100%",
+    boxSizing: "border-box",
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    border: 0,
+    borderRadius: 14,
+    padding: "12px 12px",
+    marginBottom: 10,
+    textAlign: "left",
+    cursor: "pointer",
+  } satisfies CSSProperties,
+  promoIcon: {
+    width: 38,
+    height: 38,
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+  } satisfies CSSProperties,
+  promoTitle: {
+    display: "block",
+    fontSize: 14,
+    lineHeight: "18px",
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
+    color: "#1A1A1A",
+  } satisfies CSSProperties,
+  promoSub: {
+    display: "block",
+    marginTop: 1,
+    fontSize: 12.5,
+    lineHeight: "16px",
+    fontWeight: 500,
+    color: "rgba(10,10,10,0.55)",
   } satisfies CSSProperties,
   profileCard: {
     width: "100%",
@@ -271,28 +294,28 @@ const styles = {
     minHeight: 52,
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 11,
     boxSizing: "border-box",
     border: 0,
     borderRadius: 14,
-    padding: "8px 10px",
-    background: "#20201D",
-    color: "#FFFFFF",
+    padding: "10px 12px",
+    background: "transparent",
+    color: "#0A0A0A",
     textAlign: "left",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.22)",
+    boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.08)",
   } satisfies CSSProperties,
   avatar: {
-    width: 32,
-    height: 32,
+    width: 38,
+    height: 38,
     flexShrink: 0,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
     borderRadius: 999,
-    background: "#30302C",
-    color: "#FFFFFF",
-    fontSize: 11,
+    background: "#E4E4E7",
+    color: "#4B5563",
+    fontSize: 12,
     fontWeight: 700,
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
@@ -305,10 +328,10 @@ const styles = {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    color: "#FFFFFF",
-    fontSize: 13,
-    lineHeight: "16px",
-    fontWeight: 650,
+    color: "#0A0A0A",
+    fontSize: 14,
+    lineHeight: "18px",
+    fontWeight: 600,
     letterSpacing: "-0.025em",
   } satisfies CSSProperties,
   profileEmail: {
@@ -317,9 +340,9 @@ const styles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     marginTop: 2,
-    color: "rgba(255,255,255,0.62)",
-    fontSize: 11,
-    lineHeight: "14px",
+    color: "rgba(10,10,10,0.55)",
+    fontSize: 12,
+    lineHeight: "15px",
     fontWeight: 500,
   } satisfies CSSProperties,
   profileChevrons: {
@@ -328,10 +351,12 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(10,10,10,0.5)",
   } satisfies CSSProperties,
   profileWrap: {
     position: "relative",
+    paddingTop: 12,
+    borderTop: "1px solid rgba(10,10,10,0.07)",
   } satisfies CSSProperties,
   profilePanel: {
     position: "absolute",
@@ -341,17 +366,17 @@ const styles = {
     boxSizing: "border-box",
     borderRadius: 18,
     padding: 4,
-    border: "1px solid rgba(255,255,255,0.05)",
-    background: "linear-gradient(180deg, #121212 0%, #09090A 100%)",
-    boxShadow: "0 14px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.03)",
+    border: "1px solid rgba(10,10,10,0.08)",
+    background: "#FFFFFF",
+    boxShadow: "0 14px 30px rgba(10,10,10,0.14)",
     zIndex: 80,
   } satisfies CSSProperties,
   profilePanelCard: {
     overflow: "hidden",
     borderRadius: 15,
-    border: "1px solid rgba(255,255,255,0.05)",
-    background: "linear-gradient(180deg, #131314 0%, #0C0C0D 100%)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.025)",
+    border: "1px solid rgba(10,10,10,0.06)",
+    background: "#FFFFFF",
+    boxShadow: "inset 0 1px 0 rgba(10,10,10,0.02)",
     fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", sans-serif',
   } satisfies CSSProperties,
   profilePanelBody: {
@@ -369,11 +394,11 @@ const styles = {
     borderRadius: 11,
     padding: "8px 10px",
     background: "transparent",
-    color: "#F3F3F2",
+    color: "#1A1A1A",
     textAlign: "left",
   } satisfies CSSProperties,
   profilePanelRowActive: {
-    background: "rgba(255,255,255,0.11)",
+    background: "rgba(10,10,10,0.06)",
   } satisfies CSSProperties,
   profilePanelRowLeft: {
     minWidth: 0,
@@ -394,12 +419,12 @@ const styles = {
     width: 14,
     height: 14,
     flexShrink: 0,
-    color: "rgba(255,255,255,0.9)",
+    color: "rgba(10,10,10,0.8)",
   } satisfies CSSProperties,
   profilePanelDivider: {
     height: 1,
     margin: "3px 0",
-    background: "rgba(255,255,255,0.08)",
+    background: "rgba(10,10,10,0.08)",
   } satisfies CSSProperties,
   profilePanelFooter: {
     padding: "1px 6px 6px",
@@ -415,9 +440,9 @@ const styles = {
     lineHeight: "9px",
     fontWeight: 700,
     letterSpacing: "-0.02em",
-    background: "rgba(255,255,255,0.1)",
-    color: "#FAFAF9",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04)",
+    background: "rgba(74,51,245,0.1)",
+    color: "#4A33F5",
+    boxShadow: "inset 0 0 0 1px rgba(74,51,245,0.14)",
   } satisfies CSSProperties,
   profilePanelMutedBadge: {
     height: 16,
@@ -429,8 +454,8 @@ const styles = {
     lineHeight: "9px",
     fontWeight: 700,
     letterSpacing: "-0.02em",
-    background: "rgba(255,255,255,0.06)",
-    color: "rgba(255,255,255,0.72)",
+    background: "rgba(10,10,10,0.06)",
+    color: "rgba(10,10,10,0.6)",
   } satisfies CSSProperties,
   profilePanelCircleButton: {
     width: 16,
@@ -439,46 +464,64 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 999,
-    background: "rgba(255,255,255,0.06)",
-    color: "rgba(255,255,255,0.72)",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.04)",
+    background: "rgba(10,10,10,0.06)",
+    color: "rgba(10,10,10,0.6)",
+    boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.06)",
   } satisfies CSSProperties,
 };
 
 const SignatureUpgradeIcon = () => (
-  <svg width="23" height="23" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+  <svg width="30" height="30" viewBox="0 0 28 28" fill="none" aria-hidden="true">
     <path
       d="M5.2 19.2C8.4 14.8 11.2 7.7 10.4 6.5C9.6 5.4 7.2 12.2 7 17.2C6.8 22.1 12.8 8.4 14.1 9.9C15.3 11.3 11.6 18.5 13.2 18.8C14.8 19.1 17.7 13.1 19.5 13.9C20.9 14.5 18.8 17.6 16.7 18.5C20.1 17.7 22.3 18.4 23.8 19.3"
-      stroke="#F2F1EC"
+      stroke="#1A1A1A"
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-    <path d="M18.8 7.1H23.8" stroke="#F2F1EC" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M18.8 7.1H23.8" stroke="#1A1A1A" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
 
+// Logo em "badge" (ícone de app): quadrado arredondado com preenchimento em
+// gradiente roxo e o símbolo da Velo em branco no centro — como na referência.
+// A sombra é neutra (sem glow roxo, conforme a regra de cor do produto).
 const VeloIconOnly = () => (
-  <svg aria-hidden="true" width="30" height="30" viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }}>
-    <path d="M33 18 A11 11 0 1 0 33 30" stroke="#F2F1EC" strokeWidth="4" strokeLinecap="round" />
-    <path d="M30 26 L34 30 L38 26" stroke="#F2F1EC" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
+  <span
+    aria-hidden="true"
+    style={{
+      width: 40,
+      height: 40,
+      flexShrink: 0,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 12,
+      background: "linear-gradient(135deg, #6E60F8 0%, #4A33F5 100%)",
+      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 2px 5px rgba(0,0,0,0.12)",
+    }}
+  >
+    <svg width="25" height="25" viewBox="0 0 48 48" fill="none">
+      <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
+      <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  </span>
 );
 
 const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) => {
   const Icon = item.icon;
-  const inactiveColor = "#FFFFFF";
+  const inactiveColor = "#1A1A1A";
   const linkStyle: CSSProperties = {
     ...styles.navLinkBase,
     color: active ? "#FFFFFF" : inactiveColor,
-    background: active ? "#2A2925" : "transparent",
-    fontWeight: active ? 650 : 500,
-    boxShadow: active ? "0 10px 28px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08)" : "none",
+    background: active ? "linear-gradient(90deg, #6558F6, #4A33F5)" : "transparent",
+    fontWeight: active ? 600 : 500,
+    boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
   };
 
   return (
     <Link to={item.to} aria-current={active ? "page" : undefined} data-dashboard-tour={tourTargetByLabel[item.label]} style={linkStyle}>
-      <Icon size={16} strokeWidth={1.65} fill={active ? "currentColor" : "none"} aria-hidden="true" />
+      <Icon size={21} strokeWidth={1.75} fill="none" aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
@@ -490,6 +533,7 @@ const DashboardSidebar = () => {
   const { user, signOut, role } = useAuth();
   const { nome, foto } = useProfile();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   // Evita ícone quebrado/circulo vazio quando a foto do perfil não existe ou
   // falha ao carregar (ex.: URL de storage inválida). Nesses casos cai para o
   // ícone genérico de usuário em vez de depender de um asset externo.
@@ -680,13 +724,10 @@ const DashboardSidebar = () => {
         </Link>
       </header>
 
-      <button type="button" aria-label="Buscar" style={styles.search} onClick={() => setSearchOpen(true)}>
-        <Search size={15} strokeWidth={1.7} aria-hidden="true" />
-        <span style={styles.searchText}>Buscar</span>
-        <span style={styles.searchBadge}>/</span>
-      </button>
-
+      {/* Barra de busca removida da sidebar. A paleta de busca continua
+          acessível pelo atalho de teclado "/". */}
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin={isAdmin} />
+      <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       <nav aria-label="Navegação principal" style={styles.nav}>
         {visibleNavItems.map((item) => (
@@ -694,20 +735,11 @@ const DashboardSidebar = () => {
         ))}
       </nav>
 
-      <div aria-hidden="true" style={styles.spacer} />
-
       {showUpgradeCard && (
         <section aria-label={trialTimeLeft ? "Tempo restante do trial" : "Upgrade para Premium"} style={styles.upgradeCard}>
-          <div style={styles.upgradeTop}>
-            <span style={styles.upgradeIcon} aria-hidden="true">
-              <SignatureUpgradeIcon />
-            </span>
-            {!trialTimeLeft && (
-              <button type="button" aria-label="Fechar upgrade" style={styles.upgradeClose}>
-                <X size={15} strokeWidth={1.8} />
-              </button>
-            )}
-          </div>
+          <span style={styles.upgradeIcon} aria-hidden="true">
+            <SignatureUpgradeIcon />
+          </span>
           <p style={styles.upgradeTitle}>{trialTimeLeft ? "Trial ativo" : "Upgrade para o Premium!"}</p>
           <p style={styles.upgradeCopy}>
             {trialTimeLeft ? (
@@ -730,6 +762,35 @@ const DashboardSidebar = () => {
         </section>
       )}
 
+      {/* Blocos adaptados à Velo no estilo da referência (equivalentes ao
+          "Refer & Earn" e ao card verde de loja). O bloco "FREE AI Shopify
+          Store" da referência não se aplica (Velo é Mercado Livre), então virou
+          "Páginas de venda com IA", um recurso real da Velo. */}
+      <button type="button" onClick={() => setInviteOpen(true)} style={{ ...styles.promoCard, background: "#ECEAFB" }}>
+        <span style={{ ...styles.promoIcon, background: "#DFDBFA", color: "#5B4FF6" }} aria-hidden="true">
+          <Gift size={17} strokeWidth={2} />
+        </span>
+        <span style={{ minWidth: 0 }}>
+          <span style={styles.promoTitle}>Indique e ganhe</span>
+          <span style={styles.promoSub}>Ganhe 15% em cada indicação</span>
+        </span>
+      </button>
+
+      <button type="button" onClick={() => navigate("/dashboard/minha-loja")} style={{ ...styles.promoCard, background: "#E7F5EC" }}>
+        <span style={{ ...styles.promoIcon, background: "#D6EEDF", color: "#16A34A" }} aria-hidden="true">
+          <Sparkles size={17} strokeWidth={2} />
+        </span>
+        <span style={{ minWidth: 0 }}>
+          <span style={styles.promoTitle}>Páginas de venda com IA</span>
+          <span style={styles.promoSub}>Crie sua loja em minutos</span>
+        </span>
+      </button>
+
+      {/* Espaço flexível movido para ANTES do rodapé: o bloco de upgrade/promos
+          cola logo abaixo da nav (como na referência) e só o perfil é empurrado
+          para o fim — sem o vazio grande no meio. */}
+      <div aria-hidden="true" style={styles.spacer} />
+
       <div ref={profileMenuRef} style={styles.profileWrap}>
         <button
           type="button"
@@ -748,7 +809,7 @@ const DashboardSidebar = () => {
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
-              <UserRound size={17} strokeWidth={1.9} color="rgba(255,255,255,0.6)" />
+              <UserRound size={17} strokeWidth={1.9} color="rgba(10,10,10,0.55)" />
             )}
           </span>
           <span style={styles.profileText}>
@@ -756,8 +817,7 @@ const DashboardSidebar = () => {
             <span style={styles.profileEmail}>{profileEmail}</span>
           </span>
           <span aria-hidden="true" style={styles.profileChevrons}>
-            <ChevronUp size={14} strokeWidth={1.8} />
-            <ChevronDown size={14} strokeWidth={1.8} />
+            <MoreVertical size={16} strokeWidth={2} />
           </span>
         </button>
 
