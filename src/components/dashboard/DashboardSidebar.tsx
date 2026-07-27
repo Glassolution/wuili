@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, BadgeCheck, ChevronDown, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -11,21 +11,30 @@ import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 type NavItem = {
   label: string;
   icon: ElementType;
-  to: string;
+  to?: string;
   end?: boolean;
   dimmed?: boolean;
+  children?: NavItem[];
 };
 
 const baseNavItems: NavItem[] = [
   { label: "Início", icon: Home, to: "/dashboard", end: true },
-  { label: "Catálogo", icon: ShoppingCart, to: "/dashboard/catalogo" },
+  {
+    // Categoria expansível (como "Products" da referência): agrupa o catálogo
+    // e as páginas de venda como sub-itens.
+    label: "Produtos",
+    icon: Tag,
+    children: [
+      { label: "Catálogo", icon: ShoppingCart, to: "/dashboard/catalogo" },
+      { label: "Páginas de venda", icon: Sparkles, to: "/dashboard/minha-loja" },
+    ],
+  },
   { label: "Produtos em Alta", icon: TrendingUp, to: "/dashboard/produtos-em-alta" },
   { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
   { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
   { label: "Comunidade e Ajuda", icon: Info, to: "/docs", dimmed: true },
   { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes", dimmed: true },
-  { label: "Minha loja", icon: Sparkles, to: "/dashboard/minha-loja" },
 ];
 
 const affiliatesNavItem: NavItem = { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
@@ -203,6 +212,31 @@ const styles = {
     textDecoration: "none",
     fontSize: 14,
     lineHeight: "18px",
+    letterSpacing: "-0.02em",
+  } satisfies CSSProperties,
+  // Sub-itens de uma categoria: recuados, com linha vertical à esquerda, um
+  // pouco menores que os itens de topo (como na referência).
+  subWrap: {
+    marginLeft: 16,
+    paddingLeft: 12,
+    borderLeft: "1.5px solid rgba(10,10,10,0.10)",
+    marginTop: 3,
+    marginBottom: 3,
+    display: "flex",
+    flexDirection: "column",
+    gap: 3,
+  } satisfies CSSProperties,
+  navSubLinkBase: {
+    height: 33,
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    boxSizing: "border-box",
+    borderRadius: 9,
+    padding: "0 10px",
+    textDecoration: "none",
+    fontSize: 13.5,
+    lineHeight: "17px",
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
   spacer: {
@@ -512,22 +546,71 @@ const VeloIconOnly = () => (
   </span>
 );
 
-const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) => {
+const SidebarNavLink = ({ item, active, sub = false }: { item: NavItem; active: boolean; sub?: boolean }) => {
   const Icon = item.icon;
-  const inactiveColor = "#0A0A0A";
   const linkStyle: CSSProperties = {
-    ...styles.navLinkBase,
-    color: active ? "#FFFFFF" : inactiveColor,
-    background: active ? "linear-gradient(90deg, #6558F6, #4A33F5)" : "transparent",
+    ...(sub ? styles.navSubLinkBase : styles.navLinkBase),
+    color: active ? (sub ? "#4A33F5" : "#FFFFFF") : "#0A0A0A",
+    background: active
+      ? sub
+        ? "rgba(74,51,245,0.09)"
+        : "linear-gradient(90deg, #6558F6, #4A33F5)"
+      : "transparent",
     fontWeight: active ? 600 : 500,
-    boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+    boxShadow: active && !sub ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
   };
 
   return (
-    <Link to={item.to} aria-current={active ? "page" : undefined} data-dashboard-tour={tourTargetByLabel[item.label]} style={linkStyle}>
-      <Icon size={17} strokeWidth={1.25} fill="none" aria-hidden="true" />
+    <Link to={item.to!} aria-current={active ? "page" : undefined} data-dashboard-tour={tourTargetByLabel[item.label]} style={linkStyle}>
+      <Icon size={sub ? 16 : 17} strokeWidth={1.25} fill="none" aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
+  );
+};
+
+// Item pai expansível (categoria). Abre/fecha os sub-itens ao clicar; fica com
+// o pill roxo quando algum filho é a rota ativa, como na referência.
+const SidebarCategory = ({
+  item,
+  open,
+  childActive,
+  onToggle,
+  isActive,
+}: {
+  item: NavItem;
+  open: boolean;
+  childActive: boolean;
+  onToggle: () => void;
+  isActive: (i: NavItem) => boolean;
+}) => {
+  const Icon = item.icon;
+  const Chevron = open ? ChevronDown : ChevronRight;
+  const btnStyle: CSSProperties = {
+    ...styles.navLinkBase,
+    width: "100%",
+    border: 0,
+    cursor: "pointer",
+    color: childActive ? "#FFFFFF" : "#0A0A0A",
+    background: childActive ? "linear-gradient(90deg, #6558F6, #4A33F5)" : "transparent",
+    fontWeight: childActive ? 600 : 500,
+    boxShadow: childActive ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+  };
+
+  return (
+    <>
+      <button type="button" onClick={onToggle} aria-expanded={open} style={btnStyle}>
+        <Icon size={17} strokeWidth={1.25} fill="none" aria-hidden="true" />
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+        <Chevron size={16} strokeWidth={1.75} aria-hidden="true" style={{ flexShrink: 0, opacity: 0.8 }} />
+      </button>
+      {open ? (
+        <div style={styles.subWrap}>
+          {item.children!.map((child) => (
+            <SidebarNavLink key={child.label} item={child} active={isActive(child)} sub />
+          ))}
+        </div>
+      ) : null}
+    </>
   );
 };
 
@@ -556,12 +639,11 @@ const DashboardSidebar = () => {
     (user?.user_metadata?.role as string | undefined) ??
     null;
 
+  // Categoria expansível atualmente aberta (ex.: "Produtos").
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
+
   const visibleNavItems = useMemo(() => {
-    const items = baseNavItems.map((item) =>
-      !isAdmin && item.label === "Minha loja"
-        ? { ...item, label: "Páginas de venda" }
-        : item,
-    );
+    const items = [...baseNavItems];
     if (isAdmin) {
       items.splice(4, 0, affiliatesNavItem);
       // "Editar minha loja (beta)" removido da sidebar; o fluxo principal começa em /comecar.
@@ -570,10 +652,27 @@ const DashboardSidebar = () => {
   }, [isAdmin]);
 
   const isActive = (item: NavItem) => {
+    if (!item.to) return false;
     const currentPath = normalizePath(location.pathname);
     const itemPath = normalizePath(item.to);
     return item.end ? currentPath === itemPath : currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
   };
+
+  const isChildActive = (item: NavItem) => !!item.children?.some(isActive);
+  const toggleCategory = (label: string) => setOpenCategory((cur) => (cur === label ? null : label));
+
+  // Abre automaticamente a categoria que contém a rota ativa.
+  useEffect(() => {
+    const currentPath = normalizePath(location.pathname);
+    const activeCat = baseNavItems.find((i) =>
+      i.children?.some((c) => {
+        if (!c.to) return false;
+        const p = normalizePath(c.to);
+        return currentPath === p || currentPath.startsWith(`${p}/`);
+      }),
+    );
+    if (activeCat) setOpenCategory(activeCat.label);
+  }, [location.pathname]);
 
   useEffect(() => {
     setProfileMenuOpen(false);
@@ -734,9 +833,20 @@ const DashboardSidebar = () => {
       <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       <nav aria-label="Navegação principal" style={styles.nav}>
-        {visibleNavItems.map((item) => (
-          <SidebarNavLink key={item.label} item={item} active={isActive(item)} />
-        ))}
+        {visibleNavItems.map((item) =>
+          item.children ? (
+            <SidebarCategory
+              key={item.label}
+              item={item}
+              open={openCategory === item.label}
+              childActive={isChildActive(item)}
+              onToggle={() => toggleCategory(item.label)}
+              isActive={isActive}
+            />
+          ) : (
+            <SidebarNavLink key={item.label} item={item} active={isActive(item)} />
+          ),
+        )}
       </nav>
 
       {showUpgradeCard && (
