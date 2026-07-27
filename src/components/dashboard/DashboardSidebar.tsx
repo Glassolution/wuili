@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, BadgeCheck, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -30,7 +30,7 @@ const baseNavItems: NavItem[] = [
       { label: "Páginas de venda", icon: Sparkles, to: "/dashboard/minha-loja" },
     ],
   },
-  { label: "Produtos em Alta", icon: TrendingUp, to: "/dashboard/produtos-em-alta" },
+  { label: "Produtos em Alta", icon: Trophy, to: "/dashboard/produtos-em-alta" },
   { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
   { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
@@ -125,7 +125,7 @@ const getInitials = (name: string, email?: string | null) => {
 
 const styles = {
   sidebar: {
-    width: 276,
+    width: 250,
     height: "100%",
     minHeight: 0,
     flexShrink: 0,
@@ -663,24 +663,26 @@ const SidebarCategory = ({
           }}
         />
       </button>
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.div
-            key="sub"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={reduce ? { duration: 0 } : { duration: 0.22, ease: "easeOut" }}
-            style={{ overflow: "hidden" }}
-          >
-            <div style={styles.subWrap}>
-              {item.children!.map((child) => (
-                <SidebarNavLink key={child.label} item={child} active={isActive(child)} sub reduce={reduce} />
-              ))}
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      {/* Colapso confiável via grid-template-rows 0fr↔1fr (sem medir altura,
+          evita o bug de corte/sobreposição da animação de height:auto). */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: open ? "1fr" : "0fr",
+          opacity: open ? 1 : 0,
+          transition: reduce
+            ? "none"
+            : `grid-template-rows 220ms cubic-bezier(${PILL_EASE.join(",")}), opacity 180ms ease-out`,
+        }}
+      >
+        <div style={{ overflow: "hidden", minHeight: 0 }}>
+          <div style={styles.subWrap}>
+            {item.children!.map((child) => (
+              <SidebarNavLink key={child.label} item={child} active={isActive(child)} sub reduce={reduce} />
+            ))}
+          </div>
+        </div>
+      </div>
     </>
   );
 };
