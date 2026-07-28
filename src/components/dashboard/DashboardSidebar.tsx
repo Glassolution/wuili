@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import * as Collapsible from "@radix-ui/react-collapsible";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Archive, BadgeCheck, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,8 +61,15 @@ const NAV_CSS = `
 .velo-nav-sub:hover:not([data-active="true"]) { background-color: rgba(10,10,10,0.045); }
 .velo-nav-ico { transition: transform 150ms ease-out; }
 .velo-nav-item:hover .velo-nav-ico, .velo-nav-sub:hover .velo-nav-ico { transform: scale(1.09); }
+/* Submenu (Radix Collapsible): anima a height pela altura real medida. */
+.velo-collapsible { overflow: hidden; }
+.velo-collapsible[data-state="open"] { animation: velo-collapse-down 220ms cubic-bezier(0.4,0,0.2,1); }
+.velo-collapsible[data-state="closed"] { animation: velo-collapse-up 220ms cubic-bezier(0.4,0,0.2,1); }
+@keyframes velo-collapse-down { from { height: 0; opacity: 0; } to { height: var(--radix-collapsible-content-height); opacity: 1; } }
+@keyframes velo-collapse-up { from { height: var(--radix-collapsible-content-height); opacity: 1; } to { height: 0; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .velo-nav-item, .velo-nav-sub, .velo-nav-ico { transition: none; }
+  .velo-collapsible[data-state="open"], .velo-collapsible[data-state="closed"] { animation: none; }
 }
 `;
 
@@ -653,45 +661,38 @@ const SidebarCategory = ({
   };
 
   return (
-    <>
-      <button type="button" onClick={onToggle} aria-expanded={open} data-active={childActive ? "true" : "false"} className="velo-nav-item" style={btnStyle}>
-        {childActive ? <ActivePill reduce={reduce} /> : null}
-        <Icon className="velo-nav-ico" size={18} strokeWidth={1.75} fill="none" aria-hidden="true" />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
-        <ChevronRight
-          size={16}
-          strokeWidth={1.75}
-          aria-hidden="true"
-          style={{
-            marginLeft: "auto",
-            flexShrink: 0,
-            opacity: 0.75,
-            transform: open ? "rotate(90deg)" : "rotate(0deg)",
-            transition: reduce ? "none" : `transform 200ms cubic-bezier(${PILL_EASE.join(",")})`,
-          }}
-        />
-      </button>
-      {/* Colapso confiável via grid-template-rows 0fr↔1fr (sem medir altura,
-          evita o bug de corte/sobreposição da animação de height:auto). */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateRows: open ? "1fr" : "0fr",
-          opacity: open ? 1 : 0,
-          transition: reduce
-            ? "none"
-            : `grid-template-rows 220ms cubic-bezier(${PILL_EASE.join(",")}), opacity 180ms ease-out`,
-        }}
-      >
-        <div style={{ overflow: "hidden", minHeight: 0 }}>
-          <div style={styles.subWrap}>
-            {item.children!.map((child) => (
-              <SidebarNavLink key={child.label} item={child} active={isActive(child)} sub reduce={reduce} />
-            ))}
-          </div>
+    // Radix Collapsible: mede a altura real do conteúdo e expõe
+    // --radix-collapsible-content-height; a animação (CSS, em NAV_CSS) usa esse
+    // valor, então o submenu abre/fecha suave e empurra os itens abaixo no
+    // fluxo normal — sem cortar nem estourar o container.
+    <Collapsible.Root open={open} onOpenChange={() => onToggle()}>
+      <Collapsible.Trigger asChild>
+        <button type="button" data-active={childActive ? "true" : "false"} className="velo-nav-item" style={btnStyle}>
+          {childActive ? <ActivePill reduce={reduce} /> : null}
+          <Icon className="velo-nav-ico" size={18} strokeWidth={1.75} fill="none" aria-hidden="true" />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+          <ChevronRight
+            size={16}
+            strokeWidth={1.75}
+            aria-hidden="true"
+            style={{
+              marginLeft: "auto",
+              flexShrink: 0,
+              opacity: 0.75,
+              transform: open ? "rotate(90deg)" : "rotate(0deg)",
+              transition: reduce ? "none" : `transform 200ms cubic-bezier(${PILL_EASE.join(",")})`,
+            }}
+          />
+        </button>
+      </Collapsible.Trigger>
+      <Collapsible.Content className="velo-collapsible">
+        <div style={styles.subWrap}>
+          {item.children!.map((child) => (
+            <SidebarNavLink key={child.label} item={child} active={isActive(child)} sub reduce={reduce} />
+          ))}
         </div>
-      </div>
-    </>
+      </Collapsible.Content>
+    </Collapsible.Root>
   );
 };
 
