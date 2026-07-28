@@ -141,9 +141,6 @@ const ProfileTab = () => {
   const [fotoFile, setFotoFile] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const iniciais = (nomeEditado || user?.email || "U")
-    .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
-
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;

@@ -57,14 +57,6 @@ const DashboardTopbar = () => {
   const pageTitle = pageTitles[location.pathname] || "Dashboard";
   const upgradeModal = useUpgradeModal();
 
-  const iniciais = nome
-    .split(/[\s._\-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase();
-
   useEffect(() => {
     if (!user) return;
     let active = true;
