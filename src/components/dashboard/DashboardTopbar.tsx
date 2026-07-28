@@ -4,7 +4,6 @@ import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
-import defaultAvatar from "@/assets/default-avatar.png.asset.json";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import {
   Menu, Search, ChevronRight, X, type LucideIcon,
@@ -51,6 +50,10 @@ const DashboardTopbar = () => {
   const menuRef = useRef<HTMLDivElement>(null);
   const { nome, foto } = useProfile();
   const { signOut, user } = useAuth();
+  // Iniciais para o fallback do avatar quando não há foto enviada — evita
+  // depender de uma imagem padrão externa que pode não resolver.
+  const iniciais = (nome || user?.email || "U")
+    .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
   const pageTitle = pageTitles[location.pathname] || "Dashboard";
   const upgradeModal = useUpgradeModal();
 
@@ -147,8 +150,7 @@ const DashboardTopbar = () => {
               onClick={() => setAvatarMenuOpen((v) => !v)}
               className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              <img src={foto || defaultAvatar.url} alt="avatar" onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatar.url; }} className="h-full w-full object-cover" />
-
+              {foto ? <img src={foto} alt="avatar" className="h-full w-full object-cover" /> : iniciais}
             </button>
 
             {avatarMenuOpen && (
@@ -160,7 +162,7 @@ const DashboardTopbar = () => {
                   className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted transition-colors"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#1e293b] text-[11px] font-bold text-white">
-                    <img src={foto || defaultAvatar.url} alt="avatar" onError={(e) => { (e.currentTarget as HTMLImageElement).src = defaultAvatar.url; }} className="h-full w-full object-cover" />
+                    {foto ? <img src={foto} alt="avatar" className="h-full w-full object-cover" /> : iniciais}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground">{nome || "Usuário"}</p>

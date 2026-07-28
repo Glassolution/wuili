@@ -284,7 +284,7 @@ const styles = {
     borderRadius: 16,
     padding: "18px 16px 16px",
     marginBottom: 12,
-    background: "linear-gradient(180deg, #CBC8F9 0%, #EFEEFC 100%)",
+    background: "linear-gradient(180deg, #C3D7FF 0%, #EAF1FF 100%)",
     color: "#0A0A0A",
     boxShadow: "none",
     textAlign: "center",
@@ -514,9 +514,9 @@ const styles = {
     lineHeight: "9px",
     fontWeight: 700,
     letterSpacing: "-0.02em",
-    background: "rgba(74,51,245,0.1)",
-    color: "#4A33F5",
-    boxShadow: "inset 0 0 0 1px rgba(74,51,245,0.14)",
+    background: "rgba(37,99,235,0.1)",
+    color: "#1D4ED8",
+    boxShadow: "inset 0 0 0 1px rgba(37,99,235,0.14)",
   } satisfies CSSProperties,
   profilePanelMutedBadge: {
     height: 16,
@@ -560,9 +560,9 @@ const VeloIconOnly = () => (
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 11,
-      background: "linear-gradient(150deg, #7A6CFF 0%, #5B4BF3 48%, #4A33F5 100%)",
+      background: "linear-gradient(150deg, #5C8CFF 0%, #2A6BF2 48%, #1D4ED8 100%)",
       boxShadow:
-        "inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -3px 6px rgba(43,26,158,0.45), 0 5px 11px rgba(0,0,0,0.18)",
+        "inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -3px 6px rgba(20,45,120,0.45), 0 5px 11px rgba(0,0,0,0.18)",
     }}
   >
     <span
@@ -596,7 +596,7 @@ const ActivePill = ({ sub, reduce }: { sub?: boolean; reduce: boolean }) => (
       inset: 0,
       zIndex: -1,
       borderRadius: sub ? 10 : 12,
-      background: sub ? "rgba(74,51,245,0.10)" : "linear-gradient(90deg, #6558F6, #4A33F5)",
+      background: sub ? "rgba(37,99,235,0.10)" : "linear-gradient(90deg, #4F7FFF, #1D4ED8)",
       boxShadow: sub ? "none" : "0 1px 2px rgba(0,0,0,0.08)",
     }}
   />
@@ -608,7 +608,7 @@ const SidebarNavLink = ({ item, active, sub = false, reduce }: { item: NavItem; 
     ...(sub ? styles.navSubLinkBase : styles.navLinkBase),
     position: "relative",
     isolation: "isolate",
-    color: active ? (sub ? "#4A33F5" : "#FFFFFF") : "#0A0A0A",
+    color: active ? (sub ? "#1D4ED8" : "#FFFFFF") : "#0A0A0A",
     fontWeight: active ? 600 : 500,
   };
 
@@ -975,8 +975,8 @@ const DashboardSidebar = () => {
           "Refer & Earn" e ao card verde de loja). O bloco "FREE AI Shopify
           Store" da referência não se aplica (Velo é Mercado Livre), então virou
           "Páginas de venda com IA", um recurso real da Velo. */}
-      <button type="button" onClick={() => setInviteOpen(true)} style={{ ...styles.promoCard, background: "#ECEAFB" }}>
-        <span style={{ ...styles.promoIcon, background: "#DFDBFA", color: "#5B4FF6" }} aria-hidden="true">
+      <button type="button" onClick={() => setInviteOpen(true)} style={{ ...styles.promoCard, background: "#E8EFFF" }}>
+        <span style={{ ...styles.promoIcon, background: "#D6E4FF", color: "#2563EB" }} aria-hidden="true">
           <Gift size={17} strokeWidth={2} />
         </span>
         <span style={{ minWidth: 0 }}>

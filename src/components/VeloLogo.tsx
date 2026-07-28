@@ -25,8 +25,8 @@ const MARK_TONES: Record<
   { from: string; to: string; stroke: string; rim: string; shadow: string }
 > = {
   solid: {
-    from: "#43434B",
-    to: "#0A0A0A",
+    from: "#5C8CFF",
+    to: "#1D4ED8",
     stroke: "#FFFFFF",
     // Borda interna clara: pega a "luz" na quina superior e separa o ícone do
     // fundo branco sem precisar de contorno duro.
@@ -100,11 +100,13 @@ export function VeloLogo({ size = "md", variant = "dark" }: VeloLogoProps) {
   };
 
   const s = sizes[size];
+  // Nova identidade: badge azul (gradiente do logo) com a marca em branco. O
+  // texto "Velo" muda de cor conforme o fundo (variante), mas o badge é sempre
+  // azul (visível tanto em fundo claro quanto escuro).
   const isDark = variant === "dark";
-  const iconBg = isDark ? "#0A0A0A" : "#FFFFFF";
-  const iconStroke = isDark ? "#FFFFFF" : "#0A0A0A";
   const textColor = isDark ? "#0A0A0A" : "#FFFFFF";
   const scale = s.icon / 48;
+  const gradientId = React.useId();
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: s.gap }}>
@@ -113,29 +115,35 @@ export function VeloLogo({ size = "md", variant = "dark" }: VeloLogoProps) {
         height={s.icon}
         viewBox="0 0 48 48"
         fill="none"
-        style={{ flexShrink: 0 }}
+        style={{ flexShrink: 0, filter: "drop-shadow(0 4px 9px rgba(0,0,0,0.18))" }}
       >
-        <rect width="48" height="48" rx={s.rx / scale} fill={iconBg} />
-        {variant === "light" && (
-          <rect
-            width="48"
-            height="48"
-            rx={s.rx / scale}
-            fill="none"
-            stroke="#0A0A0A"
-            strokeWidth="1.5"
-          />
-        )}
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor="#5C8CFF" />
+            <stop offset="1" stopColor="#1D4ED8" />
+          </linearGradient>
+        </defs>
+        <rect width="48" height="48" rx={s.rx / scale} fill={`url(#${gradientId})`} />
+        <rect
+          x="0.5"
+          y="0.5"
+          width="47"
+          height="47"
+          rx={s.rx / scale - 0.5}
+          fill="none"
+          stroke="rgba(255,255,255,0.25)"
+          strokeWidth="1"
+        />
         <path
           d="M33 18 A11 11 0 1 0 33 30"
-          stroke={iconStroke}
+          stroke="#FFFFFF"
           strokeWidth={s.stroke / scale}
           strokeLinecap="round"
           fill="none"
         />
         <path
           d="M30 26 L34 30 L38 26"
-          stroke={iconStroke}
+          stroke="#FFFFFF"
           strokeWidth={(s.stroke - 0.3) / scale}
           strokeLinecap="round"
           strokeLinejoin="round"

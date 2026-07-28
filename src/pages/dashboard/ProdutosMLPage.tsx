@@ -509,7 +509,7 @@ export default function ProdutosMLPage() {
           <button
             onClick={handleSimulateSale}
             disabled={isSimulating}
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 transition"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-50 transition"
           >
             {isSimulating ? (
               <RefreshCw size={15} className="mr-2 animate-spin" />
@@ -654,7 +654,7 @@ export default function ProdutosMLPage() {
               placeholder="Buscar por cliente, pedido ou item..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-full rounded-lg border border-neutral-200 pl-9 pr-4 text-xs bg-white text-neutral-800 placeholder-neutral-400 focus:border-indigo-500 focus:outline-none transition"
+              className="h-9 w-full rounded-lg border border-neutral-200 pl-9 pr-4 text-xs bg-white text-neutral-800 placeholder-neutral-400 focus:border-blue-500 focus:outline-none transition"
             />
           </div>
         </div>
@@ -682,7 +682,7 @@ export default function ProdutosMLPage() {
               {!searchQuery && orders.length === 0 && (
                 <button
                   onClick={handleSimulateSale}
-                  className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition"
+                  className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 transition"
                 >
                   <Plus size={15} className="mr-2" />
                   Simular Primeiro Pedido
@@ -696,7 +696,7 @@ export default function ProdutosMLPage() {
                   <th className="py-3 px-5 w-4">
                     <input
                       type="checkbox"
-                      className="rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
                   <th className="py-3 px-4">Pedido</th>
@@ -719,7 +719,7 @@ export default function ProdutosMLPage() {
                     <td className="py-4 px-5">
                       <input
                         type="checkbox"
-                        className="rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
                     <td className="py-4 px-4 font-semibold text-neutral-900">
@@ -763,7 +763,7 @@ export default function ProdutosMLPage() {
                         </button>
                         <button
                           onClick={() => handleChatSupplier(order)}
-                          className="p-1.5 text-neutral-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition"
+                          className="p-1.5 text-neutral-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition"
                           title="Falar com Fornecedor"
                         >
                           <MessageSquare size={16} />
@@ -799,7 +799,7 @@ export default function ProdutosMLPage() {
                   onClick={() => setCurrentPage(page)}
                   className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold transition ${
                     currentPage === page
-                      ? "bg-indigo-600 text-white shadow-sm"
+                      ? "bg-blue-600 text-white shadow-sm"
                       : "border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
                   }`}
                 >
@@ -855,7 +855,7 @@ export default function ProdutosMLPage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
                       Item do Pedido
                     </p>
                     <h4 className="mt-0.5 text-sm font-semibold text-neutral-900 line-clamp-2 leading-snug">
@@ -864,7 +864,7 @@ export default function ProdutosMLPage() {
                   </div>
                 </div>
 
-                <div className="border border-neutral-150 rounded-xl p-4 flex flex-col justify-center bg-indigo-50/20">
+                <div className="border border-neutral-150 rounded-xl p-4 flex flex-col justify-center bg-blue-50/20">
                   <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
                     Lucro Estimado
                   </p>
@@ -897,7 +897,7 @@ export default function ProdutosMLPage() {
                   <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
                     Fornecedor
                   </p>
-                  <p className="mt-1 text-xs font-bold text-indigo-600 truncate">
+                  <p className="mt-1 text-xs font-bold text-blue-600 truncate">
                     {selectedOrder.supplier}
                   </p>
                 </div>
@@ -952,7 +952,7 @@ export default function ProdutosMLPage() {
                     )}
                     {selectedOrder.tracking_code && (
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="rounded bg-indigo-50 border border-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-bold">
+                        <span className="rounded bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 text-xs font-bold">
                           Rastreio: {selectedOrder.tracking_code}
                         </span>
                       </div>
@@ -980,7 +980,7 @@ export default function ProdutosMLPage() {
                     setSelectedOrder(null);
                     handleChatSupplier(selectedOrder);
                   }}
-                  className="inline-flex h-9 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition"
+                  className="inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 transition"
                 >
                   <MessageSquare size={14} className="mr-1.5" />
                   Contatar Fornecedor

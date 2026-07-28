@@ -266,7 +266,7 @@ const ProjectSettingsOverlay = ({ open, onClose, project, initialSection = "gera
               <div className="mx-auto max-w-[760px] px-6 py-10 md:px-10">
                 {/* Project header */}
                 <div className="flex items-center gap-4">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#7c3aed] to-[#2563eb] text-white">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#4F7FFF] to-[#1D4ED8] text-white">
                     <Settings size={22} />
                   </span>
                   <div className="min-w-0">

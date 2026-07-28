@@ -291,7 +291,7 @@ const ReportModal = ({
             <div className="rounded-2xl border border-zinc-200 bg-white p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-full bg-gradient-to-br from-violet-300 via-sky-300 to-emerald-300" />
+                  <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-300 via-sky-300 to-emerald-300" />
                   <span className="text-[13px] font-medium text-zinc-700">Score geral</span>
                 </div>
                 <span className={`text-[20px] font-semibold ${scoreColor(report.overall_score)}`}>
@@ -328,7 +328,7 @@ const ReportModal = ({
                     className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3.5 py-3"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
                       <span className="text-[12.5px] font-medium text-zinc-700">{s.title}</span>
                     </div>
                     <div className="flex items-center gap-2">

@@ -58,7 +58,7 @@ const CATEGORY_META: Record<
   financeiro: { label: "Financeiro", icon: CreditCard, accent: "bg-white/10 text-white" },
   bug: { label: "Bug / Erro", icon: Bug, accent: "bg-red-500/15 text-red-300" },
   integracao: { label: "Integrações", icon: Plug, accent: "bg-blue-500/15 text-blue-300" },
-  conta: { label: "Conta", icon: UserCircle2, accent: "bg-purple-500/15 text-purple-300" },
+  conta: { label: "Conta", icon: UserCircle2, accent: "bg-blue-500/15 text-blue-300" },
   reembolso: { label: "Reembolso", icon: RefreshCcw, accent: "bg-amber-500/15 text-amber-300" },
   outros: { label: "Outros", icon: AlertTriangle, accent: "bg-white/10 text-white/70" },
 };
@@ -361,7 +361,7 @@ const COLUMN_ACCENTS: Record<TicketCategory, { dot: string; badge: string; statu
   financeiro: { dot: "bg-white/70", badge: "bg-white/10 text-white", statusBadge: "bg-white/10 text-white" },
   bug: { dot: "bg-red-500", badge: "bg-red-500/15 text-red-300", statusBadge: "bg-red-500/15 text-red-300" },
   integracao: { dot: "bg-blue-500", badge: "bg-blue-500/15 text-blue-300", statusBadge: "bg-blue-500/15 text-blue-300" },
-  conta: { dot: "bg-purple-500", badge: "bg-purple-500/15 text-purple-300", statusBadge: "bg-purple-500/15 text-purple-300" },
+  conta: { dot: "bg-blue-500", badge: "bg-blue-500/15 text-blue-300", statusBadge: "bg-blue-500/15 text-blue-300" },
   reembolso: { dot: "bg-amber-500", badge: "bg-amber-500/15 text-amber-300", statusBadge: "bg-amber-500/15 text-amber-300" },
   outros: { dot: "bg-white/40", badge: "bg-white/10 text-white/70", statusBadge: "bg-white/10 text-white/70" },
 };

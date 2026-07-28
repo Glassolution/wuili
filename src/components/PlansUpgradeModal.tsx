@@ -44,8 +44,8 @@ const PLANS: PlanEntry[] = [
     id: "pro",
     name: "Plano Pro",
     icon: Sparkles,
-    iconBg: "bg-indigo-100",
-    iconColor: "text-indigo-600",
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-600",
     tagline: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
     monthly: 79.8,
     annual: 861.84,
@@ -209,12 +209,12 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
                 key={plan.id}
                 className={`relative flex flex-col rounded-[18px] border-2 bg-white p-6 transition ${
                   isHighlighted
-                    ? "border-indigo-500 shadow-[0_20px_60px_rgba(79,70,229,0.18)]"
+                    ? "border-blue-500 shadow-[0_20px_60px_rgba(79,70,229,0.18)]"
                     : "border-zinc-200"
                 }`}
               >
                 {plan.ribbon && (
-                  <span className="absolute -top-3 right-5 rounded-full bg-indigo-500 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white shadow-sm">
+                  <span className="absolute -top-3 right-5 rounded-full bg-blue-500 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white shadow-sm">
                     {plan.ribbon}
                   </span>
                 )}

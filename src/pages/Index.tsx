@@ -105,7 +105,7 @@ const productTiles = [
 function VeloLogo() {
   return (
     <div className="flex items-center gap-2.5 text-black">
-      <div className="grid h-9 w-9 place-items-center rounded-[10px] bg-black text-white">
+      <div className="grid h-9 w-9 place-items-center rounded-[10px] bg-gradient-to-br from-[#5C8CFF] to-[#1D4ED8] text-white">
         <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
           <path
             d="M19.3 9.4A7.4 7.4 0 1 0 19.3 18.6"

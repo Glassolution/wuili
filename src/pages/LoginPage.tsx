@@ -257,7 +257,7 @@ const LoginPage = () => {
                 <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <span>Velo</span>
-              <span className="rounded-full border border-white/[0.08] bg-[#1b1630] px-2 py-[2px] text-[9px] font-[700] uppercase tracking-[0.1em] text-[#a78bfa]">
+              <span className="rounded-full border border-white/[0.08] bg-[#12234a] px-2 py-[2px] text-[9px] font-[700] uppercase tracking-[0.1em] text-[#93b4ff]">
                 {copy.badge}
               </span>
             </div>

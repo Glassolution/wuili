@@ -260,7 +260,7 @@ const ProductDetailPage = () => {
                   <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
                     Descrição
                   </label>
-                  <button className="flex items-center gap-1.5 text-[11px] font-medium text-purple-600 transition-colors hover:text-purple-700">
+                  <button className="flex items-center gap-1.5 text-[11px] font-medium text-blue-600 transition-colors hover:text-blue-700">
                     <Sparkles size={12} strokeWidth={1.8} />
                     <span>Gerar com IA</span>
                   </button>

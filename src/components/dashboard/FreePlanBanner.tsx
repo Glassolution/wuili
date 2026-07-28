@@ -16,7 +16,7 @@ const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
         flexShrink: 0,
         width: "100%",
         height: isVisible ? "48px" : "0",
-        background: "#171714",
+        background: "linear-gradient(90deg, #4F7FFF 0%, #1D4ED8 100%)",
         color: "#FFFFFF",
         display: "flex",
         alignItems: "center",
@@ -53,24 +53,21 @@ const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
           alignItems: "center",
           gap: "6px",
           height: "32px",
-          padding: "0 16px",
-          borderRadius: "999px",
-          border: "1px solid rgba(255,255,255,0.85)",
+          padding: "0 4px",
+          border: "none",
           background: "transparent",
           color: "#FFFFFF",
           fontSize: "13px",
-          fontWeight: 600,
+          fontWeight: 700,
           cursor: "pointer",
-          transition: "all 0.15s ease",
+          transition: "opacity 0.15s ease",
           whiteSpace: "nowrap",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.18)";
-          e.currentTarget.style.borderColor = "#FFFFFF";
+          e.currentTarget.style.opacity = "0.85";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = "transparent";
-          e.currentTarget.style.borderColor = "rgba(255,255,255,0.85)";
+          e.currentTarget.style.opacity = "1";
         }}
       >
         Fazer Upgrade

@@ -46,10 +46,10 @@ const OrderTrackingTimeline = ({
   ];
 
   return (
-    <section aria-labelledby="order-tracking-title" className="border-b border-indigo-100/80 bg-white px-5 py-6 sm:px-7 sm:py-8">
+    <section aria-labelledby="order-tracking-title" className="border-b border-blue-100/80 bg-white px-5 py-6 sm:px-7 sm:py-8">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold uppercase text-indigo-500">Acompanhamento</p>
+          <p className="text-[11px] font-bold uppercase text-blue-500">Acompanhamento</p>
           <h2 id="order-tracking-title" className="mt-1 text-[18px] font-semibold text-slate-950">
             Rastreamento do pedido
           </h2>
@@ -72,14 +72,14 @@ const OrderTrackingTimeline = ({
                 <span
                   aria-hidden="true"
                   className={`absolute left-[17px] top-9 h-[calc(100%-28px)] w-px sm:left-9 sm:right-0 sm:top-[17px] sm:h-px sm:w-auto ${
-                    index < completedStage ? "bg-indigo-500" : "bg-slate-200"
+                    index < completedStage ? "bg-blue-500" : "bg-slate-200"
                   }`}
                 />
               )}
               <span
                 className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
                   isComplete
-                    ? "border-indigo-600 bg-indigo-600 text-white shadow-[0_6px_16px_rgba(79,70,229,0.20)]"
+                    ? "border-blue-600 bg-blue-600 text-white shadow-[0_6px_16px_rgba(79,70,229,0.20)]"
                     : "border-slate-200 bg-white text-slate-300"
                 }`}
               >
