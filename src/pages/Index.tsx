@@ -105,22 +105,8 @@ const productTiles = [
 function VeloLogo() {
   return (
     <div className="flex items-center gap-2.5 text-black">
-      <div className="grid h-9 w-9 place-items-center rounded-[10px] bg-gradient-to-br from-[#5C8CFF] to-[#1D4ED8] text-white">
-        <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-          <path
-            d="M19.3 9.4A7.4 7.4 0 1 0 19.3 18.6"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeWidth="2.8"
-          />
-          <path
-            d="M16.8 16.2L20 19.3L23.2 16.2"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2.45"
-          />
-        </svg>
+      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-[10px] shadow-[0_5px_11px_rgba(0,0,0,0.18)]">
+        <img src="/logo.png" alt="Velo" className="block max-w-none" style={{ width: 60, height: 60, marginLeft: -12, marginTop: -11 }} />
       </div>
       <span className="text-[28px] font-bold leading-none tracking-[-0.075em]">Velo</span>
     </div>

@@ -547,37 +547,23 @@ const styles = {
 // Logo em "badge" (ícone de app), maior e com efeito glossy: brilho no canto
 // superior (shine radial) + realce interno no topo e sombra interna na base
 // (profundidade 3D) + drop shadow neutro. Sem glow roxo externo.
+// Logo oficial da Velo (public/logo.png). O PNG tem ~19% de padding em volta
+// do ícone azul, então recorto (container overflow-hidden + img maior e
+// centralizada no bloco azul) para o badge ficar preenchido.
 const VeloIconOnly = () => (
   <span
     aria-hidden="true"
     style={{
-      position: "relative",
       overflow: "hidden",
       width: 38,
       height: 38,
       flexShrink: 0,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
+      display: "block",
       borderRadius: 11,
-      background: "linear-gradient(150deg, #5C8CFF 0%, #2A6BF2 48%, #1D4ED8 100%)",
-      boxShadow:
-        "inset 0 1.5px 0 rgba(255,255,255,0.5), inset 0 -3px 6px rgba(20,45,120,0.45), 0 5px 11px rgba(0,0,0,0.18)",
+      boxShadow: "0 5px 11px rgba(0,0,0,0.18)",
     }}
   >
-    <span
-      style={{
-        position: "absolute",
-        inset: 0,
-        background:
-          "radial-gradient(120% 85% at 26% 12%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 55%)",
-        pointerEvents: "none",
-      }}
-    />
-    <svg width="20" height="20" viewBox="0 0 48 48" fill="none" style={{ position: "relative" }}>
-      <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.4" strokeLinecap="round" />
-      <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <img src="/logo.png" alt="" style={{ width: 64, height: 64, maxWidth: "none", display: "block", marginLeft: -13, marginTop: -12 }} />
   </span>
 );
 
