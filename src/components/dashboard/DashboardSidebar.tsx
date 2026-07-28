@@ -227,19 +227,19 @@ const styles = {
     overflowY: "auto",
     display: "flex",
     flexDirection: "column",
-    gap: 3,
+    gap: 5,
   } satisfies CSSProperties,
   navLinkBase: {
-    height: 36,
+    height: 40,
     display: "flex",
     alignItems: "center",
-    gap: 9,
+    gap: 12,
     boxSizing: "border-box",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: "0 11px",
     textDecoration: "none",
     fontSize: 14,
-    lineHeight: "18px",
+    lineHeight: "19px",
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
   // Sub-itens de uma categoria: recuados, com linha vertical à esquerda, um
@@ -255,16 +255,16 @@ const styles = {
     gap: 3,
   } satisfies CSSProperties,
   navSubLinkBase: {
-    height: 33,
+    height: 38,
     display: "flex",
     alignItems: "center",
-    gap: 9,
+    gap: 11,
     boxSizing: "border-box",
-    borderRadius: 9,
-    padding: "0 10px",
+    borderRadius: 10,
+    padding: "0 11px",
     textDecoration: "none",
-    fontSize: 13.5,
-    lineHeight: "17px",
+    fontSize: 14,
+    lineHeight: "18px",
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
   spacer: {
@@ -588,7 +588,7 @@ const ActivePill = ({ sub, reduce }: { sub?: boolean; reduce: boolean }) => (
       position: "absolute",
       inset: 0,
       zIndex: -1,
-      borderRadius: sub ? 9 : 10,
+      borderRadius: sub ? 10 : 12,
       background: sub ? "rgba(74,51,245,0.10)" : "linear-gradient(90deg, #6558F6, #4A33F5)",
       boxShadow: sub ? "none" : "0 1px 2px rgba(0,0,0,0.08)",
     }}
@@ -615,7 +615,7 @@ const SidebarNavLink = ({ item, active, sub = false, reduce }: { item: NavItem; 
       style={linkStyle}
     >
       {active ? <ActivePill sub={sub} reduce={reduce} /> : null}
-      <Icon className="velo-nav-ico" size={sub ? 18 : 20} strokeWidth={2.25} fill="none" aria-hidden="true" />
+      <Icon className="velo-nav-ico" size={sub ? 16 : 18} strokeWidth={1.75} fill="none" aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
@@ -656,11 +656,11 @@ const SidebarCategory = ({
     <>
       <button type="button" onClick={onToggle} aria-expanded={open} data-active={childActive ? "true" : "false"} className="velo-nav-item" style={btnStyle}>
         {childActive ? <ActivePill reduce={reduce} /> : null}
-        <Icon className="velo-nav-ico" size={20} strokeWidth={2.25} fill="none" aria-hidden="true" />
+        <Icon className="velo-nav-ico" size={18} strokeWidth={1.75} fill="none" aria-hidden="true" />
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
         <ChevronRight
           size={16}
-          strokeWidth={2.25}
+          strokeWidth={1.75}
           aria-hidden="true"
           style={{
             marginLeft: "auto",
