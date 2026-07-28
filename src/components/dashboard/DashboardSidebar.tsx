@@ -61,15 +61,14 @@ const NAV_CSS = `
 .velo-nav-sub:hover:not([data-active="true"]) { background-color: rgba(10,10,10,0.045); }
 .velo-nav-ico { transition: transform 150ms ease-out; }
 .velo-nav-item:hover .velo-nav-ico, .velo-nav-sub:hover .velo-nav-ico { transform: scale(1.09); }
-/* Submenu (Radix Collapsible): anima a height pela altura real medida. */
-.velo-collapsible { overflow: hidden; }
-.velo-collapsible[data-state="open"] { animation: velo-collapse-down 220ms cubic-bezier(0.4,0,0.2,1); }
-.velo-collapsible[data-state="closed"] { animation: velo-collapse-up 220ms cubic-bezier(0.4,0,0.2,1); }
-@keyframes velo-collapse-down { from { height: 0; opacity: 0; } to { height: var(--radix-collapsible-content-height); opacity: 1; } }
-@keyframes velo-collapse-up { from { height: var(--radix-collapsible-content-height); opacity: 1; } to { height: 0; opacity: 0; } }
+/* Submenu (Radix Collapsible): transiciona a height pela altura real medida.
+   Estado FECHADO = height 0 (mesmo se o Radix mantiver o content montado, ele
+   ocupa 0 — evita o espaçamento extra entre categorias). Aberto = altura real. */
+.velo-collapsible { overflow: hidden; height: 0; opacity: 0; transition: height 220ms cubic-bezier(0.4,0,0.2,1), opacity 180ms ease-out; }
+.velo-collapsible[data-state="open"] { height: var(--radix-collapsible-content-height); opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   .velo-nav-item, .velo-nav-sub, .velo-nav-ico { transition: none; }
-  .velo-collapsible[data-state="open"], .velo-collapsible[data-state="closed"] { animation: none; }
+  .velo-collapsible { transition: none; }
 }
 `;
 
@@ -623,7 +622,7 @@ const SidebarNavLink = ({ item, active, sub = false, reduce }: { item: NavItem; 
       style={linkStyle}
     >
       {active ? <ActivePill sub={sub} reduce={reduce} /> : null}
-      <Icon className="velo-nav-ico" size={sub ? 16 : 18} strokeWidth={1.75} fill="none" aria-hidden="true" />
+      <Icon className="velo-nav-ico" size={sub ? 15 : 17} strokeWidth={1.75} fill="none" aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
@@ -669,7 +668,7 @@ const SidebarCategory = ({
       <Collapsible.Trigger asChild>
         <button type="button" data-active={childActive ? "true" : "false"} className="velo-nav-item" style={btnStyle}>
           {childActive ? <ActivePill reduce={reduce} /> : null}
-          <Icon className="velo-nav-ico" size={18} strokeWidth={1.75} fill="none" aria-hidden="true" />
+          <Icon className="velo-nav-ico" size={17} strokeWidth={1.75} fill="none" aria-hidden="true" />
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
           <ChevronRight
             size={16}
