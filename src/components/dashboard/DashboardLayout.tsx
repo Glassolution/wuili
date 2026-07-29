@@ -73,6 +73,8 @@ type MobileRouteMeta = {
 
 const mobileRoutes: MobileRouteMeta[] = [
   { test: (p) => p === "/dashboard", title: "Dashboard" },
+  { test: (p) => p.startsWith("/dashboard/paginas-com-ia"), title: "Páginas com IA" },
+  { test: (p) => p.startsWith("/dashboard/modelos"), title: "Modelos" },
   { test: (p) => p.startsWith("/dashboard/produtos"), title: "Produtos" },
   { test: (p) => p.startsWith("/dashboard/pedidos"), title: "Pedidos" },
   { test: (p) => p.startsWith("/dashboard/saldos"), title: "Financeiro" },

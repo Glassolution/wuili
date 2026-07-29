@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -43,8 +43,21 @@ const CARD_INNER = "rounded-[0.6vw] border border-[#E6E7EB] bg-white";
 // Os dois botões do header compartilham altura, raio, respiro e tamanho de
 // ícone — antes cada um tinha o seu, e eles não batiam entre si.
 const HEADER_BUTTON =
-  "flex h-[clamp(26px,2.15vw,41px)] items-center gap-[0.45vw] rounded-[0.45vw] px-[1.15vw] text-[clamp(8px,0.74vw,14px)] leading-none";
+  "flex h-[clamp(26px,2.15vw,41px)] items-center gap-[0.45vw] rounded-[clamp(8px,0.72vw,14px)] px-[1.15vw] text-[clamp(8px,0.74vw,14px)] leading-none";
 const HEADER_BUTTON_ICON = "h-[clamp(10px,0.9vw,17px)] w-[clamp(10px,0.9vw,17px)] shrink-0";
+const CTA_GLOSSY_BLACK =
+  "border-0 text-white transition-all duration-200 ease-out hover:-translate-y-[1px] active:translate-y-0";
+const CTA_GLOSSY_BLACK_STYLE = {
+  color: "#FFFFFF",
+  textShadow: "0 4px 4px rgba(0,0,0,0.4)",
+  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%), #1D1F23",
+  border: 0,
+  borderTop: "1.5px solid rgba(255,255,255,0.15)",
+  boxShadow: "0 4px 7px rgba(0,0,0,0.20), 0 0 0 1.5px rgba(0,0,0,1)",
+} satisfies CSSProperties;
+const CTA_GLOSSY_BLUE =
+  "border-0 bg-[linear-gradient(180deg,#5F86FF_0%,#2563EB_58%,#1D4ED8_100%)] text-white shadow-[0_0.55vw_1.15vw_rgba(37,99,235,0.34),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:brightness-105 active:translate-y-0";
+const CTA_ROUNDED = "rounded-[clamp(8px,0.72vw,14px)]";
 const WHATSAPP_SUPPORT_URL =
   "https://wa.me/5547999286334?text=Oi%2C%20preciso%20de%20ajuda%20com%20a%20minha%20conta%20Velo.";
 
@@ -332,18 +345,7 @@ const DashboardHomePage = () => {
               <button
                 type="button"
                 onClick={() => setWizardOpen(true)}
-                style={{
-                  background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 15%), #2563EB",
-                  // Fundo roxo, mas o contorno segue preto (o anel/stroke que dá
-                  // o efeito 3D). Antes o preto usava um anel externo de 1,5px,
-                  // que o deixava ~3px mais alto que o branco. Uma borda de 1px
-                  // entra na mesma conta de altura dos dois.
-                  borderColor: "#000000",
-                  borderTopColor: "rgba(255,255,255,0.22)",
-                  boxShadow: "0px 4px 7px rgba(0,0,0,0.2)",
-                  textShadow: "0px 4px 4px rgba(0,0,0,0.4)",
-                }}
-                className={`${HEADER_BUTTON} border font-medium text-white transition-opacity hover:opacity-90`}
+                className={`${HEADER_BUTTON} ${CTA_GLOSSY_BLUE} font-medium`}
               >
                 <Sparkles className={HEADER_BUTTON_ICON} strokeWidth={2} />
                 Criar Página com IA
@@ -351,15 +353,12 @@ const DashboardHomePage = () => {
             </div>
           </div>
 
-          <div className={`absolute left-[2.65%] right-[2.65%] top-[14.3%] h-[15.7%] ${CARD_SHELL}`}>
-            <span className="absolute left-[25.2%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
-            <span className="absolute left-[49.0%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
-            <span className="absolute left-[72.8%] top-[16%] h-[66%] w-px bg-black/[0.07]" />
+          <div className="absolute left-[2.65%] right-[2.65%] top-[14.3%] grid h-[15.7%] grid-cols-4 gap-[1.15vw]">
             {metricCards.map((card) => {
               const Icon = card.icon;
 
               return (
-                <div key={card.title} className="absolute top-[20%] w-[19.0%]" style={{ left: card.left }}>
+                <div key={card.title} className={`${CARD_SHELL} flex min-w-0 flex-col justify-center px-[1.55vw] py-[1vw]`}>
                   <div className="flex items-center gap-[0.45vw] text-[clamp(8px,0.78vw,15px)] font-semibold leading-none text-[#8f95a3]">
                     <Icon className="h-[clamp(11px,1.05vw,20px)] w-[clamp(11px,1.05vw,20px)] text-[#c3c8d4]" strokeWidth={1.9} />
                     <span>{card.title}</span>
@@ -389,38 +388,42 @@ const DashboardHomePage = () => {
                 Escolha um atalho e avance na sua operação.
               </p>
 
-              <div className="mt-[1vw] grid grid-cols-3 gap-[1.15vw]">
-                {toolCards.map((card) => (
-                  <div key={card.title} className={`flex flex-col ${CARD_INNER} p-[1.1vw]`}>
-                    <h3 className="text-[clamp(11px,1.05vw,21px)] font-bold tracking-[-0.015em] text-[#1f2430]">{card.title}</h3>
-                    <p className="mt-[0.4vw] text-[clamp(9px,0.85vw,17px)] font-normal leading-[1.4] text-[#7b8391]">
-                      {card.subtitle}
-                    </p>
+              <div className="mt-[1vw] rounded-[0.75vw] border border-[#E2E4EA] bg-[#FAFBFC] p-[0.9vw] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+                <div className="grid grid-cols-3 gap-[1.15vw]">
+                  {toolCards.map((card) => (
+                    <div key={card.title} className={`flex flex-col ${CARD_INNER} p-[1.1vw] shadow-[0_0.35vw_0.9vw_rgba(15,23,42,0.035)]`}>
+                      <h3 className="text-[clamp(11px,1.05vw,21px)] font-bold tracking-[-0.015em] text-[#1f2430]">{card.title}</h3>
+                      <p className="mt-[0.4vw] text-[clamp(9px,0.85vw,17px)] font-normal leading-[1.4] text-[#7b8391]">
+                        {card.subtitle}
+                      </p>
 
-                    {card.action === "invite" ? (
-                      <button
-                        type="button"
-                        onClick={() => setInviteOpen(true)}
-                        className="mt-[0.9vw] inline-flex w-fit items-center rounded-[0.5vw] bg-[#1D1F23] px-[1vw] py-[0.5vw] text-[clamp(9px,0.82vw,16px)] font-semibold text-white transition hover:opacity-90"
-                      >
-                        {card.button}
-                      </button>
-                    ) : (
-                      <a
-                        href={card.href}
-                        className="mt-[0.9vw] inline-flex w-fit items-center rounded-[0.5vw] bg-[#1D1F23] px-[1vw] py-[0.5vw] text-[clamp(9px,0.82vw,16px)] font-semibold text-white no-underline transition hover:opacity-90"
-                      >
-                        {card.button}
-                      </a>
-                    )}
+                      {card.action === "invite" ? (
+                        <button
+                          type="button"
+                          onClick={() => setInviteOpen(true)}
+                          style={CTA_GLOSSY_BLACK_STYLE}
+                          className={`mt-[0.9vw] inline-flex w-fit items-center ${CTA_ROUNDED} px-[1vw] py-[0.5vw] text-[clamp(9px,0.82vw,16px)] font-semibold ${CTA_GLOSSY_BLACK}`}
+                        >
+                          {card.button}
+                        </button>
+                      ) : (
+                        <a
+                          href={card.href}
+                          style={CTA_GLOSSY_BLACK_STYLE}
+                          className={`mt-[0.9vw] inline-flex w-fit items-center ${CTA_ROUNDED} px-[1vw] py-[0.5vw] text-[clamp(9px,0.82vw,16px)] font-semibold no-underline ${CTA_GLOSSY_BLACK}`}
+                        >
+                          {card.button}
+                        </a>
+                      )}
 
-                    <img
-                      src={card.image}
-                      alt=""
-                      className="mt-[0.85vw] aspect-[7/5] w-full overflow-hidden rounded-[0.5vw] object-cover"
-                    />
-                  </div>
-                ))}
+                      <img
+                        src={card.image}
+                        alt=""
+                        className="mt-[0.85vw] aspect-[7/5] w-full overflow-hidden rounded-[0.5vw] object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -591,7 +594,8 @@ const DashboardHomePage = () => {
                   href={WHATSAPP_SUPPORT_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-auto flex h-[44px] items-center gap-3 rounded-[14px] bg-black px-6 text-[14px] font-bold text-white shadow-[0_14px_30px_rgba(0,0,0,0.2)]"
+                  style={CTA_GLOSSY_BLACK_STYLE}
+                  className={`mt-auto flex h-[44px] items-center gap-3 ${CTA_ROUNDED} px-6 text-[14px] font-bold no-underline ${CTA_GLOSSY_BLACK}`}
                 >
                   Enviar mensagem
                   <WhatsAppIcon className="h-[20px] w-[20px]" />
@@ -703,7 +707,8 @@ const DashboardHomePage = () => {
             setSupportTab("home");
             setSupportOpen(true);
           }}
-          className="relative flex h-[48px] w-[48px] items-center justify-center rounded-full bg-black text-white shadow-[0_12px_28px_rgba(0,0,0,0.24)] transition hover:-translate-y-0.5 hover:bg-[#171717]"
+          style={CTA_GLOSSY_BLACK_STYLE}
+          className={`relative flex h-[48px] w-[48px] items-center justify-center rounded-full ${CTA_GLOSSY_BLACK}`}
           aria-label="Abrir central de ajuda da Velo"
           title="Central de ajuda"
         >

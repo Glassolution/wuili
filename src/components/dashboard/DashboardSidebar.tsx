@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import * as Collapsible from "@radix-ui/react-collapsible";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, BadgeCheck, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Grid2X2, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, NotebookText, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -11,6 +10,7 @@ import SearchPalette from "@/components/dashboard/SearchPalette";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 
 type NavItem = {
+  id: string;
   label: string;
   icon: ElementType;
   to?: string;
@@ -20,34 +20,38 @@ type NavItem = {
 };
 
 const baseNavItems: NavItem[] = [
-  { label: "Início", icon: Home, to: "/dashboard", end: true },
+  { id: "inicio", label: "Início", icon: Home, to: "/dashboard", end: true },
   {
     // Categoria expansível (como "Products" da referência): agrupa o catálogo
     // e as páginas de venda como sub-itens.
+    id: "produtos",
     label: "Produtos",
     icon: Tag,
     children: [
-      { label: "Catálogo", icon: ShoppingCart, to: "/dashboard/catalogo" },
-      { label: "Páginas de venda", icon: Sparkles, to: "/dashboard/minha-loja" },
+      { id: "catalogo", label: "Catálogo", icon: ShoppingCart, to: "/dashboard/catalogo" },
+      { id: "paginas-de-venda", label: "Páginas de venda", icon: Sparkles, to: "/dashboard/minha-loja" },
     ],
   },
   {
-    // Categoria "Produtos vencedores" (troféu, como "Winning Products"): abre
-    // e mostra "Produtos em Alta" como sub-item.
+    // Categoria "Produtos vencedores" (troféu, como "Winning Products"):
+    // agrupa as ferramentas para encontrar e apresentar produtos.
+    id: "produtos-vencedores",
     label: "Produtos vencedores",
     icon: Trophy,
     children: [
-      { label: "Produtos em Alta", icon: TrendingUp, to: "/dashboard/produtos-em-alta" },
+      { id: "produtos-em-alta", label: "Produtos em Alta", icon: TrendingUp, to: "/dashboard/produtos-em-alta" },
+      { id: "paginas-com-ia", label: "Páginas com IA", icon: NotebookText, to: "/dashboard/paginas-com-ia" },
+      { id: "modelos", label: "Modelos", icon: Grid2X2, to: "/dashboard/modelos" },
     ],
   },
-  { label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
-  { label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
-  { label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
-  { label: "Comunidade e Ajuda", icon: Info, to: "/docs", dimmed: true },
-  { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes", dimmed: true },
+  { id: "publicacoes", label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
+  { id: "pedidos", label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
+  { id: "relatorios", label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
+  { id: "comunidade-ajuda", label: "Comunidade e Ajuda", icon: Info, to: "/docs", dimmed: true },
+  { id: "configuracoes", label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes", dimmed: true },
 ];
 
-const affiliatesNavItem: NavItem = { label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
+const affiliatesNavItem: NavItem = { id: "afiliados", label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
 
 const normalizePath = (path: string) => path.split("?")[0].replace(/\/$/, "");
 
@@ -61,13 +65,42 @@ const NAV_CSS = `
 .velo-nav-sub:hover:not([data-active="true"]) { background-color: rgba(10,10,10,0.045); }
 .velo-nav-ico { transition: transform 150ms ease-out; }
 .velo-nav-item:hover .velo-nav-ico, .velo-nav-sub:hover .velo-nav-ico { transform: scale(1.09); }
-/* Submenu (Radix Collapsible): transiciona a height pela altura real medida.
-   Estado FECHADO = height 0 (mesmo se o Radix mantiver o content montado, ele
-   ocupa 0 — evita o espaçamento extra entre categorias). Aberto = altura real. */
-.velo-collapsible { overflow: hidden; height: 0; opacity: 0; transition: height 220ms cubic-bezier(0.4,0,0.2,1), opacity 180ms ease-out; }
-.velo-collapsible[data-state="open"] { height: var(--radix-collapsible-content-height); opacity: 1; }
+.velo-sidebar-scroll {
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(10,10,10,0.26) transparent;
+}
+.velo-sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.velo-sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+.velo-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(10,10,10,0.26);
+  border-radius: 999px;
+}
+.velo-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(10,10,10,0.32);
+}
+.velo-collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  transition: grid-template-rows 300ms ease-out;
+}
+.velo-collapsible[data-state="open"] { grid-template-rows: 1fr; }
+.velo-collapsible-inner {
+  min-height: 0;
+  overflow: hidden;
+}
 @media (prefers-reduced-motion: reduce) {
-  .velo-nav-item, .velo-nav-sub, .velo-nav-ico { transition: none; }
+  .velo-nav-item, .velo-nav-sub, .velo-nav-ico, .velo-collapsible-chevron { transition: none; }
   .velo-collapsible { transition: none; }
 }
 `;
@@ -140,21 +173,30 @@ const getInitials = (name: string, email?: string | null) => {
 
 const styles = {
   sidebar: {
-    width: 250,
-    height: "100%",
+    width: 246,
+    height: "100dvh",
+    maxHeight: "100dvh",
     minHeight: 0,
     flexShrink: 0,
     display: "flex",
     flexDirection: "column",
-    overflow: "visible",
+    overflow: "hidden",
     position: "relative",
     boxSizing: "border-box",
-    padding: "18px 16px",
+    padding: "16px 10px",
     borderRadius: 0,
     border: "1px solid #E5E7EB",
     background: "#F9FAFB",
     color: "#0A0A0A",
     boxShadow: "none",
+  } satisfies CSSProperties,
+  scrollArea: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: "scroll",
+    overflowX: "hidden",
+    display: "block",
+    paddingRight: 0,
   } satisfies CSSProperties,
   header: {
     display: "flex",
@@ -166,7 +208,7 @@ const styles = {
     gap: 11,
     paddingLeft: 11,
     paddingTop: 2,
-    paddingBottom: 8,
+    paddingBottom: 6,
   } satisfies CSSProperties,
   brand: {
     display: "flex",
@@ -225,28 +267,25 @@ const styles = {
     fontWeight: 650,
   } satisfies CSSProperties,
   nav: {
-    marginTop: 16,
-    marginBottom: 22,
-    // Ocupa o espaço restante e rola internamente se os itens não couberem,
-    // mantendo o cluster de baixo (upgrade + cards + perfil) sempre visível.
-    flex: 1,
+    marginTop: 12,
+    marginBottom: 14,
     minHeight: 0,
-    overflowY: "auto",
     display: "flex",
     flexDirection: "column",
-    gap: 5,
+    flexShrink: 0,
+    gap: 1,
   } satisfies CSSProperties,
   navLinkBase: {
-    height: 40,
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 7,
     boxSizing: "border-box",
-    borderRadius: 12,
-    padding: "0 11px",
+    borderRadius: 8,
+    padding: "7px 9px",
     textDecoration: "none",
-    fontSize: 14,
-    lineHeight: "19px",
+    fontSize: 13.5,
+    lineHeight: "18px",
+    fontWeight: 500,
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
   // Sub-itens de uma categoria: recuados, com linha vertical à esquerda, um
@@ -259,19 +298,19 @@ const styles = {
     marginBottom: 3,
     display: "flex",
     flexDirection: "column",
-    gap: 3,
+    gap: 1,
   } satisfies CSSProperties,
   navSubLinkBase: {
-    height: 38,
     display: "flex",
     alignItems: "center",
-    gap: 11,
+    gap: 8,
     boxSizing: "border-box",
-    borderRadius: 10,
-    padding: "0 11px",
+    borderRadius: 8,
+    padding: "7px 10px",
     textDecoration: "none",
-    fontSize: 14,
-    lineHeight: "18px",
+    fontSize: 13,
+    lineHeight: "17px",
+    fontWeight: 500,
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
   spacer: {
@@ -281,9 +320,9 @@ const styles = {
   upgradeCard: {
     width: "100%",
     boxSizing: "border-box",
-    borderRadius: 16,
-    padding: "18px 16px 16px",
-    marginBottom: 12,
+    borderRadius: 15,
+    padding: "15px 16px 14px",
+    marginBottom: 10,
     background: "linear-gradient(180deg, #C3D7FF 0%, #EAF1FF 100%)",
     color: "#0A0A0A",
     boxShadow: "none",
@@ -294,30 +333,30 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    margin: "0 auto 8px",
+    margin: "0 auto 6px",
     color: "#1A1A1A",
   } satisfies CSSProperties,
   upgradeTitle: {
     margin: "0",
     color: "#0A0A0A",
-    fontSize: 15,
-    lineHeight: "19px",
+    fontSize: 14,
+    lineHeight: "18px",
     fontWeight: 700,
     letterSpacing: "-0.03em",
   } satisfies CSSProperties,
   upgradeCopy: {
-    margin: "6px 0 0",
+    margin: "4px 0 0",
     color: "rgba(10,10,10,0.6)",
     fontSize: 12,
-    lineHeight: "16px",
+    lineHeight: "15px",
     fontWeight: 500,
   } satisfies CSSProperties,
   upgradeButton: {
-    marginTop: 14,
+    marginTop: 11,
     width: "100%",
-    height: 38,
+    height: 34,
     border: 0,
-    borderRadius: 10,
+    borderRadius: 9,
     background: "#121827",
     color: "#FFFFFF",
     fontSize: 13,
@@ -331,22 +370,22 @@ const styles = {
     boxSizing: "border-box",
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     border: 0,
-    borderRadius: 12,
-    padding: "10px 11px",
-    marginBottom: 8,
+    borderRadius: 11,
+    padding: "8px 10px",
+    marginBottom: 6,
     textAlign: "left",
     cursor: "pointer",
   } satisfies CSSProperties,
   promoIcon: {
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 30,
     flexShrink: 0,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 9,
+    borderRadius: 8,
   } satisfies CSSProperties,
   promoTitle: {
     display: "block",
@@ -367,14 +406,14 @@ const styles = {
   profileCard: {
     width: "100%",
     minWidth: 0,
-    minHeight: 52,
+    minHeight: 48,
     display: "flex",
     alignItems: "center",
     gap: 11,
     boxSizing: "border-box",
     border: 0,
-    borderRadius: 14,
-    padding: "10px 12px",
+    borderRadius: 13,
+    padding: "8px 11px",
     background: "transparent",
     color: "#0A0A0A",
     textAlign: "left",
@@ -581,7 +620,7 @@ const ActivePill = ({ sub, reduce }: { sub?: boolean; reduce: boolean }) => (
       position: "absolute",
       inset: 0,
       zIndex: -1,
-      borderRadius: sub ? 10 : 12,
+      borderRadius: sub ? 8 : 8,
       background: sub ? "rgba(37,99,235,0.10)" : "linear-gradient(90deg, #4F7FFF, #1D4ED8)",
       boxShadow: sub ? "none" : "0 1px 2px rgba(0,0,0,0.08)",
     }}
@@ -595,7 +634,6 @@ const SidebarNavLink = ({ item, active, sub = false, reduce }: { item: NavItem; 
     position: "relative",
     isolation: "isolate",
     color: active ? (sub ? "#1D4ED8" : "#FFFFFF") : "#0A0A0A",
-    fontWeight: active ? 600 : 500,
   };
 
   return (
@@ -608,7 +646,7 @@ const SidebarNavLink = ({ item, active, sub = false, reduce }: { item: NavItem; 
       style={linkStyle}
     >
       {active ? <ActivePill sub={sub} reduce={reduce} /> : null}
-      <Icon className="velo-nav-ico" size={sub ? 15 : 17} strokeWidth={1.75} fill="none" aria-hidden="true" />
+      <Icon className="velo-nav-ico" size={sub ? 14 : 17} strokeWidth={sub ? 1.9 : 2} aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
@@ -621,18 +659,19 @@ const SidebarCategory = ({
   item,
   open,
   childActive,
-  onToggle,
+  onOpenChange,
   isActive,
   reduce,
 }: {
   item: NavItem;
   open: boolean;
   childActive: boolean;
-  onToggle: () => void;
+  onOpenChange: (open: boolean) => void;
   isActive: (i: NavItem) => boolean;
   reduce: boolean;
 }) => {
   const Icon = item.icon;
+  const submenuId = `sidebar-submenu-${item.id}`;
   const btnStyle: CSSProperties = {
     ...styles.navLinkBase,
     width: "100%",
@@ -642,42 +681,51 @@ const SidebarCategory = ({
     position: "relative",
     isolation: "isolate",
     color: childActive ? "#FFFFFF" : "#0A0A0A",
-    fontWeight: childActive ? 600 : 500,
+    justifyContent: "space-between",
   };
 
   return (
-    // Radix Collapsible: mede a altura real do conteúdo e expõe
-    // --radix-collapsible-content-height; a animação (CSS, em NAV_CSS) usa esse
-    // valor, então o submenu abre/fecha suave e empurra os itens abaixo no
-    // fluxo normal — sem cortar nem estourar o container.
-    <Collapsible.Root open={open} onOpenChange={() => onToggle()}>
-      <Collapsible.Trigger asChild>
-        <button type="button" data-active={childActive ? "true" : "false"} className="velo-nav-item" style={btnStyle}>
-          {childActive ? <ActivePill reduce={reduce} /> : null}
-          <Icon className="velo-nav-ico" size={17} strokeWidth={1.75} fill="none" aria-hidden="true" />
+    // O submenu fica sempre no DOM e é colapsado por CSS Grid (0fr -> 1fr).
+    // Assim ele continua no fluxo normal: quando abre, empurra naturalmente
+    // todos os itens abaixo e o card de upgrade em vez de sobrepor.
+    <div>
+      <button
+        type="button"
+        data-active={childActive ? "true" : "false"}
+        aria-expanded={open}
+        aria-controls={submenuId}
+        className="velo-nav-item"
+        onClick={() => onOpenChange(!open)}
+        style={btnStyle}
+      >
+        {childActive ? <ActivePill reduce={reduce} /> : null}
+        <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+          <Icon className="velo-nav-ico" size={17} strokeWidth={2} aria-hidden="true" />
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
-          <ChevronRight
-            size={16}
-            strokeWidth={1.75}
-            aria-hidden="true"
-            style={{
-              marginLeft: "auto",
-              flexShrink: 0,
-              opacity: 0.75,
-              transform: open ? "rotate(90deg)" : "rotate(0deg)",
-              transition: reduce ? "none" : `transform 200ms cubic-bezier(${PILL_EASE.join(",")})`,
-            }}
-          />
-        </button>
-      </Collapsible.Trigger>
-      <Collapsible.Content className="velo-collapsible">
-        <div style={styles.subWrap}>
-          {item.children!.map((child) => (
-            <SidebarNavLink key={child.label} item={child} active={isActive(child)} sub reduce={reduce} />
-          ))}
+        </span>
+        <ChevronRight
+          size={15}
+          strokeWidth={1.75}
+          aria-hidden="true"
+          className="velo-collapsible-chevron"
+          style={{
+            flexShrink: 0,
+            opacity: 0.75,
+            transform: open ? "rotate(90deg)" : "rotate(0deg)",
+            transition: reduce ? "none" : "transform 280ms ease-out",
+          }}
+        />
+      </button>
+      <div id={submenuId} className="velo-collapsible" data-state={open ? "open" : "closed"}>
+        <div className="velo-collapsible-inner">
+          <div style={styles.subWrap}>
+            {item.children!.map((child) => (
+              <SidebarNavLink key={child.id} item={child} active={isActive(child)} sub reduce={reduce} />
+            ))}
+          </div>
         </div>
-      </Collapsible.Content>
-    </Collapsible.Root>
+      </div>
+    </div>
   );
 };
 
@@ -707,8 +755,7 @@ const DashboardSidebar = () => {
     (user?.user_metadata?.role as string | undefined) ??
     null;
 
-  // Categoria expansível atualmente aberta (ex.: "Produtos").
-  const [openCategory, setOpenCategory] = useState<string | null>(null);
+  const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set());
 
   const visibleNavItems = useMemo(() => {
     const items = [...baseNavItems];
@@ -727,7 +774,13 @@ const DashboardSidebar = () => {
   };
 
   const isChildActive = (item: NavItem) => !!item.children?.some(isActive);
-  const toggleCategory = (label: string) => setOpenCategory((cur) => (cur === label ? null : label));
+  const setCategoryOpen = (id: string, isOpen: boolean) =>
+    setOpenCategories((current) => {
+      const next = new Set(current);
+      if (isOpen) next.add(id);
+      else next.delete(id);
+      return next;
+    });
 
   // Abre automaticamente a categoria que contém a rota ativa.
   useEffect(() => {
@@ -739,7 +792,14 @@ const DashboardSidebar = () => {
         return currentPath === p || currentPath.startsWith(`${p}/`);
       }),
     );
-    if (activeCat) setOpenCategory(activeCat.label);
+    if (activeCat) {
+      setOpenCategories((current) => {
+        if (current.has(activeCat.id)) return current;
+        const next = new Set(current);
+        next.add(activeCat.id);
+        return next;
+      });
+    }
   }, [location.pathname]);
 
   useEffect(() => {
@@ -901,115 +961,116 @@ const DashboardSidebar = () => {
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin={isAdmin} />
       <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
-      <nav aria-label="Navegação principal" style={styles.nav}>
-        {visibleNavItems.map((item) =>
-          item.children ? (
-            <SidebarCategory
-              key={item.label}
-              item={item}
-              open={openCategory === item.label}
-              childActive={isChildActive(item)}
-              onToggle={() => toggleCategory(item.label)}
-              isActive={isActive}
-              reduce={reduce}
-            />
-          ) : (
-            <SidebarNavLink key={item.label} item={item} active={isActive(item)} reduce={reduce} />
-          ),
-        )}
-      </nav>
-
-      {showUpgradeCard && (
-        <section aria-label={trialTimeLeft ? "Tempo restante do trial" : "Upgrade para Premium"} style={styles.upgradeCard}>
-          <span style={styles.upgradeIcon} aria-hidden="true">
-            <Trophy size={28} strokeWidth={1.75} />
-          </span>
-          <p style={styles.upgradeTitle}>{trialTimeLeft ? "Trial ativo" : "Upgrade para o Premium!"}</p>
-          <p style={styles.upgradeCopy}>
-            {trialTimeLeft ? (
-              <>
-                Termina em
-                <br />
-                {trialTimeLeft}
-              </>
-            ) : (
-              <>
-                Publique sem limites
-                <br />
-                Personalize sua marca
-              </>
-            )}
-          </p>
-          <button type="button" onClick={() => navigate("/dashboard/planos")} style={styles.upgradeButton}>
-            Fazer upgrade
-          </button>
-        </section>
-      )}
-
-      {/* Linha "Feature Requests" da referência, adaptada à Velo como
-          "Sugestões" (leva à comunidade/ajuda, onde vão feedbacks). */}
-      <button
-        type="button"
-        onClick={() => navigate("/docs")}
-        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", border: 0, background: "transparent", padding: "6px 12px", marginBottom: 8, cursor: "pointer", textAlign: "left", color: "#0A0A0A" }}
-      >
-        <Lightbulb size={18} strokeWidth={1.5} aria-hidden="true" />
-        <span style={{ fontSize: 14, fontWeight: 500, letterSpacing: "-0.02em" }}>Sugestões</span>
-      </button>
-
-      {/* Blocos adaptados à Velo no estilo da referência (equivalentes ao
-          "Refer & Earn" e ao card verde de loja). O bloco "FREE AI Shopify
-          Store" da referência não se aplica (Velo é Mercado Livre), então virou
-          "Páginas de venda com IA", um recurso real da Velo. */}
-      <button type="button" onClick={() => setInviteOpen(true)} style={{ ...styles.promoCard, background: "#E8EFFF" }}>
-        <span style={{ ...styles.promoIcon, background: "#D6E4FF", color: "#2563EB" }} aria-hidden="true">
-          <Gift size={17} strokeWidth={2} />
-        </span>
-        <span style={{ minWidth: 0 }}>
-          <span style={styles.promoTitle}>Indique e ganhe</span>
-          <span style={styles.promoSub}>Ganhe 15% em cada indicação</span>
-        </span>
-      </button>
-
-      <button type="button" onClick={() => navigate("/dashboard/minha-loja")} style={{ ...styles.promoCard, background: "#E7F5EC" }}>
-        <span style={{ ...styles.promoIcon, background: "#D6EEDF", color: "#16A34A" }} aria-hidden="true">
-          <Sparkles size={17} strokeWidth={2} />
-        </span>
-        <span style={{ minWidth: 0 }}>
-          <span style={styles.promoTitle}>Páginas de venda com IA</span>
-          <span style={styles.promoSub}>Crie sua loja em minutos</span>
-        </span>
-      </button>
-
-      <div ref={profileMenuRef} style={styles.profileWrap}>
-        <button
-          type="button"
-          aria-label="Abrir perfil"
-          aria-haspopup="menu"
-          aria-expanded={profileMenuOpen}
-          onClick={() => setProfileMenuOpen((current) => !current)}
-          style={styles.profileCard}
-        >
-          <span style={styles.avatar}>
-            {foto && !avatarFailed ? (
-              <img
-                src={foto}
-                alt=""
-                onError={() => setAvatarFailed(true)}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      <div className="velo-sidebar-scroll" style={styles.scrollArea}>
+        <nav aria-label="Navegação principal" style={styles.nav}>
+          {visibleNavItems.map((item) =>
+            item.children ? (
+              <SidebarCategory
+                key={item.id}
+                item={item}
+                open={openCategories.has(item.id)}
+                childActive={isChildActive(item)}
+                onOpenChange={(nextOpen) => setCategoryOpen(item.id, nextOpen)}
+                isActive={isActive}
+                reduce={reduce}
               />
             ) : (
-              <UserRound size={17} strokeWidth={1.9} color="rgba(10,10,10,0.55)" />
-            )}
+              <SidebarNavLink key={item.id} item={item} active={isActive(item)} reduce={reduce} />
+            ),
+          )}
+        </nav>
+
+        {showUpgradeCard && (
+          <section aria-label={trialTimeLeft ? "Tempo restante do trial" : "Upgrade para Premium"} style={styles.upgradeCard}>
+            <span style={styles.upgradeIcon} aria-hidden="true">
+              <Trophy size={20} strokeWidth={2} />
+            </span>
+            <p style={{ ...styles.upgradeTitle, fontWeight: 500 }}>{trialTimeLeft ? "Trial ativo" : "Upgrade para o Premium!"}</p>
+            <p style={styles.upgradeCopy}>
+              {trialTimeLeft ? (
+                <>
+                  Termina em
+                  <br />
+                  {trialTimeLeft}
+                </>
+              ) : (
+                <>
+                  Publique sem limites
+                  <br />
+                  Personalize sua marca
+                </>
+              )}
+            </p>
+            <button type="button" onClick={() => navigate("/dashboard/planos")} style={styles.upgradeButton}>
+              Fazer upgrade
+            </button>
+          </section>
+        )}
+
+        {/* Linha "Feature Requests" da referência, adaptada à Velo como
+            "Sugestões" (leva à comunidade/ajuda, onde vão feedbacks). */}
+        <button
+          type="button"
+          onClick={() => navigate("/docs")}
+          style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: 0, background: "transparent", padding: "6px 10px", marginBottom: 8, cursor: "pointer", textAlign: "left", color: "#0A0A0A", borderRadius: 8 }}
+        >
+          <Lightbulb size={16} strokeWidth={2} aria-hidden="true" />
+          <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: "-0.02em" }}>Sugestões</span>
+        </button>
+
+        {/* Blocos adaptados à Velo no estilo da referência (equivalentes ao
+            "Refer & Earn" e ao card verde de loja). O bloco "FREE AI Shopify
+            Store" da referência não se aplica (Velo é Mercado Livre), então virou
+            "Páginas de venda com IA", um recurso real da Velo. */}
+        <button type="button" onClick={() => setInviteOpen(true)} style={{ ...styles.promoCard, background: "#E8EFFF" }}>
+          <span style={{ ...styles.promoIcon, background: "#D6E4FF", color: "#2563EB" }} aria-hidden="true">
+            <Gift size={20} strokeWidth={2} />
           </span>
-          <span style={styles.profileText}>
-            <span style={styles.profileName}>{profileName}</span>
-            <span style={styles.profileEmail}>{profileEmail}</span>
-          </span>
-          <span aria-hidden="true" style={styles.profileChevrons}>
-            <MoreVertical size={16} strokeWidth={2} />
+          <span style={{ minWidth: 0 }}>
+            <span style={{ ...styles.promoTitle, fontSize: 15, fontWeight: 500 }}>Indique e ganhe</span>
+            <span style={styles.promoSub}>Ganhe 15% em cada indicação</span>
           </span>
         </button>
+
+        <button type="button" onClick={() => navigate("/dashboard/minha-loja")} style={{ ...styles.promoCard, background: "#E7F5EC" }}>
+          <span style={{ ...styles.promoIcon, background: "#D6EEDF", color: "#16A34A" }} aria-hidden="true">
+            <Sparkles size={20} strokeWidth={2} />
+          </span>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ ...styles.promoTitle, fontSize: 15, fontWeight: 500 }}>Páginas de venda com IA</span>
+            <span style={styles.promoSub}>Crie sua loja em minutos</span>
+          </span>
+        </button>
+
+        <div ref={profileMenuRef} style={styles.profileWrap}>
+          <button
+            type="button"
+            aria-label="Abrir perfil"
+            aria-haspopup="menu"
+            aria-expanded={profileMenuOpen}
+            onClick={() => setProfileMenuOpen((current) => !current)}
+            style={styles.profileCard}
+          >
+            <span style={styles.avatar}>
+              {foto && !avatarFailed ? (
+                <img
+                  src={foto}
+                  alt=""
+                  onError={() => setAvatarFailed(true)}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <UserRound size={17} strokeWidth={1.9} color="rgba(10,10,10,0.55)" />
+              )}
+            </span>
+            <span style={styles.profileText}>
+              <span style={styles.profileName}>{profileName}</span>
+              <span style={styles.profileEmail}>{profileEmail}</span>
+            </span>
+            <span aria-hidden="true" style={styles.profileChevrons}>
+              <MoreVertical size={16} strokeWidth={2} />
+            </span>
+          </button>
 
         {profileMenuOpen ? (
           <div style={styles.profilePanel} role="menu" aria-label="Menu de perfil">
@@ -1108,6 +1169,7 @@ const DashboardSidebar = () => {
             </div>
           </div>
         ) : null}
+      </div>
       </div>
     </aside>
   );

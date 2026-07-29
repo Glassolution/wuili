@@ -35,7 +35,6 @@ import {
   Youtube,
   type LucideIcon,
 } from "lucide-react";
-import { VeloLogo, VeloMark } from "@/components/VeloLogo";
 
 // Novo onboarding da Velo em modal de 3 etapas (substitui o antigo fluxo de
 // cadastro). Puramente frontend: as respostas ficam em estado local e NÃO são
@@ -238,38 +237,108 @@ type OnboardingModalProps = {
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 // ── Paleta do quiz (split-screen) — ISOLADA a esta tela ──────────────────────
-// Segue a paleta monocromática (preto/branco/cinza) do resto do produto Velo.
-// O acento é PRETO — sem azul, e sem verde/vermelho (reservados a margem/lucro
-// e a erros, respectivamente). Nada disto vaza para o design system global.
-const INK = "#0A0A0A"; // preto de marca (acento e fundo do painel)
-const INK_2 = "#262626"; // topo do gradiente do painel esquerdo
+const ELECTRIC_BLUE = "#005EFE";
 
-// Painel esquerdo: gradiente diagonal do grafite ao preto, dando volume sem
-// virar um chapado.
+// Painel esquerdo: cor sólida pedida para o onboarding.
 const brandPanelStyle: CSSProperties = {
-  background: `linear-gradient(160deg, ${INK_2} 0%, ${INK} 100%)`,
+  background: ELECTRIC_BLUE,
 };
 
-// Cards de opção (painel direito, fundo claro). Seleção = borda preta + leve
-// tom de fundo cinza, SEM checkmark/radio.
+const ONBOARDING_MARK_SRC = "/onboarding-velo-mark.png";
+
+const OnboardingBrandLogo = ({ size = "md", variant = "light" }: { size?: "sm" | "md"; variant?: "light" | "dark" }) => {
+  const isLight = variant === "light";
+  const iconSize = size === "md" ? 42 : 30;
+  const fontSize = size === "md" ? 22 : 16;
+  const gap = size === "md" ? 10 : 8;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap }}>
+      <img
+        src={ONBOARDING_MARK_SRC}
+        alt=""
+        style={{
+          width: iconSize,
+          height: iconSize,
+          display: "block",
+          objectFit: "contain",
+          filter: isLight ? "none" : "brightness(0)",
+          flexShrink: 0,
+        }}
+      />
+      <span
+        style={{
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',
+          fontSize,
+          fontWeight: 700,
+          letterSpacing: "-0.04em",
+          color: isLight ? "#FFFFFF" : "#0A0A0A",
+          lineHeight: 1,
+        }}
+      >
+        Velo
+      </span>
+    </div>
+  );
+};
+
+const OnboardingDecor = () => (
+  <div className="pointer-events-none absolute bottom-10 left-12 right-12 z-0 hidden h-[210px] lg:block" aria-hidden="true">
+    <div className="absolute bottom-0 left-[56%] h-[86px] w-[6px] rounded-full bg-white/35" />
+    <div className="absolute bottom-[82px] left-[calc(56%-28px)] h-[48px] w-[62px] rounded-[12px] border border-white/35 bg-white/95 shadow-[18px_22px_34px_rgba(0,36,120,0.20)]" />
+    <div className="absolute bottom-[132px] left-[18%] flex h-[58px] w-[160px] items-center gap-3 rounded-2xl border border-white/18 bg-white/12 px-4 backdrop-blur-sm">
+      <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-[#005EFE]">
+        <Package size={18} strokeWidth={2} />
+      </span>
+      <span className="space-y-1">
+        <span className="block h-2 w-16 rounded-full bg-white/80" />
+        <span className="block h-2 w-24 rounded-full bg-white/35" />
+      </span>
+    </div>
+    <div className="absolute bottom-[42px] left-[30%] flex h-[52px] w-[142px] items-center gap-3 rounded-2xl border border-white/16 bg-white/10 px-4 backdrop-blur-sm">
+      <span className="grid h-8 w-8 place-items-center rounded-xl bg-white/95 text-[#005EFE]">
+        <Rocket size={16} strokeWidth={2} />
+      </span>
+      <span className="space-y-1">
+        <span className="block h-2 w-20 rounded-full bg-white/72" />
+        <span className="block h-2 w-14 rounded-full bg-white/30" />
+      </span>
+    </div>
+    <div className="absolute bottom-[14px] left-[56%] h-[8px] w-[90px] -translate-x-1/2 rounded-full bg-[#003EA8]/30 blur-[2px]" />
+  </div>
+);
+
+// Cards de opção (painel direito, fundo claro). Seleção = borda azul + leve
+// tom de fundo azulado + seta à direita.
 const optionCardStyle = (selected: boolean): CSSProperties =>
   selected
     ? {
-        background: "#F4F4F5",
-        border: `1.5px solid ${INK}`,
-        boxShadow: "0 4px 14px rgba(10,10,10,0.10)",
+        background: "#EEF5FF",
+        border: `1.5px solid ${ELECTRIC_BLUE}`,
+        boxShadow: "0 10px 28px rgba(0,94,254,0.13)",
       }
     : {
         background: "#FFFFFF",
-        border: "1.5px solid #E5E7EB",
+        border: "1.5px solid #E5EAF2",
+        boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
       };
 
-// Container quadrado do ícone à esquerda do card. Preenchido/sólido (preto,
-// ícone branco) quando selecionado; apenas contornado (outline) quando não.
-const iconChipStyle = (selected: boolean): CSSProperties =>
-  selected
-    ? { background: INK, border: `1.5px solid ${INK}`, color: "#FFFFFF" }
-    : { background: "#FFFFFF", border: "1.5px solid #D4D4D8", color: "#52525B" };
+const OPTION_ACCENTS = [
+  { bg: "#EAF2FF", color: "#005EFE" },
+  { bg: "#EEFDF6", color: "#059669" },
+  { bg: "#FFF7ED", color: "#EA580C" },
+  { bg: "#F5F3FF", color: "#7C3AED" },
+  { bg: "#ECFEFF", color: "#0891B2" },
+  { bg: "#FFF1F2", color: "#E11D48" },
+] as const;
+
+// Container quadrado colorido do ícone à esquerda do card.
+const iconChipStyle = (selected: boolean, index: number): CSSProperties => {
+  const accent = OPTION_ACCENTS[index % OPTION_ACCENTS.length];
+  return selected
+    ? { background: ELECTRIC_BLUE, border: `1.5px solid ${ELECTRIC_BLUE}`, color: "#FFFFFF" }
+    : { background: accent.bg, border: `1.5px solid ${accent.bg}`, color: accent.color };
+};
 
 // ── Fluxo linear: uma pergunta por tela ──────────────────────────────────────
 // As 3 macro-etapas do stepper continuam sendo o agrupamento visual/lógico, mas
@@ -389,21 +458,11 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
         className="relative hidden shrink-0 flex-col overflow-hidden p-8 text-white lg:flex lg:w-[35%] lg:max-w-[480px] lg:p-12"
         style={brandPanelStyle}
       >
-        {/* Textura sutil de fundo para o preto não ficar chapado. */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.14]"
-          style={{
-            background:
-              "radial-gradient(120% 80% at 15% 0%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 55%)",
-          }}
-        />
-
         <div className="relative z-10">
-          {/* variant="light" = caixa branca + wordmark branco, visível no preto. */}
-          <VeloLogo size="md" variant="light" />
+          <OnboardingBrandLogo size="md" variant="light" />
         </div>
 
-        <div className="relative z-10 mt-14 flex-1">
+        <div className="relative z-10 flex flex-1 flex-col justify-center pb-28 pt-10">
           <h1 className="text-[34px] font-bold leading-[1.1] tracking-[-0.02em] xl:text-[40px]">
             Vamos montar sua
             <br />
@@ -424,7 +483,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                   <span
                     className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[13px] font-semibold transition-colors duration-300 ${
                       active
-                        ? "border-white bg-white text-[#0A0A0A]"
+                        ? "border-white bg-white text-[#005EFE]"
                         : done
                         ? "border-white/70 bg-white/20 text-white"
                         : "border-white/30 text-white/50"
@@ -445,23 +504,19 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           </ol>
         </div>
 
-        {/* Rodapé decorativo (área reservada para ilustração/gráfico). */}
-        <div className="relative z-10 mt-8 flex items-end justify-start">
-          <VeloMark size={112} tone="soft" className="opacity-90" />
-        </div>
+        <OnboardingDecor />
       </aside>
 
       {/* ── Painel direito (perguntas) ───────────────────────────────────────
           Fundo claro, ocupa o restante da largura. Uma pergunta por tela: em
           alturas normais o conteúdo cabe sem scroll; overflow-y-auto é só uma
           rede de segurança para viewports muito baixas (nunca corta conteúdo). */}
-      <section className="relative flex min-w-0 flex-1 flex-col overflow-y-auto bg-white">
+      <section className="relative flex min-w-0 flex-1 flex-col overflow-y-auto bg-[#FBFCFF]">
         {/* Cabeçalho do painel: logo (só no mobile, já que o painel de marca
             está oculto) + link de ajuda no canto superior direito. */}
-        <div className="flex shrink-0 items-center justify-between px-6 pt-6 sm:px-10 lg:px-14">
+        <div className="z-20 flex shrink-0 items-center justify-between px-6 pt-6 sm:px-10 lg:absolute lg:left-0 lg:right-0 lg:top-0 lg:px-14">
           <div className="lg:hidden">
-            {/* Fundo branco: variant="dark" = caixa preta + wordmark preto. */}
-            <VeloLogo size="sm" variant="dark" />
+            <OnboardingBrandLogo size="sm" variant="dark" />
           </div>
           <span className="hidden lg:block" />
           <button
@@ -473,7 +528,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           </button>
         </div>
 
-        <div className="mx-auto flex w-full max-w-[560px] flex-1 flex-col px-6 py-6 sm:px-10 lg:px-4 lg:py-6">
+        <div className="mx-auto flex w-full max-w-[620px] flex-1 flex-col justify-center px-6 py-10 sm:px-10 lg:px-4 lg:py-20">
           {/* Título + subtítulo da MACRO-etapa (anima só quando a etapa muda). */}
           <AnimatePresence mode="wait">
             <motion.div
@@ -500,7 +555,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           <AnimatePresence mode="wait" custom={direction}>
             <motion.fieldset
               key={index}
-              className="mt-6 flex flex-1 flex-col justify-start"
+              className="mt-8 flex flex-col"
               custom={direction}
               variants={contentVariants}
               initial="initial"
@@ -517,8 +572,8 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                   (outline/sólido conforme seleção), título + descrição em duas
                   linhas, seta à direita e barra de progresso do avanço, ambas
                   só no card selecionado. */}
-              <div className="flex flex-col gap-2">
-                {question.options.map((option) => {
+              <div className={question.options.length > 4 ? "grid grid-cols-1 gap-3 xl:grid-cols-2" : "flex flex-col gap-3"}>
+                {question.options.map((option, optionIndex) => {
                   const selected = answers[question.id] === option.value;
                   const Icon = option.icon;
                   return (
@@ -530,15 +585,15 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                       aria-pressed={selected}
                       whileTap={reduce ? undefined : { scale: 0.99 }}
                       style={optionCardStyle(selected)}
-                      className={`group relative flex min-h-[60px] items-center gap-3.5 overflow-hidden rounded-[12px] px-4 py-2.5 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 ${
+                      className={`group relative flex min-h-[72px] items-center gap-4 overflow-hidden rounded-[16px] px-5 py-3.5 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 ${
                         selected ? "" : "hover:border-[#D4D4D8] hover:-translate-y-0.5"
                       }`}
                     >
                       <span
-                        className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] transition-colors duration-200"
-                        style={iconChipStyle(selected)}
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] transition-colors duration-200"
+                        style={iconChipStyle(selected, optionIndex)}
                       >
-                        <Icon size={20} strokeWidth={selected ? 1.9 : 1.7} />
+                        <Icon size={19} strokeWidth={selected ? 2 : 1.85} />
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col">
                         <span className="text-[14px] font-semibold leading-tight text-[#0F172A] sm:text-[15px]">
@@ -552,7 +607,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                       <ArrowRight
                         size={18}
                         strokeWidth={2}
-                        className={`shrink-0 text-[#0A0A0A] transition-opacity duration-200 ${
+                        className={`shrink-0 text-[#005EFE] transition-opacity duration-200 ${
                           selected ? "opacity-100" : "opacity-0"
                         }`}
                       />
@@ -562,7 +617,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                       {selected ? (
                         <motion.span
                           key={selectionNonce}
-                          className="pointer-events-none absolute bottom-0 left-0 h-[3px] bg-[#0A0A0A]"
+                          className="pointer-events-none absolute bottom-0 left-0 h-[3px] bg-[#005EFE]"
                           initial={{ width: "0%" }}
                           animate={{ width: "100%" }}
                           transition={{ duration: reduce ? 0.001 : ADVANCE_MS / 1000, ease: "linear" }}

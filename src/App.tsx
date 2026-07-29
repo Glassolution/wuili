@@ -32,8 +32,6 @@ const SalesCartPage = lazy(() => import("./pages/public-sales/SalesCartPage"));
 const SalesCheckoutPage = lazy(() => import("./pages/public-sales/SalesCheckoutPage"));
 const SalesLoginPage = lazy(() => import("./pages/public-sales/SalesLoginPage"));
 const SalesThankYouPage = lazy(() => import("./pages/public-sales/SalesThankYouPage"));
-const SalesFlowEditorPage = lazy(() => import("./pages/SalesFlowEditorPage"));
-const SectionsEditorPage = lazy(() => import("./pages/SectionsEditorPage"));
 const BemVindoPage = lazy(() => import("./pages/BemVindoPage"));
 // AuthEntryPage removed — all auth flows consolidated in LoginPage
 // CadastroPage removed — progressive login flow handles both signup and login
@@ -46,6 +44,13 @@ const CatalogPage = lazy(() => import("./pages/dashboard/CatalogPage"));
 const CatalogoPage = lazy(() => import("./pages/dashboard/CatalogoPage"));
 const CatalogoProductDetailPage = lazy(() => import("./pages/dashboard/CatalogoProductDetailPage"));
 const TrendingProductsPage = lazy(() => import("./pages/dashboard/TrendingProductsPage"));
+const AiProductPagesPage = lazy(() => import("./pages/dashboard/AiProductPagesPage"));
+const AiProductPageCreatePendingPage = lazy(() =>
+  import("./pages/dashboard/AiProductPagesPage").then((module) => ({ default: module.AiProductPageCreatePendingPage })),
+);
+const TemplatesPage = lazy(() =>
+  import("./pages/dashboard/WinningProductsPlaceholderPage").then((module) => ({ default: module.TemplatesPage })),
+);
 const OrdersPage = lazy(() => import("./pages/dashboard/OrdersPage"));
 const OrderDetailPage = lazy(() => import("./pages/dashboard/OrderDetailPage"));
 const PublicationsPage = lazy(() => import("./pages/dashboard/PublicationsPage"));
@@ -147,9 +152,9 @@ const App = () => (
               <Route path="/minha-loja" element={<Navigate to="/dashboard/minha-loja" replace />} />
               <Route path="/minha-loja/editor" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
               <Route path="/minha-loja/editor/:projectId" element={<ProtectedRoute><ProfileProvider><GeneratedStoreEditorPage /></ProfileProvider></ProtectedRoute>} />
-              <Route path="/minha-loja/blocos/:projectId" element={<ProtectedRoute><ProfileProvider><SectionsEditorPage /></ProfileProvider></ProtectedRoute>} />
-              <Route path="/produto/editor" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/velods/produto/editor" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/minha-loja/blocos/:projectId" element={<Navigate to="/dashboard/paginas-com-ia" replace />} />
+              <Route path="/produto/editor" element={<Navigate to="/dashboard/paginas-com-ia" replace />} />
+              <Route path="/velods/produto/editor" element={<Navigate to="/dashboard/paginas-com-ia" replace />} />
 
               <Route path="/catalogo" element={<StoreCatalogPage />} />
               <Route path="/cadastro" element={<Navigate to="/login" replace />} />
@@ -182,7 +187,7 @@ const App = () => (
               <Route path="/preview/:slug/checkout" element={<SalesCheckoutPage />} />
               <Route path="/preview/:slug/login" element={<SalesLoginPage />} />
               <Route path="/preview/:slug/obrigado" element={<SalesThankYouPage />} />
-              <Route path="/minha-loja/fluxo" element={<ProtectedRoute><SalesFlowEditorPage /></ProtectedRoute>} />
+              <Route path="/minha-loja/fluxo" element={<Navigate to="/dashboard/paginas-com-ia" replace />} />
               <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
@@ -204,6 +209,9 @@ const App = () => (
                 <Route path="catalogo" element={<CatalogoPage />} />
                 <Route path="catalogo/:id" element={<CatalogoProductDetailPage />} />
                 <Route path="produtos-em-alta" element={<TrendingProductsPage />} />
+                <Route path="paginas-com-ia" element={<AiProductPagesPage />} />
+                <Route path="paginas-com-ia/criar" element={<AiProductPageCreatePendingPage />} />
+                <Route path="modelos" element={<TemplatesPage />} />
                 <Route path="produtos-ml" element={<ProdutosMLPage />} />
                 <Route path="saldos" element={<SaldosPage />} />
                 <Route path="transacoes" element={<TransacoesPage />} />

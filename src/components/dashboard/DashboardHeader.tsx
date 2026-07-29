@@ -5,8 +5,10 @@ import {
   BarChart2,
   CreditCard,
   FileText,
+  Grid2X2,
   LayoutDashboard,
   MessageSquare,
+  NotebookText,
   Package,
   Percent,
   ShoppingCart,
@@ -24,6 +26,8 @@ type RouteMeta = {
 const routes: RouteMeta[] = [
   { test: (p) => p === "/dashboard", title: "Dashboard", icon: BarChart2 },
   { test: (p) => p.startsWith("/dashboard/catalogo"), title: "Catálogo", icon: Package },
+  { test: (p) => p.startsWith("/dashboard/paginas-com-ia"), title: "Páginas com IA", icon: NotebookText },
+  { test: (p) => p.startsWith("/dashboard/modelos"), title: "Modelos", icon: Grid2X2 },
   { test: (p) => p.startsWith("/dashboard/saldos"), title: "Saldos", icon: Wallet },
   { test: (p) => p.startsWith("/dashboard/transacoes"), title: "Transações", icon: ArrowLeftRight },
   { test: (p) => p.startsWith("/dashboard/pagamentos"), title: "Pagamentos", icon: CreditCard },
@@ -45,6 +49,7 @@ const DashboardHeader = () => {
   const shouldHideHeader =
     location.pathname === "/dashboard" ||
     location.pathname === "/colecoes" ||
+    location.pathname.startsWith("/dashboard/paginas-com-ia") ||
     location.pathname.startsWith("/dashboard/produtos-em-alta") ||
     location.pathname.startsWith("/dashboard/catalogo") ||
     location.pathname.startsWith("/dashboard/configuracoes");

@@ -44,6 +44,8 @@ const MARK_TONES: Record<
   },
 };
 
+export const VELO_MARK_SOLID_GRADIENT = `linear-gradient(135deg, ${MARK_TONES.solid.from} 0%, ${MARK_TONES.solid.to} 100%)`;
+
 /**
  * Só o símbolo da Velo, sem o texto — para usos em que a marca aparece como
  * ícone (ex.: cartões de plano, onde cada plano recebe um tom diferente).
