@@ -30,10 +30,13 @@ export const ATLAS_ROUTE_TAG_SLUGS: { slug: string; descricao: string }[] = [
 
 export const atlasRouteTagPromptSection = () =>
   [
-    "MENÇÕES DE NAVEGAÇÃO INLINE (#pagina)",
-    "- Ao citar uma página do app dentro de uma frase, escreva a menção como #slug, sem colchetes e sem markdown. Exemplo: \"você pode revisar isso no #catalogo\" ou \"depois de conectar, confirme seu plano em #planos\".",
-    "- Use SOMENTE os slugs da lista abaixo. Slug fora da lista não vira link e aparece como texto cru para o usuário, então não invente.",
-    "- A menção substitui a necessidade de um botão separado quando o encaminhamento é natural no meio da frase. Continue usando as ações de navegação para chamadas de ação principais.",
-    "- Nunca escreva a rota crua (/dashboard/...) no texto; use a menção.",
+    "MENÇÕES DE NAVEGAÇÃO INLINE",
+    "- Ao citar uma página do app dentro de uma frase, use uma destas duas formas:",
+    "  1. tag solta: \"você pode revisar isso no #catalogo\"",
+    "  2. link markdown com âncora: \"vá até [Configurações](#configuracoes) e clique em Conectar conta\"",
+    "  Prefira a forma 2 quando o nome da página cair melhor na frase que o slug.",
+    "- Use SOMENTE os slugs da lista abaixo. Slug fora da lista não vira link e aparece como texto cru, então não invente.",
+    "- NUNCA escreva a rota crua (/dashboard/...) no texto, e nunca descreva o caminho pelo menu (\"Menu lateral → Configurações\"). Use a menção.",
+    "- A menção substitui o botão separado quando o encaminhamento é natural no meio da frase. Continue usando as ações de navegação para chamadas de ação principais.",
     ...ATLAS_ROUTE_TAG_SLUGS.map((item) => `  #${item.slug} — ${item.descricao}`),
   ].join("\n");

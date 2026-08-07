@@ -57,7 +57,17 @@ type QuickReplyAction = {
   message: string;
 };
 
-type AtlasAction = NavigationAction | ProductCardAction | QuickReplyAction;
+/**
+ * Botão que inicia o OAuth do Mercado Livre direto do chat, sem o usuário ter
+ * que caçar a tela de integrações. O frontend chama `startMercadoLivreOAuth()`,
+ * que só redireciona para URLs de auth.mercadolivre.com.
+ */
+type ConnectMlAction = {
+  type: "connect_ml";
+  label: string;
+};
+
+type AtlasAction = NavigationAction | ProductCardAction | QuickReplyAction | ConnectMlAction;
 
 type AtlasResponse = {
   message: string;
@@ -793,7 +803,12 @@ const guidePublicationStep = async (
       message:
         `**Passo 4 de 4 — resumo e publicação**\n\nFechamos assim:\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre\n- **Produto:** ${productTitle} — potencial de divulgação avaliado\n\nFalta uma coisa antes de publicar: conectar sua conta do Mercado Livre. É uma autorização oficial — você entra no ML, permite a conexão e volta pra cá. Isso se faz em #integracoes.\n\nDepois de conectar, a gente abre o produto, revisa título e descrição e publica. Me avisa quando estiver conectado.`,
       actions: [
-        { type: "navigation", label: "Conectar Mercado Livre", route: "/dashboard/integracoes" },
+        // Conecta pelo próprio chat: o usuário não precisa achar a tela sozinho.
+        { type: "connect_ml", label: "Conectar Mercado Livre agora" },
+        // Mantida junto de propósito: frontend que ainda não conhece connect_ml
+        // descarta a ação acima, e sem esta o usuário ficaria sem caminho nenhum
+        // para conectar.
+        { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
         { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
         quickReply("Já conectei o ML", "Já conectei o Mercado Livre"),
         quickReply("Ver outras opções", "Ver outras opções de produto"),
@@ -934,6 +949,11 @@ const sanitizeAction = (action: unknown): AtlasAction | null => {
     const message = typeof candidate.message === "string" ? candidate.message : label;
     if (!label || !message) return null;
     return { type: "quick_reply", label, message };
+  }
+
+  if (candidate.type === "connect_ml") {
+    const label = typeof candidate.label === "string" && candidate.label ? candidate.label : "Conectar Mercado Livre";
+    return { type: "connect_ml", label };
   }
 
   return null;
