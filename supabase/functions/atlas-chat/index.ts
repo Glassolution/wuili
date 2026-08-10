@@ -35,6 +35,8 @@ type NavigationAction = {
   label: string;
   route: string;
   reason?: string;
+  /** "primary" pede o Botão Pilot (fundo escuro sólido) no frontend. */
+  variant?: "primary";
 };
 
 type ProductCardAction = {
@@ -123,10 +125,32 @@ const isBeginnerTrigger = (message: string, userMessageCount: number) => {
   return false;
 };
 
+/**
+ * Contagem de produtos escrita como gente escreve.
+ *
+ * Antes saía "3 produto(s) desse nicho disponíveis", que é jeito de sistema
+ * falar, não de alguém explicando.
+ */
+const contagemDeProdutos = (total: number) => {
+  if (total <= 0) return "Ainda não tenho produto desse nicho com estoque no catálogo.";
+  if (total === 1) return "Tem 1 produto desse nicho com estoque no catálogo agora.";
+  return `Tem ${total} produtos desse nicho com estoque no catálogo agora.`;
+};
+
 const isConfirmText = (message: string) =>
   /\b(sim|isso|esse|essa|confirmo|confirmar|pode seguir|seguir|quero|vamos|ok|beleza|primeiro|1)\b/.test(
     normalizeGuideText(message),
   );
+
+/** "Já conectei", "autorizei", "pronto" e afins, ditos no passo da conexão. */
+const saidConnectedMl = (message: string) =>
+  /\b(ja conectei|conectei|conectado|conectada|autorizei|autorizado|ja fiz|pronto|terminei|finalizei)\b/.test(
+    normalizeGuideText(message),
+  );
+
+/** Pedido explícito de adiar a conexão, para o guia não virar uma parede. */
+const wantsToConnectLater = (message: string) =>
+  /\b(depois|mais tarde|agora nao|outra hora|pular|pula)\b/.test(normalizeGuideText(message));
 
 const wantsOtherOptions = (message: string) =>
   /\b(outra|outras|outro|outros|mais opcoes|ver outras|trocar produto)\b/.test(normalizeGuideText(message));
@@ -163,7 +187,8 @@ const fetchMercadoLivreSignal = async (niche: ValidatedNiche): Promise<MarketSig
       demand,
       competition,
       score,
-      note: `Sinal público do Mercado Livre: ${total.toLocaleString("pt-BR")} resultados para termos do nicho.`,
+      note: `Para você ter uma ideia do tamanho: hoje o Mercado Livre mostra ${total.toLocaleString("pt-BR")} anúncios quando alguém busca por produtos desse tipo.`,
+      catalogCount: 0,
     };
   } catch (error) {
     console.warn("atlas beginner market signal skipped", niche.id, error);
@@ -173,77 +198,156 @@ const fetchMercadoLivreSignal = async (niche: ValidatedNiche): Promise<MarketSig
   }
 };
 
-const fetchInternalCatalogSignals = async (supabase: ReturnType<typeof createClient> | null): Promise<MarketSignal[]> => {
-  if (!supabase) {
-    return VALIDATED_NICHES.map((niche, index) => ({
+/**
+ * Categorias em destaque do passo 1, derivadas do catálogo.
+ *
+ * Nada de lista fixa: a taxonomia vem do scraping do fornecedor e já mudou por
+ * inteiro num sync, deixando 11 das 13 categorias antigas com zero produto. Aqui
+ * pegamos as N com mais produtos disponíveis, então um novo sync se ajusta sozinho.
+ * O valor enviado na URL é exatamente o que está no banco — o mesmo que o
+ * dropdown do catálogo usa, para chip e navegação manual não divergirem.
+ */
+const categoriasEmDestaque = async (
+  supabase: ReturnType<typeof createClient> | null,
+  quantidade = 6,
+): Promise<{ valor: string; total: number }[]> => {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("catalog_products")
+    .select("category")
+    .eq("is_blocked", false)
+    .gt("stock_quantity", 0)
+    .limit(5000);
+  if (error) {
+    console.error("atlas destaque de categorias falhou", error);
+    return [];
+  }
+
+  const contagem = new Map<string, number>();
+  (data ?? []).forEach((linha: { category?: unknown }) => {
+    const valor = typeof linha.category === "string" ? linha.category.trim() : "";
+    if (!valor) return;
+    contagem.set(valor, (contagem.get(valor) ?? 0) + 1);
+  });
+
+  return [...contagem.entries()]
+    .map(([valor, total]) => ({ valor, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, quantidade);
+};
+
+/**
+ * Disponibilidade real por nicho, em UMA consulta.
+ *
+ * Antes era uma consulta por nicho com `.limit(12)`: o número reportado não era
+ * a contagem do nicho, era "quantos dos 12 primeiros bateram" — por isso o guia
+ * chegou a dizer "0 produtos" para Acessórios, que tem centenas. Buscar o
+ * catálogo inteiro uma vez (só título, descrição e categoria) sai mais barato
+ * que 15 consultas e devolve o número certo.
+ */
+const fetchInternalCatalogSignals = async (
+  supabase: ReturnType<typeof createClient> | null,
+): Promise<MarketSignal[]> => {
+  const semDados = (): MarketSignal[] =>
+    VALIDATED_NICHES.map((niche, index) => ({
       nicheId: niche.id,
       label: niche.label,
-      source: "internal_catalog_fallback",
+      source: "internal_catalog_fallback" as const,
       demand: 50 - index,
       competition: 45,
       score: 50 - index,
-      note: "Fallback local de nichos validados da Velo.",
+      note: "O estoque do catálogo não me respondeu agora, então vale conferir a disponibilidade na hora de escolher o produto.",
+      catalogCount: 0,
     }));
+
+  if (!supabase) return semDados();
+
+  const { data, error } = await supabase
+    .from("catalog_products")
+    .select("id,title,description,category,margin_percent,orders_count")
+    .eq("source", "c7drop")
+    .eq("is_active", true)
+    .eq("is_blocked", false)
+    .gt("stock_quantity", 0)
+    .limit(1000);
+
+  if (error) {
+    console.error("atlas beginner catalog availability error", error);
+    return semDados();
   }
 
-  return Promise.all(
-    VALIDATED_NICHES.map(async (niche) => {
-      let query = supabase
-        .from("catalog_products")
-        .select("id,margin_percent,orders_count,category,title,description")
-        .eq("source", "c7drop")
-        .eq("is_active", true)
-        .eq("is_blocked", false)
-        .gt("stock_quantity", 0)
-        .limit(12);
+  const produtos = (data ?? []) as CatalogProductPreview[];
 
-      const ors = niche.catalogTerms
-        .slice(0, 5)
-        .map((term) => {
-          const safe = normalizeGuideText(term).replace(/[%,]/g, " ").trim();
-          return `title.ilike.%${safe}%,description.ilike.%${safe}%,category.ilike.%${safe}%`;
-        })
-        .join(",");
-      if (ors) query = query.or(ors);
-
-      const { data } = await query;
-      const rows = data ?? [];
-      const avgMargin =
-        rows.reduce((sum, row) => sum + Number(row.margin_percent ?? 0), 0) / Math.max(rows.length, 1);
-      const demand = Math.min(100, rows.reduce((sum, row) => sum + Number(row.orders_count ?? 0), 0) / 4);
-      const score = Math.round(Math.min(100, rows.length * 7 + avgMargin * 0.45 + demand * 0.2));
-      return {
-        nicheId: niche.id,
-        label: niche.label,
-        source: "internal_catalog_fallback" as const,
-        demand: Math.round(demand),
-        competition: Math.max(20, Math.min(80, rows.length * 6)),
-        score,
-        note: `Sinal interno: ${rows.length} produtos equivalentes no catálogo Velo.`,
-      };
-    }),
-  );
+  return VALIDATED_NICHES.map((niche) => {
+    const doNicho = produtos.filter((produto) => contarTermosDoNicho(produto, niche) > 0);
+    const avgMargin =
+      doNicho.reduce((sum, row) => sum + Number(row.margin_percent ?? 0), 0) / Math.max(doNicho.length, 1);
+    const demand = Math.min(100, doNicho.reduce((sum, row) => sum + Number(row.orders_count ?? 0), 0) / 4);
+    const score = Math.round(Math.min(100, doNicho.length * 1.2 + avgMargin * 0.45 + demand * 0.2));
+    return {
+      nicheId: niche.id,
+      label: niche.label,
+      source: "internal_catalog_fallback" as const,
+      demand: Math.round(demand),
+      competition: Math.max(20, Math.min(80, Math.round(doNicho.length / 6))),
+      score,
+      note: contagemDeProdutos(doNicho.length),
+      catalogCount: doNicho.length,
+    };
+  });
 };
 
+/**
+ * Sinais de nicho para o guia.
+ *
+ * A disponibilidade no catálogo Velo é SEMPRE consultada e manda no resultado: a
+ * demanda do Mercado Livre só reordena o que a gente tem para vender. Antes, se a
+ * API do ML respondesse, o catálogo era ignorado e o guia chegava a sugerir nicho
+ * com zero produto — o usuário confirmava e travava no passo seguinte.
+ */
 const researchMarketSignals = async (supabase: ReturnType<typeof createClient> | null) => {
-  const liveSignals = await Promise.all(VALIDATED_NICHES.map(fetchMercadoLivreSignal));
-  const validLiveSignals = liveSignals.filter((signal): signal is MarketSignal => Boolean(signal));
-  if (validLiveSignals.length >= 5) return validLiveSignals;
-  return fetchInternalCatalogSignals(supabase);
+  const [liveSignals, internalSignals] = await Promise.all([
+    Promise.all(VALIDATED_NICHES.map(fetchMercadoLivreSignal)),
+    fetchInternalCatalogSignals(supabase),
+  ]);
+
+  const porNicho = new Map(internalSignals.map((signal) => [signal.nicheId, signal]));
+  const combinados = internalSignals.map((interno) => {
+    const live = liveSignals.find((signal) => signal?.nicheId === interno.nicheId) ?? null;
+    if (!live) return interno;
+    return {
+      ...live,
+      // A contagem do catálogo vem sempre do sinal interno; o do ML não a conhece.
+      catalogCount: interno.catalogCount,
+      note: `${live.note} ${contagemDeProdutos(interno.catalogCount)}`,
+    };
+  });
+
+  void porNicho;
+  return combinados;
 };
+
+/** Só entra na lista o nicho que a Velo consegue atender hoje. */
+const nichosDisponiveis = (signals: MarketSignal[]) => signals.filter((signal) => signal.catalogCount > 0);
 
 const researchSingleNiche = async (niche: ValidatedNiche, supabase: ReturnType<typeof createClient> | null) => {
-  const liveSignal = await fetchMercadoLivreSignal(niche);
-  if (liveSignal) return liveSignal;
-  const internalSignals = await fetchInternalCatalogSignals(supabase);
-  return internalSignals.find((signal) => signal.nicheId === niche.id) ?? {
+  const [liveSignal, internalSignals] = await Promise.all([
+    fetchMercadoLivreSignal(niche),
+    fetchInternalCatalogSignals(supabase),
+  ]);
+  const interno = internalSignals.find((signal) => signal.nicheId === niche.id);
+  // O sinal do ML nunca sabe do nosso estoque: a contagem real vem do interno.
+  if (liveSignal) return { ...liveSignal, catalogCount: interno?.catalogCount ?? 0 };
+  return interno ?? {
     nicheId: niche.id,
     label: niche.label,
     source: "internal_catalog_fallback" as const,
     demand: 50,
     competition: 45,
     score: 50,
-    note: "Nicho validado pela base interna da Velo.",
+    note: "Esse é um nicho que a Velo já atende.",
+    catalogCount: 0,
   };
 };
 
@@ -412,7 +516,7 @@ const sanitizeUnsafeHistory = (messages: ChatMessage[]) =>
 
 const refusalResponse = (): AtlasResponse => ({
   message:
-    "Não posso ajudar com esse tipo de solicitação. Posso te orientar no uso da Velo, como conectar o Mercado Livre, encontrar produtos, publicar anúncios, acompanhar pedidos ou gerenciar sua assinatura.",
+    "Esse assunto eu não consigo ajudar. O que eu faço bem é te orientar dentro da Velo: conectar o Mercado Livre, encontrar produtos, publicar anúncios, acompanhar pedidos e cuidar da sua assinatura. Me diga qual dessas partes você quer resolver.",
   actions: [],
 });
 
@@ -546,13 +650,25 @@ const fetchProductCardAction = async (message: string): Promise<ProductCardActio
   };
 };
 
-const scoreCatalogProduct = (product: CatalogProductPreview, niche: ValidatedNiche) => {
+/**
+ * Casa o termo como palavra inteira (aceitando plural), não como pedaço de outra.
+ *
+ * O ilike do banco usa %termo% e não tem como exigir limite de palavra, então
+ * "pet" trazia "rePETidor" e "taPETe". A conferência acontece aqui, já em JS.
+ */
+const termoCasaPalavra = (texto: string, termo: string) => {
+  if (!termo) return false;
+  const escapado = termo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escapado}s?([^a-z0-9]|$)`).test(texto);
+};
+
+const contarTermosDoNicho = (product: CatalogProductPreview, niche: ValidatedNiche) => {
   const searchable = normalizeGuideText(`${product.title ?? ""} ${product.description ?? ""} ${product.category ?? ""}`);
-  const termScore = niche.catalogTerms.reduce((score, term) => {
-    const clean = normalizeGuideText(term);
-    if (!clean) return score;
-    return searchable.includes(clean) ? score + 12 : score;
-  }, 0);
+  return niche.catalogTerms.filter((term) => termoCasaPalavra(searchable, normalizeGuideText(term))).length;
+};
+
+const scoreCatalogProduct = (product: CatalogProductPreview, niche: ValidatedNiche) => {
+  const termScore = contarTermosDoNicho(product, niche) * 12;
   return termScore + Number(product.margin_percent ?? 0) * 0.7 + Number(product.orders_count ?? 0) * 0.12;
 };
 
@@ -592,7 +708,10 @@ const searchCatalogProductsForNiche = async (
     return [];
   }
 
+  // Sem nenhum termo do nicho batendo como palavra inteira, o produto veio por
+  // falso positivo do ilike e não deve ser sugerido.
   return ((data ?? []) as CatalogProductPreview[])
+    .filter((product) => contarTermosDoNicho(product, niche) > 0)
     .sort((a, b) => scoreCatalogProduct(b, niche) - scoreCatalogProduct(a, niche))
     .slice(0, 3);
 };
@@ -615,14 +734,41 @@ const getUserMercadoLivreStatus = async (supabase: ReturnType<typeof createClien
 
 const askBeginnerNiche = async (supabase: ReturnType<typeof createClient> | null): Promise<AtlasResponse> => {
   const signals = await researchMarketSignals(supabase);
-  const suggestions = beginnerNicheSuggestions(signals, 5);
-  const sourceLabel = signals[0]?.source === "mercado_livre_public_search"
-    ? "pesquisa pública do Mercado Livre"
-    : "sinais internos do catálogo Velo";
+  const disponiveis = nichosDisponiveis(signals);
+  const suggestions = beginnerNicheSuggestions(disponiveis, 5);
+  const sourceLabel = disponiveis[0]?.source === "mercado_livre_public_search"
+    ? "a procura no Mercado Livre cruzada com o que temos em estoque"
+    : "o que o catálogo Velo tem disponível agora";
+
+  // Sem nenhum nicho atendido, não adianta pedir escolha: seria empurrar o
+  // usuário para um passo 2 vazio.
+  if (suggestions.length === 0) {
+    const destaques = await categoriasEmDestaque(supabase);
+    if (destaques.length === 0) {
+      return {
+        message:
+          "Que bom te ver por aqui! 🎉 Vou te acompanhar passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 4: seu nicho**\n\nO catálogo não me respondeu agora, então vamos pelo caminho mais curto. Abra o catálogo e escolha um produto que te interesse. Eu sigo o guia a partir dele.",
+        actions: [{ type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" }],
+      };
+    }
+    return {
+      message:
+        "Que bom te ver por aqui! 🎉 Vou te acompanhar passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um facilita tudo depois, porque você aprende sobre um público só.\n\nA lista de nichos não carregou agora. Em vez de te deixar garimpando no catálogo inteiro, separei as categorias que mais saem por aqui. Escolha uma e eu te levo ao catálogo já filtrado.",
+      actions: [
+        ...destaques.map((categoria) => ({
+          type: "navigation" as const,
+          label: categoria.valor,
+          route: `/dashboard/catalogo?categoria=${encodeURIComponent(categoria.valor)}`,
+          variant: "primary" as const,
+        })),
+        quickReply("Tentar de novo", "Ajude-me a começar"),
+      ],
+    };
+  }
 
   return {
     message:
-      `Tudo bem, já que esse é o seu começo na Velo, vou te guiar por isso passo a passo — uma coisa de cada vez, sem pressa.\n\n**Passo 1 de 4 — seu nicho**\n\nNicho é o tipo de produto que você quer vender, como pets, beleza ou utilidades para casa. Escolher um deixa tudo mais fácil daqui pra frente.\n\nOlhei ${sourceLabel} e separei algumas opções que estão indo bem agora. Pode escolher uma, ou me dizer outro nicho que você já tenha em mente — não precisa ficar preso a essa lista.`,
+      `Que bom te ver por aqui! 🎉 Vou te acompanhar passo a passo até o seu primeiro anúncio no ar, uma coisa de cada vez e sem pressa.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um agora facilita tudo depois. Você aprende sobre um público só e repete o que deu certo, em vez de começar do zero a cada produto novo.\n\nOlhei ${sourceLabel} e separei algumas opções que estão indo bem neste momento. Escolha uma, ou me diga outro nicho que você já tenha em mente. Você não precisa ficar preso a essa lista.`,
     actions: [
       ...suggestions.map((label) => quickReply(label, `Quero começar com ${label}`)),
       quickReply("Ainda não sei", "Ainda não sei qual nicho escolher"),
@@ -638,9 +784,27 @@ const validateNicheStep = async (
   const demandText = signal.demand >= 70 ? "boa demanda" : signal.demand >= 45 ? "demanda moderada" : "demanda mais específica";
   const competitionText = signal.competition >= 70 ? "concorrência alta" : signal.competition >= 45 ? "concorrência média" : "concorrência menor";
 
+  // Nicho sem produto no catálogo não passa daqui. Confirmar levaria a um passo 2
+  // sem nada para escolher, e o usuário perderia a viagem.
+  if (signal.catalogCount === 0) {
+    const alternativas = beginnerNicheSuggestions(nichosDisponiveis(await researchMarketSignals(supabase)), 4);
+    return {
+      message:
+        `**Passo 1 de 4: seu nicho**\n\nOlhei **${niche.label}** e preciso ser sincero com você. O catálogo Velo não tem produtos desse nicho neste momento.\n\nNão vale a pena seguir por aí. No próximo passo você ficaria sem nada para escolher, e o guia travaria bem no começo.\n\n${
+          alternativas.length > 0
+            ? "Estes aqui a gente atende hoje. São parecidos o bastante para funcionar bem com o que você tinha em mente:"
+            : "Vamos por outro caminho. Abra o catálogo e escolha a partir do que existe hoje."
+        }`,
+      actions: [
+        ...alternativas.map((label) => quickReply(label, `Quero começar com ${label}`)),
+        { type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" },
+      ],
+    };
+  }
+
   return {
     message:
-      `**Passo 1 de 4 — seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\nEsse nicho parece ter ${demandText} e ${competitionText}. Na prática: existe procura, e o que vai definir o resultado é escolher produtos com boa margem e fotos claras.\n\n${signal.note}\n\nConfirma esse nicho para a gente seguir para o próximo passo?`,
+      `Boa escolha! Deixa eu te contar o que eu vi sobre esse nicho.\n\n**Passo 1 de 4: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\nEsse nicho tem ${demandText} e ${competitionText}. Demanda é quanta gente procura por esses produtos. Concorrência é quantos vendedores já disputam essa procura.\n\nNa prática: existe gente comprando. O que vai definir o seu resultado é escolher produtos com boa margem e fotos claras. Margem é o que sobra do preço depois de tirar o custo, a tarifa do marketplace e o frete.\n\n${signal.note}\n\nConfirma esse nicho para a gente seguir?`,
     actions: [
       quickReply("Sim, buscar produtos", `Sim, buscar produtos de ${niche.label}`),
       quickReply("Ver outros nichos", "Quero ver outros nichos"),
@@ -682,7 +846,7 @@ const showProductsForNiche = async (
   if (products.length === 0) {
     return {
       message:
-        `Procurei produtos de **${niche.label}** no catálogo real da Velo e não encontrei uma opção forte agora. Posso testar outro nicho ou abrir o catálogo para você explorar manualmente.`,
+        `Procurei produtos de **${niche.label}** no catálogo da Velo e não achei uma opção boa agora. Prefiro te dizer isso a te empurrar um produto fraco.\n\nDá para testar outro nicho, ou abrir o catálogo e olhar você mesmo. Você escolhe.`,
       actions: [
         { type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" },
         quickReply("Ver outros nichos", "Quero ver outros nichos"),
@@ -693,7 +857,7 @@ const showProductsForNiche = async (
 
   return {
     message:
-      `**Passo 2 de 4 — escolha do produto**\n\nAgora cruzei **${niche.label}** com o catálogo real da Velo. Separei até 3 opções, priorizando estoque ativo e indicador de margem.\n\nEscolha uma e no próximo passo eu avalio o potencial dela nas redes.`,
+      `Nicho definido, agora vem a parte divertida! 😄\n\n**Passo 2 de 4: escolha do produto**\n\nCruzei **${niche.label}** com o catálogo da Velo e separei até 3 opções para você.\n\nPriorizei duas coisas. Estoque ativo, porque anúncio de produto sem estoque acaba pausado. E boa margem, que é o quanto sobra para você depois de pagar o custo do produto, a tarifa do marketplace e o frete.\n\nEscolha uma. No próximo passo eu avalio como ela se sai nas redes sociais.`,
     actions: [
       ...products.map(productCardFromRow),
       quickReply("Quero o primeiro", "Quero o primeiro produto"),
@@ -710,7 +874,7 @@ const showProductsForNiche = async (
 // a apresentar as duas opções e a pergunta vira uma escolha de verdade.
 const askSalesChannelStep = (niche: ValidatedNiche): AtlasResponse => ({
   message:
-    `Boa, **${niche.label}** fechado.\n\n**Passo 2 de 4 — onde vender**\n\nHoje a Velo publica direto no **Mercado Livre**, através de uma conexão oficial com a sua conta de vendedor. É o caminho mais rápido para a primeira venda: o marketplace já traz o público, você não precisa montar loja nem trazer visita por conta própria.\n\nA parte técnica dessa conexão fica em #integracoes, e a gente faz isso junto mais pra frente — agora é só alinhar o caminho.\n\nSeguimos pelo Mercado Livre?`,
+    `Boa, **${niche.label}** fechado! Passo 1 concluído.\n\n**Passo 2 de 4: onde vender**\n\nVocê vai vender no **Mercado Livre**, e isso joga bastante a seu favor.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\nMais pra frente a gente conecta a sua conta de vendedor, e eu te acompanho nessa hora. Agora é só combinar o caminho.\n\nSeguimos pelo Mercado Livre?`,
   actions: [
     quickReply("Sim, Mercado Livre", "Sim, quero vender pelo Mercado Livre"),
     quickReply("Tenho uma dúvida", "Tenho uma dúvida sobre vender no Mercado Livre"),
@@ -741,17 +905,19 @@ const DEMO_KEYWORDS = [
   "mini", "smart", "projetor", "umidificador", "luminaria",
 ];
 
-const assessSocialPotential = (product: ProductCardAction, niche: ValidatedNiche) => {
+const assessSocialPotential = (product: ProductCardAction, niche: ValidatedNiche | null) => {
   const title = normalizeGuideText(product.product?.title ?? "");
   const matches = DEMO_KEYWORDS.filter((keyword) => title.includes(keyword));
-  const visualNiche = VISUAL_NICHE_IDS.has(niche.id);
+  // Sem nicho validado — caso de quem escolheu o produto direto no catálogo — a
+  // leitura sai só do título, que já é a maior parte do sinal.
+  const visualNiche = niche ? VISUAL_NICHE_IDS.has(niche.id) : false;
   const score = (visualNiche ? 2 : 0) + Math.min(matches.length, 3);
 
   if (score >= 3) {
     return {
       nivel: "forte" as const,
       leitura:
-        "dá pra mostrar funcionando em poucos segundos, que é exatamente o que costuma render vídeo curto — antes e depois, demonstração de uso, reação.",
+        "dá pra mostrar ele funcionando em poucos segundos, que é exatamente o que costuma render vídeo curto: antes e depois, demonstração de uso, reação de quem vê.",
     };
   }
   if (score >= 1) {
@@ -764,20 +930,22 @@ const assessSocialPotential = (product: ProductCardAction, niche: ValidatedNiche
   return {
     nivel: "mais difícil" as const,
     leitura:
-      "é um produto mais funcional que visual, então o vídeo tende a render menos sozinho. Não impede de vender pelo marketplace, mas a divulgação orgânica vai puxar menos.",
+      "é um produto mais funcional que visual, então o vídeo tende a render menos sozinho. Isso não impede de vender pelo marketplace. Só quer dizer que a divulgação gratuita nas redes vai puxar menos venda para você.",
   };
 };
 
 const validateSocialPotentialStep = (
   product: ProductCardAction,
-  niche: ValidatedNiche,
+  niche: ValidatedNiche | null,
+  /** Comemora a etapa que acabou de passar, quando o usuário vem da conexão. */
+  prefacio?: string,
 ): AtlasResponse => {
   const avaliacao = assessSocialPotential(product, niche);
   const titulo = product.product?.title ?? "esse produto";
 
   return {
     message:
-      `**Passo 3 de 4 — potencial de divulgação**\n\nAntes de publicar, vale olhar uma coisa que quase ninguém olha no começo: o quanto esse produto se sustenta sozinho no TikTok e no Instagram.\n\nProduto visual, com "efeito uau", fácil de mostrar em uso, costuma render bem mais que produto genérico — porque o vídeo faz parte do trabalho de venda por você, de graça.\n\nMinha leitura de **${titulo}**: potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\nIsso é orientação a partir do tipo de produto e do nicho, não medição das redes. Quando quiser produzir esse conteúdo, os influencers de IA ficam em #tiktok e as fotos em #imagens-ia.\n\nQuer seguir com ele para a publicação?`,
+      `${prefacio ? `${prefacio}\n\n` : "Produto escolhido, você já está na metade do caminho!\n\n"}**Passo 3 de 4: potencial de divulgação**\n\nAntes de publicar, vale olhar uma coisa que quase ninguém olha no começo. O quanto esse produto se sustenta sozinho no TikTok e no Instagram.\n\nProduto bonito de ver e fácil de mostrar funcionando costuma render bem mais que produto genérico. O motivo é simples. O vídeo faz parte do trabalho de venda por você, sem você pagar por isso.\n\nMinha leitura de **${titulo}**: potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\nUm aviso honesto: isso é uma leitura do tipo de produto e do nicho, não uma medição das redes sociais. Quando quiser produzir esse conteúdo, os influencers de IA ficam em #tiktok e as fotos em #imagens-ia.\n\nVamos seguir com ele para a publicação?`,
     actions: [
       product,
       quickReply("Sim, seguir com ele", "Sim, seguir com esse produto para publicação"),
@@ -801,7 +969,7 @@ const guidePublicationStep = async (
   if (!mlStatus.connected || !mlStatus.tokenValid) {
     return {
       message:
-        `**Passo 4 de 4 — resumo e publicação**\n\nFechamos assim:\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre\n- **Produto:** ${productTitle} — potencial de divulgação avaliado\n\nFalta uma coisa antes de publicar: conectar sua conta do Mercado Livre. É uma autorização oficial — você entra no ML, permite a conexão e volta pra cá. Isso se faz em #integracoes.\n\nDepois de conectar, a gente abre o produto, revisa título e descrição e publica. Me avisa quando estiver conectado.`,
+        `Chegamos no último passo! Olha o quanto você já avançou:\n\n**Passo 4 de 4: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre\n- **Produto:** ${productTitle}, com potencial de divulgação já avaliado\n\nFalta uma coisa antes de publicar. Conectar a sua conta do Mercado Livre.\n\nÉ rápido. Você entra na sua conta, clica em permitir e volta pra cá. A gente faz isso em #integracoes, e a sua senha nunca passa pela Velo.\n\nAssim que conectar, abrimos o produto, revisamos título e descrição e colocamos o seu anúncio no ar. Me avise quando terminar que eu confiro aqui.`,
       actions: [
         // Conecta pelo próprio chat: o usuário não precisa achar a tela sozinho.
         { type: "connect_ml", label: "Conectar Mercado Livre agora" },
@@ -818,7 +986,7 @@ const guidePublicationStep = async (
 
   return {
     message:
-      `**Passo 4 de 4 — resumo e publicação**\n\nFechamos assim:\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta já conectada)\n- **Produto:** ${productTitle} — potencial de divulgação avaliado\n\nAgora é a parte final: abra o produto, revise título e descrição, confira preço e margem, e publique. Depois é só acompanhar o status em #publicacoes e as vendas em #pedidos.\n\nSe travar em algum ponto, me chama que eu destravo.`,
+      `Chegamos no último passo! 🎉 Olha o quanto você já avançou:\n\n**Passo 4 de 4: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre, com a sua conta já conectada\n- **Produto:** ${productTitle}, com potencial de divulgação já avaliado\n\nAgora é a reta final. Abra o produto, revise o título e a descrição, confira o preço e a margem, e publique.\n\nVale caprichar no título. Ele precisa ter as palavras que a pessoa realmente digita na busca, senão o anúncio não aparece.\n\nDepois é só acompanhar o status em #publicacoes e as suas vendas em #pedidos. Se travar em qualquer ponto, me chama aqui.`,
     actions: [
       { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
       { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
@@ -829,8 +997,132 @@ const guidePublicationStep = async (
   };
 };
 
-const maybeHandleBeginnerGuide = async (messages: ChatMessage[], userId: string): Promise<AtlasResponse | null> => {
+/**
+ * A foto do produto chega do cliente e acaba num <img src> do chat, então só
+ * passa se for http(s) — nada de javascript:, data: ou string arbitrária.
+ */
+const safeImageUrl = (valor: unknown): string | null => {
+  if (typeof valor !== "string" || valor.length > 500) return null;
+  try {
+    const url = new URL(valor);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Escolha de produto feita no catálogo, durante o guia.
+ *
+ * Chega como dado estruturado (id, nome, categoria, preço) no corpo da
+ * requisição — não como prosa para o modelo interpretar. Assim o passo seguinte
+ * nasce já amarrado ao produto certo, sem o usuário ter que descrevê-lo.
+ */
+const guideProductChosenStep = async (
+  supabase: ReturnType<typeof createClient> | null,
+  userId: string,
+  produto: {
+    id: string;
+    nome: string;
+    categoria: string;
+    preco: number;
+    imagem?: string | null;
+  },
+): Promise<AtlasResponse> => {
+  const preco = Number.isFinite(produto.preco)
+    ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(produto.preco)
+    : null;
+  // A conta do ML é pré-requisito para publicar, então o passo já diz em que pé
+  // ela está — quem ainda não conectou recebe o aviso e o botão aqui mesmo.
+  const mlStatus = await getUserMercadoLivreStatus(supabase, userId);
+  const mlPronto = mlStatus.connected && mlStatus.tokenValid;
+
+  const sobreAConta = mlPronto
+    ? "E olha que boa notícia. A sua conta do Mercado Livre já está conectada à Velo. Essa é a parte que mais trava quem está começando, e você já resolveu."
+    : "Para o seu anúncio aparecer lá, a Velo precisa de uma permissão sua dentro do Mercado Livre. Funciona como aqueles sites que pedem para você \"entrar com o Google\". Você faz o login na sua conta, clica em permitir, e pronto.\n\nA sua senha continua só com o Mercado Livre. A Velo nunca vê ela, e você pode desfazer a conexão quando quiser.";
+
+  return {
+    message:
+      `Ótima escolha! 😄 Anotei aqui: **${produto.nome}**${preco ? ` (${preco})` : ""}, da categoria ${produto.categoria}. É com ele que a gente vai trabalhar daqui pra frente.\n\n**Passo 2 de 4: onde vender**\n\nVocê vai vender no **Mercado Livre**, e isso joga bastante a seu favor.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\n${sobreAConta}\n\n${mlPronto ? "Seguimos com esse produto?" : "Vamos conectar agora? É o que falta para o seu anúncio poder ir ao ar."}`,
+    actions: [
+      {
+        type: "product_card",
+        product_id: produto.id,
+        product: {
+          id: produto.id,
+          title: produto.nome,
+          image_url: produto.imagem ?? null,
+          margin_percent: null,
+          suggested_price: Number.isFinite(produto.preco) ? produto.preco : null,
+          route: `/dashboard/catalogo/${produto.id}`,
+        },
+      },
+      ...(mlPronto
+        ? []
+        : ([
+            { type: "connect_ml", label: "Conectar Mercado Livre" },
+            // Frontend que não conheça connect_ml descarta a ação acima; sem
+            // esta o usuário ficaria sem caminho para conectar.
+            { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
+          ] as AtlasAction[])),
+      mlPronto
+        ? quickReply("Sim, seguir com ele", "Sim, quero seguir com esse produto")
+        : quickReply("Vamos conectar", "Quero conectar minha conta do Mercado Livre"),
+      quickReply("Quero outro produto", "Ver outras opções de produto"),
+    ],
+  };
+};
+
+/**
+ * Passo 2, parte prática: conectar a conta do Mercado Livre.
+ *
+ * A conexão acontece aqui e não no fim do guia porque é ela que destrava a
+ * publicação. Deixar para o último passo faz o usuário chegar animado ao final
+ * e travar. O texto explica o que vai acontecer na tela, passo a passo, porque
+ * quem está começando nunca viu um fluxo de autorização antes.
+ */
+const guideConnectMlStep = (product: ProductCardAction, jaDisseQueConectou: boolean): AtlasResponse => {
+  const passoAPasso =
+    "1. Toque no botão **Conectar Mercado Livre** aqui embaixo.\n2. Vai abrir a página oficial do Mercado Livre. Entre com a sua conta de vendedor.\n3. O Mercado Livre vai perguntar se você autoriza a Velo. É só permitir.\n4. Você volta pra cá sozinho e a gente continua de onde parou.";
+
+  if (jaDisseQueConectou) {
+    return {
+      message:
+        `**Passo 2 de 4: conectar sua conta**\n\nAinda não estou enxergando a conexão aqui do meu lado. Isso acontece bastante, e quase sempre é uma destas três coisas:\n\n1. A janela do Mercado Livre foi fechada antes de clicar em permitir.\n2. O login aconteceu numa conta diferente da que você quer usar para vender.\n3. A autorização ainda está sendo processada. Nesse caso, espere alguns segundos e me chame de novo.\n\nNada grave. Vamos tentar mais uma vez, com calma:\n\n${passoAPasso}\n\nSe aparecer alguma mensagem estranha na tela, me conte o que estava escrito. Eu te ajudo a resolver.`,
+      actions: [
+        { type: "connect_ml", label: "Conectar Mercado Livre" },
+        { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
+        product,
+        quickReply("Já conectei", "Já conectei o Mercado Livre"),
+        quickReply("Conecto depois", "Quero conectar o Mercado Livre depois"),
+      ],
+    };
+  }
+
+  return {
+    message:
+      `Perfeito, vamos nessa! É mais simples do que parece.\n\n**Passo 2 de 4: conectar sua conta**\n\n${passoAPasso}\n\nDuas coisas para você ficar tranquilo. A Velo nunca enxerga a sua senha, quem cuida disso é o próprio Mercado Livre. E se um dia você quiser desfazer a conexão, é um clique em #integracoes.\n\nAinda não tem conta de vendedor? Sem problema. Dá para criar na hora, é rápido e não custa nada.\n\nMe avise assim que terminar. Eu confiro aqui e a gente segue para o próximo passo.`,
+    actions: [
+      { type: "connect_ml", label: "Conectar Mercado Livre" },
+      { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
+      product,
+      quickReply("Já conectei", "Já conectei o Mercado Livre"),
+      quickReply("Conecto depois", "Quero conectar o Mercado Livre depois"),
+    ],
+  };
+};
+
+const maybeHandleBeginnerGuide = async (
+  messages: ChatMessage[],
+  userId: string,
+  produtoDoCatalogo?: { id: string; nome: string; categoria: string; preco: number; imagem?: string | null } | null,
+): Promise<AtlasResponse | null> => {
   const supabase = createServiceClient();
+
+  // Escolha no catálogo tem prioridade: é uma ação explícita do usuário e define
+  // o produto de todos os passos seguintes.
+  if (produtoDoCatalogo?.id) return guideProductChosenStep(supabase, userId, produtoDoCatalogo);
+
   const lastUserMessage = getLastUserMessage(messages);
   const userMessageCount = messages.filter((message) => message.role !== "assistant").length;
   const lastAssistant = getLastAssistantMessage(messages);
@@ -864,12 +1156,34 @@ const maybeHandleBeginnerGuide = async (messages: ChatMessage[], userId: string)
     return guidePublicationStep(supabase, userId, lastProductCards[0], niche);
   }
 
-  // Produto escolhido na lista -> Passo 3 (potencial de divulgação).
-  if (emPasso(2) && lastProductCards.length > 0 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
-    // Sem nicho identificado o passo 3 ficaria sem contexto; volta ao passo 1 em
-    // vez de devolver a conversa para o modelo genérico no meio do guia.
+  // Produto escolhido na lista -> conectar o Mercado Livre e, com a conta no
+  // lugar, seguir para o passo 3 (potencial de divulgação).
+  if (
+    emPasso(2) &&
+    lastProductCards.length > 0 &&
+    (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage) || saidConnectedMl(lastUserMessage))
+  ) {
+    // Nicho pode não existir: quem escolheu o produto direto no catálogo nunca
+    // passou pela etapa de nicho. Antes isso voltava o usuário ao passo 1 e
+    // reiniciava o guia; agora o passo 3 segue com o produto que já foi escolhido.
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    if (!niche) return askBeginnerNiche(supabase);
+
+    // Quem pediu para deixar a conexão para depois não fica preso nela: o guia
+    // segue, e o passo 4 cobra a conta de novo antes de publicar.
+    if (!wantsToConnectLater(lastUserMessage)) {
+      const mlStatus = await getUserMercadoLivreStatus(supabase, userId);
+      if (!mlStatus.connected || !mlStatus.tokenValid) {
+        return guideConnectMlStep(lastProductCards[0], saidConnectedMl(lastUserMessage));
+      }
+      if (saidConnectedMl(lastUserMessage)) {
+        return validateSocialPotentialStep(
+          lastProductCards[0],
+          niche,
+          "Conta conectada, deu tudo certo! 🎉 Essa era a parte mais chata de todas, e já ficou para trás.",
+        );
+      }
+    }
+
     return validateSocialPotentialStep(lastProductCards[0], niche);
   }
 
@@ -886,7 +1200,7 @@ const maybeHandleBeginnerGuide = async (messages: ChatMessage[], userId: string)
     );
     return {
       message:
-        "**Passo 4 de 4 — revisão final**\n\nBoa. Agora abra o produto escolhido, revise título, descrição, preço e margem, e publique.\n\nDepois de publicar, o status aparece em #publicacoes e as vendas em #pedidos. Qualquer dúvida no meio do caminho, é só me chamar.",
+        "Conta conectada, deu tudo certo! 🎉\n\n**Passo 4 de 4: revisão final**\n\nAgora abra o produto escolhido, revise o título, a descrição, o preço e a margem, e publique.\n\nDois cuidados que evitam a maior parte dos problemas. Coloque no título as palavras que o comprador digita na busca. E deixe o prazo de entrega realista, porque atraso vira reclamação e reclamação derruba a sua nota de vendedor.\n\nDepois de publicar, o status aparece em #publicacoes e as suas vendas em #pedidos. Qualquer dúvida no caminho, é só me chamar.",
       actions: [
         ...(productNav ? [productNav] : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
         { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
@@ -931,6 +1245,7 @@ const sanitizeAction = (action: unknown): AtlasAction | null => {
       label,
       route,
       reason: typeof candidate.reason === "string" ? candidate.reason : undefined,
+      variant: candidate.variant === "primary" ? "primary" : undefined,
     };
   }
 
@@ -1013,7 +1328,7 @@ const fallbackReply = (message: string): AtlasResponse => {
   if (normalizedMessage.includes("anuncio") || normalizedMessage.includes("publica")) {
     return {
       message:
-        "Posso te ajudar a criar um anúncio. O caminho normal é escolher um produto no Catálogo, revisar título/descrição e publicar com o Mercado Livre conectado.",
+        "Posso te ajudar a criar um anúncio. O caminho é sempre o mesmo. Você escolhe um produto no Catálogo, revisa o título e a descrição, e publica com a sua conta do Mercado Livre conectada.\n\nO título é a parte que mais pesa. Ele precisa ter as palavras que a pessoa digita na busca, senão o anúncio não aparece.",
       actions: [{ type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" }],
     };
   }
@@ -1021,7 +1336,7 @@ const fallbackReply = (message: string): AtlasResponse => {
   if (normalizedMessage.includes("produto")) {
     return {
       message:
-        "Para encontrar produtos, comece pelo Catálogo da Velo. Procure itens ativos, com estoque e bom indicador de margem. Se você me disser um nicho, eu consigo orientar melhor.",
+        "Para encontrar produtos, comece pelo Catálogo da Velo. Procure itens com estoque disponível e boa margem. Margem é o que sobra para você depois de tirar o custo do produto, a tarifa do marketplace e o frete.\n\nSe você me disser em que tipo de produto quer se concentrar, eu consigo te orientar melhor.",
       actions: [{ type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" }],
     };
   }
@@ -1029,7 +1344,7 @@ const fallbackReply = (message: string): AtlasResponse => {
   if (normalizedMessage.includes("mercado livre") || normalizedMessage.includes("ml")) {
     return {
       message:
-        "A conexão com o Mercado Livre fica em Integrações. Você autoriza pelo site oficial do ML e volta para a Velo com a conta conectada.",
+        "A conexão com o Mercado Livre fica em Integrações. Você entra na sua conta pelo site oficial do Mercado Livre, autoriza a Velo e volta pra cá com a conta conectada. A sua senha não passa pela Velo em nenhum momento.",
       actions: [{ type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" }],
     };
   }
@@ -1037,14 +1352,14 @@ const fallbackReply = (message: string): AtlasResponse => {
   if (normalizedMessage.includes("plano") || normalizedMessage.includes("assinatura")) {
     return {
       message:
-        "A Velo usa planos com limites diferentes de produtos, marketplaces, páginas e automações. Para valores atuais, confira a área de Planos no painel.",
+        "Os planos da Velo mudam o quanto você pode usar: quantos produtos publicar, quantos marketplaces conectar, quantas páginas de venda criar. Os valores de hoje ficam na área de Planos, aqui no painel.",
       actions: [{ type: "navigation", label: "Ver Planos", route: "/dashboard/planos" }],
     };
   }
 
   return {
     message:
-      "Posso te orientar na Velo. Me diga se você quer encontrar produtos, conectar o Mercado Livre, criar um anúncio, gerar imagens, acompanhar pedidos ou mexer na assinatura.",
+      "Oi! 😄 Me conta o que você quer fazer agora: encontrar produtos, conectar o Mercado Livre, criar um anúncio, gerar imagens, acompanhar pedidos ou mexer na assinatura. Eu te levo lá.",
     actions: [],
   };
 };
@@ -1060,7 +1375,7 @@ serve(async (req) => {
       return jsonResponse({ error: "Não autorizado" }, 401);
     }
 
-    const { messages } = await req.json();
+    const { messages, produtoSelecionado } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0) {
       return jsonResponse({ error: "messages obrigatório" }, 400);
     }
@@ -1076,7 +1391,22 @@ serve(async (req) => {
       return jsonResponse(refusalResponse());
     }
 
-    const beginnerGuideResponse = await maybeHandleBeginnerGuide(normalizedMessages, authenticatedUserId);
+    const produtoDoCatalogo =
+      produtoSelecionado && typeof produtoSelecionado === "object" && typeof produtoSelecionado.id === "string"
+        ? {
+            id: String(produtoSelecionado.id),
+            nome: String(produtoSelecionado.nome ?? "produto do catálogo"),
+            categoria: String(produtoSelecionado.categoria ?? "sem categoria"),
+            preco: Number(produtoSelecionado.preco ?? Number.NaN),
+            imagem: safeImageUrl(produtoSelecionado.imagem),
+          }
+        : null;
+
+    const beginnerGuideResponse = await maybeHandleBeginnerGuide(
+      normalizedMessages,
+      authenticatedUserId,
+      produtoDoCatalogo,
+    );
     if (beginnerGuideResponse) {
       return jsonResponse(beginnerGuideResponse);
     }
@@ -1136,7 +1466,7 @@ serve(async (req) => {
     return jsonResponse(
       {
         message:
-          "Tive uma instabilidade agora, mas posso continuar te ajudando. Tente reformular a pergunta ou escolha uma área do painel.",
+          "Alguma coisa falhou aqui do meu lado agora. Não foi nada que você fez.\n\nTente me perguntar de novo, com outras palavras, ou me diga qual parte do painel você quer usar. Eu continuo por aqui.",
         actions: [],
       },
       200,

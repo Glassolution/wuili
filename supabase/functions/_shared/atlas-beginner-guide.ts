@@ -14,6 +14,14 @@ export type MarketSignal = {
   competition: number;
   score: number;
   note: string;
+  /**
+   * Quantos produtos o catálogo Velo realmente tem para este nicho.
+   *
+   * Existe porque a demanda do Mercado Livre não diz nada sobre o nosso estoque:
+   * sem esse número o guia sugeria nichos que o catálogo não atende, e o usuário
+   * só descobria no passo seguinte, sem produto nenhum para escolher.
+   */
+  catalogCount: number;
 };
 
 export const BEGINNER_GUIDE_VERSION = "2026-08-05";
