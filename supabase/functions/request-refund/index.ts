@@ -49,16 +49,24 @@ Deno.serve(async (req) => {
     if (!sub) return json({ error: "Assinatura não encontrada" }, 404);
     if (sub.status !== "active") return json({ error: "Apenas assinaturas ativas podem ser reembolsadas" }, 400);
 
-    // Bloqueia se o usuário já solicitou reembolso alguma vez (qualquer status)
-    const { data: anyPrev } = await admin
+    // Bloqueia apenas se já existir uma solicitação em aberto ou já reembolsada.
+    // Pedidos recusados (rejected/denied) permitem nova solicitação.
+    const { data: prevRequests } = await admin
       .from("refund_requests")
       .select("id, status")
-      .eq("user_id", userId)
-      .limit(1)
-      .maybeSingle();
-    if (anyPrev) {
+      .eq("user_id", userId);
+    const REJECTED = ["rejected", "denied", "cancelled", "canceled"];
+    const blocking = (prevRequests ?? []).filter(
+      (r: { status: string | null }) => !REJECTED.includes(String(r.status ?? "").toLowerCase()),
+    );
+    if (blocking.length > 0) {
+      const hasPending = blocking.some((r: { status: string | null }) => String(r.status).toLowerCase() === "pending");
       return json(
-        { error: "Você já solicitou um reembolso anteriormente. Não é possível solicitar novamente." },
+        {
+          error: hasPending
+            ? "Você já tem uma solicitação de reembolso em análise."
+            : "Você já teve um reembolso processado anteriormente. Não é possível solicitar novamente.",
+        },
         409,
       );
     }
