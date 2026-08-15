@@ -14,30 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_applications: {
+        Row: {
+          affiliate_code: string | null
+          agreed_terms: boolean
+          audience_range: string | null
+          content_niche: string | null
+          cpf: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          pix_keys: Json
+          promotion_plan: string | null
+          socials: Json
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          affiliate_code?: string | null
+          agreed_terms?: boolean
+          audience_range?: string | null
+          content_niche?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          pix_keys?: Json
+          promotion_plan?: string | null
+          socials?: Json
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          affiliate_code?: string | null
+          agreed_terms?: boolean
+          audience_range?: string | null
+          content_niche?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          pix_keys?: Json
+          promotion_plan?: string | null
+          socials?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       affiliate_clicks: {
         Row: {
           affiliate_code: string
+          converted_at: string | null
           created_at: string
           id: string
           ip_hash: string | null
+          reached_payment_at: string | null
           referrer: string | null
+          signup_at: string | null
+          signup_user_id: string | null
           user_agent: string | null
+          visitor_id: string | null
         }
         Insert: {
           affiliate_code: string
+          converted_at?: string | null
           created_at?: string
           id?: string
           ip_hash?: string | null
+          reached_payment_at?: string | null
           referrer?: string | null
+          signup_at?: string | null
+          signup_user_id?: string | null
           user_agent?: string | null
+          visitor_id?: string | null
         }
         Update: {
           affiliate_code?: string
+          converted_at?: string | null
           created_at?: string
           id?: string
           ip_hash?: string | null
+          reached_payment_at?: string | null
           referrer?: string | null
+          signup_at?: string | null
+          signup_user_id?: string | null
           user_agent?: string | null
+          visitor_id?: string | null
         }
         Relationships: []
       }
@@ -47,12 +119,18 @@ export type Database = {
           commission_rate: number
           commission_value: number
           created_at: string
+          cycle_number: number
+          cycle_type: string
+          debt_settled_at: string | null
           id: string
           paid_at: string | null
           payment_id: string | null
           payout_status: string
           plan_name: string | null
           plan_value: number
+          provider_subscription_id: string | null
+          reference_month: string
+          refunded_at: string | null
           status: string
           subscriber_user_id: string
           subscription_id: string | null
@@ -62,12 +140,18 @@ export type Database = {
           commission_rate?: number
           commission_value?: number
           created_at?: string
+          cycle_number?: number
+          cycle_type?: string
+          debt_settled_at?: string | null
           id?: string
           paid_at?: string | null
           payment_id?: string | null
           payout_status?: string
           plan_name?: string | null
           plan_value?: number
+          provider_subscription_id?: string | null
+          reference_month?: string
+          refunded_at?: string | null
           status?: string
           subscriber_user_id: string
           subscription_id?: string | null
@@ -77,12 +161,18 @@ export type Database = {
           commission_rate?: number
           commission_value?: number
           created_at?: string
+          cycle_number?: number
+          cycle_type?: string
+          debt_settled_at?: string | null
           id?: string
           paid_at?: string | null
           payment_id?: string | null
           payout_status?: string
           plan_name?: string | null
           plan_value?: number
+          provider_subscription_id?: string | null
+          reference_month?: string
+          refunded_at?: string | null
           status?: string
           subscriber_user_id?: string
           subscription_id?: string | null
@@ -107,6 +197,99 @@ export type Database = {
           id?: number
           minimum_payout?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      affiliate_withdrawal_items: {
+        Row: {
+          amount: number
+          conversion_id: string
+          created_at: string
+          id: string
+          is_live: boolean
+          withdrawal_id: string
+        }
+        Insert: {
+          amount?: number
+          conversion_id: string
+          created_at?: string
+          id?: string
+          is_live?: boolean
+          withdrawal_id: string
+        }
+        Update: {
+          amount?: number
+          conversion_id?: string
+          created_at?: string
+          id?: string
+          is_live?: boolean
+          withdrawal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_withdrawal_items_conversion_id_fkey"
+            columns: ["conversion_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_conversions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_withdrawal_items_withdrawal_id_fkey"
+            columns: ["withdrawal_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_withdrawal_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_withdrawal_requests: {
+        Row: {
+          admin_note: string | null
+          affiliate_code: string
+          amount: number
+          cancelled_at: string | null
+          created_at: string
+          decided_at: string | null
+          id: string
+          paid_at: string | null
+          pix_key: string | null
+          pix_key_type: string | null
+          requested_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          affiliate_code: string
+          amount: number
+          cancelled_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          paid_at?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          affiliate_code?: string
+          amount?: number
+          cancelled_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          paid_at?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -146,63 +329,57 @@ export type Database = {
         }
         Relationships: []
       }
-      feature_suggestions: {
+      ai_characters: {
         Row: {
-          category:
-            | "geral"
-            | "catalogo"
-            | "paginas_ia"
-            | "integracoes"
-            | "atlas"
-            | "checkout"
-            | "templates"
-          comments_count: number
+          attributes: Json
           created_at: string
-          description: string
           id: string
-          status: "pending" | "approved" | "ongoing" | "completed" | "rejected"
-          title: string
+          image_url: string | null
+          mode: string
+          name: string
           updated_at: string
           user_id: string
-          votes_count: number
         }
         Insert: {
-          category?:
-            | "geral"
-            | "catalogo"
-            | "paginas_ia"
-            | "integracoes"
-            | "atlas"
-            | "checkout"
-            | "templates"
-          comments_count?: number
+          attributes?: Json
           created_at?: string
-          description: string
           id?: string
-          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
-          title: string
+          image_url?: string | null
+          mode?: string
+          name: string
           updated_at?: string
           user_id: string
-          votes_count?: number
         }
         Update: {
-          category?:
-            | "geral"
-            | "catalogo"
-            | "paginas_ia"
-            | "integracoes"
-            | "atlas"
-            | "checkout"
-            | "templates"
-          comments_count?: number
+          attributes?: Json
           created_at?: string
-          description?: string
           id?: string
-          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
-          title?: string
+          image_url?: string | null
+          mode?: string
+          name?: string
           updated_at?: string
           user_id?: string
-          votes_count?: number
+        }
+        Relationships: []
+      }
+      ai_image_generations: {
+        Row: {
+          created_at: string
+          id: string
+          mode: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mode?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mode?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -402,6 +579,42 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      atlas_usage_logs: {
+        Row: {
+          completion_tokens: number
+          created_at: string
+          id: string
+          message_chars: number
+          model: string | null
+          origem: string
+          prompt_tokens: number
+          step: number | null
+          user_id: string | null
+        }
+        Insert: {
+          completion_tokens?: number
+          created_at?: string
+          id?: string
+          message_chars?: number
+          model?: string | null
+          origem: string
+          prompt_tokens?: number
+          step?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          completion_tokens?: number
+          created_at?: string
+          id?: string
+          message_chars?: number
+          model?: string | null
+          origem?: string
+          prompt_tokens?: number
+          step?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -651,6 +864,66 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_suggestions: {
+        Row: {
+          category:
+            | "geral"
+            | "catalogo"
+            | "paginas_ia"
+            | "integracoes"
+            | "atlas"
+            | "checkout"
+            | "templates"
+          comments_count: number
+          created_at: string
+          description: string
+          id: string
+          status: "pending" | "approved" | "ongoing" | "completed" | "rejected"
+          title: string
+          updated_at: string
+          user_id: string
+          votes_count: number
+        }
+        Insert: {
+          category?:
+            | "geral"
+            | "catalogo"
+            | "paginas_ia"
+            | "integracoes"
+            | "atlas"
+            | "checkout"
+            | "templates"
+          comments_count?: number
+          created_at?: string
+          description: string
+          id?: string
+          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
+          title: string
+          updated_at?: string
+          user_id: string
+          votes_count?: number
+        }
+        Update: {
+          category?:
+            | "geral"
+            | "catalogo"
+            | "paginas_ia"
+            | "integracoes"
+            | "atlas"
+            | "checkout"
+            | "templates"
+          comments_count?: number
+          created_at?: string
+          description?: string
+          id?: string
+          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
+          title?: string
+          updated_at?: string
+          user_id?: string
+          votes_count?: number
+        }
+        Relationships: []
+      }
       generated_sales_pages: {
         Row: {
           benefits: Json
@@ -872,6 +1145,57 @@ export type Database = {
           },
         ]
       }
+      ml_api_cache: {
+        Row: {
+          body: string
+          cache_key: string
+          expires_at: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          cache_key: string
+          expires_at: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          cache_key?: string
+          expires_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ml_api_circuit: {
+        Row: {
+          failure_count: number
+          id: string
+          last_status: number | null
+          last_url: string | null
+          open_until: string | null
+          updated_at: string
+          window_started_at: string | null
+        }
+        Insert: {
+          failure_count?: number
+          id: string
+          last_status?: number | null
+          last_url?: string | null
+          open_until?: string | null
+          updated_at?: string
+          window_started_at?: string | null
+        }
+        Update: {
+          failure_count?: number
+          id?: string
+          last_status?: number | null
+          last_url?: string | null
+          open_until?: string | null
+          updated_at?: string
+          window_started_at?: string | null
+        }
+        Relationships: []
+      }
       ml_category_prediction_log: {
         Row: {
           created_at: string
@@ -920,6 +1244,72 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_compliance_fixes: {
+        Row: {
+          after_value: string | null
+          attempts: number
+          batch: string
+          before_value: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          kind: string
+          ml_item_id: string
+          ml_seller_id: number | null
+          ml_status: string | null
+          ml_status_before: string | null
+          processed_at: string | null
+          publication_id: string | null
+          scheduled_at: string
+          seller_id: string | null
+          status: string
+          under_review: boolean
+          updated_at: string
+        }
+        Insert: {
+          after_value?: string | null
+          attempts?: number
+          batch?: string
+          before_value?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          kind: string
+          ml_item_id: string
+          ml_seller_id?: number | null
+          ml_status?: string | null
+          ml_status_before?: string | null
+          processed_at?: string | null
+          publication_id?: string | null
+          scheduled_at?: string
+          seller_id?: string | null
+          status?: string
+          under_review?: boolean
+          updated_at?: string
+        }
+        Update: {
+          after_value?: string | null
+          attempts?: number
+          batch?: string
+          before_value?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          kind?: string
+          ml_item_id?: string
+          ml_seller_id?: number | null
+          ml_status?: string | null
+          ml_status_before?: string | null
+          processed_at?: string | null
+          publication_id?: string | null
+          scheduled_at?: string
+          seller_id?: string | null
+          status?: string
+          under_review?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ml_oauth_states: {
         Row: {
           consumed_at: string | null
@@ -944,6 +1334,48 @@ export type Database = {
           redirect_to?: string | null
           state?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      ml_publish_errors: {
+        Row: {
+          category_id: string | null
+          cause: Json | null
+          created_at: string
+          http_status: number | null
+          id: string
+          mapped_code: string | null
+          mapped_message: string | null
+          ml_user_id: number | null
+          product_title: string | null
+          raw_response: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          cause?: Json | null
+          created_at?: string
+          http_status?: number | null
+          id?: string
+          mapped_code?: string | null
+          mapped_message?: string | null
+          ml_user_id?: number | null
+          product_title?: string | null
+          raw_response?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          cause?: Json | null
+          created_at?: string
+          http_status?: number | null
+          id?: string
+          mapped_code?: string | null
+          mapped_message?: string | null
+          ml_user_id?: number | null
+          product_title?: string | null
+          raw_response?: Json | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -989,6 +1421,51 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      ml_webhook_queue: {
+        Row: {
+          application_id: string | null
+          attempts: number
+          id: string
+          last_error: string | null
+          ml_user_id: string | null
+          payload_raw: Json
+          processed_at: string | null
+          received_at: string
+          resource: string | null
+          source: string
+          status: string
+          topic: string
+        }
+        Insert: {
+          application_id?: string | null
+          attempts?: number
+          id?: string
+          last_error?: string | null
+          ml_user_id?: string | null
+          payload_raw: Json
+          processed_at?: string | null
+          received_at?: string
+          resource?: string | null
+          source?: string
+          status?: string
+          topic: string
+        }
+        Update: {
+          application_id?: string | null
+          attempts?: number
+          id?: string
+          last_error?: string | null
+          ml_user_id?: string | null
+          payload_raw?: Json
+          processed_at?: string | null
+          received_at?: string
+          resource?: string | null
+          source?: string
+          status?: string
+          topic?: string
         }
         Relationships: []
       }
@@ -1165,6 +1642,54 @@ export type Database = {
           },
         ]
       }
+      payment_incidents: {
+        Row: {
+          amount: number | null
+          charge_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          kind: string
+          message: string | null
+          related_subscription_id: string | null
+          resolved: boolean
+          severity: string
+          subscription_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          charge_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          kind: string
+          message?: string | null
+          related_subscription_id?: string | null
+          resolved?: boolean
+          severity?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          charge_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          kind?: string
+          message?: string | null
+          related_subscription_id?: string | null
+          resolved?: boolean
+          severity?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           aliexpress_access_token: string | null
@@ -1183,10 +1708,11 @@ export type Database = {
           loja_nome: string | null
           nicho: string | null
           objetivo: string | null
-          notification_preferences: Json
           onboarding_completed: boolean
           onboarding_completed_at: string | null
           onboarding_niche: string | null
+          pix_key: string | null
+          pix_key_type: string | null
           plano: string | null
           refund_cooldown_until: string | null
           store_name: string | null
@@ -1212,10 +1738,11 @@ export type Database = {
           loja_nome?: string | null
           nicho?: string | null
           objetivo?: string | null
-          notification_preferences?: Json
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
           onboarding_niche?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
           plano?: string | null
           refund_cooldown_until?: string | null
           store_name?: string | null
@@ -1241,10 +1768,11 @@ export type Database = {
           loja_nome?: string | null
           nicho?: string | null
           objetivo?: string | null
-          notification_preferences?: Json
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
           onboarding_niche?: string | null
+          pix_key?: string | null
+          pix_key_type?: string | null
           plano?: string | null
           refund_cooldown_until?: string | null
           store_name?: string | null
@@ -1349,14 +1877,18 @@ export type Database = {
       }
       refund_requests: {
         Row: {
+          automated: boolean
+          charge_id: string | null
           created_at: string
           id: string
+          keep_access: boolean
           payment_id: string | null
           processed_at: string | null
           provider_response: Json | null
           reason: string
           reason_details: string | null
           refund_amount: number
+          refund_kind: string
           requested_at: string
           status: string
           subscription_id: string | null
@@ -1364,14 +1896,18 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          automated?: boolean
+          charge_id?: string | null
           created_at?: string
           id?: string
+          keep_access?: boolean
           payment_id?: string | null
           processed_at?: string | null
           provider_response?: Json | null
           reason: string
           reason_details?: string | null
           refund_amount?: number
+          refund_kind?: string
           requested_at?: string
           status?: string
           subscription_id?: string | null
@@ -1379,14 +1915,18 @@ export type Database = {
           user_id: string
         }
         Update: {
+          automated?: boolean
+          charge_id?: string | null
           created_at?: string
           id?: string
+          keep_access?: boolean
           payment_id?: string | null
           processed_at?: string | null
           provider_response?: Json | null
           reason?: string
           reason_details?: string | null
           refund_amount?: number
+          refund_kind?: string
           requested_at?: string
           status?: string
           subscription_id?: string | null
@@ -1618,6 +2158,71 @@ export type Database = {
           },
         ]
       }
+      subscription_migrations: {
+        Row: {
+          amount: number
+          created_at: string
+          current_period_end: string | null
+          id: string
+          notes: string | null
+          origin_paid_at: string | null
+          origin_payment_id: string | null
+          origin_provider: string
+          origin_subscription_id: string | null
+          plan: string
+          refundable: boolean
+          refundable_until: string | null
+          status: string
+          subscription_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          notes?: string | null
+          origin_paid_at?: string | null
+          origin_payment_id?: string | null
+          origin_provider: string
+          origin_subscription_id?: string | null
+          plan: string
+          refundable?: boolean
+          refundable_until?: string | null
+          status: string
+          subscription_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          notes?: string | null
+          origin_paid_at?: string | null
+          origin_payment_id?: string | null
+          origin_provider?: string
+          origin_subscription_id?: string | null
+          plan?: string
+          refundable?: boolean
+          refundable_until?: string | null
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_migrations_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: true
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           amount: number
@@ -1627,26 +2232,36 @@ export type Database = {
           current_period_end: string | null
           current_period_start: string | null
           discount_percent: number | null
+          duplicate_detected_at: string | null
+          duplicate_of_subscription_id: string | null
+          duplicate_status: string
           id: string
           is_trial: boolean
           last_charge_attempt_at: string | null
           last_dunning_email_at: string | null
+          migrated_to_validapay_at: string | null
           mp_card_id: string | null
           mp_customer_id: string | null
           mp_payment_id: string | null
           mp_subscription_id: string | null
           next_charge_amount: number | null
           next_charge_at: string | null
+          origin_paid_at: string | null
+          origin_payment_id: string | null
+          origin_provider: string | null
           original_amount: number | null
           payment_method: string | null
           plan: string
           post_trial_plan: string | null
+          provider: string
           referral_id: string | null
+          refundable_until: string | null
           status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           trial_ends_at: string | null
           updated_at: string
           user_id: string
-          provider: string | null
           validapay_charge_id: string | null
           validapay_customer_id: string | null
           validapay_subscription_id: string | null
@@ -1659,26 +2274,36 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           discount_percent?: number | null
+          duplicate_detected_at?: string | null
+          duplicate_of_subscription_id?: string | null
+          duplicate_status?: string
           id?: string
           is_trial?: boolean
           last_charge_attempt_at?: string | null
           last_dunning_email_at?: string | null
+          migrated_to_validapay_at?: string | null
           mp_card_id?: string | null
           mp_customer_id?: string | null
           mp_payment_id?: string | null
           mp_subscription_id?: string | null
           next_charge_amount?: number | null
           next_charge_at?: string | null
+          origin_paid_at?: string | null
+          origin_payment_id?: string | null
+          origin_provider?: string | null
           original_amount?: number | null
           payment_method?: string | null
           plan?: string
           post_trial_plan?: string | null
+          provider?: string
           referral_id?: string | null
+          refundable_until?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           updated_at?: string
           user_id: string
-          provider?: string | null
           validapay_charge_id?: string | null
           validapay_customer_id?: string | null
           validapay_subscription_id?: string | null
@@ -1691,31 +2316,48 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           discount_percent?: number | null
+          duplicate_detected_at?: string | null
+          duplicate_of_subscription_id?: string | null
+          duplicate_status?: string
           id?: string
           is_trial?: boolean
           last_charge_attempt_at?: string | null
           last_dunning_email_at?: string | null
+          migrated_to_validapay_at?: string | null
           mp_card_id?: string | null
           mp_customer_id?: string | null
           mp_payment_id?: string | null
           mp_subscription_id?: string | null
           next_charge_amount?: number | null
           next_charge_at?: string | null
+          origin_paid_at?: string | null
+          origin_payment_id?: string | null
+          origin_provider?: string | null
           original_amount?: number | null
           payment_method?: string | null
           plan?: string
           post_trial_plan?: string | null
+          provider?: string
           referral_id?: string | null
+          refundable_until?: string | null
           status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           updated_at?: string
           user_id?: string
-          provider?: string | null
           validapay_charge_id?: string | null
           validapay_customer_id?: string | null
           validapay_subscription_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "subscriptions_duplicate_of_subscription_id_fkey"
+            columns: ["duplicate_of_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "subscriptions_referral_id_fkey"
             columns: ["referral_id"]
@@ -1820,7 +2462,10 @@ export type Database = {
       }
       support_messages: {
         Row: {
+          attachment_type: string | null
+          attachment_url: string | null
           created_at: string | null
+          edited_at: string | null
           id: string
           message: string
           sender: string
@@ -1828,7 +2473,10 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           created_at?: string | null
+          edited_at?: string | null
           id?: string
           message: string
           sender: string
@@ -1836,7 +2484,10 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          attachment_type?: string | null
+          attachment_url?: string | null
           created_at?: string | null
+          edited_at?: string | null
           id?: string
           message?: string
           sender?: string
@@ -1888,6 +2539,131 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      tiktok_shop_accounts: {
+        Row: {
+          access_token: string
+          connected_at: string
+          created_at: string
+          currency: string | null
+          id: string
+          refresh_token: string | null
+          region: string | null
+          shop_cipher: string | null
+          shop_id: string | null
+          shop_name: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          connected_at?: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          refresh_token?: string | null
+          region?: string | null
+          shop_cipher?: string | null
+          shop_id?: string | null
+          shop_name?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          connected_at?: string
+          created_at?: string
+          currency?: string | null
+          id?: string
+          refresh_token?: string | null
+          region?: string | null
+          shop_cipher?: string | null
+          shop_id?: string | null
+          shop_name?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tiktok_shop_oauth_states: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          redirect_to: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          redirect_to?: string | null
+          state: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          redirect_to?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tiktok_shop_publications: {
+        Row: {
+          catalog_product_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          published_at: string | null
+          shop_id: string | null
+          status: string
+          tiktok_product_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          catalog_product_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          published_at?: string | null
+          shop_id?: string | null
+          status?: string
+          tiktok_product_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          catalog_product_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          published_at?: string | null
+          shop_id?: string | null
+          status?: string
+          tiktok_product_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_shop_publications_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trending_products_history: {
         Row: {
@@ -2143,6 +2919,72 @@ export type Database = {
         }
         Relationships: []
       }
+      user_products: {
+        Row: {
+          brand: string | null
+          category: string | null
+          cost_price: number | null
+          created_at: string
+          description: string
+          height_cm: number | null
+          id: string
+          images: Json
+          length_cm: number | null
+          model: string | null
+          price: number
+          sku: string | null
+          status: string
+          stock_quantity: number
+          title: string
+          updated_at: string
+          user_id: string
+          weight: number | null
+          width_cm: number | null
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          cost_price?: number | null
+          created_at?: string
+          description?: string
+          height_cm?: number | null
+          id?: string
+          images?: Json
+          length_cm?: number | null
+          model?: string | null
+          price?: number
+          sku?: string | null
+          status?: string
+          stock_quantity?: number
+          title: string
+          updated_at?: string
+          user_id: string
+          weight?: number | null
+          width_cm?: number | null
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          cost_price?: number | null
+          created_at?: string
+          description?: string
+          height_cm?: number | null
+          id?: string
+          images?: Json
+          length_cm?: number | null
+          model?: string | null
+          price?: number
+          sku?: string | null
+          status?: string
+          stock_quantity?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+          weight?: number | null
+          width_cm?: number | null
+        }
+        Relationships: []
+      }
       user_projects: {
         Row: {
           created_at: string
@@ -2205,14 +3047,19 @@ export type Database = {
           id: string
           ml_closed_at: string | null
           ml_item_id: string
+          paused_reason: string | null
           permalink: string | null
           price: number | null
           published_at: string | null
           status: string | null
+          stock_synced_at: string | null
           thumbnail: string | null
           title: string
           updated_at: string | null
           user_id: string
+          variation_group_id: string | null
+          variation_name: string | null
+          variation_value: string | null
         }
         Insert: {
           catalog_product_id?: string | null
@@ -2224,14 +3071,19 @@ export type Database = {
           id?: string
           ml_closed_at?: string | null
           ml_item_id: string
+          paused_reason?: string | null
           permalink?: string | null
           price?: number | null
           published_at?: string | null
           status?: string | null
+          stock_synced_at?: string | null
           thumbnail?: string | null
           title: string
           updated_at?: string | null
           user_id: string
+          variation_group_id?: string | null
+          variation_name?: string | null
+          variation_value?: string | null
         }
         Update: {
           catalog_product_id?: string | null
@@ -2243,14 +3095,19 @@ export type Database = {
           id?: string
           ml_closed_at?: string | null
           ml_item_id?: string
+          paused_reason?: string | null
           permalink?: string | null
           price?: number | null
           published_at?: string | null
           status?: string | null
+          stock_synced_at?: string | null
           thumbnail?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
+          variation_group_id?: string | null
+          variation_name?: string | null
+          variation_value?: string | null
         }
         Relationships: []
       }
@@ -2305,40 +3162,52 @@ export type Database = {
       validapay_webhook_events: {
         Row: {
           amount: number | null
+          attempts: number
           charge_id: string | null
           created_at: string
           error: string | null
           event: string
           id: string
+          last_attempt_at: string | null
+          next_retry_at: string | null
           payload: Json
           payment_id: string | null
           processed: boolean
+          retry_exhausted: boolean
           status: string | null
           subscription_id: string | null
         }
         Insert: {
           amount?: number | null
+          attempts?: number
           charge_id?: string | null
           created_at?: string
           error?: string | null
           event: string
           id?: string
+          last_attempt_at?: string | null
+          next_retry_at?: string | null
           payload: Json
           payment_id?: string | null
           processed?: boolean
+          retry_exhausted?: boolean
           status?: string | null
           subscription_id?: string | null
         }
         Update: {
           amount?: number | null
+          attempts?: number
           charge_id?: string | null
           created_at?: string
           error?: string | null
           event?: string
           id?: string
+          last_attempt_at?: string | null
+          next_retry_at?: string | null
           payload?: Json
           payment_id?: string | null
           processed?: boolean
+          retry_exhausted?: boolean
           status?: string | null
           subscription_id?: string | null
         }
@@ -2403,7 +3272,10 @@ export type Database = {
       }
     }
     Functions: {
+      affiliate_generate_code: { Args: { p_user_id: string }; Returns: string }
       claim_project_invites: { Args: never; Returns: number }
+      close_stale_support_tickets: { Args: never; Returns: number }
+      current_user_ml_seller_ids: { Args: never; Returns: string[] }
       get_aliexpress_cron_status: {
         Args: never
         Returns: {
@@ -2573,6 +3445,91 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_project_owner: {
         Args: { p_project: string; p_user: string }
+        Returns: boolean
+      }
+      rpc_admin_accept_affiliate_application: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      rpc_admin_affiliate_applications: {
+        Args: { p_status?: string }
+        Returns: Json
+      }
+      rpc_admin_affiliate_details: {
+        Args: { p_from?: string; p_query: string; p_to?: string }
+        Returns: Json
+      }
+      rpc_admin_affiliates_summary: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      rpc_admin_reject_affiliate_application: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      rpc_admin_store_sales: {
+        Args: { p_limit?: number; p_status?: string }
+        Returns: Json
+      }
+      rpc_admin_withdrawal_decide: {
+        Args: { p_action: string; p_id: string; p_note?: string }
+        Returns: Json
+      }
+      rpc_admin_withdrawal_requests: {
+        Args: { p_status?: string }
+        Returns: Json
+      }
+      rpc_affiliate_attach_signup: {
+        Args: { p_affiliate_code: string; p_visitor_id?: string }
+        Returns: boolean
+      }
+      rpc_affiliate_cancel_withdrawal: {
+        Args: { p_id: string }
+        Returns: boolean
+      }
+      rpc_affiliate_mark_converted: {
+        Args: { p_affiliate_code: string; p_user_id: string }
+        Returns: boolean
+      }
+      rpc_affiliate_mark_reached_payment: {
+        Args: { p_affiliate_code: string; p_visitor_id?: string }
+        Returns: boolean
+      }
+      rpc_affiliate_request_withdrawal: {
+        Args: { p_pix_key?: string; p_pix_key_type?: string }
+        Returns: Json
+      }
+      rpc_affiliate_subscriber_names: {
+        Args: never
+        Returns: {
+          display_name: string
+          email: string
+          subscriber_user_id: string
+        }[]
+      }
+      rpc_affiliate_withdrawal_history: {
+        Args: never
+        Returns: {
+          admin_note: string
+          amount: number
+          cancelled_at: string
+          decided_at: string
+          id: string
+          items_count: number
+          paid_at: string
+          pix_key_type: string
+          requested_at: string
+          status: string
+        }[]
+      }
+      rpc_affiliate_withdrawal_summary: { Args: never; Returns: Json }
+      rpc_record_affiliate_visit: {
+        Args: {
+          p_affiliate_code: string
+          p_referrer?: string
+          p_user_agent?: string
+          p_visitor_id?: string
+        }
         Returns: boolean
       }
       set_aliexpress_cron_active: {

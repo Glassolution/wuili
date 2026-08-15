@@ -449,18 +449,52 @@ const OrdersPage = () => {
   } = useQuery({
     queryKey: ["ml-orders-view", user?.id],
     enabled: !!user?.id,
+    // Verifica continuamente se surgiram pedidos da conta de vendedor conectada
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       if (!user?.id) return [];
+
+      // Sellers ML conectados nesta conta (pedidos podem ter sido gravados em outra conta Velo
+      // que usa o mesmo seller — trazemos todos eles).
+      const { data: integrations } = await supabase
+        .from("user_integrations")
+        .select("ml_user_id")
+        .eq("user_id", user.id)
+        .eq("platform", "mercadolivre");
+
+      const sellerIds = Array.from(
+        new Set(
+          (integrations ?? [])
+            .map((row) => (row.ml_user_id == null ? null : String(row.ml_user_id)))
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+
+      const filters = [`user_id.eq.${user.id}`];
+      if (sellerIds.length > 0) {
+        filters.push(`ml_user_id.in.(${sellerIds.join(",")})`);
+      }
+
       const { data, error: queryError } = await supabase
         .from("ml_orders_view")
         .select("*")
-        .eq("user_id", user.id)
+        .or(filters.join(","))
         .order("ordered_at", { ascending: false, nullsFirst: false })
         .limit(2000);
       if (queryError) throw queryError;
-      return data ?? [];
+
+      // Deduplica caso o mesmo pedido apareça por mais de um critério
+      const seen = new Set<string>();
+      return (data ?? []).filter((row) => {
+        const key = String(row.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     },
   });
+
 
   useEffect(() => {
     if (error) {
