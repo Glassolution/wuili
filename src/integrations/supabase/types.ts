@@ -3215,6 +3215,7 @@ export type Database = {
       affiliate_generate_code: { Args: { p_user_id: string }; Returns: string }
       claim_project_invites: { Args: never; Returns: number }
       close_stale_support_tickets: { Args: never; Returns: number }
+      current_user_ml_seller_ids: { Args: never; Returns: string[] }
       get_aliexpress_cron_status: {
         Args: never
         Returns: {
