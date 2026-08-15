@@ -148,7 +148,7 @@ const RefundSection = () => {
         <div className="space-y-2.5">
           {hasAnyRefund && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[12px] text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-              Você já solicitou um reembolso anteriormente. Cada conta tem direito a apenas uma solicitação.
+              Você já possui uma solicitação de reembolso em análise ou processada. Novas solicitações não são permitidas.
             </div>
           )}
           {subs.map((s) => {
