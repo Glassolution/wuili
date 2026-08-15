@@ -61,7 +61,9 @@ const RefundSection = () => {
       .select("subscription_id, status")
       .eq("user_id", user.id);
     const list = allRefunds || [];
-    setHasAnyRefund(list.length > 0);
+    const REJECTED = ["rejected", "denied", "cancelled", "canceled"];
+    // Pedidos recusados não bloqueiam uma nova solicitação
+    setHasAnyRefund(list.some((r: any) => !REJECTED.includes(String(r.status ?? "").toLowerCase())));
     setPendingIds(new Set(list.filter((r: any) => r.status === "pending").map((r: any) => r.subscription_id)));
     setLoading(false);
   };
