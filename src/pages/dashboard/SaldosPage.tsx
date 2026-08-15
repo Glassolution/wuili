@@ -15,6 +15,7 @@ import {
   getPeriodBounds,
   type Period,
 } from "@/lib/financial";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 
 // ── Formatter ──────────────────────────────────────────────────────────────────
 
@@ -194,6 +195,7 @@ const SaldosPage = () => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+      <DashboardPageHeader title="Saldos" className="mb-0 md:mb-0" />
 
       {/* ── TOP ROW: Earning + Spending ─────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">

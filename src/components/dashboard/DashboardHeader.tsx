@@ -1,5 +1,8 @@
+import type { ElementType } from "react";
 import { useLocation } from "react-router-dom";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
+import ShopifyBagIcon from "@/components/icons/ShopifyBagIcon";
+import TikTokIcon from "@/components/dashboard/TikTokIcon";
 import {
   ArrowLeftRight,
   BarChart2,
@@ -20,25 +23,26 @@ import {
 type RouteMeta = {
   test: (pathname: string) => boolean;
   title: string;
-  icon: LucideIcon;
+  icon: LucideIcon | ElementType;
 };
 
 const routes: RouteMeta[] = [
   { test: (p) => p === "/dashboard", title: "Dashboard", icon: BarChart2 },
   { test: (p) => p.startsWith("/dashboard/catalogo"), title: "Catálogo", icon: Package },
   { test: (p) => p.startsWith("/dashboard/paginas-com-ia"), title: "Páginas com IA", icon: NotebookText },
-  { test: (p) => p.startsWith("/dashboard/modelos"), title: "Modelos", icon: Grid2X2 },
+  { test: (p) => p.startsWith("/dashboard/modelos"), title: "Templates", icon: Grid2X2 },
   { test: (p) => p.startsWith("/dashboard/saldos"), title: "Saldos", icon: Wallet },
   { test: (p) => p.startsWith("/dashboard/transacoes"), title: "Transações", icon: ArrowLeftRight },
   { test: (p) => p.startsWith("/dashboard/pagamentos"), title: "Pagamentos", icon: CreditCard },
   { test: (p) => p.startsWith("/dashboard/produtos"), title: "Produtos", icon: Package },
   { test: (p) => p.startsWith("/dashboard/publicacoes"), title: "Publicações", icon: FileText },
   { test: (p) => p.startsWith("/dashboard/pedidos") || p.startsWith("/dashboard/orders"), title: "Pedidos", icon: ShoppingCart },
-  { test: (p) => p.startsWith("/dashboard/integracoes"), title: "Integrações", icon: Package },
+  { test: (p) => p.startsWith("/dashboard/integracoes"), title: "Lojas", icon: ShopifyBagIcon },
+  { test: (p) => p.startsWith("/dashboard/tiktok"), title: "TikTok", icon: TikTokIcon },
   { test: (p) => p.startsWith("/dashboard/criar-video"), title: "Criar Vídeos", icon: Video },
   { test: (p) => p.startsWith("/dashboard/chat-fornecedores"), title: "Chat", icon: MessageSquare },
   { test: (p) => p.startsWith("/dashboard/comissoes"), title: "Comissões", icon: Percent },
-  { test: (p) => p.startsWith("/dashboard/relatorios"), title: "Relatórios", icon: BarChart2 },
+  { test: (p) => p.startsWith("/dashboard/imagens-ia"), title: "Imagens com IA", icon: BarChart2 },
 ];
 
 const DashboardHeader = () => {

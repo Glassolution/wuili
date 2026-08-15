@@ -105,9 +105,7 @@ const productTiles = [
 function VeloLogo() {
   return (
     <div className="flex items-center gap-2.5 text-black">
-      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-[10px] shadow-[0_5px_11px_rgba(0,0,0,0.18)]">
-        <img src="/logo.png" alt="Velo" className="block max-w-none" style={{ width: 60, height: 60, marginLeft: -12, marginTop: -11 }} />
-      </div>
+      <img src="/logo.png" alt="Velo" className="block h-9 w-9 shrink-0 object-contain" />
       <span className="text-[28px] font-bold leading-none tracking-[-0.075em]">Velo</span>
     </div>
   );

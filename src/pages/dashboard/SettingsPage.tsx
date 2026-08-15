@@ -1,26 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, Trash2, User } from "lucide-react";
+import { BadgeCheck, Bell, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Sparkles, Store, Trash2, User, Zap } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { supabase } from "@/integrations/supabase/client";
-import PlanBadge from "@/components/PlanBadge";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { usePlan } from "@/hooks/usePlan";
-import { useUpgradeModal } from "@/components/PlansUpgradeModal";
+import { PlanBadgeIcon, useUpgradeModal } from "@/components/PlansUpgradeModal";
+import { PremiumActionButton } from "@/components/PremiumActionButton";
 import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import {
-  readUserStores,
-  STORES_CHANGED_EVENT,
-  type VeloStore,
-} from "@/components/dashboard/FirstStoreOnboarding";
+import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
 import ShopifyIntegrationCard from "@/components/dashboard/ShopifyIntegrationCard";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NOTIFICATION_PREFERENCE_OPTIONS,
+  fetchNotificationPreferences,
+  saveNotificationPreferences,
+  type NotificationPreferenceKey,
+  type NotificationPreferences,
+} from "@/lib/notifications";
 
 type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
 
@@ -38,18 +42,12 @@ const SettingsPage = () => {
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabId) || "Perfil";
   const [tab, setTab] = useState<TabId>(initialTab);
-  const isSupportTab = tab === "Suporte";
   useEffect(() => {
     const t = searchParams.get("tab") as TabId | null;
     if (t && t !== tab) setTab(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const mobileTabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
-  const { nome, foto } = useProfile();
-  const { user } = useAuth();
-
-  const iniciais = (nome || user?.email || "U")
-    .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 
   useEffect(() => {
     mobileTabRefs.current[tab]?.scrollIntoView({
@@ -59,25 +57,28 @@ const SettingsPage = () => {
     });
   }, [tab]);
 
+  // Largura única para toda a tela. Antes o Plano usava 980 e as demais abas
+  // 720, e como a classe ficava no wrapper externo, trocar de aba mexia no
+  // título e na barra de abas junto. A régua da página não pode depender da
+  // aba aberta.
+  const contentMaxWidth = "max-w-[720px]";
+
   return (
-    <div className="mx-auto w-full max-w-[760px]" style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
+    <div className={`mx-auto w-full ${contentMaxWidth}`} style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
       {/* Main */}
-      <div className={isSupportTab ? "min-w-0 flex-1 overflow-x-hidden px-0 py-0 md:px-0 md:py-6" : "min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:px-0 md:py-6"}>
-        <div className={`mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 ${isSupportTab ? "hidden md:block" : ""}`}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-base font-semibold text-white dark:bg-white dark:text-black">
-              {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : iniciais}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[16px] font-semibold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
-              <div className="mt-1"><PlanBadge size="sm" /></div>
-            </div>
-          </div>
+      <div className="min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:px-0 md:py-6">
+        <div className="mb-4">
+          <h1 className="text-[19px] font-semibold tracking-[-0.015em] text-[#111113] dark:text-white sm:text-[20px]">
+            Configurações
+          </h1>
+          <p className="mt-0.5 text-[12.5px] text-[#9A9A9A] dark:text-zinc-400">
+            Gerencie seu perfil, lojas e preferências da conta.
+          </p>
         </div>
 
         {/* Abas de configuração (estilo sublinhado) */}
-        <div className={`mb-6 border-b border-black/[0.14] dark:border-white/15 ${isSupportTab ? "hidden md:block" : ""}`}>
-          <div className="flex items-center justify-between gap-6 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+        <div className="mb-6 border-b border-[#EDEDED] dark:border-white/10">
+          <div className="flex items-center gap-6 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
             {NAV.map((item) => {
               const active = tab === item.id;
               return (
@@ -85,21 +86,21 @@ const SettingsPage = () => {
                   key={item.id}
                   ref={(node) => { mobileTabRefs.current[item.id] = node; }}
                   onClick={() => setTab(item.id)}
-                  className={`relative shrink-0 whitespace-nowrap pb-3 pt-1 text-[14px] transition-colors ${
+                  className={`relative shrink-0 whitespace-nowrap pb-2 pt-1 text-[12.5px] transition-colors ${
                     active
-                      ? "font-semibold text-[#0A0A0A] dark:text-white"
-                      : "font-medium text-[#737373] hover:text-[#0A0A0A] dark:text-zinc-400 dark:hover:text-white"
+                      ? "font-semibold text-[#111113] dark:text-white"
+                      : "font-normal text-[#9A9A9A] hover:text-[#111113] dark:text-zinc-500 dark:hover:text-white"
                   }`}
                 >
                   {item.id}
-                  {active && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#0A0A0A] dark:bg-white" />}
+                  {active && <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[#111113] dark:bg-white" />}
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className={isSupportTab ? "mx-auto w-full max-w-[760px] bg-white dark:bg-zinc-900 md:rounded-2xl md:border md:border-[#EFEFEF] md:p-6 md:shadow-[0_1px_3px_rgba(0,0,0,0.08)] md:dark:border-zinc-800" : "mx-auto w-full max-w-[760px] rounded-2xl border border-[#EFEFEF] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900 sm:p-5 md:p-6"}>
+        <div className="w-full">
           {tab === "Perfil"        && <ProfileTab />}
           {tab === "Minhas Lojas"  && <StoresTab />}
           {tab === "Integrações"   && <IntegrationsTab />}
@@ -114,8 +115,6 @@ const SettingsPage = () => {
 };
 
 /* ──── shared field styles ──── */
-const primaryBtn =
-  "inline-flex items-center justify-center px-7 py-3 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 transition-opacity dark:bg-white dark:text-black";
 const secondaryBtn =
   "inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-black text-[14px] font-medium text-black bg-transparent hover:bg-black hover:text-white transition-colors dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black";
 const divider = "my-6 border-t border-[#F0F0F0] dark:border-white/10";
@@ -123,11 +122,93 @@ const divider = "my-6 border-t border-[#F0F0F0] dark:border-white/10";
 /* ──── mockup profile: underline fields + solid/outline buttons ──── */
 const fieldLabel = "block text-[13px] font-bold text-[#111113] mb-2 dark:text-white";
 const underlineInput =
-  "w-full h-10 bg-transparent border-0 border-b border-[#E2E2E2] px-0 text-[15px] text-[#0A0A0A] placeholder:text-[#B3B3B3] outline-none transition focus:border-black dark:border-white/15 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white";
+  "w-full h-10 bg-transparent border-0 border-b border-[#E2E2E2] px-0 text-[15px] text-[#0A0A0A] placeholder:text-[#B3B3B3] outline-none transition focus:border-[#2563EB] dark:border-white/15 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-[#60A5FA]";
 const saveBtn =
-  "inline-flex items-center justify-center rounded-[10px] bg-black px-10 py-3 text-[14px] font-semibold text-white transition hover:opacity-85 dark:bg-white dark:text-black";
+  "inline-flex items-center justify-center rounded-[6px] bg-[#2563EB] px-6 py-2 text-[13px] font-medium text-white transition hover:bg-[#1D4ED8] dark:bg-[#2563EB] dark:text-white dark:hover:bg-[#1D4ED8]";
 const cancelBtn =
-  "inline-flex items-center justify-center rounded-[10px] border border-[#E0E0E0] bg-white px-10 py-3 text-[14px] font-semibold text-[#0A0A0A] transition hover:border-black dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:border-white";
+  "inline-flex items-center justify-center rounded-[6px] border border-[#DFDFDF] bg-white px-6 py-2 text-[13px] font-medium text-[#111113] transition hover:border-[#111113] dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:border-white";
+
+/* ──── enterprise settings: linhas de duas colunas + input com borda ──── */
+const rowDivider = "border-t border-[#EDEDED] dark:border-white/10";
+const enterpriseInput =
+  "w-full h-[38px] rounded-[9px] border border-[#E6E6E6] bg-white px-3 text-[13px] text-[#111113] shadow-[0_1px_2px_rgba(0,0,0,0.03)] placeholder:text-[#B5B5B5] outline-none transition focus:border-[#2563EB] dark:border-white/15 dark:bg-transparent dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-[#60A5FA]";
+const inputLabel = "mb-1.5 block text-[12px] font-medium tracking-[-0.005em] text-[#4A4A4A] dark:text-zinc-400";
+const photoUploadBtn =
+  "inline-flex items-center justify-center rounded-[9px] bg-[#2563EB] px-3.5 py-[7px] text-[12.5px] font-medium text-white transition hover:bg-[#1D4ED8] dark:bg-[#2563EB] dark:text-white dark:hover:bg-[#1D4ED8]";
+const photoRemoveBtn =
+  "inline-flex items-center justify-center rounded-[9px] border border-[#E6E6E6] bg-white px-3.5 py-[7px] text-[12.5px] font-medium text-[#111113] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#111113] dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:border-white";
+
+/* Linha de configuração: rótulo (semibold) + descrição em cinza à esquerda,
+   campo com micro-label à direita. Empilha no mobile. */
+const FieldRow = ({
+  label,
+  desc,
+  fieldLabel: fieldLabelText,
+  children,
+}: {
+  label: string;
+  desc: string;
+  fieldLabel?: string;
+  children: React.ReactNode;
+}) => (
+  <div className="flex flex-col gap-2.5 py-5 md:flex-row md:items-center md:justify-between md:gap-10">
+    <div className="md:max-w-[330px]">
+      <p className="text-[13px] font-semibold tracking-[-0.005em] text-[#111113] dark:text-white">{label}</p>
+      <p className="mt-0.5 text-[12px] leading-[1.45] text-[#9A9A9A] dark:text-zinc-400">{desc}</p>
+    </div>
+    <div className="w-full md:w-[300px] md:shrink-0">
+      {fieldLabelText && <label className={inputLabel}>{fieldLabelText}</label>}
+      {children}
+    </div>
+  </div>
+);
+
+/* Selo do plano exibido ao lado do nome. Assinantes ganham o selo colorido do
+   plano; quem não tem assinatura vê apenas o texto "Gratuito". */
+const PLAN_BADGE: Record<string, { label: string; className: string }> = {
+  go: {
+    label: "Go",
+    className:
+      "border-white/85 bg-gradient-to-br from-[#fbfbfa] via-[#ececea] to-[#c8c8c4] text-[#383835] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]",
+  },
+  base: {
+    label: "Base",
+    className:
+      "border-white/85 bg-gradient-to-br from-[#fbfbfa] via-[#ececea] to-[#c8c8c4] text-[#383835] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]",
+  },
+  pro: {
+    label: "Pro",
+    className:
+      "border-white/75 bg-gradient-to-br from-[#9287ff] via-[#6953ef] to-[#4925df] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.38)]",
+  },
+  business: {
+    label: "Business",
+    className:
+      "border-white/70 bg-gradient-to-br from-[#313131] via-[#181818] to-[#050505] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]",
+  },
+};
+
+const PlanSeal = () => {
+  const { plan, status, loading } = usePlan();
+  if (loading) return null;
+
+  const badge = status === "active" ? PLAN_BADGE[plan] : undefined;
+
+  if (!badge) {
+    return (
+      <span className="text-[12px] font-medium text-[#9A9A9A] dark:text-zinc-400">Gratuito</span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-[3px] text-[11px] font-semibold leading-none ${badge.className}`}
+    >
+      <BadgeCheck size={11} strokeWidth={2.5} />
+      {badge.label}
+    </span>
+  );
+};
 
 /* ══ Profile ════════════════════════════════════════════ */
 const ProfileTab = () => {
@@ -139,6 +220,7 @@ const ProfileTab = () => {
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [fotoPreview, setFotoPreview] = useState<string | null>(foto);
   const [fotoFile, setFotoFile] = useState<string | null>(null);
+  const [fotoRemovida, setFotoRemovida] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,8 +236,16 @@ const ProfileTab = () => {
       const url = String(reader.result || "");
       setFotoPreview(url);
       setFotoFile(url);
+      setFotoRemovida(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleRemoverFoto = () => {
+    setFotoPreview(null);
+    setFotoFile(null);
+    setFotoRemovida(true);
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   useEffect(() => {
@@ -178,6 +268,7 @@ const ProfileTab = () => {
     setTelefone(telefoneOriginal);
     setFotoPreview(foto);
     setFotoFile(null);
+    setFotoRemovida(false);
   };
 
   const handleSalvar = async () => {
@@ -187,7 +278,7 @@ const ProfileTab = () => {
         const profilePayload = {
           display_name: nomeEditado,
           whatsapp: telefone,
-          ...(fotoFile ? { avatar_url: fotoFile } : {}),
+          ...(fotoRemovida ? { avatar_url: null } : fotoFile ? { avatar_url: fotoFile } : {}),
         };
 
         const { data: updated, error } = await supabase
@@ -209,7 +300,10 @@ const ProfileTab = () => {
       }
 
       setNome(nomeEditado);
-      if (fotoFile) setFoto(fotoFile);
+      if (fotoRemovida) setFoto("");
+      else if (fotoFile) setFoto(fotoFile);
+      setFotoRemovida(false);
+      setFotoFile(null);
       veloToast.success("Configurações salvas com sucesso.", { id: toastId });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Não foi possível salvar as configurações.";
@@ -217,95 +311,96 @@ const ProfileTab = () => {
     }
   };
 
-  const avatarSrc = fotoPreview ?? foto;
+  const avatarSrc = fotoRemovida ? null : (fotoPreview ?? foto);
   // Fallback de iniciais quando não há foto (evita imagem padrão externa quebrada).
   const iniciais = (nome || user?.email || "U")
     .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 
   return (
-      <div data-dashboard-tour="configuracoes-perfil">
-      {/* Avatar header */}
-      <div className="flex flex-col items-center text-center pb-2">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="w-[72px] h-[72px] rounded-full bg-black text-white flex items-center justify-center text-[24px] font-semibold overflow-hidden transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
-            aria-label="Trocar foto de perfil"
-          >
-            {avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" /> : iniciais}
-          </button>
-          <button
-            onClick={() => inputRef.current?.click()}
-            className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-black text-white shadow-md hover:opacity-90"
-            aria-label="Trocar foto"
-          >
-            <Camera size={13} />
-          </button>
-          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFoto} />
-        </div>
-        <button
-          onClick={() => inputRef.current?.click()}
-          className="mt-3 text-[13px] text-[#737373] underline underline-offset-2 hover:text-black dark:text-zinc-400 dark:hover:text-white"
-        >
-          Trocar foto
-        </button>
-        <div className="mt-3 flex items-center gap-2.5">
-          <p className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
-          <PlanBadge size="sm" />
-        </div>
-      </div>
-
-      <div className={divider} />
-
-      {/* Form */}
-      <div className="space-y-6">
-        <div>
-          <label className={fieldLabel}>Nome</label>
-          <input
-            className={underlineInput}
-            placeholder="Seu nome"
-            value={nomeEditado}
-            onChange={(e) => setNomeEditado(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className={fieldLabel}>Telefone</label>
-          <input
-            className={underlineInput}
-            placeholder="(00) 00000-0000"
-            value={telefone}
-            onChange={(e) => setTelefone(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className={fieldLabel}>CPF/CNPJ</label>
-          <input
-            className={underlineInput}
-            placeholder="000.000.000-00"
-            value={cpfCnpj}
-            onChange={(e) => setCpfCnpj(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className={fieldLabel}>Email</label>
-          <div className="relative">
-            <input
-              readOnly
-              value={user?.email ?? ""}
-              className={`${underlineInput} pr-8 text-[#737373] cursor-not-allowed dark:text-zinc-400`}
-            />
-            <Lock size={14} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#B3B3B3]" />
+    <div data-dashboard-tour="configuracoes-perfil">
+      {/* Identidade: foto + nome com selo do plano ao lado; ações de foto abaixo */}
+      <div className="pb-5">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2F2F2F] text-[16px] font-semibold text-white dark:bg-white dark:text-black">
+            {avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="h-full w-full object-cover" /> : iniciais}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[#111113] dark:text-white">
+                {nomeEditado || nome || (user?.email?.split("@")[0] ?? "Sua conta")}
+              </p>
+              <PlanSeal />
+            </div>
+            <p className="mt-0.5 truncate text-[12px] text-[#9A9A9A] dark:text-zinc-400">{user?.email ?? ""}</p>
           </div>
         </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => inputRef.current?.click()} className={photoUploadBtn}>
+            Enviar foto
+          </button>
+          <button type="button" onClick={handleRemoverFoto} className={photoRemoveBtn}>
+            Remover
+          </button>
+        </div>
+        <p className="mt-1.5 text-[11.5px] text-[#9A9A9A] dark:text-zinc-400">Formato quadrado (1:1), até 900 KB.</p>
+
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFoto} />
       </div>
 
-      <div className="mt-8 flex items-center gap-3">
-        <button onClick={handleSalvar} className={saveBtn}>Salvar</button>
+      <div className={rowDivider} />
+
+      {/* Linhas de duas colunas */}
+      <FieldRow label="Nome" desc="Como você aparece na sua conta e nas suas lojas." fieldLabel="Nome completo">
+        <input
+          className={enterpriseInput}
+          placeholder="Seu nome"
+          value={nomeEditado}
+          onChange={(e) => setNomeEditado(e.target.value)}
+        />
+      </FieldRow>
+
+      <div className={rowDivider} />
+
+      <FieldRow label="Telefone" desc="Usado para contato e recuperação da sua conta." fieldLabel="Telefone">
+        <input
+          className={enterpriseInput}
+          placeholder="(00) 00000-0000"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+        />
+      </FieldRow>
+
+      <div className={rowDivider} />
+
+      <FieldRow label="CPF/CNPJ" desc="Necessário para emissão de notas fiscais e repasses." fieldLabel="Documento">
+        <input
+          className={enterpriseInput}
+          placeholder="000.000.000-00"
+          value={cpfCnpj}
+          onChange={(e) => setCpfCnpj(e.target.value)}
+        />
+      </FieldRow>
+
+      <div className={rowDivider} />
+
+      <FieldRow label="E-mail" desc="Endereço de login da conta. Não pode ser alterado por aqui." fieldLabel="E-mail">
+        <div className="relative">
+          <input
+            readOnly
+            value={user?.email ?? ""}
+            className={`${enterpriseInput} cursor-not-allowed pr-8 text-[#8A8A8A] dark:text-zinc-400`}
+          />
+          <Lock size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B5B5B5]" />
+        </div>
+      </FieldRow>
+
+      <div className={rowDivider} />
+
+      {/* Ações */}
+      <div className="mt-6 flex items-center justify-end gap-2.5">
         <button onClick={handleCancelar} className={cancelBtn}>Cancelar</button>
+        <button onClick={handleSalvar} className={saveBtn}>Salvar alterações</button>
       </div>
     </div>
   );
@@ -335,50 +430,127 @@ const LegacyStoresTab = () => (
 );
 
 /* ══ Integrations ════════════════════════════════════════ */
+const formatProjectDate = (value: string) =>
+  new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+
+/* Os projetos (lojas completas e páginas de venda) moram no Supabase, em
+   user_projects. Antes esta aba lia uma lista do localStorage escrita pelo
+   onboarding, então quem criava página com IA continuava vendo "nenhuma loja". */
 const StoresTab = () => {
-  const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<UserProject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    const syncStores = () => setStores(readUserStores());
-    syncStores();
-    window.addEventListener(STORES_CHANGED_EVENT, syncStores);
-    window.addEventListener("storage", syncStores);
+    if (!user?.id) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setErro(null);
+
+    void (async () => {
+      try {
+        const data = await fetchUserProjects();
+        if (!active) return;
+        setProjects(
+          [...data].sort(
+            (a, b) => new Date(b.last_edited_at).getTime() - new Date(a.last_edited_at).getTime(),
+          ),
+        );
+      } catch (error) {
+        console.error("Falha ao carregar projetos:", error);
+        if (active) setErro("Não foi possível carregar suas lojas agora.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
     return () => {
-      window.removeEventListener(STORES_CHANGED_EVENT, syncStores);
-      window.removeEventListener("storage", syncStores);
+      active = false;
     };
-  }, []);
+  }, [user?.id]);
 
   return (
-    <div className="space-y-4">
-      <h2 className="mb-1 text-[18px] font-semibold text-[#0A0A0A] dark:text-white">Minhas lojas</h2>
-      <p className="mb-4 text-[13px] text-[#737373] dark:text-zinc-400">Gerencie as lojas criadas pela sua conta.</p>
+    <div>
+      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white">Minhas lojas</h2>
+      <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">
+        Lojas completas e páginas de venda criadas pela sua conta.
+      </p>
 
-      {stores.length > 0 ? (
-        stores.map((store, index) => (
-          <div key={store.id} className="rounded-2xl border border-[#E5E5E5] p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <p className="font-normal text-[#0A0A0A] dark:text-white">{store.name}</p>
-                {index === 0 && (
-                  <span className="rounded-full bg-black px-2.5 py-0.5 text-[11px] font-semibold text-white dark:bg-white dark:text-black">
-                    Ativa
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-sm sm:gap-4">
-              <div><p className="text-xs uppercase tracking-wider text-[#A3A3A3] dark:text-zinc-500">Tipo</p><p className="mt-0.5 font-medium text-[#0A0A0A] dark:text-white">{store.businessType}</p></div>
-              <div><p className="text-xs uppercase tracking-wider text-[#A3A3A3] dark:text-zinc-500">Objetivo</p><p className="mt-0.5 font-medium text-[#0A0A0A] dark:text-white">{store.goal}</p></div>
-              <div><p className="text-xs uppercase tracking-wider text-[#A3A3A3] dark:text-zinc-500">Produtos</p><p className="mt-0.5 font-medium text-[#0A0A0A] dark:text-white">{store.publishedProducts}/{store.productLimit}</p></div>
-            </div>
+      <div className="mt-5 space-y-2.5">
+        {loading ? (
+          <div className="flex items-center gap-2 py-10 text-[13px] text-[#9A9A9A]">
+            <Loader2 size={14} className="animate-spin" />
+            Carregando suas lojas...
           </div>
-        ))
-      ) : (
-        <div className="rounded-2xl border border-dashed border-[#D8DEE9] bg-[#F8FAFC] p-5 text-[14px] text-[#697386] dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-          Nenhuma loja criada ainda.
-        </div>
-      )}
+        ) : erro ? (
+          <div className="rounded-2xl border border-[#F0D2D2] bg-[#FEF6F6] p-5 text-[13px] text-[#B42318] dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+            {erro}
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#D8DEE9] bg-[#F8FAFC] p-6 text-center dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-[13px] font-medium text-[#111113] dark:text-white">Nenhuma loja criada ainda.</p>
+            <p className="mt-1 text-[12.5px] text-[#697386] dark:text-zinc-400">
+              Crie uma loja completa ou uma página de venda com IA para ela aparecer aqui.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/minha-loja")}
+              className="mt-4 inline-flex h-9 items-center justify-center rounded-[9px] bg-[#2563EB] px-4 text-[12.5px] font-medium text-white transition hover:bg-[#1D4ED8] dark:bg-[#2563EB] dark:text-white dark:hover:bg-[#1D4ED8]"
+            >
+              Criar projeto
+            </button>
+          </div>
+        ) : (
+          projects.map((project) => {
+            const isLoja = project.tipo_projeto === "loja_completa";
+            const publicado = project.status === "publicado";
+            return (
+              <button
+                key={project.id}
+                type="button"
+                onClick={() =>
+                  navigate(`/minha-loja/editor/${project.id}`, {
+                    state: { projectId: project.id, sourceId: project.source_id },
+                  })
+                }
+                className="flex w-full items-center gap-3 rounded-2xl border border-[#E5E5E5] p-4 text-left transition hover:border-[#111113] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-white/40 sm:p-5"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#F4F4F5] text-[#6B6B70] dark:bg-white/5 dark:text-zinc-300">
+                  {isLoja ? <Store size={17} /> : <Sparkles size={17} />}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-medium text-[#0A0A0A] dark:text-white">
+                    {project.nome || (isLoja ? "Minha loja" : "Página de venda")}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[11.5px] text-[#9A9A9A] dark:text-zinc-500">
+                    {isLoja ? "Loja completa" : "Página de venda"} · editada em{" "}
+                    {formatProjectDate(project.last_edited_at)}
+                  </span>
+                </span>
+
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                    publicado
+                      ? "bg-[#ECFDF3] text-[#15803D] dark:bg-emerald-500/15 dark:text-emerald-300"
+                      : "bg-[#F4F4F5] text-[#6B6B70] dark:bg-white/10 dark:text-zinc-300"
+                  }`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {publicado ? "Publicada" : "Rascunho"}
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 };
@@ -389,11 +561,7 @@ const IntegrationsTab = () => {
   const { user, role } = useAuth();
   const isAdmin = role === "admin" || isAdminEmail(user?.email);
   const planLimits = usePlanLimits();
-  const navigate = useNavigate();
-  const { plan: currentPlan } = usePlan();
-  // Mesma proteção de assinatura de "Produtos em Alta": no plano gratuito os
-  // marketplaces ficam com blur e o clique leva para a página de planos.
-  const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
+  // Integrações ficam liberadas em todos os planos, inclusive no gratuito.
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([
     { platform: "mercadolivre", label: "Mercado Livre", connected: false, loading: true },
@@ -495,7 +663,7 @@ const IntegrationsTab = () => {
       <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Marketplaces</h3>
 
       <div className="relative">
-      <div className={`space-y-2.5 ${isFreePlan ? "pointer-events-none select-none blur-[5px]" : ""}`}>
+      <div className="space-y-2.5">
         {integrations.map((i) => (
           <div
             key={i.platform}
@@ -518,7 +686,7 @@ const IntegrationsTab = () => {
               </span>
             ) : i.connected ? (
               <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
-                <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-black px-2.5 py-1 text-[11px] font-semibold text-white dark:bg-white dark:text-black">
+                <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-[#2563EB] px-2.5 py-1 text-[11px] font-semibold text-white dark:bg-[#2563EB] dark:text-white">
                   <CheckCircle2 size={12} /> Conectado
                 </span>
                 <button
@@ -532,7 +700,7 @@ const IntegrationsTab = () => {
             ) : (
               <button
                 onClick={() => handleConnect(i.platform)}
-                className="w-full rounded-full bg-black px-3.5 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-85 dark:bg-white dark:text-black sm:w-auto"
+                className="w-full rounded-full bg-[#2563EB] px-3.5 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-[#1D4ED8] dark:bg-[#2563EB] dark:text-white dark:hover:bg-[#1D4ED8] sm:w-auto"
               >
                 Conectar +
               </button>
@@ -540,22 +708,6 @@ const IntegrationsTab = () => {
           </div>
         ))}
       </div>
-      {isFreePlan && (
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard/planos")}
-          aria-label="Disponível apenas com um plano ativo"
-          title="Disponível apenas com um plano ativo"
-          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2"
-        >
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-[0_6px_18px_rgba(0,0,0,0.14)] dark:bg-zinc-900">
-            <Lock size={18} className="text-[#0A0A0A] dark:text-white" />
-          </span>
-          <span className="rounded-full bg-black px-3.5 py-1.5 text-[12px] font-semibold text-white dark:bg-white dark:text-black">
-            Disponível no plano pago
-          </span>
-        </button>
-      )}
       </div>
 
       <p className="mt-4 text-[11px] text-[#A3A3A3] dark:text-zinc-400">
@@ -630,86 +782,99 @@ const PLAN_DATA = [
 ];
 
 const PlanTab = () => {
-  const navigate = useNavigate();
   const upgradeModal = useUpgradeModal();
   const { plan } = usePlan();
-  const current = PLAN_DATA.find((p) => p.id === plan) ?? PLAN_DATA[0];
+  const normalizedPlan = plan === "plus" ? "pro" : plan;
+  const paidPlans = PLAN_DATA.filter((p) => p.id === "base" || p.id === "pro" || p.id === "business");
+
+  const openUpgrade = (planId: string) => {
+    upgradeModal.open({ defaultPlan: planId === "business" ? "business" : planId === "base" ? "base" : "pro" });
+  };
 
   return (
-    <div>
-      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Seu plano</h2>
-      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Gerencie sua assinatura e veja os planos disponíveis.</p>
-
-      {/* Current plan card */}
-      <div className="rounded-2xl border-[1.5px] border-black p-4 mb-6 dark:border-white dark:bg-zinc-950 sm:p-6">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h3 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white">Plano {current.name}</h3>
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Ativo</span>
-            </div>
-            <p className="text-[13px] text-[#737373] dark:text-zinc-400 mt-1">Renovação em 15 dias</p>
-          </div>
-          <p className="text-[24px] font-semibold text-[#0A0A0A] dark:text-white leading-none">
-            {current.price}<span className="text-[13px] text-[#737373] dark:text-zinc-400 font-normal">{current.period}</span>
+    <div className="pb-10">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-[19px] font-semibold tracking-[-0.02em] text-[#111113] dark:text-white">
+            Escolha seu plano
+          </h2>
+          <p className="mt-1 max-w-[520px] text-[13px] leading-relaxed text-[#737373] dark:text-zinc-400">
+            Compare os três planos atuais da Velo e escolha o nível ideal para sua operação.
           </p>
         </div>
-        <p className="text-[13px] text-[#525252] dark:text-zinc-300 mb-4 max-w-xl">{current.description}</p>
-        <ul className="space-y-2 mb-5">
-          {current.features.map((f) => (
-            <li key={f} className="flex items-center gap-2 text-[13px] text-[#0A0A0A] dark:text-white">
-              <CheckCircle2 size={14} className="text-black dark:text-white" /> {f}
-            </li>
-          ))}
-        </ul>
-        <button className={primaryBtn}>
-          {plan === "pro" ? "Gerenciar assinatura" : "Fazer upgrade"}
-        </button>
+        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[#E8E8E8] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#3F3F46] shadow-[0_10px_24px_rgba(15,15,15,0.04)] dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200">
+          <Zap size={12} fill="currentColor" />
+          Planos atuais
+        </span>
       </div>
 
-      {/* Available plans */}
-      <h3 className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white mb-3">Outros planos</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {PLAN_DATA.filter((p) => p.id !== "gratis").map((p) => {
-          const isCurrent = p.id === plan;
-          const isSelectable = !isCurrent && p.id !== "gratis";
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {paidPlans.map((p) => {
+          const isCurrent = p.id === normalizedPlan;
+          const isPro = p.id === "pro";
           return (
-            <div
+            <article
               key={p.id}
-              className={`rounded-xl p-4 ${
-                isCurrent
-                  ? "border-2 border-black bg-[#FAFAFA] dark:border-white dark:bg-zinc-950"
-                  : p.id === "business"
-                    ? "border border-black bg-white shadow-[0_16px_45px_rgba(0,0,0,0.08)] dark:border-white dark:bg-zinc-950"
-                    : "border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950"
+              className={`relative flex min-h-[440px] flex-col rounded-[24px] border bg-white p-5 shadow-[0_18px_54px_rgba(15,15,15,0.055)] transition duration-200 dark:bg-zinc-950 ${
+                isPro
+                  ? "border-[#111113] ring-1 ring-black/10"
+                  : isCurrent
+                    ? "border-[#111113] dark:border-white"
+                    : "border-[#E8E8E8] dark:border-white/10"
               }`}
             >
-              <p className="text-[13px] font-normal text-[#0A0A0A] dark:text-white">{p.name}</p>
-              <p className="text-[20px] font-semibold text-[#0A0A0A] dark:text-white mt-1">
-                {p.price}<span className="text-[11px] text-[#737373] dark:text-zinc-400 font-normal">{p.period}</span>
+              {isPro ? (
+                <span aria-hidden="true" className="absolute inset-x-5 top-0 h-[3px] rounded-b-full bg-[#111113]" />
+              ) : null}
+
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  {/* Mesmo selo do modal de planos, importado de lá para os dois
+                      não divergirem. */}
+                  <PlanBadgeIcon variant={p.id} />
+                  <h3 className="mt-5 text-[19px] font-semibold tracking-[-0.02em] text-[#111113] dark:text-white">
+                    {p.name}
+                  </h3>
+                </div>
+                {isCurrent ? (
+                  <span className="rounded-full bg-[#111113] px-2.5 py-1 text-[10px] font-semibold text-white dark:bg-white dark:text-black">
+                    Atual
+                  </span>
+                ) : isPro ? (
+                  <span className="rounded-full bg-[#F2F2F2] px-2.5 py-1 text-[10px] font-semibold text-[#111113] dark:bg-white/10 dark:text-white">
+                    Mais escolhido
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="mt-4 min-h-[54px] text-[13px] leading-relaxed text-[#737373] dark:text-zinc-400">
+                {p.description}
               </p>
-              <p className="mt-2 text-[11.5px] leading-relaxed text-[#737373] dark:text-zinc-400 line-clamp-3">{p.description}</p>
-              <ul className="mt-3 space-y-1.5">
-                {p.features.slice(0, 4).map((f) => (
-                  <li key={f} className="text-[11px] text-[#525252] dark:text-zinc-300 flex items-start gap-1.5">
-                    <CheckCircle2 size={11} className="text-black dark:text-white mt-0.5 shrink-0" /> <span>{f}</span>
+
+              <div className="mt-5 flex items-end gap-1 text-[#111113] dark:text-white">
+                <span className="text-[34px] font-semibold leading-none tracking-[-0.045em]">{p.price}</span>
+                <span className="pb-1 text-[12px] text-[#737373] dark:text-zinc-400">{p.period}</span>
+              </div>
+
+              <PremiumActionButton
+                type="button"
+                disabled={isCurrent}
+                onClick={() => openUpgrade(p.id)}
+                background="linear-gradient(180deg,#1F2633 0%,#111722 52%,#0B101A 100%)"
+                className="mt-5 h-10 w-full rounded-[10px] px-4 text-[12.5px] disabled:cursor-default disabled:bg-[#EFEFEF] disabled:text-[#A3A3A3] disabled:shadow-none disabled:hover:translate-y-0 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
+              >
+                {isCurrent ? "Plano atual" : "Fazer upgrade"}
+              </PremiumActionButton>
+
+              <ul className="mt-5 flex-1 space-y-3">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-[12px] leading-snug text-[#27272A] dark:text-zinc-200">
+                    <BadgeCheck size={14} className="mt-0.5 shrink-0 text-[#111113] dark:text-white" fill="currentColor" strokeWidth={1.8} />
+                    <span>{f}</span>
                   </li>
                 ))}
               </ul>
-              <button
-                disabled={!isSelectable}
-                onClick={() => {
-                  if (p.id !== "gratis") upgradeModal.open({ defaultPlan: p.id === "business" ? "business" : p.id === "base" ? "base" : "pro" });
-                }}
-                className={`mt-4 w-full py-2 rounded-full text-[12px] font-medium ${
-                  !isSelectable
-                    ? "bg-[#F0F0F0] text-[#A3A3A3] cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
-                    : "bg-black text-white hover:opacity-85 transition-opacity dark:bg-white dark:text-black"
-                }`}
-              >
-                {isCurrent ? "Plano atual" : p.id === "gratis" ? "Modo teste" : "Fazer upgrade"}
-              </button>
-            </div>
+            </article>
           );
         })}
       </div>
@@ -719,27 +884,92 @@ const PlanTab = () => {
 
 /* ══ Notifications ═══════════════════════════════════════ */
 const NotificationsTab = () => {
-  const [toggles, setToggles] = useState([true, true, true, false, true]);
-  const labels = ["Nova venda", "Produto publicado", "Erro de publicação", "Pedido em trânsito", "Relatório semanal"];
+  const { user } = useAuth();
+  const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
+  const [loading, setLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState<NotificationPreferenceKey | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    fetchNotificationPreferences(user.id)
+      .then((prefs) => {
+        if (!cancelled) setPreferences(prefs);
+      })
+      .catch((error) => {
+        console.warn("[notifications] nao foi possivel carregar preferencias:", error);
+        if (!cancelled) veloToast.error("Nao foi possivel carregar suas preferencias.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const togglePreference = async (key: NotificationPreferenceKey) => {
+    if (!user?.id || savingKey) return;
+    const next = { ...preferences, [key]: !preferences[key] };
+    const previous = preferences;
+    setPreferences(next);
+    setSavingKey(key);
+    try {
+      await saveNotificationPreferences(user.id, next);
+    } catch (error) {
+      console.warn("[notifications] nao foi possivel salvar preferencias:", error);
+      setPreferences(previous);
+      veloToast.error("Nao foi possivel salvar essa preferencia.");
+    } finally {
+      setSavingKey(null);
+    }
+  };
 
   return (
     <div>
-      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Notificações</h2>
-      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Escolha quando quer ser avisado.</p>
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Notificações</h2>
+          <p className="text-[13px] text-[#737373] dark:text-zinc-400">Escolha quando quer ser avisado.</p>
+        </div>
+        {loading && <Loader2 size={17} className="mt-1 animate-spin text-[#9A9A9A]" />}
+      </div>
 
       <div className="space-y-2.5">
-        {labels.map((l, i) => (
-          <div key={l} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
-            <span className="text-[14px] font-normal text-[#0A0A0A] dark:text-white">{l}</span>
+        {NOTIFICATION_PREFERENCE_OPTIONS.map((option) => {
+          const checked = preferences[option.key];
+          const isSaving = savingKey === option.key;
+          return (
+          <div key={option.key} className="flex items-center justify-between gap-5 rounded-xl border border-[#E5E5E5] p-3.5 dark:border-zinc-800 dark:bg-zinc-950">
+            <span className="min-w-0">
+              <span className="block text-[14px] font-medium text-[#0A0A0A] dark:text-white">{option.label}</span>
+              <span className="mt-0.5 block text-[12px] leading-snug text-[#8A8A8A] dark:text-zinc-500">{option.description}</span>
+            </span>
             <button
-              onClick={() => setToggles((prev) => prev.map((v, j) => (j === i ? !v : v)))}
-              className={`w-11 h-6 rounded-full transition-colors relative ${toggles[i] ? "bg-black dark:bg-white" : "bg-[#E5E5E5] dark:bg-zinc-700"}`}
-              aria-label={`Toggle ${l}`}
+              type="button"
+              disabled={loading || Boolean(savingKey)}
+              onClick={() => void togglePreference(option.key)}
+              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-wait disabled:opacity-60 ${
+                checked ? "bg-[#2563EB] dark:bg-[#2563EB]" : "bg-[#E5E5E5] dark:bg-zinc-700"
+              }`}
+              aria-pressed={checked}
+              aria-label={`Alternar ${option.label}`}
             >
-              <div className={`absolute top-1 w-4 h-4 rounded-full transition-all ${toggles[i] ? "left-6 bg-white dark:bg-black" : "left-1 bg-white dark:bg-zinc-300"}`} />
+              <span
+                className={`absolute top-1 h-4 w-4 rounded-full transition-all ${
+                  checked ? "left-6 bg-white dark:bg-white" : "left-1 bg-white dark:bg-zinc-300"
+                } ${isSaving ? "scale-90" : ""}`}
+              />
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

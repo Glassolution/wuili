@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { veloToast } from "@/components/ui/velo-toast";
+import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
 
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
@@ -47,7 +48,7 @@ const getStatusStyle = (status: string | null | undefined) =>
   statusStyles[(status ?? "").toLowerCase()] ?? "border-black/[0.08] bg-[#F5F5F5] text-[#404040]";
 
 const pageFont = {
-  fontFamily: 'Inter, "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  fontFamily: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif',
 };
 
 const formatBRL = (value: number | null | undefined) =>
@@ -96,8 +97,8 @@ const supplierHref = (url: string | null | undefined) => {
 const SupplierButton = ({ url, compact = false }: { url: string | null | undefined; compact?: boolean }) => {
   const href = supplierHref(url);
   const classes = compact
-    ? "inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#0A0A0A] px-3 text-[12px] font-semibold text-white transition hover:bg-black/90"
-    : "inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#0A0A0A] px-4 text-[13px] font-semibold text-white transition hover:bg-black/90";
+    ? "inline-flex h-8 items-center justify-center gap-1.5 rounded-full bg-[#2563EB] px-3 text-[11px] font-semibold text-white transition hover:bg-[#1D4ED8]"
+    : "inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-4 text-[13px] font-semibold text-white transition hover:bg-[#1D4ED8]";
 
   if (!href) {
     return (
@@ -151,19 +152,19 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
             onSelect();
           }
         }}
-        className="cursor-pointer rounded-[28px] bg-[#F6F6F6] p-5 outline-none transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-black/20 md:hidden"
+        className="cursor-pointer rounded-2xl border border-[#E5E7EB] bg-white p-4 outline-none transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-[#2563EB]/30 md:hidden"
       >
-        <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_18px_rgba(0,0,0,0.05)]">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
             {image ? (
-              <img src={image} alt={getProductName(order)} className="h-full w-full object-cover" />
+              <img src={image} alt={getProductName(order)} className="h-full w-full object-contain p-1 mix-blend-multiply" />
             ) : (
               <Package size={22} strokeWidth={1.5} className="text-[#A3A3A3]" />
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-[16px] font-black leading-tight tracking-[-0.03em] text-[#0A0A0A]">{getProductName(order)}</p>
-            <p className="mt-1 text-[12px] font-bold text-black/45">
+            <p className="line-clamp-2 text-[14px] font-semibold leading-tight tracking-[-0.03em] text-[#111111]">{getProductName(order)}</p>
+            <p className="mt-1 text-[12px] font-medium text-[#777771]">
               Qtd. {clean(order.quantity)} · {formatBRL(order.total_amount ?? order.sale_price)}
             </p>
           </div>
@@ -171,22 +172,22 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
 
         <div className="grid grid-cols-2 gap-x-5 gap-y-5">
           <div className="min-w-0">
-            <p className="text-[12px] font-semibold text-black/42">Product ID:</p>
-            <p className="mt-2 truncate text-[16px] font-black tracking-[-0.03em] text-[#0A0A0A]">{getOrderCode(order)}</p>
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Pedido</p>
+            <p className="mt-1 truncate text-[13px] font-semibold tracking-[-0.03em] text-[#111111]">{getOrderCode(order)}</p>
           </div>
           <div className="min-w-0">
-            <p className="text-[12px] font-semibold text-black/42">Comprador:</p>
-            <p className="mt-2 truncate text-[14px] font-black tracking-[-0.03em] text-[#0A0A0A]">{clean(order.buyer_name)}</p>
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Comprador</p>
+            <p className="mt-1 truncate text-[13px] font-semibold tracking-[-0.03em] text-[#111111]">{clean(order.buyer_name)}</p>
           </div>
           <div className="min-w-0">
-            <p className="text-[12px] font-semibold text-black/42">Status:</p>
-            <span className="mt-2 inline-flex h-8 items-center rounded-full bg-[#C8F7DF] px-3 text-[12px] font-black text-[#137443]">
-              Confirmado
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Status</p>
+            <span className={`mt-1 inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-semibold ${getStatusStyle(order.status)}`}>
+              {getStatusLabel(order.status)}
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-[12px] font-semibold text-black/42">Data:</p>
-            <p className="mt-2 text-[14px] font-bold leading-tight text-[#0A0A0A]">{formatDate(order.ordered_at ?? order.created_at)}</p>
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Data</p>
+            <p className="mt-1 text-[13px] font-semibold leading-tight text-[#111111]">{formatDate(order.ordered_at ?? order.created_at)}</p>
           </div>
         </div>
       </div>
@@ -201,19 +202,19 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
             onSelect();
           }
         }}
-        className="group hidden cursor-pointer grid-cols-1 gap-3 border-b border-black/[0.06] bg-white px-4 py-4 outline-none transition hover:bg-[#FAFAFA] focus-visible:ring-2 focus-visible:ring-black/20 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center"
+        className="group hidden cursor-pointer grid-cols-1 gap-3 border-b border-[#EFEFEB] bg-white px-4 py-4 outline-none transition hover:bg-[#F7F7F8] focus-visible:ring-2 focus-visible:ring-[#2563EB]/30 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center"
       >
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#F5F5F5]">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
             {image ? (
-              <img src={image} alt={getProductName(order)} className="h-full w-full object-cover" />
+              <img src={image} alt={getProductName(order)} className="h-full w-full object-contain p-1 mix-blend-multiply" />
             ) : (
               <Package size={20} strokeWidth={1.5} className="text-[#A3A3A3]" />
             )}
           </div>
           <div className="min-w-0">
-            <p className="line-clamp-1 text-[14px] font-semibold text-[#0A0A0A]">{getProductName(order)}</p>
-            <p className="mt-1 text-[12px] text-[#737373]">Qtd. {clean(order.quantity)} · ML {getOrderCode(order)}</p>
+            <p className="line-clamp-1 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">{getProductName(order)}</p>
+            <p className="mt-1 text-[12px] text-[#777771]">Qtd. {clean(order.quantity)} · ML {getOrderCode(order)}</p>
           </div>
         </div>
 
@@ -250,9 +251,9 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
 };
 
 const OrderSkeleton = () => (
-  <div className="rounded-xl border border-black/[0.08] bg-white">
+  <div className="rounded-2xl border border-[#E5E7EB] bg-white">
     {[1, 2, 3, 4].map((item) => (
-      <div key={item} className="grid gap-3 border-b border-black/[0.06] px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center">
+      <div key={item} className="grid gap-3 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center">
         <div className="flex items-center gap-3">
           <Skeleton className="h-12 w-12 rounded-lg" />
           <div className="flex-1 space-y-2">
@@ -316,10 +317,12 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
   if (isLoading) return <OrderSkeleton />;
   if (!data || data.length === 0) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-black/[0.12] bg-white py-20 text-center">
-        <ShoppingBag size={48} strokeWidth={1.5} className="mb-4 text-[#D4D4D4]" />
-        <p className="text-[15px] font-semibold text-[#0A0A0A]">Nenhum pedido da sua loja ainda</p>
-        <p className="mt-1 max-w-md text-[13px] text-[#737373]">
+      <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#9CA3AF] shadow-[0_10px_24px_rgba(17,17,17,0.06)]">
+          <ShoppingBag size={21} strokeWidth={1.7} />
+        </div>
+        <p className="mt-4 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhum pedido da sua loja ainda</p>
+        <p className="mt-1 max-w-md text-[12px] font-medium text-[#777771]">
           Quando um cliente comprar em uma das suas páginas de vendas, o pedido aparece aqui automaticamente.
         </p>
       </div>
@@ -327,8 +330,8 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-black/[0.08] bg-white">
-      <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_80px_110px_130px_120px_200px] border-b border-black/[0.08] bg-[#FAFAFA] px-4 py-3 text-[11px] font-semibold uppercase text-[#737373] md:grid">
+    <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+      <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_80px_110px_130px_120px_200px] border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid">
         <span>Produto</span>
         <span>Comprador</span>
         <span>Qtd.</span>
@@ -338,12 +341,12 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
         <span>Fornecedor</span>
       </div>
       {data.map((order) => (
-        <div key={order.id} className="grid gap-2 border-b border-black/[0.06] px-4 py-4 md:grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_80px_110px_130px_120px_200px] md:items-center">
+        <div key={order.id} className="grid gap-2 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_80px_110px_130px_120px_200px] md:items-center">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#F5F5F5]">
-              {order.product_image_url ? <img src={order.product_image_url} alt="" className="h-full w-full object-cover" /> : <Package size={20} className="m-3 text-[#A3A3A3]" />}
+            <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
+              {order.product_image_url ? <img src={order.product_image_url} alt="" className="h-full w-full object-contain p-1 mix-blend-multiply" /> : <Package size={20} className="text-[#A3A3A3]" />}
             </div>
-            <p className="line-clamp-1 text-[14px] font-semibold text-[#0A0A0A]">{order.product_title}</p>
+            <p className="line-clamp-1 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">{order.product_title}</p>
           </div>
           <div className="min-w-0">
             <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{order.buyer_name}</p>
@@ -479,42 +482,52 @@ const OrdersPage = () => {
   );
 
   const isEmpty = !isLoading && orders.length === 0;
+  const activeTabCount = tab === "ml" ? orders.length : 0;
 
   return (
     <TooltipProvider delayDuration={120}>
-      <div className="flex min-h-0 flex-1 flex-col" style={pageFont}>
-        <div className="flex flex-col gap-4 pb-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h1 className="text-[24px] font-semibold tracking-normal text-[#0A0A0A]">Pedidos</h1>
-              <p className="mt-1 text-[13px] text-[#737373]">
-                Vendas do Mercado Livre e da sua loja com comprador, entrega e fornecedor vinculados.
-              </p>
-            </div>
-            <div data-dashboard-tour="pedidos-resumo" className="flex items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] font-semibold text-[#404040]">
-              <Calendar size={15} strokeWidth={1.5} />
-              {orders.length} {orders.length === 1 ? "pedido" : "pedidos"}
-            </div>
+      <DashboardPageShell
+        title="Pedidos"
+        className="overflow-visible"
+        panelClassName="overflow-visible"
+        style={pageFont}
+      >
+
+        <div className="mobile-hide-scrollbar mb-5 flex gap-2 overflow-x-auto md:mb-7 md:items-center xl:overflow-visible" data-dashboard-tour="pedidos-filtros">
+          <div className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-[12px] font-semibold text-[#111111] shadow-[0_8px_18px_rgba(17,17,17,0.035)]">
+            <Calendar size={14} strokeWidth={1.8} className="text-[#8E8E87]" />
+            <span>{activeTabCount}</span>
+            <span className="text-[#8E8E87]">{activeTabCount === 1 ? "pedido" : "pedidos"}</span>
           </div>
 
-          <div className="flex w-full items-center border-b border-black/[0.14]">
+          <div className="inline-flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={() => setTab("ml")}
-              className={`relative flex-1 whitespace-nowrap pb-3 pt-1 text-center text-[14px] transition-colors ${tab === "ml" ? "font-semibold text-[#0A0A0A]" : "font-medium text-[#737373] hover:text-[#0A0A0A]"}`}
+              className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-4 text-[12px] font-semibold transition-all duration-200 ${
+                tab === "ml"
+                  ? "border-[#2563EB] bg-[#2563EB] text-white shadow-[0_6px_14px_rgba(37,99,235,0.16)]"
+                  : "border-black/[0.08] bg-white text-[#111111] hover:border-black/15 hover:bg-[#F7F7F8]"
+              }`}
             >
-              Mercado Livre
-              {tab === "ml" && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#0A0A0A]" />}
+              <span className={tab === "ml" ? "text-white/65" : "text-[#8E8E87]"}>Canal</span>
+              <span>Mercado Livre</span>
             </button>
             <button
               type="button"
               onClick={() => setTab("loja")}
-              className={`relative flex-1 whitespace-nowrap pb-3 pt-1 text-center text-[14px] transition-colors ${tab === "loja" ? "font-semibold text-[#0A0A0A]" : "font-medium text-[#737373] hover:text-[#0A0A0A]"}`}
+              className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-4 text-[12px] font-semibold transition-all duration-200 ${
+                tab === "loja"
+                  ? "border-[#2563EB] bg-[#2563EB] text-white shadow-[0_6px_14px_rgba(37,99,235,0.16)]"
+                  : "border-black/[0.08] bg-white text-[#111111] hover:border-black/15 hover:bg-[#F7F7F8]"
+              }`}
             >
-              Minha Loja
-              {tab === "loja" && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#0A0A0A]" />}
+              <span className={tab === "loja" ? "text-white/65" : "text-[#8E8E87]"}>Canal</span>
+              <span>Minha Loja</span>
             </button>
           </div>
+
+          <div className="hidden xl:block xl:flex-1" />
         </div>
 
         {tab === "loja" && user?.id ? (
@@ -522,16 +535,18 @@ const OrdersPage = () => {
         ) : isLoading ? (
           <OrderSkeleton />
         ) : isEmpty ? (
-          <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-black/[0.12] bg-white py-20 text-center">
-            <ShoppingBag size={48} strokeWidth={1.5} className="mb-4 text-[#D4D4D4]" />
-            <p className="text-[15px] font-semibold text-[#0A0A0A]">Nenhum pedido encontrado</p>
-            <p className="mt-1 max-w-md text-[13px] text-[#737373]">
+          <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
+            <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#9CA3AF] shadow-[0_10px_24px_rgba(17,17,17,0.06)]">
+              <ShoppingBag size={21} strokeWidth={1.7} />
+            </div>
+            <p className="mt-4 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhum pedido encontrado</p>
+            <p className="mt-1 max-w-md text-[12px] font-medium text-[#777771]">
               Seus pedidos do Mercado Livre aparecerão aqui quando a sincronização registrar vendas na view.
             </p>
           </div>
         ) : (
-          <div data-dashboard-tour="pedidos-lista" className="space-y-3 bg-transparent md:space-y-0 md:overflow-hidden md:rounded-xl md:border md:border-black/[0.08] md:bg-white">
-            <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] border-b border-black/[0.08] bg-[#FAFAFA] px-4 py-3 text-[11px] font-semibold uppercase text-[#737373] md:grid">
+          <div data-dashboard-tour="pedidos-lista" className="space-y-3 bg-transparent md:space-y-0 md:overflow-hidden md:rounded-2xl md:border md:border-[#E5E7EB] md:bg-white">
+            <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid">
               <span>Produto</span>
               <span>Comprador</span>
               <span>Status</span>
@@ -553,7 +568,7 @@ const OrdersPage = () => {
             ))}
           </div>
         )}
-      </div>
+      </DashboardPageShell>
     </TooltipProvider>
   );
 };

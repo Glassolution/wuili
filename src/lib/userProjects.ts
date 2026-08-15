@@ -224,6 +224,13 @@ export function getProjectDescription(project: UserProject | null): string {
   return typeof value === "string" ? value : "";
 }
 
+/** Descrição curta escrita pela IA, gravada pelo editor. Vazio = ainda não
+ *  gerada — a vitrine mostra o placeholder curto, nunca o texto do fornecedor. */
+export function getProjectAiDescription(project: UserProject | null): string {
+  const value = readMetadata(project).aiDescription;
+  return typeof value === "string" ? value.trim() : "";
+}
+
 /** Nome de marca exibido na vitrine (o editor grava em metadata.storeName). */
 export function getProjectStoreName(project: UserProject | null): string {
   const value = readMetadata(project).storeName;

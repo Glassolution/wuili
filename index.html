@@ -3,6 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      if (/^\/admin(?:\/|$)/.test(window.location.pathname)) {
+        document.documentElement.classList.add("velo-admin-surface");
+      }
+    </script>
+    <style>
+      html,
+      body,
+      #root {
+        background: #ffffff;
+      }
+
+      html.velo-admin-surface,
+      html.velo-admin-surface body,
+      html.velo-admin-surface #root {
+        background: #ffffff !important;
+        color-scheme: light;
+      }
+    </style>
     <title>Velo — Infraestrutura de vendas para aumentar suas receitas</title>
     <meta name="description" content="Crie sua loja, encontre produtos de fornecedores reais e publique automaticamente no Mercado Livre, Shopee e mais. Sem estoque, sem complicação.">
     <meta property="og:type" content="website" />

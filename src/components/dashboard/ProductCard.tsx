@@ -1,17 +1,18 @@
 import { Link } from "react-router-dom";
 import { AlertCircle, Heart, Star } from "lucide-react";
-import { veloToast } from "@/components/ui/velo-toast";
 
 export interface Product {
   id: string;
   nome: string;
   categoria: string;
+  /** Custo do produto — o que o lojista paga ao fornecedor. */
   preco: number;
   image_url: string;
   images: string[];
   product_url?: string | null;
   rating?: number | null;
   ordersCount?: number | null;
+  reviewsCount?: number | null;
   supplierLabel?: string | null;
 }
 
@@ -28,36 +29,23 @@ export const formatReviewCount = (count: number) => {
   return String(count);
 };
 
-const getMockCatalogMetrics = (productId: string) => {
-  let hash = 0;
-
-  for (let index = 0; index < productId.length; index += 1) {
-    hash = (hash * 31 + productId.charCodeAt(index)) % 10000;
-  }
-
-  return {
-    rating: Number((4 + (hash % 100) / 100).toFixed(1)),
-    ordersCount: 50 + (hash % 1950),
-  };
-};
-
 export const getMockRating = (productId: string) => {
-  const metrics = getMockCatalogMetrics(productId);
   return {
-    rating: metrics.rating,
-    reviewCount: metrics.ordersCount,
+    rating: null,
+    reviewCount: null,
   };
 };
 
-export const getProductCatalogMetrics = (product: Pick<Product, "id" | "rating" | "ordersCount">) => {
-  const mockMetrics = getMockCatalogMetrics(product.id);
-  const rating = mockMetrics.rating;
-  const ordersCount = mockMetrics.ordersCount;
+export const getProductCatalogMetrics = (product: Pick<Product, "id" | "rating" | "ordersCount" | "reviewsCount">) => {
+  const rating = typeof product.rating === "number" && product.rating > 0 ? product.rating : null;
+  const ordersCount = typeof product.ordersCount === "number" && product.ordersCount > 0 ? product.ordersCount : null;
+  const reviewsCount = typeof product.reviewsCount === "number" && product.reviewsCount > 0 ? product.reviewsCount : null;
 
   return {
     rating,
     ordersCount,
-    hasMetrics: true,
+    reviewsCount,
+    hasMetrics: rating !== null || ordersCount !== null || reviewsCount !== null,
   };
 };
 
@@ -90,18 +78,17 @@ export const ProductFavoriteButton = ({
 );
 
 export const ProductCardSkeleton = () => (
-  <div className="overflow-hidden rounded-[22px] border border-[#ECECEF] bg-white p-4 shadow-[0_10px_30px_rgba(17,24,39,0.05)] animate-pulse">
-    <div className="aspect-square w-full rounded-xl bg-gray-200" />
-    <div className="mt-4 h-4 w-3/4 rounded bg-gray-200" />
-    <div className="mt-2 h-4 w-1/2 rounded bg-gray-200" />
-    <div className="mt-4 h-6 w-1/3 rounded bg-gray-200" />
-    <div className="mt-4 h-10 w-full rounded-xl bg-gray-200" />
+  <div className="animate-pulse">
+    <div className="aspect-square w-full rounded-[3px] bg-[#ECECE9]" />
+    <div className="mt-5 h-3 w-28 rounded-full bg-[#E4E4E1]" />
+    <div className="mt-3 h-4 w-4/5 rounded-full bg-[#E4E4E1]" />
+    <div className="mt-2 h-4 w-2/3 rounded-full bg-[#E4E4E1]" />
+    <div className="mt-4 h-3 w-32 rounded-full bg-[#E4E4E1]" />
   </div>
 );
 
 export const ProductCard = ({
   product,
-  categoryLabel,
   isFavorited,
   onToggleFavorite,
   compact = false,
@@ -109,7 +96,6 @@ export const ProductCard = ({
   collectionSelection,
 }: {
   product: Product;
-  categoryLabel: string;
   isFavorited: boolean;
   onToggleFavorite: () => void;
   compact?: boolean;
@@ -120,58 +106,33 @@ export const ProductCard = ({
     onToggle: () => void;
   };
 }) => {
-  const { rating, ordersCount, hasMetrics } = getProductCatalogMetrics(product);
+  const { rating, ordersCount, reviewsCount, hasMetrics } = getProductCatalogMetrics(product);
+  const socialProofCount = ordersCount ?? reviewsCount;
 
   return (
     <article
-      className={`overflow-hidden border border-[#ECECEF] bg-white transition-transform duration-200 hover:-translate-y-0.5 ${
-        denseMobile ? "rounded-xl shadow-none md:rounded-[22px] md:shadow-[0_10px_30px_rgba(17,24,39,0.05)]" : "rounded-[22px] shadow-[0_10px_30px_rgba(17,24,39,0.05)]"
-      } ${
+      className={`group min-w-0 bg-transparent transition-all duration-200 hover:-translate-y-0.5 ${
         compact ? "min-w-[240px] md:min-w-0 w-full" : ""
       }`}
     >
-      <div className="relative aspect-square overflow-hidden bg-[#F6F6F7]">
+      <div className="relative aspect-square overflow-hidden rounded-[14px] bg-[#EFEFEC]">
         <Link
           to={`/dashboard/catalogo/${product.id}`}
           className="block h-full w-full"
-          onClick={() => {
-            veloToast.loading("Carregando produto...", {
-              id: `loading-product-${product.id}`,
-              fullscreen: true,
-              minDuration: 3000,
-            });
-          }}
         >
           <img
             src={product.image_url}
             alt={product.nome}
-            className="h-full w-full object-cover cursor-pointer"
+            className="h-full w-full cursor-pointer object-contain p-4 mix-blend-multiply transition-transform duration-500 group-hover:scale-[1.035] md:p-5"
             loading="lazy"
             referrerPolicy="no-referrer"
           />
         </Link>
 
-        <span className={`absolute rounded-full border border-[#E6E6E8] bg-white/95 font-semibold tracking-[-0.01em] text-[#111111] backdrop-blur-sm ${denseMobile ? "left-2 top-2 max-w-[calc(100%-16px)] truncate px-2 py-0.5 text-[8px] md:left-4 md:top-4 md:px-2.5 md:py-1 md:text-[10px]" : "left-4 top-4 px-2.5 py-1 text-[10px]"}`}>
-          {categoryLabel}
-        </span>
-
-        {product.supplierLabel && (
-          <span
-            title={`Fornecedor: ${product.supplierLabel}`}
-            className={`absolute rounded-full border border-[#E6E6E8] bg-white/95 font-semibold uppercase tracking-[0.06em] text-[#6B7280] backdrop-blur-sm ${
-              denseMobile
-                ? "left-2 bottom-2 max-w-[calc(100%-16px)] truncate px-2 py-0.5 text-[8px] md:left-4 md:bottom-4 md:px-2.5 md:py-1 md:text-[9px]"
-                : "left-4 bottom-4 px-2.5 py-1 text-[9px]"
-            }`}
-          >
-            {product.supplierLabel}
-          </span>
-        )}
-
         {product.images && product.images.length < 3 && (
           <span
             title="Este produto tem menos de 3 fotos — pode ser recusado na publicação no ML"
-            className={`absolute rounded-full border border-[#E6E6E8] bg-white/95 font-medium tracking-tight text-[#6B7280] backdrop-blur-sm items-center gap-1 cursor-help ${denseMobile ? "hidden md:flex md:right-4 md:top-4 md:px-2 md:py-1 md:text-[9px]" : "right-4 top-4 flex px-2 py-1 text-[9px]"}`}
+            className={`absolute rounded-full border border-[#E6E6E8] bg-white/95 font-medium tracking-tight text-[#6B7280] backdrop-blur-sm items-center gap-1 cursor-help ${denseMobile ? "hidden md:flex md:left-3 md:top-3 md:px-2 md:py-1 md:text-[9px]" : "left-3 top-3 flex px-2 py-1 text-[9px]"}`}
           >
             <AlertCircle size={10} className="text-[#6B7280]" />
             <span>Fotos insuficientes</span>
@@ -182,7 +143,7 @@ export const ProductCard = ({
           <ProductFavoriteButton
             isFavorited={isFavorited}
             onToggleFavorite={onToggleFavorite}
-            className="md:hidden"
+            className="left-2 right-auto md:hidden"
           />
         )}
 
@@ -196,7 +157,7 @@ export const ProductCard = ({
               collectionSelection.onToggle();
             }}
             disabled={collectionSelection.loading}
-            className={`absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-sm transition-all ${
+            className={`absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-sm transition-all ${
               collectionSelection.selected
                 ? "border-[#111111] bg-[#111111] text-white shadow-[0_12px_26px_rgba(17,17,17,0.22)]"
                 : "border-[#E6E6E8] bg-white/95 text-[#111111] hover:bg-[#F7F7F8]"
@@ -211,75 +172,59 @@ export const ProductCard = ({
         )}
       </div>
 
-      <div className={denseMobile ? "p-2.5 md:p-4" : compact ? "p-3.5" : "p-4"}>
+      <div className={denseMobile ? "pt-2.5 md:pt-3" : compact ? "pt-3" : "pt-3"}>
         <h2
-          className={`line-clamp-2 font-semibold tracking-[-0.025em] text-[#111111] hover:text-[#2563EB] transition-colors ${
-            denseMobile ? "min-h-[36px] text-[12px] leading-[18px] md:min-h-[44px] md:text-[15px] md:leading-normal" : compact ? "min-h-[40px] text-[14px]" : "min-h-[44px] text-[15px]"
+          className={`truncate font-semibold tracking-[-0.03em] text-[#111111] transition-colors hover:text-[#2563EB] ${
+            denseMobile ? "text-[11.5px] leading-[16px] md:text-[13px] md:leading-[18px]" : compact ? "text-[12.5px] leading-[17px]" : "text-[13px] leading-[18px]"
           }`}
         >
           <Link
             to={`/dashboard/catalogo/${product.id}`}
             data-dashboard-tour="catalogo-produto-abrir"
-            onClick={() => {
-              veloToast.loading("Carregando produto...", {
-                id: `loading-product-${product.id}`,
-                fullscreen: true,
-                minDuration: 3000,
-              });
-            }}
           >
             {product.nome}
           </Link>
         </h2>
 
-        {hasMetrics && (
-          <div className={`flex items-center text-[#6B7280] ${denseMobile ? "mt-1 gap-1 text-[10px] md:mt-2 md:gap-1.5 md:text-[12px]" : "mt-2 gap-1.5 text-[12px]"}`}>
-            {rating !== null && (
+        {/* Uma linha só de informação: nota à esquerda, custo à direita. O preço
+            de venda sugerido e a margem vivem na página do produto. */}
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <div className={`flex min-w-0 items-center gap-1 ${denseMobile ? "text-[9.5px] md:text-[10.5px]" : "text-[10.5px]"}`}>
+            {hasMetrics && rating !== null && (
               <>
-                <Star size={13} strokeWidth={1.8} className="fill-[#111111] text-[#111111]" />
+                <Star size={denseMobile ? 10 : 11} strokeWidth={0} className="shrink-0 fill-[#F5A623]" />
                 <span className="font-medium text-[#111111]">{rating.toFixed(1)}</span>
               </>
             )}
-            {rating !== null && ordersCount !== null && <span>·</span>}
-            {ordersCount !== null && <span>{formatReviewCount(ordersCount)} vendidos</span>}
+            {hasMetrics && socialProofCount !== null && (
+              <span className="truncate text-[#9A9A94]">({formatReviewCount(socialProofCount)} vendas)</span>
+            )}
           </div>
-        )}
 
-        <div className={`font-semibold tracking-[-0.04em] text-[#111111] ${denseMobile ? "mt-1.5 text-[16px] md:mt-3 md:text-[22px]" : compact ? "mt-2.5 text-[21px]" : "mt-3 text-[22px]"}`}>
-          {formatPrice(product.preco)}
+          <span className={`shrink-0 font-semibold tracking-[-0.025em] text-[#111111] ${denseMobile ? "text-[11.5px] md:text-[13px]" : "text-[13px]"}`}>
+            {formatPrice(product.preco)}
+          </span>
         </div>
 
-        <div className={`grid gap-2 ${denseMobile ? "mt-2 grid-cols-1 md:mt-3.5 md:grid-cols-2" : "mt-3.5 grid-cols-2"}`}>
+        <div className={`flex items-center gap-1.5 ${denseMobile ? "mt-2.5" : "mt-2.5"}`}>
           <button
             type="button"
             onClick={onToggleFavorite}
-            className={`items-center justify-center gap-2 rounded-[14px] border border-[#E5E7EB] bg-white text-[12px] font-medium text-[#111111] transition-colors hover:bg-[#F7F7F8] ${
-              denseMobile ? "hidden md:inline-flex" : "inline-flex"
-            } ${
-              compact ? "h-9 px-2.5" : "h-10 px-3"
-            }`}
+            className="inline-flex h-[30px] flex-1 items-center justify-center gap-1.5 rounded-[9px] border border-black/[0.1] bg-white px-2.5 text-[10.5px] font-semibold text-[#111111] transition-colors hover:bg-[#F4F4F1]"
+            aria-label={isFavorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
           >
             <Heart
-              size={14}
-              strokeWidth={1.9}
+              size={12}
+              strokeWidth={2}
               className={isFavorited ? "fill-red-500 text-red-500" : ""}
             />
-            <span className={denseMobile ? "hidden md:inline" : ""}>Favoritar</span>
+            Salvar
           </button>
           <Link
             to={`/dashboard/catalogo/${product.id}`}
-            onClick={() => {
-              veloToast.loading("Carregando produto...", {
-                id: `loading-product-${product.id}`,
-                fullscreen: true,
-                minDuration: 3000,
-              });
-            }}
-            className={`inline-flex items-center justify-center rounded-[14px] bg-[#111111] text-[12px] font-medium text-white transition-opacity hover:opacity-90 ${
-              denseMobile ? "h-8 px-2 text-[10px] md:h-10 md:px-3 md:text-[12px]" : compact ? "h-9 px-2.5" : "h-10 px-3"
-            }`}
+            className="inline-flex h-[30px] flex-1 items-center justify-center rounded-[9px] bg-[#2563EB] px-3 text-[10.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
           >
-            Importar
+            Ver produto
           </Link>
         </div>
       </div>

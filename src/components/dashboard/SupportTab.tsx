@@ -1,12 +1,44 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowUp, Headphones, Loader2, UserRound, X } from "lucide-react";
+import {
+  ArrowUp,
+  CalendarDays,
+  ChevronDown,
+  Download,
+  Inbox,
+  Loader2,
+  Paperclip,
+  Search,
+  Ticket,
+  X,
+} from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
-import { useProfile } from "@/lib/profileContext";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import RefundSection from "@/components/dashboard/RefundSection";
 import { notifyNewSupportTicketEmail } from "@/lib/supportEmail";
+import {
+  ACTIVE_SUPPORT_TICKET_EVENT,
+  CATEGORY_LABEL,
+  FAQ_ITEMS,
+  formatTicketDate as formatDate,
+  playSoftSupportNotification,
+  protocolo,
+  readActiveSupportTicketId,
+  setActiveSupportTicketId,
+  shouldAnnounceSupportReply,
+  SUPPORT_CATEGORIES,
+  buildSupportImageMessage,
+  removeSupportImage,
+  supportDb as db,
+  uploadSupportImage,
+  validateSupportImage,
+  type SupportMessage,
+  type SupportTicket,
+  type TicketCategory,
+} from "@/lib/support";
+import SupportImagePreview from "@/components/support/SupportImagePreview";
+import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 
 const TRIAL_REASON_MESSAGES: Record<string, string> = {
   bug: "Olá! Estou no período de trial e encontrei um bug na plataforma. Poderiam me ajudar?",
@@ -15,223 +47,177 @@ const TRIAL_REASON_MESSAGES: Record<string, string> = {
   other: "Olá! Preciso de ajuda com um assunto relacionado ao meu trial.",
 };
 
-export const SUPPORT_CATEGORIES: Array<{ key: TicketCategory; label: string; description: string }> = [
-  { key: "financeiro", label: "Financeiro", description: "Cobranças, planos e pagamentos" },
-  { key: "bug", label: "Bug / Erro", description: "Problemas técnicos na plataforma" },
-  { key: "integracao", label: "Integrações", description: "Mercado Livre, Shopee e outras" },
-  { key: "conta", label: "Conta", description: "Login, dados pessoais, acessos" },
-  { key: "reembolso", label: "Reembolso", description: "Solicitações de devolução" },
-  { key: "outros", label: "Outros", description: "Dúvidas gerais e outros assuntos" },
-];
-
-type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
-
-type SupportTicket = {
-  id: string;
-  user_id: string;
-  status: "open" | "closed";
-  ai_active: boolean;
-  admin_last_seen_at: string | null;
-  category: TicketCategory;
-  subject: string | null;
-  created_at: string;
-  updated_at: string;
+const TRIAL_REASON_CATEGORY: Record<string, TicketCategory> = {
+  bug: "bug",
+  refund: "reembolso",
+  billing: "financeiro",
+  other: "outros",
 };
 
-type SupportMessage = {
-  id: string;
-  ticket_id: string;
-  user_id: string;
-  message: string;
-  sender: "user" | "admin" | "ai";
-  created_at: string;
+const announceSupportReply = (message: SupportMessage) => {
+  if (!shouldAnnounceSupportReply(message)) return;
+  playSoftSupportNotification();
+  toast.info("Nova resposta do suporte recebida.");
 };
+
+/* ──── estilos compartilhados ──── */
+const card =
+  "rounded-[16px] border border-[#EAEAEA] bg-white p-5 shadow-[0_1px_2px_rgba(15,15,15,0.04)] dark:border-white/10 dark:bg-[#0f0f0f]";
+const fieldLabel = "mb-1.5 block text-[11.5px] text-[#8A8A8A] dark:text-zinc-500";
+const underline =
+  "h-9 w-full border-0 border-b border-[#E4E4E4] bg-transparent px-0 text-[13.5px] text-[#111113] outline-none transition-colors placeholder:text-[#BDBDBD] focus:border-[#111113] disabled:text-[#9A9A9A] dark:border-white/15 dark:text-white dark:placeholder:text-zinc-600 dark:focus:border-white";
+
+const Field = ({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) => (
+  <div className={`min-w-0 ${className}`}>
+    <label className={fieldLabel}>{label}</label>
+    <div className="relative">{children}</div>
+  </div>
+);
 
 const SupportTab = () => {
   const { user } = useAuth();
-  const { nome } = useProfile();
-  const firstName = (nome || "").split(" ")[0] || "tudo bem";
-  const [ticket, setTicket] = useState<SupportTicket | null>(null);
-  const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
+
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+
+  // Formulário de novo ticket
+  const [formCategory, setFormCategory] = useState<TicketCategory>("outros");
+  const [formSubject, setFormSubject] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Busca no histórico
+  const [query, setQuery] = useState("");
+
+  // Conversa do ticket selecionado
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [ticketLoading, setTicketLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [messageImage, setMessageImage] = useState<File | null>(null);
+  const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const [faqOpen, setFaqOpen] = useState(0);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const trialAutoOpenRef = useRef(false);
-  const [openModal, setOpenModal] = useState(false);
-  const [modalCategory, setModalCategory] = useState<TicketCategory>("outros");
-  const [modalSubject, setModalSubject] = useState("");
-  const [creatingTicket, setCreatingTicket] = useState(false);
 
+  const selectedTicket = tickets.find((t) => t.id === selectedId) ?? null;
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [supportMessages, loading, ticketLoading]);
-
+  /* ── carrega os tickets do usuário ── */
   useEffect(() => {
     if (!user?.id) {
-      setTicket(null);
-      setSupportMessages([]);
+      setTickets([]);
       return;
     }
 
     let active = true;
 
-    const loadOpenTicket = async () => {
-      setTicketLoading(true);
-
+    const loadTickets = async () => {
+      setTicketsLoading(true);
       try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await db
           .from("support_tickets")
           .select("*")
           .eq("user_id", user.id)
-          .eq("status", "open")
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .order("created_at", { ascending: false });
 
         if (!active) return;
         if (error) throw error;
 
-        setTicket((data as SupportTicket | null) ?? null);
+        const nextTickets = (data ?? []) as SupportTicket[];
+        setTickets(nextTickets);
+
+        const activeTicketId = readActiveSupportTicketId();
+        const activeTicket = nextTickets.find((ticket) => ticket.id === activeTicketId && ticket.status === "open");
+        if (activeTicket) {
+          setSelectedId(activeTicket.id);
+        } else if (activeTicketId) {
+          setActiveSupportTicketId(null);
+        }
       } catch (error) {
         console.error(error);
-        if (active) toast.error("Não foi possível carregar seu ticket aberto.");
+        if (active) toast.error("Não foi possível carregar seus tickets.");
       } finally {
-        if (active) setTicketLoading(false);
+        if (active) setTicketsLoading(false);
       }
     };
 
-    void loadOpenTicket();
+    void loadTickets();
 
     return () => {
       active = false;
     };
   }, [user?.id]);
 
-  const startHumanSupport = async (
-    opts?: { category?: TicketCategory; subject?: string | null }
-  ): Promise<SupportTicket | null> => {
-    if (!user?.id) {
-      toast.error("Faça login para falar com o suporte.");
-      return null;
-    }
-
-    setTicketLoading(true);
-
-    try {
-      if (ticket?.status === "open") {
-        if (ticket.ai_active) {
-          const { error: pauseError } = await (supabase as any)
-            .from("support_tickets")
-            .update({ ai_active: false })
-            .eq("id", ticket.id)
-            .eq("user_id", user.id);
-
-          if (pauseError) throw pauseError;
-          setTicket({ ...ticket, ai_active: false });
-        }
-        return ticket;
-      }
-
-      const { data: existing, error: existingError } = await (supabase as any)
-        .from("support_tickets")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("status", "open")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingError) throw existingError;
-
-      if (existing) {
-        const openTicket = existing as SupportTicket;
-        if (openTicket.ai_active) {
-          const { error: pauseError } = await (supabase as any)
-            .from("support_tickets")
-            .update({ ai_active: false })
-            .eq("id", openTicket.id)
-            .eq("user_id", user.id);
-
-          if (pauseError) throw pauseError;
-          openTicket.ai_active = false;
-        }
-        setTicket(openTicket);
-        return openTicket;
-      }
-
-      const insertPayload: Record<string, unknown> = {
-        user_id: user.id,
-        status: "open",
-        ai_active: false,
-        category: opts?.category ?? "outros",
-      };
-      if (opts?.subject) insertPayload.subject = opts.subject;
-
-      const { data, error } = await (supabase as any)
-        .from("support_tickets")
-        .insert(insertPayload)
-        .select("*")
-        .single();
-
-      if (error) throw error;
-
-      const newTicket = data as SupportTicket;
-      setTicket(newTicket);
-      setSupportMessages([]);
-      return newTicket;
-    } catch (error) {
-      console.error(error);
-      toast.error("Não foi possível iniciar o atendimento com o suporte.");
-      return null;
-    } finally {
-      setTicketLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!ticket?.id) return;
+    const syncActiveTicket = (event: Event) => {
+      const ticketId =
+        event instanceof CustomEvent && typeof event.detail?.ticketId === "string"
+          ? event.detail.ticketId
+          : readActiveSupportTicketId();
+
+      if (ticketId) setSelectedId(ticketId);
+    };
+
+    window.addEventListener(ACTIVE_SUPPORT_TICKET_EVENT, syncActiveTicket);
+    return () => window.removeEventListener(ACTIVE_SUPPORT_TICKET_EVENT, syncActiveTicket);
+  }, []);
+
+  /* ── mensagens + realtime do ticket aberto na conversa ── */
+  useEffect(() => {
+    if (!selectedId) {
+      setMessages([]);
+      return;
+    }
 
     let cancelled = false;
 
-    const appendMessage = (message: SupportMessage) => {
-      setSupportMessages((prev) =>
-        prev.some((item) => item.id === message.id) ? prev : [...prev, message]
-      );
-    };
-
     const loadMessages = async () => {
-      const { data, error } = await (supabase as any)
+      setMessagesLoading(true);
+      const { data, error } = await db
         .from("support_messages")
         .select("*")
-        .eq("ticket_id", ticket.id)
+        .eq("ticket_id", selectedId)
         .order("created_at", { ascending: true });
 
       if (cancelled) return;
+      setMessagesLoading(false);
+
       if (error) {
         toast.error("Não foi possível carregar o histórico do suporte.");
         return;
       }
 
-      setSupportMessages((data ?? []) as SupportMessage[]);
+      setMessages((data ?? []) as SupportMessage[]);
     };
 
     void loadMessages();
 
     const channel = supabase
-      .channel(`support-ticket:${ticket.id}`)
+      .channel(`support-ticket:${selectedId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "support_messages",
-          filter: `ticket_id=eq.${ticket.id}`,
+          filter: `ticket_id=eq.${selectedId}`,
         },
-        (payload) => appendMessage(payload.new as SupportMessage)
+        (payload) => {
+          const message = payload.new as SupportMessage;
+          setMessages((prev) => (prev.some((item) => item.id === message.id) ? prev : [...prev, message]));
+          announceSupportReply(message);
+        },
       )
       .on(
         "postgres_changes",
@@ -239,9 +225,15 @@ const SupportTab = () => {
           event: "UPDATE",
           schema: "public",
           table: "support_tickets",
-          filter: `id=eq.${ticket.id}`,
+          filter: `id=eq.${selectedId}`,
         },
-        (payload) => setTicket(payload.new as SupportTicket)
+        (payload) => {
+          const updated = payload.new as SupportTicket;
+          setTickets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+          if (updated.status === "closed" && readActiveSupportTicketId() === updated.id) {
+            setActiveSupportTicketId(null);
+          }
+        },
       )
       .subscribe();
 
@@ -249,30 +241,124 @@ const SupportTab = () => {
       cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, [ticket?.id]);
+  }, [selectedId]);
 
-  const sendHumanMessage = async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || loading || ticketLoading || !user?.id) return;
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, sending, messagesLoading]);
 
-    let activeTicket = ticket;
-    const hadActiveTicket = activeTicket?.status === "open";
-    if (!activeTicket || activeTicket.status !== "open") {
-      activeTicket = await startHumanSupport();
+  /* ── criação de ticket ── */
+  const createTicket = async (opts: {
+    category: TicketCategory;
+    subject: string;
+    firstMessage: string;
+  }): Promise<SupportTicket | null> => {
+    if (!user?.id) {
+      toast.error("Faça login para falar com o suporte.");
+      return null;
     }
 
-    if (!activeTicket || activeTicket.status !== "open") return;
-
-    setInput("");
-    setLoading(true);
-
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
+        .from("support_tickets")
+        .insert({
+          user_id: user.id,
+          status: "open",
+          ai_active: false,
+          category: opts.category,
+          subject: opts.subject,
+        })
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      const created = data as SupportTicket;
+
+      const { data: message, error: messageError } = await db
         .from("support_messages")
         .insert({
-          ticket_id: activeTicket.id,
+          ticket_id: created.id,
           user_id: user.id,
-          message: trimmed,
+          message: opts.firstMessage,
+          sender: "user",
+        })
+        .select("*")
+        .single();
+
+      if (messageError) throw messageError;
+
+      setTickets((prev) => [created, ...prev]);
+      setActiveSupportTicketId(created.id);
+
+      notifyNewSupportTicketEmail(created.id, message.id).catch((err) => {
+        console.error(err);
+        toast.error(
+          err instanceof Error ? err.message : "Ticket aberto, mas não foi possível avisar os admins por email.",
+        );
+      });
+
+      return created;
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível abrir o ticket.");
+      return null;
+    }
+  };
+
+  const handleSubmitTicket = async () => {
+    const subject = formSubject.trim();
+    const description = formDescription.trim();
+
+    if (!subject) {
+      toast.error("Informe o assunto do ticket.");
+      return;
+    }
+    if (!description) {
+      toast.error("Descreva o que aconteceu para o suporte entender seu caso.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const created = await createTicket({
+        category: formCategory,
+        subject,
+        firstMessage: description,
+      });
+      if (created) {
+        toast.success("Ticket aberto. Nosso time responde por aqui.");
+        setFormSubject("");
+        setFormDescription("");
+        setFormCategory("outros");
+        setSelectedId(created.id);
+        setActiveSupportTicketId(created.id);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* ── envio de mensagem dentro da conversa ── */
+  const sendMessage = async () => {
+    const trimmed = input.trim();
+    if ((!trimmed && !messageImage) || sending || !user?.id || !selectedTicket || selectedTicket.status !== "open") return;
+
+    setInput("");
+    setSending(true);
+
+    let uploadedPath: string | null = null;
+    try {
+      const attachment = messageImage
+        ? await uploadSupportImage({ file: messageImage, ticketId: selectedTicket.id, userId: user.id })
+        : null;
+      uploadedPath = attachment?.path ?? null;
+      const { data, error } = await db
+        .from("support_messages")
+        .insert({
+          ticket_id: selectedTicket.id,
+          user_id: user.id,
+          message: attachment ? buildSupportImageMessage(attachment, trimmed) : trimmed,
           sender: "user",
         })
         .select("*")
@@ -280,186 +366,488 @@ const SupportTab = () => {
 
       if (error) throw error;
 
-      setSupportMessages((prev) =>
-        prev.some((item) => item.id === data.id) ? prev : [...prev, data as SupportMessage]
+      setMessages((prev) =>
+        prev.some((item) => item.id === data.id) ? prev : [...prev, data as SupportMessage],
       );
-      if (!hadActiveTicket) {
-        notifyNewSupportTicketEmail(activeTicket.id, data.id).catch((error) => {
-          console.error(error);
-          toast.error(error instanceof Error ? error.message : "Ticket aberto, mas não foi possível avisar os admins por email.");
-        });
-      }
+      setMessageImage(null);
+      setActiveSupportTicketId(selectedTicket.id);
     } catch (error) {
+      if (uploadedPath) await removeSupportImage(uploadedPath);
       console.error(error);
-      toast.error("Não foi possível enviar sua mensagem ao suporte.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar sua mensagem ao suporte.");
       setInput(trimmed);
     } finally {
-      setLoading(false);
+      setSending(false);
     }
   };
 
-  const send = async (text: string) => {
-    await sendHumanMessage(text);
-  };
-
-  // Auto-open a support ticket with a pre-filled message when redirected from the trial banner
+  /* ── abertura automática vinda do banner de trial ── */
   useEffect(() => {
     const reason = searchParams.get("trial_reason");
-    if (!reason || !user?.id || ticketLoading || trialAutoOpenRef.current) return;
+    if (!reason || !user?.id || ticketsLoading || trialAutoOpenRef.current) return;
     trialAutoOpenRef.current = true;
 
     const message = TRIAL_REASON_MESSAGES[reason] ?? TRIAL_REASON_MESSAGES.other;
+    const category = TRIAL_REASON_CATEGORY[reason] ?? "outros";
 
     (async () => {
-      await sendHumanMessage(message);
+      const created = await createTicket({ category, subject: message.slice(0, 80), firstMessage: message });
+      if (created) {
+        setSelectedId(created.id);
+        setActiveSupportTicketId(created.id);
+      }
       const next = new URLSearchParams(searchParams);
       next.delete("trial_reason");
       setSearchParams(next, { replace: true });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, user?.id, ticketLoading]);
+  }, [searchParams, user?.id, ticketsLoading]);
 
+  /* ── histórico filtrado ── */
+  const filteredTickets = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return tickets;
+    return tickets.filter(
+      (t) =>
+        protocolo(t.id).toLowerCase().includes(q) ||
+        (t.subject ?? "").toLowerCase().includes(q) ||
+        CATEGORY_LABEL[t.category]?.toLowerCase().includes(q),
+    );
+  }, [tickets, query]);
 
-
-  const visibleSupportMessages = supportMessages.filter((m) => m.sender !== "ai");
-  const hasAdminReply = visibleSupportMessages.some((m) => m.sender === "admin");
-  const supportClosed = ticket?.status === "closed";
-  const supportReady = ticketLoading || (!!ticket && !supportClosed);
+  const handleExport = () => {
+    if (!filteredTickets.length) {
+      toast.error("Não há tickets para exportar.");
+      return;
+    }
+    const linhas = [
+      ["Protocolo", "Assunto", "Tipo", "Data", "Status"],
+      ...filteredTickets.map((t) => [
+        protocolo(t.id),
+        (t.subject ?? "").replace(/"/g, '""'),
+        CATEGORY_LABEL[t.category] ?? t.category,
+        formatDate(t.created_at),
+        t.status === "open" ? "Em aberto" : "Resolvido",
+      ]),
+    ];
+    const csv = linhas.map((l) => l.map((c) => `"${c}"`).join(";")).join("\n");
+    // BOM na frente para o Excel abrir os acentos corretamente.
+    const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tickets-suporte-velo.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <div className="flex min-h-[calc(100svh-176px)] flex-col md:min-h-0">
-      <div className="mb-4 flex flex-col gap-3 md:mb-5 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-[24px] font-black tracking-[-0.04em] text-[#0A0A0A] dark:text-white md:text-[20px] md:font-semibold md:tracking-normal">Suporte Velo</h2>
-          <p className="mt-1 max-w-[320px] text-[13px] font-medium leading-5 text-[#737373] dark:text-zinc-400 md:max-w-none md:font-normal">
-            Fale com nosso suporte para tirar dúvidas sobre sua conta, plano, integrações e operação na plataforma.
+    <div className="pb-8">
+      {/* ── Cabeçalho ── */}
+      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="md:max-w-[320px]">
+          <h2 className="text-[22px] font-bold tracking-[-0.03em] text-[#0A0A0A] dark:text-white">
+            Tickets de suporte
+          </h2>
+          <p className="mt-1 text-[13px] leading-[1.45] text-[#737373] dark:text-zinc-400">
+            Quando algo não sai como esperado, você abre um ticket e nosso time resolve.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {!ticket && (
-            <button
-              type="button"
-              onClick={() => setOpenModal(true)}
-              disabled={ticketLoading}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-black px-5 text-[13px] font-semibold leading-none text-white shadow-sm transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black sm:w-auto"
-            >
-              {ticketLoading ? <Loader2 size={14} className="animate-spin" /> : <Headphones size={14} />}
-              Abrir novo ticket
-            </button>
-          )}
+        <div className="flex h-9 items-center gap-2 rounded-full border border-[#E6E6E6] bg-white px-3.5 md:w-[210px] dark:border-white/10 dark:bg-[#0f0f0f]">
+          <Search size={14} className="shrink-0 text-[#9A9A9A]" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar ticket"
+            className="w-full bg-transparent text-[12.5px] text-[#111113] outline-none placeholder:text-[#9A9A9A] dark:text-white"
+          />
         </div>
       </div>
 
-      {openModal && (
-        <NewTicketModal
-          category={modalCategory}
-          subject={modalSubject}
-          onCategoryChange={setModalCategory}
-          onSubjectChange={setModalSubject}
-          submitting={creatingTicket}
-          onClose={() => setOpenModal(false)}
-          onSubmit={async () => {
-            const subj = modalSubject.trim();
-            if (!subj) {
-              toast.error("Descreva brevemente o motivo do ticket.");
+      {/* ── Card: abrir novo ticket ── */}
+      <section className={card}>
+        <h3 className="text-[17px] font-bold tracking-[-0.02em] text-[#0A0A0A] dark:text-white">
+          Abrir novo ticket
+        </h3>
+        <p className="mt-1 text-[12.5px] text-[#8A8A8A] dark:text-zinc-400">
+          Preencha as informações abaixo e clique em enviar ticket.
+        </p>
+
+        <div className="mt-5 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Tipo de solicitação *">
+            <select
+              value={formCategory}
+              onChange={(e) => setFormCategory(e.target.value as TicketCategory)}
+              className={`${underline} cursor-pointer appearance-none pr-6`}
+            >
+              {SUPPORT_CATEGORIES.map((cat) => (
+                <option key={cat.key} value={cat.key}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#8A8A8A]"
+            />
+          </Field>
+
+          <Field label="Assunto *">
+            <input
+              value={formSubject}
+              onChange={(e) => setFormSubject(e.target.value)}
+              placeholder="Cobrança duplicada"
+              className={underline}
+            />
+          </Field>
+
+          <Field label="E-mail de contato">
+            <input readOnly value={user?.email ?? ""} className={`${underline} cursor-not-allowed pr-6`} />
+            <Search size={13} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#8A8A8A]" />
+          </Field>
+
+          <Field label="Data de abertura">
+            <input
+              readOnly
+              value={formatDate(new Date().toISOString())}
+              className={`${underline} cursor-not-allowed pr-6`}
+            />
+            <CalendarDays
+              size={13}
+              className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#8A8A8A]"
+            />
+          </Field>
+
+          <Field label="Descrição" className="sm:col-span-2 lg:col-span-4">
+            <input
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleSubmitTicket();
+                }
+              }}
+              placeholder="Conte o que aconteceu, com o máximo de detalhes que puder"
+              className={underline}
+            />
+          </Field>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSubmitTicket}
+          disabled={submitting}
+          className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-[10px] bg-[#2563EB] px-7 text-[13.5px] font-semibold text-white transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {submitting && <Loader2 size={14} className="animate-spin" />}
+          Enviar ticket
+        </button>
+      </section>
+
+      {/* ── Histórico + FAQ ── */}
+      <div className="mt-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <section className={card}>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-[#111113] dark:text-white">
+              Histórico de atendimentos
+            </h3>
+            {filteredTickets.length > 0 && (
+              <button
+                type="button"
+                onClick={handleExport}
+                className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-[#9A9A9A] transition hover:text-[#111113] dark:hover:text-white"
+              >
+                <Download size={13} />
+                Exportar
+              </button>
+            )}
+          </div>
+
+          <div className="mt-3">
+            {ticketsLoading ? (
+              <div className="flex items-center gap-2 py-12 text-[12.5px] text-[#9A9A9A]">
+                <Loader2 size={14} className="animate-spin" />
+                Carregando seus tickets...
+              </div>
+            ) : filteredTickets.length === 0 ? (
+              <div className="flex flex-col items-center py-12 text-center">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-[#F4F4F5] text-[#A0A0A0] dark:bg-white/5 dark:text-zinc-500">
+                  <Inbox size={17} />
+                </span>
+                <p className="mt-3 text-[13px] font-medium text-[#111113] dark:text-white">
+                  {tickets.length === 0 ? "Nenhum atendimento por aqui" : "Nada encontrado"}
+                </p>
+                <p className="mt-1 max-w-[240px] text-[12px] leading-[1.5] text-[#9A9A9A] dark:text-zinc-500">
+                  {tickets.length === 0
+                    ? "Assim que você abrir um ticket, ele aparece nesta lista."
+                    : "Tente outro termo na busca."}
+                </p>
+              </div>
+            ) : (
+              <div className="-mx-2">
+                {filteredTickets.map((t, index) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedId(t.id);
+                      if (t.status === "open") setActiveSupportTicketId(t.id);
+                    }}
+                    className={`group block w-full rounded-[12px] px-2.5 py-3 text-left transition hover:bg-[#F7F7F8] dark:hover:bg-white/5 ${
+                      index > 0 ? "border-t border-[#F2F2F2] dark:border-white/[0.07]" : ""
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#111113] dark:text-white">
+                        {t.subject || CATEGORY_LABEL[t.category]}
+                      </span>
+                      <StatusPill status={t.status} />
+                    </span>
+                    <span className="mt-1 flex items-center gap-1.5 text-[11.5px] text-[#9A9A9A] dark:text-zinc-500">
+                      <Ticket size={12} className="shrink-0" />
+                      <span className="truncate">
+                        {protocolo(t.id)} · {CATEGORY_LABEL[t.category]} · {formatDate(t.created_at)}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className={card}>
+          <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-[#111113] dark:text-white">
+            Perguntas frequentes
+          </h3>
+
+          <div className="mt-1 divide-y divide-[#F2F2F2] dark:divide-white/[0.07]">
+            {FAQ_ITEMS.map((item, index) => {
+              const open = faqOpen === index;
+              return (
+                <div key={item.question}>
+                  <button
+                    type="button"
+                    onClick={() => setFaqOpen(open ? -1 : index)}
+                    className="flex w-full items-center justify-between gap-3 py-3.5 text-left"
+                  >
+                    <span
+                      className={`text-[12.5px] leading-[1.4] transition-colors ${
+                        open
+                          ? "font-semibold text-[#111113] dark:text-white"
+                          : "text-[#525257] dark:text-zinc-300"
+                      }`}
+                    >
+                      {item.question}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`shrink-0 text-[#A8A8AD] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {open && (
+                    <p className="-mt-1 pb-4 pr-6 text-[12px] leading-[1.6] text-[#8A8A8F] dark:text-zinc-400">
+                      {item.answer}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="mt-4 text-[11.5px] leading-[1.5] text-[#A0A0A5] dark:text-zinc-500">
+            Não achou sua resposta? Abra um ticket no formulário acima que nosso time responde por aqui.
+          </p>
+        </section>
+      </div>
+
+      {selectedTicket && (
+        <TicketChatModal
+          ticket={selectedTicket}
+          messages={messages.filter((m) => m.sender !== "ai")}
+          loading={messagesLoading}
+          sending={sending}
+          input={input}
+          image={messageImage}
+          onInputChange={setInput}
+          onImageChange={(file) => {
+            const validationError = validateSupportImage(file);
+            if (validationError) {
+              toast.error(validationError);
               return;
             }
-            setCreatingTicket(true);
-            try {
-              const created = await startHumanSupport({ category: modalCategory, subject: subj });
-              if (created) {
-                const { data: message, error: messageError } = await (supabase as any)
-                  .from("support_messages")
-                  .insert({
-                    ticket_id: created.id,
-                    user_id: user!.id,
-                    message: subj,
-                    sender: "user",
-                  })
-                  .select("*")
-                  .single();
-                if (messageError) throw messageError;
-                notifyNewSupportTicketEmail(created.id, message.id).catch((error) => {
-                  console.error(error);
-                  toast.error(error instanceof Error ? error.message : "Ticket aberto, mas não foi possível avisar os admins por email.");
-                });
-                setOpenModal(false);
-                setModalSubject("");
-                setModalCategory("outros");
-              }
-            } finally {
-              setCreatingTicket(false);
-            }
+            setMessageImage(file);
           }}
+          onImageRemove={() => setMessageImage(null)}
+          onSend={sendMessage}
+          onClose={() => {
+            setSelectedId(null);
+            setMessageImage(null);
+            setActiveSupportTicketId(null);
+          }}
+          endRef={endRef}
         />
       )}
+    </div>
+  );
+};
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-[#E5E5E5] bg-[#FAFAFA] dark:border-white/10 dark:bg-[#0f0f0f] md:flex-none md:rounded-xl">
-        <div
-          ref={scrollRef}
-          className="h-[calc(100svh-382px)] min-h-[300px] space-y-3 overflow-y-auto p-4 scroll-smooth md:h-[480px]"
-        >
-          <>
-            <div className="rounded-2xl border border-[#E5E5E5] bg-white p-4 text-[13px] leading-6 text-[#525252] dark:border-white/10 dark:bg-[#151515] dark:text-zinc-300">
-              <p className="font-semibold text-[#0A0A0A] dark:text-white">
-                {supportReady ? "Atendimento em andamento" : `Olá, ${firstName}!`}
-              </p>
-              <p className="mt-1">
-                {supportReady
-                  ? "Sua conversa com o suporte foi iniciada. Envie sua mensagem e nossa equipe responderá por aqui."
-                  : "Estamos preparando seu atendimento com a equipe da Velo."}
-              </p>
+const StatusPill = ({ status }: { status: SupportTicket["status"] }) => (
+  <span
+    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+      status === "open"
+        ? "bg-[#EEF2FF] text-[#4F46E5] dark:bg-indigo-500/15 dark:text-indigo-300"
+        : "bg-[#ECFDF3] text-[#15803D] dark:bg-emerald-500/15 dark:text-emerald-300"
+    }`}
+  >
+    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+    {status === "open" ? "Em aberto" : "Resolvido"}
+  </span>
+);
+
+const TicketChatModal = ({
+  ticket,
+  messages,
+  loading,
+  sending,
+  input,
+  image,
+  onInputChange,
+  onImageChange,
+  onImageRemove,
+  onSend,
+  onClose,
+  endRef,
+}: {
+  ticket: SupportTicket;
+  messages: SupportMessage[];
+  loading: boolean;
+  sending: boolean;
+  input: string;
+  image: File | null;
+  onInputChange: (v: string) => void;
+  onImageChange: (file: File) => void;
+  onImageRemove: () => void;
+  onSend: () => void;
+  onClose: () => void;
+  endRef: React.RefObject<HTMLDivElement>;
+}) => {
+  const closed = ticket.status === "closed";
+  const hasAdminReply = messages.some((m) => m.sender === "admin");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 md:items-center md:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-[min(720px,calc(100svh-32px))] w-full max-w-[680px] flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_28px_90px_rgba(15,23,42,0.34)] dark:bg-[#0B1220]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative overflow-hidden bg-[#2563EB] px-5 py-5 text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(147,197,253,0.50),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0)_42%)]" />
+          <div className="relative flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] ring-1 ring-white/60">
+                <AtlasAvatarIcon size={30} animated={false} />
+              </span>
+              <div className="min-w-0 pt-0.5">
+                <p className="text-[11px] font-semibold uppercase text-white/72">{protocolo(ticket.id)}</p>
+                <h3 className="mt-0.5 truncate text-[19px] font-bold leading-tight text-white">
+                  {ticket.subject || CATEGORY_LABEL[ticket.category]}
+                </h3>
+                <p className="mt-1 text-[12.5px] font-medium text-white/78">
+                  {CATEGORY_LABEL[ticket.category]} · aberto em {formatDate(ticket.created_at)}
+                </p>
+              </div>
             </div>
+            <button
+              onClick={onClose}
+              aria-label="Fechar"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/85 transition hover:bg-white/12 hover:text-white"
+            >
+              <X size={22} />
+            </button>
+          </div>
+        </div>
 
-            {ticket && !hasAdminReply && !supportClosed && (
-              <div className="rounded-full bg-amber-50 px-4 py-2 text-center text-[12px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                Aguardando resposta do suporte
-              </div>
-            )}
+        <div className="min-h-[360px] flex-1 space-y-4 overflow-y-auto bg-[#F4F7FF] px-5 py-5 dark:bg-[#0F172A]">
+          {loading && (
+            <div className="flex items-center gap-2 text-[12.5px] text-[#64748B] dark:text-slate-300">
+              <Loader2 size={14} className="animate-spin" />
+              Carregando conversa...
+            </div>
+          )}
 
-            {supportClosed && (
-              <div className="rounded-full bg-emerald-50 px-4 py-2 text-center text-[12px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                Este ticket foi marcado como resolvido.
-              </div>
-            )}
+          {!loading && !closed && !hasAdminReply && (
+            <div className="rounded-full bg-white px-4 py-2 text-center text-[12.5px] font-semibold text-[#2563EB] shadow-sm ring-1 ring-[#DBEAFE] dark:bg-white/8 dark:text-blue-200 dark:ring-white/10">
+              Aguardando resposta do suporte
+            </div>
+          )}
 
-            {visibleSupportMessages.map((m) => (
-              <HumanMessageBubble key={m.id} msg={m} />
-            ))}
-          </>
+          {closed && (
+            <div className="rounded-full bg-emerald-50 px-4 py-2 text-center text-[12.5px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+              Este ticket foi marcado como resolvido.
+            </div>
+          )}
 
-          {(loading || ticketLoading) && <TypingBubble />}
+          {messages.map((m) => (
+            <HumanMessageBubble key={m.id} msg={m} />
+          ))}
+
+          {sending && <TypingBubble />}
           <div ref={endRef} />
         </div>
 
-        <div className="flex items-center gap-2 border-t border-[#E5E5E5] bg-white px-3 py-3 dark:border-white/10 dark:bg-[#121212] md:px-4">
+        <div className="border-t border-[#E5EFFF] bg-white px-4 py-4 dark:border-white/10 dark:bg-[#0B1220]">
+          {image ? <SupportImagePreview file={image} onRemove={onImageRemove} /> : null}
+          <div className="flex items-center gap-2.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onImageChange(file);
+              event.currentTarget.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || closed}
+            className={`grid h-12 w-12 shrink-0 place-items-center rounded-full border transition ${image ? "border-[#93b0ff] bg-[#eef3ff] text-[#2563EB]" : "border-[#D7E3FF] bg-[#F8FBFF] text-[#65758f] hover:border-[#2563EB] hover:text-[#2563EB]"}`}
+            aria-label="Anexar imagem"
+            title="Anexar imagem (até 8 MB)"
+          >
+            <Paperclip size={18} />
+          </button>
           <input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => onInputChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                void send(input);
+                onSend();
               }
             }}
-            placeholder="Digite sua mensagem para o suporte..."
-            disabled={loading || ticketLoading || supportClosed || !ticket}
-            className="h-10 flex-1 rounded-full border border-[#E5E5E5] bg-white px-4 text-[14px] text-[#0A0A0A] outline-none transition-colors placeholder:text-[#A3A3A3] focus:border-black disabled:opacity-60 dark:border-white/10 dark:bg-[#0f0f0f] dark:text-white dark:focus:border-white"
+            placeholder={closed ? "Ticket resolvido" : "Digite sua mensagem para o suporte..."}
+            disabled={sending || closed}
+            className="h-12 flex-1 rounded-full border border-[#D7E3FF] bg-[#F8FBFF] px-5 text-[14px] text-[#0F172A] outline-none transition-colors placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:bg-white disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-[#60A5FA]"
           />
           <button
-            onClick={() => send(input)}
-            disabled={loading || ticketLoading || supportClosed || !ticket || !input.trim()}
+            onClick={onSend}
+            disabled={sending || closed || (!input.trim() && !image)}
             aria-label="Enviar"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-white transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-black"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-[0_12px_26px_rgba(37,99,235,0.32)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#CBD5E1] disabled:shadow-none dark:disabled:bg-white/15"
           >
-            {loading || ticketLoading ? <Loader2 size={14} className="animate-spin" /> : <ArrowUp size={16} />}
+            {sending ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={19} />}
           </button>
+          </div>
         </div>
-      </div>
-
-      <div className="mt-4 md:mt-6">
-        <RefundSection />
       </div>
     </div>
   );
@@ -471,8 +859,8 @@ const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[75%] rounded-[16px_4px_16px_16px] bg-black px-4 py-2.5 text-[14px] leading-[1.6] text-white whitespace-pre-wrap dark:bg-white dark:text-black">
-          {msg.message}
+        <div className="max-w-[78%] rounded-[18px_6px_18px_18px] bg-[#2563EB] px-4 py-3 text-[14px] leading-[1.55] text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] whitespace-pre-wrap">
+          <SupportMessageMedia value={msg.message} textClassName="whitespace-pre-wrap" imageClassName="max-h-[300px] max-w-[420px] w-full" />
         </div>
       </div>
     );
@@ -480,14 +868,14 @@ const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
 
   return (
     <div className="flex items-start gap-2">
-      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white dark:bg-white dark:text-black">
-        <UserRound size={14} strokeWidth={2.2} />
+      <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#DBEAFE] dark:bg-white">
+        <AtlasAvatarIcon size={24} animated={false} />
       </div>
-      <div className="max-w-[75%] rounded-[4px_16px_16px_16px] bg-white px-4 py-2.5 text-[14px] leading-[1.6] text-[#0A0A0A] shadow-sm whitespace-pre-wrap dark:bg-zinc-800 dark:text-white">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#737373] dark:text-zinc-400">
+      <div className="max-w-[78%] rounded-[6px_18px_18px_18px] bg-white px-4 py-3 text-[14px] leading-[1.55] text-[#0F172A] shadow-sm ring-1 ring-[#E8F0FF] whitespace-pre-wrap dark:bg-white/8 dark:text-white dark:ring-white/10">
+        <p className="mb-1 text-[11px] font-semibold uppercase text-[#2563EB] dark:text-blue-200">
           Suporte Velo
         </p>
-        {msg.message}
+        <SupportMessageMedia value={msg.message} textClassName="whitespace-pre-wrap" imageClassName="max-h-[300px] max-w-[420px] w-full" />
       </div>
     </div>
   );
@@ -495,111 +883,17 @@ const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
 
 const TypingBubble = () => (
   <div className="flex items-start gap-2">
-    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black text-white dark:bg-white dark:text-black">
-      <Headphones size={14} strokeWidth={2.2} />
+    <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#DBEAFE]">
+      <AtlasAvatarIcon size={24} animated={false} />
     </div>
-    <div className="flex items-center gap-1.5 rounded-[4px_16px_16px_16px] bg-[#F0F0F0] px-4 py-3 dark:bg-zinc-800">
+    <div className="flex items-center gap-1.5 rounded-[6px_18px_18px_18px] bg-white px-4 py-3 shadow-sm ring-1 ring-[#E8F0FF] dark:bg-white/8 dark:ring-white/10">
       {[0, 150, 300].map((d) => (
         <span
           key={d}
-          className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#737373] dark:bg-zinc-300"
+          className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#2563EB] dark:bg-blue-200"
           style={{ animationDelay: `${d}ms` }}
         />
       ))}
-    </div>
-  </div>
-);
-
-const NewTicketModal = ({
-  category,
-  subject,
-  onCategoryChange,
-  onSubjectChange,
-  submitting,
-  onClose,
-  onSubmit,
-}: {
-  category: TicketCategory;
-  subject: string;
-  onCategoryChange: (c: TicketCategory) => void;
-  onSubjectChange: (s: string) => void;
-  submitting: boolean;
-  onClose: () => void;
-  onSubmit: () => void;
-}) => (
-  <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 md:items-center md:p-4" onClick={onClose}>
-    <div
-      className="max-h-[calc(100svh-24px)] w-full max-w-lg overflow-y-auto rounded-[24px] bg-white p-4 shadow-2xl dark:bg-[#141414] md:p-6"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="mb-4 flex items-start justify-between">
-        <div>
-          <h3 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white">Abrir novo ticket</h3>
-          <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">
-            Escolha o setor e descreva brevemente o motivo. Nosso time responde por aqui.
-          </p>
-        </div>
-        <button
-          onClick={onClose}
-          aria-label="Fechar"
-          className="rounded-full p-1 text-[#737373] hover:bg-[#F0F0F0] dark:text-zinc-400 dark:hover:bg-white/10"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#737373] dark:text-zinc-400">
-        Setor
-      </label>
-      <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {SUPPORT_CATEGORIES.map((cat) => {
-          const active = cat.key === category;
-          return (
-            <button
-              key={cat.key}
-              type="button"
-              onClick={() => onCategoryChange(cat.key)}
-              className={[
-                "rounded-xl border p-3 text-left transition",
-                active
-                  ? "border-black bg-[#FAFAFA] dark:border-white dark:bg-white/5"
-                  : "border-[#E5E5E5] hover:border-[#0A0A0A] dark:border-white/10 dark:hover:border-white/40",
-              ].join(" ")}
-            >
-              <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{cat.label}</p>
-              <p className="mt-0.5 text-[11px] text-[#737373] dark:text-zinc-400">{cat.description}</p>
-            </button>
-          );
-        })}
-      </div>
-
-      <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#737373] dark:text-zinc-400">
-        Motivo do ticket
-      </label>
-      <textarea
-        value={subject}
-        onChange={(e) => onSubjectChange(e.target.value)}
-        placeholder="Ex.: Não recebi o comprovante da minha última cobrança..."
-        rows={4}
-        className="w-full resize-none rounded-xl border border-[#E5E5E5] bg-white p-3 text-[14px] text-[#0A0A0A] outline-none placeholder:text-[#A3A3A3] focus:border-black dark:border-white/10 dark:bg-[#0f0f0f] dark:text-white"
-      />
-
-      <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button
-          onClick={onClose}
-          className="min-h-11 rounded-full border border-[#E5E5E5] px-5 py-2 text-[13px] font-semibold text-[#0A0A0A] hover:bg-[#F5F5F5] dark:border-white/10 dark:text-white dark:hover:bg-white/5"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={onSubmit}
-          disabled={submitting || !subject.trim()}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-black px-5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          {submitting && <Loader2 size={14} className="animate-spin" />}
-          Abrir ticket
-        </button>
-      </div>
     </div>
   </div>
 );

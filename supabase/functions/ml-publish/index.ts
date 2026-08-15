@@ -515,6 +515,28 @@ function isPublicUrl(url: string): boolean {
   return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))
 }
 
+async function notifyUser(
+  supabase: ReturnType<typeof createClient>,
+  row: {
+    user_id: string
+    type: string
+    title: string
+    message: string
+    action_url?: string
+    metadata?: Record<string, unknown>
+  },
+) {
+  const { error } = await supabase.from('notifications').insert({
+    user_id: row.user_id,
+    type: row.type,
+    title: row.title,
+    message: row.message,
+    action_url: row.action_url ?? null,
+    metadata: row.metadata ?? {},
+  })
+  if (error) console.warn('[ml-publish] falha ao criar notificacao:', error.message)
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -1447,6 +1469,18 @@ Deno.serve(async (req) => {
       const mapped = itemResponse.ok
         ? { message: 'Falha ao criar produto no Mercado Livre.' as string, code: undefined as string | undefined }
         : mapMLError(itemData)
+      await notifyUser(supabase, {
+        user_id,
+        type: 'publication_error',
+        title: 'Erro de publicacao',
+        message: `${title}: ${mapped.message}`,
+        action_url: '/dashboard/produtos',
+        metadata: {
+          product_title: title,
+          code: mapped.code ?? null,
+          ml_response: itemData,
+        },
+      })
       return json({ error: mapped.message, code: mapped.code, details: itemData }, 400)
     }
 
@@ -1516,6 +1550,19 @@ Deno.serve(async (req) => {
           }, 409)
         }
         console.error('Erro ao salvar publicação:', insertRes.error)
+      } else {
+        await notifyUser(supabase, {
+          user_id,
+          type: 'product_published',
+          title: 'Produto publicado',
+          message: `${title} ja esta ativo no Mercado Livre.`,
+          action_url: '/dashboard/publicacoes',
+          metadata: {
+            ml_item_id: itemId,
+            permalink: itemData.permalink,
+            product_title: title,
+          },
+        })
       }
     } catch (pubErr) {
       console.error('Erro ao salvar publicação:', pubErr)
@@ -1556,4 +1603,3 @@ Deno.serve(async (req) => {
     return json({ error: message }, 500)
   }
 })
-

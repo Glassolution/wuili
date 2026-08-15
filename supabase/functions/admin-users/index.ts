@@ -88,8 +88,14 @@ Deno.serve(async (req) => {
       return json({ error: "Acesso restrito a admins" }, 403);
     }
 
-    const { data: { users: authUsers }, error: authError } = await adminClient.auth.admin.listUsers();
-    if (authError) throw authError;
+    const authUsers = [];
+    const perPage = 1000;
+    for (let page = 1; ; page += 1) {
+      const { data, error: authError } = await adminClient.auth.admin.listUsers({ page, perPage });
+      if (authError) throw authError;
+      authUsers.push(...data.users);
+      if (data.users.length < perPage) break;
+    }
 
     const userIds = authUsers.map((u) => u.id).filter(Boolean);
 

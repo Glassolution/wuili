@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { flushSync } from "react-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ChevronRight, ClipboardList, Copy, CreditCard, Gift, Grid2X2, Home, Info, Lightbulb, LogOut, MessagesSquare, MoreVertical, NotebookText, Plus, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, ToggleLeft, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, ChevronRight, GraduationCap, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, Lightbulb, LogOut, MoreVertical, NotebookText, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import ShopifyBagIcon from "@/components/icons/ShopifyBagIcon";
+import TikTokIcon from "@/components/dashboard/TikTokIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { AFFILIATE_APPLICATION_EVENT } from "@/pages/dashboard/AffiliateQuizPage";
 import SearchPalette from "@/components/dashboard/SearchPalette";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
+import { PremiumActionButton } from "@/components/PremiumActionButton";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 
 type NavItem = {
   id: string;
@@ -22,14 +28,15 @@ type NavItem = {
 const baseNavItems: NavItem[] = [
   { id: "inicio", label: "Início", icon: Home, to: "/dashboard", end: true },
   {
-    // Categoria expansível (como "Products" da referência): agrupa o catálogo
-    // e as páginas de venda como sub-itens.
+    // Categoria expansível (como "Products" da referência): agrupa catálogo,
+    // páginas com IA e modelos de produto.
     id: "produtos",
     label: "Produtos",
     icon: Tag,
     children: [
       { id: "catalogo", label: "Catálogo", icon: ShoppingCart, to: "/dashboard/catalogo" },
-      { id: "paginas-de-venda", label: "Páginas de venda", icon: Sparkles, to: "/dashboard/minha-loja" },
+      { id: "paginas-com-ia", label: "Páginas com IA", icon: NotebookText, to: "/dashboard/paginas-com-ia" },
+      { id: "modelos", label: "Templates", icon: Grid2X2, to: "/dashboard/modelos" },
     ],
   },
   {
@@ -40,16 +47,21 @@ const baseNavItems: NavItem[] = [
     icon: Trophy,
     children: [
       { id: "produtos-em-alta", label: "Produtos em Alta", icon: TrendingUp, to: "/dashboard/produtos-em-alta" },
-      { id: "paginas-com-ia", label: "Páginas com IA", icon: NotebookText, to: "/dashboard/paginas-com-ia" },
-      { id: "modelos", label: "Modelos", icon: Grid2X2, to: "/dashboard/modelos" },
     ],
   },
   { id: "publicacoes", label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { id: "pedidos", label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
-  { id: "relatorios", label: "Relatórios", icon: ClipboardList, to: "/dashboard/relatorios", dimmed: true },
-  { id: "comunidade-ajuda", label: "Comunidade e Ajuda", icon: Info, to: "/docs", dimmed: true },
-  { id: "configuracoes", label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes", dimmed: true },
+  { id: "imagens-ia", label: "Imagens com IA", icon: ImageIcon, to: "/dashboard/imagens-ia" },
+  { id: "tiktok", label: "TikTok", icon: TikTokIcon, to: "/dashboard/tiktok" },
+  { id: "cursos-ecommerce", label: "Cursos Ecommerce", icon: GraduationCap, to: "/dashboard/cursos-ecommerce" },
 ];
+
+// "Lojas": conectar/gerenciar lojas (Shopify, Mercado Livre) — leva à tela de
+// integrações. Fora da navegação por enquanto: só administradores veem o item.
+// A ROTA continua aberta de propósito — o callback do Mercado Pago devolve o
+// usuário em /dashboard/integracoes, e bloqueá-la quebraria a conexão de
+// pagamento de quem não é admin.
+const storesNavItem: NavItem = { id: "lojas", label: "Lojas", icon: ShopifyBagIcon, to: "/dashboard/integracoes" };
 
 const affiliatesNavItem: NavItem = { id: "afiliados", label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
 
@@ -65,6 +77,10 @@ const NAV_CSS = `
 .velo-nav-sub:hover:not([data-active="true"]) { background-color: rgba(10,10,10,0.045); }
 .velo-nav-ico { transition: transform 150ms ease-out; }
 .velo-nav-item:hover .velo-nav-ico, .velo-nav-sub:hover .velo-nav-ico { transform: scale(1.09); }
+.velo-settings-row { transition: background-color 140ms ease-out; }
+.velo-settings-row:hover { background-color: rgba(10,10,10,0.05); }
+.velo-profile-menu-row { transition: background-color 140ms ease-out, transform 140ms ease-out; }
+.velo-profile-menu-row:hover { background-color: rgba(10,10,10,0.045); }
 .velo-sidebar-scroll {
   overflow-y: scroll;
   scrollbar-width: thin;
@@ -111,10 +127,13 @@ const tourTargetByLabel: Record<string, string> = {
   "Produtos em Alta": "produtos-em-alta",
   Publicações: "publicacoes",
   Pedidos: "pedidos",
-  Relatórios: "relatorios",
+  "Imagens com IA": "imagens-ia",
+  "Cursos Ecommerce": "cursos-ecommerce",
   Configurações: "configuracoes",
   "Minha loja": "minha-loja",
-  "Páginas de venda": "minha-loja",
+  "Páginas com IA": "paginas-com-ia",
+  TikTok: "tiktok",
+  Templates: "modelos",
 };
 
 type SidebarSubscription = {
@@ -173,7 +192,7 @@ const getInitials = (name: string, email?: string | null) => {
 
 const styles = {
   sidebar: {
-    width: 246,
+    width: 268,
     height: "100dvh",
     maxHeight: "100dvh",
     minHeight: 0,
@@ -183,7 +202,7 @@ const styles = {
     overflow: "hidden",
     position: "relative",
     boxSizing: "border-box",
-    padding: "16px 10px",
+    padding: "30px 16px 18px",
     borderRadius: 0,
     border: "1px solid #E5E7EB",
     background: "#F9FAFB",
@@ -191,11 +210,15 @@ const styles = {
     boxShadow: "none",
   } satisfies CSSProperties,
   scrollArea: {
-    flex: 1,
+    // Navegação e bloco inferior ficam no mesmo fluxo rolável. Assim o card de
+    // upgrade vem logo depois dos links, sem ser empurrado para o rodapé, e a
+    // sidebar continua usável em telas menores.
+    flex: "1 1 auto",
     minHeight: 0,
-    overflowY: "scroll",
+    overflowY: "auto",
     overflowX: "hidden",
-    display: "block",
+    display: "flex",
+    flexDirection: "column",
     paddingRight: 0,
   } satisfies CSSProperties,
   header: {
@@ -206,22 +229,22 @@ const styles = {
     // alinhar com a coluna de ícones abaixo. padding-top baixo para a nav não
     // ser empurrada para baixo.
     gap: 11,
-    paddingLeft: 11,
+    paddingLeft: 8,
     paddingTop: 2,
     paddingBottom: 6,
   } satisfies CSSProperties,
   brand: {
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 11,
     minWidth: 0,
     color: "#0A0A0A",
     textDecoration: "none",
   } satisfies CSSProperties,
   brandText: {
     fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 21,
-    lineHeight: "25px",
+    fontSize: 22,
+    lineHeight: "26px",
     fontWeight: 700,
     letterSpacing: "-0.05em",
   } satisfies CSSProperties,
@@ -267,31 +290,33 @@ const styles = {
     fontWeight: 650,
   } satisfies CSSProperties,
   nav: {
-    marginTop: 12,
-    marginBottom: 14,
+    // Respiro entre o logo e o primeiro item, calibrado para bater com a
+    // referência (PagePilot): ~24px no total com o paddingBottom: 6 do header.
+    marginTop: 19,
+    marginBottom: 6,
     minHeight: 0,
     display: "flex",
     flexDirection: "column",
     flexShrink: 0,
-    gap: 1,
+    gap: 2,
   } satisfies CSSProperties,
   navLinkBase: {
     display: "flex",
     alignItems: "center",
-    gap: 7,
+    gap: 8,
     boxSizing: "border-box",
     borderRadius: 8,
-    padding: "7px 9px",
+    padding: "7.5px 9px",
     textDecoration: "none",
-    fontSize: 13.5,
-    lineHeight: "18px",
+    fontSize: 14,
+    lineHeight: "19px",
     fontWeight: 500,
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
   // Sub-itens de uma categoria: recuados, com linha vertical à esquerda, um
   // pouco menores que os itens de topo (como na referência).
   subWrap: {
-    marginLeft: 16,
+    marginLeft: 17,
     paddingLeft: 12,
     borderLeft: "1.5px solid rgba(10,10,10,0.10)",
     marginTop: 3,
@@ -308,8 +333,8 @@ const styles = {
     borderRadius: 8,
     padding: "7px 10px",
     textDecoration: "none",
-    fontSize: 13,
-    lineHeight: "17px",
+    fontSize: 13.5,
+    lineHeight: "18px",
     fontWeight: 500,
     letterSpacing: "-0.02em",
   } satisfies CSSProperties,
@@ -317,16 +342,41 @@ const styles = {
     minHeight: 0,
     flex: 1,
   } satisfies CSSProperties,
+  // Bloco inferior no mesmo fluxo da navegação, mas com altura flexível para
+  // ancorar os cards finais mais perto do rodapé quando houver espaço.
+  footer: {
+    flex: "1 0 auto",
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
+    paddingTop: 8,
+  } satisfies CSSProperties,
   upgradeCard: {
     width: "100%",
     boxSizing: "border-box",
     borderRadius: 15,
-    padding: "15px 16px 14px",
-    marginBottom: 10,
-    background: "linear-gradient(180deg, #C3D7FF 0%, #EAF1FF 100%)",
+    padding: "13px 15px 12px",
+    marginTop: 0,
+    marginBottom: 16,
+    background: "linear-gradient(135deg, #BFD3FF 0%, #E6EEFF 62%, #F2F6FF 100%)",
     color: "#0A0A0A",
     boxShadow: "none",
     textAlign: "center",
+  } satisfies CSSProperties,
+  footerBottom: {
+    marginTop: 0,
+    paddingTop: 16,
+    display: "flex",
+    flexDirection: "column",
+  } satisfies CSSProperties,
+  fixedBottom: {
+    // Fica fora da área rolável de propósito: a rolagem termina no card de
+    // upgrade, e daqui para baixo (Sugestões, Ajuda, promos e perfil) o bloco
+    // é âncora. Antes o perfil descia junto com a rolagem e sumia da tela.
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column",
+    paddingTop: 8,
   } satisfies CSSProperties,
   // Ícone "herói" centralizado no topo do card (sem chip), como na referência.
   upgradeIcon: {
@@ -347,21 +397,17 @@ const styles = {
   upgradeCopy: {
     margin: "4px 0 0",
     color: "rgba(10,10,10,0.6)",
-    fontSize: 12,
-    lineHeight: "15px",
+    fontSize: 12.2,
+    lineHeight: "16px",
     fontWeight: 500,
   } satisfies CSSProperties,
   upgradeButton: {
     marginTop: 11,
     width: "100%",
-    height: 34,
-    border: 0,
+    height: 32,
     borderRadius: 9,
-    background: "#121827",
-    color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: 650,
-    boxShadow: "none",
   } satisfies CSSProperties,
   // Blocos promocionais adaptados à Velo (estilo dos cards da referência):
   // ícone colorido à esquerda + título/subtítulo à direita, fundo tonalizado.
@@ -373,14 +419,14 @@ const styles = {
     gap: 8,
     border: 0,
     borderRadius: 11,
-    padding: "8px 10px",
+    padding: "8px 9px",
     marginBottom: 6,
     textAlign: "left",
     cursor: "pointer",
   } satisfies CSSProperties,
   promoIcon: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     flexShrink: 0,
     display: "flex",
     alignItems: "center",
@@ -389,8 +435,8 @@ const styles = {
   } satisfies CSSProperties,
   promoTitle: {
     display: "block",
-    fontSize: 13,
-    lineHeight: "17px",
+    fontSize: 12.5,
+    lineHeight: "16px",
     fontWeight: 700,
     letterSpacing: "-0.02em",
     color: "#0A0A0A",
@@ -398,22 +444,22 @@ const styles = {
   promoSub: {
     display: "block",
     marginTop: 1,
-    fontSize: 11.5,
-    lineHeight: "15px",
+    fontSize: 11,
+    lineHeight: "14px",
     fontWeight: 500,
     color: "rgba(10,10,10,0.55)",
   } satisfies CSSProperties,
   profileCard: {
     width: "100%",
     minWidth: 0,
-    minHeight: 48,
+    minHeight: 52,
     display: "flex",
     alignItems: "center",
     gap: 11,
     boxSizing: "border-box",
     border: 0,
     borderRadius: 13,
-    padding: "8px 11px",
+    padding: "9px 11px",
     background: "transparent",
     color: "#0A0A0A",
     textAlign: "left",
@@ -470,6 +516,63 @@ const styles = {
   } satisfies CSSProperties,
   profileWrap: {
     position: "relative",
+  } satisfies CSSProperties,
+  profileSidePanel: {
+    position: "fixed",
+    left: 278,
+    bottom: 22,
+    width: 198,
+    boxSizing: "border-box",
+    borderRadius: 16,
+    padding: 5,
+    border: "1px solid rgba(10,10,10,0.08)",
+    background: "#FFFFFF",
+    color: "#0A0A0A",
+    boxShadow: "0 14px 34px rgba(10,10,10,0.14), 0 1px 0 rgba(255,255,255,0.9) inset",
+    zIndex: 90,
+    transformOrigin: "left bottom",
+  } satisfies CSSProperties,
+  profileMenuRow: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 7,
+    boxSizing: "border-box",
+    border: 0,
+    minHeight: 35,
+    borderRadius: 11,
+    padding: "7px 9px",
+    background: "transparent",
+    color: "#171717",
+    textAlign: "left",
+    cursor: "pointer",
+  } satisfies CSSProperties,
+  profileMenuRowLeft: {
+    minWidth: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+  } satisfies CSSProperties,
+  profileMenuLabel: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    fontSize: 12.4,
+    lineHeight: "16px",
+    fontWeight: 560,
+    letterSpacing: "-0.015em",
+  } satisfies CSSProperties,
+  profileMenuIcon: {
+    width: 15,
+    height: 15,
+    flexShrink: 0,
+    color: "rgba(10,10,10,0.74)",
+  } satisfies CSSProperties,
+  profileMenuDivider: {
+    height: 1,
+    margin: "5px 6px",
+    background: "rgba(10,10,10,0.07)",
   } satisfies CSSProperties,
   profilePanel: {
     position: "absolute",
@@ -543,13 +646,13 @@ const styles = {
     padding: "1px 6px 6px",
   } satisfies CSSProperties,
   profilePanelBadge: {
-    height: 16,
+    height: 15,
     display: "inline-flex",
     alignItems: "center",
-    gap: 4,
+    gap: 3,
     borderRadius: 999,
-    padding: "0 6px",
-    fontSize: 8,
+    padding: "0 5px",
+    fontSize: 7.5,
     lineHeight: "9px",
     fontWeight: 700,
     letterSpacing: "-0.02em",
@@ -558,12 +661,12 @@ const styles = {
     boxShadow: "inset 0 0 0 1px rgba(37,99,235,0.14)",
   } satisfies CSSProperties,
   profilePanelMutedBadge: {
-    height: 16,
+    height: 15,
     display: "inline-flex",
     alignItems: "center",
     borderRadius: 999,
-    padding: "0 6px",
-    fontSize: 8,
+    padding: "0 5px",
+    fontSize: 7.5,
     lineHeight: "9px",
     fontWeight: 700,
     letterSpacing: "-0.02em",
@@ -581,29 +684,108 @@ const styles = {
     color: "rgba(10,10,10,0.6)",
     boxShadow: "inset 0 0 0 1px rgba(10,10,10,0.06)",
   } satisfies CSSProperties,
+  // ── Modal de configurações (aberto pela área de perfil) ──────────────────
+  settingsOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 120,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    background: "rgba(10,10,10,0.45)",
+    backdropFilter: "blur(4px)",
+    WebkitBackdropFilter: "blur(4px)",
+  } satisfies CSSProperties,
+  settingsModal: {
+    width: "100%",
+    maxWidth: 380,
+    boxSizing: "border-box",
+    borderRadius: 20,
+    border: "1px solid rgba(10,10,10,0.08)",
+    background: "#FFFFFF",
+    boxShadow: "0 24px 60px rgba(10,10,10,0.28)",
+    overflow: "hidden",
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif',
+  } satisfies CSSProperties,
+  settingsHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "16px 16px 14px",
+    borderBottom: "1px solid rgba(10,10,10,0.07)",
+  } satisfies CSSProperties,
+  settingsBody: {
+    padding: 8,
+  } satisfies CSSProperties,
+  settingsRow: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    boxSizing: "border-box",
+    border: 0,
+    minHeight: 44,
+    borderRadius: 12,
+    padding: "10px 12px",
+    background: "transparent",
+    color: "#1A1A1A",
+    textAlign: "left",
+    cursor: "pointer",
+  } satisfies CSSProperties,
+  settingsRowLeft: {
+    minWidth: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 11,
+  } satisfies CSSProperties,
+  settingsRowLabel: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    fontSize: 13.5,
+    lineHeight: "18px",
+    fontWeight: 550,
+    letterSpacing: "-0.01em",
+  } satisfies CSSProperties,
+  settingsIcon: {
+    width: 17,
+    height: 17,
+    flexShrink: 0,
+    color: "rgba(10,10,10,0.75)",
+  } satisfies CSSProperties,
+  settingsClose: {
+    width: 30,
+    height: 30,
+    flexShrink: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    border: 0,
+    background: "rgba(10,10,10,0.05)",
+    color: "rgba(10,10,10,0.6)",
+    cursor: "pointer",
+  } satisfies CSSProperties,
+  settingsDivider: {
+    height: 1,
+    margin: "6px 8px",
+    background: "rgba(10,10,10,0.07)",
+  } satisfies CSSProperties,
 };
 
-// Logo em "badge" (ícone de app), maior e com efeito glossy: brilho no canto
-// superior (shine radial) + realce interno no topo e sombra interna na base
-// (profundidade 3D) + drop shadow neutro. Sem glow roxo externo.
-// Logo oficial da Velo (public/logo.png). O PNG tem ~19% de padding em volta
-// do ícone azul, então recorto (container overflow-hidden + img maior e
-// centralizada no bloco azul) para o badge ficar preenchido.
+// Logo oficial da Velo (public/logo.png): a cesta azul no badge arredondado, com
+// fundo transparente e já recortado na borda do badge — por isso ele preenche a
+// caixa inteira (object-contain) em vez de flutuar numa margem vazia.
 const VeloIconOnly = () => (
-  <span
+  <img
     aria-hidden="true"
-    style={{
-      overflow: "hidden",
-      width: 38,
-      height: 38,
-      flexShrink: 0,
-      display: "block",
-      borderRadius: 11,
-      boxShadow: "0 5px 11px rgba(0,0,0,0.18)",
-    }}
-  >
-    <img src="/logo.png" alt="" style={{ width: 64, height: 64, maxWidth: "none", display: "block", marginLeft: -13, marginTop: -12 }} />
-  </span>
+    src="/logo.png"
+    alt=""
+    // 38px mantém a presença do app badge sem deixar o topo mais pesado que a referência.
+    style={{ width: 38, height: 38, objectFit: "contain", flexShrink: 0, display: "block" }}
+  />
 );
 
 // Pill de fundo do item ativo. Com layoutId compartilhado, o framer desliza o
@@ -646,7 +828,7 @@ const SidebarNavLink = ({ item, active, sub = false, reduce }: { item: NavItem; 
       style={linkStyle}
     >
       {active ? <ActivePill sub={sub} reduce={reduce} /> : null}
-      <Icon className="velo-nav-ico" size={sub ? 14 : 17} strokeWidth={sub ? 1.9 : 2} aria-hidden="true" />
+      <Icon className="velo-nav-ico" size={sub ? 15 : 18} strokeWidth={sub ? 1.9 : 2} aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
@@ -699,12 +881,12 @@ const SidebarCategory = ({
         style={btnStyle}
       >
         {childActive ? <ActivePill reduce={reduce} /> : null}
-        <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
-          <Icon className="velo-nav-ico" size={17} strokeWidth={2} aria-hidden="true" />
+        <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <Icon className="velo-nav-ico" size={18} strokeWidth={2} aria-hidden="true" />
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
         </span>
         <ChevronRight
-          size={15}
+          size={16}
           strokeWidth={1.75}
           aria-hidden="true"
           className="velo-collapsible-chevron"
@@ -732,6 +914,7 @@ const SidebarCategory = ({
 const DashboardSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const { user, signOut, role } = useAuth();
   const { nome, foto } = useProfile();
   const reduce = !!useReducedMotion();
@@ -745,6 +928,8 @@ const DashboardSidebar = () => {
   const [subscription, setSubscription] = useState<SidebarSubscription | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [isAdmin, setIsAdmin] = useState(false);
+  // "Afiliados" só aparece depois que o usuário envia a solicitação.
+  const [hasAffiliateApplication, setHasAffiliateApplication] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileName = nome || user?.user_metadata?.full_name || user?.email || "Usuario";
@@ -757,14 +942,24 @@ const DashboardSidebar = () => {
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set());
 
+  useEffect(() => {
+    setProfileMenuOpen(false);
+  }, [location.pathname, location.search]);
+
   const visibleNavItems = useMemo(() => {
     const items = [...baseNavItems];
+    if (isAdmin || hasAffiliateApplication) {
+      // Ancorado pelo vizinho, e não por índice fixo: reordenar baseNavItems não
+      // deve arrastar "Afiliados" para outro ponto da lista sem querer.
+      const afterPedidos = items.findIndex((item) => item.id === "pedidos") + 1;
+      items.splice(afterPedidos || items.length, 0, affiliatesNavItem);
+    }
     if (isAdmin) {
-      items.splice(4, 0, affiliatesNavItem);
+      items.push(storesNavItem);
       // "Editar minha loja (beta)" removido da sidebar; o fluxo principal começa em /comecar.
     }
     return items;
-  }, [isAdmin]);
+  }, [hasAffiliateApplication, isAdmin]);
 
   const isActive = (item: NavItem) => {
     if (!item.to) return false;
@@ -908,6 +1103,42 @@ const DashboardSidebar = () => {
     };
   }, [metadataRole, role, user]);
 
+  // Libera o item "Afiliados" assim que existe uma solicitação enviada (ou uma
+  // conta de afiliado já ativa). O evento cobre o envio feito no mesmo carregamento.
+  useEffect(() => {
+    if (!user?.id || !isSupabaseEnabled) {
+      setHasAffiliateApplication(false);
+      return;
+    }
+
+    let active = true;
+
+    const resolveAffiliateApplication = async () => {
+      const [applicationResult, affiliateResult] = await Promise.allSettled([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from("affiliate_applications").select("agreed_terms").eq("user_id", user.id).maybeSingle(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from("affiliates").select("is_active").eq("user_id", user.id).maybeSingle(),
+      ]);
+
+      if (!active) return;
+
+      const applied = applicationResult.status === "fulfilled" && applicationResult.value?.data?.agreed_terms === true;
+      const isActiveAffiliate = affiliateResult.status === "fulfilled" && affiliateResult.value?.data?.is_active === true;
+      setHasAffiliateApplication(applied || isActiveAffiliate);
+    };
+
+    void resolveAffiliateApplication();
+
+    const handleApplicationSent = () => setHasAffiliateApplication(true);
+    window.addEventListener(AFFILIATE_APPLICATION_EVENT, handleApplicationSent);
+
+    return () => {
+      active = false;
+      window.removeEventListener(AFFILIATE_APPLICATION_EVENT, handleApplicationSent);
+    };
+  }, [user?.id]);
+
   useEffect(() => {
     if (!profileMenuOpen) return;
 
@@ -930,18 +1161,26 @@ const DashboardSidebar = () => {
     };
   }, [profileMenuOpen]);
 
+  useEffect(() => {
+    setProfileMenuOpen(false);
+  }, [location.pathname, location.search]);
+
   const planLabel = plan === "business" ? "BUSINESS" : plan === "pro" || plan === "plus" ? "PRO" : plan === "base" ? "BASE" : plan === "go" ? "GO" : "GRATIS";
   const normalizedPlan = plan === "plus" ? "pro" : plan;
   const trialTimeLeft = formatTrialTimeLeft(getTrialEndsAt(subscription), now);
   const showUpgradeCard = Boolean(trialTimeLeft) || !["base", "pro", "business"].includes(normalizedPlan);
 
+  const closeProfileMenuNow = () => {
+    flushSync(() => setProfileMenuOpen(false));
+  };
+
   const handlePanelNavigate = (to: string) => {
-    setProfileMenuOpen(false);
+    closeProfileMenuNow();
     navigate(to);
   };
 
   const handleSignOut = async () => {
-    setProfileMenuOpen(false);
+    closeProfileMenuNow();
     await signOut();
     navigate("/login", { replace: true });
   };
@@ -980,12 +1219,15 @@ const DashboardSidebar = () => {
           )}
         </nav>
 
+      {/* Bloco inferior: segue a navegação no mesmo fluxo, evitando o vão
+          artificial entre os links e o card de upgrade. */}
+      <div style={styles.footer}>
         {showUpgradeCard && (
           <section aria-label={trialTimeLeft ? "Tempo restante do trial" : "Upgrade para Premium"} style={styles.upgradeCard}>
             <span style={styles.upgradeIcon} aria-hidden="true">
               <Trophy size={20} strokeWidth={2} />
             </span>
-            <p style={{ ...styles.upgradeTitle, fontWeight: 500 }}>{trialTimeLeft ? "Trial ativo" : "Upgrade para o Premium!"}</p>
+            <p style={styles.upgradeTitle}>{trialTimeLeft ? "Trial ativo" : "Upgrade para o Premium!"}</p>
             <p style={styles.upgradeCopy}>
               {trialTimeLeft ? (
                 <>
@@ -1001,51 +1243,64 @@ const DashboardSidebar = () => {
                 </>
               )}
             </p>
-            <button type="button" onClick={() => navigate("/dashboard/planos")} style={styles.upgradeButton}>
+            <PremiumActionButton type="button" onClick={() => upgradeModal.open()} style={styles.upgradeButton}>
               Fazer upgrade
-            </button>
+            </PremiumActionButton>
           </section>
         )}
+      </div>
+      </div>
 
+      {/* Daqui para baixo nada rola: é o rodapé âncora da sidebar. */}
+      <div style={styles.fixedBottom}>
         {/* Linha "Feature Requests" da referência, adaptada à Velo como
-            "Sugestões" (leva à comunidade/ajuda, onde vão feedbacks). */}
+            "Sugestões" (ideias e dicas da comunidade). */}
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard/sugestoes")}
+          style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: 0, background: "transparent", padding: "6px 9px", marginBottom: 7, cursor: "pointer", textAlign: "left", color: "#0A0A0A", borderRadius: 8 }}
+        >
+          <Lightbulb size={17} strokeWidth={2} aria-hidden="true" />
+          <span style={{ fontSize: 14, lineHeight: "19px", fontWeight: 500, letterSpacing: "-0.02em" }}>Sugestões</span>
+        </button>
+
+        {/* "Comunidade e Ajuda" movido da lista principal para cá, logo abaixo de
+            "Sugestões" e antes dos cards promocionais. Mesmo estilo de "Sugestões". */}
         <button
           type="button"
           onClick={() => navigate("/docs")}
-          style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: 0, background: "transparent", padding: "6px 10px", marginBottom: 8, cursor: "pointer", textAlign: "left", color: "#0A0A0A", borderRadius: 8 }}
+          style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: 0, background: "transparent", padding: "6px 9px", marginBottom: 7, cursor: "pointer", textAlign: "left", color: "#0A0A0A", borderRadius: 8 }}
         >
-          <Lightbulb size={16} strokeWidth={2} aria-hidden="true" />
-          <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: "-0.02em" }}>Sugestões</span>
+          <Info size={17} strokeWidth={2} aria-hidden="true" />
+          <span style={{ fontSize: 14, lineHeight: "19px", fontWeight: 500, letterSpacing: "-0.02em" }}>Comunidade e Ajuda</span>
         </button>
 
-        {/* Blocos adaptados à Velo no estilo da referência (equivalentes ao
-            "Refer & Earn" e ao card verde de loja). O bloco "FREE AI Shopify
-            Store" da referência não se aplica (Velo é Mercado Livre), então virou
-            "Páginas de venda com IA", um recurso real da Velo. */}
-        <button type="button" onClick={() => setInviteOpen(true)} style={{ ...styles.promoCard, background: "#E8EFFF" }}>
-          <span style={{ ...styles.promoIcon, background: "#D6E4FF", color: "#2563EB" }} aria-hidden="true">
-            <Gift size={20} strokeWidth={2} />
-          </span>
-          <span style={{ minWidth: 0 }}>
-            <span style={{ ...styles.promoTitle, fontSize: 15, fontWeight: 500 }}>Indique e ganhe</span>
-            <span style={styles.promoSub}>Ganhe 15% em cada indicação</span>
-          </span>
-        </button>
+        {/* Blocos finais ancorados no rodapé da sidebar, como na referência. */}
+        <div style={styles.footerBottom}>
+          <button type="button" onClick={() => setInviteOpen(true)} style={{ ...styles.promoCard, background: "#E8EFFF" }}>
+            <span style={{ ...styles.promoIcon, background: "#D6E4FF", color: "#2563EB" }} aria-hidden="true">
+              <Gift size={20} strokeWidth={2} />
+            </span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ ...styles.promoTitle, fontSize: 14, fontWeight: 500 }}>Indique e ganhe</span>
+              <span style={styles.promoSub}>Ganhe 30% na primeira venda</span>
+            </span>
+          </button>
 
-        <button type="button" onClick={() => navigate("/dashboard/minha-loja")} style={{ ...styles.promoCard, background: "#E7F5EC" }}>
-          <span style={{ ...styles.promoIcon, background: "#D6EEDF", color: "#16A34A" }} aria-hidden="true">
-            <Sparkles size={20} strokeWidth={2} />
-          </span>
-          <span style={{ minWidth: 0 }}>
-            <span style={{ ...styles.promoTitle, fontSize: 15, fontWeight: 500 }}>Páginas de venda com IA</span>
-            <span style={styles.promoSub}>Crie sua loja em minutos</span>
-          </span>
-        </button>
+          <button type="button" onClick={() => navigate("/dashboard/paginas-com-ia")} style={{ ...styles.promoCard, background: "#E7F5EC" }}>
+            <span style={{ ...styles.promoIcon, background: "#D6EEDF", color: "#16A34A" }} aria-hidden="true">
+              <Sparkles size={20} strokeWidth={2} />
+            </span>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ ...styles.promoTitle, fontSize: 14, fontWeight: 500 }}>Páginas com IA</span>
+              <span style={styles.promoSub}>Crie páginas em minutos</span>
+            </span>
+          </button>
 
-        <div ref={profileMenuRef} style={styles.profileWrap}>
+          <div ref={profileMenuRef} style={styles.profileWrap}>
           <button
             type="button"
-            aria-label="Abrir perfil"
+            aria-label="Abrir configurações da conta"
             aria-haspopup="menu"
             aria-expanded={profileMenuOpen}
             onClick={() => setProfileMenuOpen((current) => !current)}
@@ -1072,104 +1327,95 @@ const DashboardSidebar = () => {
             </span>
           </button>
 
-        {profileMenuOpen ? (
-          <div style={styles.profilePanel} role="menu" aria-label="Menu de perfil">
-            <div style={styles.profilePanelCard}>
-              <div style={styles.profilePanelBody}>
+        <AnimatePresence>
+          {profileMenuOpen ? (
+            <motion.div
+              key="profile-side-panel"
+              style={styles.profileSidePanel}
+              role="menu"
+              aria-label="Opções da conta"
+              initial={reduce ? false : { opacity: 0, x: -8, scale: 0.985 }}
+              animate={reduce ? { opacity: 1 } : { opacity: 1, x: 0, scale: 1 }}
+              exit={reduce ? { opacity: 0 } : { opacity: 0, x: -6, scale: 0.99 }}
+              transition={reduce ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <button
+                className="velo-profile-menu-row"
+                type="button"
+                role="menuitem"
+                onClick={() => handlePanelNavigate("/dashboard/configuracoes")}
+                style={styles.profileMenuRow}
+              >
+                <span style={styles.profileMenuRowLeft}>
+                  <Settings2 size={15} strokeWidth={2} style={styles.profileMenuIcon} />
+                  <span style={styles.profileMenuLabel}>Configurações</span>
+                </span>
+              </button>
+
+              <button
+                className="velo-profile-menu-row"
+                type="button"
+                role="menuitem"
+                onClick={() => handlePanelNavigate("/dashboard/configuracoes?tab=Plano")}
+                style={styles.profileMenuRow}
+              >
+                <span style={styles.profileMenuRowLeft}>
+                  <CreditCard size={15} strokeWidth={1.9} style={styles.profileMenuIcon} />
+                  <span style={styles.profileMenuLabel}>Assinatura</span>
+                </span>
+                <span style={plan === "gratis" ? styles.profilePanelMutedBadge : styles.profilePanelBadge}>
+                  {plan !== "gratis" ? <Sparkles size={10} strokeWidth={2.2} /> : null}
+                  {planLabel}
+                </span>
+              </button>
+
+              <button
+                className="velo-profile-menu-row"
+                type="button"
+                role="menuitem"
+                onClick={() => handlePanelNavigate("/docs")}
+                style={styles.profileMenuRow}
+              >
+                <span style={styles.profileMenuRowLeft}>
+                  <Info size={15} strokeWidth={2} style={styles.profileMenuIcon} />
+                  <span style={styles.profileMenuLabel}>Central de ajuda</span>
+                </span>
+              </button>
+
+              {isAdmin ? (
                 <button
+                  className="velo-profile-menu-row"
                   type="button"
-                  onClick={() => handlePanelNavigate("/dashboard/configuracoes")}
-                  style={{ ...styles.profilePanelRow, ...styles.profilePanelRowActive }}
+                  role="menuitem"
+                  onClick={() => handlePanelNavigate("/admin/painel")}
+                  style={styles.profileMenuRow}
                 >
-                  <span style={styles.profilePanelRowLeft}>
-                    <BadgeCheck size={15} strokeWidth={2.1} style={styles.profilePanelIcon} />
-                    <span style={styles.profilePanelRowLabel}>Perfil</span>
+                  <span style={styles.profileMenuRowLeft}>
+                    <ShieldCheck size={15} strokeWidth={2} style={styles.profileMenuIcon} />
+                    <span style={styles.profileMenuLabel}>Painel Admin</span>
                   </span>
                 </button>
+              ) : null}
 
-                <button
-                  type="button"
-                  onClick={() => handlePanelNavigate("/docs")}
-                  style={styles.profilePanelRow}
-                >
-                  <span style={styles.profilePanelRowLeft}>
-                    <MessagesSquare size={15} strokeWidth={2.05} style={styles.profilePanelIcon} />
-                    <span style={styles.profilePanelRowLabel}>Comunidade</span>
-                  </span>
-                  <span style={styles.profilePanelCircleButton}>
-                    <Plus size={12} strokeWidth={2.2} />
-                  </span>
-                </button>
+              <div style={styles.profileMenuDivider} />
 
-                <button
-                  type="button"
-                  onClick={() => handlePanelNavigate("/dashboard/planos")}
-                  style={styles.profilePanelRow}
-                >
-                  <span style={styles.profilePanelRowLeft}>
-                    <CreditCard size={16} strokeWidth={1.9} style={styles.profilePanelIcon} />
-                    <span style={styles.profilePanelRowLabel}>Assinatura</span>
-                  </span>
-                  <span style={plan === "gratis" ? styles.profilePanelMutedBadge : styles.profilePanelBadge}>
-                    {plan !== "gratis" ? <Sparkles size={12} strokeWidth={2.2} /> : null}
-                    {planLabel}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handlePanelNavigate("/dashboard/configuracoes")}
-                  style={styles.profilePanelRow}
-                >
-                  <span style={styles.profilePanelRowLeft}>
-                    <ToggleLeft size={16} strokeWidth={2.05} style={styles.profilePanelIcon} />
-                    <span style={styles.profilePanelRowLabel}>Configurações</span>
-                  </span>
-                </button>
-
-                {isAdmin ? (
-                  <button
-                    type="button"
-                    onClick={() => handlePanelNavigate("/admin/painel")}
-                    style={styles.profilePanelRow}
-                  >
-                    <span style={styles.profilePanelRowLeft}>
-                      <ShieldCheck size={16} strokeWidth={2.05} style={styles.profilePanelIcon} />
-                      <span style={styles.profilePanelRowLabel}>Painel Admin</span>
-                    </span>
-                  </button>
-                ) : null}
-              </div>
-
-              <div style={styles.profilePanelDivider} />
-
-              <div style={styles.profilePanelFooter}>
-                <button
-                  type="button"
-                  onClick={() => handlePanelNavigate("/docs")}
-                  style={styles.profilePanelRow}
-                >
-                  <span style={styles.profilePanelRowLeft}>
-                    <Info size={15} strokeWidth={2.05} style={styles.profilePanelIcon} />
-                    <span style={styles.profilePanelRowLabel}>Central de ajuda</span>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void handleSignOut()}
-                  style={styles.profilePanelRow}
-                >
-                  <span style={styles.profilePanelRowLeft}>
-                    <LogOut size={15} strokeWidth={2.05} style={styles.profilePanelIcon} />
-                    <span style={styles.profilePanelRowLabel}>Sair</span>
-                  </span>
-                </button>
-              </div>
-            </div>
+              <button
+                className="velo-profile-menu-row"
+                type="button"
+                role="menuitem"
+                onClick={() => void handleSignOut()}
+                style={styles.profileMenuRow}
+              >
+                <span style={styles.profileMenuRowLeft}>
+                  <LogOut size={15} strokeWidth={2} style={{ ...styles.profileMenuIcon, color: "#DC2626" }} />
+                  <span style={{ ...styles.profileMenuLabel, color: "#DC2626" }}>Sair</span>
+                </span>
+              </button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
           </div>
-        ) : null}
-      </div>
+        </div>
       </div>
     </aside>
   );

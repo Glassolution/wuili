@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType } from "react";
 import { useNavigate } from "react-router-dom";
-import { Archive, BadgeCheck, ClipboardList, Copy, CreditCard, Home, Info, MessagesSquare, Search, Settings2, ShieldCheck, ShoppingCart, Sparkles, Users } from "lucide-react";
+import { Archive, BadgeCheck, ClipboardList, Image as ImageIcon, Copy, CreditCard, Home, Info, MessagesSquare, Search, Settings2, ShieldCheck, ShoppingCart, Sparkles, Users } from "lucide-react";
 
 export type SearchItem = {
   label: string;
@@ -15,7 +15,7 @@ const defaultItems: SearchItem[] = [
   { label: "Catálogo", to: "/dashboard/catalogo", icon: ShoppingCart, keywords: ["produtos", "catalog"] },
   { label: "Publicações", to: "/dashboard/publicacoes", icon: Archive, keywords: ["anuncios", "ml", "mercado livre"] },
   { label: "Pedidos", to: "/dashboard/pedidos", icon: Copy, keywords: ["vendas", "orders"] },
-  { label: "Relatórios", to: "/dashboard/relatorios", icon: ClipboardList, keywords: ["metricas", "analytics"] },
+  { label: "Imagens com IA", to: "/dashboard/imagens-ia", icon: ImageIcon, keywords: ["foto", "produto", "ia", "imagem"] },
   { label: "Afiliados", to: "/dashboard/comissoes", icon: Users, keywords: ["comissoes", "indicacoes"] },
   { label: "Configurações", to: "/dashboard/configuracoes", icon: Settings2, keywords: ["ajustes", "conta"] },
   { label: "Assinatura", to: "/dashboard/assinatura", icon: CreditCard, keywords: ["plano", "billing", "pagamento"] },

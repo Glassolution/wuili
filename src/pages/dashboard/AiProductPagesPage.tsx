@@ -1,48 +1,53 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  Clock3,
-  Globe2,
+  GraduationCap,
   Link2,
   Loader2,
   NotebookText,
-  Plus,
+  Pencil,
   Search,
-  Sparkles,
+  Trash2,
+  WandSparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { proxyImageList } from "@/lib/imageProxy";
-import { readAiProductPages, type AiProductPageStatus } from "@/lib/aiProductPages";
-import { createUserProject } from "@/lib/userProjects";
+import { editorTemplateName, salesPageTemplates } from "@/lib/salesPageTemplates";
+import { CURRENT_PRODUCT_TEMPLATE_ID } from "@/components/store-templates/productTemplateRegistry";
+import { createUserProject, fetchUserProjects, getProjectProductIds, type ProjectStatus, type UserProject } from "@/lib/userProjects";
+import { listAiProductPages, type AiProductPageRow } from "@/lib/aiPageGeneration";
 
-const statusLabel: Record<AiProductPageStatus, string> = {
+const statusLabel: Record<ProjectStatus, string> = {
   rascunho: "Rascunho",
-  gerando: "Gerando",
-  publicada: "Publicada",
+  publicado: "Publicado",
 };
 
-const statusClassName: Record<AiProductPageStatus, string> = {
-  rascunho: "bg-[#F1F2F4] text-[#596170]",
-  gerando: "bg-[#FFF3D6] text-[#9A6700]",
-  publicada: "bg-[#E8F7EE] text-[#137A42]",
+const statusClassName: Record<ProjectStatus, string> = {
+  rascunho: "border-[#F4D2D2] bg-[#FFF6F6] text-[#A02C2C]",
+  publicado: "border-[#CBEBD8] bg-[#F1FFF6] text-[#137A42]",
 };
 
-const formatUpdatedAt = (value: string) => {
+const formatProjectDate = (value: string) => {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Atualizada recentemente";
+  if (Number.isNaN(date.getTime())) return "Criada recentemente";
 
-  return `Atualizada em ${new Intl.DateTimeFormat("pt-BR", {
+  const dayMonth = new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "short",
-    year: "numeric",
-  }).format(date)}`;
+  }).format(date);
+  const time = new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+
+  return `${dayMonth} às ${time}`;
 };
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
@@ -58,6 +63,18 @@ type SavedProductSearchRow = {
     | Pick<CatalogProductRow, "id" | "title" | "category" | "cost_price" | "images">
     | Array<Pick<CatalogProductRow, "id" | "title" | "category" | "cost_price" | "images">>
     | null;
+};
+
+type ProductPreview = Pick<CatalogProductRow, "id" | "title" | "images">;
+
+type AiProjectListItem = {
+  id: string;
+  name: string;
+  image: string | null;
+  templateName: string;
+  source: string;
+  status: ProjectStatus;
+  createdAt: string;
 };
 
 type CreateStep = "produto" | "copy" | "template";
@@ -108,12 +125,33 @@ const copywritingAngles = [
   },
 ];
 
-const templateOptions = [
-  { id: "greens", name: "Greens", preview: "/template-produto-preview.png", editorTemplateId: "produto-1" },
-  { id: "bloom", name: "Bloom", preview: "/template-produto-2-preview.png", editorTemplateId: "produto-2" },
-  { id: "honey", name: "Honey", preview: "/template-produto-3-preview.png", editorTemplateId: "produto-3" },
-  { id: "clarity", name: "Clarity", preview: "/template-produto-4-preview.png", editorTemplateId: "produto-4" },
-];
+const templateOptions = salesPageTemplates;
+
+const getProjectMetadata = (project: UserProject) => {
+  const metadata = project.metadata;
+  return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : {};
+};
+
+const getProjectTemplateName = (project: UserProject) => {
+  const template = getProjectMetadata(project).template;
+  // Id de template removido (projeto antigo) abre no template atual — mostrar o
+  // id cru aqui faria a lista prometer um layout que não existe mais.
+  const currentName = editorTemplateName[CURRENT_PRODUCT_TEMPLATE_ID];
+  if (typeof template !== "string") return "Template";
+  return editorTemplateName[template] ?? (template.startsWith("loja") ? "Loja" : currentName);
+};
+
+const getProjectSource = (project: UserProject) => {
+  const metadata = getProjectMetadata(project);
+  const source = metadata.source;
+  if (typeof source === "string" && source.trim()) return source.trim();
+  if (project.source_kind === "aliexpress") return "AliExpress";
+  if (project.source_kind === "mercado_livre") return "Mercado Livre";
+  if (project.source_kind === "shopee") return "Shopee";
+  return getProjectProductIds(project).length > 0 ? "Velo" : "Link externo";
+};
 
 const getProductImage = (images: Json | null) => {
   if (!images) return null;
@@ -147,37 +185,42 @@ const formatCurrency = (value: number) =>
     currency: "BRL",
   }).format(value);
 
-const PageHeader = ({ onCreate }: { onCreate: () => void }) => (
-  <header className="flex flex-col gap-5 border-b border-black/[0.07] pb-6 sm:flex-row sm:items-center sm:justify-between">
-    <div className="min-w-0">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#E8EFFF] text-[#2563EB] shadow-[inset_0_0_0_1px_rgba(37,99,235,0.08)]">
-          <NotebookText size={20} strokeWidth={1.9} aria-hidden="true" />
-        </span>
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7A8495]">
-            Produtos vencedores
-          </p>
-          <h1 className="mt-0.5 text-[25px] font-semibold leading-tight tracking-[-0.04em] text-[#171A21]">
-            Páginas com IA
-          </h1>
-        </div>
-      </div>
-      <p className="mt-3 max-w-[620px] text-[13px] font-medium leading-5 text-[#697181]">
-        Crie, encontre e gerencie páginas de produto desenvolvidas pela inteligência artificial da Velo.
-      </p>
+const PageHeader = ({ onCreate, onTutorial }: { onCreate: () => void; onTutorial: () => void }) => (
+  <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex min-w-0 items-center gap-2.5">
+      <button
+        type="button"
+        onClick={() => window.history.back()}
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#0F1117] transition hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25"
+        aria-label="Voltar"
+      >
+        <ArrowLeft size={22} strokeWidth={2.35} aria-hidden="true" />
+      </button>
+      <h1 className="truncate text-[28px] font-black leading-none tracking-[-0.05em] text-[#090B10]">
+        Páginas com IA
+      </h1>
     </div>
 
-    <button
-      type="button"
-      onClick={onCreate}
-      data-testid="create-ai-page"
-      className="group inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[13px] bg-[#1D4ED8] px-4 text-[13px] font-semibold text-white shadow-[0_8px_20px_rgba(29,78,216,0.22)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#1E40AF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 focus-visible:ring-offset-2"
-    >
-      <Sparkles size={16} strokeWidth={2} aria-hidden="true" />
-      Criar Página com IA
-      <Plus size={15} strokeWidth={2.2} className="transition-transform duration-200 group-hover:rotate-90" aria-hidden="true" />
-    </button>
+    <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+      <button
+        type="button"
+        onClick={onTutorial}
+        className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-black/[0.14] bg-white px-3.5 text-[13px] font-black tracking-[-0.015em] text-[#0F1117] shadow-[0_1px_3px_rgba(15,17,23,0.11)] transition duration-150 hover:border-black/[0.22] hover:bg-[#FAFAFA] hover:shadow-[0_2px_5px_rgba(15,17,23,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25"
+      >
+        <GraduationCap size={17} strokeWidth={2.1} aria-hidden="true" />
+        Ver tutorial
+      </button>
+
+      <button
+        type="button"
+        onClick={onCreate}
+        data-testid="create-ai-page"
+        className="velo-prime-button velo-prime-button--blue"
+      >
+        <WandSparkles size={16} strokeWidth={2.05} aria-hidden="true" />
+        <span>Criar página com IA</span>
+      </button>
+    </div>
   </header>
 );
 
@@ -199,7 +242,14 @@ export const AiProductPageCreatePendingPage = () => {
   const [targetAudience, setTargetAudience] = useState<TargetAudience>("homem");
   const [copywritingAngle, setCopywritingAngle] = useState(copywritingAngles[0].id);
   const [customAngle, setCustomAngle] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  // Quando o usuário chega clicando num card da galeria de Modelos, aquele
+  // template vem em location.state. Sem isso a escolha dele era descartada e o
+  // wizard caía no template padrão.
+  const location = useLocation();
+  const templateFromGallery = (location.state as { templateId?: string } | null)?.templateId;
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(
+    templateOptions.some((template) => template.id === templateFromGallery) ? templateFromGallery! : null,
+  );
   const [creatingPage, setCreatingPage] = useState(false);
   const productSearchRef = useRef<HTMLDivElement>(null);
 
@@ -219,28 +269,26 @@ export const AiProductPageCreatePendingPage = () => {
     setProductSearchError(null);
 
     void (async () => {
-      const { data, error } = await supabase
-        .from("collection_products")
-        .select(
-          `
-            product_id,
-            added_at,
-            collections!inner(user_id),
-            catalog_products!inner(id,title,category,cost_price,images,is_active,is_blocked,stock_quantity)
-          `,
-        )
-        .eq("collections.user_id", user.id)
-        .eq("catalog_products.is_active", true)
-        .eq("catalog_products.is_blocked", false)
-        .gt("catalog_products.stock_quantity", 0)
-        .order("added_at", { ascending: false, nullsFirst: false });
+      try {
+        const { data, error } = await supabase
+          .from("collection_products")
+          .select(
+            `
+              product_id,
+              added_at,
+              collections!inner(user_id),
+              catalog_products!inner(id,title,category,cost_price,images,is_active,is_blocked,stock_quantity)
+            `,
+          )
+          .eq("collections.user_id", user.id)
+          .eq("catalog_products.is_active", true)
+          .eq("catalog_products.is_blocked", false)
+          .gt("catalog_products.stock_quantity", 0)
+          .order("added_at", { ascending: false, nullsFirst: false });
 
-      if (!active) return;
+        if (!active) return;
+        if (error) throw error;
 
-      if (error) {
-        setProductSearchError("Não foi possível buscar seus produtos agora.");
-        setProducts([]);
-      } else {
         const seen = new Set<string>();
         const nextProducts = ((data ?? []) as unknown as SavedProductSearchRow[]).flatMap((row) => {
           const product = Array.isArray(row.catalog_products) ? row.catalog_products[0] : row.catalog_products;
@@ -248,11 +296,38 @@ export const AiProductPageCreatePendingPage = () => {
           seen.add(product.id);
           return [{ ...product, added_at: row.added_at }];
         });
-        setProducts(nextProducts);
-        setProductsLoaded(true);
-      }
 
-      setLoadingProducts(false);
+        if (nextProducts.length > 0) {
+          setProducts(nextProducts);
+          setProductsLoaded(true);
+          return;
+        }
+
+        const catalogResult = await supabase
+          .from("catalog_products")
+          .select("id,title,category,cost_price,images")
+          .eq("is_active", true)
+          .eq("is_blocked", false)
+          .gt("stock_quantity", 0)
+          .order("orders_count", { ascending: false, nullsFirst: false })
+          .limit(60);
+
+        if (!active) return;
+        if (catalogResult.error) throw catalogResult.error;
+
+        const fallbackProducts = ((catalogResult.data ?? []) as Array<Pick<CatalogProductRow, "id" | "title" | "category" | "cost_price" | "images">>)
+          .map((product) => ({ ...product, added_at: null }));
+
+        setProducts(fallbackProducts);
+        setProductsLoaded(true);
+      } catch (error) {
+        console.error("Falha ao buscar produtos salvos:", error);
+        if (!active) return;
+        setProductSearchError("Não foi possível buscar seus produtos agora.");
+        setProducts([]);
+      } finally {
+        if (active) setLoadingProducts(false);
+      }
     })();
 
     return () => {
@@ -298,7 +373,7 @@ export const AiProductPageCreatePendingPage = () => {
   const handleCreatePage = async () => {
     if (!selectedTemplate || creatingPage) return;
     const selectedTemplateOption = templateOptions.find((template) => template.id === selectedTemplate);
-    const editorTemplateId = selectedTemplateOption?.editorTemplateId ?? "produto-1";
+    const editorTemplateId = selectedTemplateOption?.editorTemplateId ?? CURRENT_PRODUCT_TEMPLATE_ID;
     const selectedAngle = copywritingAngles.find((angle) => angle.id === copywritingAngle);
     const selectedAudience = audienceOptions.find((audience) => audience.id === targetAudience);
     const productImage = selectedProduct ? getProductImage(selectedProduct.images) ?? "" : "";
@@ -410,7 +485,7 @@ export const AiProductPageCreatePendingPage = () => {
               {creatingPage ? (
                 <Loader2 size={15} className="animate-spin" aria-hidden="true" />
               ) : (
-                <Sparkles size={15} strokeWidth={2} aria-hidden="true" />
+                <WandSparkles size={15} strokeWidth={2} aria-hidden="true" />
               )}
               {creatingPage ? "Criando..." : "Criar página de produto"}
             </button>
@@ -800,89 +875,370 @@ export const AiProductPageCreatePendingPage = () => {
   );
 };
 
+/**
+ * Prévias geradas pelo fluxo novo (motor PagePilot). Ficam separadas das páginas
+ * do editor porque não são a mesma coisa: estas ainda não viraram projeto e,
+ * principalmente, não estão publicadas em lugar nenhum.
+ */
+const AiPreviewsSection = () => {
+  const navigate = useNavigate();
+  const [previews, setPreviews] = useState<AiProductPageRow[]>([]);
+
+  useEffect(() => {
+    void listAiProductPages(6)
+      .then(setPreviews)
+      .catch(() => setPreviews([]));
+  }, []);
+
+  if (previews.length === 0) return null;
+
+  return (
+    <section className="mt-6 rounded-[20px] border border-black/[0.07] bg-white p-4 shadow-[0_10px_30px_rgba(31,36,48,0.05)]">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[14px] font-semibold text-[#0A0A0A]">Prévias geradas por IA</h2>
+          <p className="mt-0.5 text-[12px] text-[#747D8C]">Salvas na Velo e ainda não publicadas.</p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        {previews.map((preview) => (
+          <button
+            key={preview.id}
+            type="button"
+            onClick={() => navigate(`/dashboard/paginas-com-ia/previa/${preview.id}`)}
+            className="flex w-full items-center gap-3 rounded-[12px] border border-transparent px-3 py-2.5 text-left transition hover:border-black/[0.08] hover:bg-[#F8FAFC]"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="line-clamp-1 block text-[13px] font-semibold text-[#0A0A0A]">
+                {preview.source_url ?? "Página gerada"}
+              </span>
+              <span className="text-[11px] text-[#747D8C]">{formatProjectDate(preview.created_at)}</span>
+            </span>
+
+            {preview.status === "gerando" && (
+              <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-[#747D8C]">
+                <Loader2 size={12} className="animate-spin" /> Gerando
+              </span>
+            )}
+            {preview.status === "pronto" && (
+              <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-[#22C55E]">
+                <CheckCircle2 size={12} /> Pronta
+              </span>
+            )}
+            {preview.status === "erro" && (
+              <span className="shrink-0 text-[11px] font-semibold text-[#B42318]">Falhou</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 const AiProductPagesPage = () => {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
   const { user } = useAuth();
-  const [pages] = useState(() => readAiProductPages(user?.id ?? "dev-user"));
+  const [pages, setPages] = useState<AiProjectListItem[]>([]);
+  const [loadingPages, setLoadingPages] = useState(true);
+  const [pagesError, setPagesError] = useState<string | null>(null);
+  const [pageSearch, setPageSearch] = useState("");
+  const [selectedPageIds, setSelectedPageIds] = useState<Set<string>>(() => new Set());
+  const [deletingPages, setDeletingPages] = useState(false);
+  const normalizedPageSearch = pageSearch.trim().toLocaleLowerCase("pt-BR");
+  const filteredPages = useMemo(() => {
+    if (!normalizedPageSearch) return pages;
+    return pages.filter((page) => page.name.toLocaleLowerCase("pt-BR").includes(normalizedPageSearch));
+  }, [normalizedPageSearch, pages]);
   const hasPages = pages.length > 0;
+  const filteredPageIds = useMemo(() => filteredPages.map((page) => page.id), [filteredPages]);
+  const selectedCount = selectedPageIds.size;
+  const allVisibleSelected =
+    filteredPageIds.length > 0 && filteredPageIds.every((pageId) => selectedPageIds.has(pageId));
+
+  const togglePageSelection = (pageId: string) => {
+    setSelectedPageIds((current) => {
+      const next = new Set(current);
+      if (next.has(pageId)) next.delete(pageId);
+      else next.add(pageId);
+      return next;
+    });
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedPageIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) {
+        filteredPageIds.forEach((pageId) => next.delete(pageId));
+      } else {
+        filteredPageIds.forEach((pageId) => next.add(pageId));
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteSelectedPages = async () => {
+    if (!user?.id || selectedPageIds.size === 0 || deletingPages) return;
+
+    const idsToDelete = Array.from(selectedPageIds);
+    const confirmed = window.confirm(
+      idsToDelete.length === 1
+        ? "Tem certeza que deseja excluir esta página com IA? Essa ação não pode ser desfeita."
+        : `Tem certeza que deseja excluir ${idsToDelete.length} páginas com IA? Essa ação não pode ser desfeita.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingPages(true);
+    try {
+      const { error } = await supabase
+        .from("user_projects")
+        .delete()
+        .in("id", idsToDelete)
+        .eq("user_id", user.id)
+        .eq("tipo_projeto", "pagina_venda");
+      if (error) throw error;
+
+      const deletedIds = new Set(idsToDelete);
+      setPages((current) => current.filter((page) => !deletedIds.has(page.id)));
+      setSelectedPageIds(new Set());
+      veloToast.success(idsToDelete.length === 1 ? "Página excluída." : "Páginas excluídas.");
+    } catch (error) {
+      console.error("Falha ao excluir páginas com IA:", error);
+      veloToast.error("Não foi possível excluir agora. Tente novamente.");
+    } finally {
+      setDeletingPages(false);
+    }
+  };
+
+  const selectionCheckboxClass =
+    "velo-selection-checkbox disabled:cursor-not-allowed disabled:opacity-50";
+
+  useEffect(() => {
+    if (!user?.id) {
+      setPages([]);
+      setLoadingPages(false);
+      return;
+    }
+
+    if (!isSupabaseEnabled) {
+      setPages([]);
+      setLoadingPages(false);
+      return;
+    }
+
+    let active = true;
+    setLoadingPages(true);
+    setPagesError(null);
+
+    void (async () => {
+      try {
+        const projects = (await fetchUserProjects())
+          .filter((project) => project.tipo_projeto === "pagina_venda")
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const productIds = Array.from(new Set(projects.flatMap((project) => getProjectProductIds(project).slice(0, 1))));
+        const productById = new Map<string, ProductPreview>();
+
+        if (productIds.length > 0) {
+          const { data, error } = await supabase
+            .from("catalog_products")
+            .select("id,title,images")
+            .in("id", productIds);
+          if (error) throw error;
+          (data ?? []).forEach((product) => productById.set(product.id, product));
+        }
+
+        const nextPages = projects.map((project): AiProjectListItem => {
+          const productId = getProjectProductIds(project)[0];
+          const product = productId ? productById.get(productId) : undefined;
+          const metadata = getProjectMetadata(project);
+          const storeName = typeof metadata.storeName === "string" && metadata.storeName.trim()
+            ? metadata.storeName.trim()
+            : "";
+
+          return {
+            id: project.id,
+            name: product?.title || storeName || project.nome || "Página de produto",
+            image: product?.images ? getProductImage(product.images) : null,
+            templateName: getProjectTemplateName(project),
+            source: getProjectSource(project),
+            status: project.status === "publicado" ? "publicado" : "rascunho",
+            createdAt: project.created_at,
+          };
+        });
+
+        if (active) setPages(nextPages);
+      } catch (error) {
+        console.error("Falha ao carregar páginas com IA:", error);
+        if (active) {
+          setPages([]);
+          setPagesError("Não foi possível carregar suas páginas agora.");
+        }
+      } finally {
+        if (active) setLoadingPages(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   return (
     <motion.section
       initial={reduceMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="mx-auto w-full max-w-[1180px]"
+      className="mx-auto w-full max-w-none px-0 py-0"
       data-testid="ai-pages-list"
     >
-      <PageHeader onCreate={() => navigate("/dashboard/paginas-com-ia/criar")} />
+      <PageHeader
+        onCreate={() => navigate("/dashboard/paginas-com-ia/criar")}
+        onTutorial={() => veloToast.info("Tutorial das páginas com IA em breve.")}
+      />
 
-      <div className="mt-6 overflow-hidden rounded-[24px] border border-black/[0.07] bg-white p-3 shadow-[0_16px_45px_rgba(31,36,48,0.06)] sm:p-4">
-        {!hasPages ? (
+      <AiPreviewsSection />
+
+
+      <div className="mt-5 overflow-hidden rounded-[20px] border border-black/[0.16] bg-white p-4 shadow-[0_2px_5px_rgba(15,17,23,0.13)]">
+        <div className="mb-5 flex h-[50px] items-center gap-3 rounded-[10px] border border-black/[0.12] bg-white px-4 shadow-[0_1px_5px_rgba(15,17,23,0.08)] transition focus-within:border-[#2563EB]/45 focus-within:ring-4 focus-within:ring-[#2563EB]/[0.08]">
+          <Search size={20} strokeWidth={2.05} className="shrink-0 text-[#7D8798]" aria-hidden="true" />
+          <input
+            type="search"
+            value={pageSearch}
+            onChange={(event) => setPageSearch(event.target.value)}
+            placeholder="Buscar páginas pelo nome..."
+            className="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[15px] font-bold tracking-[-0.02em] text-[#111827] outline-none placeholder:text-[#8A93A5]"
+          />
+        </div>
+
+        {selectedCount > 0 && !loadingPages ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-[#2563EB]/18 bg-[#EFF6FF] px-4 py-3">
+            <p className="text-[13px] font-black tracking-[-0.015em] text-[#1E3A8A]">
+              {selectedCount} {selectedCount === 1 ? "página selecionada" : "páginas selecionadas"}
+            </p>
+            <button
+              type="button"
+              onClick={handleDeleteSelectedPages}
+              disabled={deletingPages}
+              className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-[#F4B4B4] bg-white px-3.5 text-[13px] font-black tracking-[-0.015em] text-[#B42318] shadow-[0_1px_4px_rgba(15,17,23,0.08)] transition hover:border-[#E47D7D] hover:bg-[#FFF5F5] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {deletingPages ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Trash2 size={16} strokeWidth={2.1} aria-hidden="true" />}
+              Excluir
+            </button>
+          </div>
+        ) : null}
+
+        {loadingPages ? (
+          <div className="grid min-h-[360px] place-items-center rounded-[15px] bg-[#F8F9FB]">
+            <div className="flex items-center gap-2 text-[14px] font-black tracking-[-0.02em] text-[#6F7788]">
+              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+              Carregando páginas...
+            </div>
+          </div>
+        ) : !hasPages ? (
           <div
-            className="flex min-h-[430px] flex-col items-center justify-center rounded-[19px] bg-[#F8FAFC] px-6 py-12 text-center"
+            className="flex min-h-[360px] flex-col items-center justify-center rounded-[15px] bg-[#F8F9FB] px-6 py-11 text-center"
             data-testid="ai-pages-empty"
           >
-            <div className="relative">
-              <span className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-white text-[#2563EB] shadow-[0_10px_25px_rgba(31,36,48,0.08)] ring-1 ring-black/[0.05]">
-                <NotebookText size={28} strokeWidth={1.7} aria-hidden="true" />
-              </span>
-              <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#DCE7FF] text-[#1D4ED8] ring-4 ring-[#F8FAFC]">
-                <Sparkles size={13} strokeWidth={2} aria-hidden="true" />
-              </span>
-            </div>
-            <h2 className="mt-6 text-[20px] font-semibold tracking-[-0.035em] text-[#1F2430]">
-              Nenhuma página encontrada
+            <span className="grid h-[52px] w-[52px] place-items-center rounded-[13px] bg-[#ECEEEF] text-[#0F1117]">
+              <NotebookText size={27} strokeWidth={1.9} aria-hidden="true" />
+            </span>
+            <h2 className="mt-6 text-[22px] font-black leading-tight tracking-[-0.05em] text-[#090B10]">
+              Nenhuma página com IA encontrada
             </h2>
-            <p className="mt-2 max-w-[440px] text-[13px] font-medium leading-5 text-[#747D8C]">
-              Você ainda não criou páginas de produto com IA. Comece agora e transforme um produto em uma página pronta para vender.
+            <p className="mt-2.5 max-w-[560px] text-[16px] font-bold leading-snug tracking-[-0.02em] text-[#727B8D]">
+              Você ainda não criou nenhuma página de produto com IA. Comece agora e veja como é fácil.
             </p>
             <button
               type="button"
               onClick={() => navigate("/dashboard/paginas-com-ia/criar")}
-              className="group mt-6 inline-flex h-11 items-center gap-2 rounded-[14px] border border-[#C9D6FA] bg-white px-5 text-[13px] font-semibold text-[#1D4ED8] shadow-[0_8px_20px_rgba(31,36,48,0.06)] transition hover:-translate-y-0.5 hover:border-[#2563EB]/35 hover:shadow-[0_12px_28px_rgba(37,99,235,0.12)]"
+              className="mt-6 inline-flex h-10 items-center gap-2.5 rounded-[9px] border border-black/[0.13] bg-white px-4 text-[14px] font-black tracking-[-0.02em] text-[#0F1117] shadow-[0_1px_5px_rgba(15,17,23,0.12)] transition hover:bg-[#FAFAFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25"
             >
-              <Sparkles size={15} strokeWidth={2} aria-hidden="true" />
+              <WandSparkles size={18} strokeWidth={2.1} aria-hidden="true" />
               Criar primeira página com IA
-              <ArrowRight size={14} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
             </button>
           </div>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="ai-pages-grid">
-            {pages.map((page) => (
-              <button
-                key={page.id}
-                type="button"
-                onClick={() => navigate(`/dashboard/paginas-com-ia/${page.id}/editar`)}
-                className="group overflow-hidden rounded-[18px] border border-black/[0.07] bg-white text-left transition duration-200 hover:-translate-y-0.5 hover:border-[#2563EB]/25 hover:shadow-[0_12px_26px_rgba(31,36,48,0.08)]"
-              >
-                <div className="flex h-36 items-center justify-center overflow-hidden bg-[#F2F5F9]">
-                  {page.productImage ? (
-                    <img src={page.productImage} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]" />
-                  ) : (
-                    <NotebookText size={30} strokeWidth={1.5} className="text-[#8B96A8]" aria-hidden="true" />
-                  )}
+          <div data-testid="ai-pages-table" className="overflow-hidden rounded-[15px] bg-white">
+            <div className="overflow-x-auto rounded-[15px] border border-black/[0.09] bg-white">
+              <div className="min-w-[860px]">
+                <div className="grid grid-cols-[42px_minmax(260px,1.45fr)_minmax(120px,0.48fr)_minmax(120px,0.48fr)_minmax(130px,0.56fr)_minmax(180px,0.62fr)] items-center border-b border-black/[0.09] bg-white px-4 py-4 text-[12px] font-black uppercase tracking-[-0.01em] text-[#131722]">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleVisibleSelection}
+                    disabled={filteredPageIds.length === 0 || deletingPages}
+                    aria-label="Selecionar páginas visíveis"
+                    className={selectionCheckboxClass}
+                  />
+                  <span>Página</span>
+                  <span>Template</span>
+                  <span>Origem</span>
+                  <span>Status</span>
+                  <span>Ações</span>
                 </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="line-clamp-2 text-[14px] font-semibold leading-5 text-[#242933]">{page.productName}</h2>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusClassName[page.status]}`}>
-                      {statusLabel[page.status]}
-                    </span>
+
+                {pagesError ? (
+                  <div className="px-4 py-8 text-center text-[15px] font-bold text-[#B42318]">{pagesError}</div>
+                ) : filteredPages.length > 0 ? (
+                  <div className="divide-y divide-black/[0.075]">
+                    {filteredPages.map((page) => (
+                      <div
+                        key={page.id}
+                        className="grid min-h-[78px] grid-cols-[42px_minmax(260px,1.45fr)_minmax(120px,0.48fr)_minmax(120px,0.48fr)_minmax(130px,0.56fr)_minmax(180px,0.62fr)] items-center px-4 py-3 transition hover:bg-[#FAFAFB]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedPageIds.has(page.id)}
+                          onChange={() => togglePageSelection(page.id)}
+                          disabled={deletingPages}
+                          aria-label={`Selecionar ${page.name}`}
+                          className={selectionCheckboxClass}
+                        />
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-[#F3F4F6] text-[#8B96A8]">
+                            {page.image ? <img src={page.image} alt="" className="h-full w-full object-cover" /> : <NotebookText size={18} strokeWidth={1.7} aria-hidden="true" />}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-[14px] font-black tracking-[-0.025em] text-[#171A21]">{page.name}</span>
+                            <span className="mt-0.5 block text-[12.5px] font-bold tracking-[-0.01em] text-[#727B8D]">{formatProjectDate(page.createdAt)}</span>
+                          </span>
+                        </div>
+                        <span className="flex items-center gap-1.5 text-[13.5px] font-black tracking-[-0.015em] text-[#242933]">
+                          <Link2 size={15} strokeWidth={2.1} className="text-[#111827]" aria-hidden="true" />
+                          {page.templateName}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[13.5px] font-black tracking-[-0.015em] text-[#242933]">
+                          <Link2 size={15} strokeWidth={2.1} className="text-[#111827]" aria-hidden="true" />
+                          {page.source}
+                        </span>
+                        <span>
+                          <span className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[13px] font-black tracking-[-0.015em] ${statusClassName[page.status]}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${page.status === "publicado" ? "bg-[#16A34A]" : "bg-[#E11D48]"}`} aria-hidden="true" />
+                            {statusLabel[page.status]}
+                          </span>
+                        </span>
+                        <span>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/minha-loja/editor/${page.id}`, { state: { projectId: page.id } })}
+                            className="inline-flex h-10 max-w-full items-center gap-2 rounded-[9px] border border-black/[0.10] bg-white px-3.5 text-[13.5px] font-black tracking-[-0.015em] text-[#111827] shadow-[0_1px_5px_rgba(15,17,23,0.10)] transition hover:border-black/[0.16] hover:bg-[#FAFAFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25"
+                          >
+                            <Pencil size={17} strokeWidth={2.1} aria-hidden="true" />
+                            <span className="truncate">Editar e publicar</span>
+                          </button>
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="mt-4 flex items-center justify-between gap-3 text-[11px] font-medium text-[#7A8495]">
-                    <span className="flex min-w-0 items-center gap-1.5 truncate">
-                      <Globe2 size={13} aria-hidden="true" />
-                      {page.source}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      <Clock3 size={13} aria-hidden="true" />
-                      {formatUpdatedAt(page.updatedAt)}
-                    </span>
+                ) : (
+                  <div className="px-4 py-10 text-center text-[16px] font-bold text-[#747D8C]">
+                    Nenhuma página encontrada para essa busca.
                   </div>
-                </div>
-              </button>
-            ))}
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

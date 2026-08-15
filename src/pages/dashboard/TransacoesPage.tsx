@@ -4,6 +4,7 @@ import { Search, ChevronDown, ChevronLeft, ChevronRight, TrendingDown, TrendingU
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type CategoryType = "frete_pago" | "frete_pendente" | "processando" | "enviado";
@@ -125,6 +126,7 @@ const TransacoesPage = () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px", fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', WebkitFontSmoothing: "antialiased", textRendering: "optimizeLegibility" }}>
+      <DashboardPageHeader title="Transações" className="mb-0 md:mb-0" />
 
       {/* ── Summary Strip ────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "32px", backgroundColor: "#FFFFFF", border: "1px solid rgba(0,0,0,0.04)", borderRadius: "28px", padding: "24px 32px", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>

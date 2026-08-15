@@ -1,6 +1,6 @@
 // Atlas Chat — assistente conversacional da Velo via Lovable AI Gateway (Gemini)
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   ATLAS_NAV_ITEMS,
   buildAtlasSystemPrompt,
@@ -53,6 +53,11 @@ type ProductCardAction = {
   };
 };
 
+type PageContext = {
+  rota?: string;
+  nome?: string;
+};
+
 type QuickReplyAction = {
   type: "quick_reply";
   label: string;
@@ -85,6 +90,14 @@ type CatalogProductPreview = {
   category: string | null;
   description?: string | null;
   orders_count?: number | null;
+};
+
+type ServiceClient = SupabaseClient<any> | null;
+
+type MercadoLivreIntegrationRow = {
+  access_token?: string | null;
+  expires_at?: string | null;
+  platform?: string | null;
 };
 
 const quickReply = (label: string, message = label): QuickReplyAction => ({
@@ -165,6 +178,42 @@ const wantsChangeNiche = (message: string) =>
 const wantsNoNicheHelp = (message: string) =>
   /\b(nao sei|tanto faz|me sugere|sugere|escolha por mim|qual melhor)\b/.test(normalizeGuideText(message));
 
+const isConversationalAside = (message: string) => {
+  const normalized = normalizeGuideText(message).replace(/[?!.,]+/g, " ").replace(/\s+/g, " ").trim();
+  const hasGuideIntent =
+    /\b(continuar|seguir|proximo|proxima|guia|passo|nicho|produto|catalogo|mercado livre|conectar|publicar|vender|comecar|iniciar)\b/.test(
+      normalized,
+    );
+  if (hasGuideIntent) return false;
+
+  return (
+    /^(oi|ola|opa|e ai|bom dia|boa tarde|boa noite)( atlas)?$/.test(normalized) ||
+    /\b(tudo bem|tudo bom|como voce esta|como vc esta|como vai|voce esta bem)\b/.test(normalized) ||
+    /\b(obrigado|obrigada|valeu|show|legal)\b/.test(normalized)
+  );
+};
+
+const conversationalAsideResponse = (): AtlasResponse => ({
+  message:
+    "Oi! Estou por aqui e pronto para te ajudar. 😄\n\nPode falar comigo normalmente. Eu consigo tirar dúvidas, explicar dropshipping, olhar o que você está tentando fazer na Velo ou continuar algum passo quando você pedir.",
+  actions: [],
+});
+
+const isBeginnerGuideReply = (message: string) => {
+  const normalized = normalizeGuideText(message);
+  return Boolean(
+    findValidatedNiche(message) ||
+      wantsChangeNiche(message) ||
+      wantsNoNicheHelp(message) ||
+      wantsOtherOptions(message) ||
+      wantsToConnectLater(message) ||
+      saidConnectedMl(message) ||
+      /\b(sim|isso|esse|essa|ok|beleza|confirmo|confirmar|pode seguir|seguir|continuar|proximo|proxima|vamos|buscar produtos|quero esse|quero essa|quero seguir|conectar|mercado livre|publicar|abrir catalogo|abrir catálogo)\b/.test(
+        normalized,
+      ),
+  );
+};
+
 const fetchMercadoLivreSignal = async (niche: ValidatedNiche): Promise<MarketSignal | null> => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 3500);
@@ -208,7 +257,7 @@ const fetchMercadoLivreSignal = async (niche: ValidatedNiche): Promise<MarketSig
  * dropdown do catálogo usa, para chip e navegação manual não divergirem.
  */
 const categoriasEmDestaque = async (
-  supabase: ReturnType<typeof createClient> | null,
+  supabase: ServiceClient,
   quantidade = 6,
 ): Promise<{ valor: string; total: number }[]> => {
   if (!supabase) return [];
@@ -247,7 +296,7 @@ const categoriasEmDestaque = async (
  * que 15 consultas e devolve o número certo.
  */
 const fetchInternalCatalogSignals = async (
-  supabase: ReturnType<typeof createClient> | null,
+  supabase: ServiceClient,
 ): Promise<MarketSignal[]> => {
   const semDados = (): MarketSignal[] =>
     VALIDATED_NICHES.map((niche, index) => ({
@@ -257,7 +306,9 @@ const fetchInternalCatalogSignals = async (
       demand: 50 - index,
       competition: 45,
       score: 50 - index,
-      note: "O estoque do catálogo não me respondeu agora, então vale conferir a disponibilidade na hora de escolher o produto.",
+      // Sem contagem de estoque para mostrar, a nota vira uma dica útil. O
+      // usuário não precisa saber que uma consulta interna não respondeu.
+      note: "Vale conferir o estoque na hora de escolher, porque anúncio de produto sem estoque acaba pausado.",
       catalogCount: 0,
     }));
 
@@ -306,7 +357,7 @@ const fetchInternalCatalogSignals = async (
  * API do ML respondesse, o catálogo era ignorado e o guia chegava a sugerir nicho
  * com zero produto — o usuário confirmava e travava no passo seguinte.
  */
-const researchMarketSignals = async (supabase: ReturnType<typeof createClient> | null) => {
+const researchMarketSignals = async (supabase: ServiceClient) => {
   const [liveSignals, internalSignals] = await Promise.all([
     Promise.all(VALIDATED_NICHES.map(fetchMercadoLivreSignal)),
     fetchInternalCatalogSignals(supabase),
@@ -331,7 +382,7 @@ const researchMarketSignals = async (supabase: ReturnType<typeof createClient> |
 /** Só entra na lista o nicho que a Velo consegue atender hoje. */
 const nichosDisponiveis = (signals: MarketSignal[]) => signals.filter((signal) => signal.catalogCount > 0);
 
-const researchSingleNiche = async (niche: ValidatedNiche, supabase: ReturnType<typeof createClient> | null) => {
+const researchSingleNiche = async (niche: ValidatedNiche, supabase: ServiceClient) => {
   const [liveSignal, internalSignals] = await Promise.all([
     fetchMercadoLivreSignal(niche),
     fetchInternalCatalogSignals(supabase),
@@ -458,6 +509,90 @@ const createServiceClient = () => {
   const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
   if (!dbUrl || !dbKey) return null;
   return createClient(dbUrl, dbKey, { auth: { persistSession: false } });
+};
+
+/**
+ * Uso reportado pela própria API, no formato OpenAI que o gateway devolve.
+ *
+ * Lido de forma defensiva: se o gateway parar de mandar algum campo, o registro
+ * entra com null em vez de derrubar a resposta do chat.
+ */
+/** Um lugar só para o nome do modelo, para o log nunca divergir da chamada. */
+const MODELO_DO_ATLAS = "google/gemini-2.5-flash";
+
+type UsoDoModelo = {
+  entrada: number | null;
+  saida: number | null;
+  cache: number | null;
+  total: number | null;
+};
+
+const lerUsoDoModelo = (data: unknown): UsoDoModelo => {
+  const numero = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.round(v) : null);
+  const usage = (data as { usage?: Record<string, unknown> } | null)?.usage;
+  if (!usage) return { entrada: null, saida: null, cache: null, total: null };
+
+  const detalhes = usage.prompt_tokens_details as Record<string, unknown> | undefined;
+  return {
+    entrada: numero(usage.prompt_tokens ?? usage.input_tokens),
+    saida: numero(usage.completion_tokens ?? usage.output_tokens),
+    // Nem todo provedor reporta cache. Quando não vier, fica null.
+    cache: numero(detalhes?.cached_tokens ?? usage.cache_read_input_tokens),
+    total: numero(usage.total_tokens),
+  };
+};
+
+type RegistroDeUso = {
+  userId: string | null;
+  origem: "modelo" | "codigo";
+  etapa: string;
+  modelo?: string | null;
+  uso?: UsoDoModelo | null;
+  duracaoMs?: number | null;
+  erro?: string | null;
+};
+
+/**
+ * Grava uma linha por resposta do Atlas.
+ *
+ * Nunca lança e nunca é aguardado no caminho da resposta: medir custo não pode
+ * ser motivo para o chat falhar nem para o usuário esperar mais.
+ */
+const registrarUso = (registro: RegistroDeUso) => {
+  try {
+    const supabase = createServiceClient();
+    if (!supabase) return;
+    void supabase
+      .from("atlas_usage_logs")
+      .insert({
+        user_id: registro.userId,
+        origem: registro.origem,
+        etapa: registro.etapa,
+        modelo: registro.modelo ?? null,
+        tokens_entrada: registro.uso?.entrada ?? null,
+        tokens_saida: registro.uso?.saida ?? null,
+        tokens_cache: registro.uso?.cache ?? null,
+        tokens_total: registro.uso?.total ?? null,
+        duracao_ms: registro.duracaoMs ?? null,
+        erro: registro.erro ?? null,
+      })
+      .then(({ error }) => {
+        if (error) console.error("atlas usage log falhou", error.message);
+      });
+  } catch (e) {
+    console.error("atlas usage log falhou", e);
+  }
+};
+
+/**
+ * Nome da etapa a partir da própria resposta.
+ *
+ * O guia já carrega "Passo N de 4" no texto, então dá para etiquetar sem
+ * espalhar parâmetro por todas as funções que montam resposta.
+ */
+const etapaDaRespostaDoGuia = (resposta: AtlasResponse) => {
+  const passo = resposta.message.match(/passo\s*([1-4])\s*de\s*4/i);
+  return passo ? `guia_passo_${passo[1]}` : "guia_outro";
 };
 
 const authenticateRequest = async (req: Request) => {
@@ -673,7 +808,7 @@ const scoreCatalogProduct = (product: CatalogProductPreview, niche: ValidatedNic
 };
 
 const searchCatalogProductsForNiche = async (
-  supabase: ReturnType<typeof createClient> | null,
+  supabase: ServiceClient,
   niche: ValidatedNiche,
   excludeIds: string[] = [],
 ) => {
@@ -716,7 +851,7 @@ const searchCatalogProductsForNiche = async (
     .slice(0, 3);
 };
 
-const getUserMercadoLivreStatus = async (supabase: ReturnType<typeof createClient> | null, userId: string) => {
+const getUserMercadoLivreStatus = async (supabase: ServiceClient, userId: string) => {
   if (!supabase) return { connected: false, tokenValid: false };
 
   const { data } = await supabase
@@ -727,12 +862,13 @@ const getUserMercadoLivreStatus = async (supabase: ReturnType<typeof createClien
     .limit(1)
     .maybeSingle();
 
-  const expiresAt = data?.expires_at ? new Date(String(data.expires_at)).getTime() : 0;
-  const tokenValid = Boolean(data?.access_token) && (!expiresAt || expiresAt > Date.now() + 60_000);
-  return { connected: Boolean(data?.access_token), tokenValid };
+  const integration = data as MercadoLivreIntegrationRow | null;
+  const expiresAt = integration?.expires_at ? new Date(String(integration.expires_at)).getTime() : 0;
+  const tokenValid = Boolean(integration?.access_token) && (!expiresAt || expiresAt > Date.now() + 60_000);
+  return { connected: Boolean(integration?.access_token), tokenValid };
 };
 
-const askBeginnerNiche = async (supabase: ReturnType<typeof createClient> | null): Promise<AtlasResponse> => {
+const askBeginnerNiche = async (supabase: ServiceClient): Promise<AtlasResponse> => {
   const signals = await researchMarketSignals(supabase);
   const disponiveis = nichosDisponiveis(signals);
   const suggestions = beginnerNicheSuggestions(disponiveis, 5);
@@ -747,13 +883,13 @@ const askBeginnerNiche = async (supabase: ReturnType<typeof createClient> | null
     if (destaques.length === 0) {
       return {
         message:
-          "Que bom te ver por aqui! 🎉 Vou te acompanhar passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 4: seu nicho**\n\nO catálogo não me respondeu agora, então vamos pelo caminho mais curto. Abra o catálogo e escolha um produto que te interesse. Eu sigo o guia a partir dele.",
+          "Claro! Vou te ajudar do começo ao fim. 🎉 A gente vai passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um facilita tudo depois, porque você aprende sobre um público só.\n\nVamos pelo caminho mais direto. Abra o catálogo, escolha um produto que te chame atenção, e eu monto o resto do guia em cima dele.",
         actions: [{ type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" }],
       };
     }
     return {
       message:
-        "Que bom te ver por aqui! 🎉 Vou te acompanhar passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um facilita tudo depois, porque você aprende sobre um público só.\n\nA lista de nichos não carregou agora. Em vez de te deixar garimpando no catálogo inteiro, separei as categorias que mais saem por aqui. Escolha uma e eu te levo ao catálogo já filtrado.",
+        "Claro! Vou te ajudar do começo ao fim. 🎉 A gente vai passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um facilita tudo depois, porque você aprende sobre um público só.\n\nSeparei as categorias que mais saem por aqui, assim você não precisa garimpar no catálogo inteiro. Escolha uma e eu te levo direto para os produtos dela.",
       actions: [
         ...destaques.map((categoria) => ({
           type: "navigation" as const,
@@ -768,7 +904,7 @@ const askBeginnerNiche = async (supabase: ReturnType<typeof createClient> | null
 
   return {
     message:
-      `Que bom te ver por aqui! 🎉 Vou te acompanhar passo a passo até o seu primeiro anúncio no ar, uma coisa de cada vez e sem pressa.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um agora facilita tudo depois. Você aprende sobre um público só e repete o que deu certo, em vez de começar do zero a cada produto novo.\n\nOlhei ${sourceLabel} e separei algumas opções que estão indo bem neste momento. Escolha uma, ou me diga outro nicho que você já tenha em mente. Você não precisa ficar preso a essa lista.`,
+      `Claro! Vou te ajudar do começo ao fim. 🎉 A gente vai passo a passo até o seu primeiro anúncio no ar, uma coisa de cada vez e sem pressa.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um agora facilita tudo depois. Você aprende sobre um público só e repete o que deu certo, em vez de começar do zero a cada produto novo.\n\nOlhei ${sourceLabel} e separei algumas opções que estão indo bem neste momento. Escolha uma, ou me diga outro nicho que você já tenha em mente. Você não precisa ficar preso a essa lista.`,
     actions: [
       ...suggestions.map((label) => quickReply(label, `Quero começar com ${label}`)),
       quickReply("Ainda não sei", "Ainda não sei qual nicho escolher"),
@@ -777,7 +913,7 @@ const askBeginnerNiche = async (supabase: ReturnType<typeof createClient> | null
 };
 
 const validateNicheStep = async (
-  supabase: ReturnType<typeof createClient> | null,
+  supabase: ServiceClient,
   niche: ValidatedNiche,
 ): Promise<AtlasResponse> => {
   const signal = await researchSingleNiche(niche, supabase);
@@ -804,11 +940,10 @@ const validateNicheStep = async (
 
   return {
     message:
-      `Boa escolha! Deixa eu te contar o que eu vi sobre esse nicho.\n\n**Passo 1 de 4: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\nEsse nicho tem ${demandText} e ${competitionText}. Demanda é quanta gente procura por esses produtos. Concorrência é quantos vendedores já disputam essa procura.\n\nNa prática: existe gente comprando. O que vai definir o seu resultado é escolher produtos com boa margem e fotos claras. Margem é o que sobra do preço depois de tirar o custo, a tarifa do marketplace e o frete.\n\n${signal.note}\n\nConfirma esse nicho para a gente seguir?`,
+      `Boa escolha! Deixa eu te contar o que eu vi sobre esse nicho.\n\n**Passo 1 de 4: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\nEsse nicho tem ${demandText} e ${competitionText}. Demanda é quanta gente procura por esses produtos. Concorrência é quantos vendedores já disputam essa procura.\n\nNa prática: existe gente comprando. O que vai definir o seu resultado é escolher produtos com boa margem e fotos claras. Margem é o que sobra do preço depois de tirar o custo, a tarifa do marketplace e o frete.\n\n${signal.note}\n\nÉ com esse nicho que a gente vai trabalhar. Vamos aos produtos.`,
     actions: [
-      quickReply("Sim, buscar produtos", `Sim, buscar produtos de ${niche.label}`),
-      quickReply("Ver outros nichos", "Quero ver outros nichos"),
-      quickReply("Vou digitar outro", "Quero escolher outro nicho"),
+      quickReply(`Vamos aos produtos`, `Sim, buscar produtos de ${niche.label}`),
+      quickReply("Quero outro nicho", "Quero ver outros nichos"),
     ],
   };
 };
@@ -838,7 +973,7 @@ const inferNicheFromConversation = (messages: ChatMessage[], fallbackText: strin
 };
 
 const showProductsForNiche = async (
-  supabase: ReturnType<typeof createClient> | null,
+  supabase: ServiceClient,
   niche: ValidatedNiche,
   excludeIds: string[] = [],
 ): Promise<AtlasResponse> => {
@@ -846,12 +981,8 @@ const showProductsForNiche = async (
   if (products.length === 0) {
     return {
       message:
-        `Procurei produtos de **${niche.label}** no catálogo da Velo e não achei uma opção boa agora. Prefiro te dizer isso a te empurrar um produto fraco.\n\nDá para testar outro nicho, ou abrir o catálogo e olhar você mesmo. Você escolhe.`,
-      actions: [
-        { type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" },
-        quickReply("Ver outros nichos", "Quero ver outros nichos"),
-        quickReply("Tentar outro termo", "Quero escolher outro nicho"),
-      ],
+        `Procurei produtos de **${niche.label}** no catálogo da Velo e não achei uma opção boa agora. Prefiro te dizer isso a te empurrar um produto fraco.\n\nVamos trocar de nicho. Eu te mostro o que o catálogo atende bem hoje e seguimos por ali.`,
+      actions: [quickReply("Ver outros nichos", "Quero ver outros nichos")],
     };
   }
 
@@ -862,7 +993,6 @@ const showProductsForNiche = async (
       ...products.map(productCardFromRow),
       quickReply("Quero o primeiro", "Quero o primeiro produto"),
       quickReply("Ver outras opções", "Ver outras opções de produto"),
-      quickReply("Mudar de nicho", "Mudar de nicho"),
     ],
   };
 };
@@ -874,12 +1004,8 @@ const showProductsForNiche = async (
 // a apresentar as duas opções e a pergunta vira uma escolha de verdade.
 const askSalesChannelStep = (niche: ValidatedNiche): AtlasResponse => ({
   message:
-    `Boa, **${niche.label}** fechado! Passo 1 concluído.\n\n**Passo 2 de 4: onde vender**\n\nVocê vai vender no **Mercado Livre**, e isso joga bastante a seu favor.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\nMais pra frente a gente conecta a sua conta de vendedor, e eu te acompanho nessa hora. Agora é só combinar o caminho.\n\nSeguimos pelo Mercado Livre?`,
-  actions: [
-    quickReply("Sim, Mercado Livre", "Sim, quero vender pelo Mercado Livre"),
-    quickReply("Tenho uma dúvida", "Tenho uma dúvida sobre vender no Mercado Livre"),
-    quickReply("Mudar de nicho", "Mudar de nicho"),
-  ],
+    `Boa, **${niche.label}** fechado! Passo 1 concluído.\n\n**Passo 2 de 4: onde vender**\n\nVocê vai vender no **Mercado Livre**. É o caminho mais curto até a sua primeira venda.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\nMais pra frente a gente conecta a sua conta de vendedor, e eu te acompanho nessa hora.\n\nAgora vamos escolher o seu produto.`,
+  actions: [quickReply("Vamos escolher o produto", "Sim, quero vender pelo Mercado Livre")],
 });
 
 // --- Passo 3: potencial de divulgação orgânica -------------------------------
@@ -945,18 +1071,16 @@ const validateSocialPotentialStep = (
 
   return {
     message:
-      `${prefacio ? `${prefacio}\n\n` : "Produto escolhido, você já está na metade do caminho!\n\n"}**Passo 3 de 4: potencial de divulgação**\n\nAntes de publicar, vale olhar uma coisa que quase ninguém olha no começo. O quanto esse produto se sustenta sozinho no TikTok e no Instagram.\n\nProduto bonito de ver e fácil de mostrar funcionando costuma render bem mais que produto genérico. O motivo é simples. O vídeo faz parte do trabalho de venda por você, sem você pagar por isso.\n\nMinha leitura de **${titulo}**: potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\nUm aviso honesto: isso é uma leitura do tipo de produto e do nicho, não uma medição das redes sociais. Quando quiser produzir esse conteúdo, os influencers de IA ficam em #tiktok e as fotos em #imagens-ia.\n\nVamos seguir com ele para a publicação?`,
+      `${prefacio ? `${prefacio}\n\n` : "Produto escolhido, você já está na metade do caminho!\n\n"}**Passo 3 de 4: potencial de divulgação**\n\nAntes de publicar, vale olhar uma coisa que quase ninguém olha no começo. O quanto esse produto se sustenta sozinho no TikTok e no Instagram.\n\nProduto bonito de ver e fácil de mostrar funcionando costuma render bem mais que produto genérico. O motivo é simples. O vídeo faz parte do trabalho de venda por você, sem você pagar por isso.\n\nMinha leitura de **${titulo}**: potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\nUm aviso honesto: isso é uma leitura do tipo de produto e do nicho, não uma medição das redes sociais. Quando quiser produzir esse conteúdo, os influencers de IA ficam em #tiktok e as fotos em #imagens-ia.\n\nVamos levar ele para a publicação.`,
     actions: [
       product,
-      quickReply("Sim, seguir com ele", "Sim, seguir com esse produto para publicação"),
-      quickReply("Ver outras opções", "Ver outras opções de produto"),
-      quickReply("Mudar de nicho", "Mudar de nicho"),
+      quickReply("Seguir para a publicação", "Sim, seguir com esse produto para publicação"),
     ],
   };
 };
 
 const guidePublicationStep = async (
-  supabase: ReturnType<typeof createClient> | null,
+  supabase: ServiceClient,
   userId: string,
   product: ProductCardAction,
   niche: ValidatedNiche | null,
@@ -979,7 +1103,6 @@ const guidePublicationStep = async (
         { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
         { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
         quickReply("Já conectei o ML", "Já conectei o Mercado Livre"),
-        quickReply("Ver outras opções", "Ver outras opções de produto"),
       ],
     };
   }
@@ -991,8 +1114,6 @@ const guidePublicationStep = async (
       { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
       { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
       { type: "navigation", label: "Ver Pedidos", route: "/dashboard/pedidos" },
-      quickReply("Ver outras opções", "Ver outras opções de produto"),
-      quickReply("Mudar de nicho", "Mudar de nicho"),
     ],
   };
 };
@@ -1019,7 +1140,7 @@ const safeImageUrl = (valor: unknown): string | null => {
  * nasce já amarrado ao produto certo, sem o usuário ter que descrevê-lo.
  */
 const guideProductChosenStep = async (
-  supabase: ReturnType<typeof createClient> | null,
+  supabase: ServiceClient,
   userId: string,
   produto: {
     id: string;
@@ -1043,7 +1164,7 @@ const guideProductChosenStep = async (
 
   return {
     message:
-      `Ótima escolha! 😄 Anotei aqui: **${produto.nome}**${preco ? ` (${preco})` : ""}, da categoria ${produto.categoria}. É com ele que a gente vai trabalhar daqui pra frente.\n\n**Passo 2 de 4: onde vender**\n\nVocê vai vender no **Mercado Livre**, e isso joga bastante a seu favor.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\n${sobreAConta}\n\n${mlPronto ? "Seguimos com esse produto?" : "Vamos conectar agora? É o que falta para o seu anúncio poder ir ao ar."}`,
+      `Ótima escolha! 😄 Anotei aqui: **${produto.nome}**${preco ? ` (${preco})` : ""}, da categoria ${produto.categoria}. É com ele que a gente vai trabalhar daqui pra frente.\n\n**Passo 2 de 4: onde vender**\n\nVocê vai vender no **Mercado Livre**. É o caminho mais curto até a sua primeira venda.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\n${sobreAConta}\n\n${mlPronto ? "Vamos seguir para o próximo passo." : "Agora vamos conectar a sua conta. É o que falta para o seu anúncio poder ir ao ar."}`,
     actions: [
       {
         type: "product_card",
@@ -1066,9 +1187,8 @@ const guideProductChosenStep = async (
             { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
           ] as AtlasAction[])),
       mlPronto
-        ? quickReply("Sim, seguir com ele", "Sim, quero seguir com esse produto")
-        : quickReply("Vamos conectar", "Quero conectar minha conta do Mercado Livre"),
-      quickReply("Quero outro produto", "Ver outras opções de produto"),
+        ? quickReply("Vamos seguir", "Sim, quero seguir com esse produto")
+        : quickReply("Conectar agora", "Quero conectar minha conta do Mercado Livre"),
     ],
   };
 };
@@ -1133,7 +1253,14 @@ const maybeHandleBeginnerGuide = async (
   // O guia se identifica pelo marcador "passo N de 4", presente em toda etapa.
   // Antes isso dependia do título "Guia de Iniciante"; qualquer mudança de texto
   // quebrava a continuidade e o fluxo caía no modelo genérico no meio do caminho.
-  const guideWasActive = /passo \d de 4/.test(lastAssistantText) || lastActions.some((action) => action.type === "quick_reply");
+  const guideWasActive = /passo \d de 4/.test(lastAssistantText);
+  const guideReply = isBeginnerGuideReply(lastUserMessage) || isBeginnerTrigger(lastUserMessage, userMessageCount);
+
+  // O guia é um modo de ajuda, não uma prisão. Se o usuário fizer conversa normal
+  // ou uma pergunta livre no meio dele, deixa o modelo responder como Atlas.
+  if (guideWasActive && (!guideReply || isConversationalAside(lastUserMessage))) {
+    return null;
+  }
 
   if (wantsChangeNiche(lastUserMessage) || (guideWasActive && wantsNoNicheHelp(lastUserMessage))) {
     return askBeginnerNiche(supabase);
@@ -1204,8 +1331,6 @@ const maybeHandleBeginnerGuide = async (
       actions: [
         ...(productNav ? [productNav] : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
         { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
-        quickReply("Ver outras opções", "Ver outras opções de produto"),
-        quickReply("Mudar de nicho", "Mudar de nicho"),
       ],
     };
   }
@@ -1325,6 +1450,10 @@ const mergeActions = (actions: AtlasAction[], extras: Array<AtlasAction | null>)
 
 const fallbackReply = (message: string): AtlasResponse => {
   const normalizedMessage = normalizeText(message);
+  if (isConversationalAside(message)) {
+    return conversationalAsideResponse();
+  }
+
   if (normalizedMessage.includes("anuncio") || normalizedMessage.includes("publica")) {
     return {
       message:
@@ -1375,7 +1504,7 @@ serve(async (req) => {
       return jsonResponse({ error: "Não autorizado" }, 401);
     }
 
-    const { messages, produtoSelecionado } = await req.json();
+    const { messages, produtoSelecionado, pageContext } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0) {
       return jsonResponse({ error: "messages obrigatório" }, 400);
     }
@@ -1388,7 +1517,15 @@ serve(async (req) => {
     const lastUserMessage = getLastUserMessage(normalizedMessages);
 
     if (isUnsafeRequest(lastUserMessage)) {
+      registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "recusa" });
       return jsonResponse(refusalResponse());
+    }
+
+    // Conversa normal não deve passar pelo roteador determinístico nem pelo modelo
+    // com o preset antigo no histórico, senão "oi atlas" vira menu operacional.
+    if (isConversationalAside(lastUserMessage)) {
+      registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "conversa_solta" });
+      return jsonResponse(conversationalAsideResponse());
     }
 
     const produtoDoCatalogo =
@@ -1408,6 +1545,11 @@ serve(async (req) => {
       produtoDoCatalogo,
     );
     if (beginnerGuideResponse) {
+      registrarUso({
+        userId: authenticatedUserId,
+        origem: "codigo",
+        etapa: etapaDaRespostaDoGuia(beginnerGuideResponse),
+      });
       return jsonResponse(beginnerGuideResponse);
     }
 
@@ -1415,8 +1557,22 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const navAction = resolveNavigationAction(lastUserMessage);
     const productAction = await fetchProductCardAction(lastUserMessage);
+    const paginaAtual =
+      pageContext && typeof pageContext === "object"
+        ? (pageContext as PageContext)
+        : null;
+    const pageContextMessage =
+      paginaAtual?.nome || paginaAtual?.rota
+        ? `Contexto atual da interface: o usuário está em ${paginaAtual.nome ?? "uma tela da Velo"} (${paginaAtual.rota ?? "rota não informada"}). Use isso apenas se ajudar a responder a última mensagem.`
+        : null;
 
     if (!LOVABLE_API_KEY) {
+      registrarUso({
+        userId: authenticatedUserId,
+        origem: "codigo",
+        etapa: "fallback_sem_chave",
+        erro: "LOVABLE_API_KEY ausente",
+      });
       const fallback = fallbackReply(lastUserMessage);
       return jsonResponse({
         ...fallback,
@@ -1424,6 +1580,7 @@ serve(async (req) => {
       });
     }
 
+    const inicioDaChamada = Date.now();
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -1431,9 +1588,10 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: MODELO_DO_ATLAS,
         messages: [
           { role: "system", content: buildAtlasSystemPrompt() },
+          ...(pageContextMessage ? [{ role: "system" as const, content: pageContextMessage }] : []),
           ...safeMessagesForModel,
         ],
         temperature: 0.35,
@@ -1444,6 +1602,14 @@ serve(async (req) => {
     if (!resp.ok) {
       const text = await resp.text();
       console.error("atlas-chat gateway error", resp.status, text);
+      registrarUso({
+        userId: authenticatedUserId,
+        origem: "codigo",
+        etapa: "fallback_gateway",
+        modelo: MODELO_DO_ATLAS,
+        duracaoMs: Date.now() - inicioDaChamada,
+        erro: `gateway ${resp.status}`,
+      });
       const fallback = fallbackReply(lastUserMessage);
       return jsonResponse({
         ...fallback,
@@ -1452,6 +1618,16 @@ serve(async (req) => {
     }
 
     const data = await resp.json();
+    // Único ponto do fluxo em que o texto vem do modelo, e o único que custa.
+    registrarUso({
+      userId: authenticatedUserId,
+      origem: "modelo",
+      etapa: "pergunta_livre",
+      modelo: MODELO_DO_ATLAS,
+      uso: lerUsoDoModelo(data),
+      duracaoMs: Date.now() - inicioDaChamada,
+    });
+
     const rawMessage: string =
       data.choices?.[0]?.message?.content ||
       "Desculpe, não consegui processar agora. Tente reformular sua pergunta.";
@@ -1463,6 +1639,12 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("atlas-chat error", err);
+    registrarUso({
+      userId: null,
+      origem: "codigo",
+      etapa: "erro",
+      erro: err instanceof Error ? err.message.slice(0, 300) : "erro desconhecido",
+    });
     return jsonResponse(
       {
         message:

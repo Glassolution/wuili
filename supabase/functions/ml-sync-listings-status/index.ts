@@ -12,7 +12,51 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-type Pub = { id: string; user_id: string; ml_item_id: string; status: string };
+type Pub = { id: string; user_id: string; ml_item_id: string; status: string; title: string | null };
+
+function notificationForPublicationStatus(remote: string) {
+  const normalized = remote.toLowerCase();
+  if (normalized === "paused" || normalized === "inactive" || normalized === "under_review") {
+    return {
+      type: "product_paused",
+      title: "Produto pausado",
+      verb: "foi pausado",
+    };
+  }
+  if (normalized === "active" || normalized === "published") {
+    return {
+      type: "product_activated",
+      title: "Produto ativado",
+      verb: "voltou a ficar ativo",
+    };
+  }
+  return null;
+}
+
+async function notifyPublicationStatus(
+  supabase: ReturnType<typeof createClient>,
+  publication: Pub,
+  remote: string,
+) {
+  const notification = notificationForPublicationStatus(remote);
+  if (!notification) return;
+
+  const productTitle = publication.title?.trim() || publication.ml_item_id;
+  const { error } = await supabase.from("notifications").insert({
+    user_id: publication.user_id,
+    type: notification.type,
+    title: notification.title,
+    message: `${productTitle} ${notification.verb}.`,
+    action_url: "/dashboard/publicacoes",
+    metadata: {
+      publication_id: publication.id,
+      ml_item_id: publication.ml_item_id,
+      previous_status: publication.status,
+      current_status: remote,
+    },
+  });
+  if (error) console.warn("[ml-sync-listings-status] falha ao criar notificacao:", error.message);
+}
 
 async function getFreshToken(
   supabase: ReturnType<typeof createClient>,
@@ -74,7 +118,7 @@ Deno.serve(async (req) => {
   try {
     const { data: rows, error } = await supabase
       .from("user_publications")
-      .select("id, user_id, ml_item_id, status")
+      .select("id, user_id, ml_item_id, status, title")
       .neq("status", "archived_duplicate")
       .not("ml_item_id", "is", null);
 
@@ -140,7 +184,10 @@ Deno.serve(async (req) => {
                 .from("user_publications")
                 .update({ status: remote, updated_at: new Date().toISOString() })
                 .eq("id", local.id);
-              if (!upErr) uUpdated++;
+              if (!upErr) {
+                uUpdated++;
+                await notifyPublicationStatus(supabase, local, remote);
+              }
             }
           }
         } catch (e) {

@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 
 type AffiliateRow = {
   affiliate_user_id: string;
@@ -254,11 +255,7 @@ const AdminCommissionsPage = () => {
   }, [affiliates]);
 
   if (loadingAuth) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
-      </div>
-    );
+    return <VeloLoadingScreen message="Carregando afiliados..." />;
   }
 
   if (!user) return <Navigate to="/login" replace />;

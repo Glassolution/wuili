@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -25,7 +25,7 @@ const slideDown = {
   initial: { opacity: 0, y: -8, height: 0 },
   animate: { opacity: 1, y: 0, height: "auto" },
   exit: { opacity: 0, y: -8, height: 0 },
-  transition: { duration: 0.38, ease },
+  transition: { duration: 0.34, ease },
 };
 
 /* ─── Google SVG ──────────────────────────────────────────────────────────── */
@@ -38,35 +38,32 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const getPanelCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
+/* ─── Painel da direita ───────────────────────────────────────────────────── */
+// Print do dashboard salvo em public/. O nome tem espaço, por isso o %20.
+const SHOWCASE_IMAGE = "/login%202.png";
+
+const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
   if (resetMode) {
     return {
-      badge: "Recuperação",
-      title: "Recupere seu acesso.",
-      description: "Enviaremos um link para redefinir sua senha e voltar para a operação da Velo.",
+      title: "Recupere seu acesso",
+      subtitle: "Enviaremos um link para você redefinir a senha e voltar para a Velo.",
     };
   }
-
   if (step === "signup") {
     return {
-      badge: "Nova conta",
-      title: "Comece sua operação.",
-      description: "Crie sua conta e entre na Velo para descobrir produtos, pedidos e publicações em um só lugar.",
+      title: "Crie sua conta Velo",
+      subtitle: "Só falta o essencial para começar a vender sem estoque.",
     };
   }
-
   if (step === "login") {
     return {
-      badge: "Entrar",
-      title: "Volte para a Velo.",
-      description: "Continue de onde parou com a mesma conta usada para acessar o seu dashboard.",
+      title: "Bem-vindo de volta",
+      subtitle: "Entre com a sua senha para continuar de onde parou.",
     };
   }
-
   return {
-    badge: "Acesso",
-    title: "Entre ou crie sua conta.",
-    description: "Use seu e-mail para continuar. A Velo identifica se você já possui acesso ou se precisa criar uma conta.",
+    title: "Entre na Velo",
+    subtitle: "Use seu e-mail para continuar. A gente identifica se você já tem conta.",
   };
 };
 
@@ -74,6 +71,7 @@ const getPanelCopy = (step: "initial" | "login" | "signup", resetMode: boolean) 
 const LoginPage = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
 
   const [step, setStep]                   = useState<"initial" | "login" | "signup">("initial");
   const [email, setEmail]                 = useState("");
@@ -177,7 +175,6 @@ const LoginPage = () => {
     setLoading(false);
   };
 
-
   const handleReset = async (e: FormEvent) => {
     e.preventDefault();
     if (!email.trim()) { veloToast.error("Digite seu email"); return; }
@@ -202,241 +199,196 @@ const LoginPage = () => {
     setStep(exists ? "login" : "signup");
   };
 
-  useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 350); }, [step]);
-  useEffect(() => { if (step === "signup") setTimeout(() => nomeRef.current?.focus(), 350);     }, [step]);
+  useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 320); }, [step]);
+  useEffect(() => { if (step === "signup") setTimeout(() => nomeRef.current?.focus(), 320);     }, [step]);
 
   if (!authLoading && user && !loading && !googleLoading) return <Navigate to="/dashboard" replace />;
 
-  const copy = getPanelCopy(step, resetMode);
+  const copy = getCopy(step, resetMode);
   const inputCls =
-    "h-[44px] w-full rounded-[4px] border border-white/[0.06] bg-white/[0.06] px-3 text-[13px] font-[400] text-white/92 outline-none transition placeholder:text-white/22 focus:border-white/[0.14] focus:bg-white/[0.08]";
-  const subtleBtnCls =
-    "inline-flex h-[36px] min-w-[116px] items-center justify-center rounded-[4px] bg-[#f3efe8] px-5 text-[12px] font-[500] text-black transition hover:bg-white disabled:opacity-50";
+    "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
+  const primaryBtnCls =
+    "inline-flex h-[52px] w-full items-center justify-center rounded-[10px] bg-[#2563EB] text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:text-white";
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[#000000] text-white"
-      style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
+      // Desliga o relevo "Pilot" dos botões sólidos (index.css): aqui o botão é
+      // chapado. Sem isto o `hover:bg-[#1D4ED8]` casa com `button[class*="bg-[#1"]`
+      // e o brilho volta pelo CSS global.
+      data-velo-flat-buttons
+      className="flex min-h-screen bg-white text-[#0F172A]"
+      style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif' }}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.04),transparent_34%),#000000]" />
-
-      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-7 py-7 sm:px-10 lg:px-24">
-        <Link to="/" className="inline-flex items-center gap-2.5 text-white">
-          <svg width="28" height="28" viewBox="0 0 48 48" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
-            <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" />
-            <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-[17px] font-[700] tracking-[-0.04em] text-white">Velo</span>
+      {/* ── Coluna do formulário ─────────────────────────────────────────── */}
+      <div className="flex w-full flex-col px-6 py-10 sm:px-12 lg:w-1/2 lg:px-16 lg:py-12">
+        <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
+          <img src="/logo.png" alt="Velo" className="h-11 w-11 rounded-[13px]" />
         </Link>
-        <Link
-          to="/"
-          className="inline-flex h-[28px] items-center rounded-[4px] bg-white/[0.08] px-3 text-[11px] font-[500] text-white/78 transition hover:bg-white/[0.12] hover:text-white"
-        >
-          Fechar
-        </Link>
-      </header>
 
-      <section className="relative z-10 flex min-h-screen items-center justify-center px-6 py-16 sm:px-10 lg:px-20">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease }}
-          className="grid w-full max-w-[250px] items-start gap-10 md:w-auto md:max-w-none md:grid-cols-[250px_1px_250px] md:gap-8"
-        >
-          <div className="flex min-h-[250px] flex-col md:pr-4">
-            <div className="inline-flex w-fit items-center gap-2 text-[14px] font-[600] tracking-[-0.04em] text-white">
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 48 48"
-                fill="none"
-                aria-hidden="true"
-                className="shrink-0"
-              >
-                <path d="M33 18 A11 11 0 1 0 33 30" stroke="#FFFFFF" strokeWidth="3.5" strokeLinecap="round" />
-                <path d="M30 26 L34 30 L38 26" stroke="#FFFFFF" strokeWidth="3.1" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Velo</span>
-              <span className="rounded-full border border-white/[0.08] bg-[#12234a] px-2 py-[2px] text-[9px] font-[700] uppercase tracking-[0.1em] text-[#93b4ff]">
-                {copy.badge}
-              </span>
-            </div>
-            <h1 className="mt-4 max-w-[238px] text-[42px] font-[400] leading-[1.02] tracking-[-0.055em] text-white sm:text-[48px]">
+        <div className="flex flex-1 items-center py-12">
+          <div className="mx-auto w-full max-w-[420px]">
+            <h1 className="text-[26px] font-bold leading-[1.2] tracking-[-0.025em] text-[#0F172A]">
               {copy.title}
             </h1>
-            <p className="mt-5 max-w-[258px] text-[15px] font-[400] leading-[1.55] text-white/70">
-              {copy.description}
-            </p>
-            <p className="mt-5 max-w-[258px] text-[14px] font-[400] leading-[1.6] text-white/54">
-              Entre para centralizar catálogo, pedidos e publicações com a identidade da Velo.
-            </p>
-          </div>
+            <p className="mt-2 text-[14px] leading-[1.55] text-[#64748B]">{copy.subtitle}</p>
 
-          <div className="hidden h-full min-h-[250px] w-px bg-white/[0.08] md:block" />
+            {!resetMode && step === "initial" && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={googleLoading}
+                  className="mt-7 inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60"
+                >
+                  <GoogleIcon />
+                  {googleLoading ? "Conectando..." : "Continuar com Google"}
+                </button>
 
-          <div className="w-full md:pl-2">
-            <div className="w-full max-w-[250px]">
-              {resetMode ? (
-                <form onSubmit={handleReset} className="space-y-4">
-                  <Field label="E-mail">
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      placeholder="seuemail@exemplo.com"
-                      className={inputCls}
-                    />
-                  </Field>
+                <div className="my-6 flex items-center gap-4">
+                  <span className="h-px flex-1 bg-[#E9EDF3]" />
+                  <span className="text-[13px] text-[#94A3B8]">ou entre com e-mail</span>
+                  <span className="h-px flex-1 bg-[#E9EDF3]" />
+                </div>
+              </>
+            )}
 
-                  <AgreementText />
-
-                  <div className="flex justify-center pt-1">
-                    <button type="submit" disabled={loading} className={subtleBtnCls}>
-                      {loading ? "Enviando..." : "Enviar link"}
-                    </button>
-                  </div>
-
-                  <div className="pt-1 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setResetMode(false)}
-                      className="text-[11.5px] font-[400] text-white/48 transition hover:text-white/78"
-                    >
-                      Voltar
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-4">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (step === "initial") void handleEmailContinue();
-                    }}
-                    className="space-y-4"
+            {resetMode ? (
+              <form onSubmit={handleReset} className="mt-7 space-y-4">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="Endereço de e-mail"
+                  className={inputCls}
+                />
+                <button type="submit" disabled={loading} className={primaryBtnCls}>
+                  {loading ? "Enviando..." : "Enviar link de recuperação"}
+                </button>
+                <p className="text-center text-[14px] text-[#64748B]">
+                  <button
+                    type="button"
+                    onClick={() => setResetMode(false)}
+                    className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                   >
-                    <Field label="Endereço de e-mail">
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="seuemail@exemplo.com"
-                        readOnly={step !== "initial"}
-                        className={`${inputCls} ${step !== "initial" ? "cursor-default text-white/48" : ""}`}
-                      />
-                    </Field>
+                    Voltar para o login
+                  </button>
+                </p>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (step === "initial") void handleEmailContinue();
+                  }}
+                  className="space-y-4"
+                >
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Endereço de e-mail"
+                    readOnly={step !== "initial"}
+                    className={`${inputCls} ${step !== "initial" ? "cursor-default bg-[#F8FAFC] text-[#64748B]" : ""}`}
+                  />
 
-                    {step === "initial" && (
-                      <>
-                        <AgreementText />
-                        <div className="flex justify-center pt-1">
-                          <button type="submit" disabled={checkingEmail} className={subtleBtnCls}>
-                            {checkingEmail ? "Verificando..." : "Continuar"}
+                  {step === "initial" && (
+                    <button type="submit" disabled={checkingEmail} className={primaryBtnCls}>
+                      {checkingEmail ? "Verificando..." : "Continuar"}
+                    </button>
+                  )}
+                </form>
+
+                <AnimatePresence mode="wait">
+                  {step === "login" && (
+                    <motion.form
+                      key="login"
+                      {...(reduceMotion ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : slideDown)}
+                      onSubmit={handleSignIn}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <input
+                            ref={passwordRef}
+                            type={showPw ? "text" : "password"}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            placeholder="Senha"
+                            className={`${inputCls} pr-11`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPw((c) => !c)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] transition hover:text-[#0F172A]"
+                            aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                          >
+                            {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                           </button>
                         </div>
-                      </>
-                    )}
-                  </form>
 
-                  <AnimatePresence mode="wait">
-                    {step === "login" && (
-                      <motion.form key="login" {...slideDown} onSubmit={handleSignIn} className="overflow-hidden">
-                        <div className="space-y-4">
-                          <Field label="Senha">
-                            <div className="relative">
-                              <input
-                                ref={passwordRef}
-                                type={showPw ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                placeholder="Digite sua senha"
-                                className={`${inputCls} pr-10`}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowPw((c) => !c)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/34 transition hover:text-white/74"
-                              >
-                                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
-                              </button>
-                            </div>
-                          </Field>
+                        <button
+                          type="button"
+                          onClick={() => setResetMode(true)}
+                          className="text-[14px] font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                        >
+                          Esqueceu a senha?
+                        </button>
 
-                          <AgreementText />
+                        <button type="submit" disabled={loading} className={primaryBtnCls}>
+                          {loading ? "Entrando..." : "Entrar"}
+                        </button>
+                      </div>
+                    </motion.form>
+                  )}
 
-                          <div className="flex justify-center pt-1">
-                            <button type="submit" disabled={loading} className={subtleBtnCls}>
-                              {loading ? "Entrando..." : "Entrar"}
-                            </button>
-                          </div>
+                  {step === "signup" && (
+                    <motion.form
+                      key="signup"
+                      {...(reduceMotion ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : slideDown)}
+                      onSubmit={handleSignUp}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-4">
+                        <input
+                          ref={nomeRef}
+                          type="text"
+                          value={nome}
+                          onChange={(e) => setNome(e.target.value)}
+                          required
+                          placeholder="Nome completo"
+                          className={inputCls}
+                        />
 
-                          <div className="flex items-center justify-between pt-1 text-[11.5px] text-white/42">
-                            <button
-                              type="button"
-                              onClick={() => setResetMode(true)}
-                              className="transition hover:text-white/72"
-                            >
-                              Esqueci a senha
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setStep("initial");
-                                setPassword("");
-                              }}
-                              className="transition hover:text-white/72"
-                            >
-                              Trocar e-mail
-                            </button>
-                          </div>
+                        <div className="relative">
+                          <input
+                            type={showPw ? "text" : "password"}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            placeholder="Senha com 8+ caracteres"
+                            className={`${inputCls} pr-11`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPw((c) => !c)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] transition hover:text-[#0F172A]"
+                            aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                          >
+                            {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                          </button>
                         </div>
-                      </motion.form>
-                    )}
 
-                    {step === "signup" && (
-                      <motion.form key="signup" {...slideDown} onSubmit={handleSignUp} className="overflow-hidden">
-                        <div className="space-y-4">
-                          <Field label="Nome completo">
-                            <input
-                              ref={nomeRef}
-                              type="text"
-                              value={nome}
-                              onChange={(e) => setNome(e.target.value)}
-                              required
-                              placeholder="Digite seu nome"
-                              className={inputCls}
-                            />
-                          </Field>
-
-                          <Field label="Senha">
-                            <div className="relative">
-                              <input
-                                type={showPw ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                placeholder="Mínimo de 8 caracteres"
-                                className={`${inputCls} pr-10`}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowPw((c) => !c)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/34 transition hover:text-white/74"
-                              >
-                                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
-                              </button>
-                            </div>
-                          </Field>
-
+                        <div className="space-y-2.5 pt-1">
                           <LegalCheckbox
                             checked={acceptTerms}
                             onChange={setAcceptTerms}
                             label={
                               <>
                                 Li e aceito os{" "}
-                                <Link to="/termos" target="_blank" className="text-white/85 underline decoration-white/25 underline-offset-2 hover:text-white">
+                                <Link to="/termos" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Termos de Uso
                                 </Link>
                               </>
@@ -448,84 +400,94 @@ const LoginPage = () => {
                             label={
                               <>
                                 Li e aceito a{" "}
-                                <Link to="/privacidade" target="_blank" className="text-white/85 underline decoration-white/25 underline-offset-2 hover:text-white">
+                                <Link to="/privacidade" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Política de Privacidade
                                 </Link>
                               </>
                             }
                           />
-
-                          <div className="flex justify-center pt-1">
-                            <button
-                              type="submit"
-                              disabled={loading || !acceptTerms || !acceptPrivacy}
-                              className={`${subtleBtnCls} disabled:cursor-not-allowed disabled:opacity-50`}
-                            >
-                              {loading ? "Criando..." : "Criar conta"}
-                            </button>
-                          </div>
-
-                          <div className="pt-1 text-center">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setStep("initial");
-                                setNome("");
-                                setPassword("");
-                              }}
-                              className="text-[11.5px] font-[400] text-white/42 transition hover:text-white/72"
-                            >
-                              Trocar e-mail
-                            </button>
-                          </div>
                         </div>
-                      </motion.form>
-                    )}
-                  </AnimatePresence>
 
-                  {step === "initial" && (
-                    <div className="pt-2 text-center">
+                        <button
+                          type="submit"
+                          disabled={loading || !acceptTerms || !acceptPrivacy}
+                          className={primaryBtnCls}
+                        >
+                          {loading ? "Criando conta..." : "Criar conta grátis"}
+                        </button>
+                      </div>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
+
+                <p className="pt-2 text-center text-[14px] text-[#64748B]">
+                  {step === "initial" ? (
+                    <>Ainda não tem conta? É só continuar com seu e-mail.</>
+                  ) : (
+                    <>
+                      {step === "login" ? "Não é você?" : "Já tem uma conta?"}{" "}
                       <button
                         type="button"
-                        onClick={handleGoogleLogin}
-                        disabled={googleLoading}
-                        className="inline-flex items-center justify-center gap-2 text-[11.5px] font-[400] text-white/46 transition hover:text-white/78 disabled:opacity-40"
+                        onClick={() => {
+                          setStep("initial");
+                          setPassword("");
+                          setNome("");
+                        }}
+                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                       >
-                        <GoogleIcon />
-                        {googleLoading ? "Conectando..." : "Continuar com Google"}
+                        Trocar e-mail
                       </button>
-                    </div>
+                    </>
                   )}
-                </div>
-              )}
-            </div>
+                </p>
+              </div>
+            )}
           </div>
-        </motion.div>
-      </section>
+        </div>
+
+        <p className="text-center text-[12.5px] text-[#94A3B8] lg:text-left">
+          Ao continuar, você concorda com a{" "}
+          <Link to="/privacidade" className="text-[#64748B] underline underline-offset-2 hover:text-[#0F172A]">
+            Política de Privacidade
+          </Link>{" "}
+          e os{" "}
+          <Link to="/termos" className="text-[#64748B] underline underline-offset-2 hover:text-[#0F172A]">
+            Termos de Uso
+          </Link>
+          .
+        </p>
+      </div>
+
+      {/* ── Coluna da vitrine ────────────────────────────────────────────── */}
+      <aside className="hidden w-1/2 flex-col overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] pb-14 pt-14 lg:flex">
+        {/* Sem moldura: a própria imagem já traz o card e o canto arredondado.
+            A área da imagem ocupa o espaço que sobra (flex-1) em vez de uma
+            altura fixa — assim a legenda nunca sobe por cima do print. */}
+        <div className="relative min-h-0 flex-1 pl-14">
+          <motion.img
+            src={SHOWCASE_IMAGE}
+            alt="Painel da Velo"
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease }}
+            // `h-full` é obrigatório: <img> é elemento substituído e ignora o
+            // esticar de `inset-y-0`, assumindo a altura intrínseca e vazando.
+            className="absolute inset-y-0 left-14 h-full w-[calc(100%+40px)] object-cover object-left-top"
+          />
+        </div>
+
+        <div className="mt-10 shrink-0 px-16 text-center">
+          <h2 className="text-[22px] font-bold tracking-[-0.025em] text-[#0F172A]">
+            Tudo da sua operação em um lugar
+          </h2>
+          <p className="mx-auto mt-3 max-w-[440px] text-[14px] leading-[1.6] text-[#64748B]">
+            Catálogo, pedidos e publicações no mesmo painel, sem planilha e sem estoque parado.
+          </p>
+        </div>
+      </aside>
     </main>
   );
 };
-
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <label className="block">
-    <span className="mb-2 block text-[10px] font-[400] tracking-[-0.01em] text-white/38">{label}</span>
-    {children}
-  </label>
-);
-
-const AgreementText = () => (
-  <p className="max-w-[320px] text-[10px] font-[400] leading-[1.55] text-white/42">
-    Ao continuar, você concorda com a{" "}
-    <Link to="/privacidade" className="text-white/62 underline decoration-white/18 underline-offset-2 transition hover:text-white">
-      Política de Privacidade
-    </Link>{" "}
-    e com os{" "}
-    <Link to="/termos" className="text-white/62 underline decoration-white/18 underline-offset-2 transition hover:text-white">
-      Termos de Uso
-    </Link>
-    .
-  </p>
-);
 
 const LegalCheckbox = ({
   checked,
@@ -536,16 +498,16 @@ const LegalCheckbox = ({
   onChange: (v: boolean) => void;
   label: React.ReactNode;
 }) => (
-  <label className="flex cursor-pointer items-start gap-2.5 text-[11.5px] font-[400] leading-[1.55] text-white/62">
-    <span className="relative mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center">
+  <label className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-[1.5] text-[#64748B]">
+    <span className="relative mt-[1px] flex h-4 w-4 shrink-0 items-center justify-center">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="peer h-4 w-4 cursor-pointer appearance-none rounded-[3px] border border-white/25 bg-white/5 transition checked:border-white checked:bg-white"
+        className="peer h-4 w-4 cursor-pointer appearance-none rounded-[4px] border border-[#CBD5E1] bg-white transition checked:border-[#2563EB] checked:bg-[#2563EB]"
       />
       {checked && (
-        <svg viewBox="0 0 12 12" className="pointer-events-none absolute h-2.5 w-2.5 text-[#0a0a0a]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 12 12" className="pointer-events-none absolute h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="2.5,6.5 5,9 9.5,3.5" />
         </svg>
       )}

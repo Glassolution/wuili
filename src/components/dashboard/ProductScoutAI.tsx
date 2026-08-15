@@ -18,7 +18,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice, type Product } from "@/components/dashboard/ProductCard";
 import AquasIcon from "@/components/dashboard/AquasIcon";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useProfile } from "@/lib/profileContext";
 
 export type AtlasResults = {
@@ -361,6 +363,7 @@ const ProductScoutAI = ({
   immersive = false
 }: ProductScoutAIProps) => {
   const { user } = useAuth();
+  const { abrirLateral } = useAtlasChat();
   const { nome: profileName } = useProfile();
   const [localOpen, setLocalOpen] = useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : localOpen;
@@ -386,7 +389,6 @@ const ProductScoutAI = ({
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const footerInputRef = useRef<HTMLInputElement>(null);
-  const triggerButtonRef = useRef<HTMLButtonElement>(null);
   const nextScrollBehaviorRef = useRef<"top" | "bottom">("bottom");
   const lastInitialPromptRef = useRef("");
 
@@ -396,15 +398,6 @@ const ProductScoutAI = ({
 
   const handleChatInputChange = (val: string) => {
     setChatInput(val);
-  };
-
-  const openPanel = () => {
-    setOpen(true);
-    setChatMode(false);
-    setChatMessages([]);
-    setChatInput("");
-    setCustomPrompt("");
-    setLastSuggestedProducts([]);
   };
 
   const close = useCallback(() => {
@@ -1139,17 +1132,16 @@ const ProductScoutAI = ({
       <Styles />
       {showTriggerButton && (
         <button
-          ref={triggerButtonRef}
           type="button"
-          onClick={openPanel}
+          onClick={abrirLateral}
           disabled={busy}
           data-dashboard-tour="catalogo-atlas"
-          className="group inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-[#050505] px-5 text-[13px] font-semibold tracking-[-0.01em] text-white shadow-[0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.09)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-black disabled:cursor-wait disabled:opacity-70"
+          className="group grid h-10 w-10 place-items-center rounded-full bg-transparent text-[#2563EB] transition-transform duration-200 hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70"
+          aria-label="Abrir conversa com o Atlas"
         >
-          <span className="grid h-6 w-6 place-items-center rounded-full text-white transition-transform duration-300 group-hover:-rotate-12">
-            <AquasIcon size={24} inverted />
+          <span className="grid h-9 w-9 place-items-center rounded-full transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-105">
+            <AtlasAvatarIcon size={28} />
           </span>
-          Aquas
         </button>
       )}
 

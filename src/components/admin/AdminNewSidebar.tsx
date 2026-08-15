@@ -1,90 +1,103 @@
-import { useEffect, useState, type ElementType } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft,
+  BadgeDollarSign,
+  Building2,
   ChevronDown,
-  DollarSign,
-  Headset,
+  FileSearch,
   LayoutDashboard,
+  LogOut,
+  type LucideIcon,
+  MessagesSquare,
+  Minus,
+  PackageSearch,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
   RefreshCcw,
   Search,
   ShoppingBag,
-  Users as UsersIcon,
+  UsersRound,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import SearchPalette from "@/components/dashboard/SearchPalette";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sidebar do admin — reconstruída do zero com as proporções da referência
-// (Polar). Diferenças-chave em relação à versão anterior:
-//  • Largura 272px (antes 248) e mais respiro horizontal interno.
-//  • Fundo neutro near-black com divisória sutil à direita (antes um card
-//    quente #171714 emoldurado).
-//  • Nav items 40px de altura, ícones 18px em cinza apagado (antes 32px / 16px
-//    brancos), texto 14px; item ativo com fundo sutil translúcido, sem sombra.
-//  • Card de usuário mais arredondado e com padding maior.
-//  • Busca no rodapé como caixa "bordada" (estilo docs), não um box inset.
-// ─────────────────────────────────────────────────────────────────────────────
-
 type NavItem = {
   label: string;
-  icon: ElementType;
+  icon: LucideIcon;
   to: string;
   badge?: number;
 };
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, to: "/admin/painel" },
-  { label: "Suporte", icon: Headset, to: "/admin/suporte" },
-  { label: "Usuários & times", icon: UsersIcon, to: "/admin/usuarios" },
-  { label: "Comissões", icon: DollarSign, to: "/admin/comissoes" },
-  { label: "Reembolsos", icon: RefreshCcw, to: "/admin/reembolsos" },
-  { label: "AliExpress", icon: ShoppingBag, to: "/admin/aliexpress" },
-];
+type NavGroup = {
+  id: "overview" | "operation" | "finance" | "control";
+  label: string;
+  indicator: "chevron" | "plus";
+  items: NavItem[];
+};
+
+const SIDEBAR_GROUPS_STORAGE_KEY = "velo:admin-sidebar-open-groups";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "velo:admin-sidebar-collapsed";
+const DEFAULT_OPEN_GROUPS = ["overview", "operation"];
+
+const getStoredCollapsed = () => {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
+};
+
+const getStoredOpenGroups = () => {
+  if (typeof window === "undefined") return new Set(DEFAULT_OPEN_GROUPS);
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(SIDEBAR_GROUPS_STORAGE_KEY) ?? "null");
+    if (!Array.isArray(stored)) return new Set(DEFAULT_OPEN_GROUPS);
+    return new Set(stored.filter((value): value is NavGroup["id"] =>
+      ["overview", "operation", "finance", "control"].includes(String(value)),
+    ));
+  } catch {
+    return new Set(DEFAULT_OPEN_GROUPS);
+  }
+};
 
 const getInitials = (name: string, email?: string | null) => {
   const raw = (name || email || "Velo").trim();
-  const parts = raw.split(/[\s._@-]+/).filter(Boolean);
-  return parts
+  return raw
+    .split(/[\s._@-]+/)
+    .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0])
     .join("")
     .toUpperCase();
 };
 
-const VeloIconOnly = () => (
-  <svg aria-hidden="true" width="26" height="26" viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }}>
-    <path d="M33 18 A11 11 0 1 0 33 30" stroke="#F2F1EC" strokeWidth="4" strokeLinecap="round" />
-    <path d="M30 26 L34 30 L38 26" stroke="#F2F1EC" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) => {
+const SidebarNavLink = ({ item, active, collapsed = false }: { item: NavItem; active: boolean; collapsed?: boolean }) => {
   const Icon = item.icon;
   return (
     <Link
       to={item.to}
+      title={collapsed ? item.label : undefined}
       aria-current={active ? "page" : undefined}
-      className={`group flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] tracking-[-0.005em] transition-colors ${
+      className={`group relative flex h-11 items-center rounded-[10px] text-[13px] font-medium tracking-[-0.015em] no-underline transition-colors ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${
         active
-          ? "bg-white/[0.045] font-normal text-white"
-          : "font-normal text-white/55 hover:bg-white/[0.03] hover:text-white/85"
+          ? "bg-white text-[#171715] shadow-[0_1px_2px_rgba(25,25,20,0.07),0_7px_20px_rgba(25,25,20,0.025)]"
+          : "text-[#686862] hover:bg-white/75 hover:text-[#171715]"
       }`}
     >
-      <Icon
-        size={15}
-        strokeWidth={1.5}
-        aria-hidden="true"
-        className={active ? "text-white/85" : "text-white/40 group-hover:text-white/65"}
-      />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
-      {item.badge ? (
-        <span
-          aria-label={`${item.badge} tickets abertos`}
-          className="ml-auto inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-white/[0.08] px-1.5 text-[10px] font-medium text-white/70"
-        >
+      <span
+        className={`grid h-7 w-7 shrink-0 place-items-center rounded-[8px] transition-colors ${
+          active
+            ? "bg-[#f0f1ef] text-[#262623]"
+            : "text-[#8a8a84] group-hover:bg-[#f1f1ee] group-hover:text-[#353532]"
+        }`}
+      >
+        <Icon size={16.5} strokeWidth={active ? 1.9 : 1.65} />
+      </span>
+      {!collapsed ? <span className="min-w-0 flex-1 truncate">{item.label}</span> : null}
+      {item.badge && item.badge > 0 ? (
+        <span className={`inline-flex items-center justify-center rounded-full bg-[#20201e] font-semibold text-white ${collapsed ? "absolute right-0.5 top-0.5 h-4 min-w-4 px-1 text-[8px]" : "h-5 min-w-5 px-1.5 text-[10px]"}`}>
           {item.badge > 99 ? "99+" : item.badge}
         </span>
       ) : null}
@@ -95,23 +108,25 @@ const SidebarNavLink = ({ item, active }: { item: NavItem; active: boolean }) =>
 export const AdminNewSidebar = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const qc = useQueryClient();
+  const { user, signOut } = useAuth();
+  const queryClient = useQueryClient();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Set<NavGroup["id"]>>(getStoredOpenGroups);
+  const [collapsed, setCollapsed] = useState(getStoredCollapsed);
+  const reduceMotion = useReducedMotion();
 
   const { data: openTickets = 0 } = useQuery({
-    queryKey: ["admin-open-tickets-count"],
+    queryKey: ["admin-sidebar-open-support-tickets"],
     enabled: !!user?.id,
     queryFn: async () => {
-      // support_tickets ainda não está nos tipos gerados do Supabase, por isso o cast.
-      const { count, error } = await (supabase as any)
+      const { count, error } = await supabase
         .from("support_tickets")
         .select("id", { count: "exact", head: true })
         .eq("status", "open");
       if (error) throw error;
-      return (count as number) ?? 0;
+      return count ?? 0;
     },
-    refetchInterval: 60_000,
+    refetchInterval: 30_000,
   });
 
   useEffect(() => {
@@ -119,97 +134,262 @@ export const AdminNewSidebar = () => {
     const channel = supabase
       .channel("admin-sidebar-tickets")
       .on("postgres_changes", { event: "*", schema: "public", table: "support_tickets" }, () => {
-        void qc.invalidateQueries({ queryKey: ["admin-open-tickets-count"] });
+        void queryClient.invalidateQueries({ queryKey: ["admin-sidebar-open-support-tickets"] });
+        void queryClient.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
       })
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [qc, user?.id]);
+  }, [queryClient, user?.id]);
 
-  const foto =
+  const navGroups: NavGroup[] = [
+    {
+      id: "overview",
+      label: "Visão geral",
+      indicator: "chevron",
+      items: [{ label: "Painel", icon: LayoutDashboard, to: "/admin/painel" }],
+    },
+    {
+      id: "operation",
+      label: "Operação",
+      indicator: "chevron",
+      items: [
+        { label: "Suporte", icon: MessagesSquare, to: "/admin/suporte", badge: openTickets },
+        { label: "Usuários & times", icon: UsersRound, to: "/admin/usuarios" },
+        { label: "Vendas", icon: ShoppingBag, to: "/admin/vendas" },
+      ],
+    },
+    {
+      id: "finance",
+      label: "Financeiro",
+      indicator: "plus",
+      items: [
+        { label: "Afiliados", icon: BadgeDollarSign, to: "/admin/comissoes" },
+        { label: "Reembolsos", icon: RefreshCcw, to: "/admin/reembolsos" },
+      ],
+    },
+    {
+      id: "control",
+      label: "Controle",
+      indicator: "plus",
+      items: [
+        { label: "Evidências", icon: FileSearch, to: "/admin/evidencias" },
+        { label: "AliExpress", icon: PackageSearch, to: "/admin/aliexpress" },
+      ],
+    },
+  ];
+
+  const photo =
     (user?.user_metadata?.avatar_url as string | undefined) ||
     (user?.user_metadata?.picture as string | undefined) ||
     null;
   const profileName =
     (user?.user_metadata?.full_name as string | undefined) ||
     (user?.user_metadata?.name as string | undefined) ||
-    (user?.email ? user.email.split("@")[0] : "Usuário");
-  const profileEmail = user?.email || "conta@velo.app";
+    (user?.email ? user.email.split("@")[0] : "Administrador");
+  const profileEmail = user?.email || "admin@velo.app";
   const initials = getInitials(profileName, user?.email);
 
   const isActive = (item: NavItem) => {
     const target = item.to.replace(/\/$/, "");
     return pathname === target || pathname.startsWith(`${target}/`);
   };
+  const activeGroupId = navGroups.find((group) => group.items.some(isActive))?.id;
+
+  useEffect(() => {
+    if (!activeGroupId) return;
+    setOpenGroups((current) => {
+      if (current.has(activeGroupId)) return current;
+      const next = new Set(current);
+      next.add(activeGroupId);
+      return next;
+    });
+  }, [activeGroupId]);
+
+  useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_GROUPS_STORAGE_KEY, JSON.stringify([...openGroups]));
+  }, [openGroups]);
+
+  useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(collapsed));
+  }, [collapsed]);
+
+  const toggleGroup = (groupId: NavGroup["id"]) => {
+    setOpenGroups((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   return (
-    <aside
-      className="velo-dashboard-sidebar flex h-full w-[228px] shrink-0 flex-col border-r border-white/[0.05] bg-[#0A0A0B] px-3 py-4"
-      style={{
-        fontFamily:
-          '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}
+    <motion.aside
+      initial={false}
+      animate={{ width: collapsed ? 76 : 260 }}
+      transition={{ duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+      className={`relative hidden h-full shrink-0 flex-col border-r border-[#e8e8e4] bg-[#f5f5f3] py-5 text-[#1c1c1a] md:flex ${collapsed ? "px-3" : "px-4"}`}
     >
-      {/* 1. Marca */}
-      <Link to="/admin/painel" className="flex items-center gap-2 px-2 text-[#F2F1EC] no-underline">
-        <VeloIconOnly />
-        <span className="text-[17px] font-semibold leading-none tracking-[-0.04em]">Velo</span>
-      </Link>
+      <div className={`flex min-h-12 ${collapsed ? "flex-col items-center gap-2" : "items-start justify-between px-1"}`}>
+        <div className={collapsed ? "text-center" : "min-w-0"}>
+          <Link to="/admin/painel" className={`${collapsed ? "text-[22px]" : "text-[25px]"} font-bold tracking-[-0.075em] text-[#11110f] no-underline`}>
+            {collapsed ? "V" : "Velo"}
+          </Link>
+          {!collapsed ? (
+            <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-[#9a9a94]">Administrador</p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          title={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+          aria-label={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-[#deded9] bg-white text-[#73736d] shadow-[0_2px_7px_rgba(25,25,20,0.055)] transition hover:border-[#c9c9c3] hover:bg-[#fbfbfa] hover:text-[#20201e] active:scale-95"
+        >
+          {collapsed ? <PanelLeftOpen size={16} strokeWidth={1.75} /> : <PanelLeftClose size={16} strokeWidth={1.75} />}
+        </button>
+      </div>
 
-      {/* 2. Pill de usuário — compacto, sem borda pesada, sem email */}
-      <button
-        type="button"
-        aria-label="Abrir perfil"
-        onClick={() => navigate("/dashboard/configuracoes")}
-        className="mt-5 flex w-full items-center gap-2 rounded-full border border-transparent bg-white/[0.03] px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.06]"
-      >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.1] text-[10px] font-semibold text-white">
-          {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : initials}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium leading-none text-white/85">{profileName}</span>
-        <ChevronDown size={13} strokeWidth={1.7} aria-hidden="true" className="mr-1 shrink-0 text-white/35" />
-      </button>
+      {!collapsed ? (
+        <>
+          <div className="mt-5 flex h-11 items-center gap-3 rounded-[10px] px-3 text-[13px] font-medium text-[#4f4f4a]">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-[8px] text-[#85857f]">
+              <Building2 size={16.5} strokeWidth={1.65} />
+            </span>
+            <span className="truncate">Admin Velo</span>
+          </div>
 
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="mt-2 flex h-10 items-center gap-2.5 rounded-[9px] border border-[#e1e1dc] bg-white px-3 text-left text-[12px] text-[#85857f] shadow-[0_1px_2px_rgba(20,20,16,0.035)] transition hover:border-[#d4d4ce]"
+          >
+            <Search size={15} strokeWidth={1.7} />
+            <span className="min-w-0 flex-1 truncate">Buscar</span>
+            <span className="text-[10px] font-semibold text-[#777772]">⌘ K</span>
+          </button>
+        </>
+      ) : null}
 
-      {/* 3. Navegação */}
-      <nav aria-label="Navegação do admin" className="mt-7 flex flex-col gap-1">
-        {navItems.map((item) => (
-          <SidebarNavLink
-            key={item.label}
-            item={item.to === "/admin/suporte" ? { ...item, badge: openTickets } : item}
-            active={isActive(item)}
-          />
-        ))}
+      <nav aria-label="Navegação principal do admin" className={`min-h-0 flex-1 space-y-1 overflow-y-auto ${collapsed ? "mt-6 px-0.5" : "mt-4 pr-1"}`}>
+        {collapsed ? (
+          navGroups.flatMap((group) => group.items).map((item) => (
+            <SidebarNavLink key={item.to} item={item} active={isActive(item)} collapsed />
+          ))
+        ) : navGroups.map((group) => {
+          const open = openGroups.has(group.id);
+          const containsActiveItem = group.items.some(isActive);
+          const regionId = `admin-nav-group-${group.id}`;
+
+          return (
+            <section key={group.id} aria-label={group.label} className="rounded-[11px]">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.id)}
+                aria-expanded={open}
+                aria-controls={regionId}
+                className={`group flex h-9 w-full items-center gap-2 rounded-[9px] px-2.5 text-left transition-colors ${
+                  containsActiveItem
+                    ? "text-[#292926]"
+                    : "text-[#888882] hover:bg-white/55 hover:text-[#4b4b46]"
+                }`}
+              >
+                <motion.span
+                  className="grid h-4 w-4 shrink-0 place-items-center"
+                  animate={{ rotate: open ? 0 : -90 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <ChevronDown size={12} strokeWidth={1.8} />
+                </motion.span>
+                <span className="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-[0.09em]">
+                  {group.label}
+                </span>
+                {group.indicator === "plus" ? (
+                  <span className="grid h-4 w-4 shrink-0 place-items-center text-[#96968f]">
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.span
+                        key={open ? "minus" : "plus"}
+                        initial={reduceMotion ? false : { opacity: 0, rotate: -45, scale: 0.7 }}
+                        animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                        exit={reduceMotion ? undefined : { opacity: 0, rotate: 45, scale: 0.7 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.16 }}
+                        className="grid place-items-center"
+                      >
+                        {open ? <Minus size={12} strokeWidth={1.8} /> : <Plus size={12} strokeWidth={1.8} />}
+                      </motion.span>
+                    </AnimatePresence>
+                  </span>
+                ) : containsActiveItem ? (
+                  <span className="h-1 w-1 rounded-full bg-[#2a2a27]" aria-hidden="true" />
+                ) : null}
+              </button>
+
+              <AnimatePresence initial={false}>
+                {open ? (
+                  <motion.div
+                    id={regionId}
+                    initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="ml-[17px] space-y-1 border-l border-[#dfdfda] pb-2 pl-2 pt-0.5">
+                      {group.items.map((item, index) => (
+                        <motion.div
+                          key={item.to}
+                          initial={reduceMotion ? false : { opacity: 0, x: -4 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: reduceMotion ? 0 : 0.2, delay: reduceMotion ? 0 : index * 0.035 }}
+                        >
+                          <SidebarNavLink item={item} active={isActive(item)} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </section>
+          );
+        })}
       </nav>
 
-      <div aria-hidden="true" className="min-h-0 flex-1" />
-
-      {/* 4. Retorno secundário */}
-      <Link
-        to="/dashboard"
-        className="mb-2 flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-white/55 no-underline transition-colors hover:bg-white/[0.035] hover:text-white/85"
-      >
-        <ArrowLeft size={16} strokeWidth={1.65} aria-hidden="true" />
-        <span>Voltar à Velo</span>
-      </Link>
-
-      {/* 5. Busca fixada no rodapé (caixa bordada, estilo docs da referência) */}
-      <button
-        type="button"
-        aria-label="Buscar"
-        onClick={() => setSearchOpen(true)}
-        className="flex h-11 w-full items-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 text-left transition-colors hover:bg-white/[0.045]"
-      >
-        <Search size={16} strokeWidth={1.7} aria-hidden="true" className="text-white/45" />
-        <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-white/70">Buscar</span>
-        <span className="grid h-6 w-6 place-items-center rounded-md bg-white/[0.07] text-[13px] font-medium text-white/55">
-          /
-        </span>
-      </button>
+      {!collapsed ? (
+        <div className="mt-3 shrink-0 border-t border-[#e2e2dd] bg-[#f5f5f3] pt-4">
+          <div className="flex items-center gap-3 rounded-[10px] px-2 py-2">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-[#20201d] text-[11px] font-semibold text-white">
+              {photo ? <img src={photo} alt="" className="h-full w-full object-cover" /> : initials}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[12px] font-semibold text-[#2c2c29]">{profileName}</p>
+              <p className="mt-0.5 truncate text-[10px] text-[#92928c]">{profileEmail}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            className="mt-2 flex h-10 w-full items-center gap-3 rounded-[9px] px-3 text-[12px] font-medium text-[#686863] hover:bg-white hover:text-[#22221f]"
+          >
+            <ArrowLeft size={15} strokeWidth={1.7} /> Voltar à Velo
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            className="flex h-10 w-full items-center gap-3 rounded-[9px] px-3 text-[12px] font-medium text-[#686863] hover:bg-white hover:text-[#22221f]"
+          >
+            <LogOut size={15} strokeWidth={1.7} /> Sair
+          </button>
+        </div>
+      ) : null}
 
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin />
-    </aside>
+    </motion.aside>
   );
 };
 

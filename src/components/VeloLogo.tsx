@@ -5,7 +5,7 @@ interface VeloLogoProps {
   variant?: "dark" | "light";
 }
 
-export type VeloMarkTone = "solid" | "soft";
+export type VeloMarkTone = "solid" | "soft" | "violet" | "gold" | "dark";
 
 interface VeloMarkProps {
   /** Lado do quadrado, em px. */
@@ -41,6 +41,27 @@ const MARK_TONES: Record<
     stroke: "#0A0A0A",
     rim: "rgba(10,10,10,0.10)",
     shadow: "drop-shadow(0 4px 10px rgba(10,10,10,0.12)) drop-shadow(0 1px 2px rgba(10,10,10,0.07))",
+  },
+  violet: {
+    from: "#8B7CFF",
+    to: "#5B35EA",
+    stroke: "#FFFFFF",
+    rim: "rgba(255,255,255,0.24)",
+    shadow: "drop-shadow(0 9px 18px rgba(91,53,234,0.32)) drop-shadow(0 1px 2px rgba(10,10,10,0.16))",
+  },
+  gold: {
+    from: "#FFF5B7",
+    to: "#F2B13D",
+    stroke: "#B45309",
+    rim: "rgba(255,255,255,0.42)",
+    shadow: "drop-shadow(0 8px 18px rgba(180,83,9,0.16)) drop-shadow(0 1px 2px rgba(10,10,10,0.10))",
+  },
+  dark: {
+    from: "#2B2B2B",
+    to: "#050505",
+    stroke: "#FFFFFF",
+    rim: "rgba(255,255,255,0.14)",
+    shadow: "drop-shadow(0 8px 18px rgba(0,0,0,0.26)) drop-shadow(0 1px 2px rgba(0,0,0,0.18))",
   },
 };
 
@@ -102,35 +123,20 @@ export function VeloLogo({ size = "md", variant = "dark" }: VeloLogoProps) {
   };
 
   const s = sizes[size];
-  // Logo oficial (public/logo.png). O texto "Velo" muda de cor conforme o fundo
-  // (variante); o badge azul é o mesmo em qualquer fundo. O PNG tem ~19% de
-  // padding, então recorto (container overflow-hidden + img maior centralizada
-  // no bloco azul) para o badge ficar preenchido.
+  // Logo oficial (public/logo.png): a cesta azul no badge arredondado, com fundo
+  // transparente e já recortado na borda do badge — por isso a imagem entra inteira
+  // (object-contain) e preenche a caixa. O texto "Velo" muda de cor conforme a
+  // variante; o badge é o mesmo em qualquer fundo.
   const isDark = variant === "dark";
   const textColor = isDark ? "#0A0A0A" : "#FFFFFF";
-  const imgSize = Math.round(s.icon / 0.6);
-  const ml = Math.round((s.icon - imgSize) / 2);
-  const mt = Math.round(s.icon / 2 - 0.482 * imgSize);
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: s.gap }}>
-      <span
-        style={{
-          width: s.icon,
-          height: s.icon,
-          borderRadius: s.rx,
-          overflow: "hidden",
-          display: "block",
-          flexShrink: 0,
-          boxShadow: "0 4px 9px rgba(0,0,0,0.18)",
-        }}
-      >
-        <img
-          src="/logo.png"
-          alt=""
-          style={{ width: imgSize, height: imgSize, maxWidth: "none", display: "block", marginLeft: ml, marginTop: mt }}
-        />
-      </span>
+      <img
+        src="/logo.png"
+        alt=""
+        style={{ width: s.icon, height: s.icon, objectFit: "contain", display: "block", flexShrink: 0 }}
+      />
       <span
         style={{
           fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',

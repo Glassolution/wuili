@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, ChevronDown, Grid3x3, List, Settings, MoreHorizontal, Package, ExternalLink,
+  Search, ChevronDown, Grid3x3, List, Package, ExternalLink, ArrowUpRight, MoreHorizontal,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Publication = {
@@ -31,7 +32,6 @@ const formatBRL = (v: number) =>
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const PublicationsPage = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,6 +53,11 @@ const PublicationsPage = () => {
   });
 
   const all = publications ?? [];
+  const activeCount = all.filter((p) => p.status === "active").length;
+  const draftCount = all.filter((p) => p.status === "pending").length;
+  const archivedCount = all.filter((p) =>
+    ["paused", "closed", "inactive", "under_review", "archived_duplicate"].includes(p.status),
+  ).length;
 
   // ── Filter ─────────────────────────────────────────────────────────────────
   const filtered = all.filter(p => {
@@ -84,122 +89,133 @@ const PublicationsPage = () => {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-      
-      {/* ── Header with Tabs and Filters ──────────────────────────────────── */}
-      <div className="flex flex-col gap-3 pb-4">
-        
-        {/* Top Row: Tabs + View Settings */}
-        <div className="flex items-center justify-between gap-2 overflow-hidden" data-dashboard-tour="publicacoes-filtros">
-          {/* Tabs */}
-          <div className="mobile-hide-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-            {[
-              { key: "all" as TabFilter, label: "Todos", icon: Grid3x3 },
-              { key: "active" as TabFilter, label: "Ativos" },
-              { key: "draft" as TabFilter, label: "Rascunhos" },
-              { key: "archived" as TabFilter, label: "Arquivados" },
-            ].map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium transition-colors ${
-                  tab === t.key
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                style={{ letterSpacing: "-0.01em" }}
-              >
-                {t.icon && <t.icon size={14} strokeWidth={1.8} />}
-                {t.label}
-              </button>
-            ))}
-            
-            <button className="ml-2 hidden items-center gap-1 px-2 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02] sm:flex" style={{ letterSpacing: "-0.01em", borderRadius: "6px" }}>
-              <span>+</span>
-              <span>Visualização</span>
-            </button>
-          </div>
-
-          {/* View Settings */}
-          <button className="hidden items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02] md:flex" style={{ letterSpacing: "-0.01em", borderRadius: "6px" }}>
-            <Settings size={14} strokeWidth={1.8} />
-            <span>Configurações de visualização</span>
-          </button>
+    <DashboardPageShell
+      title="Publicações"
+      className="overflow-visible"
+      panelClassName="overflow-visible"
+      style={{ fontFamily: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif' }}
+    >
+      <div className="mobile-hide-scrollbar mb-5 flex gap-2 overflow-x-auto md:mb-7 md:items-center xl:overflow-visible" data-dashboard-tour="publicacoes-filtros">
+        <div className="relative min-w-[220px] flex-1 md:flex-none xl:w-[240px] xl:flex-shrink-0">
+          <Search size={16} strokeWidth={1.8} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8E8E87]" />
+          <input
+            type="text"
+            placeholder="Buscar publicação"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-9 w-full rounded-full border border-black/[0.08] bg-white pl-9 pr-3 text-[12px] font-semibold text-[#111111] shadow-[0_8px_18px_rgba(17,17,17,0.035)] outline-none transition-all duration-200 placeholder:text-[#8E8E87] hover:border-black/15"
+          />
         </div>
 
-        {/* Second Row: Search + Filters + View Icons */}
-        <div className="mobile-hide-scrollbar grid grid-cols-2 gap-2 pb-1 sm:flex sm:items-center sm:gap-2 sm:overflow-x-auto">
-          {/* Search */}
-          <div className="relative col-span-2 min-w-0 sm:min-w-[190px] sm:flex-1 sm:max-w-[240px]">
-            <Search size={14} strokeWidth={1.8} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Buscar"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-full rounded-lg border border-black/[0.08] bg-white pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-              style={{ letterSpacing: "-0.01em" }}
-            />
-          </div>
-
-          {/* Category Dropdown */}
-          <button className="flex h-9 min-w-0 shrink-0 items-center justify-between gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02] sm:justify-start" style={{ letterSpacing: "-0.01em" }}>
-            <span className="truncate">Categoria</span>
+        {[
+          { key: "all" as TabFilter, label: "Status", value: "Todos", count: all.length },
+          { key: "active" as TabFilter, label: "Ativos", value: activeCount.toString(), count: activeCount },
+          { key: "draft" as TabFilter, label: "Rascunhos", value: draftCount.toString(), count: draftCount },
+          { key: "archived" as TabFilter, label: "Arquivados", value: archivedCount.toString(), count: archivedCount },
+        ].map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setTab(item.key)}
+            className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-4 text-[12px] font-semibold transition-all duration-200 ${
+              tab === item.key
+                ? "border-[#2563EB] bg-[#2563EB] text-white shadow-[0_6px_14px_rgba(37,99,235,0.16)]"
+                : "border-black/[0.08] bg-white text-[#111111] hover:border-black/15 hover:bg-[#F7F7F8]"
+            }`}
+          >
+            <span className={tab === item.key ? "text-white/65" : "text-[#8E8E87]"}>{item.label}</span>
+            <span>{item.key === "all" ? item.value : item.count}</span>
             <ChevronDown size={14} strokeWidth={1.8} />
           </button>
+        ))}
 
-          {/* Dropshipping Dropdown */}
-          <button className="flex h-9 min-w-0 shrink-0 items-center justify-between gap-1.5 rounded-lg border border-black/[0.08] bg-black px-3 text-[13px] font-medium text-white transition-colors hover:bg-black/90 sm:justify-start" style={{ letterSpacing: "-0.01em" }}>
-            <span className="truncate">Dropshipping</span>
-            <ChevronDown size={14} strokeWidth={1.8} />
+        <div className="hidden xl:block xl:flex-1" />
+
+        <div className="hidden shrink-0 items-center gap-1 rounded-full border border-black/[0.08] bg-white p-1 shadow-[0_8px_18px_rgba(17,17,17,0.035)] sm:flex">
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            className={`grid h-8 w-8 place-items-center rounded-full transition-colors ${
+              viewMode === "grid" ? "bg-[#EFEFEB] text-[#111111]" : "text-[#8E8E87] hover:bg-[#F7F7F8]"
+            }`}
+            aria-label="Visualizar em grade"
+          >
+            <Grid3x3 size={15} strokeWidth={1.9} />
           </button>
-
-          {/* Advance Filter */}
-          <button className="col-span-2 flex h-9 min-w-0 shrink-0 items-center justify-between gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 text-[13px] font-medium text-foreground transition-colors hover:bg-black/[0.02] sm:col-span-1 sm:justify-start" style={{ letterSpacing: "-0.01em" }}>
-            <span className="truncate">Filtro avançado</span>
-            <ChevronDown size={14} strokeWidth={1.8} />
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            className={`grid h-8 w-8 place-items-center rounded-full transition-colors ${
+              viewMode === "list" ? "bg-[#EFEFEB] text-[#111111]" : "text-[#8E8E87] hover:bg-[#F7F7F8]"
+            }`}
+            aria-label="Visualizar em lista"
+          >
+            <List size={15} strokeWidth={1.9} />
           </button>
-
-          {/* Spacer */}
-          <div className="hidden flex-1 md:block" />
-
-          {/* View Mode Icons */}
-          <div className="hidden items-center gap-1 sm:flex">
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
-                viewMode === "grid" ? "bg-black/[0.06]" : "hover:bg-black/[0.02]"
-              }`}
-            >
-              <Grid3x3 size={16} strokeWidth={1.8} className="text-foreground" />
-            </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
-                viewMode === "list" ? "bg-black/[0.06]" : "hover:bg-black/[0.02]"
-              }`}
-            >
-              <List size={16} strokeWidth={1.8} className="text-foreground" />
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* ── Products Grid ─────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-7 overflow-visible md:grid-cols-3 md:gap-x-5 md:gap-y-9 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-[280px] animate-pulse rounded-2xl border border-black/[0.05] bg-white" />
+            <div key={i} className="animate-pulse">
+              <div className="aspect-square w-full rounded-[3px] bg-[#ECECE9]" />
+              <div className="mt-5 h-3 w-24 rounded-full bg-[#E4E4E1]" />
+              <div className="mt-3 h-4 w-4/5 rounded-full bg-[#E4E4E1]" />
+              <div className="mt-2 h-4 w-2/3 rounded-full bg-[#E4E4E1]" />
+            </div>
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center py-20">
-          <Package size={48} strokeWidth={1.5} className="text-muted-foreground/30" />
-          <p className="mt-4 text-[15px] font-medium text-foreground">Nenhum produto encontrado</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">Tente ajustar seus filtros</p>
+        <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#9CA3AF] shadow-[0_10px_24px_rgba(17,17,17,0.06)]">
+            <Package size={21} strokeWidth={1.7} />
+          </div>
+          <p className="mt-4 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhuma publicação encontrada</p>
+          <p className="mt-1 text-[12px] font-medium text-[#777771]">Ajuste os filtros ou publique um produto pelo Catálogo Velo.</p>
+        </div>
+      ) : viewMode === "list" ? (
+        <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+          {filtered.map((pub, index) => {
+            const status = pub.status || "pending";
+            const preset = statusPresets[status] ?? statusPresets.pending;
+            const retailPrice = pub.price ?? 0;
+
+            return (
+              <button
+                key={pub.id}
+                type="button"
+                onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
+                data-dashboard-tour={index === 0 ? "publicacoes-card" : undefined}
+                className="group grid w-full grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[#EFEFEB] p-3 text-left transition-colors last:border-b-0 hover:bg-[#F7F7F8]"
+              >
+                <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
+                  {pub.thumbnail ? (
+                    <img src={pub.thumbnail} alt={pub.title} className="h-full w-full object-contain p-1 mix-blend-multiply" />
+                  ) : (
+                    <Package size={18} strokeWidth={1.8} className="text-[#9CA3AF]" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-[13px] font-semibold tracking-[-0.03em] text-[#111111] group-hover:text-[#2563EB]">
+                    {pub.title}
+                  </h3>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[12px] font-semibold tracking-[-0.025em] text-[#111111]">{formatBRL(retailPrice)}</span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold ${preset.wrap}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${preset.dot}`} />
+                      {preset.label}
+                    </span>
+                    <span className="rounded-full bg-[#EFEFEB] px-2 py-0.5 text-[9px] font-medium text-[#6A6A64]">Mercado Livre</span>
+                  </div>
+                </div>
+                <ArrowUpRight size={16} strokeWidth={2} className="text-[#8E8E87] transition-colors group-hover:text-[#2563EB]" />
+              </button>
+            );
+          })}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-7 overflow-visible md:grid-cols-3 md:gap-x-5 md:gap-y-9 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {filtered.map((pub, index) => {
             const status = pub.status || "pending";
             const preset = statusPresets[status] ?? statusPresets.pending;
@@ -207,99 +223,96 @@ const PublicationsPage = () => {
             const wholesalePrice = pub.cost_price ?? 0;
 
             return (
-              <div
+              <article
                 key={pub.id}
                 data-dashboard-tour={index === 0 ? "publicacoes-card" : undefined}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-black/[0.05] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
+                className="group min-w-0 bg-transparent transition-all duration-200 hover:-translate-y-0.5"
               >
-                {/* Header: Image + Title + Menu */}
-                <div className="flex items-start gap-3">
-                  {/* Product Image */}
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50">
-                    {pub.thumbnail ? (
-                      <img src={pub.thumbnail} alt={pub.title} className="h-full w-full object-cover" />
-                    ) : (
-                      <Package size={20} strokeWidth={1.8} className="text-muted-foreground/40" />
-                    )}
-                  </div>
-
-                  {/* Title + Menu */}
-                  <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
-                    <h3 className="line-clamp-2 text-[14px] font-medium leading-snug text-foreground" style={{ letterSpacing: "-0.01em" }}>
-                      {pub.title}
-                    </h3>
-                    <button className="shrink-0 rounded-md p-1 transition-colors hover:bg-black/[0.04]">
-                      <MoreHorizontal size={16} strokeWidth={1.8} className="text-muted-foreground" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* SKU + Status Badge */}
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-[12px] text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                    SKU {pub.ml_item_id?.slice(0, 8) || "N/A"}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${preset.wrap}`}
-                    style={{ letterSpacing: "-0.01em" }}
+                <div className="relative aspect-square overflow-hidden rounded-[3px] bg-[#EFEFEC]">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
+                    className="block h-full w-full"
+                    aria-label={`Abrir publicação ${pub.title}`}
                   >
+                    {pub.thumbnail ? (
+                      <img
+                        src={pub.thumbnail}
+                        alt={pub.title}
+                        className="h-full w-full object-contain p-4 mix-blend-multiply transition-transform duration-500 group-hover:scale-[1.035] md:p-5"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="grid h-full w-full place-items-center text-[#9CA3AF]">
+                        <Package size={30} strokeWidth={1.6} />
+                      </span>
+                    )}
+                  </button>
+                  <span className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[9px] font-semibold backdrop-blur-sm ${preset.wrap}`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${preset.dot}`} />
                     {preset.label}
                   </span>
-                </div>
-
-                {/* Tags */}
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  <span className="rounded-md bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-700" style={{ letterSpacing: "-0.01em" }}>
-                    Eletrônico
-                  </span>
-                  <span className="rounded-md bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-700" style={{ letterSpacing: "-0.01em" }}>
-                    +2
-                  </span>
-                  <span className="flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-700" style={{ letterSpacing: "-0.01em" }}>
-                    <Package size={10} strokeWidth={1.8} />
-                    Dropship
-                  </span>
-                </div>
-
-                {/* Prices */}
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-[11px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                      Varejo
-                    </p>
-                    <p className="mt-0.5 text-[15px] font-semibold text-foreground" style={{ letterSpacing: "-0.02em" }}>
-                      {formatBRL(retailPrice)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                      Atacado
-                    </p>
-                    <p className="mt-0.5 text-[15px] font-semibold text-foreground" style={{ letterSpacing: "-0.02em" }}>
-                      {formatBRL(wholesalePrice)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Footer: Action Button */}
-                <div className="mt-4 flex items-center justify-between border-t border-black/[0.04] pt-3">
-                  <span className="text-[12px] text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                    {pub.ml_item_id ? `ML: ${pub.ml_item_id}` : "Sem ID ML"}
-                  </span>
                   <button
-                    onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
-                    className="flex h-7 w-7 items-center justify-center rounded-md border border-black/[0.08] bg-white transition-colors hover:bg-black/[0.02]"
+                    type="button"
+                    className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full border border-black/10 bg-white/95 text-[#111111] shadow-[0_4px_12px_rgba(17,24,39,0.12)] backdrop-blur-sm transition-transform active:scale-90"
+                    aria-label="Mais ações"
                   >
-                    <ExternalLink size={14} strokeWidth={1.8} className="text-foreground" />
+                    <MoreHorizontal size={15} strokeWidth={2} />
                   </button>
                 </div>
-              </div>
+
+                <div className="pt-3">
+                  <div className="text-[12px] font-semibold tracking-[-0.025em] text-[#111111]">
+                    {formatBRL(retailPrice)}
+                    {wholesalePrice > 0 ? (
+                      <span className="ml-1.5 text-[10px] font-medium text-[#777771]">custo {formatBRL(wholesalePrice)}</span>
+                    ) : null}
+                  </div>
+
+                  <h2 className="mt-1 line-clamp-2 min-h-[36px] text-[13px] font-semibold leading-[18px] tracking-[-0.03em] text-[#111111] transition-colors group-hover:text-[#2563EB]">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
+                      className="text-left"
+                    >
+                      {pub.title}
+                    </button>
+                  </h2>
+
+                  <div className="mt-2.5 flex flex-wrap items-center gap-1">
+                    <span className="rounded-full bg-[#EFEFEB] px-1.5 py-0.5 text-[8.5px] font-medium text-[#6A6A64]">
+                      Mercado Livre
+                    </span>
+                    <span className="rounded-full bg-[#EFEFEB] px-1.5 py-0.5 text-[8.5px] font-medium text-[#6A6A64]">
+                      {pub.ml_item_id ? `ML ${pub.ml_item_id.slice(0, 8)}` : "Sem ID ML"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-white text-[#111111] transition-colors hover:bg-[#F4F4F1]"
+                      aria-label="Mais ações"
+                    >
+                      <ExternalLink size={13} strokeWidth={1.9} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
+                      className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#2563EB] px-2.5 text-[10.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+                    >
+                      Ver publicação
+                      <ArrowUpRight size={12} strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
+              </article>
             );
           })}
         </div>
       )}
-    </div>
+    </DashboardPageShell>
   );
 };
 

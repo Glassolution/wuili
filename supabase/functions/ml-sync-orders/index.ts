@@ -7,6 +7,32 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function formatBRL(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+async function notifyUser(
+  client: ReturnType<typeof createClient>,
+  row: {
+    user_id: string;
+    type: string;
+    title: string;
+    message: string;
+    action_url?: string;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  const { error } = await client.from("notifications").insert({
+    user_id: row.user_id,
+    type: row.type,
+    title: row.title,
+    message: row.message,
+    action_url: row.action_url ?? null,
+    metadata: row.metadata ?? {},
+  });
+  if (error) console.warn("[ml-sync-orders] falha ao criar notificacao:", error.message);
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -128,7 +154,7 @@ serve(async (req) => {
       // Check if already synchronized
       const { data: existing } = await adminClient
         .from("orders")
-        .select("id, status")
+        .select("id, status, tracking_code")
         .eq("external_order_id", mlOrderId)
         .maybeSingle();
 
@@ -223,6 +249,21 @@ serve(async (req) => {
         } else if (existing.status !== normalizedStatus) {
           console.log(`[ml-sync-orders] Order ${mlOrderId} status: ${existing.status} → ${normalizedStatus}`);
         }
+        if (!updErr && trackingCode && trackingCode !== existing.tracking_code) {
+          await notifyUser(adminClient, {
+            user_id: userId,
+            type: "order_in_transit",
+            title: "Pedido em trânsito",
+            message: `${item?.item?.title ?? "Pedido Mercado Livre"} recebeu rastreio ${trackingCode}.`,
+            action_url: "/dashboard/pedidos",
+            metadata: {
+              order_id: existing.id,
+              ml_order_id: mlOrderId,
+              tracking_code: trackingCode,
+              event: "order_in_transit",
+            },
+          });
+        }
         continue;
       }
 
@@ -309,6 +350,19 @@ serve(async (req) => {
       } else {
         newOrdersCount++;
         syncedOrders.push(newOrder);
+        await notifyUser(adminClient, {
+          user_id: userId,
+          type: "new_sale",
+          title: "Nova venda",
+          message: `${item?.item?.title ?? "Produto Mercado Livre"} vendido por ${formatBRL(salePrice)}.`,
+          action_url: "/dashboard/pedidos",
+          metadata: {
+            order_id: newOrder.id,
+            ml_order_id: mlOrderId,
+            product_title: item?.item?.title ?? null,
+            total_amount: salePrice,
+          },
+        });
       }
     }
 

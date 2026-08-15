@@ -22,7 +22,7 @@ const pageTitles: Record<string, string> = {
   "/dashboard/pedidos": "Pedidos",
   "/dashboard/publicacoes": "Publicações",
   "/dashboard/pagamentos": "Pagamentos",
-  "/dashboard/relatorios": "Relatórios",
+  "/dashboard/imagens-ia": "Imagens com IA",
   "/dashboard/comissoes": "Comissões",
   "/dashboard/configuracoes": "Configurações",
   "/dashboard/criar-video": "Criar Vídeos",

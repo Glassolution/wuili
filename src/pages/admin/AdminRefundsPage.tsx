@@ -6,6 +6,7 @@ import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 
 type RefundRow = {
   id: string;
@@ -165,11 +166,7 @@ const AdminRefundsPage = () => {
   });
 
   if (loading || loadingProfile) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <Loader2 className="h-7 w-7 animate-spin text-white" />
-      </div>
-    );
+    return <VeloLoadingScreen message="Carregando reembolsos..." />;
   }
   if (!user) return <Navigate to="/login" replace />;
   if (!isAdmin) {

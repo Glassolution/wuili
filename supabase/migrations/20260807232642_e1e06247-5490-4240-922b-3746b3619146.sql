@@ -1,0 +1,1 @@
+ALTER TABLE public.ml_compliance_fixes ADD COLUMN IF NOT EXISTS ml_status_before text;

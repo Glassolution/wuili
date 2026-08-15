@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
 import { veloToast as toast } from "@/components/ui/velo-toast";
-import { VeloLogo, VeloMark } from "@/components/VeloLogo";
+import { VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
 
@@ -149,7 +149,8 @@ const CheckoutPage = () => {
   // resumo/checkout ao lado.
   const [hoveredPlanId, setHoveredPlanId] = useState<string | null>(null);
   const skipSelect = searchParams.get("skipSelect") === "1";
-  const [showPaymentStep, setShowPaymentStep] = useState(isTrial || skipSelect);
+  const directPaymentStep = searchParams.get("step") === "payment";
+  const [showPaymentStep, setShowPaymentStep] = useState(isTrial || skipSelect || directPaymentStep);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(initialBillingCycle);
   const planId = selectedPlanId;
   const plan = PLANS_DATA[planId];
@@ -162,7 +163,7 @@ const CheckoutPage = () => {
     ? `Trial de ${TRIAL_DAYS} dias do plano Pro. Depois, sua assinatura continua automaticamente no plano Pro (R$79,80/mês).`
     : `Assinatura ${recurringCycleLabel} do plano ${plan.name}`;
 
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("pix");
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("credit_card");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle");
@@ -628,267 +629,195 @@ const CheckoutPage = () => {
     );
   }
 
+  const summaryIconTone = planId === "business" ? "dark" : planId === "pro" ? "violet" : "solid";
+
   return (
-    <div className="min-h-screen bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
-      <div className="grid min-h-screen w-full grid-cols-1 lg:grid-cols-2">
-        {/* LEFT — plan summary */}
-        <aside className="relative overflow-hidden border-b border-white/[0.08] bg-[#080808] px-6 py-8 text-white sm:px-10 lg:flex lg:min-h-screen lg:items-start lg:justify-end lg:border-b-0 lg:border-r lg:border-white/[0.08] lg:px-16 lg:py-12">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_15%,rgba(255,255,255,0.08),transparent_32%),linear-gradient(145deg,rgba(255,255,255,0.045),transparent_42%)]" />
-          <div className="pointer-events-none absolute inset-0 opacity-[0.045] [background-image:radial-gradient(circle,rgba(255,255,255,0.65)_0.7px,transparent_0.7px)] [background-size:5px_5px]" />
-          <div className="relative w-full max-w-[440px]">
-          <div className="mb-12 flex items-center gap-3">
-            <button
-              onClick={() => setShowPaymentStep(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-white/42 transition-colors hover:bg-white/[0.06] hover:text-white"
-              aria-label="Voltar"
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <VeloLogo size="md" variant="light" />
-          </div>
+    <div className="min-h-screen bg-[#F7F7F5] font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#0A0A0A]">
+      <main className="mx-auto min-h-screen w-full max-w-[1180px] px-6 py-10 lg:px-10 lg:py-12">
+        <VeloMark size={34} tone="dark" />
 
-          <div>
-            <p className="mb-3 text-[13px] font-medium text-white/45">{isTrial ? "Iniciar trial Pro" : `Assinar plano ${plan.name}`}</p>
-            <h1 className="text-[44px] font-semibold leading-none tracking-[-0.045em] text-white sm:text-[52px]">
-              {hasReferralDiscount && (
-                <span className="mr-3 text-[24px] font-medium text-white/40 line-through sm:text-[28px]">{originalCheckoutPrice}</span>
-              )}
-              {finalCheckoutPrice} {checkoutPeriodLabel}
-            </h1>
-            {hasReferralDiscount && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[12px] font-semibold text-emerald-300">
-                🎉 Você ganhou 15% de desconto por indicação
-              </div>
-            )}
-            <p className="mt-4 max-w-[320px] text-[15px] font-medium leading-6 text-white/54">
-              {checkoutDescription}
-            </p>
+        <div className="mt-12 flex items-center gap-5">
+          <button
+            type="button"
+            onClick={() => setShowPaymentStep(false)}
+            className="grid h-9 w-9 place-items-center rounded-full text-black transition hover:bg-black/[0.05]"
+            aria-label="Voltar"
+          >
+            <ArrowLeft size={24} strokeWidth={2.1} />
+          </button>
+          <h1 className="text-[30px] font-semibold tracking-[-0.035em] sm:text-[34px]">Configure o seu plano</h1>
+        </div>
 
-
-            <div className="mt-12 border-y border-white/[0.08] py-6">
-              <div className="flex items-start justify-between gap-6">
-                <div>
-                  <p className="text-[14px] font-semibold text-white">{isTrial ? "Trial Pro" : plan.name}</p>
-                  <p className="mt-1 text-[12px] text-white/42">
-                    {isTrial ? `${TRIAL_DAYS} dias de trial` : `Cobrança ${recurringCycleLabel}`}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[13px] font-semibold text-white">
-                    {hasReferralDiscount && (
-                      <span className="mr-1.5 text-white/40 line-through">{originalCheckoutPrice}</span>
-                    )}
-                    {finalCheckoutPrice}
-                  </p>
-                  <p className="mt-1 text-[12px] text-white/42">{isTrial ? `/ ${TRIAL_DAYS} dias` : recurringPeriodLabel}</p>
-                </div>
-              </div>
-
-              <ul className="mt-5 space-y-2">
-                {plan.features.slice(0, 5).map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-[13px] leading-5 text-white/58">
-                    <Check size={13} className="mt-0.5 shrink-0 text-white/86" strokeWidth={2.5} />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-5 py-7 text-[14px]">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-white/66">Subtotal</span>
-                <span className="font-semibold text-white">{originalCheckoutPrice}</span>
-              </div>
-
-              {hasReferralDiscount && (
-                <div className="flex items-center justify-between text-emerald-300">
-                  <span className="font-semibold">Desconto por indicação (15%)</span>
-                  <span className="font-semibold">
-                    − {formatBRL(parseBRL(originalCheckoutPrice) * 0.15)}
-                  </span>
-                </div>
-              )}
-
-              <div>
-                <input
-                  type="text"
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value)}
-                  placeholder="Adicionar código promocional"
-                  className="h-10 w-full max-w-[250px] rounded-md border border-white/[0.08] bg-white/[0.045] px-3 text-[13px] text-white placeholder:text-white/32 outline-none transition focus:border-white/18 focus:bg-white/[0.07]"
-                />
-              </div>
-
-              <div className="border-t border-white/[0.08] pt-6">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-white/66">
-                    {isTrial ? "Depois do trial" : billingCycle === "annual" ? "Total anual" : "Total mensal"}
-                  </span>
-                  <span className="font-semibold text-white">{isTrial ? `${plan.price}/mês` : finalCheckoutPrice}</span>
-                </div>
-                <div className="mt-7 flex items-center justify-between">
-                  <span className="font-semibold text-white/66">Total devido hoje</span>
-                  <span className="font-semibold text-white">{finalCheckoutPrice}</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-          </div>
-        </aside>
-
-        {/* RIGHT — payment form */}
-        <main className="bg-white px-6 py-8 sm:px-10 lg:flex lg:min-h-screen lg:items-start lg:px-16 lg:py-12">
-          <div className="mx-auto w-full max-w-[430px]">
+        <div className="mt-14 grid items-start gap-14 lg:grid-cols-[minmax(0,560px)_390px] lg:justify-center">
+          <section>
+            <h2 className="mb-5 text-[17px] font-semibold tracking-[-0.015em]">Pagar com</h2>
             <button
               type="button"
               onClick={() => setSelectedMethod("pix")}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#00C853] px-4 text-[15px] font-semibold text-white transition hover:bg-[#00b94d]"
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-[16px] bg-black px-5 text-[18px] font-semibold text-white shadow-[0_12px_28px_rgba(0,0,0,0.10)] transition hover:bg-[#1C1C1C]"
             >
-              Pagar com Pix
-              <QrCode size={17} />
+              <QrCode size={20} />
+              Pix
             </button>
 
-            <div className="my-6 flex items-center gap-4">
-              <div className="h-px flex-1 bg-gray-100" />
-              <span className="text-[11px] font-semibold uppercase text-gray-400">OU</span>
-              <div className="h-px flex-1 bg-gray-100" />
+            <div className="my-7 flex items-center gap-5">
+              <div className="h-px flex-1 bg-black/10" />
+              <span className="text-[14px] font-semibold text-[#8A8A86]">Ou</span>
+              <div className="h-px flex-1 bg-black/10" />
             </div>
 
-            <h2 className="mb-5 text-[21px] font-semibold tracking-[-0.03em] text-gray-950">
-              Insira os dados de pagamento
-            </h2>
+            <div
+              className={`rounded-[18px] border p-6 transition ${
+                selectedMethod === "credit_card" ? "border-black/15 bg-white shadow-[0_18px_45px_rgba(0,0,0,0.07)]" : "border-black/10 bg-[#EEEEEC]"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedMethod("credit_card")}
+                className="flex w-full items-center justify-between text-left"
+              >
+                <span className="flex items-center gap-4 text-[17px] font-semibold text-[#202020]">
+                  <CreditCard size={18} />
+                  Cartão
+                </span>
+                <span className={`h-5 w-5 rounded-full border-2 ${selectedMethod === "credit_card" ? "border-black bg-white shadow-[inset_0_0_0_5px_black]" : "border-[#C9C9C5]"}`} />
+              </button>
 
-            <div className="space-y-5">
-              <label className="block">
-                <span className="mb-1.5 block text-[13px] font-semibold text-gray-700">E-mail</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="voce@email.com"
-                  className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-                />
-              </label>
-
-              <div>
-                <p className="mb-2 text-[13px] font-semibold text-gray-700">Método de pagamento</p>
-                <div className="overflow-hidden rounded-md border border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMethod("pix")}
-                    className={`flex h-12 w-full items-center justify-between border-b border-gray-100 px-3 text-left transition ${
-                      selectedMethod === "pix" ? "bg-gray-50" : "bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 text-[14px] font-semibold text-gray-800">
-                      <QrCode size={15} className="text-green-600" />
-                      Pix
-                    </span>
-                    <span className={`h-4 w-4 rounded-full border ${selectedMethod === "pix" ? "border-gray-900 bg-gray-900 shadow-[inset_0_0_0_4px_white]" : "border-gray-300"}`} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMethod("credit_card")}
-                    className={`flex h-12 w-full items-center justify-between px-3 text-left transition ${
-                      selectedMethod === "credit_card" ? "bg-gray-50" : "bg-white hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 text-[14px] font-semibold text-gray-800">
-                      <CreditCard size={15} className="text-blue-600" />
-                      Cartão
-                    </span>
-                    <span className={`h-4 w-4 rounded-full border ${selectedMethod === "credit_card" ? "border-gray-900 bg-gray-900 shadow-[inset_0_0_0_4px_white]" : "border-gray-300"}`} />
-                  </button>
-                </div>
-              </div>
-
-              {selectedMethod === "credit_card" && (
-                <div className="rounded-md border border-gray-200 p-3">
-                  <label className="block">
-                    <span className="mb-1.5 block text-[13px] font-medium text-gray-700">Número do cartão</span>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="1234 1234 1234 1234"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        maxLength={19}
-                        className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 pr-20 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-                      />
-                      <div className="absolute right-2 top-1/2 flex -translate-y-1/2 gap-1">
-                        <span className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-blue-700">VISA</span>
-                        <span className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-orange-600">MC</span>
-                      </div>
+              <div className="mt-14 space-y-10">
+                <label className="block">
+                  <span className="sr-only">Número do cartão</span>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Número do cartão"
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value)}
+                      maxLength={19}
+                      className="h-12 w-full border-0 bg-transparent pr-32 text-[19px] font-medium text-black outline-none placeholder:text-[#9B9B97]"
+                    />
+                    <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                      <span className="rounded-[4px] bg-[#0E5AA7] px-2 py-1 text-[10px] font-black text-white">VISA</span>
+                      <span className="flex items-center gap-[-4px]">
+                        <span className="block h-6 w-6 rounded-full bg-[#EB001B]" />
+                        <span className="-ml-2 block h-6 w-6 rounded-full bg-[#F79E1B] mix-blend-multiply" />
+                      </span>
+                      <span className="rounded-[4px] bg-white px-1.5 py-1 text-[9px] font-black text-[#1D1D1B] shadow-sm">DISC</span>
                     </div>
-                  </label>
-
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <label className="block">
-                      <span className="mb-1.5 block text-[13px] font-medium text-gray-700">Data de validade</span>
-                      <input
-                        type="text"
-                        placeholder="MM / AA"
-                        value={cardExpiry}
-                        onChange={(e) => setCardExpiry(e.target.value)}
-                        maxLength={5}
-                        className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-1.5 block text-[13px] font-medium text-gray-700">Código de segurança</span>
-                      <input
-                        type="text"
-                        placeholder="CVC"
-                        value={cardCvc}
-                        onChange={(e) => setCardCvc(e.target.value)}
-                        maxLength={4}
-                        className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-                      />
-                    </label>
                   </div>
+                </label>
+
+                <div className="grid grid-cols-2 gap-8">
+                  <input
+                    type="text"
+                    placeholder="Data de validade"
+                    value={cardExpiry}
+                    onChange={(e) => setCardExpiry(e.target.value)}
+                    maxLength={5}
+                    className="h-12 border-0 bg-transparent text-[18px] font-medium text-black outline-none placeholder:text-[#9B9B97]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Código de segurança"
+                    value={cardCvc}
+                    onChange={(e) => setCardCvc(e.target.value)}
+                    maxLength={4}
+                    className="h-12 border-0 bg-transparent text-[18px] font-medium text-black outline-none placeholder:text-[#9B9B97]"
+                  />
+                </div>
+
+                <label className="flex cursor-pointer items-start gap-3 text-[15px] leading-6 text-[#575754]">
+                  <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 rounded border-black/20 accent-black" />
+                  <span>Salvar dados de pagamento para compras futuras na Velo.</span>
+                </label>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSelectedMethod("pix")}
+              className={`mt-3 flex h-[72px] w-full items-center justify-between rounded-[18px] border px-6 text-left transition ${
+                selectedMethod === "pix" ? "border-black/15 bg-white shadow-[0_14px_34px_rgba(0,0,0,0.06)]" : "border-black/10 bg-[#EEEEEC]"
+              }`}
+            >
+              <span className="flex items-center gap-4 text-[17px] font-semibold text-[#535350]">
+                <QrCode size={20} className="text-[#02B894]" />
+                Pix
+              </span>
+              <span className={`h-5 w-5 rounded-full border-2 ${selectedMethod === "pix" ? "border-black bg-white shadow-[inset_0_0_0_5px_black]" : "border-[#C9C9C5]"}`} />
+            </button>
+
+            <div className="mt-6 overflow-hidden rounded-[16px] border border-black/10 bg-white">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="E-mail"
+                className="h-14 w-full border-b border-black/5 bg-transparent px-5 text-[15px] text-black outline-none placeholder:text-[#999]"
+              />
+              <input
+                type="text"
+                value={cardHolder}
+                onChange={(e) => setCardHolder(e.target.value)}
+                placeholder="Nome completo"
+                className="h-14 w-full border-b border-black/5 bg-transparent px-5 text-[15px] text-black outline-none placeholder:text-[#999]"
+              />
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Endereço"
+                className="h-14 w-full bg-transparent px-5 text-[15px] text-black outline-none placeholder:text-[#999]"
+              />
+            </div>
+
+            <div className="mt-6 flex items-center gap-3 rounded-[16px] border border-black/10 bg-white px-5 py-4 text-[14px] text-[#6B6B68] shadow-[0_10px_28px_rgba(0,0,0,0.04)]">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#00AEEF] text-[11px] font-black text-white">
+                MP
+              </span>
+              <span>Pagamento processado pelo</span>
+              <span className="font-bold text-[#111]">Mercado Pago</span>
+            </div>
+          </section>
+
+          <aside className="rounded-[28px] border border-black/10 bg-white p-8 shadow-[0_24px_70px_rgba(0,0,0,0.08)]">
+            <div className="flex items-start gap-4">
+              <VeloMark size={36} tone={summaryIconTone} />
+              <div>
+                <h2 className="text-[28px] font-semibold tracking-[-0.045em]">Plano {plan.name}</h2>
+                <p className="mt-3 text-[15px] leading-6 text-[#666]">{plan.description}</p>
+              </div>
+            </div>
+
+            <h3 className="mt-8 text-[16px] font-semibold">Principais recursos</h3>
+            <ul className="mt-5 space-y-5">
+              {plan.features.slice(0, 5).map((feature) => (
+                <li key={feature} className="flex items-start gap-4 text-[15px] leading-6 text-[#555]">
+                  <Check size={17} className="mt-1 shrink-0 text-[#2563EB]" strokeWidth={2.5} />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-9 space-y-4 border-t border-black/10 pt-7 text-[15px]">
+              <div className="flex items-center justify-between text-[#6F6F6A]">
+                <span>{billingCycle === "annual" ? "Anual assinatura" : "Mensal assinatura"}</span>
+                <span>{originalCheckoutPrice}</span>
+              </div>
+              {hasReferralDiscount && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>Desconto por indicação</span>
+                  <span>- {formatBRL(parseBRL(originalCheckoutPrice) * 0.15)}</span>
                 </div>
               )}
-
-              <label className="block">
-                <span className="mb-1.5 block text-[13px] font-semibold text-gray-700">Nome completo</span>
-                <input
-                  type="text"
-                  value={cardHolder}
-                  onChange={(e) => setCardHolder(e.target.value)}
-                  placeholder="Seu nome completo"
-                  className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-[13px] font-semibold text-gray-700">País ou região</span>
-                <select
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-                >
-                  <option>Brasil</option>
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-[13px] font-semibold text-gray-700">Endereço</span>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Rua, número, complemento"
-                  className="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-[14px] text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-                />
-              </label>
+              <div className="flex items-center justify-between text-[17px] font-bold">
+                <span>A pagar hoje</span>
+                <span>{finalCheckoutPrice}</span>
+              </div>
             </div>
 
-            {checkoutState === "pix_pending" && pixData && (
-              <div className="mt-6 rounded-md border border-gray-200 bg-white p-5 text-center">
+            {checkoutState === "pix_pending" && pixData ? (
+              <div className="mt-7 rounded-[18px] border border-black/10 bg-[#F7F7F5] p-5 text-center">
                 <h3 className="text-[15px] font-semibold text-gray-900">Escaneie o QR Code para pagar</h3>
-                <p className="mt-1 text-[13px] text-gray-500">Abra o app do seu banco e escaneie o código abaixo.</p>
                 {pixData.qr_code_base64 && (
                   <div className="mt-4 flex justify-center">
                     <img
@@ -898,10 +827,10 @@ const CheckoutPage = () => {
                     />
                   </div>
                 )}
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                <div className="mt-4 grid gap-2">
                   <button
                     onClick={copyPix}
-                    className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 px-4 py-2.5 text-[13px] font-semibold text-gray-700 transition hover:bg-gray-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-4 py-3 text-[13px] font-semibold text-gray-700 transition hover:bg-gray-50"
                   >
                     {copied ? <CheckCircle2 size={15} className="text-green-500" /> : <Copy size={15} />}
                     {copied ? "Copiado!" : "Copiar código Pix"}
@@ -909,66 +838,83 @@ const CheckoutPage = () => {
                   <button
                     onClick={handleManualVerify}
                     disabled={verifying}
-                    className="inline-flex items-center justify-center gap-2 rounded-md bg-gray-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black disabled:opacity-60"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-black px-4 py-3 text-[13px] font-semibold text-white transition hover:bg-[#222] disabled:opacity-60"
                   >
                     {verifying ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                     Já paguei
                   </button>
                 </div>
-                <p className="mt-3 text-[12px] text-gray-400">Verificamos seu pagamento automaticamente a cada 5 segundos.</p>
               </div>
-            )}
-
-            {checkoutState !== "pix_pending" && (
+            ) : (
               <>
-                <div className="mt-6 space-y-2.5 text-[12.5px] leading-[1.55] text-white/70">
-                  <label className="flex cursor-pointer items-start gap-2.5">
+                <div className="mt-7 space-y-3 text-[14px] leading-5 text-[#666]">
+                  <label className="flex cursor-pointer items-start gap-3">
                     <input
                       type="checkbox"
                       checked={acceptTerms}
                       onChange={(e) => setAcceptTerms(e.target.checked)}
-                      className="mt-[3px] h-4 w-4 shrink-0 cursor-pointer accent-white"
+                      className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-black"
                     />
                     <span>
-                      Li e aceito os{" "}
-                      <Link to="/termos" target="_blank" className="text-white underline decoration-white/30 underline-offset-2 hover:decoration-white">
+                      Aceito os{" "}
+                      <Link to="/termos" target="_blank" className="font-medium text-black underline underline-offset-2">
                         Termos de Uso
                       </Link>
                       .
                     </span>
                   </label>
-                  <label className="flex cursor-pointer items-start gap-2.5">
+                  <label className="flex cursor-pointer items-start gap-3">
                     <input
                       type="checkbox"
                       checked={acceptPrivacy}
                       onChange={(e) => setAcceptPrivacy(e.target.checked)}
-                      className="mt-[3px] h-4 w-4 shrink-0 cursor-pointer accent-white"
+                      className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-black"
                     />
                     <span>
-                      Li e aceito a{" "}
-                      <Link to="/privacidade" target="_blank" className="text-white underline decoration-white/30 underline-offset-2 hover:decoration-white">
+                      Aceito a{" "}
+                      <Link to="/privacidade" target="_blank" className="font-medium text-black underline underline-offset-2">
                         Política de Privacidade
                       </Link>
                       .
                     </span>
                   </label>
                 </div>
+
                 <button
                   onClick={handleCheckout}
                   disabled={checkoutState === "loading" || !acceptTerms || !acceptPrivacy}
-                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-gray-950 px-4 text-[15px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-7 flex h-16 w-full items-center justify-center gap-2 rounded-full bg-black px-5 text-[18px] font-semibold text-white transition hover:bg-[#222] disabled:cursor-not-allowed disabled:bg-[#D7D7D4] disabled:text-white"
                 >
                   {checkoutState === "loading" ? (
-                    <><Loader2 size={16} className="animate-spin" /> Processando...</>
+                    <>
+                      <Loader2 size={18} className="animate-spin" /> Processando...
+                    </>
                   ) : (
-                    `Pagar ${finalCheckoutPrice}`
+                    "Assinar"
                   )}
                 </button>
               </>
             )}
-          </div>
-        </main>
-      </div>
+          </aside>
+        </div>
+
+        <p className="ml-auto mt-8 max-w-[390px] text-[13px] leading-5 text-[#777]">
+          Renovação {recurringCycleLabel} até cancelar. Cobraremos {finalCheckoutPrice}
+          {billingCycle === "monthly" ? "/mês" : "/ano"}.{" "}
+          <button type="button" className="font-medium text-black underline underline-offset-2">
+            Cancele quando quiser
+          </button>{" "}
+          em Configurações. Ao assinar, você concorda com os{" "}
+          <Link to="/termos" target="_blank" className="font-medium text-black underline underline-offset-2">
+            Termos de Uso
+          </Link>{" "}
+          e com a{" "}
+          <Link to="/privacidade" target="_blank" className="font-medium text-black underline underline-offset-2">
+            Política de Privacidade
+          </Link>
+          .
+        </p>
+      </main>
     </div>
   );
 };

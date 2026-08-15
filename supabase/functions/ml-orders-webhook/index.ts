@@ -34,6 +34,39 @@ function err(message: string, status = 500) {
   });
 }
 
+function notificationForPublicationStatus(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized === "paused" || normalized === "inactive" || normalized === "under_review") {
+    return { type: "product_paused", title: "Produto pausado", verb: "foi pausado" };
+  }
+  if (normalized === "active" || normalized === "published") {
+    return { type: "product_activated", title: "Produto ativado", verb: "voltou a ficar ativo" };
+  }
+  return null;
+}
+
+async function notifyUser(
+  client: ReturnType<typeof createClient>,
+  row: {
+    user_id: string;
+    type: string;
+    title: string;
+    message: string;
+    action_url?: string;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  const { error } = await client.from("notifications").insert({
+    user_id: row.user_id,
+    type: row.type,
+    title: row.title,
+    message: row.message,
+    action_url: row.action_url ?? null,
+    metadata: row.metadata ?? {},
+  });
+  if (error) console.warn("[ml-orders-webhook] falha ao criar notificacao:", error.message);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -71,7 +104,7 @@ Deno.serve(async (req) => {
         // Descobrir dono do item via user_publications
         const { data: pubRow } = await adminClient
           .from("user_publications")
-          .select("id, user_id, status")
+          .select("id, user_id, status, title")
           .eq("ml_item_id", mlItemId)
           .maybeSingle();
 
@@ -134,10 +167,29 @@ Deno.serve(async (req) => {
         const newStatus = String(cur?.status ?? "").trim();
 
         if (newStatus && newStatus !== pubRow.status && pubRow.status !== "archived_duplicate") {
-          await adminClient
+          const { error: updateError } = await adminClient
             .from("user_publications")
             .update({ status: newStatus, updated_at: new Date().toISOString() })
             .eq("id", pubRow.id);
+          const notification = !updateError ? notificationForPublicationStatus(newStatus) : null;
+          if (updateError) {
+            console.warn("[ml-orders-webhook][items] falha ao atualizar publicacao:", updateError.message);
+          } else if (notification) {
+            const productTitle = String(pubRow.title || mlItemId).trim();
+            await notifyUser(adminClient, {
+              user_id: pubRow.user_id,
+              type: notification.type,
+              title: notification.title,
+              message: `${productTitle} ${notification.verb}.`,
+              action_url: "/dashboard/publicacoes",
+              metadata: {
+                publication_id: pubRow.id,
+                ml_item_id: mlItemId,
+                previous_status: pubRow.status,
+                current_status: newStatus,
+              },
+            });
+          }
           console.log(
             `[ml-orders-webhook][items] ${mlItemId}: ${pubRow.status} -> ${newStatus}`,
           );
@@ -390,6 +442,20 @@ Deno.serve(async (req) => {
 
     const internalOrderId = newOrder.id as string;
     console.log("[ml-orders-webhook] order saved:", internalOrderId);
+
+    await notifyUser(adminClient, {
+      user_id: integration.user_id,
+      type: "new_sale",
+      title: "Nova venda",
+      message: `${item?.item?.title ?? "Produto Mercado Livre"} vendido por ${totalAmount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.`,
+      action_url: "/dashboard/pedidos",
+      metadata: {
+        order_id: internalOrderId,
+        ml_order_id: String(mlOrderId),
+        product_title: item?.item?.title ?? null,
+        total_amount: totalAmount,
+      },
+    });
 
     console.log("[ml-orders-webhook] fulfillment intentionally disabled for:", internalOrderId);
 

@@ -146,6 +146,131 @@ export type Database = {
         }
         Relationships: []
       }
+      feature_suggestions: {
+        Row: {
+          category:
+            | "geral"
+            | "catalogo"
+            | "paginas_ia"
+            | "integracoes"
+            | "atlas"
+            | "checkout"
+            | "templates"
+          comments_count: number
+          created_at: string
+          description: string
+          id: string
+          status: "pending" | "approved" | "ongoing" | "completed" | "rejected"
+          title: string
+          updated_at: string
+          user_id: string
+          votes_count: number
+        }
+        Insert: {
+          category?:
+            | "geral"
+            | "catalogo"
+            | "paginas_ia"
+            | "integracoes"
+            | "atlas"
+            | "checkout"
+            | "templates"
+          comments_count?: number
+          created_at?: string
+          description: string
+          id?: string
+          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
+          title: string
+          updated_at?: string
+          user_id: string
+          votes_count?: number
+        }
+        Update: {
+          category?:
+            | "geral"
+            | "catalogo"
+            | "paginas_ia"
+            | "integracoes"
+            | "atlas"
+            | "checkout"
+            | "templates"
+          comments_count?: number
+          created_at?: string
+          description?: string
+          id?: string
+          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
+          title?: string
+          updated_at?: string
+          user_id?: string
+          votes_count?: number
+        }
+        Relationships: []
+      }
+      ai_product_pages: {
+        Row: {
+          catalog_product_id: string | null
+          completed_at: string | null
+          content: Json
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          image_count: number | null
+          images: Json
+          language: string
+          provider: string
+          provider_page_id: string | null
+          source_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          catalog_product_id?: string | null
+          completed_at?: string | null
+          content?: Json
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          image_count?: number | null
+          images?: Json
+          language?: string
+          provider?: string
+          provider_page_id?: string | null
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          catalog_product_id?: string | null
+          completed_at?: string | null
+          content?: Json
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          image_count?: number | null
+          images?: Json
+          language?: string
+          provider?: string
+          provider_page_id?: string | null
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_product_pages_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aliexpress_oauth_states: {
         Row: {
           consumed_at: string | null
@@ -1058,6 +1183,7 @@ export type Database = {
           loja_nome: string | null
           nicho: string | null
           objetivo: string | null
+          notification_preferences: Json
           onboarding_completed: boolean
           onboarding_completed_at: string | null
           onboarding_niche: string | null
@@ -1086,6 +1212,7 @@ export type Database = {
           loja_nome?: string | null
           nicho?: string | null
           objetivo?: string | null
+          notification_preferences?: Json
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
           onboarding_niche?: string | null
@@ -1114,6 +1241,7 @@ export type Database = {
           loja_nome?: string | null
           nicho?: string | null
           objetivo?: string | null
+          notification_preferences?: Json
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
           onboarding_niche?: string | null
@@ -1518,6 +1646,10 @@ export type Database = {
           trial_ends_at: string | null
           updated_at: string
           user_id: string
+          provider: string | null
+          validapay_charge_id: string | null
+          validapay_customer_id: string | null
+          validapay_subscription_id: string | null
         }
         Insert: {
           amount?: number
@@ -1546,6 +1678,10 @@ export type Database = {
           trial_ends_at?: string | null
           updated_at?: string
           user_id: string
+          provider?: string | null
+          validapay_charge_id?: string | null
+          validapay_customer_id?: string | null
+          validapay_subscription_id?: string | null
         }
         Update: {
           amount?: number
@@ -1574,6 +1710,10 @@ export type Database = {
           trial_ends_at?: string | null
           updated_at?: string
           user_id?: string
+          provider?: string | null
+          validapay_charge_id?: string | null
+          validapay_customer_id?: string | null
+          validapay_subscription_id?: string | null
         }
         Relationships: [
           {
@@ -2159,6 +2299,48 @@ export type Database = {
           started_at?: string
           user_agent?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      validapay_webhook_events: {
+        Row: {
+          amount: number | null
+          charge_id: string | null
+          created_at: string
+          error: string | null
+          event: string
+          id: string
+          payload: Json
+          payment_id: string | null
+          processed: boolean
+          status: string | null
+          subscription_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          charge_id?: string | null
+          created_at?: string
+          error?: string | null
+          event: string
+          id?: string
+          payload: Json
+          payment_id?: string | null
+          processed?: boolean
+          status?: string | null
+          subscription_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          charge_id?: string | null
+          created_at?: string
+          error?: string | null
+          event?: string
+          id?: string
+          payload?: Json
+          payment_id?: string | null
+          processed?: boolean
+          status?: string | null
+          subscription_id?: string | null
         }
         Relationships: []
       }

@@ -6,7 +6,7 @@ import {
   fetchPublicStoreProducts,
   getProjectAccent,
   getProjectCopyVariant,
-  getProjectDescription,
+  getProjectAiDescription,
   getProjectFont,
   getProjectHeroCtaUrl,
   getProjectHeroImage,
@@ -21,10 +21,7 @@ import {
 } from "@/lib/userProjects";
 import { applyOverridesToRoot } from "@/lib/storeOverrides";
 import { renderStoreIcon } from "@/lib/storeIcons";
-import ProductTemplate from "@/components/store-templates/ProductTemplate";
-import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateBeauty";
-import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
-import ProductTemplate4 from "@/components/store-templates/ProductTemplate4";
+import { AI_DESCRIPTION_PLACEHOLDER, resolveProductTemplate } from "@/components/store-templates/productTemplateRegistry";
 import StorefrontLojaTemplate from "@/components/store-templates/StorefrontLojaTemplate";
 import StorefrontLojaTemplate2 from "@/components/store-templates/StorefrontLojaTemplate2";
 import PreviewPage from "@/pages/PreviewPage";
@@ -44,39 +41,16 @@ const FONT_STACKS: Record<string, string> = {
 
 const fontStackFor = (name: string) => FONT_STACKS[name] || FONT_STACKS.Geist;
 
-// Configuração dos templates de página de produto — espelha exatamente o que o
-// editor (GeneratedStoreEditorPage) renderiza para cada template, para que a
-// página publicada fique idêntica à que o usuário editou.
-const PRODUCT_TEMPLATES = {
-  "produto-2": {
-    Component: ProductTemplateBeauty,
-    descFallback:
-      "Serum leve de rapida absorcao que hidrata profundamente e deixa a pele macia e saudavel no uso diario.",
-  },
-  "produto-3": {
-    Component: ProductTemplateShopify,
-    descFallback:
-      "Fuja do ruido e aumente seu foco. Conforto duradouro com ANC avancado, chamadas nitidas e 30 horas de bateria.",
-  },
-  "produto-4": {
-    Component: ProductTemplate4,
-    descFallback:
-      "Design premium e alta performance para o seu dia a dia. Materiais duraveis, acabamento cuidadoso e praticidade em cada detalhe.",
-  },
-  "produto-1": {
-    Component: ProductTemplate,
-    descFallback:
-      "Confeccionado em algodao premium de alta gramatura, entrega conforto e durabilidade. A modelagem oversized e o design minimalista tornam a peca um coringa para qualquer guarda-roupa.",
-  },
-} as const;
-
-const resolveProductTemplate = (templateId: string) =>
-  PRODUCT_TEMPLATES[templateId as keyof typeof PRODUCT_TEMPLATES] ?? PRODUCT_TEMPLATES["produto-1"];
+// Os templates de página de produto ficam num registro único
+// (productTemplateRegistry), compartilhado com o editor. Antes esta tela tinha
+// a própria lista e ela ficou para trás: templates que existiam no editor caíam
+// no fallback ao publicar, e o lojista via um layout diferente do que escolheu.
 
 /** Renderiza a página de produto publicada usando o mesmo template do editor,
  *  e reaplica as customizações (cor, fonte e edições por elemento) salvas. */
 const PublishedProductPage = ({ project }: { project: UserProject }) => {
   const [product, setProduct] = useState<PublicStoreProduct | null>(null);
+  const [related, setRelated] = useState<PublicStoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -88,9 +62,16 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
     void (async () => {
       try {
         const list = await fetchPublicStoreProducts(getProjectProductIds(project));
-        if (active) setProduct(list[0] ?? null);
+        if (active) {
+          setProduct(list[0] ?? null);
+          // Os demais produtos do projeto alimentam "Você também pode gostar".
+          setRelated(list.slice(1));
+        }
       } catch {
-        if (active) setProduct(null);
+        if (active) {
+          setProduct(null);
+          setRelated([]);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -143,7 +124,10 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
       <Component
         brand={brand}
         title={product?.title || brand}
-        description={(getProjectDescription(project) || descFallback).slice(0, 240)}
+        // Só o texto curto da IA. metadata.descricao guarda o ângulo de copy
+        // do wizard ("Benefício principal") e product.description é a ficha
+        // técnica raspada — nenhum dos dois é texto de venda.
+        description={getProjectAiDescription(project) || AI_DESCRIPTION_PLACEHOLDER}
         price={price}
         // Só o desconto real do fornecedor. Antes, na ausência dele, a página
         // fabricava um preço riscado (price * originalMultiplier) — preço de
@@ -156,6 +140,13 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
         accent={accent}
         mobile={false}
         variants={product?.variants ?? []}
+        relatedProducts={related.map((item) => ({
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          originalPrice: item.originalPrice,
+          imageUrl: item.imageUrl,
+        }))}
       />
     </div>
   );

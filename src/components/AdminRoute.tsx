@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 import { useAuth } from "@/contexts/AuthContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -24,7 +24,13 @@ const AdminRoute = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setIsAdmin(initialAdmin);
 
-    if (!user || !isSupabaseEnabled) return;
+    // A sessão já traz a permissão para a maioria dos acessos ao admin. Não
+    // repete a consulta remota em cada troca de página, pois isso desmontava o
+    // painel inteiro e exibia uma tela de carregamento entre as abas.
+    if (!user || !isSupabaseEnabled || initialAdmin) {
+      setRoleLoading(false);
+      return;
+    }
 
     let active = true;
     setRoleLoading(true);
@@ -67,11 +73,7 @@ const AdminRoute = ({ children }: { children: ReactNode }) => {
   }, [emailRole, initialAdmin, metadataRole, role, user]);
 
   if (loading || roleLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
-      </div>
-    );
+    return <VeloLoadingScreen message="Carregando painel..." />;
   }
 
   if (!user || !effectiveIsAdmin) return <Navigate to="/dashboard" replace />;

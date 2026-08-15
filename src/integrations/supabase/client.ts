@@ -106,6 +106,86 @@ export const supabase = SUPABASE_DISABLED
       },
     });
 
+// Em desenvolvimento, permite apontar as Edge Functions para um servidor local
+// (`supabase functions serve`) sem tocar no banco, que continua sendo o remoto.
+//
+// Existe porque a v2 compartilha o mesmo projeto Supabase da produção: sem isso,
+// testar uma function da v2 exigiria deployá-la, e o deploy mudaria o
+// comportamento da v1 que está no ar. A variável VITE_SUPABASE_FUNCTIONS_URL já
+// existia no .env sem ninguém ler — é exatamente para isto que ela serve.
+// Só aceita endereço local: o .env já trazia essa variável apontando para outro
+// projeto remoto, e honrá-la cegamente mandaria as chamadas do dev para um
+// backend desconhecido.
+const rawFunctionsUrl = import.meta.env.DEV
+  ? String(import.meta.env.VITE_SUPABASE_FUNCTIONS_URL ?? "").trim()
+  : "";
+const LOCAL_FUNCTIONS_URL = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(rawFunctionsUrl)
+  ? rawFunctionsUrl.replace(/\/$/, "")
+  : "";
+
+// Apenas as functions nomeadas aqui vão para o servidor local; o resto continua
+// no remoto. Redirecionar todas quebraria catálogo, imagens e login de uma vez.
+const LOCAL_FUNCTION_NAMES = new Set(
+  String(import.meta.env.VITE_LOCAL_FUNCTIONS ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean),
+);
+
+if (LOCAL_FUNCTIONS_URL && LOCAL_FUNCTION_NAMES.size > 0 && !SUPABASE_DISABLED) {
+  // Atenção: `supabase.functions` é um GETTER que devolve uma instância nova a
+  // cada acesso. Escrever em `supabase.functions.invoke` altera um objeto
+  // descartado no mesmo instante — por isso trocamos o próprio getter.
+  const functionsOriginal = (supabase as unknown as { functions: Record<string, unknown> }).functions;
+  const invokeRemoto = (functionsOriginal.invoke as (n: string, o?: { body?: unknown }) => Promise<unknown>)
+    .bind(functionsOriginal);
+
+  const invokeLocalOuRemoto = async (name: string, options?: { body?: unknown }) => {
+    if (!LOCAL_FUNCTION_NAMES.has(name)) return invokeRemoto(name, options);
+
+    const { data: sessao } = await supabase.auth.getSession();
+    const token = sessao.session?.access_token ?? SUPABASE_PUBLISHABLE_KEY;
+    try {
+      const resposta = await fetch(`${LOCAL_FUNCTIONS_URL}/${name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(options?.body ?? {}),
+      });
+      const corpo = await resposta.json().catch(() => null);
+      if (!resposta.ok) {
+        return { data: corpo, error: new Error(corpo?.error ?? `Função local respondeu ${resposta.status}`) };
+      }
+      return { data: corpo, error: null };
+    } catch (erro) {
+      return { data: null, error: erro instanceof Error ? erro : new Error("Falha ao chamar a função local") };
+    }
+  };
+
+  // Substitui o getter por um que sempre devolve o mesmo cliente, com o invoke
+  // já trocado. Os demais métodos seguem apontando para o objeto original.
+  const functionsProxy = new Proxy(functionsOriginal, {
+    get(alvo, prop, receptor) {
+      if (prop === "invoke") return invokeLocalOuRemoto;
+      const valor = Reflect.get(alvo, prop, receptor);
+      return typeof valor === "function" ? valor.bind(alvo) : valor;
+    },
+  });
+
+  Object.defineProperty(supabase, "functions", {
+    get: () => functionsProxy,
+    configurable: true,
+  });
+
+  // eslint-disable-next-line no-console
+  console.info(
+    `[supabase] rodando localmente em ${LOCAL_FUNCTIONS_URL}: ${[...LOCAL_FUNCTION_NAMES].join(", ")}`,
+  );
+}
+
 export const isSupabaseEnabled = !SUPABASE_DISABLED;
 export const supabaseUrl = SUPABASE_URL;
 

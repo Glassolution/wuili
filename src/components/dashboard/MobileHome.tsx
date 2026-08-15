@@ -121,7 +121,7 @@ const mobileVeloActionItems = [
   { label: "Comunidade", image: "/assets/mobile-action-comunidade.png", to: "/docs" },
   { label: "Coleções", image: "/assets/mobile-action-colecoes.png", to: "/colecoes" },
   { label: "Publicações", image: "/assets/mobile-action-publicacoes.png", to: "/dashboard/publicacoes" },
-  { label: "Relatórios", image: "/assets/mobile-action-relatorios.png", to: "/dashboard/relatorios" },
+  { label: "Imagens com IA", image: "/assets/mobile-action-relatorios.png", to: "/dashboard/imagens-ia" },
 ] as const;
 
 const MOBILE_HOME_CATEGORY_OPTIONS = [

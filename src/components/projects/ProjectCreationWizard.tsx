@@ -18,6 +18,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { createUserProject, type ProjectType } from "@/lib/userProjects";
+import { salesPageTemplates } from "@/lib/salesPageTemplates";
+import { CURRENT_PRODUCT_TEMPLATE_ID } from "@/components/store-templates/productTemplateRegistry";
 import { veloToast } from "@/components/ui/velo-toast";
 
 type CatalogProduct = {
@@ -36,6 +38,9 @@ type TemplateOption = {
   tipo: ProjectType;
 };
 
+// Templates oferecidos no wizard. Os de produto vêm da galeria única
+// (salesPageTemplates) para o wizard nunca oferecer um template que não existe
+// mais no renderizador.
 const TEMPLATES: TemplateOption[] = [
   {
     id: "loja-1",
@@ -44,27 +49,13 @@ const TEMPLATES: TemplateOption[] = [
     preview: "/template-01-loja-preview.png",
     tipo: "loja_completa",
   },
-  {
-    id: "produto-1",
-    label: "Oferta clássica",
-    description: "Página de venda focada, com herói forte e prova social.",
-    preview: "/template-produto-preview.png",
-    tipo: "pagina_venda",
-  },
-  {
-    id: "produto-2",
-    label: "Oferta minimal",
-    description: "Layout limpo, direto ao ponto, ótimo para conversão rápida.",
-    preview: "/template-produto-2-preview.png",
-    tipo: "pagina_venda",
-  },
-  {
-    id: "produto-3",
-    label: "Oferta premium",
-    description: "Visual sofisticado com blocos de benefício e depoimentos.",
-    preview: "/template-produto-3-preview.png",
-    tipo: "pagina_venda",
-  },
+  ...salesPageTemplates.map((template) => ({
+    id: template.editorTemplateId,
+    label: template.name,
+    description: template.description,
+    preview: template.preview,
+    tipo: "pagina_venda" as ProjectType,
+  })),
 ];
 
 const LOADING_STEPS = [
@@ -177,7 +168,7 @@ const ProjectCreationWizard = ({
   const [draggingLogo, setDraggingLogo] = useState(false);
   const [logoUrlInput, setLogoUrlInput] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>(preselectedProductIds ?? []);
-  const defaultTemplateId = tipo === "loja_completa" ? "loja-1" : "produto-1";
+  const defaultTemplateId = tipo === "loja_completa" ? "loja-1" : CURRENT_PRODUCT_TEMPLATE_ID;
   const [templateId, setTemplateId] = useState<string>(defaultTemplateId);
 
 
@@ -203,7 +194,7 @@ const ProjectCreationWizard = ({
     setLogoUrlInput("");
     setSelectedProducts(preselectedProductIds ?? []);
     setTipo(defaultTipo ?? DEFAULT_TIPO);
-    setTemplateId((defaultTipo ?? DEFAULT_TIPO) === "loja_completa" ? "loja-1" : "produto-1");
+    setTemplateId((defaultTipo ?? DEFAULT_TIPO) === "loja_completa" ? "loja-1" : CURRENT_PRODUCT_TEMPLATE_ID);
     setSearch("");
     setLoadingIndex(0);
     setError(null);
@@ -531,7 +522,7 @@ const ProjectCreationWizard = ({
                                       return;
                                     }
                                     setTipo(option.value);
-                                    setTemplateId(option.value === "loja_completa" ? "loja-1" : "produto-1");
+                                    setTemplateId(option.value === "loja_completa" ? "loja-1" : CURRENT_PRODUCT_TEMPLATE_ID);
                                   }}
                                   className={`relative rounded-[12px] border px-4 py-3 text-left transition-colors ${
                                     active

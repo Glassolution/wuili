@@ -8,6 +8,10 @@ import FreePlanBanner from "@/components/dashboard/FreePlanBanner";
 import StartModeModal from "@/components/dashboard/StartModeModal";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
+import AtlasDockPanel from "@/components/dashboard/AtlasDockPanel";
+import SupportFloatingWidget from "@/components/dashboard/SupportFloatingWidget";
+import { useAtlasChat } from "@/contexts/AtlasChatContext";
+import NotificationBannerStack from "@/components/dashboard/NotificationBannerStack";
 import {
   hasCompletedStoreOnboarding,
   markStoreOnboardingCompleted,
@@ -22,6 +26,8 @@ import OnboardingModal, {
   markOnboardingSeen,
   shouldShowOnboarding,
 } from "@/components/onboarding/OnboardingModal";
+import AtlasProductShowcase from "@/components/dashboard/AtlasProductShowcase";
+import { CHAVE_RESPOSTAS_DO_QUIZ } from "@/lib/perfilDoQuiz";
 import GuidedTour from "@/components/tour/GuidedTour";
 import TourWelcomeModal from "@/components/tour/TourWelcomeModal";
 import { hasSeenTour, markTourSeen } from "@/components/tour/tourState";
@@ -36,7 +42,7 @@ import { useProfile } from "@/lib/profileContext";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
 import { isChunkLoadError, recoverFromChunkLoadError } from "@/lib/chunkRecovery";
-import {
+import { Image as ImageIcon,
   ArrowLeft,
   ArrowLeftRight,
   Archive,
@@ -74,7 +80,7 @@ type MobileRouteMeta = {
 const mobileRoutes: MobileRouteMeta[] = [
   { test: (p) => p === "/dashboard", title: "Dashboard" },
   { test: (p) => p.startsWith("/dashboard/paginas-com-ia"), title: "Páginas com IA" },
-  { test: (p) => p.startsWith("/dashboard/modelos"), title: "Modelos" },
+  { test: (p) => p.startsWith("/dashboard/modelos"), title: "Templates" },
   { test: (p) => p.startsWith("/dashboard/produtos"), title: "Produtos" },
   { test: (p) => p.startsWith("/dashboard/pedidos"), title: "Pedidos" },
   { test: (p) => p.startsWith("/dashboard/saldos"), title: "Financeiro" },
@@ -83,9 +89,11 @@ const mobileRoutes: MobileRouteMeta[] = [
   { test: (p) => p.startsWith("/dashboard/publicacoes"), title: "Publicações" },
   { test: (p) => p.startsWith("/dashboard/criar-video"), title: "Vídeos" },
   { test: (p) => p.startsWith("/dashboard/chat-fornecedores"), title: "Chat" },
-  { test: (p) => p.startsWith("/dashboard/integracoes"), title: "Integrações" },
+  { test: (p) => p.startsWith("/dashboard/integracoes"), title: "Lojas" },
+  { test: (p) => p.startsWith("/dashboard/tiktok"), title: "TikTok" },
+  { test: (p) => p.startsWith("/dashboard/personagem-video"), title: "Personagem em vídeo" },
   { test: (p) => p.startsWith("/dashboard/comissoes"), title: "Comissões" },
-  { test: (p) => p.startsWith("/dashboard/relatorios"), title: "Relatórios" },
+  { test: (p) => p.startsWith("/dashboard/imagens-ia"), title: "Imagens com IA" },
   { test: (p) => p.startsWith("/dashboard/resultados"), title: "Resultados" },
   { test: (p) => p.startsWith("/dashboard/minha-conta"), title: "Minha Conta" },
   { test: (p) => p.startsWith("/dashboard/configuracoes"), title: "Perfil" },
@@ -292,7 +300,7 @@ const MobileAccountPage = ({
         <MobileDrawerLink to="/dashboard/configuracoes?tab=Suporte" label="Suporte" icon={Headphones} />
         <MobileDrawerLink to="/dashboard/publicacoes" label="Publicações" icon={Archive} />
         <MobileDrawerLink to="/colecoes" label="Coleções" icon={Copy} />
-        <MobileDrawerLink to="/dashboard/relatorios" label="Relatórios" icon={ClipboardList} />
+        <MobileDrawerLink to="/dashboard/imagens-ia" label="Imagens com IA" icon={ImageIcon} />
         <MobileDrawerButton label="Convidar amigo" icon={UserPlus} onClick={() => setInviteOpen(true)} />
         <MobileDrawerLink to="/docs" label="Ajuda & Central" icon={HelpCircle} />
         {isAdmin && (
@@ -347,6 +355,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const isRootDashboard = location.pathname === "/dashboard";
   const isAccountPage = location.pathname === "/dashboard/minha-conta";
   const isCatalogProductDetail = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
+  const isModelsRoute = location.pathname.startsWith("/dashboard/modelos");
   const displayName = user?.user_metadata?.full_name ?? user?.email ?? "Velo";
   const initials = displayName
     .split(/[\s._\-@]+/)
@@ -410,7 +419,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-      {!isRootDashboard && !isAccountPage && (
+      {!isRootDashboard && !isAccountPage && !isModelsRoute && (
         <header
           className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-[#050505] px-4 backdrop-blur-xl"
         >
@@ -491,6 +500,7 @@ const DashboardLayoutInner = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { aberto: atlasAberto } = useAtlasChat();
   const isMobile = useIsMobile();
   const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
   const [storesHydrated, setStoresHydrated] = useState(false);
@@ -543,14 +553,19 @@ const DashboardLayoutInner = () => {
 
   // Chamado ao concluir o onboarding: fecha o modal e, no desktop, encadeia o
   // convite do tour.
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = (respostas: Record<string, string>) => {
     if (!user?.id) return;
     markOnboardingSeen(user.id);
     // Limpa a flag durável no Supabase Auth: `velo_onboarding_pending` é gravada
     // no cadastro e persiste no servidor. Sem isto, `isFreshSignup` continuaria
     // verdadeiro para sempre e o modal reapareceria em qualquer navegador/
     // dispositivo onde o marcador de localStorage não existe.
-    void supabase.auth.updateUser({ data: { velo_onboarding_pending: false } });
+    //
+    // As respostas do quiz vão junto: são elas que a vitrine do guia usa para
+    // recomendar produtos. Antes eram descartadas ao fechar o modal.
+    void supabase.auth.updateUser({
+      data: { velo_onboarding_pending: false, [CHAVE_RESPOSTAS_DO_QUIZ]: respostas },
+    });
     setShowOnboarding(false);
     if (!isMobile && !hasSeenTour(user.id)) setTourPromptOpen(true);
   };
@@ -567,7 +582,30 @@ const DashboardLayoutInner = () => {
   const isStartMode = false;
   const { plan: currentPlan, loading: planLoading } = usePlan();
   const showFreePlanBanner = !planLoading && currentPlan === "gratis";
-  const hideDesktopHeader = location.pathname === "/dashboard/minha-loja";
+  const isModelsRoute = location.pathname.startsWith("/dashboard/modelos");
+  // A barra do topo (nome da tela + sino) some em quase tudo: cada página já
+  // abre com o próprio título e a seta de voltar, e os dois cabeçalhos
+  // empilhados só repetiam a mesma informação. Sobra nas telas de conta —
+  // assinatura e configurações —, que não têm cabeçalho próprio.
+  const HEADER_ROUTES = [
+    "/dashboard/configuracoes",
+    "/dashboard/planos",
+    "/dashboard/pagamentos",
+    "/dashboard/assinatura",
+  ];
+  const showDesktopHeader = HEADER_ROUTES.some(
+    (rota) => location.pathname === rota || location.pathname.startsWith(`${rota}/`),
+  );
+  const isCatalogRoute = location.pathname.startsWith("/dashboard/catalogo");
+  // Configurações usa layout sem moldura, então o fundo da área principal é branco.
+  const isSettingsRoute = location.pathname.startsWith("/dashboard/configuracoes");
+  // Imagens com IA usa um cinza neutro em vez do bege do `body`: o painel da tela
+  // é quase branco e, sobre bege, a diferença de temperatura ficava evidente.
+  const isAiImagesRoute = location.pathname.startsWith("/dashboard/imagens-ia");
+  const showSupportWidget =
+    location.pathname !== "/dashboard" &&
+    location.pathname !== "/colecoes" &&
+    !location.pathname.startsWith("/dashboard/atlas");
 
   useEffect(() => {
     const syncStores = () => setStores(readUserStores());
@@ -778,6 +816,8 @@ const DashboardLayoutInner = () => {
             <Outlet />
           </MobileDashboardChrome>
         </div>
+        <NotificationBannerStack />
+        {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
         {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
       </div>
     );
@@ -821,13 +861,30 @@ const DashboardLayoutInner = () => {
               da sidebar (a sidebar continua ocupando a altura total). */}
           <FreePlanBanner isVisible={showFreePlanBanner} />
           {/* Header - no shell cinza */}
-          {!hideDesktopHeader && <DashboardHeader />}
+          {showDesktopHeader && <DashboardHeader />}
           {/* Main content area - sem moldura externa */}
-          <main data-dashboard-tour="dashboard-main" className="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7" style={{ background: "transparent" }}>
-            <PageErrorBoundary>
-              <Outlet />
-            </PageErrorBoundary>
-          </main>
+          {/* Duas colunas: conteúdo à esquerda e o Atlas ancorado à direita. O
+              painel fica FORA do <main>, então a navegação troca só o conteúdo e
+              a conversa permanece na tela. */}
+          <div className="relative flex min-h-0 flex-1 overflow-hidden">
+            <main
+              data-dashboard-tour="dashboard-main"
+              className="flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7"
+              style={{
+                background: isCatalogRoute || isSettingsRoute
+                  ? "#FFFFFF"
+                  : isAiImagesRoute
+                    ? "#F4F4F6"
+                    : "transparent",
+              }}
+            >
+              <PageErrorBoundary>
+                <Outlet />
+              </PageErrorBoundary>
+            </main>
+
+            <AtlasDockPanel />
+          </div>
         </div>
       </div>
       {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
@@ -839,6 +896,11 @@ const DashboardLayoutInner = () => {
         onDismiss={dismissTour}
       />
       <GuidedTour open={tourRunning} onClose={dismissTour} />
+      {/* Fica no layout, e não numa página: a vitrine é chamada do chat e
+          precisa aparecer por cima de qualquer rota. */}
+      <AtlasProductShowcase />
+      <NotificationBannerStack />
+      {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
     </div>
   );
 };

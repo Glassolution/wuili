@@ -1,30 +1,52 @@
-import { useEffect, useMemo, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any -- As tabelas de suporte ainda não constam nos tipos gerados do Supabase; os resultados são normalizados nos tipos locais abaixo. */
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import {
+  Activity,
   AlertTriangle,
+  Archive,
   Bug,
+  CalendarDays,
   CheckCircle2,
+  ChevronDown,
+  Clock3,
   CreditCard,
+  Hash,
+  Inbox,
   Loader2,
   Lock,
   Mail,
   MessageCircle,
+  MoreHorizontal,
+  Paperclip,
   Plug,
-  RefreshCcw,
+  Search,
   Send,
   UserCircle2,
-  UserRound,
-  X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { AdminShell } from "@/components/admin/AdminShell";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminShell } from "@/components/admin/AdminShell";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { notifyTicketReplyEmail } from "@/lib/supportEmail";
+import {
+  buildSupportImageMessage,
+  removeSupportImage,
+  supportMessagePreview,
+  uploadSupportImage,
+  validateSupportImage,
+} from "@/lib/support";
+import SupportImagePreview from "@/components/support/SupportImagePreview";
+import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 
 type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
+type TicketView = "all" | "new" | "in_progress";
 
 type AdminTicket = {
   id: string;
@@ -36,8 +58,11 @@ type AdminTicket = {
   updated_at: string;
   user_name: string | null;
   user_email: string | null;
+  user_avatar_url: string | null;
   last_message: string | null;
   last_message_at: string | null;
+  message_count: number;
+  has_admin_reply: boolean;
 };
 
 type SupportMessage = {
@@ -49,38 +74,146 @@ type SupportMessage = {
   created_at: string;
 };
 
-import type { LucideIcon } from "lucide-react";
+type CustomerContextData = {
+  name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  plan: string | null;
+  subscription_status: string | null;
+  subscription_started_at: string | null;
+  customer_since: string | null;
+  last_seen_at: string | null;
+};
 
 const CATEGORY_META: Record<
   TicketCategory,
-  { label: string; icon: LucideIcon; accent: string }
+  { label: string; icon: LucideIcon; dot: string; badge: string }
 > = {
-  financeiro: { label: "Financeiro", icon: CreditCard, accent: "bg-white/10 text-white" },
-  bug: { label: "Bug / Erro", icon: Bug, accent: "bg-red-500/15 text-red-300" },
-  integracao: { label: "Integrações", icon: Plug, accent: "bg-blue-500/15 text-blue-300" },
-  conta: { label: "Conta", icon: UserCircle2, accent: "bg-blue-500/15 text-blue-300" },
-  reembolso: { label: "Reembolso", icon: RefreshCcw, accent: "bg-amber-500/15 text-amber-300" },
-  outros: { label: "Outros", icon: AlertTriangle, accent: "bg-white/10 text-white/70" },
+  financeiro: {
+    label: "Financeiro",
+    icon: CreditCard,
+    dot: "bg-[#64748b]",
+    badge: "border-[#dfe4ea] bg-[#f4f6f8] text-[#596273]",
+  },
+  bug: {
+    label: "Bug / Erro",
+    icon: Bug,
+    dot: "bg-[#ef5b67]",
+    badge: "border-[#f5d6d9] bg-[#fff2f3] text-[#b8434d]",
+  },
+  integracao: {
+    label: "Integração",
+    icon: Plug,
+    dot: "bg-[#4f7cff]",
+    badge: "border-[#d9e2ff] bg-[#f1f5ff] text-[#4164c7]",
+  },
+  conta: {
+    label: "Conta",
+    icon: UserCircle2,
+    dot: "bg-[#8b6ee8]",
+    badge: "border-[#e4def7] bg-[#f7f4ff] text-[#7158bd]",
+  },
+  reembolso: {
+    label: "Reembolso",
+    icon: Archive,
+    dot: "bg-[#e49a31]",
+    badge: "border-[#f1dfbf] bg-[#fff8e9] text-[#a46a17]",
+  },
+  outros: {
+    label: "Outros",
+    icon: AlertTriangle,
+    dot: "bg-[#8a8f98]",
+    badge: "border-[#e2e3e5] bg-[#f5f5f5] text-[#686d76]",
+  },
 };
 
-const CATEGORY_ORDER: TicketCategory[] = ["financeiro", "bug", "integracao", "conta", "reembolso", "outros"];
+const VIEW_OPTIONS: Array<{ value: TicketView; label: string }> = [
+  { value: "all", label: "Todos" },
+  { value: "new", label: "Novos" },
+  { value: "in_progress", label: "Em andamento" },
+];
 
 const formatDateTime = (value: string | null) => {
   if (!value) return "Sem data";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sem data";
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  })
+    .format(date)
+    .replace(".", "");
 };
+
+const relativeTime = (value: string | null) => {
+  if (!value) return "Sem atividade";
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return "Sem atividade";
+  const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
+  if (minutes < 1) return "agora";
+  if (minutes < 60) return `${minutes} min atrás`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h atrás`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "ontem" : `${days} dias atrás`;
+};
+
+const elapsedTime = (value: string | null) => {
+  if (!value) return "Não informado";
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return "Não informado";
+  const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
+  if (minutes < 2) return "menos de 2 minutos";
+  if (minutes < 60) return `${minutes} minutos`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? "1 hora" : `${hours} horas`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return days === 1 ? "1 dia" : `${days} dias`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return months === 1 ? "1 mês" : `${months} meses`;
+  const years = Math.floor(months / 12);
+  return years === 1 ? "1 ano" : `${years} anos`;
+};
+
+const formatPlan = (plan: string | null) => {
+  const normalized = (plan ?? "gratuito").toLowerCase();
+  if (normalized === "business") return "Business";
+  if (normalized === "pro") return "Pro";
+  if (["base", "starter"].includes(normalized)) return "Base";
+  if (["free", "gratis", "gratuito"].includes(normalized)) return "Gratuito";
+  return plan || "Não informado";
+};
+
+const formatSubscriptionStatus = (status: string | null) => {
+  const normalized = (status ?? "").toLowerCase();
+  if (["active", "paid", "approved", "authorized"].includes(normalized)) return "Ativa";
+  if (["pending", "in_process", "waiting_payment"].includes(normalized)) return "Pendente";
+  if (["cancelled", "canceled", "inactive"].includes(normalized)) return "Cancelada";
+  if (["past_due", "overdue"].includes(normalized)) return "Em atraso";
+  return status || "Sem assinatura";
+};
+
+const getInitials = (name?: string | null, email?: string | null) =>
+  (name || email || "Velo")
+    .split(/[\s._@-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 
 const AdminSupportPage = () => {
   const { user, loading } = useAuth();
   const qc = useQueryClient();
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
-  
+  const [replyImage, setReplyImage] = useState<File | null>(null);
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<TicketView>("all");
+
   const fallbackAdmin = isAdminEmail(user?.email);
 
   const { data: profile, isLoading: loadingProfile } = useQuery({
@@ -99,6 +232,10 @@ const AdminSupportPage = () => {
 
   const isAdmin = profile?.role === "admin" || fallbackAdmin;
 
+  useEffect(() => {
+    setReplyImage(null);
+  }, [openTicketId]);
+
   const { data: tickets = [], isLoading: loadingTickets } = useQuery({
     queryKey: ["admin-support-tickets-crm"],
     enabled: !!user?.id && isAdmin,
@@ -113,80 +250,195 @@ const AdminSupportPage = () => {
       const ticketsList = (ticketsData ?? []) as any[];
       if (ticketsList.length === 0) return [] as AdminTicket[];
 
-      const ticketIds = ticketsList.map((t) => t.id);
-      const userIds = Array.from(new Set(ticketsList.map((t) => t.user_id)));
+      const ticketIds = ticketsList.map((ticket) => ticket.id);
+      const userIds = Array.from(new Set(ticketsList.map((ticket) => ticket.user_id)));
+      const profilesByUser = new Map<
+        string,
+        { display_name: string | null; email: string | null; avatar_url: string | null }
+      >();
 
-      const profilesByUser = new Map<string, { display_name: string | null; email?: string | null }>();
-      const { data: profs } = await (supabase as any)
+      const { data: profilesData } = await (supabase as any)
         .from("profiles")
-        .select("user_id,display_name,email,full_name")
+        .select("user_id,display_name,email,full_name,avatar_url")
         .in("user_id", userIds);
-      for (const p of (profs ?? []) as any[]) {
-        profilesByUser.set(p.user_id, {
-          display_name: p.full_name ?? p.display_name ?? null,
-          email: p.email ?? null,
+
+      for (const item of (profilesData ?? []) as any[]) {
+        profilesByUser.set(item.user_id, {
+          display_name: item.full_name ?? item.display_name ?? null,
+          email: item.email ?? null,
+          avatar_url: item.avatar_url ?? null,
         });
       }
 
-      // Fallback: fetch emails/names via admin-users edge function for users missing data
-      const needsFallback = userIds.filter((uid) => {
-        const p = profilesByUser.get(uid);
-        return !p || !p.email || !p.display_name;
+      const needsFallback = userIds.filter((userId) => {
+        const item = profilesByUser.get(userId);
+        return !item?.email || !item.display_name || !item.avatar_url;
       });
+
       if (needsFallback.length > 0) {
         try {
           const { data: adminData } = await supabase.functions.invoke("admin-users", {
             body: { user_ids: needsFallback },
           });
-          const list = (adminData as any)?.users ?? (adminData as any) ?? [];
-          for (const u of list as any[]) {
-            const existing = profilesByUser.get(u.user_id ?? u.id) ?? { display_name: null, email: null };
-            profilesByUser.set(u.user_id ?? u.id, {
-              display_name: existing.display_name ?? u.display_name ?? u.full_name ?? u.name ?? null,
-              email: existing.email ?? u.email ?? null,
+          const responseUsers =
+            adminData && typeof adminData === "object" && "users" in adminData
+              ? (adminData as { users?: unknown }).users
+              : null;
+          const list = Array.isArray(adminData) ? adminData : Array.isArray(responseUsers) ? responseUsers : [];
+          for (const item of list as Array<{
+            user_id?: string;
+            id?: string;
+            display_name?: string | null;
+            full_name?: string | null;
+            name?: string | null;
+            email?: string | null;
+            avatar_url?: string | null;
+          }>) {
+            const userId = item.user_id ?? item.id;
+            if (!userId) continue;
+            const existing = profilesByUser.get(userId);
+            profilesByUser.set(userId, {
+              display_name: existing?.display_name ?? item.display_name ?? item.full_name ?? item.name ?? null,
+              email: existing?.email ?? item.email ?? null,
+              avatar_url: existing?.avatar_url ?? item.avatar_url ?? null,
             });
           }
-        } catch (e) {
-          console.warn("admin-users fallback failed", e);
+        } catch (error) {
+          console.warn("admin-users fallback failed", error);
         }
       }
 
-      const { data: msgs } = await (supabase as any)
+      const { data: messagesData } = await (supabase as any)
         .from("support_messages")
         .select("id,ticket_id,user_id,message,sender,created_at")
         .in("ticket_id", ticketIds)
         .order("created_at", { ascending: false });
 
-      const lastByTicket = new Map<string, any>();
-      for (const m of (msgs ?? []) as any[]) {
-        if (!lastByTicket.has(m.ticket_id)) lastByTicket.set(m.ticket_id, m);
+      const lastByTicket = new Map<string, SupportMessage>();
+      const messageCountByTicket = new Map<string, number>();
+      const adminReplyByTicket = new Set<string>();
+
+      for (const message of (messagesData ?? []) as SupportMessage[]) {
+        messageCountByTicket.set(message.ticket_id, (messageCountByTicket.get(message.ticket_id) ?? 0) + 1);
+        if (!lastByTicket.has(message.ticket_id)) lastByTicket.set(message.ticket_id, message);
+        if (message.sender === "admin") adminReplyByTicket.add(message.ticket_id);
       }
 
-      return ticketsList.map((t) => {
-        const p = profilesByUser.get(t.user_id);
-        const last = lastByTicket.get(t.id);
+      return ticketsList.map((ticket) => {
+        const customer = profilesByUser.get(ticket.user_id);
+        const lastMessage = lastByTicket.get(ticket.id);
         return {
-          id: t.id,
-          user_id: t.user_id,
-          status: t.status,
-          category: (t.category ?? "outros") as TicketCategory,
-          subject: t.subject ?? null,
-          created_at: t.created_at,
-          updated_at: t.updated_at,
-          user_name: p?.display_name ?? null,
-          user_email: p?.email ?? null,
-          last_message: last?.message ?? null,
-          last_message_at: last?.created_at ?? null,
-        } as AdminTicket;
+          id: ticket.id,
+          user_id: ticket.user_id,
+          status: ticket.status,
+          category: (ticket.category ?? "outros") as TicketCategory,
+          subject: ticket.subject ?? null,
+          created_at: ticket.created_at,
+          updated_at: ticket.updated_at,
+          user_name: customer?.display_name ?? null,
+          user_email: customer?.email ?? null,
+          user_avatar_url: customer?.avatar_url ?? null,
+          last_message: lastMessage ? supportMessagePreview(lastMessage.message) : null,
+          last_message_at: lastMessage?.created_at ?? null,
+          message_count: messageCountByTicket.get(ticket.id) ?? 0,
+          has_admin_reply: adminReplyByTicket.has(ticket.id),
+        } satisfies AdminTicket;
       });
     },
     retry: false,
   });
 
+  const visibleTickets = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return tickets.filter((ticket) => {
+      const matchesView =
+        view === "all" ||
+        (view === "new" && !ticket.has_admin_reply) ||
+        (view === "in_progress" && ticket.has_admin_reply);
+      const matchesSearch =
+        !term ||
+        [
+          ticket.user_name,
+          ticket.user_email,
+          ticket.subject,
+          ticket.last_message,
+          CATEGORY_META[ticket.category].label,
+        ].some((value) => value?.toLowerCase().includes(term));
+      return matchesView && matchesSearch;
+    });
+  }, [search, tickets, view]);
+
+  useEffect(() => {
+    if (visibleTickets.length === 0) {
+      setOpenTicketId(null);
+      return;
+    }
+    if (!visibleTickets.some((ticket) => ticket.id === openTicketId)) {
+      setOpenTicketId(visibleTickets[0].id);
+    }
+  }, [openTicketId, visibleTickets]);
+
   const openTicket = useMemo(
-    () => tickets.find((t) => t.id === openTicketId) ?? null,
+    () => tickets.find((ticket) => ticket.id === openTicketId) ?? null,
     [openTicketId, tickets],
   );
+
+  const { data: customerContext, isLoading: loadingCustomerContext } = useQuery({
+    queryKey: ["admin-support-customer-context", openTicket?.user_id],
+    enabled: !!openTicket?.user_id && isAdmin,
+    queryFn: async (): Promise<CustomerContextData> => {
+      const userId = openTicket!.user_id;
+      const [profileResult, subscriptionsResult, sessionResult] = await Promise.all([
+        (supabase as any)
+          .from("profiles")
+          .select("user_id,display_name,avatar_url,plano,created_at")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        (supabase as any)
+          .from("subscriptions")
+          .select("plan,status,created_at,updated_at")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(20),
+        (supabase as any)
+          .from("user_sessions")
+          .select("last_seen_at")
+          .eq("user_id", userId)
+          .order("last_seen_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (profileResult.error) console.warn("Não foi possível carregar o perfil do atendimento", profileResult.error);
+      if (subscriptionsResult.error) console.warn("Não foi possível carregar a assinatura do atendimento", subscriptionsResult.error);
+      if (sessionResult.error) console.warn("Não foi possível carregar a atividade do atendimento", sessionResult.error);
+
+      const profileRow = profileResult.data as any | null;
+      const subscriptionRows = (subscriptionsResult.data ?? []) as Array<{
+        plan: string | null;
+        status: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+      }>;
+      const activeStatuses = new Set(["active", "paid", "approved", "authorized"]);
+      const subscription =
+        subscriptionRows.find((item) => activeStatuses.has((item.status ?? "").toLowerCase())) ??
+        subscriptionRows[0] ??
+        null;
+
+      return {
+        name: profileRow?.display_name ?? openTicket?.user_name ?? null,
+        email: openTicket?.user_email ?? null,
+        avatar_url: profileRow?.avatar_url ?? openTicket?.user_avatar_url ?? null,
+        plan: subscription?.plan ?? profileRow?.plano ?? null,
+        subscription_status: subscription?.status ?? null,
+        subscription_started_at: subscription?.created_at ?? null,
+        customer_since: profileRow?.created_at ?? null,
+        last_seen_at: sessionResult.data?.last_seen_at ?? openTicket?.last_message_at ?? openTicket?.updated_at ?? null,
+      };
+    },
+    retry: false,
+  });
 
   const { data: messages = [], isLoading: loadingMessages } = useQuery({
     queryKey: ["admin-support-messages", openTicket?.id],
@@ -203,6 +455,10 @@ const AdminSupportPage = () => {
   });
 
   useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, openTicketId]);
+
+  useEffect(() => {
     if (!isAdmin) return;
     const channel = supabase
       .channel("admin-support-crm")
@@ -210,14 +466,15 @@ const AdminSupportPage = () => {
         void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages" }, (payload) => {
-        const m = payload.new as SupportMessage;
+        const message = payload.new as SupportMessage;
         void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
         qc.setQueryData<SupportMessage[]>(
-          ["admin-support-messages", m.ticket_id],
-          (prev = []) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]),
+          ["admin-support-messages", message.ticket_id],
+          (previous = []) => (previous.some((item) => item.id === message.id) ? previous : [...previous, message]),
         );
       })
       .subscribe();
+
     return () => {
       void supabase.removeChannel(channel);
     };
@@ -226,30 +483,44 @@ const AdminSupportPage = () => {
   const sendReply = useMutation({
     mutationFn: async () => {
       const trimmed = reply.trim();
-      if (!trimmed || !openTicket?.id || !user?.id) return null;
-      const { data, error } = await (supabase as any)
-        .from("support_messages")
-        .insert({ ticket_id: openTicket.id, user_id: user.id, message: trimmed, sender: "admin" })
-        .select("*")
-        .single();
-      if (error) throw error;
-      return data as SupportMessage;
+      if ((!trimmed && !replyImage) || !openTicket?.id || !user?.id) return null;
+
+      let uploadedPath: string | null = null;
+      try {
+        const attachment = replyImage
+          ? await uploadSupportImage({ file: replyImage, ticketId: openTicket.id, userId: user.id })
+          : null;
+        uploadedPath = attachment?.path ?? null;
+        const messageValue = attachment ? buildSupportImageMessage(attachment, trimmed) : trimmed;
+        const { data, error } = await (supabase as any)
+          .from("support_messages")
+          .insert({ ticket_id: openTicket.id, user_id: user.id, message: messageValue, sender: "admin" })
+          .select("*")
+          .single();
+        if (error) throw error;
+        return data as SupportMessage;
+      } catch (error) {
+        if (uploadedPath) await removeSupportImage(uploadedPath);
+        throw error;
+      }
     },
-    onSuccess: (m) => {
-      if (!m) return;
+    onSuccess: (message) => {
+      if (!message) return;
       setReply("");
+      setReplyImage(null);
       qc.setQueryData<SupportMessage[]>(
-        ["admin-support-messages", m.ticket_id],
-        (prev = []) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]),
+        ["admin-support-messages", message.ticket_id],
+        (previous = []) =>
+          previous.some((item) => item.id === message.id) ? previous : [...previous, message],
       );
       void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
-      notifyTicketReplyEmail(m.ticket_id, m.id).catch((error) => {
+      notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
         console.error(error);
-        toast.error(error instanceof Error ? error.message : "Resposta enviada, mas não foi possível notificar por email.");
+        toast.error(error instanceof Error ? error.message : "Resposta enviada, mas o email não foi notificado.");
       });
     },
-    onError: (e) => {
-      console.error(e);
+    onError: (error) => {
+      console.error(error);
       toast.error("Não foi possível enviar a resposta.");
     },
   });
@@ -271,315 +542,623 @@ const AdminSupportPage = () => {
     onError: () => toast.error("Não foi possível resolver o ticket."),
   });
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B]">
-        <Loader2 className="h-7 w-7 animate-spin text-white" />
-      </div>
-    );
-  }
+  if (loading) return <VeloLoadingScreen message="Carregando suporte..." />;
   if (!user) return <Navigate to="/login" replace />;
-  if (loadingProfile) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B]">
-        <Loader2 className="h-7 w-7 animate-spin text-white" />
-      </div>
-    );
-  }
+  if (loadingProfile) return <VeloLoadingScreen message="Carregando suporte..." />;
+
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B] p-6">
-        <div className="w-full max-w-md rounded-3xl border border-[#242425] bg-[#161617] p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.04]">
+      <div className="flex min-h-screen items-center justify-center bg-white p-6 text-[#181817]">
+        <div className="w-full max-w-md rounded-3xl border border-[#e6e6e2] bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f2f2ef]">
             <Lock size={21} />
           </div>
-          <h1 className="mt-5 text-[20px] font-bold text-white">Acesso restrito</h1>
-          <p className="mt-2 text-[14px] leading-6 text-[#8A8A8E]">
-            Esta página é exclusiva para administradores.
-          </p>
+          <h1 className="mt-5 text-[20px] font-bold">Acesso restrito</h1>
+          <p className="mt-2 text-[14px] leading-6 text-[#777772]">Esta página é exclusiva para administradores.</p>
         </div>
       </div>
     );
   }
 
-
   return (
-    <AdminShell
-      active="support"
-      userId={user.id}
-      title="Suporte por setor"
-      subtitle="Tickets abertos organizados por categoria. Clique em um card para responder o usuário."
-      actions={
-        <div className="rounded-full bg-white/10 px-4 py-2 text-[13px] font-semibold text-white">
-          {tickets.length} abertos
-        </div>
-      }
-    >
-      <div className="min-h-full bg-transparent text-white">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
+    <AdminShell active="support" userId={user.id} fullBleed>
+      <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)_300px] overflow-hidden bg-[#f7f7f5]">
+        <TicketInbox
+          tickets={visibleTickets}
+          allTickets={tickets}
+          loading={loadingTickets}
+          selectedId={openTicketId}
+          onSelect={setOpenTicketId}
+          search={search}
+          onSearch={setSearch}
+          view={view}
+          onView={setView}
+        />
 
-          {loadingTickets ? (
-            <div className="flex items-center justify-center rounded-3xl border border-[#242425] bg-[#161617] py-24">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : tickets.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              {CATEGORY_ORDER.map((k) => (
-                <CategoryColumn
-                  key={k}
-                  category={k}
-                  tickets={tickets.filter((t) => t.category === k)}
-                  onOpen={(id) => setOpenTicketId(id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <ConversationPanel
+          ticket={openTicket}
+          messages={messages}
+          loadingMessages={loadingMessages}
+          reply={reply}
+          setReply={setReply}
+          replyImage={replyImage}
+          onReplyImage={(file) => {
+            const validationError = validateSupportImage(file);
+            if (validationError) {
+              toast.error(validationError);
+              return;
+            }
+            setReplyImage(file);
+          }}
+          onRemoveReplyImage={() => setReplyImage(null)}
+          onSend={() => sendReply.mutate()}
+          sending={sendReply.isPending}
+          onResolve={() => closeTicket.mutate()}
+          resolving={closeTicket.isPending}
+          chatEndRef={chatEndRef}
+        />
 
-        {openTicket && (
-          <ChatDrawer
-            ticket={openTicket}
-            messages={messages}
-            loadingMessages={loadingMessages}
-            reply={reply}
-            setReply={setReply}
-            onClose={() => setOpenTicketId(null)}
-            onSend={() => sendReply.mutate()}
-            sending={sendReply.isPending}
-            onResolve={() => closeTicket.mutate()}
-            resolving={closeTicket.isPending}
-          />
-        )}
+        <CustomerContextPanel
+          ticket={openTicket}
+          customer={customerContext ?? null}
+          loading={loadingCustomerContext}
+        />
       </div>
     </AdminShell>
   );
 };
 
-const COLUMN_ACCENTS: Record<TicketCategory, { dot: string; badge: string; statusBadge: string }> = {
-  financeiro: { dot: "bg-white/70", badge: "bg-white/10 text-white", statusBadge: "bg-white/10 text-white" },
-  bug: { dot: "bg-red-500", badge: "bg-red-500/15 text-red-300", statusBadge: "bg-red-500/15 text-red-300" },
-  integracao: { dot: "bg-blue-500", badge: "bg-blue-500/15 text-blue-300", statusBadge: "bg-blue-500/15 text-blue-300" },
-  conta: { dot: "bg-blue-500", badge: "bg-blue-500/15 text-blue-300", statusBadge: "bg-blue-500/15 text-blue-300" },
-  reembolso: { dot: "bg-amber-500", badge: "bg-amber-500/15 text-amber-300", statusBadge: "bg-amber-500/15 text-amber-300" },
-  outros: { dot: "bg-white/40", badge: "bg-white/10 text-white/70", statusBadge: "bg-white/10 text-white/70" },
-};
-
-const CategoryColumn = ({
-  category,
+const TicketInbox = ({
   tickets,
-  onOpen,
+  allTickets,
+  loading,
+  selectedId,
+  onSelect,
+  search,
+  onSearch,
+  view,
+  onView,
 }: {
-  category: TicketCategory;
   tickets: AdminTicket[];
-  onOpen: (id: string) => void;
-}) => {
-  const meta = CATEGORY_META[category];
-  const accent = COLUMN_ACCENTS[category];
-  return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex items-center justify-between rounded-2xl border border-[#242425] bg-[#161617] px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${accent.dot}`} />
-          <p className="text-[13px] font-semibold text-white">{meta.label}</p>
+  allTickets: AdminTicket[];
+  loading: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  search: string;
+  onSearch: (value: string) => void;
+  view: TicketView;
+  onView: (value: TicketView) => void;
+}) => (
+  <aside className="flex min-h-0 flex-col border-r border-[#e4e4e0] bg-[#fafaf9]">
+    <div className="border-b border-[#e7e7e3] px-4 pb-3 pt-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-[#deded9] bg-white text-[#333330] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <Inbox size={16} strokeWidth={1.8} />
+          </div>
+          <div>
+            <h1 className="text-[15px] font-semibold tracking-[-0.02em] text-[#1d1d1b]">Caixa de entrada</h1>
+            <p className="text-[10.5px] text-[#969690]">{allTickets.length} tickets abertos</p>
+          </div>
         </div>
-        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${accent.badge}`}>
-          {tickets.length} {tickets.length === 1 ? "Ticket" : "Tickets"}
-        </span>
+        <button className="flex h-8 w-8 items-center justify-center rounded-lg text-[#83837e] transition hover:bg-[#eeeeeb] hover:text-[#1d1d1b]" aria-label="Mais opções">
+          <MoreHorizontal size={17} />
+        </button>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {tickets.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#242425] bg-white/[0.02] px-4 py-6 text-center text-[11px] text-[#6A6A6F]">
-            Nenhum ticket
-          </div>
-        ) : (
-          tickets.map((t) => (
+      <label className="mt-3 flex h-9 items-center gap-2 rounded-[9px] border border-[#deded9] bg-white px-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] focus-within:border-[#aeb9d6] focus-within:ring-2 focus-within:ring-[#dfe6f8]">
+        <Search size={14} className="text-[#9a9a94]" />
+        <input
+          value={search}
+          onChange={(event) => onSearch(event.target.value)}
+          placeholder="Buscar cliente ou motivo"
+          className="min-w-0 flex-1 bg-transparent text-[12px] text-[#252522] outline-none placeholder:text-[#a0a09a]"
+        />
+        <kbd className="rounded border border-[#e4e4df] bg-[#f6f6f4] px-1.5 py-0.5 text-[9px] font-medium text-[#8a8a84]">⌘K</kbd>
+      </label>
+
+      <div className="mt-3 flex gap-1 overflow-x-auto">
+        {VIEW_OPTIONS.map((option) => {
+          const count =
+            option.value === "all"
+              ? allTickets.length
+              : allTickets.filter((ticket) =>
+                  option.value === "new" ? !ticket.has_admin_reply : ticket.has_admin_reply,
+                ).length;
+          return (
             <button
-              key={t.id}
-              onClick={() => onOpen(t.id)}
-              className="group flex w-full flex-col gap-3 rounded-2xl border border-[#242425] bg-[#161617] p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              key={option.value}
+              onClick={() => onView(option.value)}
+              className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-[10.5px] font-medium transition ${
+                view === option.value
+                  ? "bg-[#e9eefc] text-[#315cc4]"
+                  : "text-[#777772] hover:bg-[#f0f0ed] hover:text-[#252522]"
+              }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-white">
-                    <UserRound size={15} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-bold text-white">
-                      {t.user_name || "Usuário"}
-                    </p>
-                    <p className="text-[11px] text-[#6A6A6F]">{formatDateTime(t.created_at)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 text-[12px] text-[#525252]">
-                <Mail size={12} className="shrink-0 text-[#6A6A6F]" />
-                <span className="truncate">{t.user_email || "email indisponível"}</span>
-              </div>
-
-              {(t.last_message || t.subject) && (
-                <div className="rounded-lg bg-white/[0.04] px-2.5 py-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6A6A6F]">
-                    Última mensagem
-                  </p>
-                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-5 text-white">
-                    {t.last_message || t.subject}
-                  </p>
-                </div>
-              )}
-
-              <span
-                className={`inline-flex w-fit items-center rounded-md px-2 py-0.5 text-[10px] font-semibold ${accent.statusBadge}`}
-              >
-                {meta.label}
-              </span>
+              {option.label} <span className="ml-0.5 opacity-65">{count}</span>
             </button>
-          ))
-        )}
+          );
+        })}
       </div>
     </div>
+
+    <div className="flex items-center justify-between border-b border-[#e8e8e4] px-4 py-2.5">
+      <span className="text-[9.5px] font-semibold uppercase tracking-[0.09em] text-[#999993]">Conversas</span>
+      <span className="flex items-center gap-1 text-[10px] text-[#8b8b85]">
+        Recentes <ChevronDown size={11} />
+      </span>
+    </div>
+
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      {loading ? (
+        <TicketListSkeleton />
+      ) : tickets.length === 0 ? (
+        <div className="flex h-full min-h-[320px] flex-col items-center justify-center px-8 text-center">
+          <MessageCircle size={23} strokeWidth={1.5} className="text-[#b0b0aa]" />
+          <p className="mt-3 text-[12px] font-medium text-[#53534f]">Nenhuma conversa encontrada</p>
+          <p className="mt-1 text-[10.5px] leading-4 text-[#999993]">Ajuste a busca ou aguarde um novo chamado.</p>
+        </div>
+      ) : (
+        tickets.map((ticket) => (
+          <TicketListItem
+            key={ticket.id}
+            ticket={ticket}
+            selected={ticket.id === selectedId}
+            onClick={() => onSelect(ticket.id)}
+          />
+        ))
+      )}
+    </div>
+  </aside>
+);
+
+const CustomerContextPanel = ({
+  ticket,
+  customer,
+  loading,
+}: {
+  ticket: AdminTicket | null;
+  customer: CustomerContextData | null;
+  loading: boolean;
+}) => {
+  if (!ticket) {
+    return (
+      <aside className="flex min-h-0 items-center justify-center border-l border-[#e4e4e0] bg-[#fafaf9] px-8 text-center">
+        <div>
+          <UserCircle2 size={24} strokeWidth={1.4} className="mx-auto text-[#afafa9]" />
+          <p className="mt-3 text-[11px] leading-5 text-[#8d8d87]">Selecione um atendimento para visualizar os dados do cliente.</p>
+        </div>
+      </aside>
+    );
+  }
+
+  const data: CustomerContextData = customer ?? {
+    name: ticket.user_name,
+    email: ticket.user_email,
+    avatar_url: ticket.user_avatar_url,
+    plan: null,
+    subscription_status: null,
+    subscription_started_at: null,
+    customer_since: null,
+    last_seen_at: ticket.last_message_at ?? ticket.updated_at,
+  };
+  const subscriptionActive = ["active", "paid", "approved", "authorized"].includes(
+    (data.subscription_status ?? "").toLowerCase(),
+  );
+
+  return (
+    <aside className="flex min-h-0 flex-col overflow-y-auto border-l border-[#e4e4e0] bg-[#fafaf9]">
+      <div className="border-b border-[#e6e6e2] bg-white px-5 py-5">
+        <div className="flex items-center gap-3">
+          <Avatar name={data.name} email={data.email} image={data.avatar_url} size="lg" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[#252522]">
+              {data.name || "Usuário sem nome"}
+            </p>
+            <p className="mt-0.5 truncate text-[9.5px] text-[#969690]">Cliente Velo</p>
+          </div>
+          <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#888882] transition hover:bg-[#f2f2ef] hover:text-[#30302d]" aria-label="Mais opções do cliente">
+            <MoreHorizontal size={15} />
+          </button>
+        </div>
+        <div className="mt-4 flex items-center gap-2">
+          <span className="inline-flex rounded-[6px] border border-[#dce3f5] bg-[#f2f5fd] px-2 py-1 text-[9px] font-semibold text-[#52699f]">
+            Plano {formatPlan(data.plan)}
+          </span>
+          <span className={`inline-flex rounded-[6px] border px-2 py-1 text-[9px] font-semibold ${subscriptionActive ? "border-[#d9ead4] bg-[#f1f8ee] text-[#4f8247]" : "border-[#e4e4df] bg-[#f5f5f3] text-[#767670]"}`}>
+            {formatSubscriptionStatus(data.subscription_status)}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-3 p-4">
+        <ContextCard title="Informações do cliente">
+          <ContextRow icon={Mail} label="E-mail" value={data.email || "Não informado"} breakValue />
+          <ContextRow icon={CalendarDays} label="Cliente há" value={elapsedTime(data.customer_since)} />
+          <ContextRow icon={Activity} label="Última atividade" value={relativeTime(data.last_seen_at)} />
+        </ContextCard>
+
+        <ContextCard title="Assinatura">
+          <ContextRow icon={CreditCard} label="Plano atual" value={formatPlan(data.plan)} />
+          <ContextRow icon={CheckCircle2} label="Status" value={formatSubscriptionStatus(data.subscription_status)} />
+          <ContextRow icon={Clock3} label="Assinante há" value={elapsedTime(data.subscription_started_at)} />
+        </ContextCard>
+
+        <ContextCard title="Atendimento">
+          <ContextRow icon={MessageCircle} label="Motivo" value={CATEGORY_META[ticket.category].label} />
+          <ContextRow icon={Hash} label="Ticket" value={`#${ticket.id.slice(0, 8)}`} />
+          <ContextRow icon={Clock3} label="Aberto há" value={elapsedTime(ticket.created_at)} />
+          <ContextRow icon={MessageCircle} label="Mensagens" value={String(ticket.message_count)} />
+        </ContextCard>
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-2 text-[9.5px] text-[#999993]">
+            <Loader2 size={12} className="animate-spin" /> Atualizando informações
+          </div>
+        ) : null}
+      </div>
+    </aside>
   );
 };
 
-const EmptyState = () => (
-  <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[#242425] bg-[#161617] py-16 text-center">
-    <MessageCircle className="h-8 w-8 text-[#D4D4D4]" />
-    <p className="mt-3 text-[14px] font-semibold">Nenhum ticket aberto</p>
-    <p className="mt-1 text-[12px] text-[#8A8A8E]">Novas solicitações aparecerão aqui automaticamente.</p>
+const ContextCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <section className="overflow-hidden rounded-[12px] border border-[#e3e3df] bg-white shadow-[0_1px_2px_rgba(28,28,26,0.025)]">
+    <div className="border-b border-[#ecece8] bg-[#fafaf8] px-3.5 py-2.5">
+      <h3 className="text-[9px] font-semibold uppercase tracking-[0.09em] text-[#85857f]">{title}</h3>
+    </div>
+    <div className="divide-y divide-[#efefec] px-3.5">{children}</div>
+  </section>
+);
+
+const ContextRow = ({
+  icon: Icon,
+  label,
+  value,
+  breakValue = false,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  breakValue?: boolean;
+}) => (
+  <div className="flex items-start gap-2.5 py-3">
+    <Icon size={13} strokeWidth={1.65} className="mt-0.5 shrink-0 text-[#8d8d87]" />
+    <div className="min-w-0 flex-1">
+      <p className="text-[9px] text-[#999993]">{label}</p>
+      <p className={`mt-0.5 text-[10.5px] font-medium leading-4 text-[#3d3d39] ${breakValue ? "break-all" : "truncate"}`}>{value}</p>
+    </div>
   </div>
 );
 
-const ChatDrawer = ({
+const TicketListItem = ({ ticket, selected, onClick }: { ticket: AdminTicket; selected: boolean; onClick: () => void }) => {
+  const meta = CATEGORY_META[ticket.category];
+  return (
+    <button
+      onClick={onClick}
+      className={`relative flex w-full gap-3 border-b border-[#ecece8] px-4 py-3.5 text-left transition ${
+        selected ? "bg-[#edf2ff]" : "bg-transparent hover:bg-[#f3f3f0]"
+      }`}
+    >
+      {selected ? <span className="absolute inset-y-0 left-0 w-[3px] bg-[#4f72df]" /> : null}
+      <Avatar name={ticket.user_name} email={ticket.user_email} image={ticket.user_avatar_url} size="md" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[#252522]">{ticket.user_name || "Usuário sem nome"}</p>
+          {!ticket.has_admin_reply ? <span className="h-2 w-2 shrink-0 rounded-full bg-[#ff725c]" title="Novo atendimento" /> : null}
+        </div>
+        <p className="mt-1 line-clamp-1 text-[10.5px] font-medium leading-4 text-[#686863]">{ticket.subject || ticket.last_message || meta.label}</p>
+        <div className="mt-2.5 flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1.5 text-[9.5px] text-[#8e8e88]">
+            <CalendarDays size={11} className="shrink-0" />
+            <span className="truncate">{formatDateTime(ticket.last_message_at ?? ticket.updated_at)}</span>
+          </span>
+          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-[6px] border px-2.5 py-1 text-[9.5px] font-semibold shadow-[0_1px_1px_rgba(0,0,0,0.03)] ${meta.badge}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+            {meta.label}
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+const ConversationPanel = ({
   ticket,
   messages,
   loadingMessages,
   reply,
   setReply,
-  onClose,
+  replyImage,
+  onReplyImage,
+  onRemoveReplyImage,
   onSend,
   sending,
   onResolve,
   resolving,
+  chatEndRef,
 }: {
-  ticket: AdminTicket;
+  ticket: AdminTicket | null;
   messages: SupportMessage[];
   loadingMessages: boolean;
   reply: string;
-  setReply: (v: string) => void;
-  onClose: () => void;
+  setReply: (value: string) => void;
+  replyImage: File | null;
+  onReplyImage: (file: File) => void;
+  onRemoveReplyImage: () => void;
   onSend: () => void;
   sending: boolean;
   onResolve: () => void;
   resolving: boolean;
+  chatEndRef: React.RefObject<HTMLDivElement>;
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (!ticket) {
+    return (
+      <section className="flex min-h-0 items-center justify-center bg-white">
+        <div className="max-w-sm text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e3e3df] bg-[#fafaf8] text-[#797973]">
+            <MessageCircle size={21} strokeWidth={1.5} />
+          </div>
+          <h2 className="mt-4 text-[15px] font-semibold text-[#2b2b28]">Selecione uma conversa</h2>
+          <p className="mt-1.5 text-[11.5px] leading-5 text-[#8b8b85]">Escolha um cliente na fila para ler e responder ao atendimento.</p>
+        </div>
+      </section>
+    );
+  }
+
   const meta = CATEGORY_META[ticket.category];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/50" onClick={onClose}>
-      <div
-        className="flex h-full w-full max-w-[560px] flex-col bg-[#161617] shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between border-b border-[#242425] px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.08] text-white">
-              <UserRound size={18} />
-            </div>
-            <div>
-              <p className="text-[15px] font-bold">{ticket.user_name || "Usuário"}</p>
-              <p className="text-[12px] text-[#8A8A8E]">{ticket.user_email || "Email indisponível"}</p>
-              <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${meta.accent}`}>
+    <section className="flex min-h-0 min-w-0 flex-col bg-white">
+      <header className="border-b border-[#e5e5e1] bg-white px-5 py-3.5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot}`} />
+              <h2 className="truncate text-[14px] font-semibold tracking-[-0.02em] text-[#20201e]">
+                {ticket.subject || meta.label}
+              </h2>
+              <span className={`hidden shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold lg:inline-flex ${meta.badge}`}>
                 {meta.label}
               </span>
             </div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Fechar"
-            className="rounded-full p-1 text-[#8A8A8E] hover:bg-white/[0.04]"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {ticket.subject && (
-          <div className="border-b border-[#242425] bg-white/[0.03] px-6 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6A6A6F]">Motivo</p>
-            <p className="mt-1 text-[13px] leading-5 text-white">{ticket.subject}</p>
-          </div>
-        )}
-
-        <div className="flex-1 space-y-3 overflow-y-auto bg-white/[0.03] p-5">
-          {loadingMessages ? (
-            <div className="flex h-full items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin" />
+            <div className="mt-1.5 flex items-center gap-2.5 text-[10px] text-[#8f8f89]">
+              <span className="flex items-center gap-1"><Hash size={10} /> {ticket.id.slice(0, 8)}</span>
+              <span className="h-1 w-1 rounded-full bg-[#c2c2bd]" />
+              <span>{ticket.message_count} {ticket.message_count === 1 ? "mensagem" : "mensagens"}</span>
+              <span className="h-1 w-1 rounded-full bg-[#c2c2bd]" />
+              <span>aberto {relativeTime(ticket.created_at)}</span>
             </div>
-          ) : messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-center text-[13px] text-[#8A8A8E]">
-              O usuário ainda não enviou mensagens.
-            </div>
-          ) : (
-            messages.map((m) => (
-              <div key={m.id} className={`flex ${m.sender === "admin" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={[
-                    "max-w-[80%] rounded-2xl px-4 py-2.5 text-[14px] leading-6 shadow-sm",
-                    m.sender === "admin"
-                      ? "rounded-br-md bg-white text-[#0A0A0B]"
-                      : "rounded-bl-md bg-[#242425] text-white",
-                  ].join(" ")}
-                >
-                  <p className="whitespace-pre-wrap">{m.message}</p>
-                  <p
-                    className={`mt-1 text-[10px] ${m.sender === "admin" ? "text-black/50" : "text-white/45"}`}
-                  >
-                    {formatDateTime(m.created_at)}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="border-t border-[#242425] bg-[#161617] p-4">
-          <div className="mb-3 flex justify-end">
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               onClick={onResolve}
               disabled={resolving}
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3.5 py-1.5 text-[12px] font-semibold text-white transition hover:bg-white hover:text-[#0A0A0B] disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dcdcd7] bg-white px-3 text-[10.5px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50"
             >
               {resolving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-              Marcar como resolvido
+              Resolver
+            </button>
+            <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e2e2de] text-[#777772] transition hover:bg-[#f4f4f1]" aria-label="Mais ações">
+              <MoreHorizontal size={15} />
             </button>
           </div>
-          <div className="flex items-end gap-2">
-            <textarea
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  onSend();
-                }
-              }}
-              placeholder="Digite a resposta para o usuário..."
-              className="min-h-[48px] flex-1 resize-none rounded-2xl border border-[#242425] bg-[#161617] px-4 py-3 text-[14px] leading-5 text-white outline-none transition placeholder:text-[#6A6A6F] focus:border-white/30"
-            />
+        </div>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#f8f9fb] px-5 py-5">
+        {loadingMessages ? (
+          <MessageSkeleton />
+        ) : messages.length === 0 ? (
+          <div className="flex h-full min-h-[320px] items-center justify-center text-center">
+            <div>
+              <MessageCircle size={22} className="mx-auto text-[#b1b1ab]" strokeWidth={1.5} />
+              <p className="mt-3 text-[12px] font-medium text-[#60605b]">O usuário ainda não enviou mensagens.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto max-w-[820px] space-y-4">
+            {messages.map((message, index) => (
+              <ThreadMessage
+                key={message.id}
+                message={message}
+                index={index}
+                customerName={ticket.user_name}
+                customerEmail={ticket.user_email}
+                customerAvatar={ticket.user_avatar_url}
+              />
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-[#e4e6eb] bg-white p-3.5">
+        <div className="mx-auto max-w-[860px] overflow-hidden rounded-[16px] border border-[#dfe3ec] bg-white shadow-[0_10px_30px_rgba(34,44,68,0.07)] transition focus-within:border-[#7b9cf2] focus-within:ring-2 focus-within:ring-[#dfe8ff]">
+          <div className="flex items-center justify-between border-b border-[#eef0f4] bg-[#fbfcfe] px-3.5 py-2.5">
+            <div className="flex items-center gap-2 text-[10px] text-[#777772]">
+              <span className="grid h-6 w-6 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_1px_3px_rgba(46,102,235,0.1)]">
+                <AtlasAvatarIcon size={18} animated />
+              </span>
+              <span>Respondendo como <strong className="font-semibold text-[#334155]">Suporte Velo</strong></span>
+              <ChevronDown size={11} />
+            </div>
+            <span className="text-[9.5px] text-[#a0a09a]">Enter para enviar</span>
+          </div>
+          <textarea
+            value={reply}
+            onChange={(event) => setReply(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if ((reply.trim() || replyImage) && !sending) onSend();
+              }
+            }}
+            placeholder={`Responder para ${ticket.user_name || "o cliente"}...`}
+            className="min-h-[80px] w-full resize-none bg-white px-4 py-3 text-[12.5px] leading-5 text-[#252522] outline-none placeholder:text-[#a6aab3]"
+          />
+          {replyImage ? <SupportImagePreview file={replyImage} onRemove={onRemoveReplyImage} /> : null}
+          <div className="flex items-center justify-between px-3 pb-3">
+            <div className="flex items-center gap-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) onReplyImage(file);
+                  event.currentTarget.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sending}
+                className={`flex h-7 w-7 items-center justify-center rounded-md transition ${replyImage ? "bg-[#eaf0ff] text-[#2f66eb]" : "text-[#8c8c86] hover:bg-[#f0f0ed] hover:text-[#343431]"}`}
+                aria-label="Anexar imagem"
+                title="Anexar imagem (até 8 MB)"
+              >
+                <Paperclip size={14} />
+              </button>
+            </div>
             <button
               onClick={onSend}
-              disabled={sending || !reply.trim()}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#0A0A0B] transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Enviar"
+              disabled={sending || (!reply.trim() && !replyImage)}
+              className="inline-flex h-9 items-center gap-2 rounded-full bg-[#2f66eb] px-4 text-[10.5px] font-semibold text-white shadow-[0_5px_14px_rgba(47,102,235,0.22)] transition hover:-translate-y-0.5 hover:bg-[#2459d8] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
             >
-              {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+              Enviar resposta
             </button>
           </div>
         </div>
       </div>
+    </section>
+  );
+};
+
+const ThreadMessage = ({
+  message,
+  index,
+  customerName,
+  customerEmail,
+  customerAvatar,
+}: {
+  message: SupportMessage;
+  index: number;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerAvatar: string | null;
+}) => {
+  const admin = message.sender === "admin";
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 8, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.28, delay: Math.min(index * 0.025, 0.18), ease: [0.22, 1, 0.36, 1] }}
+      className={`flex items-end gap-2.5 ${admin ? "justify-end" : "justify-start"}`}
+    >
+      {!admin ? <Avatar name={customerName} email={customerEmail} image={customerAvatar} size="sm" /> : null}
+      <div className={`min-w-0 max-w-[82%] ${admin ? "items-end" : "items-start"}`}>
+        <div className={`mb-1.5 flex items-center gap-2 px-1 ${admin ? "justify-end" : "justify-start"}`}>
+          <span className="truncate text-[9.5px] font-semibold text-[#626977]">
+            {admin ? "Suporte Velo" : customerName || "Usuário"}
+          </span>
+          <span className="shrink-0 text-[8.5px] text-[#a0a5af]">{formatDateTime(message.created_at)}</span>
+        </div>
+        <div
+          className={`px-4 py-3 shadow-[0_3px_12px_rgba(25,35,55,0.055)] ${
+            admin
+              ? "rounded-[18px_18px_5px_18px] bg-[#2f66eb] text-white"
+              : "rounded-[18px_18px_18px_5px] border border-[#e3e6eb] bg-white text-[#34363b]"
+          }`}
+        >
+          <SupportMessageMedia
+            value={message.message}
+            textClassName={`whitespace-pre-wrap text-[12.5px] leading-[1.62] ${admin ? "text-white" : "text-[#34363b]"}`}
+            imageClassName="max-h-[340px] max-w-[460px] w-full"
+          />
+        </div>
+        {!admin && customerEmail ? (
+          <p className="mt-1 px-1 text-[8.5px] text-[#a3a7b0]">{customerEmail}</p>
+        ) : null}
+      </div>
+      {admin ? (
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_2px_8px_rgba(46,102,235,0.12)]">
+          <AtlasAvatarIcon size={21} animated />
+        </span>
+      ) : null}
+    </motion.article>
+  );
+};
+
+const Avatar = ({
+  name,
+  email,
+  image,
+  size,
+}: {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  size: "xs" | "sm" | "md" | "lg";
+}) => {
+  const sizeClass =
+    size === "lg"
+      ? "h-12 w-12 text-[12px]"
+      : size === "md"
+        ? "h-10 w-10 text-[11px]"
+        : size === "sm"
+          ? "h-8 w-8 text-[9.5px]"
+          : "h-5 w-5 text-[7px]";
+  return (
+    <div className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e9edf4] font-semibold text-[#4d5f7b] ring-1 ring-inset ring-[#dce2ea] ${sizeClass}`}>
+      <span>{getInitials(name, email)}</span>
+      {image ? (
+        <img
+          src={image}
+          alt={`Foto de ${name || "cliente"}`}
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
     </div>
   );
 };
+
+const TicketListSkeleton = () => (
+  <div className="divide-y divide-[#ecece8]">
+    {Array.from({ length: 7 }, (_, index) => (
+      <div key={index} className="flex gap-3 px-4 py-4">
+        <div className="h-8 w-8 animate-pulse rounded-full bg-[#e9e9e5]" />
+        <div className="flex-1">
+          <div className="h-2.5 w-2/3 animate-pulse rounded bg-[#e5e5e1]" />
+          <div className="mt-2 h-2 w-4/5 animate-pulse rounded bg-[#eeeeeb]" />
+          <div className="mt-3 h-4 w-20 animate-pulse rounded-full bg-[#e9e9e5]" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const MessageSkeleton = () => (
+  <div className="mx-auto max-w-[760px] space-y-4">
+    {Array.from({ length: 3 }, (_, index) => (
+      <div key={index} className="rounded-[13px] border border-[#e6e6e2] bg-white p-4">
+        <div className="flex gap-3">
+          <div className="h-8 w-8 animate-pulse rounded-full bg-[#e9e9e5]" />
+          <div className="flex-1">
+            <div className="h-2.5 w-28 animate-pulse rounded bg-[#e5e5e1]" />
+            <div className="mt-4 h-2.5 w-full animate-pulse rounded bg-[#eeeeeb]" />
+            <div className="mt-2 h-2.5 w-4/5 animate-pulse rounded bg-[#eeeeeb]" />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 export default AdminSupportPage;

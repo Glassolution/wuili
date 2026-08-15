@@ -20,6 +20,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminUserDetailModal } from "@/components/admin/AdminUserDetailModal";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 
 type AdminUserRow = {
   user_id: string;
@@ -275,11 +276,7 @@ const AdminUsersPage = () => {
   const pagedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B] text-white">
-        <Loader2 className="h-7 w-7 animate-spin" />
-      </div>
-    );
+    return <VeloLoadingScreen message="Carregando usuários..." />;
   }
 
   if (!user) return <Navigate to="/login" replace />;

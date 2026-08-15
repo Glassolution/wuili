@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, Eye, ExternalLink, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Globe, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Play, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowRight, Baby, BookOpen, Boxes, Car, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Command, Copy, Download, Dumbbell, Eye, ExternalLink, Facebook, FileUp, FolderPlus, Gamepad2, Gem, Gift, Globe, Hand, Headphones, Heart, HeartPulse, HelpCircle, Home, ImageIcon, Instagram, Laptop, Layers3, LayoutGrid, Leaf, Link2, List, Loader2, LockKeyhole, Menu, MessageSquare, Minus, Monitor, MousePointer2, Package, Palette, PawPrint, Pencil, Phone, Plus, Quote, RectangleHorizontal, Redo2, RefreshCcw, Save, Search, Settings, Share2, Shirt, ShoppingBag, ShoppingCart, Smartphone, Sparkles, Square, Star, Tag, Trash2, Truck, Twitter, Type, Undo2, UserRound, X, Youtube, type LucideIcon } from "lucide-react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,19 +9,32 @@ import type { Json } from "@/integrations/supabase/types";
 import type { ExampleProduct } from "@/types/onboarding";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
-import { useProfile } from "@/lib/profileContext";
+import { aiDescriptionForProduct } from "@/lib/aiPageGeneration";
 import { claimProjectInvites, createUserProject, getProjectProductIds, parseVariantOptions, publishProject, saveProjectDraft, type ProductVariantOption, type UserProject } from "@/lib/userProjects";
 import ProjectSettingsOverlay, { type SettingsSection } from "@/components/editor/ProjectSettingsOverlay";
+import {
+  PanelActionButton,
+  PanelColorControl,
+  PanelControlRow,
+  PanelEmptyState,
+  PanelGroupLabel,
+  PanelIconButton,
+  PanelNotice,
+  PanelOptionGrid,
+  PanelRowButton,
+  PanelSegmented,
+  PanelSelectionHeader,
+  PanelStepper,
+} from "@/components/editor/EditorPanel";
 import StoreAdminModal from "@/components/editor/StoreAdminModal";
 import { getSavedStoreFlow, markStoreFlowCompleted } from "@/lib/storeFlowCompletion";
 import { normalizePriceText } from "@/lib/priceFormat";
 import { addProductToCollection, createCollection, ensureExampleCollectionProducts, getCollectionProductIds, listCollections } from "@/lib/collectionsApi";
 import { formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 import StorefrontNavbar from "@/components/storefront/StorefrontNavbar";
-import ProductTemplate from "@/components/store-templates/ProductTemplate";
-import ProductTemplateBeauty from "@/components/store-templates/ProductTemplateBeauty";
-import ProductTemplateShopify from "@/components/store-templates/ProductTemplateShopify";
-import ProductTemplate4 from "@/components/store-templates/ProductTemplate4";
+import { AI_DESCRIPTION_PLACEHOLDER, CURRENT_PRODUCT_TEMPLATE_ID, resolveProductTemplate } from "@/components/store-templates/productTemplateRegistry";
+import { salesPageTemplates } from "@/lib/salesPageTemplates";
+import { VeloLogo } from "@/components/VeloLogo";
 import StorefrontLojaTemplate2 from "@/components/store-templates/StorefrontLojaTemplate2";
 
 type FlowState = { product: ExampleProduct; language: string; persona: string; salesAngle: string };
@@ -33,7 +46,7 @@ type ContextDrawerMode = "template" | "products";
 type TemplateRef = { kind: "loja" | "produto"; id: string };
 
 const LOJA_TEMPLATE: TemplateRef = { kind: "loja", id: "loja-1" };
-const PRODUTO_TEMPLATE: TemplateRef = { kind: "produto", id: "produto-1" };
+const PRODUTO_TEMPLATE: TemplateRef = { kind: "produto", id: CURRENT_PRODUCT_TEMPLATE_ID };
 
 // Quem escolheu "página de vendas" no /comecar precisa abrir num template de
 // produto. Sem isso o editor abria sempre em loja-1, independente da escolha.
@@ -64,6 +77,7 @@ const getAllImages = (images: unknown): string[] => {
   return [];
 };
 const getFirstImage = (images: unknown) => getAllImages(images)[0] || "";
+
 const formatBRL = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 // Usa a origem atual (ex: wuili.lovable.app ou velods.com.br) para que o link
@@ -278,8 +292,7 @@ const GeneratedStoreEditorPage = () => {
   const navigate = useNavigate();
   const upgradeModal = useUpgradeModal();
   const { projectId: routeProjectId } = useParams<{ projectId: string }>();
-  const { user, loading: authLoading } = useAuth();
-  const { nome: profileName, foto: profilePhoto } = useProfile();
+  const { user } = useAuth();
   const imageInput = useRef<HTMLInputElement>(null);
   const logoInput = useRef<HTMLInputElement>(null);
   const creationFileInput = useRef<HTMLInputElement>(null);
@@ -292,11 +305,8 @@ const GeneratedStoreEditorPage = () => {
   const suppressPreviewClickRef = useRef(false);
   const selectedElementRef = useRef<EditableDomElement | null>(null);
   const nativePinchZoomRef = useRef<(event: WheelEvent) => void>(() => undefined);
-  const wheelPanDeltaRef = useRef({ x: 0, y: 0 });
-  const wheelPanFrameRef = useRef<number | null>(null);
   const [mobilePreview, setMobilePreview] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [canvasZoom, setCanvasZoom] = useState(0.52);
   const [productPreviewHeight, setProductPreviewHeight] = useState<number>(0);
   useEffect(() => {
@@ -309,7 +319,6 @@ const GeneratedStoreEditorPage = () => {
     return () => ro.disconnect();
   }, [mobilePreview]);
   const canvasZoomRef = useRef(0.52);
-  const [isCanvasDragging, setIsCanvasDragging] = useState(false);
   const [selectionMarquee, setSelectionMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [pageSelected, setPageSelected] = useState(false);
   const [accent, setAccent] = useState("#111111");
@@ -321,6 +330,13 @@ const GeneratedStoreEditorPage = () => {
   const [heroCtaUrl, setHeroCtaUrl] = useState("/catalogo");
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [catalogSuggestions, setCatalogSuggestions] = useState<CatalogItem[]>([]);
+  // Catálogo inteiro, carregado só quando a gaveta de produtos abre. As
+  // sugestões acima são as 24 mais vendidas (chegam junto com o editor); aqui
+  // vem tudo, porque na hora de trocar um produto o lojista precisa enxergar o
+  // catálogo completo, não uma amostra.
+  const [catalogAll, setCatalogAll] = useState<CatalogItem[]>([]);
+  const [catalogAllLoading, setCatalogAllLoading] = useState(false);
+  const catalogAllLoadedRef = useRef(false);
   const [sidebarImportingId, setSidebarImportingId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState("Velo");
   const [showPlans, setShowPlans] = useState(false);
@@ -330,6 +346,9 @@ const GeneratedStoreEditorPage = () => {
   // Têm prioridade sobre as coleções do usuário: são o que o usuário selecionou
   // para ESTE projeto, na ordem em que escolheu.
   const [projectProducts, setProjectProducts] = useState<CatalogItem[]>([]);
+  // Texto curto gerado pela IA para o produto em destaque. Vazio = ainda não
+  // gerado (ou geração em andamento): o template mostra o placeholder curto.
+  const [aiDescription, setAiDescription] = useState("");
   const [menuBusy, setMenuBusy] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
@@ -339,7 +358,6 @@ const GeneratedStoreEditorPage = () => {
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishCopied, setPublishCopied] = useState(false);
-  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const { plan: currentPlan } = usePlan();
   const isFreePlan = currentPlan === "gratis" || currentPlan === "go";
@@ -402,10 +420,10 @@ const GeneratedStoreEditorPage = () => {
       bodyOverscroll: body.style.overscrollBehavior,
     };
 
-    html.style.background = "#18191b";
+    html.style.background = "#eef5ff";
     html.style.overflow = "hidden";
     html.style.overscrollBehavior = "none";
-    body.style.background = "#18191b";
+    body.style.background = "#eef5ff";
     body.style.overflow = "hidden";
     body.style.overscrollBehavior = "none";
 
@@ -1081,7 +1099,7 @@ const GeneratedStoreEditorPage = () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
-  }, [selectedElement?.path, canvasOffset.x, canvasOffset.y, canvasZoom]);
+  }, [selectedElement?.path, canvasZoom]);
 
   useEffect(() => {
     Object.entries(elementOverrides).forEach(([path, override]) => {
@@ -1587,6 +1605,70 @@ const GeneratedStoreEditorPage = () => {
     return () => { active = false; };
   }, [currentProject]);
 
+  useEffect(() => {
+    const productId = projectProducts[0]?.id;
+    if (!productId) { setAiDescription(""); return; }
+    let active = true;
+    void aiDescriptionForProduct(productId)
+      .then((text) => { if (active) setAiDescription(text); })
+      .catch(() => { if (active) setAiDescription(""); });
+    return () => { active = false; };
+  }, [projectProducts]);
+
+  // Mesmo critério da tela de Catálogo (is_blocked = false e estoque > 0), para
+  // a gaveta mostrar exatamente o que o lojista vê lá. O PostgREST devolve no
+  // máximo 1000 linhas por requisição, então paginamos até acabar.
+  useEffect(() => {
+    if (contextDrawer !== "products" || catalogAllLoadedRef.current) return;
+    catalogAllLoadedRef.current = true;
+    let active = true;
+    setCatalogAllLoading(true);
+
+    void (async () => {
+      const LOTE = 1000;
+      const TETO = 4000;
+      const acumulado: CatalogItem[] = [];
+      try {
+        for (let inicio = 0; inicio < TETO; inicio += LOTE) {
+          const { data, error } = await supabase
+            .from("catalog_products")
+            .select("id,title,suggested_price,cost_price,images,category")
+            .eq("is_blocked", false)
+            .gt("stock_quantity", 0)
+            .order("orders_count", { ascending: false, nullsFirst: false })
+            .range(inicio, inicio + LOTE - 1);
+          if (error) throw error;
+          const pagina = data ?? [];
+          acumulado.push(
+            ...pagina.flatMap((item) => {
+              const imageUrls = getAllImages(item.images);
+              const imageUrl = imageUrls[0] || "";
+              if (!imageUrl) return [];
+              return [{
+                id: item.id,
+                title: item.title,
+                price: Number(item.suggested_price ?? 0) || Number(item.cost_price) * 5 || 0,
+                imageUrl,
+                imageUrls,
+                category: item.category?.trim() || "Outros",
+              }];
+            }),
+          );
+          if (pagina.length < LOTE) break;
+        }
+        if (active) setCatalogAll(acumulado);
+      } catch (error) {
+        console.error("Falha ao carregar o catálogo completo:", error);
+        // Deixa reabrir a gaveta e tentar de novo.
+        catalogAllLoadedRef.current = false;
+      } finally {
+        if (active) setCatalogAllLoading(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [contextDrawer]);
+
   // Aplica o metadata salvo do projeto no estado do editor. Usado tanto na
   // hidratação inicial quanto na sincronização em tempo real (quando um
   // colaborador edita, reaplicamos o metadata recebido para refletir no canvas).
@@ -1662,6 +1744,9 @@ const GeneratedStoreEditorPage = () => {
       void saveProjectDraft(currentProject.id, {
         storeName,
         template: activeTemplate.id,
+        // A loja publicada não consegue ler ai_product_pages (RLS é do dono),
+        // então a descrição gerada viaja junto do projeto.
+        ...(aiDescription ? { aiDescription } : {}),
         accent,
         font,
         columns,
@@ -1674,7 +1759,7 @@ const GeneratedStoreEditorPage = () => {
       }).catch(() => { /* autosave silencioso */ });
     }, 900);
     return () => window.clearTimeout(timeout);
-  }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides, editedPrice]);
+  }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides, editedPrice, aiDescription]);
 
   // Sincronização em tempo real dentro do editor: reflete no canvas as edições
   // feitas por um colaborador (ou pelo dono em outra aba) no mesmo projeto.
@@ -1875,7 +1960,7 @@ const GeneratedStoreEditorPage = () => {
 
   const handleOpenPublish = () => {
     if (isFreePlan) {
-      setUpgradeModalOpen(true);
+      upgradeModal.open({ defaultPlan: "base" });
       return;
     }
     if (!currentProject) {
@@ -1890,7 +1975,7 @@ const GeneratedStoreEditorPage = () => {
     if (!currentProject || publishing) return;
     if (isFreePlan) {
       setPublishOpen(false);
-      setUpgradeModalOpen(true);
+      upgradeModal.open({ defaultPlan: "base" });
       return;
     }
     setPublishing(true);
@@ -2006,9 +2091,6 @@ const GeneratedStoreEditorPage = () => {
     workspace.addEventListener("wheel", handleNativeCanvasWheel, { passive: false, capture: true });
     return () => {
       workspace.removeEventListener("wheel", handleNativeCanvasWheel, { capture: true });
-      if (wheelPanFrameRef.current !== null) cancelAnimationFrame(wheelPanFrameRef.current);
-      wheelPanFrameRef.current = null;
-      wheelPanDeltaRef.current = { x: 0, y: 0 };
     };
   }, [flow]);
 
@@ -2106,25 +2188,60 @@ const GeneratedStoreEditorPage = () => {
       { id: "loja-1", name: "Template 1", desc: "Loja completa AERO-STEP (creme e verde musgo).", image: "/template-01-loja-preview.png" },
       { id: "loja-2", name: "Template 2", desc: "Marketly · e-commerce azul mobile-first.", image: "/template-01-loja-preview.png" },
     ],
-    produto: [
-      { id: "produto-1", name: "Template 1", desc: "Página de produto Velora.", image: "/template-produto-preview.png" },
-      { id: "produto-2", name: "Template 2", desc: "Página de produto Beauty.", image: "/template-produto-2-preview.png" },
-      { id: "produto-3", name: "Template 3", desc: "Página de produto Shopify.", image: "/template-produto-3-preview.png" },
-      { id: "produto-4", name: "Template 4", desc: "Página de produto minimalista.", image: "/template-produto-4-preview.png" },
-    ],
+    // Um template de produto só. Ele vem da galeria (salesPageTemplates), que
+    // por sua vez lê o registro — assim editor, galeria e página publicada nunca
+    // divergem sobre quais templates existem.
+    produto: salesPageTemplates.map((template) => ({
+      id: template.editorTemplateId,
+      name: template.name,
+      desc: template.description,
+      image: template.preview,
+    })),
   };
+  // Template de produto vem do registro compartilhado com a página publicada:
+  // registrar em um lugar só evita o editor mostrar um template e a loja
+  // publicada renderizar outro.
+  const { Component: ActiveProductTemplate, descFallback: activeProductDescFallback } =
+    resolveProductTemplate(activeTemplate.id);
+  // Descrição que vai para o bloco de compra: só o texto curto escrito pela IA.
+  //
+  // Duas coisas que NÃO entram aqui, por já terem quebrado a página antes:
+  // `flow.salesAngle` é o ângulo de copy do wizard ("Benefício principal") —
+  // rótulo de configuração, não texto de venda; e catalog_products.description é
+  // a ficha técnica raspada do fornecedor, que vira um parágrafo corrido enorme
+  // e empurra o CTA para fora da altura da imagem.
+  const productDescriptionForTemplate = aiDescription || AI_DESCRIPTION_PLACEHOLDER;
+
+  // "Você também pode gostar": os outros produtos do próprio projeto, nunca o
+  // que já está em destaque. Sem outros produtos, o template esconde a seção.
+  const relatedProductsForTemplate = displayedProducts
+    .filter((product) => product.id !== featuredProduct?.id)
+    .map((product) => ({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      originalPrice: product.originalPrice ?? null,
+      imageUrl: product.imageUrl,
+    }));
   const selectedFontStack = fontOptions.find((option) => option.name === font)?.stack || fontOptions[0].stack;
+  // Projeto salvo num template que não existe mais abre no atual — o rótulo da
+  // barra lateral tem que acompanhar, em vez de cair no primeiro da lista de loja.
   const activeTemplateOption =
-    templateOptions[activeTemplate.kind].find((template) => template.id === activeTemplate.id) ?? templateOptions.loja[0];
+    templateOptions[activeTemplate.kind].find((template) => template.id === activeTemplate.id) ??
+    templateOptions[activeTemplate.kind][0] ??
+    templateOptions.loja[0];
   const drawerTemplates = templateOptions[templateCategory];
   const sidebarProducts = displayedProducts;
   const selectedStoreProductIds = new Set(sidebarProducts.map((product) => product.id));
-  const replacementProducts = [...catalogSuggestions, ...displayedProducts].filter(
+  // Enquanto o catálogo completo não chega, a gaveta já mostra as sugestões —
+  // assim ela nunca abre vazia.
+  const catalogForDrawer = catalogAll.length > 0 ? catalogAll : catalogSuggestions;
+  const replacementProducts = [...catalogForDrawer, ...displayedProducts].filter(
     (product, index, collection) => collection.findIndex((item) => item.id === product.id) === index,
   );
   const drawerProducts = replacingProductPath
     ? replacementProducts
-    : catalogSuggestions.filter((product) => !selectedStoreProductIds.has(product.id));
+    : catalogForDrawer.filter((product) => !selectedStoreProductIds.has(product.id));
   const togglePanelSection = (section: EditorPanelSection) => {
     setOpenPanelSections((current) => ({ ...current, [section]: !current[section] }));
   };
@@ -2278,6 +2395,8 @@ const GeneratedStoreEditorPage = () => {
     { id: "appearance", label: "Aparência", icon: Palette, dividerBefore: true },
     { id: "favorites", label: "Favoritos", icon: Star },
   ];
+  const editorMainCanvasWidth = mobilePreview ? 390 : "calc(100vw - 282px)";
+  const editorCartPreviewWidth = mobilePreview ? 390 : 720;
   const fillSwatches = ["#111111", "#2563eb", "#dc2626", "#f59e0b", "#ec4899", "#7c3aed"];
   const selectedDomElement = getSelectedDomElement();
   const selectedTagName = selectedDomElement?.tagName.toLowerCase();
@@ -2299,6 +2418,35 @@ const GeneratedStoreEditorPage = () => {
   const isSelectedButton =
     selectedTagName === "button" ||
     (selectedTagName === "a" && selectedDomElement?.getAttribute("data-editor-role") === "button");
+
+  // Rótulo e ícone do bloco selecionado, para o cabeçalho do painel dizer o que
+  // está sendo editado (o `label` do elemento já vem da varredura do canvas).
+  const selectedBlockTitle = !selectedElement
+    ? ""
+    : isSelectedButton
+      ? "Botão"
+      : selectedElement.type === "text"
+        ? "Texto"
+        : selectedElement.type === "image"
+          ? isSelectedProductImage
+            ? "Imagem do produto"
+            : selectedMediaKind === "logo"
+              ? "Logo"
+              : "Imagem"
+          : selectedElement.type === "icon"
+            ? "Ícone"
+            : selectedElement.label || "Seção";
+  const selectedBlockIcon: LucideIcon = !selectedElement
+    ? LayoutGrid
+    : isSelectedButton
+      ? RectangleHorizontal
+      : selectedElement.type === "text"
+        ? Type
+        : selectedElement.type === "image"
+          ? ImageIcon
+          : selectedElement.type === "icon"
+            ? Sparkles
+            : LayoutGrid;
   const selectedButtonIcon = isSelectedButton ? selectedDomElement?.querySelector("svg") : null;
   const selectedButtonIconSize =
     (selectedPath ? elementOverrides[selectedPath]?.buttonIconSize : undefined) ??
@@ -2379,12 +2527,11 @@ const GeneratedStoreEditorPage = () => {
       workspaceRef.current.scrollLeft = 0;
       workspaceRef.current.scrollTop = 0;
     }
-    setCanvasOffset({ x: 0, y: 0 });
     const resetZoom = mobilePreview ? 0.88 : 0.52;
     canvasZoomRef.current = resetZoom;
     setCanvasZoom(resetZoom);
   };
-  const changeCanvasZoom = (delta: number, anchor?: { clientX: number; clientY: number }) => {
+  const changeCanvasZoom = (delta: number) => {
     const currentZoom = canvasZoomRef.current;
     const nextZoom = Math.max(0.28, Math.min(1.2, Number((currentZoom + delta).toFixed(2))));
     if (nextZoom === currentZoom) return;
@@ -2393,52 +2540,12 @@ const GeneratedStoreEditorPage = () => {
       workspace.scrollLeft = 0;
       workspace.scrollTop = 0;
     }
-    const workspaceRect = workspace?.getBoundingClientRect();
-    if (!workspaceRect) {
-      canvasZoomRef.current = nextZoom;
-      setCanvasZoom(nextZoom);
-      return;
-    }
-    const previewRect = previewRef.current?.getBoundingClientRect();
-    const clientX = anchor?.clientX ?? (previewRect ? previewRect.left + previewRect.width / 2 : workspaceRect.left + workspaceRect.width / 2);
-    const clientY = anchor?.clientY ?? (previewRect ? previewRect.top + previewRect.height / 2 : workspaceRect.top + workspaceRect.height / 2);
-    const anchorX = clientX - workspaceRect.left - 330;
-    const anchorY = clientY - workspaceRect.top - 130;
-    setCanvasOffset((current) => ({
-      x: anchorX - ((anchorX - current.x) / currentZoom) * nextZoom,
-      y: anchorY - ((anchorY - current.y) / currentZoom) * nextZoom,
-    }));
     canvasZoomRef.current = nextZoom;
     setCanvasZoom(nextZoom);
   };
   nativePinchZoomRef.current = (event) => {
     const target = event.target;
     if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!event.ctrlKey && !event.metaKey) {
-      wheelPanDeltaRef.current.x += event.deltaX;
-      wheelPanDeltaRef.current.y += event.deltaY;
-      if (wheelPanFrameRef.current === null) {
-        wheelPanFrameRef.current = requestAnimationFrame(() => {
-          const delta = wheelPanDeltaRef.current;
-          wheelPanDeltaRef.current = { x: 0, y: 0 };
-          wheelPanFrameRef.current = null;
-          setCanvasOffset((current) => ({
-            x: current.x - delta.x,
-            y: current.y - delta.y,
-          }));
-        });
-      }
-      return;
-    }
-
-    changeCanvasZoom(event.deltaY > 0 ? -0.04 : 0.04, {
-      clientX: event.clientX,
-      clientY: event.clientY,
-    });
   };
   const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
@@ -2449,19 +2556,6 @@ const GeneratedStoreEditorPage = () => {
     if (target instanceof Element && target.closest("[data-canvas-ui], [data-editor-ignore]")) return;
     suppressCanvasClickRef.current = false;
     suppressPreviewClickRef.current = false;
-
-    if (canvasToolbarMode === "pan") {
-      canvasDragRef.current = {
-        pointerX: event.clientX,
-        pointerY: event.clientY,
-        offsetX: canvasOffset.x,
-        offsetY: canvasOffset.y,
-        startedOnPreview: target instanceof Element && Boolean(target.closest(".store-editor-preview")),
-      };
-      event.currentTarget.setPointerCapture(event.pointerId);
-      setIsCanvasDragging(true);
-      return;
-    }
 
     if (canvasToolbarMode === "select") {
       if (target instanceof Element && target.closest(".store-editor-preview")) return;
@@ -2492,10 +2586,6 @@ const GeneratedStoreEditorPage = () => {
 
     const drag = canvasDragRef.current;
     if (!drag) return;
-    setCanvasOffset({
-      x: drag.offsetX + event.clientX - drag.pointerX,
-      y: drag.offsetY + event.clientY - drag.pointerY,
-    });
   };
   const finishCanvasDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     const selection = selectionDragRef.current;
@@ -2542,7 +2632,6 @@ const GeneratedStoreEditorPage = () => {
     suppressCanvasClickRef.current = !wasEmptyAreaClick;
     canvasDragRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    setIsCanvasDragging(false);
     if (wasEmptyAreaClick) setSidebarCollapsed(true);
   };
   const handleWorkspaceClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -2685,7 +2774,7 @@ const GeneratedStoreEditorPage = () => {
   );
 
   return (
-    <main className="relative flex h-screen flex-col overflow-hidden bg-[#18191b] text-white" style={{ fontFamily: selectedFontStack }}>
+    <main className="relative flex h-screen flex-col overflow-hidden bg-[#eef5ff] text-[#111827]" style={{ fontFamily: selectedFontStack }}>
       <style>
         {`
           /* Entrada do editor: revela o canvas em vez de trocar de tela seco. */
@@ -2701,71 +2790,61 @@ const GeneratedStoreEditorPage = () => {
       </style>
       <div
         aria-hidden="true"
-        className="velo-editor-enter pointer-events-none fixed inset-0 z-[999] bg-[#18191b] [animation:veloEditorEnter_620ms_ease-out_forwards]"
+        className="velo-editor-enter pointer-events-none fixed inset-0 z-[999] bg-[#eef5ff] [animation:veloEditorEnter_620ms_ease-out_forwards]"
       />
-      <style>{`.store-editor-preview [data-editor-selected="true"]{outline:2px solid #686d72;outline-offset:4px}.store-editor-preview [data-editor-hover-bg="true"]:hover{background-color:var(--editor-hover-bg)!important}.editor-mode-active [data-editor-type]:hover,.editor-mode-active button:hover,.editor-mode-active [data-editor-role="button"]:hover{outline:1.5px dashed #686d72;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}.editor-sidebar-scroll{scrollbar-width:thin;scrollbar-color:#4a4f55 transparent}.editor-sidebar-scroll::-webkit-scrollbar{width:5px}.editor-sidebar-scroll::-webkit-scrollbar-track{background:transparent}.editor-sidebar-scroll::-webkit-scrollbar-thumb{border-radius:999px;background:#4a4f55}.editor-sidebar-scroll::-webkit-scrollbar-thumb:hover{background:#636970}.editor-context-drawer{animation:editorDrawerIn 200ms ease both}@keyframes editorDrawerIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
-      <header data-canvas-ui className="pointer-events-none absolute inset-x-0 top-0 z-[70] grid h-[72px] grid-cols-[1fr_auto_1fr] items-center px-5 text-[#f4f4f5]">
+      <style>{`.store-editor-preview [data-editor-selected="true"]{outline:2px solid #2563eb;outline-offset:3px}.store-editor-preview [data-editor-hover-bg="true"]:hover{background-color:var(--editor-hover-bg)!important}.editor-mode-active [data-editor-type]:hover,.editor-mode-active button:hover,.editor-mode-active [data-editor-role="button"]:hover{outline:1.5px dashed #2563eb;outline-offset:2px;cursor:pointer}.editor-mode-active [data-editor-ignore],.editor-mode-active [data-editor-ignore] *{outline:none!important;cursor:default}.editor-sidebar-scroll{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent}.editor-sidebar-scroll::-webkit-scrollbar{width:5px}.editor-sidebar-scroll::-webkit-scrollbar-track{background:transparent}.editor-sidebar-scroll::-webkit-scrollbar-thumb{border-radius:999px;background:#cbd5e1}.editor-sidebar-scroll::-webkit-scrollbar-thumb:hover{background:#94a3b8}.editor-context-drawer{animation:editorDrawerIn 200ms ease both}@keyframes editorDrawerIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+      <header data-canvas-ui className="pointer-events-none absolute inset-x-0 top-0 z-[70] grid h-[72px] grid-cols-[1fr_auto_1fr] items-center border-b border-[#cfe0f5] bg-[#eef6ff] px-5 text-[#111827] shadow-[0_1px_0_rgba(15,23,42,0.03)]">
         <div className="pointer-events-auto relative flex min-w-0 items-center gap-3">
-          <button type="button" onClick={() => setProjectMenuOpen((open) => !open)} className={`flex h-10 w-12 shrink-0 items-center justify-center rounded-full text-white/82 shadow-[0_12px_38px_rgba(0,0,0,0.22)] backdrop-blur-xl transition duration-200 hover:bg-black/52 hover:text-white ${projectMenuOpen ? "bg-black/60 text-white" : "bg-black/32"}`} aria-label="Menu do projeto" aria-haspopup="menu" aria-expanded={projectMenuOpen}>
-            <Menu size={18} strokeWidth={1.75} />
+          <button type="button" onClick={() => navigate("/dashboard/paginas-com-ia")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] border border-[#d8e2f0] bg-white text-[#1f2937] shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition hover:border-[#c6d3e4] hover:bg-[#f8fbff]" aria-label="Voltar para páginas com IA">
+            <ChevronLeft size={17} strokeWidth={2} />
           </button>
-          <strong className="block min-w-0 truncate text-[13px] font-semibold tracking-[-0.015em] text-white/92">{projectTitle}</strong>
+          <div className="flex shrink-0 items-center">
+            <VeloLogo size="md" variant="dark" />
+          </div>
           {renderProjectMenu()}
         </div>
 
-        <div className="pointer-events-auto hidden min-w-0 items-center justify-center rounded-full border border-white/[0.10] bg-black/38 p-1 shadow-[0_12px_38px_rgba(0,0,0,0.20)] backdrop-blur-xl lg:flex">
-          <button type="button" onClick={() => { setMobilePreview(false); canvasZoomRef.current = 0.52; setCanvasZoom(0.52); }} className={`flex h-7 items-center gap-1.5 rounded-full px-3 text-[9px] font-semibold transition ${!mobilePreview ? "bg-white text-black" : "text-white/45 hover:text-white"}`} aria-label="Preview desktop">
-            <Monitor size={14} strokeWidth={1.8} /> Desktop
+        <div className="pointer-events-auto hidden min-w-0 items-center justify-center gap-1 rounded-[12px] bg-white p-1 shadow-[0_5px_16px_rgba(15,23,42,0.10)] ring-1 ring-[#d9e4f5] lg:flex">
+          <button type="button" onClick={() => setEditMode("edit")} className="flex h-7 items-center gap-1.5 rounded-[9px] border border-[#b9d2ff] bg-white px-2.5 text-[12px] font-bold tracking-[-0.02em] text-[#2457d6] shadow-[0_1px_5px_rgba(37,99,235,0.12)] transition hover:bg-[#f7faff]" aria-label="Editar produto">
+            <Tag size={15} strokeWidth={2} /> Edit Product
           </button>
-          <button type="button" onClick={() => { setMobilePreview(true); canvasZoomRef.current = 0.88; setCanvasZoom(0.88); }} className={`flex h-7 items-center gap-1.5 rounded-full px-3 text-[9px] font-semibold transition ${mobilePreview ? "bg-white text-black" : "text-white/45 hover:text-white"}`} aria-label="Preview mobile">
-            <Smartphone size={13} strokeWidth={1.8} /> Mobile
+          <button type="button" onClick={() => { setMobilePreview(false); canvasZoomRef.current = 0.52; setCanvasZoom(0.52); }} className={`grid h-8 w-10 place-items-center rounded-[9px] transition ${!mobilePreview ? "bg-white text-[#111827] shadow-[0_3px_9px_rgba(15,23,42,0.14)] ring-1 ring-[#e6ebf3]" : "text-[#717b8d] hover:text-[#334155]"}`} aria-label="Preview desktop">
+            <Monitor size={17} strokeWidth={2} />
+          </button>
+          <button type="button" onClick={() => { setMobilePreview(true); canvasZoomRef.current = 0.88; setCanvasZoom(0.88); }} className={`grid h-8 w-9 place-items-center rounded-[9px] transition ${mobilePreview ? "bg-white text-[#111827] shadow-[0_3px_9px_rgba(15,23,42,0.14)] ring-1 ring-[#e6ebf3]" : "text-[#717b8d] hover:text-[#334155]"}`} aria-label="Preview mobile">
+            <Smartphone size={15} strokeWidth={2} />
+          </button>
+          <button type="button" onClick={resetCanvasView} className="grid h-8 w-9 place-items-center rounded-[9px] text-[#717b8d] transition hover:bg-white hover:text-[#334155] hover:shadow-[0_3px_9px_rgba(15,23,42,0.12)]" aria-label="Ajustar tela">
+            <RectangleHorizontal size={16} strokeWidth={2} />
           </button>
         </div>
 
-        <div className="pointer-events-auto flex shrink-0 items-center justify-end gap-2">
-          <button type="button" className="hidden h-9 w-9 items-center justify-center rounded-full border border-white/[0.13] bg-black/30 text-white/78 shadow-[0_12px_34px_rgba(0,0,0,0.20)] backdrop-blur-xl transition hover:border-white/25 hover:bg-black/48 hover:text-white sm:flex" aria-label="Visualizar loja">
-            <Play size={15} strokeWidth={1.8} />
+        <div className="pointer-events-auto flex shrink-0 items-center justify-end">
+          <div className="flex items-center gap-2 rounded-[12px] bg-white p-1 shadow-[0_5px_16px_rgba(15,23,42,0.10)] ring-1 ring-[#d9e4f5]">
+          <button type="button" className="hidden h-8 items-center gap-1.5 rounded-[8px] border border-[#c8ccd4] bg-[#969ba5] px-3 text-[12px] font-bold tracking-[-0.01em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_2px_7px_rgba(15,23,42,0.18)] transition hover:bg-[#8a909b] sm:flex" aria-label="Salvar projeto">
+            <Save size={15} strokeWidth={2.05} /> Save
           </button>
-          <div className="relative hidden md:block">
-            <button type="button" onClick={handleOpenPublish} className="flex h-9 items-center justify-center rounded-[10px] bg-[#3567e9] px-5 text-[10px] font-semibold text-white shadow-[0_10px_28px_rgba(37,86,220,0.34)] transition duration-200 hover:bg-[#4272ee] hover:shadow-[0_13px_34px_rgba(37,86,220,0.42)] active:scale-[0.98]">
-              Publicar
-            </button>
-            <span className="pointer-events-none absolute left-1/2 top-full mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-[#c98a08] bg-gradient-to-b from-[#ffe27a] to-[#f5b400] px-2 py-[3px] text-[8.5px] font-extrabold uppercase tracking-wide text-[#5c3a00] shadow-[0_4px_10px_rgba(0,0,0,0.35)]">
-              🎁 Domínio grátis
-            </span>
+          <button type="button" onClick={handleOpenPublish} className="hidden h-8 items-center justify-center gap-1.5 rounded-[8px] border border-[#087c45] bg-gradient-to-b from-[#17b86d] to-[#049452] px-3.5 text-[12px] font-bold tracking-[-0.01em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_4px_11px_rgba(4,148,82,0.24)] transition duration-200 hover:from-[#19c476] hover:to-[#058949] active:scale-[0.98] md:flex">
+            <ShoppingBag size={15} strokeWidth={2.05} />
+            Publish
+          </button>
+          <button type="button" onClick={() => setProjectMenuOpen((open) => !open)} className="flex h-8 items-center gap-2 rounded-[8px] border border-[#dfe5ef] bg-white px-3.5 text-[12px] font-bold tracking-[-0.01em] text-[#111827] shadow-[0_2px_8px_rgba(15,23,42,0.08)] transition hover:bg-[#f8fbff]" aria-label="Menu do projeto" aria-haspopup="menu" aria-expanded={projectMenuOpen}>
+            <Menu size={16} strokeWidth={2.1} />
+            Menu
+          </button>
           </div>
-          {/* Abre as configurações do projeto já na aba Equipe, onde fica o
-              convite por e-mail. Mesmo destino do "Compartilhar" do menu. */}
-          <button type="button" onClick={handleShareProject} className="hidden h-9 items-center justify-center rounded-[10px] bg-[#f1f2f4] px-5 text-[10px] font-semibold text-[#525660] shadow-[0_10px_28px_rgba(0,0,0,0.20)] transition duration-200 hover:bg-white hover:text-[#272a30] active:scale-[0.98] md:flex">
-            Convidar
-          </button>
-          <button type="button" className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#d8b287] text-[#4c2414] ring-1 ring-white/15" aria-label={`Perfil de ${profileName || user?.email || "usuário"}`}>
-            {authLoading || !user ? (
-              <span className="h-full w-full animate-pulse bg-[#3a3b3d]" />
-            ) : profilePhoto ? (
-              <img src={profilePhoto} alt={`Foto de ${profileName || user?.email || "perfil"}`} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="grid h-full w-full place-items-center bg-[radial-gradient(circle_at_50%_28%,#f6d2a7_0_20%,transparent_21%),linear-gradient(135deg,#b66a3e,#7c341b)] text-[10px] font-bold text-white">
-                {(profileName !== "Usuario" ? profileName : user?.email || "V").slice(0, 1).toUpperCase()}
-              </span>
-            )}
-            {!authLoading && user ? (
-              <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-[#0e0f10] bg-[#7ac943]" />
-            ) : null}
-          </button>
         </div>
       </header>
 
       <div
         ref={workspaceRef}
-        className={`relative min-h-0 flex-1 overflow-clip overscroll-none bg-[#222325] text-white touch-none ${canvasToolbarMode === "pan" ? (isCanvasDragging ? "cursor-grabbing" : "cursor-grab") : selectionMarquee ? "cursor-crosshair" : "cursor-default"}`}
+        className={`relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain bg-white text-[#111827] touch-pan-y ${selectionMarquee ? "cursor-crosshair" : "cursor-default"}`}
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handleCanvasPointerMove}
         onPointerUp={finishCanvasDrag}
         onPointerCancel={finishCanvasDrag}
         onScroll={(event) => {
           event.currentTarget.scrollLeft = 0;
-          event.currentTarget.scrollTop = 0;
         }}
         onClick={handleWorkspaceClick}
         onDoubleClick={(event) => {
@@ -2773,11 +2852,11 @@ const GeneratedStoreEditorPage = () => {
           if (!(target instanceof Element) || !target.closest("[data-canvas-ui], .store-editor-preview")) resetCanvasView();
         }}
         style={{
-          backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.20) 1px, transparent 1.25px), radial-gradient(circle at 50% -20%, rgba(255,255,255,0.035), transparent 48%)",
-          backgroundPosition: `${canvasOffset.x}px ${canvasOffset.y}px`,
-          backgroundSize: "22px 22px, 100% 100%",
+          backgroundImage: "none",
+          backgroundPosition: "0px 0px",
+          backgroundSize: "100% 100%",
         }}
-        aria-label="Área de trabalho arrastável"
+        aria-label="Área de trabalho do editor"
       >
         <input ref={imageInput} type="file" accept="image/*" className="hidden" onChange={(event)=>{const file=event.target.files?.[0];if(file)setHeroImage(URL.createObjectURL(file));}}/>
         <input ref={logoInput} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload}/>
@@ -2790,11 +2869,11 @@ const GeneratedStoreEditorPage = () => {
             style={{ left: selectionMarquee.x, top: selectionMarquee.y, width: selectionMarquee.width, height: selectionMarquee.height }}
           />
         ) : null}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-[72px] z-10 flex h-7 items-start justify-around px-[340px] pt-1 text-[8px] font-medium text-white/25">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-[72px] z-10 hidden h-7 items-start justify-around px-[340px] pt-1 text-[8px] font-medium text-[#94a3b8]/70">
           {[-3200, -2800, -2400, -2000, -1600, -1200, -800, -400, 0, 400].map((mark) => <span key={mark}>{mark}</span>)}
         </div>
 
-        <aside data-canvas-ui data-sidebar-state={sidebarCollapsed ? "recolhido" : "aberto"} className="absolute bottom-5 left-5 top-[106px] z-40 w-[280px] origin-top-left">
+        <aside data-canvas-ui data-sidebar-state={sidebarCollapsed ? "recolhido" : "aberto"} className="hidden">
           <div className="flex h-full min-h-0 flex-col text-white">
             <motion.section
               aria-label="Painel de personalização da loja"
@@ -3276,79 +3355,32 @@ const GeneratedStoreEditorPage = () => {
         </aside>
 
         <div
-          className="absolute left-[330px] top-[130px] z-20 origin-top-left will-change-transform"
-          style={{
-            transform: `translate3d(${canvasOffset.x}px, ${canvasOffset.y}px, 0) scale(${canvasZoom})`,
-          }}
+          className="relative z-20 min-h-full pt-[72px]"
+          style={{ width: mobilePreview ? "calc(100vw - 282px)" : editorMainCanvasWidth }}
         >
-          <div data-canvas-ui className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
-            <Monitor size={20} strokeWidth={1.8} />
-            Página principal · {mobilePreview ? "Mobile" : "Desktop"}
-            <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold tracking-normal text-white/55">Ao vivo</span>
-          </div>
-          <div ref={previewRef} onClickCapture={handlePreviewClick} onDoubleClickCapture={handlePreviewDoubleClick} className={`store-editor-preview relative overflow-hidden bg-white text-[#111] shadow-[0_30px_100px_rgba(0,0,0,0.46)] transition-[width] duration-300 ${pageSelected ? "ring-2 ring-white ring-offset-4 ring-offset-[#222325]" : "ring-1 ring-white/[0.10]"} ${mobilePreview?"w-[390px]":"w-[1440px]"} ${editMode && canvasToolbarMode !== "pan"?"editor-mode-active":""}`} style={{ fontFamily: selectedFontStack, cursor: canvasToolbarMode === "pan" ? (isCanvasDragging ? "grabbing" : "grab") : canvasToolbarMode === "appearance" ? "copy" : canvasToolbarMode === "edit" ? "text" : "default" }}>
+          {/* `overflow-clip` (e não `hidden`): recorta igual, mas não vira
+              contexto de rolagem — com `hidden`, o sticky da galeria dentro do
+              template nunca gruda no canvas do editor. */}
+          <div ref={previewRef} onClickCapture={handlePreviewClick} onDoubleClickCapture={handlePreviewDoubleClick} className={`store-editor-preview relative min-h-[calc(100vh-72px)] overflow-clip bg-white text-[#111] transition-[width] duration-300 ${pageSelected ? "ring-2 ring-[#2563eb] ring-inset" : ""} ${editMode && canvasToolbarMode !== "pan"?"editor-mode-active":""}`} style={{ width: mobilePreview ? editorMainCanvasWidth : "100%", margin: mobilePreview ? "0 auto" : 0, fontFamily: selectedFontStack, cursor: canvasToolbarMode === "appearance" ? "copy" : canvasToolbarMode === "edit" ? "text" : "default" }}>
             {!templateReady ? (
               <div className="grid h-[720px] w-full place-items-center bg-white">
                 <Loader2 size={22} className="animate-spin text-black/25" />
               </div>
             ) : activeTemplate.kind === "produto" ? (
-              activeTemplate.id === "produto-2" ? (
-                <ProductTemplateBeauty
-                  brand={brandName}
-                  title={featuredProduct?.title || storeName}
-                  description={(flow.salesAngle || "Serum leve de rapida absorcao que hidrata profundamente e deixa a pele macia e saudavel no uso diario.").slice(0, 240)}
-                  price={featuredPrice}
-                  originalPrice={featuredProduct?.originalPrice ?? null}
-                  variants={featuredProduct?.variants ?? []}
-                  image={featuredProduct?.imageUrl || heroImage}
-                  images={featuredProduct?.imageUrls}
-                  productId={featuredProduct?.id}
-                  accent={accent}
-                  mobile={mobilePreview}
-                />
-              ) : activeTemplate.id === "produto-3" ? (
-                <ProductTemplateShopify
-                  brand={brandName}
-                  title={featuredProduct?.title || storeName}
-                  description={(flow.salesAngle || "Fuja do ruido e aumente seu foco. Conforto duradouro com ANC avancado, chamadas nitidas e 30 horas de bateria.").slice(0, 240)}
-                  price={featuredPrice}
-                  originalPrice={featuredProduct?.originalPrice ?? null}
-                  variants={featuredProduct?.variants ?? []}
-                  image={featuredProduct?.imageUrl || heroImage}
-                  images={featuredProduct?.imageUrls}
-                  productId={featuredProduct?.id}
-                  accent={accent}
-                  mobile={mobilePreview}
-                />
-              ) : activeTemplate.id === "produto-4" ? (
-                <ProductTemplate4
-                  brand={brandName}
-                  title={featuredProduct?.title || storeName}
-                  description={(flow.salesAngle || "Design premium e alta performance para o seu dia a dia. Materiais duraveis, acabamento cuidadoso e praticidade em cada detalhe.").slice(0, 240)}
-                  price={featuredPrice}
-                  originalPrice={featuredProduct?.originalPrice ?? null}
-                  variants={featuredProduct?.variants ?? []}
-                  image={featuredProduct?.imageUrl || heroImage}
-                  images={featuredProduct?.imageUrls}
-                  productId={featuredProduct?.id}
-                  accent={accent}
-                  mobile={mobilePreview}
-                />
-              ) : (
-                <ProductTemplate
-                  brand={brandName}
-                  title={featuredProduct?.title || storeName}
-                  description={(flow.salesAngle || "Confeccionado em algodao premium de alta gramatura, entrega conforto e durabilidade. A modelagem oversized e o design minimalista tornam a peca um coringa para qualquer guarda-roupa.").slice(0, 240)}
-                  price={featuredPrice}
-                  originalPrice={featuredProduct?.originalPrice ?? null}
-                  variants={featuredProduct?.variants ?? []}
-                  image={featuredProduct?.imageUrl || heroImage}
-                  images={featuredProduct?.imageUrls}
-                  productId={featuredProduct?.id}
-                  accent={accent}
-                  mobile={mobilePreview}
-                />
-              )
+              <ActiveProductTemplate
+                brand={brandName}
+                title={featuredProduct?.title || storeName}
+                description={productDescriptionForTemplate}
+                price={featuredPrice}
+                originalPrice={featuredProduct?.originalPrice ?? null}
+                variants={featuredProduct?.variants ?? []}
+                image={featuredProduct?.imageUrl || heroImage}
+                images={featuredProduct?.imageUrls}
+                productId={featuredProduct?.id}
+                accent={accent}
+                mobile={mobilePreview}
+                relatedProducts={relatedProductsForTemplate}
+              />
             ) : activeTemplate.id === "loja-2" ? (
               <StorefrontLojaTemplate2
                 storeName={brandName}
@@ -3510,7 +3542,7 @@ const GeneratedStoreEditorPage = () => {
                   const originalPrice = Math.max(product.price*1.3, product.price+30);
                   const discountPct = Math.round((1 - product.price/originalPrice)*100);
                   const explicitRating = product.rating ?? product.averageRating;
-                  const mockMetrics = getProductCatalogMetrics({ id: product.id, rating: explicitRating ?? null, ordersCount: null });
+                  const mockMetrics = getProductCatalogMetrics({ id: product.id, rating: explicitRating ?? null, ordersCount: null, reviewsCount: null });
                   const rating = typeof explicitRating === "number" ? explicitRating : mockMetrics.rating;
                   const orders = product.ratingCount ?? product.reviewCount ?? mockMetrics.ordersCount;
                   return (
@@ -3522,11 +3554,20 @@ const GeneratedStoreEditorPage = () => {
                       </div>
                       <div className="mt-3 flex flex-1 flex-col px-1 pb-1">
                         <h3 data-editor-type="text" className="line-clamp-2 min-h-[36px] text-[13px] font-semibold leading-snug text-[#1a1a1a]">{product.title}</h3>
-                        <div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[#1a1a1a]/60">
-                          <Star size={11} strokeWidth={2} className="fill-[#c8a24a] text-[#c8a24a]"/>
-                          <span data-editor-type="text">{rating.toFixed(1)}</span>
-                          <span className="text-[#1a1a1a]/35">· {formatReviewCount(Number(orders) || 0)} vendas</span>
-                        </div>
+                        {(rating !== null || orders) && (
+                          <div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[#1a1a1a]/60">
+                            {rating !== null && (
+                              <>
+                                <Star size={11} strokeWidth={2} className="fill-[#c8a24a] text-[#c8a24a]"/>
+                                <span data-editor-type="text">{rating.toFixed(1)}</span>
+                              </>
+                            )}
+                            {rating !== null && orders ? <span className="text-[#1a1a1a]/35">·</span> : null}
+                            {orders ? (
+                              <span className="text-[#1a1a1a]/35">{formatReviewCount(Number(orders) || 0)} vendas</span>
+                            ) : null}
+                          </div>
+                        )}
                         <div className="mt-3 flex items-end justify-between gap-2">
                           <div>
                             <strong className="block text-[15px] font-semibold text-[#1a1a1a]">{formatBRL(product.price)}</strong>
@@ -3683,59 +3724,89 @@ const GeneratedStoreEditorPage = () => {
 
           </div>
 
-          {activeTemplate.kind === "produto" && projectSlug ? (
+          {false && activeTemplate.kind === "produto" ? (
             <>
-              {[
-                { key: "carrinho", label: "Tela 2 · Carrinho", path: `/loja/${projectSlug}/carrinho?preview=1` },
-                { key: "checkout", label: "Tela 3 · Checkout", path: `/loja/${projectSlug}/checkout?preview=1` },
-              ].map((screen, idx) => {
-                const baseWidth = mobilePreview ? 390 : 1440;
-                const gap = 120;
-                const leftOffset = (baseWidth + gap) * (idx + 1);
-                const panelHeight = mobilePreview
-                  ? (screen.key === "carrinho" ? 1080 : 1480)
-                  : (screen.key === "carrinho" ? 940 : 1120);
-                return (
-                  <div
-                    key={screen.key}
-                    className="pointer-events-none absolute top-0"
-                    style={{ left: leftOffset, width: baseWidth }}
-                  >
-                    <div className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
-                      <Monitor size={20} strokeWidth={1.8} />
-                      {screen.label}
-                      <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold tracking-normal text-white/55">Preview</span>
-                    </div>
-                    <div
-                      className="relative overflow-hidden bg-white shadow-[0_30px_100px_rgba(0,0,0,0.46)] ring-1 ring-white/[0.10]"
-                      style={{ width: baseWidth, height: panelHeight }}
-                    >
-                      <iframe
-                        src={screen.path}
-                        title={screen.label}
-                        style={{ width: "100%", height: "100%", border: 0, pointerEvents: "none" }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              {[1, 2].map((idx) => {
-                const baseWidth = mobilePreview ? 390 : 1440;
-                const gap = 120;
-                const leftOffset = (baseWidth + gap) * idx - gap + 20;
-                const panelHeight = mobilePreview ? 920 : 760;
-                return (
-                  <div
-                    key={`arrow-${idx}`}
-                    className="pointer-events-none absolute flex items-center text-white/30"
-                    style={{ left: leftOffset, top: 56 + panelHeight / 2 - 14, width: gap - 40 }}
-                  >
-                    <div className="h-px flex-1 bg-white/20" />
-                    <ArrowRight size={28} strokeWidth={1.8} />
-                  </div>
-                );
-              })}
+              <div
+                className="pointer-events-none absolute flex items-center text-white/30"
+                style={{ left: editorMainCanvasWidth + 26, top: 430, width: 74 }}
+              >
+                <div className="h-px flex-1 bg-white/20" />
+                <ArrowRight size={28} strokeWidth={1.8} />
+              </div>
 
+              <div
+                className="pointer-events-none absolute top-0"
+                style={{ left: editorMainCanvasWidth + 120, width: editorCartPreviewWidth }}
+              >
+                <div className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
+                  <Monitor size={20} strokeWidth={1.8} />
+                  Tela 2 · Carrinho
+                  <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-3 py-1.5 text-[11px] font-semibold tracking-normal text-white/55">Preview</span>
+                </div>
+                <div
+                  className="relative overflow-hidden bg-white text-[#0f172a] shadow-[0_30px_100px_rgba(0,0,0,0.46)] ring-1 ring-white/[0.10]"
+                  style={{ width: editorCartPreviewWidth, height: mobilePreview ? 920 : 940, fontFamily: selectedFontStack }}
+                >
+                  <header className="flex h-[72px] items-center border-b border-black/[0.07] px-10">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0f172a] text-[13px] font-bold uppercase text-white">
+                      {brandName.slice(0, 1)}
+                    </span>
+                    <strong className="ml-3 max-w-[360px] truncate text-[14px] font-semibold tracking-[-0.015em]">
+                      {brandName}
+                    </strong>
+                  </header>
+
+                  <section className="px-16 pt-16 text-center">
+                    <div className="text-[11px] font-medium text-[#8b94a6]">
+                      Início <span className="mx-2 text-[#c5cad4]">/</span> Loja
+                    </div>
+                    <p className="mt-8 text-[10px] font-bold uppercase tracking-[0.52em] text-[#0f172a]">Carrinho</p>
+                    <h2 className="mt-8 text-[48px] font-semibold leading-none tracking-[-0.045em] text-[#0f172a]">
+                      Meu carrinho
+                    </h2>
+
+                    <div className="mt-12 rounded-[24px] border border-black/[0.08] bg-white p-8 text-left shadow-[0_28px_80px_rgba(15,23,42,0.06)]">
+                      <h3 className="text-[19px] font-semibold tracking-[-0.025em] text-[#111827]">Meu carrinho (1)</h3>
+                      <div className="mt-8 grid grid-cols-[92px_1fr] gap-5 border-b border-black/[0.06] pb-8">
+                        <div className="h-[92px] overflow-hidden rounded-[18px] bg-[#f4f6f8]">
+                          {featuredProduct?.imageUrl || heroImage ? (
+                            <img src={featuredProduct?.imageUrl || heroImage} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="grid h-full place-items-center text-[#a7afbd]"><Package size={26} /></div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <strong className="line-clamp-2 text-[15px] font-semibold leading-snug text-[#111827]">
+                            {featuredProduct?.title || projectTitle}
+                          </strong>
+                          <p className="mt-1 truncate text-[12px] text-[#8b94a6]">Cor: Padrão · Tamanho: Único</p>
+                          <div className="mt-4 flex items-end gap-2">
+                            <span className="text-[11px] text-[#9aa3b2] line-through">{formatBRL(featuredPrice * 1.25)}</span>
+                            <strong className="text-[18px] font-semibold tracking-[-0.02em] text-[#0f172a]">{formatBRL(featuredPrice)}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-7 space-y-4">
+                        {[
+                          ["Subtotal", formatBRL(featuredPrice)],
+                          ["Frete", "Calculado no checkout"],
+                          ["Total", formatBRL(featuredPrice)],
+                        ].map(([label, value], index) => (
+                          <div key={label} className={`flex items-center justify-between gap-4 ${index === 2 ? "pt-4 text-[18px] font-semibold text-[#0f172a]" : "text-[13px] text-[#6b7280]"}`}>
+                            <span>{label}</span>
+                            <span>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button type="button" className="mt-8 flex h-14 w-full items-center justify-center rounded-full bg-[#2563eb] text-[14px] font-semibold text-white shadow-[0_16px_35px_rgba(37,99,235,0.22)]">
+                        Continuar compra
+                      </button>
+                    </div>
+                  </section>
+                </div>
+              </div>
             </>
           ) : null}
 
@@ -3869,11 +3940,11 @@ const GeneratedStoreEditorPage = () => {
           {selectedElement?.type === "icon" ? (
             <div
               data-editor-ignore
-              className="fixed z-50 flex min-h-[62px] items-center gap-3 rounded-[18px] bg-[#101010] px-4 py-2.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
+              className="fixed z-50 flex min-h-[62px] items-center gap-2.5 rounded-[20px] bg-[#0A0A0A] px-3 py-2.5 text-white shadow-[0_26px_70px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.10]"
               style={selectedToolbarStyle}
             >
               <div className="relative">
-                <button type="button" onClick={()=>setIconPickerOpen((open)=>!open)} className="inline-flex h-11 items-center gap-2 rounded-full px-2.5 text-[18px] font-semibold transition hover:bg-white/10">
+                <button type="button" onClick={()=>setIconPickerOpen((open)=>!open)} className="inline-flex h-11 items-center gap-2 rounded-[13px] px-3 text-[17px] font-semibold transition hover:bg-white/[0.08]">
                   <Sparkles size={20} />
                   Ícone
                 </button>
@@ -3887,21 +3958,21 @@ const GeneratedStoreEditorPage = () => {
                   </div>
                 ) : null}
               </div>
-              <span className="h-8 w-px bg-white/12" />
-              <div className="flex h-11 items-center gap-2 rounded-[12px] bg-white/[0.055] px-2">
-                <button type="button" onClick={()=>applyIconSize(-2)} className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white/12 transition hover:bg-white/20" aria-label="Diminuir ícone"><Minus size={18}/></button>
-                <span className="w-14 text-center text-[18px] font-semibold">{contextControls.iconSize}px</span>
-                <button type="button" onClick={()=>applyIconSize(2)} className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white/12 transition hover:bg-white/20" aria-label="Aumentar ícone"><Plus size={20}/></button>
+              <span className="mx-0.5 h-7 w-px bg-white/[0.10]" />
+              <div className="flex h-11 items-center gap-1 rounded-[13px] bg-white/[0.06] p-1">
+                <button type="button" onClick={()=>applyIconSize(-2)} className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white/70 transition hover:bg-white/[0.12] hover:text-white" aria-label="Diminuir ícone"><Minus size={18}/></button>
+                <span className="w-14 text-center text-[17px] font-semibold tabular-nums">{contextControls.iconSize}px</span>
+                <button type="button" onClick={()=>applyIconSize(2)} className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white/70 transition hover:bg-white/[0.12] hover:text-white" aria-label="Aumentar ícone"><Plus size={18}/></button>
               </div>
-              <span className="h-8 w-px bg-white/12" />
-              <label className="relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-full px-2.5 text-[18px] font-semibold transition hover:bg-white/10">
-                <span className="h-8 w-8 rounded-full ring-1 ring-white/25" style={{ backgroundColor: contextControls.color }} />
+              <span className="mx-0.5 h-7 w-px bg-white/[0.10]" />
+              <label className="relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-[13px] px-3 text-[17px] font-semibold transition hover:bg-white/[0.08]">
+                <span className="h-6 w-6 rounded-full ring-1 ring-white/25" style={{ backgroundColor: contextControls.color }} />
                 Cor
                 <input type="color" value={colorToHex(contextControls.color)} onChange={(event)=>applyElementColor(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
               </label>
-              <span className="h-8 w-px bg-white/12" />
-              <button type="button" onClick={deleteSelectedElement} className="flex h-11 w-11 items-center justify-center rounded-full text-white/65 transition hover:bg-white/10 hover:text-white" aria-label="Excluir ícone"><Trash2 size={22}/></button>
-              <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/75 transition hover:bg-white/18 hover:text-white" aria-label="Fechar toolbar"><X size={23}/></button>
+              <span className="mx-0.5 h-7 w-px bg-white/[0.10]" />
+              <button type="button" onClick={deleteSelectedElement} className="flex h-11 w-11 items-center justify-center rounded-[13px] text-white/60 transition hover:bg-white/[0.10] hover:text-white" aria-label="Excluir ícone"><Trash2 size={20}/></button>
+              <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white" aria-label="Fechar toolbar"><X size={20}/></button>
             </div>
           ) : null}
 
@@ -3909,34 +3980,34 @@ const GeneratedStoreEditorPage = () => {
             <div
               data-editor-ignore
               data-canvas-ui
-              className="fixed z-50 flex h-[52px] items-center rounded-[14px] bg-[#101010] px-2 text-white shadow-[0_24px_70px_rgba(0,0,0,0.42)] ring-1 ring-white/12"
+              className="fixed z-50 flex h-[52px] items-center rounded-[16px] bg-[#0A0A0A] px-2 text-white shadow-[0_26px_70px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.10]"
               style={selectedToolbarStyle}
             >
               <button type="button" onClick={()=>toggleButtonToolbarPanel("style")} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="style"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
                 <Palette size={18} strokeWidth={2} />
                 Estilo
               </button>
-              <span className="mx-1 h-8 w-px bg-white/12" />
+              <span className="mx-1 h-7 w-px bg-white/[0.10]" />
               <button type="button" onClick={()=>toggleButtonToolbarPanel("size")} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="size"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
                 <Plus size={18} strokeWidth={2} />
                 Tamanho
               </button>
-              <span className="mx-1 h-8 w-px bg-white/12" />
+              <span className="mx-1 h-7 w-px bg-white/[0.10]" />
               <button type="button" onClick={()=>toggleButtonToolbarPanel("radius")} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="radius"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
                 <span aria-hidden="true" className="h-[18px] w-[18px] rounded-bl-[15px] border-b-2 border-l-2 border-white" />
                 Raio
               </button>
-              <span className="mx-1 h-8 w-px bg-white/12" />
+              <span className="mx-1 h-7 w-px bg-white/[0.10]" />
               <button type="button" onClick={()=>toggleButtonToolbarPanel("text")} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="text"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
                 <Type size={18} strokeWidth={2} />
                 Texto
               </button>
-              <span className="mx-1 h-8 w-px bg-white/12" />
+              <span className="mx-1 h-7 w-px bg-white/[0.10]" />
               <button type="button" onClick={selectButtonIcon} className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition ${buttonToolbarPanel==="icon"?"bg-white/[0.10]":"hover:bg-white/[0.08]"}`}>
                 <Sparkles size={18} strokeWidth={2} />
                 Ícone
               </button>
-              <span className="mx-1 h-8 w-px bg-white/12" />
+              <span className="mx-1 h-7 w-px bg-white/[0.10]" />
               <button type="button" onClick={clearSelection} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.08] text-white/62 transition hover:bg-white/[0.14] hover:text-white" aria-label="Fechar toolbar"><X size={19}/></button>
             </div>
           ) : null}
@@ -3944,33 +4015,35 @@ const GeneratedStoreEditorPage = () => {
           {selectedElement?.type === "text" && !isSelectedButton ? (
             <div
               data-editor-ignore
-              className="fixed z-50 flex min-h-[62px] items-center gap-3 rounded-[18px] bg-[#101010] px-4 py-2.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
+              className="fixed z-50 flex min-h-[62px] items-center gap-2.5 rounded-[20px] bg-[#0A0A0A] px-3 py-2.5 text-white shadow-[0_26px_70px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.10]"
               style={selectedToolbarStyle}
             >
-              <button type="button" onClick={() => void handleRewriteText()} disabled={rewritingText} className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-4 text-[18px] font-semibold transition hover:bg-white/16 disabled:opacity-60">
-                {rewritingText ? <Loader2 size={22} className="animate-spin" /> : <Sparkles size={22} />}
+              {/* Ação de IA: é a única peça invertida da barra. Destaca sem inventar
+                  uma cor nova — verde aqui brigaria com o indicador de lucro. */}
+              <button type="button" onClick={() => void handleRewriteText()} disabled={rewritingText} className="inline-flex h-11 items-center gap-2 rounded-[13px] bg-white px-4 text-[17px] font-semibold text-[#0A0A0A] shadow-[0_2px_10px_rgba(0,0,0,0.35)] transition hover:bg-white/90 disabled:opacity-60">
+                {rewritingText ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
                 {rewritingText ? "Reescrevendo" : "Reescrever"}
               </button>
-              <span className="h-8 w-px bg-white/12" />
-              <div className="flex items-center gap-1">
+              <span className="mx-0.5 h-7 w-px bg-white/[0.10]" />
+              <div className="flex h-11 items-center gap-1 rounded-[13px] bg-white/[0.06] p-1">
                 {[
                   { value: "left" as const, icon: AlignLeft, label: "Alinhar à esquerda" },
                   { value: "center" as const, icon: AlignCenter, label: "Centralizar" },
                   { value: "right" as const, icon: AlignRight, label: "Alinhar à direita" },
                 ].map(({ value, icon: AlignIcon, label }) => (
-                  <button key={value} type="button" onClick={()=>applyTextAlign(value)} aria-label={label} className={`flex h-10 w-10 items-center justify-center rounded-[10px] transition ${contextControls.textAlign===value?"bg-white/18":"hover:bg-white/10"}`}>
-                    <AlignIcon size={22} />
+                  <button key={value} type="button" onClick={()=>applyTextAlign(value)} aria-label={label} className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition ${contextControls.textAlign===value?"bg-white text-[#0A0A0A] shadow-[0_2px_6px_rgba(0,0,0,0.35)]":"text-white/60 hover:bg-white/[0.10] hover:text-white"}`}>
+                    <AlignIcon size={20} />
                   </button>
                 ))}
               </div>
-              <span className="h-8 w-px bg-white/12" />
-              <div className="flex h-11 items-center gap-2 rounded-[12px] bg-white/[0.055] px-2">
-                <button type="button" onClick={()=>applyTextSize(-1)} className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white/12 transition hover:bg-white/20" aria-label="Diminuir texto"><Minus size={18}/></button>
-                <span className="w-8 text-center text-[18px] font-semibold">{contextControls.fontSize}</span>
-                <button type="button" onClick={()=>applyTextSize(1)} className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white/12 transition hover:bg-white/20" aria-label="Aumentar texto"><Plus size={20}/></button>
+              <span className="mx-0.5 h-7 w-px bg-white/[0.10]" />
+              <div className="flex h-11 items-center gap-1 rounded-[13px] bg-white/[0.06] p-1">
+                <button type="button" onClick={()=>applyTextSize(-1)} className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white/70 transition hover:bg-white/[0.12] hover:text-white" aria-label="Diminuir texto"><Minus size={18}/></button>
+                <span className="w-10 text-center text-[17px] font-semibold tabular-nums">{contextControls.fontSize}</span>
+                <button type="button" onClick={()=>applyTextSize(1)} className="flex h-9 w-9 items-center justify-center rounded-[10px] text-white/70 transition hover:bg-white/[0.12] hover:text-white" aria-label="Aumentar texto"><Plus size={18}/></button>
               </div>
               <div className="relative">
-                <button type="button" onClick={()=>setWeightMenuOpen((open)=>!open)} className="inline-flex h-11 min-w-[112px] items-center justify-center gap-2 rounded-full px-3 text-[18px] font-semibold transition hover:bg-white/10">
+                <button type="button" onClick={()=>setWeightMenuOpen((open)=>!open)} className="inline-flex h-11 min-w-[112px] items-center justify-center gap-2 rounded-[13px] bg-white/[0.06] px-3 text-[17px] font-semibold transition hover:bg-white/[0.10]">
                   {textWeightOptions.find((item)=>item.value===contextControls.fontWeight)?.label ?? "Médio"}
                   <ChevronDown size={18} />
                 </button>
@@ -3984,37 +4057,37 @@ const GeneratedStoreEditorPage = () => {
                   </div>
                 ) : null}
               </div>
-              <label className="relative h-11 w-11 cursor-pointer overflow-hidden rounded-full ring-1 ring-white/20">
-                <span className="absolute inset-2 rounded-full" style={{ backgroundColor: contextControls.color }} />
+              <label className="relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-[13px] bg-white/[0.06] transition hover:bg-white/[0.10]">
+                <span className="h-6 w-6 rounded-full ring-1 ring-white/25" style={{ backgroundColor: contextControls.color }} />
                 <input type="color" value={colorToHex(contextControls.color)} onChange={(event)=>applyElementColor(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
               </label>
-              <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/75 transition hover:bg-white/18 hover:text-white" aria-label="Fechar toolbar"><X size={23}/></button>
+              <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white" aria-label="Fechar toolbar"><X size={20}/></button>
             </div>
           ) : null}
 
           {selectedElement?.type === "other" && !isSelectedButton ? (
             <div
               data-editor-ignore
-              className="fixed z-50 flex min-h-[62px] items-center gap-3 rounded-[18px] bg-[#101010] px-4 py-2.5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.38)] ring-1 ring-white/12"
+              className="fixed z-50 flex min-h-[62px] items-center gap-2.5 rounded-[20px] bg-[#0A0A0A] px-3 py-2.5 text-white shadow-[0_26px_70px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.10]"
               style={selectedToolbarStyle}
             >
               <div className="inline-flex h-11 items-center gap-2 rounded-full px-3 text-[18px] font-semibold">
                 <LayoutGrid size={21} strokeWidth={1.8} />
                 {selectedElement.label}
               </div>
-              <span className="h-8 w-px bg-white/12" />
-              <label className="relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-full px-3 text-[17px] font-semibold transition hover:bg-white/10">
-                <span className="h-8 w-8 rounded-full ring-1 ring-white/25" style={{ backgroundColor: fillColor }} />
+              <span className="mx-0.5 h-7 w-px bg-white/[0.10]" />
+              <label className="relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-[13px] px-3 text-[17px] font-semibold transition hover:bg-white/[0.08]">
+                <span className="h-6 w-6 rounded-full ring-1 ring-white/25" style={{ backgroundColor: fillColor }} />
                 Fundo
                 <input type="color" value={fillColor} onChange={(event)=>applyElementBackground(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" />
               </label>
-              <span className="h-8 w-px bg-white/12" />
-              <button type="button" onClick={duplicateSelectedElement} className="flex h-11 items-center gap-2 rounded-full px-3 text-[16px] font-semibold text-white/78 transition hover:bg-white/10 hover:text-white" aria-label="Duplicar elemento">
+              <span className="mx-0.5 h-7 w-px bg-white/[0.10]" />
+              <button type="button" onClick={duplicateSelectedElement} className="flex h-11 items-center gap-2 rounded-[13px] px-3 text-[17px] font-semibold text-white/75 transition hover:bg-white/[0.08] hover:text-white" aria-label="Duplicar elemento">
                 <Copy size={20} />
                 Duplicar
               </button>
-              <button type="button" onClick={deleteSelectedElement} className="flex h-11 w-11 items-center justify-center rounded-full text-white/62 transition hover:bg-white/10 hover:text-white" aria-label="Excluir elemento"><Trash2 size={21}/></button>
-              <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white/75 transition hover:bg-white/18 hover:text-white" aria-label="Fechar toolbar"><X size={23}/></button>
+              <button type="button" onClick={deleteSelectedElement} className="flex h-11 w-11 items-center justify-center rounded-[13px] text-white/60 transition hover:bg-white/[0.10] hover:text-white" aria-label="Excluir elemento"><Trash2 size={20}/></button>
+              <button type="button" onClick={clearSelection} className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white" aria-label="Fechar toolbar"><X size={20}/></button>
             </div>
           ) : null}
 
@@ -4025,7 +4098,7 @@ const GeneratedStoreEditorPage = () => {
             </div>
           ) : null}
 
-          <div data-canvas-ui className="absolute bottom-5 right-5 z-40 flex items-center gap-1 rounded-full border border-white/[0.10] bg-[#17181a]/92 p-1 text-white/62 shadow-[0_18px_54px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+          <div data-canvas-ui className="hidden absolute bottom-5 right-5 z-40 items-center gap-1 rounded-full border border-white/[0.10] bg-[#17181a]/92 p-1 text-white/62 shadow-[0_18px_54px_rgba(0,0,0,0.34)] backdrop-blur-xl">
             <button type="button" onClick={() => changeCanvasZoom(-0.08)} className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.09] hover:text-white" aria-label="Diminuir zoom"><Minus size={14} /></button>
             <button type="button" onClick={resetCanvasView} className="h-8 min-w-[54px] rounded-full px-2 text-[9px] font-semibold tabular-nums transition hover:bg-white/[0.09] hover:text-white" aria-label="Restaurar visualização">{Math.round(canvasZoom * 100)}%</button>
             <button type="button" onClick={() => changeCanvasZoom(0.08)} className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.09] hover:text-white" aria-label="Aumentar zoom"><Plus size={14} /></button>
@@ -4033,7 +4106,7 @@ const GeneratedStoreEditorPage = () => {
             <button type="button" onClick={resetCanvasView} className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/[0.09] hover:text-white" aria-label="Centralizar página"><RefreshCcw size={13} /></button>
           </div>
 
-          <div data-editor-ignore data-canvas-ui className="pointer-events-none fixed right-5 top-1/2 z-50 flex -translate-y-1/2 flex-row items-center gap-3">
+          <div data-editor-ignore data-canvas-ui className="pointer-events-none fixed right-5 top-1/2 z-50 hidden -translate-y-1/2 flex-row items-center gap-3">
             {editMode === "fill" && selectedPath && fillPickerOpen ? (
               <div className="pointer-events-auto mr-1 rounded-[16px] border border-white/[0.10] bg-[#17181a]/95 p-3 text-white shadow-[0_20px_60px_rgba(0,0,0,0.40)] backdrop-blur-xl">
                 <div className="mb-2 flex items-center justify-between gap-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
@@ -4069,6 +4142,253 @@ const GeneratedStoreEditorPage = () => {
 
 
         </div>
+
+        <aside
+          data-canvas-ui
+          aria-label="Painel de customização do template"
+          className="fixed bottom-0 right-0 top-[72px] z-40 hidden w-[292px] overflow-y-auto border-l border-black/[0.07] bg-white px-4 py-4 text-[#0A0A0A] shadow-[-10px_0_28px_rgba(10,10,10,0.04)] xl:block"
+        >
+          {/* Cabeçalho: identifica o painel e guarda a ação de enquadrar o canvas
+              (antes era um ícone solto, sem rótulo nem contexto). */}
+          <header className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-black/38">Painel</p>
+              <h2 className="mt-0.5 text-[15px] font-semibold tracking-[-0.025em]">Personalizar</h2>
+            </div>
+            <PanelIconButton icon={RectangleHorizontal} label="Centralizar elemento" onClick={resetCanvasView} />
+          </header>
+
+          <div className="mt-3.5">
+            <PanelNotice icon={HelpCircle}>
+              Modo simples ativado — algumas opções ficam ocultas. Mude para o avançado para ter controle total.
+            </PanelNotice>
+          </div>
+
+          {/* Bloco selecionado no canvas. O mesmo `selectedElement` e os mesmos
+              handlers que alimentam a barra flutuante alimentam este painel —
+              não existe segundo estado de seleção para sair de sincronia. */}
+          <div className="mt-3.5">
+            {selectedElement ? (
+              <div className="space-y-4">
+                <PanelSelectionHeader
+                  icon={selectedBlockIcon}
+                  title={selectedBlockTitle}
+                  onClear={clearSelection}
+                />
+
+                {selectedElement.type === "text" ? (
+                  <>
+                    <div className="space-y-2">
+                      <PanelGroupLabel>Tipografia</PanelGroupLabel>
+                      <PanelControlRow label="Tamanho">
+                        <PanelStepper
+                          value={contextControls.fontSize}
+                          onDecrease={() => applyTextSize(-1)}
+                          onIncrease={() => applyTextSize(1)}
+                          decreaseLabel="Diminuir texto"
+                          increaseLabel="Aumentar texto"
+                        />
+                      </PanelControlRow>
+                      <PanelControlRow label="Cor">
+                        <PanelColorControl
+                          label="Cor do texto"
+                          value={colorToHex(contextControls.color)}
+                          onChange={applyElementColor}
+                        />
+                      </PanelControlRow>
+                      <PanelOptionGrid
+                        columns={2}
+                        options={textWeightOptions}
+                        value={contextControls.fontWeight}
+                        onChange={applyTextWeight}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <PanelGroupLabel>Layout</PanelGroupLabel>
+                      <PanelControlRow label="Alinhar">
+                        <PanelSegmented
+                          value={contextControls.textAlign}
+                          onChange={applyTextAlign}
+                          options={[
+                            { value: "left" as const, label: "Alinhar à esquerda", icon: AlignLeft },
+                            { value: "center" as const, label: "Centralizar", icon: AlignCenter },
+                            { value: "right" as const, label: "Alinhar à direita", icon: AlignRight },
+                          ]}
+                        />
+                      </PanelControlRow>
+                    </div>
+
+                    <div className="space-y-2">
+                      <PanelGroupLabel>Conteúdo</PanelGroupLabel>
+                      <PanelActionButton
+                        icon={Sparkles}
+                        tone="primary"
+                        label={rewritingText ? "Reescrevendo..." : "Reescrever com IA"}
+                        disabled={rewritingText}
+                        onClick={() => void handleRewriteText()}
+                      />
+                    </div>
+                  </>
+                ) : null}
+
+                {isSelectedButton ? (
+                  <>
+                    <div className="space-y-2">
+                      <PanelGroupLabel>Tipografia</PanelGroupLabel>
+                      <PanelControlRow label="Tamanho">
+                        <PanelStepper
+                          value={contextControls.fontSize}
+                          onDecrease={() => applyTextSize(-1)}
+                          onIncrease={() => applyTextSize(1)}
+                          decreaseLabel="Diminuir texto do botão"
+                          increaseLabel="Aumentar texto do botão"
+                        />
+                      </PanelControlRow>
+                      <PanelOptionGrid
+                        columns={2}
+                        options={textWeightOptions}
+                        value={contextControls.fontWeight}
+                        onChange={applyTextWeight}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <PanelGroupLabel>Estilo</PanelGroupLabel>
+                      <PanelControlRow label="Texto">
+                        <PanelColorControl label="Cor do texto" value={colorToHex(contextControls.color)} onChange={applyElementColor} />
+                      </PanelControlRow>
+                      <PanelControlRow label="Fundo">
+                        <PanelColorControl label="Cor de fundo" value={colorToHex(fillColor)} onChange={applyElementBackground} />
+                      </PanelControlRow>
+                      <PanelControlRow label="Raio">
+                        <PanelStepper
+                          value={contextControls.borderRadius}
+                          onDecrease={() => applyButtonRadius(-2)}
+                          onIncrease={() => applyButtonRadius(2)}
+                          decreaseLabel="Diminuir arredondamento"
+                          increaseLabel="Aumentar arredondamento"
+                        />
+                      </PanelControlRow>
+                    </div>
+
+                    <div className="space-y-2">
+                      <PanelGroupLabel>Tamanho</PanelGroupLabel>
+                      <PanelOptionGrid
+                        columns={5}
+                        options={buttonSizePresets.map((preset) => ({ value: preset.value, label: preset.value.toUpperCase() }))}
+                        value={buttonSizePreset}
+                        onChange={applyButtonSizePreset}
+                      />
+                    </div>
+
+                    <PanelActionButton icon={Pencil} label="Editar texto no canvas" onClick={startButtonTextEditing} />
+                  </>
+                ) : null}
+
+                {selectedElement.type === "image" ? (
+                  <>
+                    <div className="space-y-2">
+                      <PanelGroupLabel>Imagem</PanelGroupLabel>
+                      <PanelActionButton
+                        icon={isSelectedProductImage ? Package : ImageIcon}
+                        tone="primary"
+                        label={isSelectedProductImage ? "Substituir produto" : selectedMediaKind === "logo" ? "Substituir logo" : "Substituir imagem"}
+                        onClick={
+                          isSelectedProductImage
+                            ? openProductReplacementDrawer
+                            : selectedMediaKind === "logo"
+                              ? () => logoInput.current?.click()
+                              : () => contextMediaInput.current?.click()
+                        }
+                      />
+                      {!isSelectedProductImage ? (
+                        <>
+                          <PanelControlRow label="Formato">
+                            <PanelSegmented
+                              value={contextControls.imageShape}
+                              onChange={handleImageShapeChange}
+                              options={imageShapeOptions.map((shape) => ({ value: shape.value, label: shape.label, icon: shape.icon }))}
+                            />
+                          </PanelControlRow>
+                          <PanelActionButton icon={Settings} label="Ajustes avançados" onClick={() => setMediaModalOpen(true)} />
+                        </>
+                      ) : null}
+                    </div>
+                  </>
+                ) : null}
+
+                {selectedElement.type === "icon" ? (
+                  <div className="space-y-2">
+                    <PanelGroupLabel>Ícone</PanelGroupLabel>
+                    <PanelControlRow label="Tamanho">
+                      <PanelStepper
+                        value={contextControls.iconSize}
+                        onDecrease={() => applyIconSize(-2)}
+                        onIncrease={() => applyIconSize(2)}
+                        decreaseLabel="Diminuir ícone"
+                        increaseLabel="Aumentar ícone"
+                      />
+                    </PanelControlRow>
+                    <PanelControlRow label="Cor">
+                      <PanelColorControl label="Cor do ícone" value={colorToHex(contextControls.color)} onChange={applyElementColor} />
+                    </PanelControlRow>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {iconPickerOptions.map(({ name, label, icon: PickerIcon }) => (
+                        <button
+                          key={name}
+                          type="button"
+                          title={label}
+                          onClick={() => applyIconName(name)}
+                          aria-pressed={contextControls.iconName === name}
+                          className={`flex h-9 items-center justify-center rounded-[10px] border transition ${
+                            contextControls.iconName === name
+                              ? "border-[#0A0A0A] bg-[#0A0A0A] text-white"
+                              : "border-black/[0.07] bg-white text-black/55 hover:border-black/[0.16] hover:text-[#0A0A0A]"
+                          }`}
+                        >
+                          <PickerIcon size={15} strokeWidth={1.9} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {selectedElement.type === "other" && !isSelectedButton ? (
+                  <div className="space-y-2">
+                    <PanelGroupLabel>Seção</PanelGroupLabel>
+                    <PanelControlRow label="Fundo">
+                      <PanelColorControl label="Cor de fundo" value={colorToHex(fillColor)} onChange={applyElementBackground} />
+                    </PanelControlRow>
+                  </div>
+                ) : null}
+
+                <div className="space-y-2">
+                  <PanelGroupLabel>Ações</PanelGroupLabel>
+                  <PanelActionButton icon={Copy} label="Duplicar bloco" onClick={duplicateSelectedElement} />
+                  <PanelActionButton icon={Trash2} tone="danger" label="Excluir bloco" onClick={deleteSelectedElement} />
+                </div>
+              </div>
+            ) : (
+              <PanelEmptyState
+                icon={MousePointer2}
+                title="Nenhum bloco selecionado"
+                description="Clique em uma seção ou bloco da página para editar."
+              />
+            )}
+          </div>
+
+          <div className="mt-6 space-y-2">
+            <PanelGroupLabel>Estrutura</PanelGroupLabel>
+            <PanelRowButton icon={Layers3} label="Templates" hint="Trocar o modelo da página" onClick={openTemplateDrawer} />
+            <PanelRowButton icon={Package} label="Produtos" hint="Escolher o que aparece na vitrine" onClick={openProductsDrawer} />
+          </div>
+
+          <div className="mt-6 space-y-2">
+            <PanelGroupLabel>Loja</PanelGroupLabel>
+            <PanelRowButton icon={LockKeyhole} label="Administração" hint="Clientes, pedidos e fluxo" onClick={() => setAdminOpen(true)} />
+          </div>
+        </aside>
 
       <AnimatePresence>
         {mediaModalOpen && selectedElement?.type === "image" && !isSelectedProductImage ? (
@@ -4255,15 +4575,15 @@ const GeneratedStoreEditorPage = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="editor-drawer-title"
-            className="editor-context-drawer absolute inset-y-0 right-0 flex w-[360px] flex-col border-l border-[#27272A] bg-[#0A0A0A] text-white shadow-[-24px_0_80px_rgba(0,0,0,0.42)]"
+            className="editor-context-drawer absolute inset-y-0 right-0 flex w-[360px] flex-col border-l border-black/[0.08] bg-white text-[#0A0A0A] shadow-[-24px_0_80px_rgba(10,10,10,0.18)]"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <header className="flex min-h-[68px] items-center justify-between border-b border-[#27272A] px-5">
+            <header className="flex min-h-[68px] items-center justify-between border-b border-black/[0.07] px-5">
               <div className="min-w-0">
                 <h2 id="editor-drawer-title" className="truncate text-[16px] font-semibold">
                   {contextDrawer === "template" ? "Trocar template" : replacingProductPath ? "Substituir produto" : "Adicionar produtos"}
                 </h2>
-                <p className="mt-1 truncate text-[11px] text-white/40">
+                <p className="mt-1 truncate text-[11px] text-black/45">
                   {contextDrawer === "template" ? "Escolha uma base visual para a loja." : replacingProductPath ? "Escolha o novo produto para este espaço." : "Selecione produtos do catálogo Velo."}
                 </p>
               </div>
@@ -4273,7 +4593,7 @@ const GeneratedStoreEditorPage = () => {
                   setContextDrawer(null);
                   setReplacingProductPath(null);
                 }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-white/55 transition hover:bg-white/[0.08] hover:text-white"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-black/45 transition hover:bg-black/[0.05] hover:text-[#0A0A0A]"
                 aria-label="Fechar painel"
               >
                 <X size={20} />
@@ -4283,7 +4603,7 @@ const GeneratedStoreEditorPage = () => {
             <div className="min-h-0 flex-1 overflow-y-auto p-5">
               {contextDrawer === "template" ? (
                 <>
-                  <div className="mb-4 flex items-center gap-5 border-b border-[#27272A]">
+                  <div className="mb-4 flex items-center gap-5 border-b border-black/[0.07]">
                     {[
                       { id: "loja" as const, label: "Loja" },
                       { id: "produto" as const, label: "Produto" },
@@ -4300,11 +4620,11 @@ const GeneratedStoreEditorPage = () => {
                           );
                         }}
                         className={`relative h-10 text-[13px] font-semibold transition ${
-                          templateCategory === category.id ? "text-white" : "text-[#71717A] hover:text-white/75"
+                          templateCategory === category.id ? "text-[#0A0A0A]" : "text-black/40 hover:text-black/70"
                         }`}
                       >
                         {category.label}
-                        {templateCategory === category.id ? <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-white" /> : null}
+                        {templateCategory === category.id ? <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#0A0A0A]" /> : null}
                       </button>
                     ))}
                   </div>
@@ -4317,17 +4637,17 @@ const GeneratedStoreEditorPage = () => {
                           key={template.id}
                           type="button"
                           onClick={() => setDraftTemplate({ kind: templateCategory, id: template.id })}
-                          className={`group overflow-hidden rounded-[12px] bg-[#18181B] text-left transition hover:border-[#3F3F46] ${
-                            selected ? "border-2 border-white" : "border border-[#27272A]"
+                          className={`group overflow-hidden rounded-[12px] bg-white text-left transition hover:border-black/25 ${
+                            selected ? "border-2 border-[#0A0A0A]" : "border border-black/[0.09]"
                           }`}
                         >
                           <div className="relative aspect-[4/3] overflow-hidden bg-white">
                             <img src={template.image} alt="" className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.03]" />
-                            {selected ? <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-black shadow-lg"><Check size={13} /></span> : null}
+                            {selected ? <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#0A0A0A] text-white shadow-lg"><Check size={13} /></span> : null}
                           </div>
                           <div className="p-3">
-                            <strong className="block text-[12px] font-semibold text-white">{template.name}</strong>
-                            <span className="mt-1 block text-[11px] leading-snug text-white/42">{template.desc}</span>
+                            <strong className="block text-[12px] font-semibold text-[#0A0A0A]">{template.name}</strong>
+                            <span className="mt-1 block text-[11px] leading-snug text-black/45">{template.desc}</span>
                           </div>
                         </button>
                       );
@@ -4338,12 +4658,12 @@ const GeneratedStoreEditorPage = () => {
 
               {contextDrawer === "products" ? (
                 <>
-                  <div className="mb-4 flex items-center justify-between rounded-[12px] border border-[#27272A] bg-[#121214] px-4 py-3">
+                  <div className="mb-4 flex items-center justify-between rounded-[12px] border border-black/[0.07] bg-[#FAFAF9] px-4 py-3">
                     <div>
                       <strong className="block text-[12px] font-semibold">{replacingProductPath ? "Escolha o produto" : "Produtos disponíveis"}</strong>
-                      <span className="mt-0.5 block text-[10px] text-white/42">{replacingProductPath ? "A escolha substituirá o produto atual." : "Marque um ou mais itens para sua vitrine."}</span>
+                      <span className="mt-0.5 block text-[10px] text-black/45">{replacingProductPath ? "A escolha substituirá o produto atual." : "Marque um ou mais itens para sua vitrine."}</span>
                     </div>
-                    <span className="rounded-full bg-white/[0.08] px-2.5 py-1 text-[10px] font-semibold text-white/65">{draftProductIds.length} selecionados</span>
+                    <span className="rounded-full bg-black/[0.06] px-2.5 py-1 text-[10px] font-semibold text-black/60">{draftProductIds.length} selecionados</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {drawerProducts.map((product) => {
@@ -4353,26 +4673,39 @@ const GeneratedStoreEditorPage = () => {
                           key={product.id}
                           type="button"
                           onClick={() => setDraftProductIds((current) => replacingProductPath ? (selected ? [] : [product.id]) : selected ? current.filter((id) => id !== product.id) : [...current, product.id])}
-                          className={`overflow-hidden rounded-[12px] bg-[#18181B] text-left transition hover:border-[#3F3F46] ${
-                            selected ? "border-2 border-white" : "border border-[#27272A]"
+                          className={`overflow-hidden rounded-[12px] bg-white text-left transition hover:border-black/25 ${
+                            selected ? "border-2 border-[#0A0A0A]" : "border border-black/[0.09]"
                           }`}
                         >
-                          <div className="relative aspect-[4/3] bg-white">
-                            {product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-contain p-3" /> : <div className="grid h-full place-items-center text-black/30"><Package size={24} /></div>}
-                            <span className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full shadow-lg transition ${selected ? "bg-white text-black" : "bg-black/65 text-white"}`}>
+                          <div className="relative aspect-[4/3] bg-[#F6F6F4]">
+                            {product.imageUrl ? <img loading="lazy" src={product.imageUrl} alt="" className="h-full w-full object-contain p-3" /> : <div className="grid h-full place-items-center text-black/30"><Package size={24} /></div>}
+                            <span className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full shadow-lg transition ${selected ? "bg-[#0A0A0A] text-white" : "bg-white/90 text-[#0A0A0A] ring-1 ring-black/10"}`}>
                               {selected ? <Check size={13} /> : <Plus size={13} />}
                             </span>
                           </div>
                           <div className="p-3">
-                            <strong className="line-clamp-2 text-[12px] font-semibold leading-snug text-white">{product.title}</strong>
-                            <span className="mt-1 block text-[11px] text-white/42">{formatBRL(product.price)}</span>
+                            <strong className="line-clamp-2 text-[12px] font-semibold leading-snug text-[#0A0A0A]">{product.title}</strong>
+                            <span className="mt-1 block text-[11px] text-black/45">{formatBRL(product.price)}</span>
                           </div>
                         </button>
                       );
                     })}
                     {!drawerProducts.length ? (
-                      <div className="col-span-2 rounded-[12px] border border-dashed border-[#27272A] p-6 text-center text-[12px] text-white/45">
-                        Todos os produtos disponíveis já estão na sua loja.
+                      <div className="col-span-2 rounded-[12px] border border-dashed border-black/15 p-6 text-center text-[12px] text-black/45">
+                        {catalogAllLoading ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Loader2 size={14} className="animate-spin" />
+                            Carregando o catálogo...
+                          </span>
+                        ) : (
+                          "Todos os produtos disponíveis já estão na sua loja."
+                        )}
+                      </div>
+                    ) : null}
+                    {drawerProducts.length > 0 && catalogAllLoading ? (
+                      <div className="col-span-2 flex items-center justify-center gap-2 py-2 text-[11px] text-black/40">
+                        <Loader2 size={13} className="animate-spin" />
+                        Carregando o restante do catálogo...
                       </div>
                     ) : null}
                   </div>
@@ -4380,12 +4713,12 @@ const GeneratedStoreEditorPage = () => {
               ) : null}
             </div>
 
-            <footer className="border-t border-[#27272A] p-4">
+            <footer className="border-t border-black/[0.07] p-4">
               <button
                 type="button"
                 onClick={contextDrawer === "template" ? applyTemplateDraft : () => void applyProductDraft()}
                 disabled={contextDrawer === "products" && (!draftProductIds.length || Boolean(sidebarImportingId))}
-                className="h-11 w-full rounded-[8px] bg-[#2f6df6] text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(47,109,246,0.24)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[#27272A] disabled:text-white/35 disabled:shadow-none"
+                className="h-11 w-full rounded-[8px] bg-[#2f6df6] text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(47,109,246,0.24)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-black/[0.06] disabled:text-black/30 disabled:shadow-none"
               >
                 {contextDrawer === "template"
                   ? "Aplicar"
@@ -4506,101 +4839,6 @@ const GeneratedStoreEditorPage = () => {
           </>
         ) : null}
       </AnimatePresence>
-      {upgradeModalOpen ? (
-        <div
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
-          onMouseDown={(event) => { if (event.target === event.currentTarget) setUpgradeModalOpen(false); }}
-        >
-          <section className="relative w-full max-w-[960px] overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#0e0f11] text-white shadow-[0_60px_160px_rgba(0,0,0,0.6)]">
-            <button type="button" onClick={() => setUpgradeModalOpen(false)} className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white" aria-label="Fechar">
-              <X size={16} />
-            </button>
-            <div className="grid gap-8 p-8 md:grid-cols-2 md:gap-10 md:p-10">
-              {/* LEFT */}
-              <div className="flex flex-col">
-                <div className="mb-6 flex items-center gap-3">
-                  <div className="flex -space-x-2">
-                    <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#f6c48b] to-[#c26a3a] ring-2 ring-[#0e0f11]" />
-                    <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#d6a5c9] to-[#7d4a70] ring-2 ring-[#0e0f11]" />
-                    <span className="h-8 w-8 rounded-full bg-gradient-to-br from-[#8bb7f6] to-[#3a5fc2] ring-2 ring-[#0e0f11]" />
-                  </div>
-                  <span className="text-[13px] text-white/60 underline decoration-white/30 underline-offset-2">Confiado por 1420+ clientes</span>
-                </div>
-                <h2 className="text-[32px] font-bold leading-[1.1] tracking-[-0.03em]">
-                  Publique sua página<br />de vendas, agora!
-                </h2>
-
-                <p className="mt-8 text-[13px] text-white/50">Acesse o verdadeiro poder da Velo</p>
-                <ul className="mt-3 space-y-2">
-                  {[
-                    { icon: "📦", text: "Importação automática de até 50 produtos por mês pro Mercado Livre" },
-                    { icon: "🤖", text: "1 página de vendas gerada por IA por mês" },
-                    { icon: "🛍️", text: "Acesso completo ao catálogo validado da Velo" },
-                    { icon: "🌐", text: "Subdomínio grátis (seunome.velo.store)" },
-                    { icon: "🚀", text: "Comece a vender sem travar no operacional" },
-                  ].map((f) => (
-                    <li key={f.text} className="flex items-center gap-3 rounded-[12px] bg-white/[0.05] px-4 py-2.5 text-[13px] font-medium text-white/90">
-                      <span className="text-[15px]">{f.icon}</span>
-                      <span>{f.text}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* RIGHT */}
-              <div className="flex flex-col">
-                <div className="rounded-[16px] border-2 border-[#3567e9] bg-white/[0.03] p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#3567e9]">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[#3567e9]" />
-                      </span>
-                      <span className="text-[18px] font-bold">Velo <span className="italic font-semibold">Base</span></span>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <div className="rounded-[10px] bg-white/[0.06] px-3 py-1.5">
-                        <span className="text-[24px] font-bold">R$ 39,90</span>
-                        <span className="ml-1 text-[12px] text-white/60">/mês</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 rounded-[16px] border border-[#f5b40033] bg-gradient-to-br from-[#3a2a05] to-[#1a1204] p-4">
-                  <div className="flex items-start gap-2">
-                    <span className="text-[18px]">🎁</span>
-                    <div>
-                      <p className="text-[14px] font-bold">Subdomínio GRÁTIS com o plano Base!</p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-white/60">Lance sua marca hoje com um subdomínio seunome.velo.store — incluído com Velo Base!</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex-1 rounded-[16px] bg-white/[0.04] p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-0.5 text-[#ffb92b]">
-                      {"★★★★★".split("").map((s, i) => <span key={i}>{s}</span>)}
-                    </div>
-                    <span className="text-[11px] text-white/40">3 dias atrás</span>
-                  </div>
-                  <p className="mt-2 text-[13px] leading-relaxed text-white/80">
-                    "Honestamente, fiquei chocado. Colei o link de um produto no AliExpress e em minutos, construiu uma loja inteira. Todas as páginas, toda a cópia!"
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => { setUpgradeModalOpen(false); upgradeModal.open({ defaultPlan: "base" }); }}
-                  className="mt-4 flex h-14 items-center justify-center gap-2 rounded-[14px] bg-[#3567e9] text-[16px] font-bold text-white shadow-[0_16px_40px_rgba(53,103,233,0.45)] transition hover:bg-[#4272ee] active:scale-[0.99]"
-                >
-                  Continuar com Base <ArrowRight size={18} />
-                </button>
-                <p className="mt-2 text-center text-[11px] text-white/40">Cancele a qualquer momento • Suporte 24/7</p>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
     </main>
   );
 };

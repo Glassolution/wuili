@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle2 } from "lucide-react";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
 import { veloToast as toast } from "@/components/ui/velo-toast";
+import { PremiumActionButton } from "@/components/PremiumActionButton";
 
 const PLANS = [
   {
@@ -259,10 +260,10 @@ const PlansPage = () => {
                   <CheckCircle2 size={16} /> Plano atual
                 </div>
               ) : plan.id !== "gratis" ? (
-                <button
+                <PremiumActionButton
                   onClick={() => handleCheckout(plan.id)}
                   disabled={checkoutState === "loading"}
-                  className="btn-primary btn-primary--md w-full"
+                  className="h-10 w-full rounded-xl px-4 text-sm"
                 >
                   {checkoutState === "loading" ? (
                     <span className="flex items-center justify-center gap-2">
@@ -271,7 +272,7 @@ const PlansPage = () => {
                   ) : (
                     "Assinar agora"
                   )}
-                </button>
+                </PremiumActionButton>
               ) : null}
             </div>
           );

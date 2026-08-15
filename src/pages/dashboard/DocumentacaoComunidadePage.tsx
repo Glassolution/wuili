@@ -1,419 +1,345 @@
 import { useMemo, useState } from "react";
 import {
-  BookOpen,
-  Search,
-  Rocket,
-  Lightbulb,
-  Flame,
-  Sparkles,
-  Wrench,
-  Megaphone,
-  Bug,
-  ArrowRight,
-  Users,
+  ArrowLeft,
+  CheckCircle2,
+  ChevronRight,
+  Lock,
+  Maximize2,
+  MoreVertical,
+  Play,
+  Volume2,
 } from "lucide-react";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { cn } from "@/lib/utils";
 
-type DocGroup = {
+type CourseLesson = {
+  id: string;
   title: string;
-  items: Array<{
-    id: string;
-    title: string;
-    content: string;
-  }>;
-};
-
-type ChangelogItem = {
-  title: string;
-  date: string;
+  duration: string;
   description: string;
-  tag: "Novo" | "Melhorado" | "Correção";
+  locked?: boolean;
+  videoSrc?: string;
 };
 
-type CommunityPost = {
-  title: string;
-  content: string;
-  date: string;
-  author: string;
+const lessons: CourseLesson[] = [
+  {
+    id: "welcome",
+    title: "Welcome to AI Dropshipping",
+    duration: "03:03",
+    description:
+      "In this video, I'll introduce myself and my colleagues at PagePilot, and give you a quick overview of what you can expect from this course.",
+  },
+  {
+    id: "store",
+    title: "Build Your FREE AI Store",
+    duration: "10:37",
+    description:
+      "Build the store foundation before moving into product research and publishing.",
+    locked: true,
+  },
+  {
+    id: "setup",
+    title: "Setting Up Your Shopify Store",
+    duration: "12:24",
+    description:
+      "Prepare theme, checkout, domain and the essential pages for the first visitors.",
+    locked: true,
+  },
+  {
+    id: "research",
+    title: "Traditional Product Research",
+    duration: "08:55",
+    description:
+      "Learn product validation, margin, visual appeal and market demand signals.",
+    locked: true,
+  },
+  {
+    id: "research-ai",
+    title: "Product Research using PagePilot.ai",
+    duration: "05:54",
+    description:
+      "Use AI research to find opportunities with less trial and error.",
+    locked: true,
+  },
+  {
+    id: "landing",
+    title: "Product import and landing page creation using AI",
+    duration: "20:53",
+    description:
+      "Turn a selected product into a page ready for testing.",
+    locked: true,
+  },
+  {
+    id: "creative",
+    title: "Creating Winning Ads",
+    duration: "14:18",
+    description:
+      "Create short scripts, strong hooks and clear CTAs for faster testing.",
+    locked: true,
+  },
+  {
+    id: "ads",
+    title: "Launching Your First Campaigns",
+    duration: "16:42",
+    description:
+      "Set budget, creatives, audiences and testing rules.",
+    locked: true,
+  },
+  {
+    id: "metrics",
+    title: "Reading Your Metrics",
+    duration: "09:36",
+    description:
+      "Understand CTR, CPC, CPA, margin and when to pause or scale.",
+    locked: true,
+  },
+  {
+    id: "support",
+    title: "Support, Refunds and Post-sale",
+    duration: "07:21",
+    description:
+      "Organize customer communication and reduce friction.",
+    locked: true,
+  },
+  {
+    id: "scale",
+    title: "Scaling Safely",
+    duration: "11:48",
+    description:
+      "Increase budgets and build a weekly optimization routine.",
+    locked: true,
+  },
+  {
+    id: "plan",
+    title: "Your 30 Day Plan",
+    duration: "06:35",
+    description:
+      "Close the course with a practical calendar for execution.",
+    locked: true,
+  },
+];
+
+const completedLessonIds = new Set<string>();
+
+const instructor = {
+  name: "Radu Dalas",
+  role: "Dropshipping Expert",
 };
-
-const docGroups: DocGroup[] = [
-  {
-    title: "Começar",
-    items: [
-      {
-        id: "intro",
-        title: "Introdução à plataforma",
-        content:
-          "A Velo foi criada para acelerar a operação de quem vende online. Em poucos cliques você escolhe produtos, gera criativos com IA e transforma ideias em campanhas.",
-      },
-      {
-        id: "como-funciona",
-        title: "Como funciona",
-        content:
-          "O fluxo é simples: selecione um produto, gere o prompt, refine a mensagem e publique criativos com foco em conversão. Você concentra descoberta, execução e aprendizado em um só lugar.",
-      },
-      {
-        id: "primeiro-video",
-        title: "Primeiro vídeo gerado",
-        content:
-          "Escolha um produto do catálogo, clique em Criar vídeo, gere o prompt e use no RunwayML. Em menos de 5 minutos você sai com um vídeo vertical pronto para testes.",
-      },
-    ],
-  },
-  {
-    title: "Guias",
-    items: [
-      {
-        id: "videos-ia",
-        title: "Como gerar vídeos com IA",
-        content:
-          "Comece com um gancho forte em até 3 segundos, destaque dor/benefício e finalize com CTA direto. Priorize cenas curtas e texto legível para retenção no feed.",
-      },
-      {
-        id: "produtos-vencedores",
-        title: "Como escolher produtos vencedores",
-        content:
-          "Busque produtos com apelo visual forte, ticket acessível e percepção clara de valor. Itens que mostram transformação tendem a performar melhor em vídeo curto.",
-      },
-      {
-        id: "anuncios-convertem",
-        title: "Como criar anúncios que convertem",
-        content:
-          "Use estrutura: dor -> solução -> prova -> oferta -> urgência. Evite texto genérico e use linguagem objetiva com benefício explícito já no início do criativo.",
-      },
-      {
-        id: "tiktok-ads",
-        title: "Estratégias para TikTok Ads",
-        content:
-          "Teste 3 a 5 variações por criativo, com ganchos diferentes e mesma oferta. Escale anúncios com CTR alto e retenção forte nos primeiros segundos.",
-      },
-    ],
-  },
-  {
-    title: "Features",
-    items: [
-      {
-        id: "feature-criar-video",
-        title: "Criar vídeo com IA",
-        content:
-          "A feature de Criar vídeo gera um prompt pronto para execução em ferramentas externas. O objetivo é reduzir tempo de produção e manter consistência de mensagem.",
-      },
-      {
-        id: "feature-gerar-prompt",
-        title: "Gerar prompt",
-        content:
-          "O prompt é contextualizado com título, descrição e preço do produto para gerar um roteiro mais assertivo. Você pode copiar com um clique e reaproveitar em fluxo rápido.",
-      },
-      {
-        id: "feature-integracoes",
-        title: "Integrações (futuro)",
-        content:
-          "Em breve, integrações nativas com TikTok, Shopify e outros canais para publicar criativos e acompanhar performance sem trocar de plataforma.",
-      },
-    ],
-  },
-  {
-    title: "API (futuro)",
-    items: [
-      {
-        id: "api-intro",
-        title: "Introdução à API",
-        content:
-          "A API vai permitir automações de geração, publicação e coleta de dados de performance para operações que precisam de escala programática.",
-      },
-      {
-        id: "api-auth",
-        title: "Autenticação",
-        content:
-          "A autenticação seguirá padrão por token para manter segurança e controle por workspace. A documentação trará exemplos prontos para integração rápida.",
-      },
-      {
-        id: "api-endpoints",
-        title: "Endpoints",
-        content:
-          "Os endpoints incluirão recursos para produtos, prompts, criativos e status de processamento, com convenções simples de paginação e filtros.",
-      },
-      {
-        id: "api-exemplos",
-        title: "Exemplos",
-        content:
-          "Você terá snippets para os fluxos mais usados, com exemplos de request/response para acelerar implementação em backoffice ou app próprio.",
-      },
-    ],
-  },
-];
-
-const changelog: ChangelogItem[] = [
-  {
-    title: "Nova geração de vídeos mais rápida",
-    date: "20 abr 2026",
-    description: "Melhoramos o tempo de resposta da geração de prompts para acelerar o workflow criativo.",
-    tag: "Melhorado",
-  },
-  {
-    title: "Hub de Documentação + Comunidade",
-    date: "20 abr 2026",
-    description: "Nova área central com guias, atualizações do produto e feed de conteúdo da comunidade.",
-    tag: "Novo",
-  },
-  {
-    title: "Correção no fluxo de copiar prompt",
-    date: "19 abr 2026",
-    description: "Ajustamos o comportamento do botão Copiar para aparecer apenas após gerar o prompt.",
-    tag: "Correção",
-  },
-];
-
-const communityPosts: CommunityPost[] = [
-  {
-    title: "3 hooks que aumentaram nosso CTR",
-    content:
-      "Testamos criativos com abertura forte em até 2 segundos e tivemos aumento de cliques em campanhas frias. O melhor formato foi dor + resultado rápido.",
-    date: "20 abr 2026",
-    author: "Equipe Velo",
-  },
-  {
-    title: "Checklist para criativos de alta conversão",
-    content:
-      "Antes de subir: gancho claro, benefício visível, prova social e CTA objetivo. Pequenos ajustes no texto em cena mudaram muito o desempenho.",
-    date: "18 abr 2026",
-    author: "Camila, Growth",
-  },
-  {
-    title: "Caso real: de 0 a 27 vendas no teste inicial",
-    content:
-      "Uma loja de nicho fitness usou 5 variações de vídeo com o mesmo produto e encontrou um criativo vencedor em 48h, mantendo CPA saudável.",
-    date: "16 abr 2026",
-    author: "Rafael, Comunidade",
-  },
-];
-
-const tabBaseClass =
-  "rounded-lg border px-3 py-2 text-sm font-semibold transition-all duration-200 ease-in-out";
 
 export default function DocumentacaoComunidadePage() {
-  const [activeTab, setActiveTab] = useState<"docs" | "updates" | "community">("docs");
-  const [search, setSearch] = useState("");
-  const [selectedDocId, setSelectedDocId] = useState(docGroups[0].items[0].id);
+  const [selectedId, setSelectedId] = useState(lessons[0].id);
+  const selectedLesson = lessons.find((lesson) => lesson.id === selectedId) ?? lessons[0];
+  const completedCount = completedLessonIds.size;
+  const progress = Math.round((completedCount / lessons.length) * 100);
 
-  const filteredGroups = useMemo(() => {
-    if (!search.trim()) return docGroups;
-    const term = search.toLowerCase();
-    return docGroups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => item.title.toLowerCase().includes(term)),
-      }))
-      .filter((group) => group.items.length > 0);
-  }, [search]);
-
-  const selectedDoc = useMemo(() => {
-    for (const group of docGroups) {
-      const found = group.items.find((item) => item.id === selectedDocId);
-      if (found) return found;
-    }
-    return docGroups[0].items[0];
-  }, [selectedDocId]);
-
-  const getTagStyle = (tag: ChangelogItem["tag"]) => {
-    if (tag === "Novo") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
-    if (tag === "Melhorado") return "border-zinc-500/30 bg-zinc-500/10 text-zinc-300";
-    return "border-amber-500/30 bg-amber-500/10 text-amber-300";
-  };
+  const selectedIndex = useMemo(
+    () => Math.max(0, lessons.findIndex((lesson) => lesson.id === selectedLesson.id)),
+    [selectedLesson.id],
+  );
 
   return (
-    <div className="mx-auto w-full max-w-[1280px]">
-      <div className="rounded-2xl border border-border bg-[#0B0B0F] text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
-        <div className="border-b border-white/10 p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">Hub de conhecimento</p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight">Documentação + Comunidade</h1>
-              <p className="mt-2 max-w-3xl text-sm text-white/70">
-                Aprenda, acompanhe novidades e evolua sua operação com boas práticas em vídeo, anúncios e performance.
+    <div className="mx-auto w-full max-w-[1660px] text-[#080B14]">
+      <div className="w-full pb-6">
+        <header className="mb-5 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#080B14] transition hover:bg-[#EEF2FF]"
+            aria-label="Voltar"
+          >
+            <ArrowLeft size={22} strokeWidth={2.5} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="truncate text-[23px] font-black leading-tight text-[#080B14] md:text-[25px]">
+              $100K AI Dropshipping Blueprint
+            </h1>
+          </div>
+        </header>
+
+        <main className="grid gap-5 rounded-[22px] border border-[#D9DEE7] bg-white p-5 shadow-[0_12px_34px_rgba(15,23,42,0.06)] xl:grid-cols-[minmax(0,1fr)_470px] 2xl:grid-cols-[minmax(0,1fr)_510px]">
+          <section className="min-w-0">
+            <CoursePlayer lesson={selectedLesson} />
+
+            <div className="mt-6 max-w-[900px]">
+              <h2 className="text-[23px] font-black leading-tight text-[#080B14] md:text-[26px]">
+                Welcome to AI Dropshipping
+              </h2>
+              <p className="mt-3 max-w-[900px] text-[15px] leading-[1.65] text-[#101828]">
+                In this video, I'll introduce myself and my colleagues at PagePilot, and give you a quick overview of what
+                you can expect from this course.
               </p>
-            </div>
-            <div className="relative w-full max-w-sm">
-              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/45" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar na documentação..."
-                className="w-full rounded-xl border border-white/15 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-white/45 outline-none transition-all duration-200 focus:border-white/35"
-              />
-            </div>
-          </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
-              <p className="flex items-center gap-2 text-sm font-semibold"><Flame size={15} /> 🔥 Comece aqui</p>
-              <p className="mt-1 text-xs text-white/65">Guia rápido para gerar seu primeiro vídeo com IA.</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
-              <p className="flex items-center gap-2 text-sm font-semibold"><Rocket size={15} /> 🚀 Novidades</p>
-              <p className="mt-1 text-xs text-white/65">Acompanhe as melhorias mais recentes da plataforma.</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3.5">
-              <p className="flex items-center gap-2 text-sm font-semibold"><Lightbulb size={15} /> 💡 Dicas</p>
-              <p className="mt-1 text-xs text-white/65">Boas práticas para criativos e anúncios de alta conversão.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col lg:flex-row">
-          <aside className="top-0 w-full shrink-0 border-b border-white/10 p-4 lg:sticky lg:h-[calc(100vh-190px)] lg:w-[290px] lg:border-b-0 lg:border-r lg:p-5">
-            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white/80">
-              <BookOpen size={15} />
-              Navegação
-            </div>
-            <div className="space-y-1">
-              <button
-                onClick={() => setActiveTab("docs")}
-                className={cn(tabBaseClass, activeTab === "docs" ? "border-white/20 bg-white/10 text-white" : "border-white/10 bg-transparent text-white/70 hover:bg-white/5")}
-              >
-                Documentação
-              </button>
-              <button
-                onClick={() => setActiveTab("updates")}
-                className={cn(tabBaseClass, activeTab === "updates" ? "border-white/20 bg-white/10 text-white" : "border-white/10 bg-transparent text-white/70 hover:bg-white/5")}
-              >
-                Atualizações
-              </button>
-              <button
-                onClick={() => setActiveTab("community")}
-                className={cn(tabBaseClass, activeTab === "community" ? "border-white/20 bg-white/10 text-white" : "border-white/10 bg-transparent text-white/70 hover:bg-white/5")}
-              >
-                Comunidade
-              </button>
-            </div>
-
-            {activeTab === "docs" && (
-              <div className="mt-5 space-y-4 overflow-y-auto pr-1 lg:max-h-[calc(100vh-350px)]">
-                {filteredGroups.map((group) => (
-                  <div key={group.title}>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">{group.title}</p>
-                    <div className="space-y-1">
-                      {group.items.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => setSelectedDocId(item.id)}
-                          className={cn(
-                            "w-full rounded-lg border px-3 py-2 text-left text-sm transition-all duration-200 ease-in-out",
-                            selectedDocId === item.id
-                              ? "border-white/20 bg-white/10 text-white"
-                              : "border-transparent text-white/70 hover:border-white/10 hover:bg-white/5 hover:text-white",
-                          )}
-                        >
-                          {item.title}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {filteredGroups.length === 0 && (
-                  <p className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs text-white/60">
-                    Nenhum item encontrado para sua busca.
-                  </p>
-                )}
-              </div>
-            )}
-          </aside>
-
-          <section className="min-w-0 flex-1 p-5 lg:p-8">
-            {activeTab === "docs" && (
-              <div className="mx-auto max-w-3xl space-y-6">
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-                  <div className="mb-3 flex items-center gap-2 text-white/80">
-                    <Sparkles size={15} />
-                    <span className="text-xs font-semibold uppercase tracking-[0.12em]">Documentação</span>
-                  </div>
-                  <h2 className="text-2xl font-semibold tracking-tight">{selectedDoc.title}</h2>
-                  <p className="mt-3 text-[15px] leading-7 text-white/75">{selectedDoc.content}</p>
-                  <div className="mt-5 rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-xs text-white/70">
-                    Dica rápida: combine 3 variações de gancho + 1 CTA claro para encontrar o criativo vencedor mais cedo.
-                  </div>
+              <div className="mt-8 flex items-center gap-4">
+                <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[12px] bg-[#EEF2FF] ring-1 ring-[#D9E2FF]">
+                  <AtlasAvatarIcon size={32} animated={false} />
                 </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-sm font-semibold">Próximo passo recomendado</p>
-                    <p className="mt-2 text-xs text-white/65">Aplique este conteúdo no fluxo de criação e teste pelo menos 3 variações.</p>
-                    <button className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-white/85 transition-colors hover:text-white">
-                      Ir para Criar Vídeo <ArrowRight size={12} />
-                    </button>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                    <p className="text-sm font-semibold">Boas práticas</p>
-                    <p className="mt-2 text-xs text-white/65">Use linguagem direta, benefício concreto e prova visual nos primeiros segundos do vídeo.</p>
-                  </div>
+                <div>
+                  <p className="text-[16px] font-black text-[#080B14]">{instructor.name}</p>
+                  <p className="text-[14px] font-semibold text-[#667085]">{instructor.role}</p>
                 </div>
               </div>
-            )}
-
-            {activeTab === "updates" && (
-              <div className="mx-auto max-w-3xl">
-                <h2 className="text-xl font-semibold tracking-tight">Atualizações</h2>
-                <p className="mt-1 text-sm text-white/65">Timeline de melhorias e novidades do produto.</p>
-                <div className="mt-6 space-y-5">
-                  {changelog.map((item, index) => (
-                    <div key={`${item.title}-${item.date}`} className="relative pl-8">
-                      {index !== changelog.length - 1 && (
-                        <span className="absolute left-2.5 top-6 h-[calc(100%+14px)] w-px bg-white/15" />
-                      )}
-                      <span className="absolute left-0 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/25 bg-[#121218]">
-                        {item.tag === "Novo" ? <Sparkles size={10} /> : item.tag === "Melhorado" ? <Wrench size={10} /> : <Bug size={10} />}
-                      </span>
-                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-semibold">{item.title}</h3>
-                          <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide", getTagStyle(item.tag))}>
-                            {item.tag}
-                          </span>
-                          <span className="text-xs text-white/45">{item.date}</span>
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-white/70">{item.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeTab === "community" && (
-              <div className="mx-auto max-w-3xl">
-                <div className="mb-5 flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl font-semibold tracking-tight">Comunidade</h2>
-                    <p className="mt-1 text-sm text-white/65">Dicas de criativos, estratégias e casos reais da comunidade.</p>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-white/70">
-                    <Users size={12} />
-                    Feed
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  {communityPosts.map((post) => (
-                    <article
-                      key={`${post.title}-${post.date}`}
-                      className="rounded-xl border border-white/10 bg-white/[0.03] p-4 transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.05]"
-                    >
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
-                        <span className="inline-flex items-center gap-1"><Megaphone size={11} /> {post.author}</span>
-                        <span>•</span>
-                        <span>{post.date}</span>
-                      </div>
-                      <h3 className="mt-2 text-base font-semibold">{post.title}</h3>
-                      <p className="mt-2 text-sm leading-6 text-white/70">{post.content}</p>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            )}
+            </div>
           </section>
-        </div>
+
+          <aside className="min-w-0 rounded-[20px] border border-[#E4E7EC] bg-white p-5">
+            <ProgressCard progress={progress} completed={completedCount} total={lessons.length} />
+
+            <div className="mt-7 flex items-center justify-between">
+              <h3 className="text-[18px] font-black text-[#080B14]">Chapters</h3>
+              <span className="text-[18px] font-black text-[#080B14]">
+                {completedCount}/{lessons.length}
+              </span>
+            </div>
+
+            <div className="mt-4 max-h-[620px] space-y-3 overflow-y-auto pr-1">
+              {lessons.map((lesson, index) => (
+                <LessonButton
+                  key={lesson.id}
+                  lesson={lesson}
+                  index={index}
+                  active={lesson.id === selectedLesson.id}
+                  completed={completedLessonIds.has(lesson.id)}
+                  onSelect={() => {
+                    if (!lesson.locked) setSelectedId(lesson.id);
+                  }}
+                />
+              ))}
+            </div>
+          </aside>
+        </main>
       </div>
     </div>
   );
 }
+
+const CoursePlayer = ({ lesson }: { lesson: CourseLesson }) => {
+  if (lesson.videoSrc) {
+    return (
+      <video
+        src={lesson.videoSrc}
+        controls
+        className="aspect-video w-full rounded-[20px] bg-black object-cover shadow-[0_16px_38px_rgba(15,23,42,0.16)]"
+      />
+    );
+  }
+
+  return (
+    <div className="relative aspect-video w-full overflow-hidden rounded-[20px] bg-[#05051B] shadow-[0_16px_38px_rgba(15,23,42,0.16)]">
+      <div className="absolute inset-0 opacity-70 [background-image:radial-gradient(circle_at_12%_18%,rgba(255,255,255,0.55)_0_1px,transparent_1.5px),radial-gradient(circle_at_34%_10%,rgba(255,255,255,0.35)_0_1px,transparent_1.5px),radial-gradient(circle_at_70%_22%,rgba(255,255,255,0.42)_0_1px,transparent_1.5px),radial-gradient(circle_at_84%_42%,rgba(255,255,255,0.35)_0_1px,transparent_1.5px),radial-gradient(circle_at_22%_72%,rgba(255,255,255,0.35)_0_1px,transparent_1.5px)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_76%_52%,rgba(37,99,235,0.26),transparent_24%),radial-gradient(circle_at_44%_44%,rgba(37,99,235,0.18),transparent_35%)]" />
+
+      <div className="absolute left-1/2 top-[21%] flex -translate-x-1/2 items-center gap-4">
+        <span className="grid h-12 w-12 place-items-center rounded-[12px] bg-[#2563EB] shadow-[0_12px_28px_rgba(37,99,235,0.34)]">
+          <AtlasAvatarIcon size={36} animated={false} />
+        </span>
+        <span className="text-[25px] font-black tracking-[-0.01em] text-white">
+          PAGE<span className="font-medium text-white/80">PILOT</span>
+        </span>
+      </div>
+
+      <div className="absolute inset-x-10 top-[40%] text-center">
+        <p className="whitespace-nowrap text-[clamp(30px,3.35vw,54px)] font-black leading-none text-[#C7D7FE] drop-shadow-[0_6px_24px_rgba(147,197,253,0.28)]">
+          $100K AI Dropshipping Blueprint
+        </p>
+        <p className="mt-5 text-[clamp(18px,1.9vw,31px)] font-bold text-white">
+          From Zero to a $100k Store in 30 Days
+        </p>
+      </div>
+
+      <div className="absolute bottom-[14%] right-[12%] h-[30%] w-[12%] rotate-[28deg] rounded-[70%_70%_45%_45%] border border-white/10 bg-[linear-gradient(140deg,rgba(255,255,255,0.16),rgba(37,99,235,0.04))] shadow-[0_0_60px_rgba(255,120,130,0.25)]">
+        <span className="absolute left-1/2 top-[-18%] h-[54%] w-[54%] -translate-x-1/2 rounded-full border border-cyan-200/30 bg-cyan-300/10 blur-[1px]" />
+        <span className="absolute bottom-[-18%] left-1/2 h-[34%] w-[48%] -translate-x-1/2 rounded-full bg-rose-400/30 blur-md" />
+      </div>
+
+      <div className="absolute inset-x-5 bottom-5">
+        <div className="flex items-center gap-5 text-white">
+          <Play size={22} fill="currentColor" />
+          <span className="text-[18px] font-bold">0:00 / {lesson.duration}</span>
+          <div className="ml-auto flex items-center gap-5">
+            <Volume2 size={22} />
+            <Maximize2 size={21} />
+            <MoreVertical size={21} />
+          </div>
+        </div>
+        <div className="mt-4 h-1.5 rounded-full bg-white/30">
+          <div className="h-full w-[2%] rounded-full bg-white" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ProgressCard = ({ progress }: { progress: number; completed: number; total: number }) => (
+  <div className="rounded-[18px] border border-[#E4E7EC] bg-white p-6">
+    <p className="text-[17px] font-black text-[#080B14]">
+      Your Progress <span className="text-[#2563EB]">{progress}%</span>
+    </p>
+    <div className="mt-7 h-5 rounded-full bg-[#E5E7EB]">
+      <div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${progress}%` }} />
+    </div>
+    <div className="mt-3 grid grid-cols-5 text-center text-[14px] font-bold text-[#667085]">
+      <span>0%</span>
+      <span>25%</span>
+      <span>50%</span>
+      <span>75%</span>
+      <span>100%</span>
+    </div>
+    <div className="mt-7 rounded-[14px] border border-[#E4E7EC] bg-[#F8FAFC] p-5">
+      <p className="text-[15px] font-bold leading-[1.55] text-[#475467]">
+        🚀 You're taking the first steps toward your dropshipping success! Each lesson brings you closer to launching
+        your profitable store.
+      </p>
+    </div>
+  </div>
+);
+
+const LessonButton = ({
+  lesson,
+  index,
+  active,
+  completed,
+  onSelect,
+}: {
+  lesson: CourseLesson;
+  index: number;
+  active: boolean;
+  completed: boolean;
+  onSelect: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onSelect}
+    disabled={lesson.locked}
+    className={cn(
+      "group flex min-h-[72px] w-full items-center gap-4 rounded-[15px] border px-4 py-3 text-left transition",
+      active
+        ? "border-[#2563EB] bg-[#2563EB] text-white shadow-[0_14px_30px_rgba(37,99,235,0.28)]"
+        : "border-[#E4E7EC] bg-white text-[#080B14] hover:border-[#CBD5E1] hover:bg-[#F8FAFC]",
+      lesson.locked && "cursor-not-allowed opacity-95",
+    )}
+  >
+    <span
+      className={cn(
+        "grid h-10 w-10 shrink-0 place-items-center rounded-full",
+        active ? "bg-white text-[#2563EB]" : "bg-[#EFF6FF] text-[#2563EB]",
+      )}
+    >
+      {completed ? <CheckCircle2 size={21} /> : <Play size={18} fill="currentColor" />}
+    </span>
+    <span className="min-w-0 flex-1">
+      <span className={cn("block text-[14px] font-black leading-5", active ? "text-white" : "text-[#344054]")}>
+        {lesson.title}
+      </span>
+      <span className={cn("mt-0.5 block text-[14px] font-bold", active ? "text-white/85" : "text-[#667085]")}>
+        {lesson.duration}
+      </span>
+    </span>
+    {active ? (
+      <span className="rounded-[10px] bg-white px-3 py-2 text-[13px] font-black text-[#344054]">Next</span>
+    ) : lesson.locked ? (
+      <Lock size={21} className="shrink-0 text-[#2563EB]" />
+    ) : (
+      <ChevronRight size={20} className="shrink-0 text-[#98A2B3] transition group-hover:translate-x-0.5" />
+    )}
+  </button>
+);

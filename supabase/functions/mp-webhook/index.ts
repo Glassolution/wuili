@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
           const planPrice =
             Number(payment.metadata?.plan_price ?? payment.transaction_amount ?? 147.9) || 147.9;
           const commissionRate =
-            Number(payment.metadata?.commission_rate ?? 0.2) || 0.2;
+            Number(payment.metadata?.commission_rate ?? 0.3) || 0.3;
 
           const payerNameParts = [payment.payer?.first_name, payment.payer?.last_name].filter(Boolean);
           const payerName = payerNameParts.length ? payerNameParts.join(" ") : null;
@@ -126,40 +126,55 @@ Deno.serve(async (req) => {
           const createdAt =
             payment.date_approved ?? payment.date_created ?? new Date().toISOString();
 
-          await adminClient.from("affiliate_sales").upsert(
-            {
-              affiliate_user_id: affiliateProfile.user_id,
-              affiliate_ref: String(affiliateRef),
-              customer_name: payerName,
-              customer_email: payerEmail,
-              plan: String(payment.metadata?.plan ?? "mensal"),
-              plan_price: planPrice,
-              commission_rate: commissionRate,
-              commission_amount: Number((planPrice * commissionRate).toFixed(2)),
-              commission_status: "pending",
-              mp_payment_id: String(paymentId),
-              mp_preference_id: payment.preference_id ? String(payment.preference_id) : null,
-              created_at: createdAt,
-            },
-            { onConflict: "mp_payment_id" },
-          );
-
-          // Novo funil (admin): marcar conversao como "paid" e gerar comissao pendente
+          // Uma indicação remunera somente a primeira venda do cliente. Renovações
+          // posteriores mantêm a assinatura ativa, mas não geram outra comissão.
+          let firstAffiliateSale = true;
           if (userId) {
-            await adminClient.from("affiliate_conversions").upsert(
+            const { data: existingConversion } = await adminClient
+              .from("affiliate_conversions")
+              .select("id, status")
+              .eq("affiliate_code", String(affiliateRef).toUpperCase())
+              .eq("subscriber_user_id", String(userId))
+              .maybeSingle();
+            firstAffiliateSale = existingConversion?.status !== "paid";
+          }
+
+          if (firstAffiliateSale) {
+            await adminClient.from("affiliate_sales").upsert(
               {
-                affiliate_code: String(affiliateRef).toUpperCase(),
-                subscriber_user_id: String(userId),
-                status: "paid",
-                plan_value: planPrice,
+                affiliate_user_id: affiliateProfile.user_id,
+                affiliate_ref: String(affiliateRef),
+                customer_name: payerName,
+                customer_email: payerEmail,
+                plan: String(payment.metadata?.plan ?? "mensal"),
+                plan_price: planPrice,
                 commission_rate: commissionRate,
-                commission_value: Number((planPrice * commissionRate).toFixed(2)),
-                payout_status: "pending",
-                paid_at: createdAt,
+                commission_amount: Number((planPrice * commissionRate).toFixed(2)),
+                commission_status: "pending",
+                mp_payment_id: String(paymentId),
+                mp_preference_id: payment.preference_id ? String(payment.preference_id) : null,
                 created_at: createdAt,
               },
-              { onConflict: "affiliate_code,subscriber_user_id" },
+              { onConflict: "mp_payment_id" },
             );
+
+            // Novo funil (admin): marcar conversao como "paid" e gerar comissao pendente
+            if (userId) {
+              await adminClient.from("affiliate_conversions").upsert(
+                {
+                  affiliate_code: String(affiliateRef).toUpperCase(),
+                  subscriber_user_id: String(userId),
+                  status: "paid",
+                  plan_value: planPrice,
+                  commission_rate: commissionRate,
+                  commission_value: Number((planPrice * commissionRate).toFixed(2)),
+                  payout_status: "pending",
+                  paid_at: createdAt,
+                  created_at: createdAt,
+                },
+                { onConflict: "affiliate_code,subscriber_user_id" },
+              );
+            }
           }
         }
       } catch (affiliateError) {

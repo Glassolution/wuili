@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  ArrowLeft,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -34,7 +35,6 @@ import {
   Bar,
 } from "recharts";
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
-import ProductScoutAI, { type AtlasResults } from "@/components/dashboard/ProductScoutAI";
 import { veloToast } from "@/components/ui/velo-toast";
 import { proxyImageList } from "@/lib/imageProxy";
 import type { Database, Json } from "@/integrations/supabase/types";
@@ -44,8 +44,16 @@ import {
   getCollectionProductIds,
   removeProductFromCollection,
 } from "@/lib/collectionsApi";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import { useAtlasChat } from "@/contexts/AtlasChatContext";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
+
+type AtlasResults = {
+  ids: string[];
+  label: string;
+  source: "preference" | "ai" | "fallback";
+};
 
 // ─── Dashboard Metrics Types ──────────────────────────────────────────────────
 type ProfileRow = {
@@ -760,83 +768,58 @@ const SidebarDrawerFooter = () => {
   );
 };
 
-type CategoryKey =
-  | "todos"
-  | "casa"
-  | "eletronicos"
-  | "moda"
-  | "bijuterias"
-  | "decoracao"
-  | "bebe"
-  | "pet"
-  | "beleza"
-  | "saude"
-  | "esporte"
-  | "outros";
+/**
+ * Categoria ativa do catálogo.
+ *
+ * "todos" e "favoritos" são pseudo-categorias da interface; qualquer outro valor
+ * é EXATAMENTE o que está gravado em catalog_products.category.
+ *
+ * Antes existia uma lista de 13 chaves fixas mapeadas à mão para valores do
+ * banco. A taxonomia vem do scraping do fornecedor e mudou num sync: 11 das 13
+ * opções passaram a retornar zero produto, e o filtro inteiro do catálogo parou
+ * de funcionar sem ninguém perceber. Agora a lista vem do próprio banco, então
+ * um novo sync se resolve sozinho.
+ */
+type CategoryKey = "todos" | "favoritos" | (string & {});
 
-const categories: Array<{
-  key: CategoryKey;
-  label: string;
-  shortLabel: string;
-}> = [
-  { key: "todos", label: "Todos os produtos", shortLabel: "Todos" },
-  { key: "casa", label: "Casa", shortLabel: "Casa" },
-  { key: "eletronicos", label: "Eletrônicos", shortLabel: "Eletrônicos" },
-  { key: "moda", label: "Moda", shortLabel: "Moda" },
-  { key: "bijuterias", label: "Bijuterias", shortLabel: "Bijuterias" },
-  { key: "decoracao", label: "Decoração", shortLabel: "Decoração" },
-  { key: "bebe", label: "Bebê e Infantil", shortLabel: "Bebê" },
-  { key: "pet", label: "Pet", shortLabel: "Pet" },
-  { key: "beleza", label: "Beleza", shortLabel: "Beleza" },
-  { key: "saude", label: "Saúde e Bem-estar", shortLabel: "Saúde" },
-  { key: "esporte", label: "Esporte e Fitness", shortLabel: "Esporte" },
-  { key: "outros", label: "Outros", shortLabel: "Outros" },
-];
+const CATEGORIA_TODOS = "todos";
+const CATEGORIA_FAVORITOS = "favoritos";
 
-// Valores alinhados exatamente ao que o sync grava em catalog_products.category
-// (minúsculo, com acentos onde o sync mantém; "eletronicos" sem acento é intencional).
-const categoryMap: Record<CategoryKey, string | null> = {
-  todos: null,
-  casa: "casa",
-  eletronicos: "eletronicos",
-  moda: "moda",
-  bijuterias: "bijuterias",
-  decoracao: "decoração",
-  bebe: "bebe e infantil",
-  pet: "pet",
-  beleza: "beleza",
-  saude: "saúde e bem-estar",
-  esporte: "esporte e fitness",
-  outros: "outros",
+const rotuloDaCategoria = (valor: CategoryKey) => {
+  if (valor === CATEGORIA_TODOS) return "Todos os produtos";
+  if (valor === CATEGORIA_FAVORITOS) return "Favoritos";
+  return valor;
 };
+
+type CategoriaDoBanco = { valor: string; total: number };
 
 const PRICE_OPTIONS = ["Todos os preços", "Até R$ 50", "R$ 50-150", "Acima de R$ 150"];
-const SOURCE_OPTIONS = ["Todos os fornecedores", "C7 Drop", "AliExpress"] as const;
-type SourceOption = typeof SOURCE_OPTIONS[number];
-const sourceOptionToDb: Record<SourceOption, "c7drop" | "aliexpress" | null> = {
-  "Todos os fornecedores": null,
-  "C7 Drop": "c7drop",
-  "AliExpress": "aliexpress",
-};
 const RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
 
-// Embaralhamento determinístico (Fisher-Yates com PRNG mulberry32). Mesmo `seed`
-// → mesma ordem, então a mesma página sempre exibe o mesmo arranjo, sem
-// reordenar a cada render nem duplicar itens entre páginas.
-const seededShuffle = <T,>(items: T[], seed: number): T[] => {
-  const result = [...items];
-  let state = seed >>> 0;
-  const nextRandom = () => {
-    state = (state + 0x6d2b79f5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(nextRandom() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
+const getPriceRangeBounds = (range: string): { min?: number; max?: number } => {
+  if (range === "Até R$ 50") return { max: 50 };
+  if (range === "R$ 50-150") return { min: 50, max: 150 };
+  if (range === "Acima de R$ 150") return { min: 150 };
+  return {};
+};
+
+const getRatingMinimum = (rating: string) => {
+  if (rating === "4+ estrelas") return 4;
+  if (rating === "4.5+ estrelas") return 4.5;
+  return null;
+};
+
+const productMatchesSelectedFilters = (
+  product: Product,
+  priceRange: string,
+  ratingRange: string,
+) => {
+  const priceBounds = getPriceRangeBounds(priceRange);
+  const ratingMinimum = getRatingMinimum(ratingRange);
+  if (typeof priceBounds.min === "number" && product.preco < priceBounds.min) return false;
+  if (typeof priceBounds.max === "number" && product.preco > priceBounds.max) return false;
+  if (ratingMinimum !== null && (typeof product.rating !== "number" || product.rating < ratingMinimum)) return false;
+  return true;
 };
 
 const getProductImages = (images: Json | null): string[] => {
@@ -862,6 +845,13 @@ const getProductImages = (images: Json | null): string[] => {
 
 
 
+const getCompactFilterValue = (value: string) =>
+  value
+    .replace("Todos os produtos", "Todos")
+    .replace("Todos os preços", "Todos");
+
+const getCompactFilterLabel = (label: string) => (label === "Faixa de preço" ? "Preço" : label);
+
 const FilterDropdown = ({
   label,
   value,
@@ -877,30 +867,37 @@ const FilterDropdown = ({
   options: string[];
   onSelect: (value: string) => void;
 }) => (
-  <div className="relative min-w-[148px] md:min-w-[180px]">
+  <div className="relative min-w-[138px] md:min-w-[150px]">
     <button
       type="button"
       onClick={onToggle}
-      className="inline-flex h-9 w-full items-center justify-between gap-2 rounded-full border border-[#D1D5DB] bg-white px-3 text-[11px] font-semibold text-[#111111] shadow-sm transition-all duration-200 hover:border-[#9CA3AF] hover:bg-[#FAFAFA] md:h-11 md:rounded-2xl md:px-4 md:text-[14px]"
+      className="inline-flex h-9 w-full items-center justify-between gap-2 rounded-full border border-black/[0.08] bg-white px-3 text-[10.5px] font-semibold text-[#151515] shadow-[0_8px_18px_rgba(17,17,17,0.035)] backdrop-blur-sm transition-all duration-200 hover:border-black/15 md:h-9 md:px-3.5 md:text-[12px]"
     >
-      <span className="truncate">{label}: {value}</span>
-      <ChevronDown size={16} strokeWidth={1.8} className={`shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      <span className="truncate">
+        <span className="text-[#777771]">{getCompactFilterLabel(label)}</span>
+        <span className="mx-1.5 text-[#C7C7C0]">/</span>
+        {getCompactFilterValue(value)}
+      </span>
+      <ChevronDown size={14} strokeWidth={1.8} className={`shrink-0 text-[#777771] transition-transform ${isOpen ? "rotate-180" : ""}`} />
     </button>
 
     {isOpen && (
-      <div className="absolute left-0 top-[calc(100%+8px)] z-20 min-w-full overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-1 shadow-[0_16px_32px_rgba(17,24,39,0.08)]">
+      <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-[240px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[16px] border border-black/[0.08] bg-white p-1.5 shadow-[0_18px_44px_rgba(17,17,17,0.10)]">
+        <div className="max-h-[278px] overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]">
         {options.map((option) => (
           <button
             key={option}
             type="button"
             onClick={() => onSelect(option)}
-            className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors ${
-              value === option ? "bg-[#F3F4F6] font-semibold text-[#111111]" : "text-[#4B5563] hover:bg-[#F9FAFB]"
+            title={option}
+            className={`flex h-9 w-full items-center rounded-[12px] px-3 text-left text-[12px] leading-none transition-colors ${
+              value === option ? "bg-[#F0F0EC] font-semibold text-[#111111]" : "text-[#4B5563] hover:bg-[#F7F7F4]"
             }`}
           >
-            {option}
+            <span className="block min-w-0 truncate">{option}</span>
           </button>
         ))}
+        </div>
       </div>
     )}
   </div>
@@ -911,18 +908,28 @@ const CatalogoPage = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { abrirLateral } = useAtlasChat();
   const selectionCollectionId = searchParams.get("collectionId");
   const selectionCollectionName = searchParams.get("collectionName") || "coleção";
   const isCollectionSelectionMode = Boolean(selectionCollectionId);
-  const [activeCategory, setActiveCategory] = useState<CategoryKey>("todos");
+  // `?categoria=<key>` permite chegar aqui já filtrado — é o que os atalhos de
+  // categoria do guia do Atlas usam. Chave desconhecida cai em "todos" em vez de
+  // deixar a tela num estado que o dropdown não sabe representar.
+  const categoriaDaUrl = searchParams.get("categoria");
+  // Aceita o valor da URL como veio: ele é o próprio valor do banco, então não
+  // há lista para validar contra. Categoria inexistente simplesmente não traz
+  // produto, o que é honesto — e é o mesmo que aconteceria digitando na mão.
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>(
+    categoriaDaUrl && categoriaDaUrl.trim() ? categoriaDaUrl : CATEGORIA_TODOS,
+  );
+  const [categoriasDoBanco, setCategoriasDoBanco] = useState<CategoriaDoBanco[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [recommendationIndex, setRecommendationIndex] = useState(0);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("Todos os preços");
   const [selectedRating, setSelectedRating] = useState("Todas");
-  const [selectedSource, setSelectedSource] = useState<SourceOption>("Todos os fornecedores");
-  const [openDropdown, setOpenDropdown] = useState<"category" | "price" | "rating" | "source" | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<"category" | "price" | "rating" | null>(null);
   const filterBarRef = useRef<HTMLDivElement | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -934,7 +941,6 @@ const CatalogoPage = () => {
   const [collectionProductIds, setCollectionProductIds] = useState<string[]>([]);
   const [collectionToggleLoadingId, setCollectionToggleLoadingId] = useState<string | null>(null);
   const [atlasResults, setAtlasResults] = useState<AtlasResults | null>(null);
-
   // Recebe resultados Atlas vindos de outra página (ex: DashboardHomePage)
   useEffect(() => {
     const incoming = (location.state as { atlasResults?: AtlasResults } | null)?.atlasResults;
@@ -948,12 +954,50 @@ const CatalogoPage = () => {
 
   const ITEMS_PER_PAGE = 12;
 
+  // Persistência dos favoritos por usuário (localStorage). Chave inclui o id do
+  // usuário para não misturar favoritos entre contas no mesmo dispositivo.
+  const favoritesStorageKey = useMemo(
+    () => `velo-favorites${user?.id ? `-${user.id}` : ""}`,
+    [user?.id],
+  );
+  const favoritesHydrated = useRef(false);
+
+  // Hidrata os favoritos salvos ao montar / trocar de usuário.
+  useEffect(() => {
+    favoritesHydrated.current = false;
+    try {
+      const raw = localStorage.getItem(favoritesStorageKey);
+      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+      setFavoritedIds(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []);
+    } catch {
+      setFavoritedIds([]);
+    }
+    favoritesHydrated.current = true;
+  }, [favoritesStorageKey]);
+
+  // Persiste sempre que a lista muda (após a hidratação, para não sobrescrever o
+  // valor salvo com o estado inicial vazio).
+  useEffect(() => {
+    if (!favoritesHydrated.current) return;
+    try {
+      localStorage.setItem(favoritesStorageKey, JSON.stringify(favoritedIds));
+    } catch {
+      // Armazenamento indisponível (modo privado/quota) — favoritos seguem em memória.
+    }
+  }, [favoritedIds, favoritesStorageKey]);
+
   const toggleFavorite = (productId: string) => {
+    const willFavorite = !favoritedIds.includes(productId);
     setFavoritedIds((prev) =>
       prev.includes(productId)
         ? prev.filter((id) => id !== productId)
         : [...prev, productId]
     );
+    if (willFavorite) {
+      veloToast.success("Adicionado aos favoritos");
+    } else {
+      veloToast.info("Removido dos favoritos");
+    }
   };
 
   useEffect(() => {
@@ -1038,6 +1082,7 @@ const CatalogoPage = () => {
       product_url: p.product_url,
       rating: p.rating,
       ordersCount: p.orders_count,
+      reviewsCount: p.reviews_count,
       supplierLabel,
     };
   };
@@ -1048,6 +1093,38 @@ const CatalogoPage = () => {
       setIsLoading(true);
       setError(null);
       try {
+        // Categoria "Favoritos": mostra apenas os produtos favoritados, buscando-os
+        // pelos IDs salvos e preservando a ordem em que foram favoritados.
+        if (activeCategory === "favoritos") {
+          if (favoritedIds.length === 0) {
+            setProducts([]);
+            setTotalCount(0);
+            return;
+          }
+          const { data, error: favError } = await withFreshSupabaseSession(() =>
+            supabase
+              .from("catalog_products")
+              .select("*")
+              .in("id", favoritedIds)
+              .eq("is_blocked", false)
+              .gt("stock_quantity", 0),
+          );
+          if (favError) throw favError;
+          const byId = new Map((data || []).map((p) => [p.id, p]));
+          let ordered = favoritedIds
+            .map((id) => byId.get(id))
+            .filter((p): p is CatalogProductRow => Boolean(p))
+            .map(mapProduct);
+          if (searchQuery.trim()) {
+            const term = searchQuery.trim().toLowerCase();
+            ordered = ordered.filter((p) => p.nome.toLowerCase().includes(term));
+          }
+          ordered = ordered.filter((p) => productMatchesSelectedFilters(p, selectedPriceRange, selectedRating));
+          setProducts(ordered);
+          setTotalCount(ordered.length);
+          return;
+        }
+
         // Modo Atlas: substitui o grid pelos IDs retornados, preservando a ordem
         if (atlasResults) {
           if (atlasResults.ids.length === 0) {
@@ -1066,13 +1143,12 @@ const CatalogoPage = () => {
           const ordered = atlasResults.ids
             .map((id) => byId.get(id))
             .filter((p): p is CatalogProductRow => Boolean(p))
-            .map(mapProduct);
+            .map(mapProduct)
+            .filter((p) => productMatchesSelectedFilters(p, selectedPriceRange, selectedRating));
           setProducts(ordered);
           setTotalCount(ordered.length);
           return;
         }
-
-        const dbSource = sourceOptionToDb[selectedSource];
 
         // Filtros comuns (categoria/busca/disponibilidade) aplicados a qualquer
         // consulta do catálogo. `any`: o tipo encadeado do PostgREST filter builder
@@ -1080,84 +1156,40 @@ const CatalogoPage = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const applyCommonFilters = (query: any) => {
           let q = query.eq("is_blocked", false).gt("stock_quantity", 0);
-          if (activeCategory !== "todos") {
-            const dbCategory = categoryMap[activeCategory];
-            if (dbCategory) q = q.eq("category", dbCategory);
+          const priceBounds = getPriceRangeBounds(selectedPriceRange);
+          const ratingMinimum = getRatingMinimum(selectedRating);
+          if (activeCategory !== CATEGORIA_TODOS && activeCategory !== CATEGORIA_FAVORITOS) {
+            // O valor já é o do banco; ilike só para não depender de caixa.
+            q = q.ilike("category", activeCategory);
           }
           if (searchQuery.trim()) {
             q = q.ilike("title", `%${searchQuery.trim()}%`);
           }
+          if (typeof priceBounds.min === "number") {
+            q = q.gte("cost_price", priceBounds.min);
+          }
+          if (typeof priceBounds.max === "number") {
+            q = q.lte("cost_price", priceBounds.max);
+          }
+          if (ratingMinimum !== null) {
+            q = q.gte("rating", ratingMinimum);
+          }
           return q;
         };
 
-        if (dbSource) {
-          // Fonte específica: página única, "mais recentes primeiro".
-          const start = (currentPage - 1) * ITEMS_PER_PAGE;
-          const end = start + ITEMS_PER_PAGE - 1;
-          const { data, count, error: fetchError } = await withFreshSupabaseSession(() =>
-            applyCommonFilters(supabase.from("catalog_products").select("*", { count: "exact" }))
-              .eq("source", dbSource)
-              .order("created_at", { ascending: false })
-              .order("id", { ascending: false })
-              .range(start, end),
-          );
-          if (fetchError) throw fetchError;
-          setProducts((data || []).map(mapProduct));
-          setTotalCount(count || 0);
-        } else {
-          // "Todos os fornecedores": C7Drop (824) supera muito a AliExpress (226),
-          // então uma ordenação única deixa a AliExpress rara. Buscamos metade da
-          // página de cada fonte e intercalamos, garantindo ~50/50 por página
-          // enquanto ambas tiverem produtos.
-          const half = Math.floor(ITEMS_PER_PAGE / 2);
-          const sourceStart = (currentPage - 1) * half;
-          const sourceEnd = sourceStart + half - 1;
-
-          const fetchSource = (src: "c7drop" | "aliexpress") =>
-            withFreshSupabaseSession(() =>
-              applyCommonFilters(supabase.from("catalog_products").select("*", { count: "exact" }))
-                .eq("source", src)
-                .order("created_at", { ascending: false })
-                .order("id", { ascending: false })
-                .range(sourceStart, sourceEnd),
-            );
-
-          const [c7res, aliRes] = await Promise.all([fetchSource("c7drop"), fetchSource("aliexpress")]);
-          if (c7res.error) throw c7res.error;
-          if (aliRes.error) throw aliRes.error;
-
-          const c7 = (c7res.data || []).map(mapProduct);
-          const ali = (aliRes.data || []).map(mapProduct);
-
-          // Mantém ~50/50 por página, mas sem o padrão alternado óbvio
-          // (C7, Ali, C7, …). Embaralha com semente ligada à página (ordem estável
-          // por página) e rejeita arranjos com mais de 2 do mesmo fornecedor
-          // seguidos — evita tanto a alternância perfeita quanto blocos visíveis.
-          const runIsOk = (list: Product[]) => {
-            let run = 1;
-            for (let i = 1; i < list.length; i++) {
-              run = list[i].supplierLabel === list[i - 1].supplierLabel ? run + 1 : 1;
-              if (run > 2) return false;
-            }
-            return true;
-          };
-          const combined = [...c7, ...ali];
-          let mixed = combined;
-          for (let attempt = 0; attempt < 24; attempt++) {
-            const candidate = seededShuffle(combined, currentPage * 2654435761 + attempt * 40503);
-            if (runIsOk(candidate)) {
-              mixed = candidate;
-              break;
-            }
-            mixed = candidate; // fallback: usa o último se nenhum passar
-          }
-
-          setProducts(mixed);
-          // Cada página consome `half` de cada fonte; o total de páginas é ditado
-          // pela fonte maior. totalCount só alimenta o cálculo de páginas.
-          const maxCount = Math.max(c7res.count || 0, aliRes.count || 0);
-          setTotalCount(maxCount * 2);
-        }
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE - 1;
+        const { data, count, error: fetchError } = await withFreshSupabaseSession(() =>
+          applyCommonFilters(supabase.from("catalog_products").select("*", { count: "exact" }))
+            .eq("source", "c7drop")
+            .order("orders_count", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .range(start, end),
+        );
+        if (fetchError) throw fetchError;
+        setProducts((data || []).map(mapProduct));
+        setTotalCount(count || 0);
       } catch (err: any) {
         console.error("Erro ao buscar produtos do catálogo:", err);
         setError(`Não foi possível carregar o catálogo agora. Detalhes: ${err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err))}`);
@@ -1167,7 +1199,18 @@ const CatalogoPage = () => {
     };
 
     fetchProducts();
-  }, [currentPage, searchQuery, activeCategory, atlasResults, selectedSource]);
+    // `favoritedIds` só entra como dependência quando a categoria Favoritos está
+    // ativa (via a string derivada), evitando refetch ao favoritar em outras abas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    currentPage,
+    searchQuery,
+    activeCategory,
+    atlasResults,
+    selectedPriceRange,
+    selectedRating,
+    activeCategory === "favoritos" ? favoritedIds.join(",") : "",
+  ]);
 
 
   // Buscar recomendações
@@ -1205,10 +1248,56 @@ const CatalogoPage = () => {
     });
   }, [recommendationIndex, recommendations]);
 
+  /**
+   * Categorias reais do catálogo, com contagem.
+   *
+   * PostgREST não faz GROUP BY sem RPC, então trazemos só a coluna `category` e
+   * agrupamos aqui — uma coluna de ~1.2k linhas é payload pequeno e evita ter de
+   * criar e manter uma view só para isso.
+   */
+  useEffect(() => {
+    let ativo = true;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("catalog_products")
+        .select("category")
+        .eq("is_blocked", false)
+        .gt("stock_quantity", 0)
+        .limit(5000);
+      if (!ativo || error) return;
+
+      const contagem = new Map<string, number>();
+      (data ?? []).forEach((linha) => {
+        const valor = typeof linha.category === "string" ? linha.category.trim() : "";
+        if (!valor) return;
+        contagem.set(valor, (contagem.get(valor) ?? 0) + 1);
+      });
+
+      setCategoriasDoBanco(
+        [...contagem.entries()]
+          .map(([valor, total]) => ({ valor, total }))
+          .sort((a, b) => b.total - a.total || a.valor.localeCompare(b.valor, "pt-BR")),
+      );
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const opcoesDeCategoria = useMemo(
+    () => [
+      { valor: CATEGORIA_TODOS, rotulo: rotuloDaCategoria(CATEGORIA_TODOS) },
+      { valor: CATEGORIA_FAVORITOS, rotulo: rotuloDaCategoria(CATEGORIA_FAVORITOS) },
+      ...categoriasDoBanco.map((item) => ({ valor: item.valor, rotulo: `${item.valor} (${item.total})` })),
+    ],
+    [categoriasDoBanco],
+  );
+
   const handleCategoryChange = (category: CategoryKey) => {
     setActiveCategory(category);
     setCurrentPage(1);
     setOpenDropdown(null);
+    setAtlasResults(null);
   };
 
   const getPageNumbers = () => {
@@ -1229,7 +1318,7 @@ const CatalogoPage = () => {
   };
 
   return (
-    <div className="-mt-1 min-h-full w-full overflow-visible" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
+    <div className="-m-5 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] overflow-visible bg-white p-5 sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] sm:p-6 lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)] lg:p-7" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
       {isCollectionSelectionMode && selectionCollectionId && (
         <div className="sticky top-0 z-40 mb-4 rounded-2xl border border-black/[0.08] bg-[#111111] px-4 py-3 text-white shadow-[0_18px_44px_rgba(17,17,17,0.22)]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1263,16 +1352,30 @@ const CatalogoPage = () => {
       )}
       <section className="min-w-0 overflow-visible">
         <>
+            <header className="mb-5 flex items-center gap-3 md:mb-6">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#101114] transition hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={20} strokeWidth={2.1} aria-hidden="true" />
+              </button>
+              <h1 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-[#101114] sm:text-[24px]">
+                Catálogo Velo
+              </h1>
+            </header>
+
             <div
               ref={filterBarRef}
               data-dashboard-tour="catalogo-busca"
-              className="mobile-hide-scrollbar mb-3 flex gap-2 overflow-x-auto md:mb-5 md:flex-col md:gap-3 md:overflow-visible xl:flex-row xl:items-center"
+              className="mobile-hide-scrollbar mb-6 flex gap-2 overflow-x-auto md:mb-7 md:flex-row md:items-center md:overflow-x-auto xl:overflow-visible"
             >
-              <div className="relative min-w-[220px] flex-1 md:min-w-0 xl:w-[260px] xl:flex-shrink-0">
+              <div className="relative min-w-[190px] flex-1 md:flex-none xl:w-[220px] xl:flex-shrink-0">
                 <Search
                   size={16}
                   strokeWidth={1.8}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8E8E87]"
                 />
                 <input
                   type="text"
@@ -1282,19 +1385,19 @@ const CatalogoPage = () => {
                     setCurrentPage(1);
                   }}
                   placeholder="Buscar produto"
-                  className="h-9 w-full rounded-full border border-[#D1D5DB] bg-white pl-10 pr-3 text-[12px] font-medium text-[#111111] shadow-sm outline-none transition-all duration-200 placeholder:text-[#9CA3AF] hover:border-[#9CA3AF] md:h-11 md:rounded-2xl md:pl-11 md:pr-4 md:text-[14px]"
+                  className="h-9 w-full rounded-full border border-black/[0.08] bg-white pl-9 pr-3 text-[12px] font-semibold text-[#111111] shadow-[0_8px_18px_rgba(17,17,17,0.035)] outline-none backdrop-blur-sm transition-all duration-200 placeholder:text-[#8E8E87] hover:border-black/15 md:h-9 md:text-[12px]"
                 />
               </div>
 
               <FilterDropdown
                 label="Categoria"
-                value={categories.find((category) => category.key === activeCategory)?.label ?? "Todos os produtos"}
+                value={rotuloDaCategoria(activeCategory)}
                 isOpen={openDropdown === "category"}
                 onToggle={() => setOpenDropdown((current) => (current === "category" ? null : "category"))}
-                options={categories.map((category) => category.label)}
+                options={opcoesDeCategoria.map((item) => item.rotulo)}
                 onSelect={(option) => {
-                  const selectedCategory = categories.find((category) => category.label === option);
-                  if (selectedCategory) handleCategoryChange(selectedCategory.key);
+                  const escolhida = opcoesDeCategoria.find((item) => item.rotulo === option);
+                  if (escolhida) handleCategoryChange(escolhida.valor);
                 }}
               />
 
@@ -1306,6 +1409,7 @@ const CatalogoPage = () => {
                 options={PRICE_OPTIONS}
                 onSelect={(option) => {
                   setSelectedPriceRange(option);
+                  setCurrentPage(1);
                   setOpenDropdown(null);
                 }}
               />
@@ -1318,18 +1422,6 @@ const CatalogoPage = () => {
                 options={RATING_OPTIONS}
                 onSelect={(option) => {
                   setSelectedRating(option);
-                  setOpenDropdown(null);
-                }}
-              />
-
-              <FilterDropdown
-                label="Fornecedor"
-                value={selectedSource}
-                isOpen={openDropdown === "source"}
-                onToggle={() => setOpenDropdown((current) => (current === "source" ? null : "source"))}
-                options={[...SOURCE_OPTIONS]}
-                onSelect={(option) => {
-                  setSelectedSource(option as SourceOption);
                   setCurrentPage(1);
                   setOpenDropdown(null);
                 }}
@@ -1338,7 +1430,17 @@ const CatalogoPage = () => {
               <div className="hidden xl:block xl:flex-1" />
 
               <div className="shrink-0 xl:ml-auto">
-                <ProductScoutAI onResults={(results) => setAtlasResults(results)} />
+                <button
+                  type="button"
+                  onClick={abrirLateral}
+                  data-dashboard-tour="catalogo-atlas"
+                  className="group grid h-10 w-10 place-items-center rounded-full bg-transparent text-[#2563EB] transition-transform duration-200 hover:-translate-y-0.5"
+                  aria-label="Abrir conversa com o Atlas"
+                >
+                  <span className="grid h-9 w-9 place-items-center rounded-full transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-105">
+                    <AtlasAvatarIcon size={28} />
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -1370,7 +1472,7 @@ const CatalogoPage = () => {
             )}
 
             {isLoading ? (
-              <div className="grid h-auto grid-cols-2 gap-2 overflow-visible md:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid h-auto grid-cols-2 gap-x-3 gap-y-7 overflow-visible md:grid-cols-3 md:gap-x-5 md:gap-y-9 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {Array.from({ length: ITEMS_PER_PAGE }).map((_, idx) => (
                   <ProductCardSkeleton key={idx} />
                 ))}
@@ -1387,15 +1489,23 @@ const CatalogoPage = () => {
               </div>
             ) : products.length === 0 ? (
               <div className="flex h-40 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gray-50/30 p-6 text-center text-gray-500 w-full col-span-full">
-                <p className="font-medium">Nenhum produto encontrado nesta categoria.</p>
+                {activeCategory === "favoritos" ? (
+                  <>
+                    <p className="font-medium text-[#111111]">Você ainda não favoritou nenhum produto.</p>
+                    <p className="mt-1 text-[13px] text-gray-500">
+                      Toque no coração dos produtos para salvá-los aqui.
+                    </p>
+                  </>
+                ) : (
+                  <p className="font-medium">Nenhum produto encontrado nesta categoria.</p>
+                )}
               </div>
             ) : (
-              <div className="grid h-auto grid-cols-2 gap-2 overflow-visible md:grid-cols-2 md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid h-auto grid-cols-2 gap-x-3 gap-y-7 overflow-visible md:grid-cols-3 md:gap-x-5 md:gap-y-9 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {products.map((product, index) => (
                   <div key={product.id} data-dashboard-tour={index === 0 ? "catalogo-produto" : undefined}>
                     <ProductCard
                       product={product}
-                      categoryLabel={product.categoria}
                       isFavorited={favoritedIds.includes(product.id)}
                       onToggleFavorite={() => toggleFavorite(product.id)}
                       denseMobile
@@ -1496,7 +1606,6 @@ const CatalogoPage = () => {
                     <ProductCard
                       key={`recommendation-${product.id}`}
                       product={product}
-                      categoryLabel={product.categoria}
                       isFavorited={favoritedIds.includes(product.id)}
                       onToggleFavorite={() => toggleFavorite(product.id)}
                       collectionSelection={
