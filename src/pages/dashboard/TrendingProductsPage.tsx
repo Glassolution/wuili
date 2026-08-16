@@ -967,7 +967,7 @@ const TrendingProductsPage = () => {
 
           <div className="flex min-h-[54px] flex-col gap-2 border-b border-black/[0.06] px-7 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <label className="group relative flex h-9 items-center gap-2 rounded-[9px] border border-black/[0.07] bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+              <label className="group relative flex h-9 items-center gap-2 rounded-full border border-black/[0.07] bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
                 <span className="text-[12px] font-medium text-[#8A93A3]">Ordenar por</span>
                 <select
                   value={sortBy}
@@ -988,7 +988,7 @@ const TrendingProductsPage = () => {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
-              <div className="flex items-center gap-1 rounded-[9px] border border-black/[0.07] bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+              <div className="flex items-center gap-1 rounded-full border border-black/[0.07] bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
                 <button type="button" className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-[#F1F3F7] text-[#111111]" aria-label="Visualização em lista">
                   <List size={15} strokeWidth={1.7} />
                 </button>
