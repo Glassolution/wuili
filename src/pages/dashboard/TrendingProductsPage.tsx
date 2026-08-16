@@ -1148,7 +1148,11 @@ const TrendingProductsPage = () => {
                 </thead>
                 <tbody>
                   {visibleProducts.map((product) => {
-                    const demand = Number(product.orders_count ?? product.demand_score ?? 0);
+                    const veloSales = Number(product.velo_units_sold ?? 0);
+                    const veloOrders = Number(product.velo_orders_count ?? 0);
+                    const veloStores = Number(product.velo_publications_count ?? 0);
+                    const marketSales = Number(product.external_sales ?? 0);
+                    const demand = veloSales > 0 ? veloSales : Number(product.orders_count ?? marketSales ?? 0);
                     const rating = Number(product.rating ?? 0);
                     const price = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
                     const cost = Number(product.cost_price ?? 0);
