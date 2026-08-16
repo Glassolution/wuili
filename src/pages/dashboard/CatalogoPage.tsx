@@ -908,7 +908,7 @@ const CatalogoPage = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { abrirLateral } = useAtlasChat();
+  const { abrirLateral, aberto: atlasAberto } = useAtlasChat();
   const selectionCollectionId = searchParams.get("collectionId");
   const selectionCollectionName = searchParams.get("collectionName") || "coleção";
   const isCollectionSelectionMode = Boolean(selectionCollectionId);
