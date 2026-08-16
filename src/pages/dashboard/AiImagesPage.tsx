@@ -275,6 +275,22 @@ const AiImagesPage = () => {
     };
   }, [menu, catalogo.length]);
 
+  /**
+   * Ao escolher produto/avatar a ficha correspondente entra no prompt, para o
+   * usuário ver claramente o que já está marcado (e a animação de exemplo para).
+   */
+  const inserirFicha = (ficha: "@produto" | "@avatar", temProduto = Boolean(produto)) =>
+    setPrompt((atual) => {
+      if (atual.includes(ficha)) return atual;
+      const base = atual.trim();
+      if (base) return `${base} ${ficha}`;
+      if (ficha === "@avatar") return temProduto ? "@avatar segurando @produto" : "@avatar";
+      return "Foto profissional de @produto em fundo claro, com luz de estúdio";
+    });
+
+  const removerFicha = (ficha: "@produto" | "@avatar") =>
+    setPrompt((atual) => atual.split(ficha).join("").replace(/\s{2,}/g, " ").trim());
+
   const escolherUpload = (arquivo: File) => {
     const leitor = new FileReader();
     leitor.onload = () => {
@@ -284,6 +300,7 @@ const AiImagesPage = () => {
         image: String(leitor.result),
         origem: "upload",
       });
+      inserirFicha("@produto");
       setMenu(null);
     };
     leitor.readAsDataURL(arquivo);
