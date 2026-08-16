@@ -705,28 +705,25 @@ const TrendingProductsPage = () => {
           ) : null}
 
           <div className="flex min-h-[62px] flex-col gap-3 border-b border-black/[0.06] px-7 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-1">
-              <span className="relative flex h-8 w-9 shrink-0 items-center justify-center">
-                <img
-                  src="/assets/produtos-em-alta-icon.png?v=10"
-                  alt=""
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[46px] w-[69px] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain [filter:drop-shadow(0_5px_9px_rgba(15,23,42,0.16))_drop-shadow(0_1px_2px_rgba(15,23,42,0.10))]"
-                />
-              </span>
-              <div className="flex h-8 min-w-0 items-center">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <h1 className="shrink-0 text-[14px] font-semibold leading-none text-[#1F2430]">Produtos em Alta</h1>
-                  <p className="truncate text-[14px] font-medium leading-none text-[#687184]">
-                    Ranking de produtos vencedores com demanda, margem e avaliação.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="inline-flex h-10 shrink-0 overflow-hidden rounded-[9px] border border-black/[0.07] bg-white text-[12px] shadow-[0_6px_18px_rgba(15,23,42,0.045)]">
+            <header className="flex min-w-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#101114] transition hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={20} strokeWidth={2.1} aria-hidden="true" />
+              </button>
+              <h1 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-[#101114] sm:text-[24px]">
+                Produtos em Alta
+              </h1>
+            </header>
+            <div className="inline-flex h-9 shrink-0 overflow-hidden rounded-full border border-black/[0.08] bg-white text-[12px] shadow-[0_8px_18px_rgba(17,17,17,0.035)]">
               <span className="flex items-center border-r border-black/[0.06] px-4 font-semibold text-[#667085]">Produtos listados</span>
               <span className="flex items-center px-4 font-semibold text-emerald-600">{formatNumber(totalCount)}</span>
             </div>
           </div>
+
 
           <div className="flex min-h-[56px] flex-col gap-2 border-b border-black/[0.06] px-7 py-2.5 lg:flex-row lg:items-center lg:justify-between">
             <form
