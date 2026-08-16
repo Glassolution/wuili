@@ -99,34 +99,41 @@ Deno.serve(async (req) => {
 
     const userIds = authUsers.map((u) => u.id).filter(Boolean);
 
-    const [profilesRes, subsRes, integrationsRes, ordersRes] = await Promise.all([
-      userIds.length
-        ? adminClient
-            .from("profiles")
-            .select("id,user_id,display_name,avatar_url,created_at")
-            .in("user_id", userIds)
-        : Promise.resolve({ data: [], error: null }),
-      userIds.length
-        ? adminClient
-            .from("subscriptions")
-            .select("id,user_id,plan,amount,status,created_at,updated_at")
-            .in("user_id", userIds)
-            .order("created_at", { ascending: false })
-        : Promise.resolve({ data: [], error: null }),
-      userIds.length
-        ? adminClient
-            .from("user_integrations")
-            .select("user_id,platform")
-            .in("user_id", userIds)
-            .eq("platform", "mercadolivre")
-        : Promise.resolve({ data: [], error: null }),
-      userIds.length
-        ? adminClient.from("orders").select("user_id").in("user_id", userIds)
-        : Promise.resolve({ data: [], error: null }),
+    // A URL do PostgREST estoura (Invalid URL) com milhares de ids em .in().
+    // Buscamos em lotes e concatenamos os resultados.
+    const CHUNK = 150;
+    // deno-lint-ignore no-explicit-any -- retornos heterogêneos das tabelas
+    const fetchChunked = async (build: (ids: string[]) => any): Promise<any[]> => {
+      const rows: any[] = [];
+      for (let i = 0; i < userIds.length; i += CHUNK) {
+        const { data, error } = await build(userIds.slice(i, i + CHUNK));
+        if (error) throw error;
+        rows.push(...(data ?? []));
+      }
+      return rows;
+    };
+
+    const [profilesRows, subsRows, integrationsRows, ordersRows] = await Promise.all([
+      fetchChunked((ids) =>
+        adminClient.from("profiles").select("id,user_id,display_name,avatar_url,created_at").in("user_id", ids)
+      ),
+      fetchChunked((ids) =>
+        adminClient
+          .from("subscriptions")
+          .select("id,user_id,plan,amount,status,created_at,updated_at")
+          .in("user_id", ids)
+          .order("created_at", { ascending: false })
+      ),
+      fetchChunked((ids) =>
+        adminClient.from("user_integrations").select("user_id,platform").in("user_id", ids).eq("platform", "mercadolivre")
+      ),
+      fetchChunked((ids) => adminClient.from("orders").select("user_id").in("user_id", ids)),
     ]);
 
-    const error = profilesRes.error ?? subsRes.error ?? integrationsRes.error ?? ordersRes.error;
-    if (error) throw error;
+    const profilesRes = { data: profilesRows };
+    const subsRes = { data: subsRows };
+    const integrationsRes = { data: integrationsRows };
+    const ordersRes = { data: ordersRows };
 
     const profileByUserId = new Map<string, any>();
     for (const profile of (profilesRes.data ?? [])) {
