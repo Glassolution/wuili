@@ -44,6 +44,13 @@ type AffiliateApplicationState = {
 
 type AffiliateSourceRow = Record<string, unknown>;
 
+/** Linhas vindas de RPC chegam como `unknown`: normaliza para texto ou nulo. */
+const texto = (valor: unknown): string | null => {
+  if (typeof valor === "string") return valor.trim() ? valor : null;
+  if (typeof valor === "number" && Number.isFinite(valor)) return String(valor);
+  return null;
+};
+
 // ---------------------------------------------------------------------------
 // Constants & Helpers
 // ---------------------------------------------------------------------------
@@ -84,10 +91,11 @@ const mapAffiliateConversionToCommission = (row: AffiliateSourceRow): Commission
   const planPrice = Number(row.plan_value ?? row.sale_amount ?? PLAN_PRICE) || PLAN_PRICE;
   const rate = Number(row.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE;
   const commissionValue = Number(row.commission_value ?? planPrice * rate) || planPrice * rate;
-  const customerEmail = row.subscriber_email ?? row.referred_email ?? null;
-  const customerName = row.subscriber_name || row.referred_name || customerEmail || "Cliente indicado";
+  const customerEmail = texto(row.subscriber_email) ?? texto(row.referred_email);
+  const customerName = texto(row.subscriber_name) ?? texto(row.referred_name) ?? customerEmail ?? "Cliente indicado";
   const customerKey = String(row.subscriber_user_id ?? row.referred_user_id ?? customerEmail ?? row.id);
-  const rawDate = row.paid_at || row.reached_payment_at || row.signup_at || row.created_at || new Date().toISOString();
+  const rawDate =
+    texto(row.paid_at) ?? texto(row.reached_payment_at) ?? texto(row.signup_at) ?? texto(row.created_at) ?? new Date().toISOString();
 
   return {
     id: String(row.id),
@@ -109,10 +117,10 @@ const mapAffiliateSaleToCommission = (row: AffiliateSourceRow): Commission => {
   const planPrice = Number(row.plan_price ?? row.plan_value ?? PLAN_PRICE) || PLAN_PRICE;
   const rate = Number(row.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE;
   const commissionValue = Number(row.commission_amount ?? row.commission_value ?? planPrice * rate) || planPrice * rate;
-  const customerName = row.customer_name || row.referred_name || row.customer_email || "Cliente indicado";
-  const customerEmail = row.customer_email ?? row.referred_email ?? null;
+  const customerEmail = texto(row.customer_email) ?? texto(row.referred_email);
+  const customerName = texto(row.customer_name) ?? texto(row.referred_name) ?? customerEmail ?? "Cliente indicado";
   const customerKey = String(row.customer_user_id ?? row.referred_user_id ?? customerEmail ?? row.id);
-  const rawDate = row.created_at || row.paid_at || new Date().toISOString();
+  const rawDate = texto(row.created_at) ?? texto(row.paid_at) ?? new Date().toISOString();
   const planRaw = String(row.plan_name ?? row.plan ?? "Pro");
 
   return {

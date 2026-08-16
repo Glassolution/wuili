@@ -7,6 +7,9 @@ type MercadoLivreConnectResponse = {
   error?: unknown;
 };
 
+export const ML_CONNECT_FALLBACK_MESSAGE =
+  "Não foi possível abrir a conexão com o Mercado Livre agora. Tente de novo em instantes ou abra Integrações no menu.";
+
 const readUrl = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
 
 export const startMercadoLivreOAuth = async () => {
