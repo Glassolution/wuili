@@ -669,17 +669,18 @@ const ehRotaDoCatalogo = (rota: string) => /^\/dashboard\/catalogo\/?$/.test(rot
  * Fora do guia, e para qualquer outra rota, navega normalmente.
  */
 export const useAtlasNavegacao = () => {
-  const navigate = useNavigate();
-  const { guiaAtivo, abrirVitrine } = useAtlasChat();
+  const { guiaAtivo, abrirVitrine, navegarPorLink } = useAtlasChat();
 
   return useCallback(
-    (rota: string) => {
+    async (rota: string) => {
       if (guiaAtivo && ehRotaDoCatalogo(rota)) {
         abrirVitrine();
         return;
       }
-      navigate(rota);
+      // Navega preservando a conversa e já pergunta pelo usuário o que fazer
+      // na página de destino.
+      await navegarPorLink(rota);
     },
-    [abrirVitrine, guiaAtivo, navigate],
+    [abrirVitrine, guiaAtivo, navegarPorLink],
   );
 };
