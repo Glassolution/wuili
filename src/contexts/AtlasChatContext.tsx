@@ -55,7 +55,31 @@ export type AtlasAction =
   | AtlasQuickReplyAction
   | AtlasConnectMlAction;
 
-type AtlasFunctionResponse = { message?: string; error?: string; actions?: AtlasAction[] };
+/**
+ * Saldo diário de mensagens do Atlas, devolvido pela função em toda resposta.
+ * `limite: null` = plano sem teto (Business).
+ */
+export type AtlasQuota = {
+  plano: string;
+  limite: number | null;
+  usadas: number;
+  restantes: number | null;
+  permitido: boolean;
+};
+
+type AtlasFunctionResponse = {
+  message?: string;
+  error?: string;
+  actions?: AtlasAction[];
+  quota?: AtlasQuota;
+  quotaExcedida?: boolean;
+};
+
+const isAtlasQuota = (value: unknown): value is AtlasQuota => {
+  if (!value || typeof value !== "object") return false;
+  const q = value as Record<string, unknown>;
+  return typeof q.plano === "string" && typeof q.usadas === "number";
+};
 
 const isAtlasAction = (action: unknown): action is AtlasAction => {
   if (!action || typeof action !== "object") return false;
