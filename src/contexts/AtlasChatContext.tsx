@@ -548,14 +548,14 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   );
 
   /**
-   * Navegação disparada por link interno (#catalogo e afins) dentro de uma
-   * mensagem do Atlas.
+   * Navegação disparada por link interno ou por botão "ir para a página" do
+   * Atlas.
    *
-   * Antes o link só chamava `navigate`: quem estava no chat em tela cheia
-   * perdia a conversa, porque a página tem estado próprio e o painel lateral
-   * (que vive no layout) subia vazio. Aqui a thread é adotada pelo contexto
-   * antes de navegar, o painel abre em modo lateral e o Atlas manda uma
-   * mensagem de continuidade reconhecendo a página nova.
+   * A thread é adotada pelo contexto antes de navegar (quem estava no chat em
+   * tela cheia não perde a conversa), o painel abre em modo lateral e uma
+   * pergunta entra no chat como se fosse do usuário ("Estou na página de
+   * Catálogo, e agora?"). O envio real acontece no efeito abaixo, para o Atlas
+   * responder já com o contexto da página de destino.
    */
   const navegarPorLink = useCallback(
     async (rota: string) => {
@@ -563,35 +563,30 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       if (daPaginaCheia && daPaginaCheia !== threadId) {
         await abrirConversa(daPaginaCheia);
       }
-      const idAtual = daPaginaCheia ?? threadId;
 
       setAberto(true);
       setRotaDeAbertura("__atlas_lateral__");
       setVitrineAberta(false);
       navigate(rota);
-
-      const texto = mensagemDeContinuidade(rota);
-      const continuidade: AtlasMessage = {
-        id: `local-nav-${Date.now()}`,
-        role: "assistant",
-        content: texto,
-        created_at: new Date().toISOString(),
-      };
-      setMensagens((atual) => {
-        const ultima = atual[atual.length - 1];
-        if (ultima?.role === "assistant" && ultima.content === texto) return atual;
-        return [...atual, continuidade];
-      });
-
-      if (idAtual && user?.id) {
-        await supabase
-          .from("atlas_messages")
-          .insert({ thread_id: idAtual, user_id: user.id, role: "assistant", content: texto });
-        await supabase.from("atlas_threads").update({ updated_at: new Date().toISOString() }).eq("id", idAtual);
-      }
+      setPerguntaPendente({ rota });
     },
-    [abrirConversa, location.pathname, navigate, threadId, user?.id],
+    [abrirConversa, location.pathname, navigate, threadId],
   );
+
+  // Dispara a pergunta automática depois da navegação, com uma closure fresca
+  // de `enviar` (histórico e thread já atualizados).
+  useEffect(() => {
+    if (!perguntaPendente || enviando || carregandoConversa) return;
+    const { rota } = perguntaPendente;
+    setPerguntaPendente(null);
+    const semQuery = rota.split("?")[0];
+    void enviar(perguntaDaPagina(semQuery), undefined, {
+      rota,
+      nome: descreverPagina(semQuery).nome,
+      proximoPasso: proximoPassoDaPagina(semQuery),
+    });
+  }, [carregandoConversa, enviando, enviar, perguntaPendente]);
+
 
   const aoApagarConversa = useCallback(
     (id: string) => {
