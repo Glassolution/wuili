@@ -205,6 +205,9 @@ const AiImagesPage = () => {
   const avatarSelecionadoUrl = avatar?.image_url ? urls[avatar.image_url] : undefined;
 
   useEffect(() => {
+    // A animação de exemplo é só um convite: assim que o usuário escreve ou
+    // escolhe produto/avatar, ela para de vez.
+    if (prompt || produto || avatar) return;
     if (reduceMotion) {
       setExemploDigitado(EXEMPLOS_DE_PROMPT[exemploIndex]);
       return;
@@ -242,7 +245,7 @@ const AiImagesPage = () => {
     }, tempo);
 
     return () => window.clearTimeout(timer);
-  }, [exemploDigitado, exemploIndex, faseExemplo, reduceMotion]);
+  }, [exemploDigitado, exemploIndex, faseExemplo, reduceMotion, prompt, produto, avatar]);
 
   // Catálogo Velo — carregado quando o seletor de produto abre pela primeira vez.
   useEffect(() => {
@@ -275,6 +278,22 @@ const AiImagesPage = () => {
     };
   }, [menu, catalogo.length]);
 
+  /**
+   * Ao escolher produto/avatar a ficha correspondente entra no prompt, para o
+   * usuário ver claramente o que já está marcado (e a animação de exemplo para).
+   */
+  const inserirFicha = (ficha: "@produto" | "@avatar", temProduto = Boolean(produto)) =>
+    setPrompt((atual) => {
+      if (atual.includes(ficha)) return atual;
+      const base = atual.trim();
+      if (base) return `${base} ${ficha}`;
+      if (ficha === "@avatar") return temProduto ? "@avatar segurando @produto" : "@avatar";
+      return "Foto profissional de @produto em fundo claro, com luz de estúdio";
+    });
+
+  const removerFicha = (ficha: "@produto" | "@avatar") =>
+    setPrompt((atual) => atual.split(ficha).join("").replace(/\s{2,}/g, " ").trim());
+
   const escolherUpload = (arquivo: File) => {
     const leitor = new FileReader();
     leitor.onload = () => {
@@ -284,6 +303,7 @@ const AiImagesPage = () => {
         image: String(leitor.result),
         origem: "upload",
       });
+      inserirFicha("@produto");
       setMenu(null);
     };
     leitor.readAsDataURL(arquivo);
@@ -481,7 +501,10 @@ const AiImagesPage = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setAvatarId(null)}
+                      onClick={() => {
+                        setAvatarId(null);
+                        removerFicha("@avatar");
+                      }}
                       className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-black/70 transition hover:bg-black/[0.06] hover:text-black"
                       aria-label="Remover avatar"
                     >
@@ -652,6 +675,7 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onSelect={(item) => {
           setProduto(item);
+          inserirFicha("@produto");
           setMenu(null);
         }}
       />
@@ -664,10 +688,12 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onClear={() => {
           setAvatarId(null);
+          removerFicha("@avatar");
           setMenu(null);
         }}
         onSelect={(id) => {
           setAvatarId(id);
+          inserirFicha("@avatar");
           setMenu(null);
         }}
         onCreate={() => {
