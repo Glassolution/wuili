@@ -295,7 +295,24 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       setRotaDeAbertura((atual) => (aberto && atual ? atual : location.pathname));
       setErro(null);
       setMensagens((atual) => [...atual, otimista]);
+
+      // Easter egg: some coisas não passam pelo modelo. Responde na hora,
+      // solta os fogos por 10s e não gasta cota nem chamada de IA.
+      if (ehEasterEggAndrya(mensagem)) {
+        const resposta: AtlasMessage = {
+          id: `local-egg-${Date.now()}`,
+          role: "assistant",
+          content: MENSAGEM_ANDRYA,
+          created_at: new Date().toISOString(),
+        };
+        setMensagens((atual) => [...atual, resposta]);
+        setFogosAtivos(true);
+        window.setTimeout(() => setFogosAtivos(false), 10000);
+        return;
+      }
+
       setEnviando(true);
+
 
       try {
         let idDaThread = threadId;
