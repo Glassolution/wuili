@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Check, Loader2 } from "lucide-react";
+import { Check, ImageIcon, Loader2, Sparkles, UserRound, Wand2, type LucideIcon } from "lucide-react";
 
 /**
  * Painel de carregamento da tela "Imagens com IA".
@@ -11,13 +11,14 @@ import { Check, Loader2 } from "lucide-react";
  * até a imagem chegar, para nunca dar a sensação de travado em 100%.
  */
 
-type Etapa = { titulo: string; descricao: string; duracao: number };
+type Etapa = { titulo: string; descricao: string; duracao: number; icone: LucideIcon };
 
 const montarEtapas = (comAvatar: boolean, modo: "produto" | "anuncio"): Etapa[] => [
   {
     titulo: "Analisando o produto",
     descricao: "Lendo formato, cores e detalhes da foto enviada.",
     duracao: 4200,
+    icone: ImageIcon,
   },
   ...(comAvatar
     ? [
@@ -25,6 +26,7 @@ const montarEtapas = (comAvatar: boolean, modo: "produto" | "anuncio"): Etapa[] 
           titulo: "Aplicando o avatar",
           descricao: "Preservando rosto, tom de pele e proporções do personagem.",
           duracao: 6000,
+          icone: UserRound,
         },
       ]
     : []),
@@ -35,20 +37,15 @@ const montarEtapas = (comAvatar: boolean, modo: "produto" | "anuncio"): Etapa[] 
         ? "Compondo o anúncio com espaço livre para o texto."
         : "Definindo enquadramento, fundo e iluminação.",
     duracao: 5200,
+    icone: Wand2,
   },
   {
     titulo: "Renderizando a imagem",
     descricao: "Gerando em alta resolução e refinando os detalhes finais.",
     duracao: 12000,
+    icone: Sparkles,
   },
 ];
-
-const formatarTempo = (ms: number) => {
-  const total = Math.floor(ms / 1000);
-  const minutos = String(Math.floor(total / 60)).padStart(2, "0");
-  const segundos = String(total % 60).padStart(2, "0");
-  return `${minutos}:${segundos}`;
-};
 
 const AiImageProgress = ({
   comAvatar,
@@ -62,13 +59,6 @@ const AiImageProgress = ({
   const reduceMotion = useReducedMotion();
   const etapas = useMemo(() => montarEtapas(comAvatar, modo), [comAvatar, modo]);
   const [atual, setAtual] = useState(0);
-  const [decorrido, setDecorrido] = useState(0);
-
-  useEffect(() => {
-    const inicio = Date.now();
-    const cronometro = window.setInterval(() => setDecorrido(Date.now() - inicio), 1000);
-    return () => window.clearInterval(cronometro);
-  }, []);
 
   useEffect(() => {
     // A última etapa não avança sozinha: ela segura até a imagem chegar.
@@ -83,60 +73,78 @@ const AiImageProgress = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="mt-8 w-full max-w-[820px] overflow-hidden rounded-[16px] border border-black/[0.07] bg-white"
+      className="w-full max-w-[560px] overflow-hidden rounded-[18px] border border-black/[0.07] bg-white"
       role="status"
       aria-live="polite"
     >
-      <div className="flex items-center gap-2.5 border-b border-black/[0.06] px-5 py-3.5">
-        <Loader2 size={15} className="animate-spin text-[#101114]" />
-        <span className="font-mono text-[13px] font-semibold tabular-nums text-[#101114]">
-          {formatarTempo(decorrido)}
+      <div className="flex items-center gap-2.5 border-b border-black/[0.06] px-6 py-4">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-[#101114]">
+          <Loader2 size={14} className="animate-spin text-white" />
         </span>
-        <span className="text-[13.5px] text-black/55">
-          Criando sua imagem{produtoTitulo ? ` de ${produtoTitulo}` : ""}
-        </span>
+        <div className="min-w-0">
+          <p className="truncate text-[13.5px] font-semibold tracking-[-0.01em] text-[#101114]">
+            Criando sua imagem{produtoTitulo ? ` de ${produtoTitulo}` : ""}
+          </p>
+          <p className="text-[12px] text-black/45">Isso leva menos de um minuto.</p>
+        </div>
       </div>
 
-      <ol className="px-5 py-5">
+      <ol className="px-6 py-5">
         {etapas.map((etapa, indice) => {
           const concluida = indice < atual;
           const ativa = indice === atual;
           const ultima = indice === etapas.length - 1;
+          const Icone = concluida ? Check : etapa.icone;
 
           return (
             <li key={etapa.titulo} className="relative flex gap-3.5 pb-5 last:pb-0">
               {!ultima ? (
                 <span
                   aria-hidden
-                  className="absolute left-[7px] top-[18px] h-[calc(100%-10px)] w-px bg-black/[0.09]"
+                  className={`absolute left-[15px] top-[34px] h-[calc(100%-30px)] w-px transition-colors duration-500 ${
+                    concluida ? "bg-[#101114]/25" : "bg-black/[0.08]"
+                  }`}
                 />
               ) : null}
 
-              <span className="relative z-[1] mt-[3px] flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-                {concluida ? (
-                  <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#101114]">
-                    <Check size={9} strokeWidth={3.4} className="text-white" />
-                  </span>
-                ) : ativa ? (
-                  <>
-                    <span className="absolute h-3.5 w-3.5 animate-ping rounded-full bg-[#101114]/25" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#101114]" />
-                  </>
-                ) : (
-                  <span className="h-2.5 w-2.5 rounded-full border border-black/15 bg-white" />
-                )}
-              </span>
+              <motion.span
+                animate={
+                  ativa && !reduceMotion ? { scale: [1, 1.06, 1] } : { scale: 1 }
+                }
+                transition={{ duration: 1.8, repeat: ativa ? Infinity : 0, ease: "easeInOut" }}
+                className={`relative z-[1] grid h-[31px] w-[31px] shrink-0 place-items-center rounded-[10px] border transition-colors duration-300 ${
+                  concluida
+                    ? "border-transparent bg-[#101114] text-white"
+                    : ativa
+                      ? "border-transparent bg-[#101114] text-white"
+                      : "border-black/[0.08] bg-[#F7F7F9] text-black/25"
+                }`}
+              >
+                <Icone size={15} strokeWidth={concluida ? 3 : 1.9} />
+                {ativa ? (
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 -z-[1] animate-ping rounded-[10px] bg-[#101114]/15"
+                  />
+                ) : null}
+              </motion.span>
 
-              <div className="min-w-0">
+              <div className="min-w-0 pt-[3px]">
                 <p
-                  className={`text-[14px] font-semibold transition-colors duration-300 ${
-                    ativa ? "text-[#101114]" : concluida ? "text-black/60" : "text-black/28"
+                  className={`text-[14.5px] font-bold tracking-[-0.015em] transition-colors duration-300 ${
+                    ativa ? "text-[#101114]" : concluida ? "text-black/55" : "text-black/25"
                   }`}
                 >
                   {etapa.titulo}
                 </p>
                 {ativa || concluida ? (
-                  <p className="mt-0.5 text-[12.5px] leading-snug text-black/45">{etapa.descricao}</p>
+                  <p
+                    className={`mt-0.5 text-[12.5px] leading-snug transition-colors duration-300 ${
+                      ativa ? "text-black/50" : "text-black/35"
+                    }`}
+                  >
+                    {etapa.descricao}
+                  </p>
                 ) : null}
 
                 {ativa ? (

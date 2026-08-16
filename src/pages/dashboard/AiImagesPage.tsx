@@ -442,6 +442,8 @@ const AiImagesPage = () => {
           na referência, em vez de terminar logo depois do último texto. */}
       <div className="flex flex-1 flex-col overflow-hidden rounded-[20px] border border-black/[0.05] bg-gradient-to-b from-[#F7F7F9] via-[#FCFCFD] to-white">
         <div className="mx-auto flex w-full max-w-[1000px] flex-1 flex-col items-center px-5 py-14 sm:py-20">
+          {!gerando ? (
+          <>
           <motion.span
             initial={reduceMotion ? false : { opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -705,16 +707,19 @@ const AiImagesPage = () => {
               </button>
             </div>
           </div>
+          </>
+          ) : null}
 
-          {/* Carregamento com etapas — substitui o antigo toast "Gerando a imagem..." */}
+          {/* Carregamento com etapas — ocupa o centro da tela no lugar do formulário */}
           <AnimatePresence>
             {gerando ? (
-              <AiImageProgress
-                key="progresso"
-                comAvatar={Boolean(avatar)}
-                modo={modo}
-                produtoTitulo={produto ? nomeCurto(produto.title, 28) : undefined}
-              />
+              <div key="progresso" className="flex w-full flex-1 items-center justify-center">
+                <AiImageProgress
+                  comAvatar={Boolean(avatar)}
+                  modo={modo}
+                  produtoTitulo={produto ? nomeCurto(produto.title, 28) : undefined}
+                />
+              </div>
             ) : null}
           </AnimatePresence>
 
