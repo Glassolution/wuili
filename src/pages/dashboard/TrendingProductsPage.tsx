@@ -740,12 +740,12 @@ const TrendingProductsPage = () => {
                   onChange={(event) => setSearchQuery(event.target.value)}
                   aria-label="Buscar produtos"
                   placeholder="Buscar produtos..."
-                  className="h-9 w-full rounded-[9px] border border-black/[0.07] bg-white pl-9 pr-4 text-[12px] font-medium text-[#111111] outline-none placeholder:text-[#A0A7B4]"
+                  className="h-9 w-full rounded-full border border-black/[0.07] bg-white pl-9 pr-4 text-[12px] font-medium text-[#111111] outline-none placeholder:text-[#A0A7B4]"
                 />
               </div>
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-[9px] bg-[#F1F3F7] px-4 text-[12px] font-semibold text-[#2F3747] transition hover:bg-[#EAEDF3]"
+                className="inline-flex h-9 items-center justify-center rounded-full bg-[#F1F3F7] px-4 text-[12px] font-semibold text-[#2F3747] transition hover:bg-[#EAEDF3]"
               >
                 Buscar
               </button>
@@ -753,7 +753,7 @@ const TrendingProductsPage = () => {
                 type="button"
                 onClick={() => setFiltersOpen((current) => !current)}
                 aria-expanded={filtersOpen}
-                className={`inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border px-4 text-[12px] font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition duration-200 ${
+                className={`inline-flex h-9 items-center justify-center gap-2 rounded-full border px-4 text-[12px] font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition duration-200 ${
                   filtersOpen ? "border-black bg-black text-white shadow-[0_10px_22px_rgba(0,0,0,0.14)]" : "border-black/[0.07] bg-white text-[#111111] hover:bg-[#FAFAF9]"
                 }`}
               >
@@ -766,7 +766,7 @@ const TrendingProductsPage = () => {
               <button
                 type="button"
                 onClick={() => setPresetsOpen((current) => !current)}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border border-black/[0.07] bg-white px-4 text-[12px] font-semibold text-[#4B5563] shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition hover:bg-[#FAFAF9] hover:text-[#111111]"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-black/[0.07] bg-white px-4 text-[12px] font-semibold text-[#4B5563] shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition hover:bg-[#FAFAF9] hover:text-[#111111]"
                 aria-label="Importar ou criar presets de filtros"
                 title="Importar ou criar presets de filtros"
               >
@@ -786,7 +786,7 @@ const TrendingProductsPage = () => {
                       value={presetName}
                       onChange={(event) => setPresetName(event.target.value)}
                       placeholder="Nome do preset"
-                      className="h-9 min-w-0 flex-1 rounded-[9px] border border-black/[0.08] px-3 text-[12px] font-medium outline-none placeholder:text-[#A0A7B4] focus:border-black/30 focus:ring-4 focus:ring-black/[0.06]"
+                      className="h-9 min-w-0 flex-1 rounded-full border border-black/[0.08] px-3 text-[12px] font-medium outline-none placeholder:text-[#A0A7B4] focus:border-black/30 focus:ring-4 focus:ring-black/[0.06]"
                     />
                     <button
                       type="button"
