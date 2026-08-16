@@ -205,6 +205,9 @@ const AiImagesPage = () => {
   const avatarSelecionadoUrl = avatar?.image_url ? urls[avatar.image_url] : undefined;
 
   useEffect(() => {
+    // A animação de exemplo é só um convite: assim que o usuário escreve ou
+    // escolhe produto/avatar, ela para de vez.
+    if (prompt || produto || avatar) return;
     if (reduceMotion) {
       setExemploDigitado(EXEMPLOS_DE_PROMPT[exemploIndex]);
       return;
