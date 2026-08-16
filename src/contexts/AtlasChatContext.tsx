@@ -225,37 +225,72 @@ const MENSAGEM_ANDRYA =
 
 
 /**
- * Mensagem que o Atlas manda sozinho depois de uma navegação por link interno.
- * É texto fixo de propósito: não gasta cota nem chamada de IA, e o próximo
- * passo de cada tela é sempre o mesmo.
+ * Próximo passo concreto de cada tela.
+ *
+ * Vai junto do `pageContext` para a IA responder algo específico da página em
+ * que a pessoa acabou de chegar, em vez de um texto genérico reaproveitado.
  */
 const PROXIMO_PASSO: Array<[RegExp, string]> = [
-  [/^\/dashboard\/catalogo\/[^/]+/, "Aqui você vê preço, margem e fotos. Se fizer sentido, clique em **Importar produto** e eu sigo com você na publicação."],
-  [/^\/dashboard\/catalogo/, "Use os filtros de **categoria** e **preço** para achar algo com boa margem, abra o produto e clique em **Importar produto**."],
-  [/^\/dashboard\/produtos-em-alta/, "Esses são os produtos com mais procura agora. Escolha um que combine com o seu público e importe."],
-  [/^\/dashboard\/paginas-com-ia/, "Clique em **Criar página** e escolha o produto: a IA escreve o texto de venda para você revisar."],
-  [/^\/dashboard\/modelos/, "Escolha um template que combine com o seu produto e clique em **Usar este modelo**."],
-  [/^\/dashboard\/publicacoes/, "Aqui ficam seus anúncios. Confira se algum está **pausado** e resolva o motivo apontado no card."],
-  [/^\/dashboard\/produtos-ml/, "Esses são os anúncios sincronizados do Mercado Livre. Verifique estoque e preço."],
-  [/^\/dashboard\/pedidos/, "Aqui aparecem suas vendas. Ao receber um pedido, é só repassar ao fornecedor pelo botão no card."],
-  [/^\/dashboard\/imagens-ia/, "Envie a foto do produto e a IA gera versões prontas para o anúncio."],
-  [/^\/dashboard\/tiktok/, "Crie um personagem de IA e gere vídeos curtos para divulgar o seu produto."],
-  [/^\/dashboard\/integracoes/, "Clique em **Conectar** no Mercado Livre para autorizar sua conta — leva menos de um minuto."],
-  [/^\/dashboard\/pagamentos/, "Configure aqui como você recebe. Depois disso o checkout já fica ativo."],
-  [/^\/dashboard\/planos/, "Compare os planos e escolha o que cabe agora — dá para trocar depois."],
-  [/^\/dashboard\/saldos/, "Aqui fica o seu saldo disponível e o que ainda está a liberar."],
-  [/^\/dashboard\/transacoes/, "Confira as entradas e saídas da sua conta por período."],
-  [/^\/dashboard\/configuracoes/, "Ajuste seus dados e preferências e clique em **Salvar** no fim da tela."],
-  [/^\/dashboard\/chat-fornecedores/, "Fale direto com o fornecedor sobre estoque, prazo e envio."],
-  [/^\/dashboard\/resultados/, "Acompanhe visitas e vendas para saber o que vale investir mais."],
-  [/^\/dashboard\/?$/, "De volta ao início. Me diga o que quer fazer agora e eu te levo até lá."],
+  [/^\/dashboard\/catalogo\/[^/]+/, "Ver preço, margem e fotos do produto e clicar em Importar produto."],
+  [/^\/dashboard\/catalogo/, "Filtrar por categoria e preço, abrir um produto com boa margem e clicar em Importar produto."],
+  [/^\/dashboard\/produtos-em-alta/, "Escolher entre os produtos com mais procura agora um que combine com o público dele e importar."],
+  [/^\/dashboard\/paginas-com-ia/, "Clicar em Criar página, escolher o produto e revisar o texto de venda que a IA escreve."],
+  [/^\/dashboard\/modelos/, "Escolher um template que combine com o produto e clicar em Usar este modelo."],
+  [/^\/dashboard\/publicacoes/, "Conferir os anúncios, ver se algum está pausado e resolver o motivo apontado no card."],
+  [/^\/dashboard\/produtos-ml/, "Conferir estoque e preço dos anúncios sincronizados do Mercado Livre."],
+  [/^\/dashboard\/pedidos/, "Acompanhar as vendas e repassar cada pedido ao fornecedor pelo botão do card."],
+  [/^\/dashboard\/imagens-ia/, "Enviar a foto do produto para a IA gerar versões prontas para o anúncio."],
+  [/^\/dashboard\/tiktok/, "Criar um personagem de IA e gerar vídeos curtos para divulgar o produto."],
+  [/^\/dashboard\/integracoes/, "Clicar em Conectar no Mercado Livre para autorizar a conta."],
+  [/^\/dashboard\/pagamentos/, "Configurar como ele recebe para deixar o checkout ativo."],
+  [/^\/dashboard\/planos/, "Comparar os planos e escolher o que cabe agora."],
+  [/^\/dashboard\/saldos/, "Conferir o saldo disponível e o que ainda está a liberar."],
+  [/^\/dashboard\/transacoes/, "Conferir entradas e saídas da conta por período."],
+  [/^\/dashboard\/configuracoes/, "Ajustar dados e preferências e salvar no fim da tela."],
+  [/^\/dashboard\/chat-fornecedores/, "Falar com o fornecedor sobre estoque, prazo e envio."],
+  [/^\/dashboard\/resultados/, "Acompanhar visitas e vendas para saber onde investir mais."],
+  [/^\/dashboard\/?$/, "Escolher o próximo passo a partir do início do painel."],
 ];
 
-const mensagemDeContinuidade = (rota: string) => {
-  const nome = descreverPagina(rota).nome;
-  const passo = PROXIMO_PASSO.find(([padrao]) => padrao.test(rota))?.[1];
-  return `Boa, agora você está no **${nome}**. ${passo ?? "Me diga o que quer fazer por aqui que eu te oriento passo a passo."}`;
-};
+const proximoPassoDaPagina = (rota: string) =>
+  PROXIMO_PASSO.find(([padrao]) => padrao.test(rota))?.[1] ?? null;
+
+/** Nome curto da tela, do jeito que aparece no menu, para a pergunta automática. */
+const NOME_CURTO: Array<[RegExp, string]> = [
+  [/^\/dashboard\/catalogo\/[^/]+/, "Detalhe do Produto"],
+  [/^\/dashboard\/catalogo/, "Catálogo"],
+  [/^\/dashboard\/produtos-em-alta/, "Produtos em Alta"],
+  [/^\/dashboard\/paginas-com-ia/, "Páginas com IA"],
+  [/^\/dashboard\/modelos/, "Modelos de Loja"],
+  [/^\/dashboard\/publicacoes/, "Publicações"],
+  [/^\/dashboard\/produtos-ml/, "Produtos do Mercado Livre"],
+  [/^\/dashboard\/produtos/, "Meus Produtos"],
+  [/^\/dashboard\/pedidos/, "Pedidos"],
+  [/^\/dashboard\/imagens-ia/, "Imagens com IA"],
+  [/^\/dashboard\/tiktok/, "TikTok"],
+  [/^\/dashboard\/integracoes/, "Integrações"],
+  [/^\/dashboard\/pagamentos/, "Pagamentos"],
+  [/^\/dashboard\/planos/, "Planos"],
+  [/^\/dashboard\/saldos/, "Saldos"],
+  [/^\/dashboard\/transacoes/, "Transações"],
+  [/^\/dashboard\/comissoes/, "Comissões"],
+  [/^\/dashboard\/clientes/, "Clientes"],
+  [/^\/dashboard\/minha-loja/, "Minha Loja"],
+  [/^\/dashboard\/configuracoes/, "Configurações"],
+  [/^\/dashboard\/chat-fornecedores/, "Chat com Fornecedores"],
+  [/^\/dashboard\/resultados/, "Resultados"],
+  [/^\/dashboard\/?$/, "Início"],
+];
+
+export const nomeCurtoDaPagina = (rota: string) =>
+  NOME_CURTO.find(([padrao]) => padrao.test(rota))?.[1] ?? descreverPagina(rota).nome;
+
+/**
+ * Pergunta que entra no chat como se o próprio usuário tivesse escrito, assim
+ * que ele chega numa página por um botão do Atlas.
+ */
+const perguntaDaPagina = (rota: string) => `Estou na página de ${nomeCurtoDaPagina(rota)}, e agora?`;
+
 
 export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
