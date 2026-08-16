@@ -1329,7 +1329,9 @@ const TrendingProductsPage = () => {
                                       { label: "Receita mensal", value: formatBRL(monthlyRevenue), hint: "preço x vendas" },
                                       { label: "Estoque", value: stock === null ? "Sem dado" : formatNumber(stock), hint: "risco de ruptura" },
                                       { label: "Avaliação", value: rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "Sem nota", hint: "prova de satisfação" },
-                                      { label: "Coletado em", value: formatDateTime(product.scraped_at), hint: "recência do dado" },
+                                       { label: "Vendas na Velo", value: formatNumber(veloSales), hint: `${formatNumber(veloOrders)} pedidos reais` },
+                                       { label: "Lojas vendendo", value: formatNumber(veloStores), hint: "usuários que publicaram" },
+                                       { label: "Coletado em", value: formatDateTime(product.scraped_at), hint: "recência do dado" },
                                     ].map((metric) => (
                                       <div key={metric.label} className="rounded-[8px] border border-black/[0.06] bg-white p-3">
                                         <p className="text-[11px] font-semibold text-[#7E8798]">{metric.label}</p>
