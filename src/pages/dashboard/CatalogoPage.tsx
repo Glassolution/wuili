@@ -954,6 +954,15 @@ const CatalogoPage = () => {
 
   const ITEMS_PER_PAGE = 12;
 
+  // Quando o Atlas lateral está aberto o espaço do catálogo reduz; diminuímos
+  // o número de colunas para os cards ficarem maiores e visualmente confortáveis.
+  const catalogGridClasses = atlasAberto
+    ? "grid h-auto grid-cols-2 gap-x-3 gap-y-7 overflow-visible md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4"
+    : "grid h-auto grid-cols-2 gap-x-3 gap-y-7 overflow-visible md:grid-cols-3 md:gap-x-5 md:gap-y-9 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
+  const recommendationGridClasses = atlasAberto
+    ? "flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 xl:grid-cols-3 md:overflow-visible"
+    : "flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 xl:grid-cols-4 md:overflow-visible";
+
   // Persistência dos favoritos por usuário (localStorage). Chave inclui o id do
   // usuário para não misturar favoritos entre contas no mesmo dispositivo.
   const favoritesStorageKey = useMemo(
