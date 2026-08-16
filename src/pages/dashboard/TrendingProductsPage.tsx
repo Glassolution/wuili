@@ -24,11 +24,13 @@ import {
   Store,
   Tag,
   ShoppingCart,
+  UploadCloud,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
+import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
 import { supabase } from "@/integrations/supabase/client";
@@ -587,6 +589,24 @@ const TrendingProductsPage = () => {
   const goToOnboardingWithProduct = (product: TrendingProduct) => {
     const flowProduct = primeFirstStoreOnboarding(product);
     navigate("/onboarding/preparando-produto", { state: { product: flowProduct, products: [flowProduct] } });
+  };
+
+  const [mlProduct, setMlProduct] = useState<CatalogProduct | null>(null);
+
+  const handlePublishToMl = (product: TrendingProduct) => {
+    setMlProduct({
+      id: product.id,
+      title: product.title,
+      description: null,
+      images: product.images,
+      cost_price: Number(product.cost_price ?? 0),
+      suggested_price: Number(product.suggested_price ?? product.original_price ?? 0),
+      margin_percent: Number(product.margin_percent ?? 0),
+      category: product.category,
+      source: "velo",
+      stock_quantity: product.stock_quantity,
+      brand: product.brand,
+    });
   };
 
   const handleCreateStore = (product: TrendingProduct) => {
@@ -1371,11 +1391,11 @@ const TrendingProductsPage = () => {
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateStore(product))}
-                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-black px-3 text-[12px] font-semibold text-white transition hover:bg-[#222222]"
+                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-[#2563EB] px-3 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8]"
                                       >
-                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <Store size={14} strokeWidth={1.8} />}
-                                        {isFreePlan ? "Disponível no plano pago" : "Importar para loja"}
+                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <UploadCloud size={14} strokeWidth={1.8} />}
+                                        {isFreePlan ? "Disponível no plano pago" : "Publicar no Mercado Livre"}
                                       </button>
                                     </div>
                                   </div>
