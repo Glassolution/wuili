@@ -107,6 +107,9 @@ const AtlasAvatar = ({ size = 28 }: { size?: number }) => (
 const AtlasChatPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  // Botões de "ir para a página": preservam a conversa no painel lateral e
+  // disparam a pergunta automática da tela de destino.
+  const navegarPeloAtlas = useAtlasNavegacao();
   const params = useParams<{ threadId?: string }>();
   const threadId = params.threadId ?? null;
   const queryClient = useQueryClient();
