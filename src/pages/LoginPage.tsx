@@ -40,7 +40,20 @@ const GoogleIcon = () => (
 
 /* ─── Painel da direita ───────────────────────────────────────────────────── */
 // Print do dashboard salvo em public/. O nome tem espaço, por isso o %20.
-const SHOWCASE_IMAGE = "/login%202.png";
+// Carrossel do painel da direita. Os nomes dos arquivos têm espaço, daí o %20.
+const SHOWCASE = [
+  {
+    image: "/login%202.png",
+    title: "Tudo da sua operação em um lugar",
+    description: "Catálogo, pedidos e publicações no mesmo painel, sem planilha e sem estoque parado.",
+  },
+  {
+    image: "/login%203.png",
+    title: "Veja o que cada produto está vendendo",
+    description: "Acompanhe as vendas do mês, o status de cada anúncio e publique de novo em um clique.",
+  },
+];
+const SLIDE_INTERVAL = 6000;
 
 const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
   if (resetMode) {
@@ -84,6 +97,7 @@ const LoginPage = () => {
   const [resetMode, setResetMode]         = useState(false);
   const [acceptTerms, setAcceptTerms]     = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [slide, setSlide]                 = useState(0);
 
   const passwordRef = useRef<HTMLInputElement>(null);
   const nomeRef     = useRef<HTMLInputElement>(null);
@@ -201,6 +215,15 @@ const LoginPage = () => {
 
   useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 320); }, [step]);
   useEffect(() => { if (step === "signup") setTimeout(() => nomeRef.current?.focus(), 320);     }, [step]);
+
+  // Troca de slide sozinha; clicar num ponto reinicia a contagem.
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setSlide((current) => (current + 1) % SHOWCASE.length),
+      SLIDE_INTERVAL,
+    );
+    return () => window.clearInterval(timer);
+  }, [slide]);
 
   if (!authLoading && user && !loading && !googleLoading) return <Navigate to="/dashboard" replace />;
 
@@ -459,30 +482,61 @@ const LoginPage = () => {
       </div>
 
       {/* ── Coluna da vitrine ────────────────────────────────────────────── */}
-      <aside className="hidden w-1/2 flex-col overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] pb-14 pt-14 lg:flex">
-        {/* Sem moldura: a própria imagem já traz o card e o canto arredondado.
-            A área da imagem ocupa o espaço que sobra (flex-1) em vez de uma
-            altura fixa — assim a legenda nunca sobe por cima do print. */}
-        <div className="relative min-h-0 flex-1 pl-14">
-          <motion.img
-            src={SHOWCASE_IMAGE}
-            alt="Painel da Velo"
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, ease }}
-            // `h-full` é obrigatório: <img> é elemento substituído e ignora o
-            // esticar de `inset-y-0`, assumindo a altura intrínseca e vazando.
-            className="absolute inset-y-0 left-14 h-full w-[calc(100%+40px)] object-cover object-left-top"
-          />
+      <aside className="hidden w-1/2 flex-col items-center justify-center overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] px-12 py-14 lg:flex">
+        {/* Sem moldura: os próprios prints já vêm com card e canto arredondado.
+            Altura fixa para os dois slides porque as proporções são diferentes
+            (um em pé, outro deitado) — assim a legenda não pula de lugar. */}
+        <div className="relative flex h-[52vh] w-full items-center justify-center">
+          {/* Sem `mode="wait"`: os dois prints coexistem durante a troca, um
+              saindo para a esquerda enquanto o outro entra pela direita. Com
+              wait, a imagem ficava meio segundo atrás da legenda. */}
+          <AnimatePresence initial={false}>
+            <motion.img
+              key={SHOWCASE[slide].image}
+              src={SHOWCASE[slide].image}
+              alt={SHOWCASE[slide].title}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 70 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -70 }}
+              transition={{ duration: 0.5, ease }}
+              // `contain` porque os prints têm proporções diferentes — com
+              // `cover` o print deitado perderia metade da tabela no corte.
+              className="absolute max-h-full max-w-full object-contain"
+            />
+          </AnimatePresence>
         </div>
 
-        <div className="mt-10 shrink-0 px-16 text-center">
-          <h2 className="text-[22px] font-bold tracking-[-0.025em] text-[#0F172A]">
-            Tudo da sua operação em um lugar
-          </h2>
-          <p className="mx-auto mt-3 max-w-[440px] text-[14px] leading-[1.6] text-[#64748B]">
-            Catálogo, pedidos e publicações no mesmo painel, sem planilha e sem estoque parado.
-          </p>
+        <div className="mt-10 shrink-0 text-center">
+          {/* Sem AnimatePresence na legenda de propósito: com `mode="wait"` ela
+              sumia por um instante entre um slide e outro. */}
+          <motion.div
+            key={SHOWCASE[slide].title}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease }}
+            className="min-h-[92px]"
+          >
+            <h2 className="text-[22px] font-bold tracking-[-0.025em] text-[#0F172A]">
+              {SHOWCASE[slide].title}
+            </h2>
+            <p className="mx-auto mt-3 max-w-[440px] text-[14px] leading-[1.6] text-[#64748B]">
+              {SHOWCASE[slide].description}
+            </p>
+          </motion.div>
+
+          <div className="mt-7 flex items-center justify-center gap-2">
+            {SHOWCASE.map((item, index) => (
+              <button
+                key={item.image}
+                type="button"
+                onClick={() => setSlide(index)}
+                aria-label={`Ver ${item.title}`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === slide ? "w-7 bg-[#2563EB]" : "w-4 bg-[#D6DDE8] hover:bg-[#BCC6D6]"
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </aside>
     </main>
