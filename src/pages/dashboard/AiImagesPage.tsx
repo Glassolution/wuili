@@ -434,7 +434,6 @@ const AiImagesPage = () => {
     }
   };
 
-  return (
   // View dedicada de carregamento — substitui a tela de configuração
   if (gerando) {
     return (
