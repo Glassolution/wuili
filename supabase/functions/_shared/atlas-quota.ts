@@ -9,9 +9,14 @@
  * plataforma e não uma resposta pedida pelo usuário — por isso a etapa
  * `resumo_contexto` fica de fora da contagem.
  */
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-type Client = SupabaseClient<any> | null;
+/**
+ * Só precisamos do `from()` do client. Tipar estruturalmente evita amarrar este
+ * módulo à versão do SDK usada por quem chama.
+ */
+type Client = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- superfície mínima do client Supabase
+  from: (table: string) => any;
+} | null;
 
 export const ATLAS_ETAPA_RESUMO = "resumo_contexto";
 
