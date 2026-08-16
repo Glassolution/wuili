@@ -384,7 +384,7 @@ const TrendingProductsPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const [products, setProducts] = useState<TrendingProduct[]>([]);
-  const [niche, setNiche] = useState<string | null>("Eletrônicos");
+  const [niche, setNiche] = useState<string | null>(null);
   const period: Period = "week";
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
