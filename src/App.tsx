@@ -214,7 +214,9 @@ const App = () => (
         <BrowserRouter>
           <UpgradeModalProvider>
           <FlatButtonsOnCatalog />
+          <MarcarAppCarregado />
           <Suspense fallback={<RouteFallback />}>
+
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />
