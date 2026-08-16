@@ -215,9 +215,9 @@ const isConversationalAside = (message: string) => {
   );
 };
 
-const conversationalAsideResponse = (): AtlasResponse => ({
+const conversationalAsideResponse = (nome: string | null = null): AtlasResponse => ({
   message:
-    "Oi! Estou por aqui e pronto para te ajudar. 😄\n\nPode falar comigo normalmente. Eu consigo tirar dúvidas, explicar dropshipping, olhar o que você está tentando fazer na Velo ou continuar algum passo quando você pedir.",
+    `Oi${nome ? `, ${nome}` : ""}! Estou por aqui. 😄\n\nPode falar comigo normalmente: tiro dúvidas, explico dropshipping ou continuo o seu guia de onde parou.\n\nMe conta o que você quer fazer agora.`,
   actions: [],
 });
 
@@ -1652,7 +1652,7 @@ serve(async (req) => {
     // com o preset antigo no histórico, senão "oi atlas" vira menu operacional.
     if (isConversationalAside(lastUserMessage)) {
       registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "conversa_solta" });
-      return responder(conversationalAsideResponse());
+      return responder(conversationalAsideResponse(await buscarPrimeiroNome(serviceClient, authenticatedUserId)));
     }
 
     // FAQ resolvido em código: dúvida de navegação repetida não precisa de modelo.
@@ -1700,6 +1700,10 @@ serve(async (req) => {
       pageContext && typeof pageContext === "object"
         ? (pageContext as PageContext)
         : null;
+    const primeiroNomeDoUsuario = await buscarPrimeiroNome(serviceClient, authenticatedUserId);
+    const nomeContextMessage = primeiroNomeDoUsuario
+      ? `O primeiro nome do usuário é ${primeiroNomeDoUsuario}. Use na saudação e ao comemorar um passo concluído, sem repetir em toda frase.`
+      : null;
     const pageContextMessage =
       paginaAtual?.nome || paginaAtual?.rota
         ? `Contexto atual da interface: o usuário está em ${paginaAtual.nome ?? "uma tela da Velo"} (${paginaAtual.rota ?? "rota não informada"}). Use isso apenas se ajudar a responder a última mensagem.`
@@ -1767,6 +1771,7 @@ serve(async (req) => {
           ...(janela.resumo
             ? [{ role: "system" as const, content: `Resumo do que já foi conversado antes:\n${janela.resumo}` }]
             : []),
+          ...(nomeContextMessage ? [{ role: "system" as const, content: nomeContextMessage }] : []),
           ...(pageContextMessage ? [{ role: "system" as const, content: pageContextMessage }] : []),
           ...janela.mensagens,
         ],
