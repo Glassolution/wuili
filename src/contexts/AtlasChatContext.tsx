@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import { atlasThreadsQueryKey } from "@/lib/atlasHistory";
+import { AtlasFireworks } from "@/components/dashboard/AtlasFireworks";
+
 
 /**
  * Estado do chat do Atlas, um nível acima das páginas.
@@ -207,6 +209,19 @@ type AtlasChatContextValue = {
 
 const AtlasChatContext = createContext<AtlasChatContextValue | null>(null);
 
+/** Easter egg: menção à Andrya no chat. Ignora acento, caixa e pontuação. */
+const ehEasterEggAndrya = (texto: string) =>
+  /\bandry?a\b/.test(
+    texto
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase(),
+  );
+
+const MENSAGEM_ANDRYA =
+  "Andrya 💚\n\nTem nome que muda o clima da conversa — esse é um deles. Alguém aí gosta MUITO dela, e dá pra sentir daqui.\n\nEntão vai um pouquinho de festa por conta da casa: Andrya, você é especial. 🎆";
+
+
 export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const location = useLocation();
@@ -226,6 +241,8 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const [vitrineAberta, setVitrineAberta] = useState(false);
   const [nichoDaVitrine, setNichoDaVitrine] = useState<NichoDaVitrine | null>(null);
   const [quota, setQuota] = useState<AtlasQuota | null>(null);
+  const [fogosAtivos, setFogosAtivos] = useState(false);
+
   const abrirVitrine = useCallback((nicho?: NichoDaVitrine | null) => {
     if (nicho !== undefined) setNichoDaVitrine(nicho);
     setVitrineAberta(true);
@@ -295,7 +312,24 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       setRotaDeAbertura((atual) => (aberto && atual ? atual : location.pathname));
       setErro(null);
       setMensagens((atual) => [...atual, otimista]);
+
+      // Easter egg: some coisas não passam pelo modelo. Responde na hora,
+      // solta os fogos por 10s e não gasta cota nem chamada de IA.
+      if (ehEasterEggAndrya(mensagem)) {
+        const resposta: AtlasMessage = {
+          id: `local-egg-${Date.now()}`,
+          role: "assistant",
+          content: MENSAGEM_ANDRYA,
+          created_at: new Date().toISOString(),
+        };
+        setMensagens((atual) => [...atual, resposta]);
+        setFogosAtivos(true);
+        window.setTimeout(() => setFogosAtivos(false), 10000);
+        return;
+      }
+
       setEnviando(true);
+
 
       try {
         let idDaThread = threadId;
@@ -478,7 +512,13 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     ],
   );
 
-  return <AtlasChatContext.Provider value={valor}>{children}</AtlasChatContext.Provider>;
+  return (
+    <AtlasChatContext.Provider value={valor}>
+      {children}
+      <AtlasFireworks ativo={fogosAtivos} />
+    </AtlasChatContext.Provider>
+  );
+
 };
 
 export const useAtlasChat = () => {
