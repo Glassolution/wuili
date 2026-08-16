@@ -501,7 +501,10 @@ const AiImagesPage = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setAvatarId(null)}
+                      onClick={() => {
+                        setAvatarId(null);
+                        removerFicha("@avatar");
+                      }}
                       className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-black/70 transition hover:bg-black/[0.06] hover:text-black"
                       aria-label="Remover avatar"
                     >
