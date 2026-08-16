@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import AiImageProgress from "@/components/dashboard/AiImageProgress";
 import { useCharacterLibrary } from "@/components/dashboard/AICharacterCreator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
