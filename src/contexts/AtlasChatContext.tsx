@@ -434,7 +434,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
           // `pageContext` dá ao Atlas a noção de onde o usuário está agora.
           body: {
             messages: historico,
-            pageContext: paginaAtual,
+            pageContext: contextoDaPagina ?? paginaAtual,
             // Vai como dado, não como texto para o modelo interpretar: o guia
             // precisa do id/preço exatos para montar os passos seguintes.
             ...(produtoDoCatalogo ? { produtoSelecionado: produtoDoCatalogo } : {}),
