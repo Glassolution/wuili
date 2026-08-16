@@ -707,7 +707,7 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onSelect={(item) => {
           setProduto(item);
-          inserirFicha("@produto");
+          aplicarFicha(fichaProduto, `@${item.title}`, "produto", `@${item.title}`);
           setMenu(null);
         }}
       />
@@ -720,12 +720,13 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onClear={() => {
           setAvatarId(null);
-          removerFicha("@avatar");
+          removerFicha(fichaAvatar);
           setMenu(null);
         }}
         onSelect={(id) => {
           setAvatarId(id);
-          inserirFicha("@avatar");
+          const nome = characters.find((c) => c.id === id)?.name;
+          if (nome) aplicarFicha(fichaAvatar, `@${nome}`, "avatar");
           setMenu(null);
         }}
         onCreate={() => {
