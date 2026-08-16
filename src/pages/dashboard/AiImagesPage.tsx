@@ -83,25 +83,29 @@ const EXEMPLOS_DE_PROMPT = [
   "Anúncio estático de @produto com composição premium e foco no benefício",
 ];
 
-const renderPromptParts = (texto: string, subdued = false) =>
-  texto.split(/(@produto|@avatar)/g).map((parte, indice) => {
-    if (parte === "@produto") {
+type Ficha = { texto: string; cor: string };
+
+const escaparRegex = (valor: string) => valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Pinta as fichas dentro do texto. O destaque usa padding com margem negativa
+ * para não alterar a largura do texto — assim o cursor do textarea transparente
+ * continua alinhado com o que aparece na tela.
+ */
+const renderPromptParts = (texto: string, fichas: Ficha[], subdued = false) => {
+  const alvos = fichas.filter((f) => f.texto.trim().length > 1).sort((a, b) => b.texto.length - a.texto.length);
+  const partes = alvos.length
+    ? texto.split(new RegExp(`(${alvos.map((f) => escaparRegex(f.texto)).join("|")})`, "g"))
+    : [texto];
+
+  return partes.map((parte, indice) => {
+    const ficha = alvos.find((f) => f.texto === parte);
+    if (ficha) {
       return (
         <span
           key={indice}
-          className="rounded-[6px] px-1.5 py-0.5 font-medium"
-          style={{ backgroundColor: `${PRODUCT_TOKEN}1A`, color: PRODUCT_TOKEN }}
-        >
-          {parte}
-        </span>
-      );
-    }
-    if (parte === "@avatar") {
-      return (
-        <span
-          key={indice}
-          className="rounded-[6px] px-1.5 py-0.5 font-medium"
-          style={{ backgroundColor: `${AVATAR_TOKEN}1A`, color: AVATAR_TOKEN }}
+          className="-mx-1.5 rounded-[6px] px-1.5 py-0.5 font-medium"
+          style={{ backgroundColor: `${ficha.cor}1A`, color: ficha.cor }}
         >
           {parte}
         </span>
@@ -113,6 +117,7 @@ const renderPromptParts = (texto: string, subdued = false) =>
       </span>
     );
   });
+};
 
 /** Caixa flutuante dos seletores da barra de ferramentas. */
 const Popover = ({
