@@ -1272,17 +1272,15 @@ const TrendingProductsPage = () => {
                                   <FilePlus2 size={15} strokeWidth={1.8} />
                                 )}
                               </button>
-                              {isAdmin ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCreateStore(product)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white transition hover:bg-[#222222]"
-                                  aria-label="Criar loja com este produto"
-                                  title="Criar loja com este produto"
-                                >
-                                  <Store size={15} strokeWidth={1.8} />
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-white transition hover:bg-[#1D4ED8]"
+                                aria-label="Publicar no Mercado Livre"
+                                title={isFreePlan ? "Disponível apenas com um plano ativo" : "Publicar no Mercado Livre"}
+                              >
+                                {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <UploadCloud size={15} strokeWidth={1.8} />}
+                              </button>
                             </div>
                           </td>
                         </tr>
