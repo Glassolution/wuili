@@ -88,9 +88,29 @@ type Ficha = { texto: string; cor: string };
 const escaparRegex = (valor: string) => valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * Pinta as fichas dentro do texto. O destaque usa padding com margem negativa
- * para não alterar a largura do texto — assim o cursor do textarea transparente
- * continua alinhado com o que aparece na tela.
+ * Encurta o nome do item para virar uma ficha legível no prompt: nomes de
+ * catálogo são enormes e o destaque tomava a linha inteira.
+ */
+const nomeCurto = (valor: string, limite = 22) => {
+  const limpo = valor.replace(/\s+/g, " ").trim();
+  if (limpo.length <= limite) return limpo;
+  const palavras = limpo.split(" ");
+  let saida = "";
+  for (const palavra of palavras) {
+    if (!saida) {
+      saida = palavra.slice(0, limite);
+      continue;
+    }
+    if (`${saida} ${palavra}`.length > limite) break;
+    saida = `${saida} ${palavra}`;
+  }
+  return saida;
+};
+
+/**
+ * Pinta as fichas dentro do texto. O destaque não usa padding nem margem: o
+ * "respiro" vem de um box-shadow com spread, então as métricas do texto ficam
+ * idênticas às do textarea transparente e o cursor continua alinhado.
  */
 const renderPromptParts = (texto: string, fichas: Ficha[], subdued = false) => {
   const alvos = fichas.filter((f) => f.texto.trim().length > 1).sort((a, b) => b.texto.length - a.texto.length);
@@ -104,8 +124,12 @@ const renderPromptParts = (texto: string, fichas: Ficha[], subdued = false) => {
       return (
         <span
           key={indice}
-          className="-mx-1.5 rounded-[6px] px-1.5 py-0.5 font-medium"
-          style={{ backgroundColor: `${ficha.cor}1A`, color: ficha.cor }}
+          className="rounded-[5px]"
+          style={{
+            backgroundColor: `${ficha.cor}1A`,
+            color: ficha.cor,
+            boxShadow: `0 0 0 3px ${ficha.cor}1A`,
+          }}
         >
           {parte}
         </span>
@@ -118,6 +142,7 @@ const renderPromptParts = (texto: string, fichas: Ficha[], subdued = false) => {
     );
   });
 };
+
 
 /** Caixa flutuante dos seletores da barra de ferramentas. */
 const Popover = ({
@@ -283,10 +308,11 @@ const AiImagesPage = () => {
     };
   }, [menu, catalogo.length]);
 
-  // A ficha carrega o nome real do que foi escolhido: "@Depilador a Laser…"
-  // em vez do genérico "@produto".
-  const fichaProduto = produto ? `@${produto.title}` : "@produto";
-  const fichaAvatar = avatar ? `@${avatar.name}` : "@avatar";
+  // A ficha carrega uma versão curta do nome escolhido ("@Depilador a Laser")
+  // em vez do título inteiro do catálogo, que estourava a linha.
+  const fichaProduto = produto ? `@${nomeCurto(produto.title)}` : "@produto";
+  const fichaAvatar = avatar ? `@${nomeCurto(avatar.name)}` : "@avatar";
+
 
   /**
    * Coloca (ou atualiza) a ficha no prompt. Se já existia uma ficha do mesmo
@@ -315,7 +341,7 @@ const AiImagesPage = () => {
         image: String(leitor.result),
         origem: "upload",
       });
-      aplicarFicha(fichaProduto, `@${titulo}`, "produto");
+      aplicarFicha(fichaProduto, `@${nomeCurto(titulo)}`, "produto");
       setMenu(null);
     };
     leitor.readAsDataURL(arquivo);
@@ -489,12 +515,39 @@ const AiImagesPage = () => {
             <div className="flex flex-wrap items-center gap-1.5 border-t border-black/[0.06] px-3 py-2.5 lg:flex-nowrap">
               {/* Produto */}
               <div className="relative">
-                <ToolButton
-                  icon={Tag}
-                  label={produto ? produto.title : "Produto"}
-                  ativo={Boolean(produto)}
-                  onClick={() => setMenu(menu === "produto" ? null : "produto")}
-                />
+                {produto ? (
+                  <div className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white py-0.5 pl-2 pr-1.5 text-[#101114]">
+                    <button
+                      type="button"
+                      onClick={() => setMenu(menu === "produto" ? null : "produto")}
+                      className="flex min-w-0 items-center gap-1.5 rounded-full pr-1 outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+                      aria-label={`Produto selecionado: ${produto.title}`}
+                    >
+                      <Tag size={15} strokeWidth={1.9} className="shrink-0 text-black/55" />
+                      <span className="max-w-[150px] truncate text-[12.5px] font-semibold">
+                        {nomeCurto(produto.title)}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProduto(null);
+                        removerFicha(fichaProduto);
+                      }}
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-black/70 transition hover:bg-black/[0.06] hover:text-black"
+                      aria-label="Remover produto"
+                    >
+                      <X size={14} strokeWidth={2.4} />
+                    </button>
+                  </div>
+                ) : (
+                  <ToolButton
+                    icon={Tag}
+                    label="Produto"
+                    onClick={() => setMenu(menu === "produto" ? null : "produto")}
+                  />
+                )}
+
                 <input
                   ref={uploadRef}
                   type="file"
@@ -511,7 +564,7 @@ const AiImagesPage = () => {
               {/* Avatar */}
               <div className="relative">
                 {avatar ? (
-                  <div className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white py-0.5 pl-1.5 pr-1.5 text-[#101114] shadow-[0_8px_20px_rgba(10,10,10,0.08)]">
+                  <div className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white py-0.5 pl-1.5 pr-1.5 text-[#101114]">
                     <button
                       type="button"
                       onClick={() => setMenu(menu === "avatar" ? null : "avatar")}
@@ -529,7 +582,10 @@ const AiImagesPage = () => {
                           <UserRound size={14} className="text-black/50" />
                         </span>
                       )}
-                      <span className="text-[12.5px] font-semibold">Avatar</span>
+                      <span className="max-w-[130px] truncate text-[12.5px] font-semibold">
+                        {nomeCurto(avatar.name)}
+                      </span>
+
                     </button>
                     <button
                       type="button"
@@ -707,7 +763,7 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onSelect={(item) => {
           setProduto(item);
-          aplicarFicha(fichaProduto, `@${item.title}`, "produto", `@${item.title}`);
+          aplicarFicha(fichaProduto, `@${nomeCurto(item.title)}`, "produto", `@${nomeCurto(item.title)}`);
           setMenu(null);
         }}
       />
@@ -726,7 +782,7 @@ const AiImagesPage = () => {
         onSelect={(id) => {
           setAvatarId(id);
           const nome = characters.find((c) => c.id === id)?.name;
-          if (nome) aplicarFicha(fichaAvatar, `@${nome}`, "avatar");
+          if (nome) aplicarFicha(fichaAvatar, `@${nomeCurto(nome)}`, "avatar");
           setMenu(null);
         }}
         onCreate={() => {
