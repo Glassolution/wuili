@@ -232,6 +232,8 @@ const AiImagesPage = () => {
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
+  const [resumo, setResumo] = useState<{ prompt: string; produto?: string; avatar?: string } | null>(null);
+  const [visualizando, setVisualizando] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
 
   const avatar = useMemo(() => characters.find((c) => c.id === avatarId) ?? null, [characters, avatarId]);
