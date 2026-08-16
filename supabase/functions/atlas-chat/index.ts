@@ -1583,7 +1583,7 @@ serve(async (req) => {
         origem: "codigo",
         etapa: etapaDaRespostaDoGuia(beginnerGuideResponse),
       });
-      return jsonResponse(beginnerGuideResponse);
+      return responder(beginnerGuideResponse);
     }
 
     const safeMessagesForModel = sanitizeUnsafeHistory(normalizedMessages);
@@ -1607,11 +1607,43 @@ serve(async (req) => {
         erro: "LOVABLE_API_KEY ausente",
       });
       const fallback = fallbackReply(lastUserMessage);
-      return jsonResponse({
+      return responder({
         ...fallback,
         actions: mergeActions(fallback.actions, [navAction, productAction]),
       });
     }
+
+    // Daqui para baixo a resposta custa modelo. É o único ponto que consome cota.
+    if (!quota.permitido) {
+      registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "quota_esgotada" });
+      return responder({
+        message: mensagemDeQuotaEsgotada(quota),
+        actions: quota.plano === "gratis"
+          ? [{ type: "navigation", label: "Ver Planos", route: "/dashboard/planos", variant: "primary" }]
+          : [],
+        quotaExcedida: true,
+      });
+    }
+
+    // Conversa longa: mantém as últimas cruas e resume o excedente uma vez.
+    const janela = await montarJanelaDeContexto(safeMessagesForModel, {
+      apiKey: LOVABLE_API_KEY,
+      onUso: ({ data, duracaoMs, erro }) =>
+        registrarUso({
+          userId: authenticatedUserId,
+          origem: "modelo",
+          etapa: ATLAS_ETAPA_RESUMO,
+          modelo: MODELO_RESUMO,
+          uso: lerUsoDoModelo(data),
+          duracaoMs,
+          erro: erro ?? null,
+        }),
+    });
+
+    const rota = escolherModeloDoAtlas(lastUserMessage, {
+      temNavegacao: Boolean(navAction),
+      historicoLongo: safeMessagesForModel.length > JANELA_LONGA,
+    });
 
     const inicioDaChamada = Date.now();
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -1621,11 +1653,16 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODELO_DO_ATLAS,
+        model: rota.modelo,
         messages: [
-          { role: "system", content: buildAtlasSystemPrompt() },
+          // Bloco fixo primeiro e sempre idêntico: é o prefixo que o cache do
+          // provedor reconhece. Tudo que varia vem depois dele.
+          { role: "system", content: ATLAS_SYSTEM_PROMPT },
+          ...(janela.resumo
+            ? [{ role: "system" as const, content: `Resumo do que já foi conversado antes:\n${janela.resumo}` }]
+            : []),
           ...(pageContextMessage ? [{ role: "system" as const, content: pageContextMessage }] : []),
-          ...safeMessagesForModel,
+          ...janela.mensagens,
         ],
         temperature: 0.35,
         max_tokens: 1100,
@@ -1639,12 +1676,12 @@ serve(async (req) => {
         userId: authenticatedUserId,
         origem: "codigo",
         etapa: "fallback_gateway",
-        modelo: MODELO_DO_ATLAS,
+        modelo: rota.modelo,
         duracaoMs: Date.now() - inicioDaChamada,
         erro: `gateway ${resp.status}`,
       });
       const fallback = fallbackReply(lastUserMessage);
-      return jsonResponse({
+      return responder({
         ...fallback,
         actions: mergeActions(fallback.actions, [navAction, productAction]),
       });
@@ -1655,8 +1692,8 @@ serve(async (req) => {
     registrarUso({
       userId: authenticatedUserId,
       origem: "modelo",
-      etapa: "pergunta_livre",
-      modelo: MODELO_DO_ATLAS,
+      etapa: `pergunta_livre_${rota.rota}`,
+      modelo: rota.modelo,
       uso: lerUsoDoModelo(data),
       duracaoMs: Date.now() - inicioDaChamada,
     });
@@ -1666,10 +1703,17 @@ serve(async (req) => {
       "Desculpe, não consegui processar agora. Tente reformular sua pergunta.";
     const parsed = parseAtlasModelResponse(rawMessage);
 
+    // A resposta acabou de consumir uma mensagem: a UI recebe o saldo já atualizado.
+    const quotaDepois = quota.limite === null
+      ? quota
+      : { ...quota, usadas: quota.usadas + 1, restantes: Math.max(0, quota.limite - quota.usadas - 1) };
+
     return jsonResponse({
       ...parsed,
       actions: mergeActions(parsed.actions, [navAction, productAction]),
+      quota: quotaDepois,
     });
+
   } catch (err) {
     console.error("atlas-chat error", err);
     registrarUso({
