@@ -341,7 +341,7 @@ const AiImagesPage = () => {
         image: String(leitor.result),
         origem: "upload",
       });
-      aplicarFicha(fichaProduto, `@${titulo}`, "produto");
+      aplicarFicha(fichaProduto, `@${nomeCurto(titulo)}`, "produto");
       setMenu(null);
     };
     leitor.readAsDataURL(arquivo);
@@ -733,7 +733,7 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onSelect={(item) => {
           setProduto(item);
-          aplicarFicha(fichaProduto, `@${item.title}`, "produto", `@${item.title}`);
+          aplicarFicha(fichaProduto, `@${nomeCurto(item.title)}`, "produto", `@${nomeCurto(item.title)}`);
           setMenu(null);
         }}
       />
@@ -752,7 +752,7 @@ const AiImagesPage = () => {
         onSelect={(id) => {
           setAvatarId(id);
           const nome = characters.find((c) => c.id === id)?.name;
-          if (nome) aplicarFicha(fichaAvatar, `@${nome}`, "avatar");
+          if (nome) aplicarFicha(fichaAvatar, `@${nomeCurto(nome)}`, "avatar");
           setMenu(null);
         }}
         onCreate={() => {
