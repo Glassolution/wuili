@@ -936,6 +936,9 @@ const buscarPrimeiroNome = async (supabase: ServiceClient, userId: string): Prom
 };
 
 
+/** Marcador de build do guia — aparece no log para provar qual versão está no ar. */
+const GUIA_BUILD = "2026-08-16-guia-clean-v3";
+
 /** "Ana, " quando há nome; string vazia quando não há. Evita saudação genérica. */
 const vocativo = (nome: string | null, sufixo = ", ") => (nome ? `${nome}${sufixo}` : "");
 
