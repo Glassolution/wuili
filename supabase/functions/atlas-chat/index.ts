@@ -936,6 +936,9 @@ const buscarPrimeiroNome = async (supabase: ServiceClient, userId: string): Prom
 };
 
 
+/** Marcador de build do guia — aparece no log para provar qual versão está no ar. */
+const GUIA_BUILD = "2026-08-16-guia-clean-v3";
+
 /** "Ana, " quando há nome; string vazia quando não há. Evita saudação genérica. */
 const vocativo = (nome: string | null, sufixo = ", ") => (nome ? `${nome}${sufixo}` : "");
 
@@ -954,13 +957,13 @@ const askBeginnerNiche = async (supabase: ServiceClient, nome: string | null = n
     if (destaques.length === 0) {
       return {
         message:
-          `Bora, ${nome ? `${nome}` : "vamos juntos"}! 🎉 Eu te acompanho até o seu primeiro anúncio no ar.\n\n**Passo 1 de 5: seu nicho**\n\n**Nicho** é o tipo de produto que você escolhe pra vender, tipo pets, beleza ou casa.\n\nVamos pelo caminho curto: abra o catálogo e escolha um produto que te chamou atenção. Eu monto o guia em cima dele.\n\nAbre o catálogo e me diz qual te agradou.`,
+          `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 5: seu nicho**\n\nVamos pelo caminho curto: abre o catálogo e escolhe um produto que te chamou atenção — eu monto o guia em cima dele.`,
         actions: [{ type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" }],
       };
     }
     return {
       message:
-        `Bora, ${nome ? `${nome}` : "vamos juntos"}! 🎉 Eu te acompanho até o seu primeiro anúncio no ar.\n\n**Passo 1 de 5: seu nicho**\n\n**Nicho** é o tipo de produto que você escolhe pra vender, tipo pets, beleza ou casa.\n\nSeparei as categorias que mais saem aqui, pra você não garimpar o catálogo inteiro.\n\nEscolhe uma abaixo e eu te levo direto aos produtos dela.`,
+        `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 5: seu nicho**\n\nSeparei as categorias que mais saem hoje. Escolhe uma abaixo e eu te levo direto aos produtos dela.`,
       actions: [
         ...destaques.map((categoria) => ({
           type: "navigation" as const,
@@ -975,7 +978,7 @@ const askBeginnerNiche = async (supabase: ServiceClient, nome: string | null = n
 
   return {
     message:
-      `Bora, ${nome ? `${nome}` : "vamos juntos"}! 🎉 Uma coisa de cada vez até o seu primeiro anúncio no ar.\n\n**Passo 1 de 5: seu nicho**\n\n**Nicho** é o tipo de produto que você escolhe pra vender, tipo pets, beleza ou casa.\n\nEscolher um agora te poupa trabalho depois: você aprende sobre um público só e repete o que funciona.\n\nOlhei ${sourceLabel} e separei o que está saindo bem por lá.\n\nEscolhe uma opção aqui embaixo, ou me diz outro nicho que você já tem em mente.`,
+      `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 5: seu nicho**\n\nOlhei ${sourceLabel} e separei o que está saindo bem. Escolhe uma opção abaixo, ou me diz outro nicho que você já tem em mente.`,
     actions: [
       ...suggestions.map((label) => quickReply(label, `Quero começar com ${label}`)),
       quickReply("Ainda não sei", "Ainda não sei qual nicho escolher"),
@@ -1012,7 +1015,7 @@ const validateNicheStep = async (
 
   return {
     message:
-      `Boa escolha${nome ? `, ${nome}` : ""}! Deixa eu te contar o que eu vi.\n\n**Passo 1 de 5: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\n**Demanda:** ${demandText}, ou seja, é assim que anda a procura por esses produtos.\n\n**Concorrência:** ${competitionText}, é o tanto de vendedor disputando essa procura.\n\n**Margem:** o que sobra pra você depois do custo, da tarifa do marketplace e do frete. É ela, junto com fotos boas, que decide o seu resultado.\n\n${signal.note}\n\nÉ com esse nicho que a gente vai trabalhar. Vamos aos produtos.`,
+      `Boa escolha${nome ? `, ${nome}` : ""}!\n\n**Passo 1 de 5: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\n**Demanda:** ${demandText}\n**Concorrência:** ${competitionText}\n\n${signal.note}\n\nFechado esse nicho. Vamos aos produtos.`,
     actions: [
       quickReply(`Vamos aos produtos`, `Sim, buscar produtos de ${niche.label}`),
       quickReply("Quero outro nicho", "Quero ver outros nichos"),
@@ -1061,7 +1064,7 @@ const showProductsForNiche = async (
 
   return {
     message:
-      `Nicho definido${nome ? `, ${nome}` : ""}! Agora vem a parte divertida. 😄\n\n**Passo 2 de 5: escolha do produto**\n\nCruzei **${niche.label}** com o catálogo e separei até 3 opções.\n\n**Estoque ativo:** produto sem estoque vira anúncio pausado.\n\n**Boa margem:** o que sobra pra você depois do custo, da tarifa e do frete.\n\nEscolhe uma agora. No próximo passo eu avalio como ela se sai nas redes.`,
+      `Nicho definido${nome ? `, ${nome}` : ""}! 😄\n\n**Passo 2 de 5: escolha do produto**\n\nCruzei **${niche.label}** com o catálogo e separei até 3 opções com estoque ativo e boa margem. Escolhe uma pra seguir.`,
     actions: [
       ...products.map(productCardFromRow),
       quickReply("Quero o primeiro", "Quero o primeiro produto"),
@@ -1090,7 +1093,7 @@ const guideOpenShowcaseStep = async (
 
   return {
     message:
-      `Nicho fechado${nome ? `, ${nome}` : ""}! **${niche.label}** é o nosso ponto de partida. 🎉\n\n**Passo 2 de 5: escolha do produto**\n\nAbri uma seleção feita pra você: seu nicho cruzado com o que você respondeu no cadastro, sem nada fora de estoque.\n\nOlha as fotos e o preço e escolhe um. Esse produto vai comigo até a publicação no Mercado Livre.\n\nToca em escolher meu produto pra abrir a seleção.`,
+      `Nicho fechado${nome ? `, ${nome}` : ""}: **${niche.label}**. 🎉\n\n**Passo 2 de 5: escolha do produto**\n\nMontei uma seleção do seu nicho, só com estoque ativo. Toca em escolher meu produto e me diz qual você quer.`,
     actions: [
       {
         type: "open_showcase",
@@ -1168,7 +1171,7 @@ const validateSocialPotentialStep = (
 
   return {
     message:
-      `${prefacio ? `${prefacio}\n\n` : `Produto escolhido${nome ? `, ${nome}` : ""}, você já está na metade do caminho!\n\n`}**Passo 4 de 5: potencial de divulgação**\n\nAntes de publicar, olha uma coisa que quase ninguém olha no começo: o quanto esse produto anda sozinho no TikTok e no Instagram.\n\n**Vídeo curto** faz parte da venda por você, de graça. Produto fácil de mostrar funcionando costuma render bem mais que produto genérico.\n\n**Minha leitura de ${titulo}:** potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\n**Aviso honesto:** isso é leitura do tipo de produto e do nicho, não medição de rede social. Pra produzir o conteúdo, os influencers de IA ficam em #tiktok e as fotos em #imagens-ia.\n\nVamos levar ele pra publicação.`,
+      `${prefacio ? `${prefacio}\n\n` : `Produto escolhido${nome ? `, ${nome}` : ""}! Metade do caminho feita.\n\n`}**Passo 4 de 5: potencial de divulgação**\n\n**Minha leitura de ${titulo}:** potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\nÉ leitura do tipo de produto, não medição de rede social. Pra criar conteúdo: #tiktok e #imagens-ia.\n\nVamos pra publicação.`,
     actions: [
       product,
       quickReply("Seguir para a publicação", "Sim, seguir com esse produto para publicação"),
@@ -1191,7 +1194,7 @@ const guidePublicationStep = async (
   if (!mlStatus.connected || !mlStatus.tokenValid) {
     return {
       message:
-        `Último passo${nome ? `, ${nome}` : ""}! Olha o quanto você já avançou:\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre\n- **Produto:** ${productTitle}, com potencial de divulgação já avaliado\n\nFalta **conectar a sua conta do Mercado Livre**: é ela que autoriza a Velo a publicar por você.\n\nÉ rápido: você entra na sua conta, clica em permitir e volta pra cá. Sua senha nunca passa pela Velo.\n\nToca em conectar agora e me avisa quando voltar.`,
+        `Último passo${nome ? `, ${nome}` : ""}!\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre\n- **Produto:** ${productTitle}\n\nFalta **conectar sua conta do Mercado Livre** pra Velo publicar por você. Sua senha nunca passa pela Velo.\n\nToca em conectar agora e me avisa quando voltar.`,
       actions: [
         // Conecta pelo próprio chat: o usuário não precisa achar a tela sozinho.
         { type: "connect_ml", label: "Conectar Mercado Livre agora" },
@@ -1207,7 +1210,7 @@ const guidePublicationStep = async (
 
   return {
     message:
-      `Último passo${nome ? `, ${nome}` : ""}! 🎉 Olha o quanto você já avançou:\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre, com a sua conta já conectada\n- **Produto:** ${productTitle}, com potencial de divulgação já avaliado\n\nReta final: abre o produto, revisa título e descrição, confere preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca, senão o anúncio não aparece.\n\nDepois é só acompanhar em #publicacoes e as vendas em #pedidos.\n\nAbre o produto escolhido e coloca ele no ar.`,
+      `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nReta final: revisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nAbre o produto escolhido e coloca ele no ar.`,
     actions: [
       { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
       { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
@@ -1263,7 +1266,7 @@ const guideProductChosenStep = async (
 
   return {
     message:
-      `Ótima escolha${nome ? `, ${nome}` : ""}! 😄 Anotei: **${produto.nome}**${preco ? ` (${preco})` : ""}, da categoria ${produto.categoria}.\n\n**Passo 3 de 5: onde vender**\n\nVocê vai vender no **Mercado Livre**, o caminho mais curto até a primeira venda.\n\n**Marketplace:** site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe, sem criar site nem pagar anúncio.\n\n${sobreAConta}\n\n${mlPronto ? "Bora pro próximo passo." : "Agora conecta a sua conta. É só o que falta pro seu anúncio poder ir ao ar."}`,
+      `Ótima escolha${nome ? `, ${nome}` : ""}! 😄 Anotei: **${produto.nome}**${preco ? ` (${preco})` : ""}.\n\n**Passo 3 de 5: onde vender**\n\nVocê vai vender no **Mercado Livre**: é onde a procura já existe, sem criar site nem pagar anúncio.\n\n${sobreAConta}\n\n${mlPronto ? "Bora pro próximo passo." : "Agora é só conectar a sua conta."}`,
     actions: [
       {
         type: "product_card",
@@ -1324,7 +1327,7 @@ const guideConnectMlStep = (
 
   return {
     message:
-      `Vamos nessa${nome ? `, ${nome}` : ""}! É mais simples do que parece.\n\n**Passo 3 de 5: conectar sua conta**\n\n${passoAPasso}\n\n**Senha:** ela nunca passa pela Velo, quem cuida disso é o próprio Mercado Livre.\n\n**Desconectar:** um clique em #integracoes, quando você quiser.\n\nAinda não tem conta de vendedor? Dá pra criar na hora, é rápido e de graça.\n\nToca em conectar e me avisa quando voltar.`,
+      `Vamos nessa${nome ? `, ${nome}` : ""}!\n\n**Passo 3 de 5: conectar sua conta**\n\n${passoAPasso}\n\n**Senha:** nunca passa pela Velo. Dá pra desconectar quando quiser em #integracoes.\n\nToca em conectar e me avisa quando voltar.`,
     actions: [
       { type: "connect_ml", label: "Conectar Mercado Livre" },
       { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
@@ -1461,7 +1464,7 @@ const maybeHandleBeginnerGuide = async (
     );
     return {
       message:
-        `Conta conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nAbre o produto escolhido, revisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\n**Prazo de entrega:** deixe realista, porque atraso vira reclamação e reclamação derruba sua nota.\n\nDepois de publicar, o status fica em #publicacoes e as vendas em #pedidos.\n\nAbre o produto e coloca ele no ar.`,
+        `Conta conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nRevisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nDepois acompanha em #publicacoes e #pedidos.`,
       actions: [
         ...(productNav ? [productNav] : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
         { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
@@ -1701,6 +1704,11 @@ serve(async (req) => {
       produtoDoCatalogo,
     );
     if (beginnerGuideResponse) {
+      // Log de auditoria: permite conferir no log qual texto exato o guia
+      // devolveu (sem depender de teste manual, que pode pegar thread antiga).
+      console.log(
+        `[atlas-chat][guia] build=${GUIA_BUILD} etapa=${etapaDaRespostaDoGuia(beginnerGuideResponse)} texto=${JSON.stringify(beginnerGuideResponse.message.slice(0, 400))}`,
+      );
       registrarUso({
         userId: authenticatedUserId,
         origem: "codigo",
