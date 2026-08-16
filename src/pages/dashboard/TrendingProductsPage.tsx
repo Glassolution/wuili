@@ -1426,6 +1426,8 @@ const TrendingProductsPage = () => {
         preselectedProductIds={wizardProduct ? [wizardProduct.id] : []}
         onCreated={handleProjectCreated}
       />
+
+      <ImportProductModal open={!!mlProduct} onClose={() => setMlProduct(null)} product={mlProduct} />
     </div>
   );
 };
