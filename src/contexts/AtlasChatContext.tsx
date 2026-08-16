@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -202,7 +202,11 @@ type AtlasChatContextValue = {
   abrirLateral: () => void;
   fechar: () => void;
   novaConversa: () => void;
-  enviar: (texto: string, produtoDoCatalogo?: ProdutoDoGuia) => Promise<void>;
+  enviar: (
+    texto: string,
+    produtoDoCatalogo?: ProdutoDoGuia,
+    contextoDaPagina?: { rota: string; nome: string; proximoPasso?: string | null },
+  ) => Promise<void>;
   abrirConversa: (threadId: string) => Promise<void>;
   /** Navegação por link interno (#catalogo etc.) preservando a conversa. */
   navegarPorLink: (rota: string) => Promise<void>;
@@ -225,37 +229,72 @@ const MENSAGEM_ANDRYA =
 
 
 /**
- * Mensagem que o Atlas manda sozinho depois de uma navegação por link interno.
- * É texto fixo de propósito: não gasta cota nem chamada de IA, e o próximo
- * passo de cada tela é sempre o mesmo.
+ * Próximo passo concreto de cada tela.
+ *
+ * Vai junto do `pageContext` para a IA responder algo específico da página em
+ * que a pessoa acabou de chegar, em vez de um texto genérico reaproveitado.
  */
 const PROXIMO_PASSO: Array<[RegExp, string]> = [
-  [/^\/dashboard\/catalogo\/[^/]+/, "Aqui você vê preço, margem e fotos. Se fizer sentido, clique em **Importar produto** e eu sigo com você na publicação."],
-  [/^\/dashboard\/catalogo/, "Use os filtros de **categoria** e **preço** para achar algo com boa margem, abra o produto e clique em **Importar produto**."],
-  [/^\/dashboard\/produtos-em-alta/, "Esses são os produtos com mais procura agora. Escolha um que combine com o seu público e importe."],
-  [/^\/dashboard\/paginas-com-ia/, "Clique em **Criar página** e escolha o produto: a IA escreve o texto de venda para você revisar."],
-  [/^\/dashboard\/modelos/, "Escolha um template que combine com o seu produto e clique em **Usar este modelo**."],
-  [/^\/dashboard\/publicacoes/, "Aqui ficam seus anúncios. Confira se algum está **pausado** e resolva o motivo apontado no card."],
-  [/^\/dashboard\/produtos-ml/, "Esses são os anúncios sincronizados do Mercado Livre. Verifique estoque e preço."],
-  [/^\/dashboard\/pedidos/, "Aqui aparecem suas vendas. Ao receber um pedido, é só repassar ao fornecedor pelo botão no card."],
-  [/^\/dashboard\/imagens-ia/, "Envie a foto do produto e a IA gera versões prontas para o anúncio."],
-  [/^\/dashboard\/tiktok/, "Crie um personagem de IA e gere vídeos curtos para divulgar o seu produto."],
-  [/^\/dashboard\/integracoes/, "Clique em **Conectar** no Mercado Livre para autorizar sua conta — leva menos de um minuto."],
-  [/^\/dashboard\/pagamentos/, "Configure aqui como você recebe. Depois disso o checkout já fica ativo."],
-  [/^\/dashboard\/planos/, "Compare os planos e escolha o que cabe agora — dá para trocar depois."],
-  [/^\/dashboard\/saldos/, "Aqui fica o seu saldo disponível e o que ainda está a liberar."],
-  [/^\/dashboard\/transacoes/, "Confira as entradas e saídas da sua conta por período."],
-  [/^\/dashboard\/configuracoes/, "Ajuste seus dados e preferências e clique em **Salvar** no fim da tela."],
-  [/^\/dashboard\/chat-fornecedores/, "Fale direto com o fornecedor sobre estoque, prazo e envio."],
-  [/^\/dashboard\/resultados/, "Acompanhe visitas e vendas para saber o que vale investir mais."],
-  [/^\/dashboard\/?$/, "De volta ao início. Me diga o que quer fazer agora e eu te levo até lá."],
+  [/^\/dashboard\/catalogo\/[^/]+/, "Ver preço, margem e fotos do produto e clicar em Importar produto."],
+  [/^\/dashboard\/catalogo/, "Filtrar por categoria e preço, abrir um produto com boa margem e clicar em Importar produto."],
+  [/^\/dashboard\/produtos-em-alta/, "Escolher entre os produtos com mais procura agora um que combine com o público dele e importar."],
+  [/^\/dashboard\/paginas-com-ia/, "Clicar em Criar página, escolher o produto e revisar o texto de venda que a IA escreve."],
+  [/^\/dashboard\/modelos/, "Escolher um template que combine com o produto e clicar em Usar este modelo."],
+  [/^\/dashboard\/publicacoes/, "Conferir os anúncios, ver se algum está pausado e resolver o motivo apontado no card."],
+  [/^\/dashboard\/produtos-ml/, "Conferir estoque e preço dos anúncios sincronizados do Mercado Livre."],
+  [/^\/dashboard\/pedidos/, "Acompanhar as vendas e repassar cada pedido ao fornecedor pelo botão do card."],
+  [/^\/dashboard\/imagens-ia/, "Enviar a foto do produto para a IA gerar versões prontas para o anúncio."],
+  [/^\/dashboard\/tiktok/, "Criar um personagem de IA e gerar vídeos curtos para divulgar o produto."],
+  [/^\/dashboard\/integracoes/, "Clicar em Conectar no Mercado Livre para autorizar a conta."],
+  [/^\/dashboard\/pagamentos/, "Configurar como ele recebe para deixar o checkout ativo."],
+  [/^\/dashboard\/planos/, "Comparar os planos e escolher o que cabe agora."],
+  [/^\/dashboard\/saldos/, "Conferir o saldo disponível e o que ainda está a liberar."],
+  [/^\/dashboard\/transacoes/, "Conferir entradas e saídas da conta por período."],
+  [/^\/dashboard\/configuracoes/, "Ajustar dados e preferências e salvar no fim da tela."],
+  [/^\/dashboard\/chat-fornecedores/, "Falar com o fornecedor sobre estoque, prazo e envio."],
+  [/^\/dashboard\/resultados/, "Acompanhar visitas e vendas para saber onde investir mais."],
+  [/^\/dashboard\/?$/, "Escolher o próximo passo a partir do início do painel."],
 ];
 
-const mensagemDeContinuidade = (rota: string) => {
-  const nome = descreverPagina(rota).nome;
-  const passo = PROXIMO_PASSO.find(([padrao]) => padrao.test(rota))?.[1];
-  return `Boa, agora você está no **${nome}**. ${passo ?? "Me diga o que quer fazer por aqui que eu te oriento passo a passo."}`;
-};
+const proximoPassoDaPagina = (rota: string) =>
+  PROXIMO_PASSO.find(([padrao]) => padrao.test(rota))?.[1] ?? null;
+
+/** Nome curto da tela, do jeito que aparece no menu, para a pergunta automática. */
+const NOME_CURTO: Array<[RegExp, string]> = [
+  [/^\/dashboard\/catalogo\/[^/]+/, "Detalhe do Produto"],
+  [/^\/dashboard\/catalogo/, "Catálogo"],
+  [/^\/dashboard\/produtos-em-alta/, "Produtos em Alta"],
+  [/^\/dashboard\/paginas-com-ia/, "Páginas com IA"],
+  [/^\/dashboard\/modelos/, "Modelos de Loja"],
+  [/^\/dashboard\/publicacoes/, "Publicações"],
+  [/^\/dashboard\/produtos-ml/, "Produtos do Mercado Livre"],
+  [/^\/dashboard\/produtos/, "Meus Produtos"],
+  [/^\/dashboard\/pedidos/, "Pedidos"],
+  [/^\/dashboard\/imagens-ia/, "Imagens com IA"],
+  [/^\/dashboard\/tiktok/, "TikTok"],
+  [/^\/dashboard\/integracoes/, "Integrações"],
+  [/^\/dashboard\/pagamentos/, "Pagamentos"],
+  [/^\/dashboard\/planos/, "Planos"],
+  [/^\/dashboard\/saldos/, "Saldos"],
+  [/^\/dashboard\/transacoes/, "Transações"],
+  [/^\/dashboard\/comissoes/, "Comissões"],
+  [/^\/dashboard\/clientes/, "Clientes"],
+  [/^\/dashboard\/minha-loja/, "Minha Loja"],
+  [/^\/dashboard\/configuracoes/, "Configurações"],
+  [/^\/dashboard\/chat-fornecedores/, "Chat com Fornecedores"],
+  [/^\/dashboard\/resultados/, "Resultados"],
+  [/^\/dashboard\/?$/, "Início"],
+];
+
+export const nomeCurtoDaPagina = (rota: string) =>
+  NOME_CURTO.find(([padrao]) => padrao.test(rota))?.[1] ?? descreverPagina(rota).nome;
+
+/**
+ * Pergunta que entra no chat como se o próprio usuário tivesse escrito, assim
+ * que ele chega numa página por um botão do Atlas.
+ */
+const perguntaDaPagina = (rota: string) => `Estou na página de ${nomeCurtoDaPagina(rota)}, e agora?`;
+
 
 export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
@@ -279,6 +318,8 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const [nichoDaVitrine, setNichoDaVitrine] = useState<NichoDaVitrine | null>(null);
   const [quota, setQuota] = useState<AtlasQuota | null>(null);
   const [fogosAtivos, setFogosAtivos] = useState(false);
+  // Pergunta automática a enviar assim que a navegação por botão do Atlas concluir.
+  const [perguntaPendente, setPerguntaPendente] = useState<{ rota: string } | null>(null);
 
   const abrirVitrine = useCallback((nicho?: NichoDaVitrine | null) => {
     if (nicho !== undefined) setNichoDaVitrine(nicho);
@@ -328,7 +369,11 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const enviar = useCallback(
-    async (texto: string, produtoDoCatalogo?: ProdutoDoGuia) => {
+    async (
+      texto: string,
+      produtoDoCatalogo?: ProdutoDoGuia,
+      contextoDaPagina?: { rota: string; nome: string; proximoPasso?: string | null },
+    ) => {
       const mensagem = texto.trim();
       if (!mensagem || enviando) return;
       if (!user?.id) {
@@ -395,7 +440,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
           // `pageContext` dá ao Atlas a noção de onde o usuário está agora.
           body: {
             messages: historico,
-            pageContext: paginaAtual,
+            pageContext: contextoDaPagina ?? paginaAtual,
             // Vai como dado, não como texto para o modelo interpretar: o guia
             // precisa do id/preço exatos para montar os passos seguintes.
             ...(produtoDoCatalogo ? { produtoSelecionado: produtoDoCatalogo } : {}),
@@ -509,14 +554,14 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   );
 
   /**
-   * Navegação disparada por link interno (#catalogo e afins) dentro de uma
-   * mensagem do Atlas.
+   * Navegação disparada por link interno ou por botão "ir para a página" do
+   * Atlas.
    *
-   * Antes o link só chamava `navigate`: quem estava no chat em tela cheia
-   * perdia a conversa, porque a página tem estado próprio e o painel lateral
-   * (que vive no layout) subia vazio. Aqui a thread é adotada pelo contexto
-   * antes de navegar, o painel abre em modo lateral e o Atlas manda uma
-   * mensagem de continuidade reconhecendo a página nova.
+   * A thread é adotada pelo contexto antes de navegar (quem estava no chat em
+   * tela cheia não perde a conversa), o painel abre em modo lateral e uma
+   * pergunta entra no chat como se fosse do usuário ("Estou na página de
+   * Catálogo, e agora?"). O envio real acontece no efeito abaixo, para o Atlas
+   * responder já com o contexto da página de destino.
    */
   const navegarPorLink = useCallback(
     async (rota: string) => {
@@ -524,35 +569,30 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       if (daPaginaCheia && daPaginaCheia !== threadId) {
         await abrirConversa(daPaginaCheia);
       }
-      const idAtual = daPaginaCheia ?? threadId;
 
       setAberto(true);
       setRotaDeAbertura("__atlas_lateral__");
       setVitrineAberta(false);
       navigate(rota);
-
-      const texto = mensagemDeContinuidade(rota);
-      const continuidade: AtlasMessage = {
-        id: `local-nav-${Date.now()}`,
-        role: "assistant",
-        content: texto,
-        created_at: new Date().toISOString(),
-      };
-      setMensagens((atual) => {
-        const ultima = atual[atual.length - 1];
-        if (ultima?.role === "assistant" && ultima.content === texto) return atual;
-        return [...atual, continuidade];
-      });
-
-      if (idAtual && user?.id) {
-        await supabase
-          .from("atlas_messages")
-          .insert({ thread_id: idAtual, user_id: user.id, role: "assistant", content: texto });
-        await supabase.from("atlas_threads").update({ updated_at: new Date().toISOString() }).eq("id", idAtual);
-      }
+      setPerguntaPendente({ rota });
     },
-    [abrirConversa, location.pathname, navigate, threadId, user?.id],
+    [abrirConversa, location.pathname, navigate, threadId],
   );
+
+  // Dispara a pergunta automática depois da navegação, com uma closure fresca
+  // de `enviar` (histórico e thread já atualizados).
+  useEffect(() => {
+    if (!perguntaPendente || enviando || carregandoConversa) return;
+    const { rota } = perguntaPendente;
+    setPerguntaPendente(null);
+    const semQuery = rota.split("?")[0];
+    void enviar(perguntaDaPagina(semQuery), undefined, {
+      rota,
+      nome: descreverPagina(semQuery).nome,
+      proximoPasso: proximoPassoDaPagina(semQuery),
+    });
+  }, [carregandoConversa, enviando, enviar, perguntaPendente]);
+
 
   const aoApagarConversa = useCallback(
     (id: string) => {
@@ -629,17 +669,18 @@ const ehRotaDoCatalogo = (rota: string) => /^\/dashboard\/catalogo\/?$/.test(rot
  * Fora do guia, e para qualquer outra rota, navega normalmente.
  */
 export const useAtlasNavegacao = () => {
-  const navigate = useNavigate();
-  const { guiaAtivo, abrirVitrine } = useAtlasChat();
+  const { guiaAtivo, abrirVitrine, navegarPorLink } = useAtlasChat();
 
   return useCallback(
-    (rota: string) => {
+    async (rota: string) => {
       if (guiaAtivo && ehRotaDoCatalogo(rota)) {
         abrirVitrine();
         return;
       }
-      navigate(rota);
+      // Navega preservando a conversa e já pergunta pelo usuário o que fazer
+      // na página de destino.
+      await navegarPorLink(rota);
     },
-    [abrirVitrine, guiaAtivo, navigate],
+    [abrirVitrine, guiaAtivo, navegarPorLink],
   );
 };

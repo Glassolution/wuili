@@ -60,6 +60,8 @@ type ProductCardAction = {
 type PageContext = {
   rota?: string;
   nome?: string;
+  /** Próximo passo concreto daquela tela, quando o usuário chegou por um botão. */
+  proximoPasso?: string | null;
 };
 
 type QuickReplyAction = {
@@ -1743,7 +1745,11 @@ serve(async (req) => {
       : null;
     const pageContextMessage =
       paginaAtual?.nome || paginaAtual?.rota
-        ? `Contexto atual da interface: o usuário está em ${paginaAtual.nome ?? "uma tela da Velo"} (${paginaAtual.rota ?? "rota não informada"}). Use isso apenas se ajudar a responder a última mensagem.`
+        ? `Contexto atual da interface: o usuário está em ${paginaAtual.nome ?? "uma tela da Velo"} (${paginaAtual.rota ?? "rota não informada"}). Use isso apenas se ajudar a responder a última mensagem.${
+            paginaAtual.proximoPasso
+              ? ` Ele acabou de chegar nessa tela por um botão seu, então responda ESPECIFICAMENTE sobre ela, sem texto genérico: o próximo passo concreto aqui é ${paginaAtual.proximoPasso} Explique isso em 2 a 4 linhas curtas, com os nomes reais dos botões da tela.`
+              : ""
+          }`
         : null;
 
     if (!LOVABLE_API_KEY) {

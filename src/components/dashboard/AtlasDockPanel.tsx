@@ -109,7 +109,7 @@ const AtlasDockPanel = () => {
               <button
                 key={`nav-${acao.route}-${i}`}
                 type="button"
-                onClick={() => navegarPeloAtlas(acao.route)}
+                onClick={() => void navegarPeloAtlas(acao.route)}
                 className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border !border-[#E4E7EC] bg-white px-3 py-1.5 text-left text-[12px] font-semibold text-[#353535] transition-colors hover:bg-[#F7F8FA]"
               >
                 <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[#2563EB]" strokeWidth={2.2} />
@@ -193,7 +193,7 @@ const AtlasDockPanel = () => {
               <button
                 key={`atalho-${acao.route}-${i}`}
                 type="button"
-                onClick={() => navegarPeloAtlas(acao.route)}
+                onClick={() => void navegarPeloAtlas(acao.route)}
                 className="inline-flex max-w-full items-center gap-1.5 rounded-full border !border-[#D8E4FB] bg-[#F0F5FF] px-2.5 py-[6px] text-[12px] font-medium tracking-[-0.01em] text-[#1D4ED8] transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:!border-[#B9CFF8] hover:bg-[#E4EDFF]"
               >
                 <ArrowUpRight className="h-3 w-3 shrink-0 text-[#2563EB]/70" strokeWidth={2.2} aria-hidden />
@@ -263,7 +263,9 @@ const AtlasDockPanel = () => {
           }
           className={
             lateral
-              ? "absolute inset-y-0 right-0 z-[55] flex shrink-0 flex-col overflow-hidden border-l border-black/[0.07] bg-white shadow-[-18px_0_48px_rgba(15,23,42,0.04)]"
+              // Lateral é irmão do <main> no flex: ocupa a própria coluna e
+                // encolhe o conteúdo em vez de cobrir os produtos.
+                ? "relative z-[55] flex h-full shrink-0 flex-col overflow-hidden border-l border-black/[0.07] bg-white shadow-[-18px_0_48px_rgba(15,23,42,0.04)]"
               : // Centralizado cobre a área de conteúdo, como era antes de existir o
                 // painel lateral. Sobrepõe em vez de empurrar para não redimensionar a
                 // página que está atrás.
