@@ -937,7 +937,7 @@ const buscarPrimeiroNome = async (supabase: ServiceClient, userId: string): Prom
 
 
 /** Marcador de build do guia — aparece no log para provar qual versão está no ar. */
-const GUIA_BUILD = "2026-08-16-guia-clean-v3";
+const GUIA_BUILD = "2026-08-16-guia-nicho-confirma-v4";
 
 /** "Ana, " quando há nome; string vazia quando não há. Evita saudação genérica. */
 const vocativo = (nome: string | null, sufixo = ", ") => (nome ? `${nome}${sufixo}` : "");
@@ -992,8 +992,19 @@ const validateNicheStep = async (
   nome: string | null = null,
 ): Promise<AtlasResponse> => {
   const signal = await researchSingleNiche(niche, supabase);
-  const demandText = signal.demand >= 70 ? "boa demanda" : signal.demand >= 45 ? "demanda moderada" : "demanda mais específica";
-  const competitionText = signal.competition >= 70 ? "concorrência alta" : signal.competition >= 45 ? "concorrência média" : "concorrência menor";
+  // Só o nível, sem repetir o rótulo da linha ("Demanda: demanda moderada").
+  const demandText =
+    signal.demand >= 70
+      ? "alta — muita gente procurando"
+      : signal.demand >= 45
+        ? "média — procura constante"
+        : "mais específica — público menor, porém fiel";
+  const competitionText =
+    signal.competition >= 70
+      ? "alta — precisa caprichar no anúncio"
+      : signal.competition >= 45
+        ? "média — dá pra brigar bem"
+        : "baixa — espaço pra aparecer rápido";
 
   // Nicho sem produto no catálogo não passa daqui. Confirmar levaria a um passo 2
   // sem nada para escolher, e o usuário perderia a viagem.
@@ -1472,15 +1483,16 @@ const maybeHandleBeginnerGuide = async (
     };
   }
 
+  // A tela de validação do nicho é a única que traz "Nicho sugerido: **X**".
+  // Usar esse marcador (em vez de uma frase de fechamento que já mudou de texto)
+  // evita que a confirmação caia de novo no passo 1 e repita o bloco inteiro.
+  const previousValidatedNiche = guideWasActive && lastAssistantText.includes("nicho sugerido:");
+
   const previousAskedForNiche =
     guideWasActive &&
+    !previousValidatedNiche &&
     (lastAssistantText.includes("passo 1 de 5") ||
       lastAssistantText.includes("outro nicho que voce ja tenha em mente"));
-  // O passo 1 fecha com "é com esse nicho que a gente vai trabalhar". Antes isso
-  // procurava por "confirma esse nicho", texto que não existe mais em lugar
-  // nenhum, e a confirmação do nicho caía fora do guia.
-  const previousValidatedNiche =
-    guideWasActive && lastAssistantText.includes("com esse nicho que a gente vai trabalhar");
 
   // Passo 1 confirmado -> Passo 2 (vitrine de produtos).
   if (previousValidatedNiche && isConfirmText(lastUserMessage)) {
