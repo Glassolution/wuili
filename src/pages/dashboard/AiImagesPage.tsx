@@ -564,7 +564,7 @@ const AiImagesPage = () => {
               {/* Avatar */}
               <div className="relative">
                 {avatar ? (
-                  <div className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white py-0.5 pl-1.5 pr-1.5 text-[#101114] shadow-[0_8px_20px_rgba(10,10,10,0.08)]">
+                  <div className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white py-0.5 pl-1.5 pr-1.5 text-[#101114]">
                     <button
                       type="button"
                       onClick={() => setMenu(menu === "avatar" ? null : "avatar")}
