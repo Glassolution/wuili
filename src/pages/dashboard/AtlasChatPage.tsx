@@ -118,7 +118,9 @@ const AtlasChatPage = () => {
     if (conectandoMl) return;
     setConectandoMl(true);
     try {
-      await startMercadoLivreOAuth();
+      // Nova aba: o guia do Atlas continua aberto enquanto o usuário conecta.
+      await startMercadoLivreOAuth({ novaAba: true });
+      setConectandoMl(false);
     } catch (erro) {
       setConectandoMl(false);
       veloToast.error(erro instanceof Error ? erro.message : "Não foi possível abrir a conexão com o Mercado Livre");
