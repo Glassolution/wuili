@@ -167,37 +167,60 @@ async function fetchValidaPayTransactions(start: Date, end: Date) {
   const apiUrl = sandbox ? "https://sandbox.validapay.com.br" : "https://api.validapay.com.br";
   const transactions: ValidaPayTransaction[] = [];
   const seen = new Set<string>();
-  let nextPageToken: string | null = null;
+  // Alguns ambientes da ValidaPay expõem o extrato em caminhos diferentes.
+  const paths = ["/v1/wallet/transactions", "/v1/wallet/statement", "/v1/transactions"];
+  let activePath: string | null = null;
 
-  for (let page = 0; page < 100; page += 1) {
-    const url = new URL(`${apiUrl}/v1/wallet/transactions`);
-    url.searchParams.set("dateFrom", start.toISOString());
-    url.searchParams.set("dateTo", end.toISOString());
-    url.searchParams.set("limit", "100");
-    if (nextPageToken) url.searchParams.set("nextPageToken", nextPageToken);
+  for (const path of paths) {
+    let nextPageToken: string | null = null;
+    let notFound = false;
 
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    const payload = await response.json().catch(() => null) as {
-      transactions?: ValidaPayTransaction[];
-      data?: { transactions?: ValidaPayTransaction[]; nextPageToken?: string | null; hasMore?: boolean };
-      nextPageToken?: string | null;
-      hasMore?: boolean;
-    } | null;
-    if (!response.ok) throw new Error(`ValidaPay extrato respondeu ${response.status}`);
+    for (let page = 0; page < 100; page += 1) {
+      const url = new URL(`${apiUrl}${path}`);
+      url.searchParams.set("dateFrom", start.toISOString());
+      url.searchParams.set("dateTo", end.toISOString());
+      url.searchParams.set("limit", "100");
+      if (nextPageToken) url.searchParams.set("nextPageToken", nextPageToken);
 
-    const rows = payload?.transactions ?? payload?.data?.transactions ?? [];
-    rows.forEach((row) => {
-      const key = String(
-        row.transactionId ?? row.id ?? row.referenceId ?? `${row.type}-${row.category}-${row.amount}-${row.createdAt ?? row.date}`,
-      );
-      if (seen.has(key)) return;
-      seen.add(key);
-      transactions.push(row);
-    });
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const payload = await response.json().catch(() => null) as {
+        transactions?: ValidaPayTransaction[];
+        data?: { transactions?: ValidaPayTransaction[]; nextPageToken?: string | null; hasMore?: boolean };
+        nextPageToken?: string | null;
+        hasMore?: boolean;
+      } | null;
 
-    const hasMore = payload?.hasMore ?? payload?.data?.hasMore ?? false;
-    nextPageToken = payload?.nextPageToken ?? payload?.data?.nextPageToken ?? null;
-    if (!hasMore || !nextPageToken || rows.length === 0) break;
+      if (response.status === 404) {
+        console.warn(`[admin-wallet-finance] extrato 404 em ${path}`);
+        notFound = true;
+        break;
+      }
+      if (!response.ok) throw new Error(`ValidaPay extrato respondeu ${response.status}`);
+
+      const rows = payload?.transactions ?? payload?.data?.transactions ?? [];
+      rows.forEach((row) => {
+        const key = String(
+          row.transactionId ?? row.id ?? row.referenceId ?? `${row.type}-${row.category}-${row.amount}-${row.createdAt ?? row.date}`,
+        );
+        if (seen.has(key)) return;
+        seen.add(key);
+        transactions.push(row);
+      });
+
+      const hasMore = payload?.hasMore ?? payload?.data?.hasMore ?? false;
+      nextPageToken = payload?.nextPageToken ?? payload?.data?.nextPageToken ?? null;
+      if (!hasMore || !nextPageToken || rows.length === 0) break;
+    }
+
+    if (!notFound) {
+      activePath = path;
+      break;
+    }
+  }
+
+  if (!activePath) {
+    // Nenhum endpoint de extrato disponível: degrada sem quebrar o painel.
+    console.warn("[admin-wallet-finance] nenhum endpoint de extrato disponível na ValidaPay");
   }
 
   return { available: true, transactions };
