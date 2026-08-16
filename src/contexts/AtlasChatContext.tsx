@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import { atlasThreadsQueryKey } from "@/lib/atlasHistory";
+import { AtlasFireworks } from "@/components/dashboard/AtlasFireworks";
+
 
 /**
  * Estado do chat do Atlas, um nível acima das páginas.
