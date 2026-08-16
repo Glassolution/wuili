@@ -245,7 +245,7 @@ const AiImagesPage = () => {
     }, tempo);
 
     return () => window.clearTimeout(timer);
-  }, [exemploDigitado, exemploIndex, faseExemplo, reduceMotion]);
+  }, [exemploDigitado, exemploIndex, faseExemplo, reduceMotion, prompt, produto, avatar]);
 
   // Catálogo Velo — carregado quando o seletor de produto abre pela primeira vez.
   useEffect(() => {
