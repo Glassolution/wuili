@@ -707,7 +707,8 @@ const AiImagesPage = () => {
               </button>
             </div>
           </div>
-          </div>
+
+
 
 
           {/* Contagem do plano, no lugar das duas descrições que ficavam aqui.
