@@ -43,9 +43,19 @@ const GoogleIcon = () => (
 // Carrossel do painel da direita. Os nomes dos arquivos têm espaço, daí o %20.
 const SHOWCASE = [
   {
-    image: "/login%202.png",
-    title: "Tudo da sua operação em um lugar",
-    description: "Catálogo, pedidos e publicações no mesmo painel, sem planilha e sem estoque parado.",
+    image: "/login%2001.png",
+    title: "Um catálogo pronto para vender",
+    description: "Produtos validados de fornecedores brasileiros, com custo e avaliação na mesma tela.",
+  },
+  {
+    image: "/login%2002.png",
+    title: "Páginas de venda criadas por IA",
+    description: "Título, descrição e layout prontos em minutos — você só revisa e publica.",
+  },
+  {
+    image: "/login%2003.png",
+    title: "Saiba quanto vai lucrar antes de publicar",
+    description: "Custo do fornecedor, preço sugerido e lucro por venda, calculados para você.",
   },
   {
     image: "/login%203.png",
