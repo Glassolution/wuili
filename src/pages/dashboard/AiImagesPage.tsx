@@ -760,7 +760,7 @@ const AiImagesPage = () => {
                     ) : null}
                     <div className="flex items-start gap-2 text-[13px]">
                       <dt className="w-[62px] shrink-0 text-black/45">Estilo</dt>
-                      <dd className="min-w-0 flex-1 font-medium text-[#101114]">{estilo.label ?? estilo.id}</dd>
+                      <dd className="min-w-0 flex-1 font-medium text-[#101114]">{estilo}</dd>
                     </div>
                   </dl>
 
