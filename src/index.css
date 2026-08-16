@@ -1386,6 +1386,7 @@ button[class*="bg-[#1"]:hover:not(:disabled) {
 [data-canvas-ui] button:hover,
 [data-editor-ignore] button:hover,
 .store-editor-preview button:hover,
+[data-atlas-chat] button:hover,
 [data-velo-flat-buttons] button:hover {
   transform: none;
 }
