@@ -1483,15 +1483,16 @@ const maybeHandleBeginnerGuide = async (
     };
   }
 
+  // A tela de validação do nicho é a única que traz "Nicho sugerido: **X**".
+  // Usar esse marcador (em vez de uma frase de fechamento que já mudou de texto)
+  // evita que a confirmação caia de novo no passo 1 e repita o bloco inteiro.
+  const previousValidatedNiche = guideWasActive && lastAssistantText.includes("nicho sugerido:");
+
   const previousAskedForNiche =
     guideWasActive &&
+    !previousValidatedNiche &&
     (lastAssistantText.includes("passo 1 de 5") ||
       lastAssistantText.includes("outro nicho que voce ja tenha em mente"));
-  // O passo 1 fecha com "é com esse nicho que a gente vai trabalhar". Antes isso
-  // procurava por "confirma esse nicho", texto que não existe mais em lugar
-  // nenhum, e a confirmação do nicho caía fora do guia.
-  const previousValidatedNiche =
-    guideWasActive && lastAssistantText.includes("com esse nicho que a gente vai trabalhar");
 
   // Passo 1 confirmado -> Passo 2 (vitrine de produtos).
   if (previousValidatedNiche && isConfirmText(lastUserMessage)) {
