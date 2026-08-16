@@ -1510,7 +1510,7 @@ const CatalogoPage = () => {
                 )}
               </div>
             ) : (
-              <div className="grid h-auto grid-cols-2 gap-x-3 gap-y-7 overflow-visible md:grid-cols-3 md:gap-x-5 md:gap-y-9 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              <div className={catalogGridClasses}>
                 {products.map((product, index) => (
                   <div key={product.id} data-dashboard-tour={index === 0 ? "catalogo-produto" : undefined}>
                     <ProductCard
