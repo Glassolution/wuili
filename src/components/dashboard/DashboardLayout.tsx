@@ -1,4 +1,4 @@
-import { Component, useEffect, useState, type ReactNode } from "react";
+import { Component, Suspense, useEffect, useState, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { veloToast } from "@/components/ui/velo-toast";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
@@ -68,6 +68,22 @@ import { Image as ImageIcon,
   Video,
   type LucideIcon,
 } from "lucide-react";
+
+/**
+ * Conteúdo das páginas do dashboard.
+ * Mantém o shell (sidebar/header/Atlas) montado e troca só o miolo, sem loader
+ * de tela cheia: a página nova apenas entra com uma animação suave.
+ */
+const PageOutlet = () => {
+  const { pathname } = useLocation();
+  return (
+    <Suspense fallback={<div aria-hidden className="min-h-[1px] w-full" />}>
+      <div key={pathname} className="animate-fade-in flex min-h-0 w-full flex-1 flex-col">
+        <Outlet />
+      </div>
+    </Suspense>
+  );
+};
 
 const ADMIN_EMAILS = new Set(["xavierluisfelipe12@gmail.com"]);
 const AFFILIATE_EMAILS = new Set(["engelmannmatheus64@gmail.com"]);
@@ -813,7 +829,7 @@ const DashboardLayoutInner = () => {
           }}
         >
           <MobileDashboardChrome>
-            <Outlet />
+              <PageOutlet />
           </MobileDashboardChrome>
         </div>
         <NotificationBannerStack />
@@ -879,7 +895,7 @@ const DashboardLayoutInner = () => {
               }}
             >
               <PageErrorBoundary>
-                <Outlet />
+                <PageOutlet />
               </PageErrorBoundary>
             </main>
 
