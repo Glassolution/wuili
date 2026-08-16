@@ -67,6 +67,12 @@ type TrendingProduct = {
   ease_score: number | null;
   viral_score: number | null;
   score: number | null;
+  velo_orders_count?: number | null;
+  velo_units_sold?: number | null;
+  velo_revenue?: number | null;
+  velo_publications_count?: number | null;
+  velo_recent_orders?: number | null;
+  external_sales?: number | null;
   total_count: number | null;
 };
 
@@ -384,7 +390,7 @@ const TrendingProductsPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const [products, setProducts] = useState<TrendingProduct[]>([]);
-  const [niche, setNiche] = useState<string | null>("Eletrônicos");
+  const [niche, setNiche] = useState<string | null>(null);
   const period: Period = "week";
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
@@ -1142,7 +1148,11 @@ const TrendingProductsPage = () => {
                 </thead>
                 <tbody>
                   {visibleProducts.map((product) => {
-                    const demand = Number(product.orders_count ?? product.demand_score ?? 0);
+                    const veloSales = Number(product.velo_units_sold ?? 0);
+                    const veloOrders = Number(product.velo_orders_count ?? 0);
+                    const veloStores = Number(product.velo_publications_count ?? 0);
+                    const marketSales = Number(product.external_sales ?? 0);
+                    const demand = veloSales > 0 ? veloSales : Number(product.orders_count ?? marketSales ?? 0);
                     const rating = Number(product.rating ?? 0);
                     const price = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
                     const cost = Number(product.cost_price ?? 0);
@@ -1215,7 +1225,16 @@ const TrendingProductsPage = () => {
                           </td>
                           <td className="px-3 py-4 text-center align-middle">
                             <p className="whitespace-nowrap text-[14px] font-semibold text-[#2B2F3A]">{formatBRL(monthlyRevenue)}</p>
-                            <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#111827]">{formatNumber(demand)} vendas</p>
+                            {veloSales > 0 ? (
+                              <p className="mt-1 whitespace-nowrap text-[12px] font-semibold text-[#111827]">
+                                {formatNumber(veloSales)} vendas na Velo
+                                <span className="ml-1 font-medium text-[#7E8798]">({formatNumber(veloOrders)} pedidos)</span>
+                              </p>
+                            ) : (
+                              <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#7E8798]">
+                                ~{formatNumber(marketSales)} vendas no mercado
+                              </p>
+                            )}
                           </td>
                           <td className="px-3 py-4 align-middle">
                             <div className="mx-auto flex w-full max-w-[245px] min-w-0 items-center justify-start gap-3">
@@ -1310,7 +1329,9 @@ const TrendingProductsPage = () => {
                                       { label: "Receita mensal", value: formatBRL(monthlyRevenue), hint: "preço x vendas" },
                                       { label: "Estoque", value: stock === null ? "Sem dado" : formatNumber(stock), hint: "risco de ruptura" },
                                       { label: "Avaliação", value: rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "Sem nota", hint: "prova de satisfação" },
-                                      { label: "Coletado em", value: formatDateTime(product.scraped_at), hint: "recência do dado" },
+                                       { label: "Vendas na Velo", value: formatNumber(veloSales), hint: `${formatNumber(veloOrders)} pedidos reais` },
+                                       { label: "Lojas vendendo", value: formatNumber(veloStores), hint: "usuários que publicaram" },
+                                       { label: "Coletado em", value: formatDateTime(product.scraped_at), hint: "recência do dado" },
                                     ].map((metric) => (
                                       <div key={metric.label} className="rounded-[8px] border border-black/[0.06] bg-white p-3">
                                         <p className="text-[11px] font-semibold text-[#7E8798]">{metric.label}</p>

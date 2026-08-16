@@ -3375,6 +3375,7 @@ export type Database = {
           cost_price: number
           demand_score: number
           ease_score: number
+          external_sales: number
           id: string
           image: string
           images: Json
@@ -3389,6 +3390,11 @@ export type Database = {
           suggested_price: number
           title: string
           total_count: number
+          velo_orders_count: number
+          velo_publications_count: number
+          velo_recent_orders: number
+          velo_revenue: number
+          velo_units_sold: number
           viral_score: number
         }[]
       }
