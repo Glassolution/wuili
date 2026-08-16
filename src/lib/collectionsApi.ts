@@ -239,6 +239,35 @@ export const renameCollection = async (collectionId: string, name: string): Prom
   return data as VeloCollection;
 };
 
+/** Coleção especial alimentada pelo coração do card, não pelo seletor manual. */
+export const FAVORITES_COLLECTION_NAME = "Favoritos";
+
+/**
+ * Ids das coleções do usuário que já contêm um produto.
+ *
+ * Usado pelo seletor de coleções para marcar as caixas já ativas sem precisar
+ * de uma consulta por coleção.
+ */
+export const getCollectionIdsForProduct = async (userId: string, productId: string): Promise<string[]> => {
+  const { data: minhas, error: erroColecoes } = await collectionsDb
+    .from("collections")
+    .select("id")
+    .eq("user_id", userId);
+  if (erroColecoes) throw erroColecoes;
+
+  const ids = ((minhas ?? []) as Array<{ id: string }>).map((item) => item.id);
+  if (ids.length === 0) return [];
+
+  const { data, error } = await collectionsDb
+    .from("collection_products")
+    .select("collection_id")
+    .eq("product_id", productId)
+    .in("collection_id", ids);
+  if (error) throw error;
+
+  return ((data ?? []) as Array<{ collection_id: string }>).map((item) => item.collection_id);
+};
+
 export const getCollectionProductIds = async (collectionId: string): Promise<string[]> => {
   const { data, error } = await collectionsDb
     .from("collection_products")
