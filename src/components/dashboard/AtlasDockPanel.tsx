@@ -381,6 +381,28 @@ const AtlasDockPanel = () => {
             </svg>
           </button>
         </form>
+
+        {/* Saldo do dia. Só aparece quando existe teto e já sabemos o número —
+            avisar "restam N" antes da primeira resposta seria ruído. */}
+        {quota && quota.limite !== null && quota.restantes !== null && (
+          <p
+            className={`mt-2 text-center text-[11px] ${quota.restantes === 0 ? "text-rose-600" : "text-[#8A8A8A]"}`}
+            aria-live="polite"
+          >
+            {quota.restantes === 0
+              ? "Você usou todas as mensagens de hoje."
+              : `Restam ${quota.restantes} de ${quota.limite} mensagens hoje.`}
+            {quota.plano === "gratis" && (
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/planos")}
+                className="ml-1 font-medium text-[#2563EB] hover:underline"
+              >
+                Ver planos
+              </button>
+            )}
+          </p>
+        )}
       </div>
         </motion.aside>
       )}
