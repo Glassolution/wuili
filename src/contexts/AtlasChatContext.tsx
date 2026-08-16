@@ -222,10 +222,45 @@ const MENSAGEM_ANDRYA =
   "Andrya 💚\n\nTem nome que muda o clima da conversa — esse é um deles. Alguém aí gosta MUITO dela, e dá pra sentir daqui.\n\nEntão vai um pouquinho de festa por conta da casa: Andrya, você é especial. 🎆";
 
 
+/**
+ * Mensagem que o Atlas manda sozinho depois de uma navegação por link interno.
+ * É texto fixo de propósito: não gasta cota nem chamada de IA, e o próximo
+ * passo de cada tela é sempre o mesmo.
+ */
+const PROXIMO_PASSO: Array<[RegExp, string]> = [
+  [/^\/dashboard\/catalogo\/[^/]+/, "Aqui você vê preço, margem e fotos. Se fizer sentido, clique em **Importar produto** e eu sigo com você na publicação."],
+  [/^\/dashboard\/catalogo/, "Use os filtros de **categoria** e **preço** para achar algo com boa margem, abra o produto e clique em **Importar produto**."],
+  [/^\/dashboard\/produtos-em-alta/, "Esses são os produtos com mais procura agora. Escolha um que combine com o seu público e importe."],
+  [/^\/dashboard\/paginas-com-ia/, "Clique em **Criar página** e escolha o produto: a IA escreve o texto de venda para você revisar."],
+  [/^\/dashboard\/modelos/, "Escolha um template que combine com o seu produto e clique em **Usar este modelo**."],
+  [/^\/dashboard\/publicacoes/, "Aqui ficam seus anúncios. Confira se algum está **pausado** e resolva o motivo apontado no card."],
+  [/^\/dashboard\/produtos-ml/, "Esses são os anúncios sincronizados do Mercado Livre. Verifique estoque e preço."],
+  [/^\/dashboard\/pedidos/, "Aqui aparecem suas vendas. Ao receber um pedido, é só repassar ao fornecedor pelo botão no card."],
+  [/^\/dashboard\/imagens-ia/, "Envie a foto do produto e a IA gera versões prontas para o anúncio."],
+  [/^\/dashboard\/tiktok/, "Crie um personagem de IA e gere vídeos curtos para divulgar o seu produto."],
+  [/^\/dashboard\/integracoes/, "Clique em **Conectar** no Mercado Livre para autorizar sua conta — leva menos de um minuto."],
+  [/^\/dashboard\/pagamentos/, "Configure aqui como você recebe. Depois disso o checkout já fica ativo."],
+  [/^\/dashboard\/planos/, "Compare os planos e escolha o que cabe agora — dá para trocar depois."],
+  [/^\/dashboard\/saldos/, "Aqui fica o seu saldo disponível e o que ainda está a liberar."],
+  [/^\/dashboard\/transacoes/, "Confira as entradas e saídas da sua conta por período."],
+  [/^\/dashboard\/configuracoes/, "Ajuste seus dados e preferências e clique em **Salvar** no fim da tela."],
+  [/^\/dashboard\/chat-fornecedores/, "Fale direto com o fornecedor sobre estoque, prazo e envio."],
+  [/^\/dashboard\/resultados/, "Acompanhe visitas e vendas para saber o que vale investir mais."],
+  [/^\/dashboard\/?$/, "De volta ao início. Me diga o que quer fazer agora e eu te levo até lá."],
+];
+
+const mensagemDeContinuidade = (rota: string) => {
+  const nome = descreverPagina(rota).nome;
+  const passo = PROXIMO_PASSO.find(([padrao]) => padrao.test(rota))?.[1];
+  return `Boa, agora você está no **${nome}**. ${passo ?? "Me diga o que quer fazer por aqui que eu te oriento passo a passo."}`;
+};
+
 export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+
 
   const sessaoRef = useRef(0);
   const [aberto, setAberto] = useState(false);
