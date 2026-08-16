@@ -1530,17 +1530,36 @@ serve(async (req) => {
     }));
     const lastUserMessage = getLastUserMessage(normalizedMessages);
 
+    const serviceClient = createServiceClient();
+    const quota = await checarQuotaAtlas(serviceClient, authenticatedUserId);
+    // Toda resposta leva o saldo do dia junto: é o que a UI mostra em
+    // "restam X mensagens hoje" sem precisar de uma segunda chamada.
+    const responder = (body: Record<string, unknown>, status = 200) =>
+      jsonResponse({ ...body, quota }, status);
+
     if (isUnsafeRequest(lastUserMessage)) {
       registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "recusa" });
-      return jsonResponse(refusalResponse());
+      return responder(refusalResponse());
     }
 
     // Conversa normal não deve passar pelo roteador determinístico nem pelo modelo
     // com o preset antigo no histórico, senão "oi atlas" vira menu operacional.
     if (isConversationalAside(lastUserMessage)) {
       registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "conversa_solta" });
-      return jsonResponse(conversationalAsideResponse());
+      return responder(conversationalAsideResponse());
     }
+
+    // FAQ resolvido em código: dúvida de navegação repetida não precisa de modelo.
+    // Só entra quando não há guia em andamento, para não cortar um passo no meio.
+    const guiaEmAndamento = /passo \d de 4/i.test(getLastAssistantMessage(normalizedMessages)?.content ?? "");
+    if (!guiaEmAndamento) {
+      const faq = resolveAtlasFaq(lastUserMessage);
+      if (faq) {
+        registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: `faq_${faq.id}` });
+        return responder({ message: faq.message, actions: faq.actions ?? [] });
+      }
+    }
+
 
     const produtoDoCatalogo =
       produtoSelecionado && typeof produtoSelecionado === "object" && typeof produtoSelecionado.id === "string"
