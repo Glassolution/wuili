@@ -308,10 +308,11 @@ const AiImagesPage = () => {
     };
   }, [menu, catalogo.length]);
 
-  // A ficha carrega o nome real do que foi escolhido: "@Depilador a Laser…"
-  // em vez do genérico "@produto".
-  const fichaProduto = produto ? `@${produto.title}` : "@produto";
-  const fichaAvatar = avatar ? `@${avatar.name}` : "@avatar";
+  // A ficha carrega uma versão curta do nome escolhido ("@Depilador a Laser")
+  // em vez do título inteiro do catálogo, que estourava a linha.
+  const fichaProduto = produto ? `@${nomeCurto(produto.title)}` : "@produto";
+  const fichaAvatar = avatar ? `@${nomeCurto(avatar.name)}` : "@avatar";
+
 
   /**
    * Coloca (ou atualiza) a ficha no prompt. Se já existia uma ficha do mesmo
