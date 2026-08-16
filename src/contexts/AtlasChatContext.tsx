@@ -459,7 +459,9 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       produtoSelecionado,
       selecionarProduto,
       vitrineAberta,
+      nichoDaVitrine,
       abrirVitrine,
+
       fecharVitrine,
       abrir,
       abrirLateral,
