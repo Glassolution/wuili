@@ -48,7 +48,7 @@ const AtlasDockPanel = () => {
   const reduzirMovimento = useReducedMotion();
   const {
     aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, quota,
-    fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
+    fechar, novaConversa, enviar, abrirConversa, aoApagarConversa, abrirVitrine,
   } = useAtlasChat();
   const navegarPeloAtlas = useAtlasNavegacao();
 
@@ -130,7 +130,24 @@ const AtlasDockPanel = () => {
             );
           }
 
+          // Reabre a vitrine do guia (ela também abre sozinha ao chegar a
+          // resposta, mas o botão fica para quem fechou o modal sem escolher).
+          if (acao.type === "open_showcase") {
+            return (
+              <button
+                key={`vitrine-${i}`}
+                type="button"
+                onClick={() => abrirVitrine(acao.niche ?? null)}
+                className="inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-[#111111] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#2A2A2A]"
+              >
+                <PackageSearch className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
+                <span className="truncate">{acao.label}</span>
+              </button>
+            );
+          }
+
           const produto = acao.product;
+
           const rota = produto?.route ?? `/dashboard/catalogo/${acao.product_id}`;
           const preco = formatPrice(produto?.suggested_price);
 

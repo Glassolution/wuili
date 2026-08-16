@@ -78,7 +78,25 @@ type ConnectMlAction = {
   label: string;
 };
 
-type AtlasAction = NavigationAction | ProductCardAction | QuickReplyAction | ConnectMlAction;
+/**
+ * Abre a vitrine de produtos do guia (modal do frontend).
+ *
+ * O nicho vai junto para a vitrine cruzar o que o usuário acabou de escolher na
+ * conversa com o perfil respondido no cadastro, em vez de mostrar só o perfil.
+ */
+type OpenShowcaseAction = {
+  type: "open_showcase";
+  label: string;
+  niche?: { id: string; label: string; catalogTerms: string[] };
+};
+
+type AtlasAction =
+  | NavigationAction
+  | ProductCardAction
+  | QuickReplyAction
+  | ConnectMlAction
+  | OpenShowcaseAction;
+
 
 type AtlasResponse = {
   message: string;
@@ -601,11 +619,11 @@ const registrarUso = (registro: RegistroDeUso) => {
 /**
  * Nome da etapa a partir da própria resposta.
  *
- * O guia já carrega "Passo N de 4" no texto, então dá para etiquetar sem
+ * O guia já carrega "Passo N de 5" no texto, então dá para etiquetar sem
  * espalhar parâmetro por todas as funções que montam resposta.
  */
 const etapaDaRespostaDoGuia = (resposta: AtlasResponse) => {
-  const passo = resposta.message.match(/passo\s*([1-4])\s*de\s*4/i);
+  const passo = resposta.message.match(/passo\s*([1-5])\s*de\s*5/i);
   return passo ? `guia_passo_${passo[1]}` : "guia_outro";
 };
 
@@ -897,13 +915,13 @@ const askBeginnerNiche = async (supabase: ServiceClient): Promise<AtlasResponse>
     if (destaques.length === 0) {
       return {
         message:
-          "Claro! Vou te ajudar do começo ao fim. 🎉 A gente vai passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um facilita tudo depois, porque você aprende sobre um público só.\n\nVamos pelo caminho mais direto. Abra o catálogo, escolha um produto que te chame atenção, e eu monto o resto do guia em cima dele.",
+          "Claro! Vou te ajudar do começo ao fim. 🎉 A gente vai passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 5: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um facilita tudo depois, porque você aprende sobre um público só.\n\nVamos pelo caminho mais direto. Abra o catálogo, escolha um produto que te chame atenção, e eu monto o resto do guia em cima dele.",
         actions: [{ type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" }],
       };
     }
     return {
       message:
-        "Claro! Vou te ajudar do começo ao fim. 🎉 A gente vai passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um facilita tudo depois, porque você aprende sobre um público só.\n\nSeparei as categorias que mais saem por aqui, assim você não precisa garimpar no catálogo inteiro. Escolha uma e eu te levo direto para os produtos dela.",
+        "Claro! Vou te ajudar do começo ao fim. 🎉 A gente vai passo a passo até o seu primeiro anúncio no ar.\n\n**Passo 1 de 5: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um facilita tudo depois, porque você aprende sobre um público só.\n\nSeparei as categorias que mais saem por aqui, assim você não precisa garimpar no catálogo inteiro. Escolha uma e eu te levo direto para os produtos dela.",
       actions: [
         ...destaques.map((categoria) => ({
           type: "navigation" as const,
@@ -918,7 +936,7 @@ const askBeginnerNiche = async (supabase: ServiceClient): Promise<AtlasResponse>
 
   return {
     message:
-      `Claro! Vou te ajudar do começo ao fim. 🎉 A gente vai passo a passo até o seu primeiro anúncio no ar, uma coisa de cada vez e sem pressa.\n\n**Passo 1 de 4: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um agora facilita tudo depois. Você aprende sobre um público só e repete o que deu certo, em vez de começar do zero a cada produto novo.\n\nOlhei ${sourceLabel} e separei algumas opções que estão indo bem neste momento. Escolha uma, ou me diga outro nicho que você já tenha em mente. Você não precisa ficar preso a essa lista.`,
+      `Claro! Vou te ajudar do começo ao fim. 🎉 A gente vai passo a passo até o seu primeiro anúncio no ar, uma coisa de cada vez e sem pressa.\n\n**Passo 1 de 5: seu nicho**\n\nNicho é o tipo de produto em que você vai se concentrar, como pets, beleza ou utilidades para casa. Escolher um agora facilita tudo depois. Você aprende sobre um público só e repete o que deu certo, em vez de começar do zero a cada produto novo.\n\nOlhei ${sourceLabel} e separei algumas opções que estão indo bem neste momento. Escolha uma, ou me diga outro nicho que você já tenha em mente. Você não precisa ficar preso a essa lista.`,
     actions: [
       ...suggestions.map((label) => quickReply(label, `Quero começar com ${label}`)),
       quickReply("Ainda não sei", "Ainda não sei qual nicho escolher"),
@@ -940,7 +958,7 @@ const validateNicheStep = async (
     const alternativas = beginnerNicheSuggestions(nichosDisponiveis(await researchMarketSignals(supabase)), 4);
     return {
       message:
-        `**Passo 1 de 4: seu nicho**\n\nOlhei **${niche.label}** e preciso ser sincero com você. O catálogo Velo não tem produtos desse nicho neste momento.\n\nNão vale a pena seguir por aí. No próximo passo você ficaria sem nada para escolher, e o guia travaria bem no começo.\n\n${
+        `**Passo 1 de 5: seu nicho**\n\nOlhei **${niche.label}** e preciso ser sincero com você. O catálogo Velo não tem produtos desse nicho neste momento.\n\nNão vale a pena seguir por aí. No próximo passo você ficaria sem nada para escolher, e o guia travaria bem no começo.\n\n${
           alternativas.length > 0
             ? "Estes aqui a gente atende hoje. São parecidos o bastante para funcionar bem com o que você tinha em mente:"
             : "Vamos por outro caminho. Abra o catálogo e escolha a partir do que existe hoje."
@@ -954,7 +972,7 @@ const validateNicheStep = async (
 
   return {
     message:
-      `Boa escolha! Deixa eu te contar o que eu vi sobre esse nicho.\n\n**Passo 1 de 4: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\nEsse nicho tem ${demandText} e ${competitionText}. Demanda é quanta gente procura por esses produtos. Concorrência é quantos vendedores já disputam essa procura.\n\nNa prática: existe gente comprando. O que vai definir o seu resultado é escolher produtos com boa margem e fotos claras. Margem é o que sobra do preço depois de tirar o custo, a tarifa do marketplace e o frete.\n\n${signal.note}\n\nÉ com esse nicho que a gente vai trabalhar. Vamos aos produtos.`,
+      `Boa escolha! Deixa eu te contar o que eu vi sobre esse nicho.\n\n**Passo 1 de 5: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\nEsse nicho tem ${demandText} e ${competitionText}. Demanda é quanta gente procura por esses produtos. Concorrência é quantos vendedores já disputam essa procura.\n\nNa prática: existe gente comprando. O que vai definir o seu resultado é escolher produtos com boa margem e fotos claras. Margem é o que sobra do preço depois de tirar o custo, a tarifa do marketplace e o frete.\n\n${signal.note}\n\nÉ com esse nicho que a gente vai trabalhar. Vamos aos produtos.`,
     actions: [
       quickReply(`Vamos aos produtos`, `Sim, buscar produtos de ${niche.label}`),
       quickReply("Quero outro nicho", "Quero ver outros nichos"),
@@ -1002,7 +1020,7 @@ const showProductsForNiche = async (
 
   return {
     message:
-      `Nicho definido, agora vem a parte divertida! 😄\n\n**Passo 2 de 4: escolha do produto**\n\nCruzei **${niche.label}** com o catálogo da Velo e separei até 3 opções para você.\n\nPriorizei duas coisas. Estoque ativo, porque anúncio de produto sem estoque acaba pausado. E boa margem, que é o quanto sobra para você depois de pagar o custo do produto, a tarifa do marketplace e o frete.\n\nEscolha uma. No próximo passo eu avalio como ela se sai nas redes sociais.`,
+      `Nicho definido, agora vem a parte divertida! 😄\n\n**Passo 2 de 5: escolha do produto**\n\nCruzei **${niche.label}** com o catálogo da Velo e separei até 3 opções para você.\n\nPriorizei duas coisas. Estoque ativo, porque anúncio de produto sem estoque acaba pausado. E boa margem, que é o quanto sobra para você depois de pagar o custo do produto, a tarifa do marketplace e o frete.\n\nEscolha uma. No próximo passo eu avalio como ela se sai nas redes sociais.`,
     actions: [
       ...products.map(productCardFromRow),
       quickReply("Quero o primeiro", "Quero o primeiro produto"),
@@ -1011,16 +1029,38 @@ const showProductsForNiche = async (
   };
 };
 
+/**
+ * Passo 2: escolha do produto na vitrine.
+ *
+ * Assim que o nicho é confirmado, o guia abre a vitrine que já existe no
+ * frontend em vez de despejar cards de texto no chat. A vitrine cruza o nicho
+ * confirmado aqui com o perfil respondido no cadastro, e o produto escolhido
+ * segue amarrado ao resto do guia até a publicação.
+ */
+const guideOpenShowcaseStep = async (
+  supabase: ServiceClient,
+  niche: ValidatedNiche,
+): Promise<AtlasResponse> => {
+  const products = await searchCatalogProductsForNiche(supabase, niche);
 
-// --- Passo 2: onde vender ---------------------------------------------------
-// PENDÊNCIA: loja própria via Shopify está em planejamento e NÃO deve ser
-// oferecida como se existisse. Quando a integração for lançada, este passo passa
-// a apresentar as duas opções e a pergunta vira uma escolha de verdade.
-const askSalesChannelStep = (niche: ValidatedNiche): AtlasResponse => ({
-  message:
-    `Boa, **${niche.label}** fechado! Passo 1 concluído.\n\n**Passo 2 de 4: onde vender**\n\nVocê vai vender no **Mercado Livre**. É o caminho mais curto até a sua primeira venda.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\nMais pra frente a gente conecta a sua conta de vendedor, e eu te acompanho nessa hora.\n\nAgora vamos escolher o seu produto.`,
-  actions: [quickReply("Vamos escolher o produto", "Sim, quero vender pelo Mercado Livre")],
-});
+  // Sem produto no nicho a vitrine abriria vazia: melhor trocar de nicho aqui.
+  if (products.length === 0) return showProductsForNiche(supabase, niche);
+
+  return {
+    message:
+      `Nicho fechado! **${niche.label}** é o nosso ponto de partida. 🎉\n\n**Passo 2 de 5: escolha do produto**\n\nAbri aqui uma seleção do catálogo da Velo feita para você. Cruzei o nicho que você acabou de escolher com o que você respondeu no cadastro, e deixei de fora o que está sem estoque.\n\nPasse pelos cards, olhe as fotos e o preço, e escolha um. É esse produto que vai comigo até a publicação no Mercado Livre.`,
+    actions: [
+      {
+        type: "open_showcase",
+        label: "Escolher meu produto",
+        niche: { id: niche.id, label: niche.label, catalogTerms: niche.catalogTerms },
+      },
+      quickReply("Ver o catálogo completo", "Quero ver o catálogo completo"),
+      quickReply("Quero outro nicho", "Quero ver outros nichos"),
+    ],
+  };
+};
+
 
 // --- Passo 3: potencial de divulgação orgânica -------------------------------
 // Sem API de TikTok/Instagram: o sinal é uma leitura do produto (o quanto ele é
@@ -1085,7 +1125,7 @@ const validateSocialPotentialStep = (
 
   return {
     message:
-      `${prefacio ? `${prefacio}\n\n` : "Produto escolhido, você já está na metade do caminho!\n\n"}**Passo 3 de 4: potencial de divulgação**\n\nAntes de publicar, vale olhar uma coisa que quase ninguém olha no começo. O quanto esse produto se sustenta sozinho no TikTok e no Instagram.\n\nProduto bonito de ver e fácil de mostrar funcionando costuma render bem mais que produto genérico. O motivo é simples. O vídeo faz parte do trabalho de venda por você, sem você pagar por isso.\n\nMinha leitura de **${titulo}**: potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\nUm aviso honesto: isso é uma leitura do tipo de produto e do nicho, não uma medição das redes sociais. Quando quiser produzir esse conteúdo, os influencers de IA ficam em #tiktok e as fotos em #imagens-ia.\n\nVamos levar ele para a publicação.`,
+      `${prefacio ? `${prefacio}\n\n` : "Produto escolhido, você já está na metade do caminho!\n\n"}**Passo 4 de 5: potencial de divulgação**\n\nAntes de publicar, vale olhar uma coisa que quase ninguém olha no começo. O quanto esse produto se sustenta sozinho no TikTok e no Instagram.\n\nProduto bonito de ver e fácil de mostrar funcionando costuma render bem mais que produto genérico. O motivo é simples. O vídeo faz parte do trabalho de venda por você, sem você pagar por isso.\n\nMinha leitura de **${titulo}**: potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\nUm aviso honesto: isso é uma leitura do tipo de produto e do nicho, não uma medição das redes sociais. Quando quiser produzir esse conteúdo, os influencers de IA ficam em #tiktok e as fotos em #imagens-ia.\n\nVamos levar ele para a publicação.`,
     actions: [
       product,
       quickReply("Seguir para a publicação", "Sim, seguir com esse produto para publicação"),
@@ -1107,7 +1147,7 @@ const guidePublicationStep = async (
   if (!mlStatus.connected || !mlStatus.tokenValid) {
     return {
       message:
-        `Chegamos no último passo! Olha o quanto você já avançou:\n\n**Passo 4 de 4: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre\n- **Produto:** ${productTitle}, com potencial de divulgação já avaliado\n\nFalta uma coisa antes de publicar. Conectar a sua conta do Mercado Livre.\n\nÉ rápido. Você entra na sua conta, clica em permitir e volta pra cá. A gente faz isso em #integracoes, e a sua senha nunca passa pela Velo.\n\nAssim que conectar, abrimos o produto, revisamos título e descrição e colocamos o seu anúncio no ar. Me avise quando terminar que eu confiro aqui.`,
+        `Chegamos no último passo! Olha o quanto você já avançou:\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre\n- **Produto:** ${productTitle}, com potencial de divulgação já avaliado\n\nFalta uma coisa antes de publicar. Conectar a sua conta do Mercado Livre.\n\nÉ rápido. Você entra na sua conta, clica em permitir e volta pra cá. A gente faz isso em #integracoes, e a sua senha nunca passa pela Velo.\n\nAssim que conectar, abrimos o produto, revisamos título e descrição e colocamos o seu anúncio no ar. Me avise quando terminar que eu confiro aqui.`,
       actions: [
         // Conecta pelo próprio chat: o usuário não precisa achar a tela sozinho.
         { type: "connect_ml", label: "Conectar Mercado Livre agora" },
@@ -1123,7 +1163,7 @@ const guidePublicationStep = async (
 
   return {
     message:
-      `Chegamos no último passo! 🎉 Olha o quanto você já avançou:\n\n**Passo 4 de 4: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre, com a sua conta já conectada\n- **Produto:** ${productTitle}, com potencial de divulgação já avaliado\n\nAgora é a reta final. Abra o produto, revise o título e a descrição, confira o preço e a margem, e publique.\n\nVale caprichar no título. Ele precisa ter as palavras que a pessoa realmente digita na busca, senão o anúncio não aparece.\n\nDepois é só acompanhar o status em #publicacoes e as suas vendas em #pedidos. Se travar em qualquer ponto, me chama aqui.`,
+      `Chegamos no último passo! 🎉 Olha o quanto você já avançou:\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre, com a sua conta já conectada\n- **Produto:** ${productTitle}, com potencial de divulgação já avaliado\n\nAgora é a reta final. Abra o produto, revise o título e a descrição, confira o preço e a margem, e publique.\n\nVale caprichar no título. Ele precisa ter as palavras que a pessoa realmente digita na busca, senão o anúncio não aparece.\n\nDepois é só acompanhar o status em #publicacoes e as suas vendas em #pedidos. Se travar em qualquer ponto, me chama aqui.`,
     actions: [
       { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
       { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
@@ -1178,7 +1218,7 @@ const guideProductChosenStep = async (
 
   return {
     message:
-      `Ótima escolha! 😄 Anotei aqui: **${produto.nome}**${preco ? ` (${preco})` : ""}, da categoria ${produto.categoria}. É com ele que a gente vai trabalhar daqui pra frente.\n\n**Passo 2 de 4: onde vender**\n\nVocê vai vender no **Mercado Livre**. É o caminho mais curto até a sua primeira venda.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\n${sobreAConta}\n\n${mlPronto ? "Vamos seguir para o próximo passo." : "Agora vamos conectar a sua conta. É o que falta para o seu anúncio poder ir ao ar."}`,
+      `Ótima escolha! 😄 Anotei aqui: **${produto.nome}**${preco ? ` (${preco})` : ""}, da categoria ${produto.categoria}. É com ele que a gente vai trabalhar daqui pra frente.\n\n**Passo 3 de 5: onde vender**\n\nVocê vai vender no **Mercado Livre**. É o caminho mais curto até a sua primeira venda.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\n${sobreAConta}\n\n${mlPronto ? "Vamos seguir para o próximo passo." : "Agora vamos conectar a sua conta. É o que falta para o seu anúncio poder ir ao ar."}`,
     actions: [
       {
         type: "product_card",
@@ -1222,7 +1262,7 @@ const guideConnectMlStep = (product: ProductCardAction, jaDisseQueConectou: bool
   if (jaDisseQueConectou) {
     return {
       message:
-        `**Passo 2 de 4: conectar sua conta**\n\nAinda não estou enxergando a conexão aqui do meu lado. Isso acontece bastante, e quase sempre é uma destas três coisas:\n\n1. A janela do Mercado Livre foi fechada antes de clicar em permitir.\n2. O login aconteceu numa conta diferente da que você quer usar para vender.\n3. A autorização ainda está sendo processada. Nesse caso, espere alguns segundos e me chame de novo.\n\nNada grave. Vamos tentar mais uma vez, com calma:\n\n${passoAPasso}\n\nSe aparecer alguma mensagem estranha na tela, me conte o que estava escrito. Eu te ajudo a resolver.`,
+        `**Passo 3 de 5: conectar sua conta**\n\nAinda não estou enxergando a conexão aqui do meu lado. Isso acontece bastante, e quase sempre é uma destas três coisas:\n\n1. A janela do Mercado Livre foi fechada antes de clicar em permitir.\n2. O login aconteceu numa conta diferente da que você quer usar para vender.\n3. A autorização ainda está sendo processada. Nesse caso, espere alguns segundos e me chame de novo.\n\nNada grave. Vamos tentar mais uma vez, com calma:\n\n${passoAPasso}\n\nSe aparecer alguma mensagem estranha na tela, me conte o que estava escrito. Eu te ajudo a resolver.`,
       actions: [
         { type: "connect_ml", label: "Conectar Mercado Livre" },
         { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
@@ -1235,7 +1275,7 @@ const guideConnectMlStep = (product: ProductCardAction, jaDisseQueConectou: bool
 
   return {
     message:
-      `Perfeito, vamos nessa! É mais simples do que parece.\n\n**Passo 2 de 4: conectar sua conta**\n\n${passoAPasso}\n\nDuas coisas para você ficar tranquilo. A Velo nunca enxerga a sua senha, quem cuida disso é o próprio Mercado Livre. E se um dia você quiser desfazer a conexão, é um clique em #integracoes.\n\nAinda não tem conta de vendedor? Sem problema. Dá para criar na hora, é rápido e não custa nada.\n\nMe avise assim que terminar. Eu confiro aqui e a gente segue para o próximo passo.`,
+      `Perfeito, vamos nessa! É mais simples do que parece.\n\n**Passo 3 de 5: conectar sua conta**\n\n${passoAPasso}\n\nDuas coisas para você ficar tranquilo. A Velo nunca enxerga a sua senha, quem cuida disso é o próprio Mercado Livre. E se um dia você quiser desfazer a conexão, é um clique em #integracoes.\n\nAinda não tem conta de vendedor? Sem problema. Dá para criar na hora, é rápido e não custa nada.\n\nMe avise assim que terminar. Eu confiro aqui e a gente segue para o próximo passo.`,
     actions: [
       { type: "connect_ml", label: "Conectar Mercado Livre" },
       { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
@@ -1264,10 +1304,10 @@ const maybeHandleBeginnerGuide = async (
   const lastActions = getLastAssistantActions(messages);
   const lastProductCards = lastActions.filter((action): action is ProductCardAction => action.type === "product_card");
 
-  // O guia se identifica pelo marcador "passo N de 4", presente em toda etapa.
+  // O guia se identifica pelo marcador "passo N de 5", presente em toda etapa.
   // Antes isso dependia do título "Guia de Iniciante"; qualquer mudança de texto
   // quebrava a continuidade e o fluxo caía no modelo genérico no meio do caminho.
-  const guideWasActive = /passo \d de 4/.test(lastAssistantText);
+  const guideWasActive = /passo \d de 5/.test(lastAssistantText);
   const guideReply = isBeginnerGuideReply(lastUserMessage) || isBeginnerTrigger(lastUserMessage, userMessageCount);
 
   // O guia é um modo de ajuda, não uma prisão. Se o usuário fizer conversa normal
@@ -1280,7 +1320,7 @@ const maybeHandleBeginnerGuide = async (
     return askBeginnerNiche(supabase);
   }
 
-  const emPasso = (n: number) => guideWasActive && lastAssistantText.includes(`passo ${n} de 4`);
+  const emPasso = (n: number) => guideWasActive && lastAssistantText.includes(`passo ${n} de 5`);
 
   // "Ver outras opções" vale em qualquer etapa que já tenha produto na tela.
   // Tratado antes das etapas específicas porque o botão aparece nos passos 2, 3
@@ -1291,26 +1331,26 @@ const maybeHandleBeginnerGuide = async (
     return askBeginnerNiche(supabase);
   }
 
-  // Passo 3 confirmado -> Passo 4 (resumo + publicação).
-  if (emPasso(3) && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
+  // Passo 4 (divulgação) confirmado -> Passo 5 (resumo + publicação).
+  if (emPasso(4) && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
     return guidePublicationStep(supabase, userId, lastProductCards[0], niche);
   }
 
-  // Produto escolhido na lista -> conectar o Mercado Livre e, com a conta no
-  // lugar, seguir para o passo 3 (potencial de divulgação).
+  // Passo 3 (onde vender / conectar): com a conta no lugar, seguir para o passo
+  // 4 (potencial de divulgação).
   if (
-    emPasso(2) &&
+    emPasso(3) &&
     lastProductCards.length > 0 &&
     (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage) || saidConnectedMl(lastUserMessage))
   ) {
     // Nicho pode não existir: quem escolheu o produto direto no catálogo nunca
     // passou pela etapa de nicho. Antes isso voltava o usuário ao passo 1 e
-    // reiniciava o guia; agora o passo 3 segue com o produto que já foi escolhido.
+    // reiniciava o guia; agora o passo 4 segue com o produto que já foi escolhido.
     const niche = inferNicheFromConversation(messages, lastUserMessage);
 
     // Quem pediu para deixar a conexão para depois não fica preso nela: o guia
-    // segue, e o passo 4 cobra a conta de novo antes de publicar.
+    // segue, e o passo 5 cobra a conta de novo antes de publicar.
     if (!wantsToConnectLater(lastUserMessage)) {
       const mlStatus = await getUserMercadoLivreStatus(supabase, userId);
       if (!mlStatus.connected || !mlStatus.tokenValid) {
@@ -1328,20 +1368,47 @@ const maybeHandleBeginnerGuide = async (
     return validateSocialPotentialStep(lastProductCards[0], niche);
   }
 
-  // Passo 2 (canal) confirmado -> lista de produtos do nicho.
-  if (emPasso(2) && lastProductCards.length === 0 && isConfirmText(lastUserMessage)) {
-    const niche = inferNicheFromConversation(messages, lastUserMessage);
-    if (niche) return showProductsForNiche(supabase, niche);
+  // Passo 2 com cards na tela (fallback de quem não usou a vitrine): produto
+  // confirmado -> passo 3, já amarrado ao produto escolhido.
+  if (emPasso(2) && lastProductCards.length > 0 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
+    const escolhido = lastProductCards[0];
+    return guideProductChosenStep(supabase, userId, {
+      id: escolhido.product_id,
+      nome: escolhido.product?.title ?? "o produto escolhido",
+      categoria: inferNicheFromConversation(messages, lastUserMessage)?.label ?? "catálogo Velo",
+      preco: escolhido.product?.suggested_price ?? Number.NaN,
+      imagem: escolhido.product?.image_url ?? null,
+    });
   }
 
-  // Passo 4: usuário avisa que conectou o Mercado Livre.
-  if (emPasso(4) && /\b(ja conectei|já conectei|conectei|conectado)\b/i.test(lastUserMessage)) {
+  // Quem prefere garimpar sozinho sai da vitrine para a grade inteira, sem
+  // perder o guia: o produto escolhido no catálogo volta pelo mesmo caminho.
+  if (emPasso(2) && /catalogo completo/.test(normalizeGuideText(lastUserMessage))) {
+    return {
+      message:
+        "Fechado, vamos pelo catálogo completo. 😉\n\n**Passo 2 de 5: escolha do produto**\n\nAbra o catálogo, use os filtros e escolha o produto que mais te agradar. Quando clicar em escolher, eu sigo o guia com ele daqui.",
+      actions: [
+        { type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo", variant: "primary" },
+        quickReply("Prefiro a seleção do Atlas", "Ver outras opções de produto"),
+      ],
+    };
+  }
+
+  // Passo 2 sem cards: a vitrine é o caminho. Se ela foi fechada sem escolha, o
+  // usuário pede de volta e o guia reabre em vez de travar.
+  if (emPasso(2) && lastProductCards.length === 0 && (isConfirmText(lastUserMessage) || wantsOtherOptions(lastUserMessage))) {
+    const niche = inferNicheFromConversation(messages, lastUserMessage);
+    if (niche) return guideOpenShowcaseStep(supabase, niche);
+  }
+
+  // Passo 5: usuário avisa que conectou o Mercado Livre.
+  if (emPasso(5) && /\b(ja conectei|já conectei|conectei|conectado)\b/i.test(lastUserMessage)) {
     const productNav = lastActions.find(
       (action): action is NavigationAction => action.type === "navigation" && action.route.includes("/dashboard/catalogo/"),
     );
     return {
       message:
-        "Conta conectada, deu tudo certo! 🎉\n\n**Passo 4 de 4: revisão final**\n\nAgora abra o produto escolhido, revise o título, a descrição, o preço e a margem, e publique.\n\nDois cuidados que evitam a maior parte dos problemas. Coloque no título as palavras que o comprador digita na busca. E deixe o prazo de entrega realista, porque atraso vira reclamação e reclamação derruba a sua nota de vendedor.\n\nDepois de publicar, o status aparece em #publicacoes e as suas vendas em #pedidos. Qualquer dúvida no caminho, é só me chamar.",
+        "Conta conectada, deu tudo certo! 🎉\n\n**Passo 5 de 5: revisão final**\n\nAgora abra o produto escolhido, revise o título, a descrição, o preço e a margem, e publique.\n\nDois cuidados que evitam a maior parte dos problemas. Coloque no título as palavras que o comprador digita na busca. E deixe o prazo de entrega realista, porque atraso vira reclamação e reclamação derruba a sua nota de vendedor.\n\nDepois de publicar, o status aparece em #publicacoes e as suas vendas em #pedidos. Qualquer dúvida no caminho, é só me chamar.",
       actions: [
         ...(productNav ? [productNav] : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
         { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
@@ -1351,15 +1418,20 @@ const maybeHandleBeginnerGuide = async (
 
   const previousAskedForNiche =
     guideWasActive &&
-    (lastAssistantText.includes("passo 1 de 4") ||
+    (lastAssistantText.includes("passo 1 de 5") ||
       lastAssistantText.includes("outro nicho que voce ja tenha em mente"));
-  const previousValidatedNiche = guideWasActive && lastAssistantText.includes("confirma esse nicho");
+  // O passo 1 fecha com "é com esse nicho que a gente vai trabalhar". Antes isso
+  // procurava por "confirma esse nicho", texto que não existe mais em lugar
+  // nenhum, e a confirmação do nicho caía fora do guia.
+  const previousValidatedNiche =
+    guideWasActive && lastAssistantText.includes("com esse nicho que a gente vai trabalhar");
 
-  // Passo 1 confirmado -> Passo 2 (canal de venda).
+  // Passo 1 confirmado -> Passo 2 (vitrine de produtos).
   if (previousValidatedNiche && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    if (niche) return askSalesChannelStep(niche);
+    if (niche) return guideOpenShowcaseStep(supabase, niche);
   }
+
 
   if (previousAskedForNiche || isBeginnerTrigger(lastUserMessage, userMessageCount)) {
     const niche = findValidatedNiche(lastUserMessage);
@@ -1551,7 +1623,7 @@ serve(async (req) => {
 
     // FAQ resolvido em código: dúvida de navegação repetida não precisa de modelo.
     // Só entra quando não há guia em andamento, para não cortar um passo no meio.
-    const guiaEmAndamento = /passo \d de 4/i.test(getLastAssistantMessage(normalizedMessages)?.content ?? "");
+    const guiaEmAndamento = /passo \d de 5/i.test(getLastAssistantMessage(normalizedMessages)?.content ?? "");
     if (!guiaEmAndamento) {
       const faq = resolveAtlasFaq(lastUserMessage);
       if (faq) {

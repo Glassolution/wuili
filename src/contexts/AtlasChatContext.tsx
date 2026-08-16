@@ -47,13 +47,18 @@ export type AtlasProductCardAction = {
 };
 
 export type AtlasQuickReplyAction = { type: "quick_reply"; label: string; message: string };
+/** Nicho confirmado na conversa, usado para filtrar a vitrine. */
+export type NichoDaVitrine = { id: string; label: string; catalogTerms: string[] };
+/** Abre a vitrine de produtos do guia, já filtrada pelo nicho confirmado. */
+export type AtlasOpenShowcaseAction = { type: "open_showcase"; label: string; niche?: NichoDaVitrine };
 export type AtlasConnectMlAction = { type: "connect_ml"; label: string };
 
 export type AtlasAction =
   | AtlasNavigationAction
   | AtlasProductCardAction
   | AtlasQuickReplyAction
-  | AtlasConnectMlAction;
+  | AtlasConnectMlAction
+  | AtlasOpenShowcaseAction;
 
 /**
  * Saldo diário de mensagens do Atlas, devolvido pela função em toda resposta.
@@ -88,6 +93,7 @@ const isAtlasAction = (action: unknown): action is AtlasAction => {
   if (c.type === "product_card") return typeof c.product_id === "string";
   if (c.type === "quick_reply") return typeof c.label === "string" && typeof c.message === "string";
   if (c.type === "connect_ml") return typeof c.label === "string";
+  if (c.type === "open_showcase") return typeof c.label === "string";
   return false;
 };
 
@@ -141,10 +147,10 @@ const descreverPagina = (pathname: string): { rota: string; nome: string } => {
   return { rota: pathname, nome: encontrado?.[1] ?? "uma tela do painel" };
 };
 
-/** O guia se identifica pelo marcador "Passo N de 4" na última fala do Atlas. */
+/** O guia se identifica pelo marcador "Passo N de 5" na última fala do Atlas. */
 export const guiaEstaAtivo = (mensagens: AtlasMessage[]) => {
   const ultimaDoAtlas = [...mensagens].reverse().find((m) => m.role === "assistant");
-  return /passo\s*[1-4]\s*de\s*4/i.test(ultimaDoAtlas?.content ?? "");
+  return /passo\s*[1-5]\s*de\s*5/i.test(ultimaDoAtlas?.content ?? "");
 };
 
 /**
@@ -186,7 +192,9 @@ type AtlasChatContextValue = {
    * grade inteira do catálogo.
    */
   vitrineAberta: boolean;
-  abrirVitrine: () => void;
+  /** Nicho confirmado no guia; a vitrine cruza ele com o perfil do cadastro. */
+  nichoDaVitrine: NichoDaVitrine | null;
+  abrirVitrine: (nicho?: NichoDaVitrine | null) => void;
   fecharVitrine: () => void;
   abrir: () => void;
   abrirLateral: () => void;
@@ -216,8 +224,12 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const [erro, setErro] = useState<string | null>(null);
   const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoDoGuia | null>(null);
   const [vitrineAberta, setVitrineAberta] = useState(false);
+  const [nichoDaVitrine, setNichoDaVitrine] = useState<NichoDaVitrine | null>(null);
   const [quota, setQuota] = useState<AtlasQuota | null>(null);
-  const abrirVitrine = useCallback(() => setVitrineAberta(true), []);
+  const abrirVitrine = useCallback((nicho?: NichoDaVitrine | null) => {
+    if (nicho !== undefined) setNichoDaVitrine(nicho);
+    setVitrineAberta(true);
+  }, []);
   const fecharVitrine = useCallback(() => setVitrineAberta(false), []);
 
   const paginaAtual = useMemo(() => {
@@ -258,6 +270,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     setRotaDeAbertura(null);
     setProdutoSelecionado(null);
     setVitrineAberta(false);
+    setNichoDaVitrine(null);
   }, []);
 
   const enviar = useCallback(
@@ -352,7 +365,18 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
           .eq("id", idDaThread);
 
         void queryClient.invalidateQueries({ queryKey: atlasThreadsQueryKey(user.id) });
-        if (sessaoRef.current === sessionId) setMensagens((atual) => [...atual, salva as AtlasMessage]);
+        if (sessaoRef.current === sessionId) {
+          setMensagens((atual) => [...atual, salva as AtlasMessage]);
+          // O guia manda abrir a vitrine ao confirmar o nicho: o modal aparece
+          // sozinho, sem depender de o usuário achar o botão na mensagem.
+          const pedidoDeVitrine = acoes.find(
+            (acao): acao is AtlasOpenShowcaseAction => acao.type === "open_showcase",
+          );
+          if (pedidoDeVitrine) {
+            setNichoDaVitrine(pedidoDeVitrine.niche ?? null);
+            setVitrineAberta(true);
+          }
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Não foi possível conversar com o Atlas";
         if (sessaoRef.current === sessionId) setErro(msg);
@@ -435,7 +459,9 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       produtoSelecionado,
       selecionarProduto,
       vitrineAberta,
+      nichoDaVitrine,
       abrirVitrine,
+
       fecharVitrine,
       abrir,
       abrirLateral,
@@ -447,7 +473,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     }),
     [
       aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual, quota,
-      produtoSelecionado, selecionarProduto, vitrineAberta, abrirVitrine, fecharVitrine,
+      produtoSelecionado, selecionarProduto, vitrineAberta, nichoDaVitrine, abrirVitrine, fecharVitrine,
       abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
     ],
   );
