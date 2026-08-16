@@ -149,15 +149,6 @@ const MarcarAppCarregado = () => {
   return null;
 };
 
-/** Anima a entrada do conteúdo a cada troca de rota. */
-const RouteTransition = ({ children }: { children: React.ReactNode }) => {
-  const { pathname } = useLocation();
-  return (
-    <div key={pathname} className="animate-fade-in">
-      {children}
-    </div>
-  );
-};
 
 const DashboardShell = () => (
   <ProfileProvider>
