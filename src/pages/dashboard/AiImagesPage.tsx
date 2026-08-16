@@ -675,6 +675,7 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onSelect={(item) => {
           setProduto(item);
+          inserirFicha("@produto");
           setMenu(null);
         }}
       />
@@ -687,10 +688,12 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onClear={() => {
           setAvatarId(null);
+          removerFicha("@avatar");
           setMenu(null);
         }}
         onSelect={(id) => {
           setAvatarId(id);
+          inserirFicha("@avatar");
           setMenu(null);
         }}
         onCreate={() => {
