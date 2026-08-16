@@ -521,8 +521,18 @@ const createServiceClient = () => {
  * Lido de forma defensiva: se o gateway parar de mandar algum campo, o registro
  * entra com null em vez de derrubar a resposta do chat.
  */
-/** Um lugar só para o nome do modelo, para o log nunca divergir da chamada. */
+/** Modelo padrão quando a heurística de roteamento não escolhe outro. */
 const MODELO_DO_ATLAS = "google/gemini-2.5-flash";
+
+/**
+ * System prompt congelado.
+ *
+ * Montado uma única vez por instância e reutilizado byte a byte em todo request:
+ * é isso que permite ao provedor reconhecer o prefixo e cobrar cache em vez de
+ * entrada nova. Nada variável (página atual, produto, resumo) entra aqui — vai
+ * em mensagens posteriores, depois do bloco fixo.
+ */
+const ATLAS_SYSTEM_PROMPT = buildAtlasSystemPrompt();
 
 type UsoDoModelo = {
   entrada: number | null;
