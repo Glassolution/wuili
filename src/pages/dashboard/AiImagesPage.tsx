@@ -6,9 +6,11 @@ import {
   Check,
   Crop,
   Download,
+  Expand,
   Loader2,
   Megaphone,
   Palette,
+  RefreshCw,
   Search,
   Sparkles,
   Tag,
@@ -230,6 +232,8 @@ const AiImagesPage = () => {
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
+  const [resumo, setResumo] = useState<{ prompt: string; produto?: string; avatar?: string } | null>(null);
+  const [visualizando, setVisualizando] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
 
   const avatar = useMemo(() => characters.find((c) => c.id === avatarId) ?? null, [characters, avatarId]);
@@ -412,6 +416,11 @@ const AiImagesPage = () => {
       const imagem = resposta?.imageDataUrl;
       if (!imagem) throw new Error(resposta?.error ?? "A IA não devolveu imagem.");
       setResultado(imagem);
+      setResumo({
+        prompt: promptFinal,
+        produto: produto?.title ? nomeCurto(produto.title, 40) : undefined,
+        avatar: avatar?.name ? nomeCurto(avatar.name, 28) : undefined,
+      });
       veloToast.success("Imagem pronta.");
     } catch (erro) {
       console.error("Falha ao gerar a imagem:", erro);
@@ -709,7 +718,7 @@ const AiImagesPage = () => {
             ) : null}
           </AnimatePresence>
 
-          {/* Resultado */}
+          {/* Resultado — duas colunas: resumo/ações à esquerda, imagem à direita */}
           <AnimatePresence>
             {resultado && !gerando ? (
               <motion.div
@@ -717,29 +726,117 @@ const AiImagesPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                className="mt-8 w-full max-w-[820px] overflow-hidden rounded-[16px] border border-black/[0.07] bg-white p-4 shadow-[0_2px_10px_rgba(10,10,10,0.05)]"
+                className="mt-8 grid w-full max-w-[1000px] grid-cols-1 items-start gap-4 lg:grid-cols-[320px_minmax(0,1fr)]"
               >
-                <div className="flex items-center justify-between gap-3 pb-3">
-                  <p className="text-[14px] font-semibold">Imagem gerada</p>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={resultado}
-                      download={`${produto?.title ?? "produto"}.png`}
-                      className="flex h-9 items-center gap-2 rounded-full border border-black/[0.08] px-3.5 text-[13px] font-semibold transition hover:bg-black/[0.04]"
-                    >
-                      <Download size={14} /> Baixar
-                    </a>
+                {/* Coluna esquerda: resumo + ações */}
+                <div className="rounded-[16px] border border-black/[0.07] bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[14px] font-semibold">Imagem gerada</p>
                     <button
                       type="button"
-                      onClick={() => setResultado(null)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-black/45 transition hover:bg-black/[0.05] hover:text-[#101114]"
+                      onClick={() => {
+                        setResultado(null);
+                        setResumo(null);
+                      }}
+                      className="-mr-1 -mt-1 flex h-8 w-8 items-center justify-center rounded-full text-black/45 transition hover:bg-black/[0.05] hover:text-[#101114]"
                       aria-label="Descartar imagem"
                     >
                       <X size={16} />
                     </button>
                   </div>
+
+                  <dl className="mt-3 space-y-2.5">
+                    {resumo?.produto ? (
+                      <div className="flex items-start gap-2 text-[13px]">
+                        <dt className="w-[62px] shrink-0 text-black/45">Produto</dt>
+                        <dd className="min-w-0 flex-1 font-medium text-[#101114]">{resumo.produto}</dd>
+                      </div>
+                    ) : null}
+                    {resumo?.avatar ? (
+                      <div className="flex items-start gap-2 text-[13px]">
+                        <dt className="w-[62px] shrink-0 text-black/45">Avatar</dt>
+                        <dd className="min-w-0 flex-1 font-medium text-[#101114]">{resumo.avatar}</dd>
+                      </div>
+                    ) : null}
+                    <div className="flex items-start gap-2 text-[13px]">
+                      <dt className="w-[62px] shrink-0 text-black/45">Estilo</dt>
+                      <dd className="min-w-0 flex-1 font-medium text-[#101114]">{estilo}</dd>
+                    </div>
+                  </dl>
+
+                  {resumo?.prompt ? (
+                    <div className="mt-3 rounded-[12px] border border-black/[0.06] bg-[#F7F7F9] p-3">
+                      <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-black/40">Prompt</p>
+                      <p className="mt-1 text-[13px] leading-[1.55] text-black/70">{resumo.prompt}</p>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setVisualizando(true)}
+                      className="flex h-9 w-full items-center justify-center gap-2 rounded-full border border-black/[0.08] text-[13px] font-semibold transition hover:bg-black/[0.04]"
+                    >
+                      <Expand size={14} /> Visualizar
+                    </button>
+                    <a
+                      href={resultado}
+                      download={`${produto?.title ?? "produto"}.png`}
+                      className="flex h-9 w-full items-center justify-center gap-2 rounded-full border border-black/[0.08] text-[13px] font-semibold transition hover:bg-black/[0.04]"
+                    >
+                      <Download size={14} /> Baixar
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => void gerar()}
+                      className="flex h-9 w-full items-center justify-center gap-2 rounded-full bg-[#101114] text-[13px] font-semibold text-white transition hover:bg-black"
+                    >
+                      <RefreshCw size={14} /> Regenerar
+                    </button>
+                  </div>
                 </div>
-                <img src={resultado} alt="Imagem de produto gerada por IA" className="w-full rounded-[12px]" />
+
+                {/* Coluna direita: imagem em destaque */}
+                <button
+                  type="button"
+                  onClick={() => setVisualizando(true)}
+                  className="block w-full overflow-hidden rounded-[16px] border border-black/[0.07] bg-white p-2 outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+                  aria-label="Abrir imagem em tamanho maior"
+                >
+                  <img
+                    src={resultado}
+                    alt="Imagem de produto gerada por IA"
+                    className="max-h-[620px] w-full rounded-[12px] object-contain"
+                  />
+                </button>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          {/* Visualização em tamanho maior */}
+          <AnimatePresence>
+            {visualizando && resultado ? (
+              <motion.div
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setVisualizando(false)}
+                className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-6"
+              >
+                <img
+                  src={resultado}
+                  alt="Imagem gerada em tamanho maior"
+                  onClick={(e) => e.stopPropagation()}
+                  className="max-h-[90vh] max-w-[90vw] rounded-[16px] object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={() => setVisualizando(false)}
+                  className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-[#101114] transition hover:bg-white"
+                  aria-label="Fechar visualização"
+                >
+                  <X size={18} />
+                </button>
               </motion.div>
             ) : null}
           </AnimatePresence>
