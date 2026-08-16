@@ -975,7 +975,7 @@ const askBeginnerNiche = async (supabase: ServiceClient, nome: string | null = n
 
   return {
     message:
-      `Bora, ${nome ? `${nome}` : "vamos juntos"}! 🎉 Uma coisa de cada vez até o seu primeiro anúncio no ar.\n\n**Passo 1 de 5: seu nicho**\n\n**Nicho** é o tipo de produto que você escolhe pra vender, tipo pets, beleza ou casa.\n\nEscolher um agora te poupa trabalho depois: você aprende sobre um público só e repete o que funciona.\n\nOlhei ${sourceLabel} e separei o que está saindo bem por lá.\n\nEscolhe uma opção aqui embaixo, ou me diz outro nicho que você já tem em mente.`,
+      `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 5: seu nicho**\n\nOlhei ${sourceLabel} e separei o que está saindo bem. Escolhe uma opção abaixo, ou me diz outro nicho que você já tem em mente.`,
     actions: [
       ...suggestions.map((label) => quickReply(label, `Quero começar com ${label}`)),
       quickReply("Ainda não sei", "Ainda não sei qual nicho escolher"),
