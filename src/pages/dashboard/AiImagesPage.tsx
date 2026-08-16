@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import AiImageProgress from "@/components/dashboard/AiImageProgress";
 import { useCharacterLibrary } from "@/components/dashboard/AICharacterCreator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -390,7 +391,6 @@ const AiImagesPage = () => {
     setGerando(true);
     setResultado(null);
     const promptFinal = prompt.trim() || EXEMPLOS_DE_PROMPT[exemploIndex];
-    const aviso = veloToast.loading("Gerando a imagem...");
     try {
       const { data, error } = await supabase.functions.invoke("generate-product-image", {
         body: {
@@ -412,12 +412,11 @@ const AiImagesPage = () => {
       const imagem = resposta?.imageDataUrl;
       if (!imagem) throw new Error(resposta?.error ?? "A IA não devolveu imagem.");
       setResultado(imagem);
-      veloToast.success("Imagem pronta.", { id: aviso });
+      veloToast.success("Imagem pronta.");
     } catch (erro) {
       console.error("Falha ao gerar a imagem:", erro);
       veloToast.error(
         erro instanceof Error && erro.message ? erro.message : "Não foi possível gerar a imagem agora.",
-        { id: aviso },
       );
     } finally {
       setGerando(false);
@@ -698,9 +697,21 @@ const AiImagesPage = () => {
             </div>
           </div>
 
+          {/* Carregamento com etapas — substitui o antigo toast "Gerando a imagem..." */}
+          <AnimatePresence>
+            {gerando ? (
+              <AiImageProgress
+                key="progresso"
+                comAvatar={Boolean(avatar)}
+                modo={modo}
+                produtoTitulo={produto ? nomeCurto(produto.title, 28) : undefined}
+              />
+            ) : null}
+          </AnimatePresence>
+
           {/* Resultado */}
           <AnimatePresence>
-            {resultado ? (
+            {resultado && !gerando ? (
               <motion.div
                 initial={reduceMotion ? false : { opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
