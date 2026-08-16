@@ -349,7 +349,7 @@ const AtlasChatPage = () => {
               <button
                 key={`${action.type}-${action.route}-${index}`}
                 type="button"
-                onClick={() => navigate(action.route)}
+                onClick={() => void navegarPeloAtlas(action.route)}
                 className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3 py-1.5 text-left text-[12px] font-semibold text-neutral-700 shadow-[0_4px_14px_rgba(0,0,0,0.04)] transition-colors hover:bg-neutral-50"
               >
                 <ArrowRight className="h-3.5 w-3.5 text-[#351078]" />
@@ -415,7 +415,7 @@ const AtlasChatPage = () => {
               <button
                 key={`atalho-${action.route}-${index}`}
                 type="button"
-                onClick={() => navigate(action.route)}
+                onClick={() => void navegarPeloAtlas(action.route)}
                 className="inline-flex max-w-full items-center gap-1.5 rounded-full border !border-[#D8E4FB] bg-[#F0F5FF] px-2.5 py-[6px] text-[12px] font-medium tracking-[-0.01em] text-[#1D4ED8] transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:!border-[#B9CFF8] hover:bg-[#E4EDFF]"
               >
                 <ArrowUpRight className="h-3 w-3 shrink-0 text-[#2563EB]/70" strokeWidth={2.2} aria-hidden />
