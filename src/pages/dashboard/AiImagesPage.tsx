@@ -391,7 +391,6 @@ const AiImagesPage = () => {
     setGerando(true);
     setResultado(null);
     const promptFinal = prompt.trim() || EXEMPLOS_DE_PROMPT[exemploIndex];
-    const aviso = veloToast.loading("Gerando a imagem...");
     try {
       const { data, error } = await supabase.functions.invoke("generate-product-image", {
         body: {
@@ -413,12 +412,11 @@ const AiImagesPage = () => {
       const imagem = resposta?.imageDataUrl;
       if (!imagem) throw new Error(resposta?.error ?? "A IA não devolveu imagem.");
       setResultado(imagem);
-      veloToast.success("Imagem pronta.", { id: aviso });
+      veloToast.success("Imagem pronta.");
     } catch (erro) {
       console.error("Falha ao gerar a imagem:", erro);
       veloToast.error(
         erro instanceof Error && erro.message ? erro.message : "Não foi possível gerar a imagem agora.",
-        { id: aviso },
       );
     } finally {
       setGerando(false);
