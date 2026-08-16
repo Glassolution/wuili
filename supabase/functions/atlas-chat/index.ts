@@ -1381,6 +1381,19 @@ const maybeHandleBeginnerGuide = async (
     });
   }
 
+  // Quem prefere garimpar sozinho sai da vitrine para a grade inteira, sem
+  // perder o guia: o produto escolhido no catálogo volta pelo mesmo caminho.
+  if (emPasso(2) && /catalogo completo/.test(normalizeGuideText(lastUserMessage))) {
+    return {
+      message:
+        "Fechado, vamos pelo catálogo completo. 😉\n\n**Passo 2 de 5: escolha do produto**\n\nAbra o catálogo, use os filtros e escolha o produto que mais te agradar. Quando clicar em escolher, eu sigo o guia com ele daqui.",
+      actions: [
+        { type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo", variant: "primary" },
+        quickReply("Prefiro a seleção do Atlas", "Ver outras opções de produto"),
+      ],
+    };
+  }
+
   // Passo 2 sem cards: a vitrine é o caminho. Se ela foi fechada sem escolha, o
   // usuário pede de volta e o guia reabre em vez de travar.
   if (emPasso(2) && lastProductCards.length === 0 && (isConfirmText(lastUserMessage) || wantsOtherOptions(lastUserMessage))) {
