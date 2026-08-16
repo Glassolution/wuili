@@ -698,9 +698,21 @@ const AiImagesPage = () => {
             </div>
           </div>
 
+          {/* Carregamento com etapas — substitui o antigo toast "Gerando a imagem..." */}
+          <AnimatePresence>
+            {gerando ? (
+              <AiImageProgress
+                key="progresso"
+                comAvatar={Boolean(avatar)}
+                modo={modo}
+                produtoTitulo={produto ? nomeCurto(produto.title, 28) : undefined}
+              />
+            ) : null}
+          </AnimatePresence>
+
           {/* Resultado */}
           <AnimatePresence>
-            {resultado ? (
+            {resultado && !gerando ? (
               <motion.div
                 initial={reduceMotion ? false : { opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
