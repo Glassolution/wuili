@@ -39,9 +39,24 @@ export type AtlasQuota = {
   permitido: boolean;
 };
 
-const inicioDoDiaUTC = () => {
-  const agora = new Date();
-  return new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate())).toISOString();
+/** Brasília não tem mais horário de verão: UTC-3 fixo. */
+const OFFSET_BRASILIA_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Começo do dia no horário de Brasília, devolvido em UTC.
+ *
+ * O usuário enxerga o dia dele, não o dia UTC: resetar à meia-noite UTC
+ * zerava a cota às 21h de Brasília, no meio da noite de trabalho dele.
+ */
+const inicioDoDiaBrasilia = () => {
+  const agora = Date.now();
+  const emBrasilia = new Date(agora - OFFSET_BRASILIA_MS);
+  const meiaNoiteBrasilia = Date.UTC(
+    emBrasilia.getUTCFullYear(),
+    emBrasilia.getUTCMonth(),
+    emBrasilia.getUTCDate(),
+  );
+  return new Date(meiaNoiteBrasilia + OFFSET_BRASILIA_MS).toISOString();
 };
 
 const normalizarPlano = (valor: unknown) => {
@@ -82,7 +97,7 @@ export const checarQuotaAtlas = async (supabase: Client, userId: string): Promis
       .eq("user_id", userId)
       .eq("origem", "modelo")
       .neq("etapa", ATLAS_ETAPA_RESUMO)
-      .gte("created_at", inicioDoDiaUTC());
+      .gte("created_at", inicioDoDiaBrasilia());
 
     if (error) {
       console.error("atlas quota leitura falhou", error.message);
