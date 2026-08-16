@@ -99,7 +99,7 @@ const CardEsqueleto = () => (
 const AtlasProductShowcase = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { vitrineAberta, fecharVitrine, selecionarProduto, enviando } = useAtlasChat();
+  const { vitrineAberta, fecharVitrine, selecionarProduto, enviando, nichoDaVitrine } = useAtlasChat();
   const reduzirMovimento = useReducedMotion();
 
   const [produtos, setProdutos] = useState<ProdutoDaVitrine[]>([]);
@@ -141,6 +141,10 @@ const AtlasProductShowcase = () => {
       const abertoEm = Date.now();
       try {
         const categorias = categoriasDoPerfil(respostas);
+        // Termos do nicho confirmado na conversa com o Atlas. Eles têm prioridade
+        // sobre o perfil do cadastro: o nicho é a escolha mais recente e mais
+        // explícita que o usuário fez.
+        const termosDoNicho = nichoDaVitrine?.catalogTerms ?? [];
 
         // Duas consultas: a do nicho declarado e a geral. A geral entra como
         // complemento porque o nicho pode ter poucos produtos com estoque, e a
@@ -153,7 +157,15 @@ const AtlasProductShowcase = () => {
             .gt("stock_quantity", 0)
             .not("category", "in", `(${CATEGORIAS_EXCLUIDAS.map((c) => `"${c}"`).join(",")})`);
 
-        const [doNicho, gerais] = await Promise.all([
+        const [doNichoDaConversa, doNicho, gerais] = await Promise.all([
+          termosDoNicho.length > 0
+            ? withFreshSupabaseSession(() =>
+                base()
+                  .or(termosDoNicho.map((termo) => `category.ilike.%${termo}%,title.ilike.%${termo}%`).join(","))
+                  .order("orders_count", { ascending: false, nullsFirst: false })
+                  .limit(60),
+              )
+            : Promise.resolve({ data: [], error: null }),
           categorias.length > 0
             ? withFreshSupabaseSession(() => base().in("category", categorias).limit(60))
             : Promise.resolve({ data: [], error: null }),
@@ -162,11 +174,20 @@ const AtlasProductShowcase = () => {
           ),
         ]);
 
+        if (doNichoDaConversa.error) throw doNichoDaConversa.error;
         if (doNicho.error) throw doNicho.error;
         if (gerais.error) throw gerais.error;
 
+        const idsDoNichoDaConversa = new Set(
+          ((doNichoDaConversa.data as LinhaDoCatalogo[]) ?? []).map((linha) => linha.id),
+        );
+
         const porId = new Map<string, LinhaDoCatalogo>();
-        for (const linha of [...((doNicho.data as LinhaDoCatalogo[]) ?? []), ...((gerais.data as LinhaDoCatalogo[]) ?? [])]) {
+        for (const linha of [
+          ...((doNichoDaConversa.data as LinhaDoCatalogo[]) ?? []),
+          ...((doNicho.data as LinhaDoCatalogo[]) ?? []),
+          ...((gerais.data as LinhaDoCatalogo[]) ?? []),
+        ]) {
           if (!porId.has(linha.id)) porId.set(linha.id, linha);
         }
 
@@ -183,7 +204,11 @@ const AtlasProductShowcase = () => {
               rating: linha.rating,
               ordersCount: linha.orders_count,
             };
-            return { produto, pontos: pontuarProdutoParaPerfil(produto, respostas) };
+            // O bônus mantém o nicho confirmado no topo sem descartar o perfil:
+            // a ordem final é nicho primeiro, e dentro dele o que combina com
+            // as respostas do cadastro.
+            const bonusDoNicho = idsDoNichoDaConversa.has(linha.id) ? 100 : 0;
+            return { produto, pontos: pontuarProdutoParaPerfil(produto, respostas) + bonusDoNicho };
           })
           .filter((item): item is { produto: Omit<ProdutoDaVitrine, "motivo">; pontos: number } => Boolean(item))
           .sort((a, b) => b.pontos - a.pontos)
@@ -209,7 +234,7 @@ const AtlasProductShowcase = () => {
     return () => {
       ativo = false;
     };
-  }, [vitrineAberta, respostas]);
+  }, [vitrineAberta, respostas, nichoDaVitrine]);
 
   const irPara = useCallback(
     (proximo: number) => {
@@ -279,7 +304,7 @@ const AtlasProductShowcase = () => {
                 Encontrei esses produtos para você
               </h2>
               <p className="mt-0.5 text-[11.5px] leading-[16px] text-white/65">
-                {carregando ? ETAPAS_DA_BUSCA[etapa] : resumo}
+                {carregando ? ETAPAS_DA_BUSCA[etapa] : nichoDaVitrine ? `${nichoDaVitrine.label} • ${resumo}` : resumo}
               </p>
             </header>
 
