@@ -499,9 +499,10 @@ const LoginPage = () => {
         {/* -mx-4 cancela o respiro lateral do aside só nesta faixa: o print
             aproveita a largura inteira do painel; a legenda continua recuada.
             `flex-1` em vez de altura fixa: o print fica com todo o espaço que
-            sobra depois da legenda, em qualquer altura de tela. `items-end`
-            ancora a imagem embaixo, encostando na legenda. */}
-        <div className="relative -mx-4 flex min-h-0 w-[calc(100%+32px)] flex-1 items-end justify-center">
+            sobra depois da legenda, em qualquer altura de tela. `items-start`
+            ancora todos os prints pelo topo — como as proporções são diferentes,
+            alinhar pela base fazia os deitados parecerem caídos. */}
+        <div className="relative -mx-4 flex min-h-0 w-[calc(100%+32px)] flex-1 items-start justify-center">
           {/* Sem `mode="wait"`: os dois prints coexistem durante a troca, um
               saindo para a esquerda enquanto o outro entra pela direita. Com
               wait, a imagem ficava meio segundo atrás da legenda. */}
@@ -514,9 +515,10 @@ const LoginPage = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -70 }}
               transition={{ duration: 0.5, ease }}
-              // `contain` porque os prints têm proporções diferentes — com
-              // `cover` o print deitado perderia metade da tabela no corte.
-              className="absolute bottom-0 max-h-full max-w-full object-contain"
+              // `contain` + topo fixo: os quatro slides começam na mesma altura
+              // e com a mesma largura. `cover` deixaria todos do mesmo tamanho,
+              // mas cortaria metade da largura dos prints deitados.
+              className="absolute left-0 right-0 top-0 mx-auto max-h-full max-w-full object-contain object-top"
             />
           </AnimatePresence>
         </div>
