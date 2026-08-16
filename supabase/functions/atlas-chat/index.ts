@@ -605,7 +605,7 @@ const registrarUso = (registro: RegistroDeUso) => {
  * espalhar parâmetro por todas as funções que montam resposta.
  */
 const etapaDaRespostaDoGuia = (resposta: AtlasResponse) => {
-  const passo = resposta.message.match(/passo\s*([1-4])\s*de\s*4/i);
+  const passo = resposta.message.match(/passo\s*([1-5])\s*de\s*5/i);
   return passo ? `guia_passo_${passo[1]}` : "guia_outro";
 };
 

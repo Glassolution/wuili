@@ -141,10 +141,10 @@ const descreverPagina = (pathname: string): { rota: string; nome: string } => {
   return { rota: pathname, nome: encontrado?.[1] ?? "uma tela do painel" };
 };
 
-/** O guia se identifica pelo marcador "Passo N de 4" na última fala do Atlas. */
+/** O guia se identifica pelo marcador "Passo N de 5" na última fala do Atlas. */
 export const guiaEstaAtivo = (mensagens: AtlasMessage[]) => {
   const ultimaDoAtlas = [...mensagens].reverse().find((m) => m.role === "assistant");
-  return /passo\s*[1-4]\s*de\s*4/i.test(ultimaDoAtlas?.content ?? "");
+  return /passo\s*[1-5]\s*de\s*5/i.test(ultimaDoAtlas?.content ?? "");
 };
 
 /**
