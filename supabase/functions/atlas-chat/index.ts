@@ -15,6 +15,10 @@ import {
   type ValidatedNiche,
 } from "../_shared/atlas-beginner-guide.ts";
 import { atlasRouteTagPromptSection } from "../_shared/atlas-route-tags.ts";
+import { resolveAtlasFaq } from "../_shared/atlas-faq.ts";
+import { checarQuotaAtlas, mensagemDeQuotaEsgotada, ATLAS_ETAPA_RESUMO } from "../_shared/atlas-quota.ts";
+import { montarJanelaDeContexto, MODELO_RESUMO } from "../_shared/atlas-context.ts";
+import { escolherModeloDoAtlas } from "../_shared/atlas-router.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
