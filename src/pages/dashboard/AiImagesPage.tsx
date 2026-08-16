@@ -88,9 +88,29 @@ type Ficha = { texto: string; cor: string };
 const escaparRegex = (valor: string) => valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * Pinta as fichas dentro do texto. O destaque usa padding com margem negativa
- * para não alterar a largura do texto — assim o cursor do textarea transparente
- * continua alinhado com o que aparece na tela.
+ * Encurta o nome do item para virar uma ficha legível no prompt: nomes de
+ * catálogo são enormes e o destaque tomava a linha inteira.
+ */
+const nomeCurto = (valor: string, limite = 22) => {
+  const limpo = valor.replace(/\s+/g, " ").trim();
+  if (limpo.length <= limite) return limpo;
+  const palavras = limpo.split(" ");
+  let saida = "";
+  for (const palavra of palavras) {
+    if (!saida) {
+      saida = palavra.slice(0, limite);
+      continue;
+    }
+    if (`${saida} ${palavra}`.length > limite) break;
+    saida = `${saida} ${palavra}`;
+  }
+  return saida;
+};
+
+/**
+ * Pinta as fichas dentro do texto. O destaque não usa padding nem margem: o
+ * "respiro" vem de um box-shadow com spread, então as métricas do texto ficam
+ * idênticas às do textarea transparente e o cursor continua alinhado.
  */
 const renderPromptParts = (texto: string, fichas: Ficha[], subdued = false) => {
   const alvos = fichas.filter((f) => f.texto.trim().length > 1).sort((a, b) => b.texto.length - a.texto.length);
@@ -104,8 +124,12 @@ const renderPromptParts = (texto: string, fichas: Ficha[], subdued = false) => {
       return (
         <span
           key={indice}
-          className="-mx-1.5 rounded-[6px] px-1.5 py-0.5 font-medium"
-          style={{ backgroundColor: `${ficha.cor}1A`, color: ficha.cor }}
+          className="rounded-[5px]"
+          style={{
+            backgroundColor: `${ficha.cor}1A`,
+            color: ficha.cor,
+            boxShadow: `0 0 0 3px ${ficha.cor}1A`,
+          }}
         >
           {parte}
         </span>
@@ -118,6 +142,7 @@ const renderPromptParts = (texto: string, fichas: Ficha[], subdued = false) => {
     );
   });
 };
+
 
 /** Caixa flutuante dos seletores da barra de ferramentas. */
 const Popover = ({
