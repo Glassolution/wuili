@@ -992,8 +992,19 @@ const validateNicheStep = async (
   nome: string | null = null,
 ): Promise<AtlasResponse> => {
   const signal = await researchSingleNiche(niche, supabase);
-  const demandText = signal.demand >= 70 ? "boa demanda" : signal.demand >= 45 ? "demanda moderada" : "demanda mais específica";
-  const competitionText = signal.competition >= 70 ? "concorrência alta" : signal.competition >= 45 ? "concorrência média" : "concorrência menor";
+  // Só o nível, sem repetir o rótulo da linha ("Demanda: demanda moderada").
+  const demandText =
+    signal.demand >= 70
+      ? "alta — muita gente procurando"
+      : signal.demand >= 45
+        ? "média — procura constante"
+        : "mais específica — público menor, porém fiel";
+  const competitionText =
+    signal.competition >= 70
+      ? "alta — precisa caprichar no anúncio"
+      : signal.competition >= 45
+        ? "média — dá pra brigar bem"
+        : "baixa — espaço pra aparecer rápido";
 
   // Nicho sem produto no catálogo não passa daqui. Confirmar levaria a um passo 2
   // sem nada para escolher, e o usuário perderia a viagem.
