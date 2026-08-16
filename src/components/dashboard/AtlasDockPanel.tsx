@@ -252,6 +252,7 @@ const AtlasDockPanel = () => {
             clipPath: { duration: reduzirMovimento ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] },
             opacity: { duration: reduzirMovimento ? 0 : 0.24, ease: "easeOut" },
           }}
+          data-atlas-chat
           style={
             lateral
               ? {
