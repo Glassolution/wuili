@@ -204,6 +204,8 @@ type AtlasChatContextValue = {
   novaConversa: () => void;
   enviar: (texto: string, produtoDoCatalogo?: ProdutoDoGuia) => Promise<void>;
   abrirConversa: (threadId: string) => Promise<void>;
+  /** Navegação por link interno (#catalogo etc.) preservando a conversa. */
+  navegarPorLink: (rota: string) => Promise<void>;
   aoApagarConversa: (threadId: string) => void;
 };
 
@@ -222,10 +224,45 @@ const MENSAGEM_ANDRYA =
   "Andrya 💚\n\nTem nome que muda o clima da conversa — esse é um deles. Alguém aí gosta MUITO dela, e dá pra sentir daqui.\n\nEntão vai um pouquinho de festa por conta da casa: Andrya, você é especial. 🎆";
 
 
+/**
+ * Mensagem que o Atlas manda sozinho depois de uma navegação por link interno.
+ * É texto fixo de propósito: não gasta cota nem chamada de IA, e o próximo
+ * passo de cada tela é sempre o mesmo.
+ */
+const PROXIMO_PASSO: Array<[RegExp, string]> = [
+  [/^\/dashboard\/catalogo\/[^/]+/, "Aqui você vê preço, margem e fotos. Se fizer sentido, clique em **Importar produto** e eu sigo com você na publicação."],
+  [/^\/dashboard\/catalogo/, "Use os filtros de **categoria** e **preço** para achar algo com boa margem, abra o produto e clique em **Importar produto**."],
+  [/^\/dashboard\/produtos-em-alta/, "Esses são os produtos com mais procura agora. Escolha um que combine com o seu público e importe."],
+  [/^\/dashboard\/paginas-com-ia/, "Clique em **Criar página** e escolha o produto: a IA escreve o texto de venda para você revisar."],
+  [/^\/dashboard\/modelos/, "Escolha um template que combine com o seu produto e clique em **Usar este modelo**."],
+  [/^\/dashboard\/publicacoes/, "Aqui ficam seus anúncios. Confira se algum está **pausado** e resolva o motivo apontado no card."],
+  [/^\/dashboard\/produtos-ml/, "Esses são os anúncios sincronizados do Mercado Livre. Verifique estoque e preço."],
+  [/^\/dashboard\/pedidos/, "Aqui aparecem suas vendas. Ao receber um pedido, é só repassar ao fornecedor pelo botão no card."],
+  [/^\/dashboard\/imagens-ia/, "Envie a foto do produto e a IA gera versões prontas para o anúncio."],
+  [/^\/dashboard\/tiktok/, "Crie um personagem de IA e gere vídeos curtos para divulgar o seu produto."],
+  [/^\/dashboard\/integracoes/, "Clique em **Conectar** no Mercado Livre para autorizar sua conta — leva menos de um minuto."],
+  [/^\/dashboard\/pagamentos/, "Configure aqui como você recebe. Depois disso o checkout já fica ativo."],
+  [/^\/dashboard\/planos/, "Compare os planos e escolha o que cabe agora — dá para trocar depois."],
+  [/^\/dashboard\/saldos/, "Aqui fica o seu saldo disponível e o que ainda está a liberar."],
+  [/^\/dashboard\/transacoes/, "Confira as entradas e saídas da sua conta por período."],
+  [/^\/dashboard\/configuracoes/, "Ajuste seus dados e preferências e clique em **Salvar** no fim da tela."],
+  [/^\/dashboard\/chat-fornecedores/, "Fale direto com o fornecedor sobre estoque, prazo e envio."],
+  [/^\/dashboard\/resultados/, "Acompanhe visitas e vendas para saber o que vale investir mais."],
+  [/^\/dashboard\/?$/, "De volta ao início. Me diga o que quer fazer agora e eu te levo até lá."],
+];
+
+const mensagemDeContinuidade = (rota: string) => {
+  const nome = descreverPagina(rota).nome;
+  const passo = PROXIMO_PASSO.find(([padrao]) => padrao.test(rota))?.[1];
+  return `Boa, agora você está no **${nome}**. ${passo ?? "Me diga o que quer fazer por aqui que eu te oriento passo a passo."}`;
+};
+
 export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+
 
   const sessaoRef = useRef(0);
   const [aberto, setAberto] = useState(false);
@@ -471,12 +508,59 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     [location.pathname, threadId, user?.id],
   );
 
+  /**
+   * Navegação disparada por link interno (#catalogo e afins) dentro de uma
+   * mensagem do Atlas.
+   *
+   * Antes o link só chamava `navigate`: quem estava no chat em tela cheia
+   * perdia a conversa, porque a página tem estado próprio e o painel lateral
+   * (que vive no layout) subia vazio. Aqui a thread é adotada pelo contexto
+   * antes de navegar, o painel abre em modo lateral e o Atlas manda uma
+   * mensagem de continuidade reconhecendo a página nova.
+   */
+  const navegarPorLink = useCallback(
+    async (rota: string) => {
+      const daPaginaCheia = location.pathname.match(/^\/dashboard\/atlas\/([^/]+)$/)?.[1] ?? null;
+      if (daPaginaCheia && daPaginaCheia !== threadId) {
+        await abrirConversa(daPaginaCheia);
+      }
+      const idAtual = daPaginaCheia ?? threadId;
+
+      setAberto(true);
+      setRotaDeAbertura("__atlas_lateral__");
+      setVitrineAberta(false);
+      navigate(rota);
+
+      const texto = mensagemDeContinuidade(rota);
+      const continuidade: AtlasMessage = {
+        id: `local-nav-${Date.now()}`,
+        role: "assistant",
+        content: texto,
+        created_at: new Date().toISOString(),
+      };
+      setMensagens((atual) => {
+        const ultima = atual[atual.length - 1];
+        if (ultima?.role === "assistant" && ultima.content === texto) return atual;
+        return [...atual, continuidade];
+      });
+
+      if (idAtual && user?.id) {
+        await supabase
+          .from("atlas_messages")
+          .insert({ thread_id: idAtual, user_id: user.id, role: "assistant", content: texto });
+        await supabase.from("atlas_threads").update({ updated_at: new Date().toISOString() }).eq("id", idAtual);
+      }
+    },
+    [abrirConversa, location.pathname, navigate, threadId, user?.id],
+  );
+
   const aoApagarConversa = useCallback(
     (id: string) => {
       if (id === threadId) novaConversa();
     },
     [novaConversa, threadId],
   );
+
 
   const valor = useMemo<AtlasChatContextValue>(
     () => ({
@@ -503,12 +587,13 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       novaConversa,
       enviar,
       abrirConversa,
+      navegarPorLink,
       aoApagarConversa,
     }),
     [
       aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual, quota,
       produtoSelecionado, selecionarProduto, vitrineAberta, nichoDaVitrine, abrirVitrine, fecharVitrine,
-      abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
+      abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, navegarPorLink, aoApagarConversa,
     ],
   );
 
