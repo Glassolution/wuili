@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 
 import { linkifyAtlasRouteTags, resolveAtlasRouteTag } from "@/lib/atlasRouteTags";
+import { useAtlasChat } from "@/contexts/AtlasChatContext";
 
 /**
  * Texto de uma resposta do Atlas.
@@ -17,6 +18,7 @@ import { linkifyAtlasRouteTags, resolveAtlasRouteTag } from "@/lib/atlasRouteTag
  */
 const AtlasMessageText = ({ content, className = "" }: { content: string; className?: string }) => {
   const navigate = useNavigate();
+  const { navegarPorLink } = useAtlasChat();
 
   const AtlasLink = ({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) => {
     // Formato 2: href é uma âncora (#slug) escrita pelo modelo.
@@ -30,7 +32,8 @@ const AtlasMessageText = ({ content, className = "" }: { content: string; classN
           onClick={(event) => {
             if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
             event.preventDefault();
-            navigate(tag.route);
+            // Mantém a conversa viva e avisa o Atlas da nova página.
+            void navegarPorLink(tag.route);
           }}
           className="rounded-[5px] font-medium text-[#2563EB] decoration-[#2563EB]/35 underline-offset-2 transition-colors hover:bg-[#2563EB]/[0.08] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/30"
           {...props}
@@ -57,7 +60,7 @@ const AtlasMessageText = ({ content, className = "" }: { content: string; classN
           // Navegação interna via router: evita recarregar o app inteiro.
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
           event.preventDefault();
-          navigate(href!);
+          void navegarPorLink(href!);
         }}
         className="rounded-[5px] font-medium text-[#2563EB] decoration-[#2563EB]/35 underline-offset-2 transition-colors hover:bg-[#2563EB]/[0.08] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/30"
         {...props}
