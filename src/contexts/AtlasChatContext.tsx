@@ -176,6 +176,8 @@ type AtlasChatContextValue = {
   threadId: string | null;
   guiaAtivo: boolean;
   paginaAtual: { rota: string; nome: string };
+  /** Saldo de mensagens do dia; null enquanto nenhuma resposta chegou ainda. */
+  quota: AtlasQuota | null;
   produtoSelecionado: ProdutoDoGuia | null;
   selecionarProduto: (produto: ProdutoDoGuia) => Promise<void>;
   /**
