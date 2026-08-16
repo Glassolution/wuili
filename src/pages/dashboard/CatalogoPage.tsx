@@ -1610,7 +1610,7 @@ const CatalogoPage = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 xl:grid-cols-4 md:overflow-visible">
+                <div className={recommendationGridClasses}>
                   {recommendationWindow.map((product) => (
                     <ProductCard
                       key={`recommendation-${product.id}`}
